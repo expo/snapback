@@ -288,8 +288,9 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
     } else { scale };
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {scale}")];
     // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — why must describe the same caller authority and whole-recipient meter as the refusal.
-    if program.kind == ProgramKind::Job {
-        lines.push("    system job: helpers share the chunk meter; inner recipient work must fit one chunk even when the outer sweep adapts. An oversized recipient parks with E_BOUND; no partial digest commits. A viewer query calling the helper keeps viewer authority and query bounds; first 50 is only a partial preview (guide jobs)".into());
+    if program.kind == ProgramKind::Job && let Some(p) = bound.programs.iter().find(|p| p.program.name == program.name)
+        && !p.job_bound_helpers.is_empty() {
+        lines.push(format!("    system job: helper(s) {} share the chunk meter; inner recipient work must fit one chunk even when the outer sweep adapts. An oversized recipient parks with E_BOUND; no partial digest commits. A viewer query calling the helper keeps viewer authority and query bounds; first 50 is only a partial preview (guide jobs)", p.job_bound_helpers.iter().cloned().collect::<Vec<_>>().join(", ")));
     }
     for aggregate in &certificate.aggregates { lines.push(format!("    {aggregate}")); }
     for growth in &certificate.growth_sites {
@@ -317,7 +318,7 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
         lines.push("    no explicit reads".into());
     }
     for site in &sites {
-        let hoist = if program.kind == ProgramKind::Job && matches!(site.kind, "scan" | "point") { "system job: read rules pass" } else { match site.kind {
+        let hoist = match site.kind {
             "scan" => {
                 let scan = scans.iter().copied().find(|scan| scan.site == site.site);
                 match scan.map(|scan| scan_visibility(&bound.schema, scan)) {
@@ -330,7 +331,7 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             "point" => "one row, one rule check",
             "write target" => "engine-private lookup; the update rule decides",
             _ => "bounded walk",
-        }};
+        };
         let scan = scans.iter().copied().find(|scan| scan.site == site.site);
         let take = if scan.is_some_and(|scan| scan.take == ir::Bound::Meter) {
             let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };

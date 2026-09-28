@@ -1,5 +1,10 @@
 # Lane DG — audience and helper-bound diagnostics
 
+Round 1 narrows the diagnostic scope after the Astra/Grok reviews; see
+[ROUND1.md](./ROUND1.md) for the fixes, regression evidence and final checks.
+The record below is round 0, including its historical failure ledger and
+the job visibility presentation corrected in round 1.
+
 Implemented LLP 3000.028 §§2.4, 4, 7.4 and 7.5 within the diagnostic lane.
 Branch: `sb4-intent/dg-audience-bound-diagnostics`. First command was
 `git fetch origin && git merge origin/main`; already up to date at

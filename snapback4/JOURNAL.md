@@ -72252,3 +72252,48 @@ path changed. LLP 3000.028 has a Revised line and bounded implementation notes;
 remaining owner-key/history/search/integrated-client work is not claimed here.
 Report and compressed evidence: reports/20260928-dg/REPORT.md. Local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-28 — Lane DG round 1: scope the audience and helper explanations
+
+Fetched and merged origin/main first: already up to date, no conflicts.
+Read the round-0 prompt/report/entry and both full reviews (Astra READY,
+Grok READY WITH CHANGES). Kept the builder's M6/M8 explanations and removed
+their overreach. M6's offline-loss sentence now requires the proved public
+inherited conflict; generic view sync refuses with remove-to-inherit or
+replace-with-online-only. An unsynced public read grants no partition.
+M8's caller chain and partial-total/job explanation now require an active
+helper with a direct or transitive job caller. Ordinary non-uniform queries
+and query-only helpers keep the first-N/cursor or deciding-column repair.
+
+Compiler-only helper metadata restricts the cost paragraph to jobs with
+non-uniform meter reads inside helpers. Each scan and point retains its
+visibility text; the real 16,384-row job ceiling stays. N_MAINTAIN_SYNCED's
+registry definition names no horizon and offline aggregate/absence loss.
+Guide cards and LLP 3000.028 §10/Revised line document the scope. No runtime,
+authority, disclosure, wire/schema format, dependency or budget changes.
+
+New regressions cover unsynced/online-only sources, public conflicts, the
+existing prefix_reads total and merge, query-only helpers, unrelated job
+costs, transitive job calls and a completed sibling helper. Explicit mutations
+all fail: appending the prohibited public-source narrowing sentence, removing
+callee traversal, and removing call_chain.pop. All sources were restored;
+the diagnostic target passes afterward.
+
+Final affected targets: 278 pass, including the whole guide 92/92 and CLI
+75/75; one external full-store witness intentionally ignored (round-0 evidence
+retained). Both ordinary job/preview runtime witnesses pass. The explicit
+diagnostics-registry check passes; ref-check reports 522 LLPs, 9,751 refs,
+zero errors/unchecked. Wasm build passes, byte-identical at 2,019,815 B raw /
+585,384 B gzip (delta 0/0, 809 B under the unchanged budget).
+
+Failure attribution: six pre-fix regression failures reproduce our round-0
+defects. The first affected run had one further failure, our residency exact-text
+expectation still pinning the removed generic sentence; corrected, then all
+40 residency tests passed. Three deliberate mutation assertions fail as intended.
+No baseline or environmental test/build failures. ROUND1.md also records two
+corrected source-path lookup errors and existing baseline compiler warnings.
+
+Did not run scripts/test.sh, per the round-1 instruction; the supervisor's
+landing suite is next. Report: reports/20260928-dg/ROUND1.md, with compressed
+logs and wasm-round1.json. No tools installed, other-lane/shared paths changed,
+push or publication. Local commit carries the co-author trailer.

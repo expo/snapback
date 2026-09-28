@@ -350,8 +350,8 @@ page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
 names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
 its page size. Descending reads keep `last N`.
 
-A helper's viewer-query callers inherit query bounds and viewer authority.
-The refusal stays at the failed loop and names the caller chain. Pinning a
+When a helper is shared with a job, its viewer-query callers inherit query bounds and viewer authority.
+The non-uniform meter refusal stays at the failed loop and names the caller chain. Pinning a
 principal in a membership loop does not decide a conversation-based read rule.
 `first 50` is a partial preview, not an equivalent complete digest: use a
 separately named paged per-chat preview with `c: cursor ?` and follow its

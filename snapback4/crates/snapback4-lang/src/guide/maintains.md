@@ -67,7 +67,7 @@ otherwise the aggregate stays server-only. `online only` opts out.
 
 E_SYNC on a public inherited view names the source, the missing horizon and
 the conflicting explicit read. An owner-only read does not make public sync
-private. E_QUARRY_SYNTAX refuses a separate sync line on the view. Remove that
+private. E_QUARRY_SYNTAX refuses a separate sync line on any view. On this public inherited view, remove that
 line, then keep the public read (or omit it) for the public offline summary,
 or use `online only` and lose offline aggregate/absence coverage. Never narrow
 the public source to make the view private. `guide offline-interactions` is

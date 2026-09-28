@@ -5,7 +5,7 @@ use snapback4_core::schema::{Audience, Schema};
 pub(crate) fn sync_syntax(name: &str, source: &str, site: &Site) -> Diagnostic {
     Diagnostic::new(site, "E_QUARRY_SYNTAX",
         format!("view {name} cannot declare a separate sync audience; it inherits from {source}"),
-        "remove this sync line to inherit; `online only` opts out and loses offline aggregate/absence coverage; guide maintains; guide offline-interactions").guide("maintains")
+        "remove this sync line to inherit, or replace it with `online only`").guide("maintains")
 }
 
 // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — explain both failed edits with the resolved source audience, even across files.

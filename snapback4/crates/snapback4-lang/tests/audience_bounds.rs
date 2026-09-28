@@ -18,6 +18,9 @@ fn refusal(b: &Bound, code: &str) -> Diagnostic {
 fn contains(text: &str, words: &[&str]) {
     for word in words { assert!(text.contains(word), "missing {word}: {text}"); }
 }
+fn excludes(text: &str, words: &[&str]) {
+    for word in words { assert!(!text.contains(word), "unexpected {word}: {text}"); }
+}
 
 #[test]
 fn builder_public_aggregate_refuses_both_edits_and_explains_each_repair() {
@@ -32,6 +35,7 @@ fn builder_public_aggregate_refuses_both_edits_and_explains_each_repair() {
             let d = refusal(&b, if sync { "E_QUARRY_SYNTAX" } else { "E_SYNC" });
             contains(&d.message, &[name, "horizon-free public sync", "no horizon", &format!("from {}", if name == "ownLikes" { "likes" } else { "reposts" }), &format!("read <- .{owner} = viewer"), "cannot declare a separate sync audience"]);
             contains(&d.rewrite, &["read <- allow", "every device", "other viewers' keys", "online only", "lose offline aggregate/absence coverage", "test --residency", "guide maintains", "guide offline-interactions"]);
+            excludes(&d.rewrite.to_lowercase(), &["narrow the public source", "sync privately"]);
             assert_eq!(d.site.line, source.lines().position(|line| line == if sync { format!("  sync to .{owner}") } else { format!("  read <- .{owner} = viewer") }.as_str()).unwrap() as u32 + 1);
             let public = clean(&source.replace(&edit, &format!("{declaration}\n  read <- allow")));
             assert_eq!(public.schema.tables[name], original.schema.tables[name]);
@@ -43,6 +47,22 @@ fn builder_public_aggregate_refuses_both_edits_and_explains_each_repair() {
     let note = original.notes.iter().find(|d| d.code == "N_MAINTAIN_SYNCED").unwrap();
     contains(&note.message, &["ownLikes", "ownReposts", "no horizon", "every device"]);
     contains(&note.rewrite, &["offline absence coverage", "lose that offline coverage", "guide maintains", "guide offline-interactions"]);
+    excludes(&note.rewrite.to_lowercase(), &["narrow the public source", "sync privately"]);
+}
+
+#[test]
+fn generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source() {
+    for policy in ["", "  online only\n"] {
+        let source = format!("table likes:\n  postId: id\n  public 'likes'\n{policy}view likeCounts: count likes by postId\n  read <- allow\n  sync public last 2000 by byId\n");
+        let d = refusal(&bound(&source), "E_QUARRY_SYNTAX");
+        assert_eq!(d.rewrite, "remove this sync line to inherit, or replace it with `online only`");
+        excludes(&d.rewrite, &["loses", "lose offline", "absence coverage", "narrow the public source"]);
+        for replacement in ["", "  online only\n"] {
+            let repaired = clean(&source.replace("  sync public last 2000 by byId\n", replacement));
+            assert!(repaired.schema.tables["likes"].sync.is_none());
+            assert!(repaired.schema.tables["likeCounts"].sync.is_none());
+        }
+    }
 }
 
 #[test]
@@ -51,7 +71,39 @@ fn parser_refusal_resolves_later_source_in_another_file_and_read_after_sync() {
         ("schema.q".into(), "table events:\n  owner: principal\n  public 'public events'\n  sync public\n".into())]);
     let d = refusal(&b, "E_QUARRY_SYNTAX");
     contains(&d.message, &["owners", "from events", "read <- .owner = viewer", "no horizon"]);
+    excludes(&d.rewrite.to_lowercase(), &["narrow the public source", "sync privately"]);
     assert_eq!(d.site.file, "views.q"); assert_eq!(d.site.line, 2);
+}
+
+#[test]
+fn helper_refusal_finds_a_transitive_job_caller() {
+    let source = BUILDER.replace("totals = digestCounts(profile.principal, periodStart, periodEnd)", "totals = jobCounts(profile.principal, periodStart, periodEnd)")
+        + "\nfn jobCounts(reader: principal, periodStart: time, periodEnd: time):\n  return digestCounts(reader, periodStart, periodEnd)\n";
+    assert!(!source.contains("totals = digestCounts("), "job must reach the helper through jobCounts");
+    clean(&source);
+    let d = refusal(&bound(&(source + PREVIEW)), "E_QUARRY_BOUND");
+    contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts"]);
+    contains(&d.rewrite, &["system job caller(s) digest", "partial preview"]);
+}
+
+#[test]
+fn completed_sibling_helper_is_not_part_of_the_refused_caller_chain() {
+    let preview = PREVIEW.replace("  return digestCounts", "  done = harmless()\n  return digestCounts");
+    let d = refusal(&bound(&(BUILDER.to_owned() + "\nfn harmless(): 1\n" + &preview)), "E_QUARRY_BOUND");
+    let chain = d.message.split("viewer query caller chain: ").nth(1).unwrap().split(". `members").next().unwrap();
+    let names: Vec<_> = chain.split(" -> ").map(|call| call.split(" (at ").next().unwrap()).collect();
+    assert_eq!(names, ["digestPreview", "digestCounts"]);
+    excludes(&d.message, &["harmless"]);
+}
+
+#[test]
+fn query_only_helper_gets_the_generic_prefix_repair() {
+    let source = "table members:\n  principal: principal\n  unread: int\n  by byPrincipal: principal, id\n  read <- .unread = 0\n  online only\nfn total(reader: principal):\n  n = 0\n  for m in members[principal = reader] by byPrincipal:\n    n = n + 1\n  return n\nquery preview():\n  return total(viewer)\n";
+    let d = refusal(&bound(source), "E_QUARRY_BOUND");
+    assert!(d.rewrite.starts_with("use `first N`:"), "{d:?}");
+    contains(&d.rewrite, &["cursor", "unread", "pin the deciding columns"]);
+    excludes(&d.message, &["caller chain", "helper", "system authority"]);
+    excludes(&d.rewrite, &["partial preview", "scheduled job", "system job", "recipient"]);
 }
 
 #[test]
@@ -79,4 +131,6 @@ fn guide_and_why_keep_the_replica_and_partial_total_consequences() {
     contains(&why, &["caller chain", "first 50", "partial preview", "cursor", "one chunk", "parks"]);
     let why = Diagnostic::new(&Default::default(), "E_SYNC", "", "").guide("maintains").explanation().unwrap();
     contains(&why, &["missing horizon", "offline aggregate/absence coverage", "guide offline-interactions"]);
+    let definition = snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_MAINTAIN_SYNCED").unwrap().1;
+    contains(definition, &["no horizon", "online only", "loses offline aggregate/absence coverage"]);
 }
