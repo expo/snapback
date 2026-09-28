@@ -478,19 +478,33 @@ test('public transfers jitter beyond Retry-After and stop within their cumulativ
   assert.deepEqual(delays.filter(ms => ms > 0), [1125, 1125, 1125]);
 });
 
-test('public web probe recovery paces overload while identity remains unverified', { timeout: 10000 }, async t => {
-  const { url } = await server(t, undefined, source), entered = deferred(), release = deferred(), probes = [];
+for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public web probe recovery paces ${mode} and respects Retry-After`, { timeout: 10000 }, async t => {
+  const { url } = await server(t, undefined, source), entered = deferred(), release = deferred(), probes = [], waits = [];
+  const timeout = globalThis.setTimeout;
+  t.mock.method(Math, 'random', () => 0.5);
+  t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
+    if (ms >= 1000 && ms <= 3750) { waits.push({ probe: probes.length, ms }); return timeout(fn, 20, ...args); }
+    return timeout(fn, ms, ...args);
+  });
   const client = await createLocalClient({ url, persona: 'alice', device: webDevice({ wasm, persist: memoryPersistence() }), fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/changes') { entered.resolve(); await release.promise; throw Error('lost change feed'); }
-    if (path === '/probe') { await new Promise(setImmediate); probes.push(Date.now()); return Response.json({ denied: refusal }, { status: 503, headers: { 'Retry-After': '1' } }); }
+    if (path === '/probe') {
+      await new Promise(setImmediate); probes.push(Date.now());
+      if (probes.length > 1 && mode === 'malformed') return new Response('busy', { status: 503 });
+      return Response.json({ denied: { ...refusal, retryable: probes.length === 1 || mode === 'retryable' } }, { status: 503, headers: { 'Retry-After': '3' } });
+    }
     return defaultFetch(input, init);
   } });
   t.after(() => { release.resolve(); return client.close(); });
   await entered.promise; release.resolve();
   await until(() => probes.length >= 3);
   assert.equal(client.link(), 'online');
-  for (let i = 1; i < probes.length; i++) assert.ok(probes[i] - probes[i - 1] >= 990, `probe intervals: ${JSON.stringify(probes)}`);
+  for (let probe = 1; probe <= 3; probe++) {
+    const delay = waits.find(w => w.probe === probe);
+    assert.ok(delay, `every unverified probe waits: ${JSON.stringify(waits)}`);
+    assert.ok(delay.ms >= (probe > 1 && mode === 'malformed' ? 1000 : 3000), `probe Retry-After/backoff: ${JSON.stringify(waits)}`);
+  }
 });
 
 for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'query', 'mutation']) test(`${tier}: concurrent public ${kind} retries vary beyond Retry-After`, { timeout: 15000 }, async t => {

@@ -1,3 +1,5 @@
+import { onRotationWarning } from "./session-rotation.ts";
+import { registerSessionTransaction } from "./session-transaction.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader } from "./admission.ts";
 import { prepareAdmissionAuthority } from "./admission-authority.ts";
@@ -330,6 +332,10 @@ export function createApp(options: AppOptions): App {
       })),
       delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
+    registerSessionTransaction(scopedStore, (key, work) => persist(() => storeLock(key, () => work(storage))));
+    const rotationWarning = (why?: Refusal) => {
+      if (scope.valid && owner === scope && (why || snapshot.why?.site === "app.auth.refresh")) publish(snapshot.state, snapshot.viewer, why);
+    };
     async function authorized(): Promise<boolean> {
       const valid = await persist(() => storeLock(sessionKey(url), async () => {
         if (!scope.valid || await readEpoch() !== epoch) return false;
@@ -463,6 +469,7 @@ export function createApp(options: AppOptions): App {
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: device! };
         const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: clock.wrap(scopedFetch) };
+        onRotationWarning(prepared, rotationWarning);
         prepareAdmissionAuthority(prepared, {
           capture: () => ({ key: sessionKey(url), epoch, principal: scope.session.principal, source: authority?.source }), read: authority?.read,
           recheck: () => { void authorized().catch(() => {}); },
@@ -470,7 +477,8 @@ export function createApp(options: AppOptions): App {
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
       } else {
-        const prepared = { url, session, fetch: clock.wrap(scopedFetch), ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
+        const prepared = { url, session, sessionStore: scopedStore, fetch: clock.wrap(scopedFetch), ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
+        onRotationWarning(prepared, rotationWarning);
         const online = await prepareClient(prepared, () => createClient(prepared));
         raw = online.client; startClient = online.start;
       }
@@ -486,10 +494,7 @@ export function createApp(options: AppOptions): App {
       const stopSession = raw.onSession(next => {
         if (next) {
           lastSession = next;
-          // The local client already saves through scopedStore before this
-          // notification. A second save could commit a rotation after its
-          // own save failed, while refreshSession still reports that failure.
-          if (!options.device) void keepSession(url, next, scopedStore).catch(error => { if (scope.valid) report(error); });
+          // Both clients save through scopedStore before notifying.
         } else if (scope.valid) {
           const rejected = lastSession.token;
           const rejectionRevision = revision;

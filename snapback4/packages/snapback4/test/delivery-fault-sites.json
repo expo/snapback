@@ -232,7 +232,7 @@
   },
   {
     "index": 33,
-    "id": "local.ts:probe:response.json()#1",
+    "id": "local.ts:probe:readResponse(response)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
@@ -246,7 +246,7 @@
   },
   {
     "index": 35,
-    "id": "local.ts:probe:pauseRefusal(response, refusal(json.denied), aborter.signal)#1",
+    "id": "local.ts:probe:pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false

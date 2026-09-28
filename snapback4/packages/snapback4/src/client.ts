@@ -1,3 +1,4 @@
+import { sessionRotation, rotationFenced } from "./session-rotation.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
@@ -25,7 +26,7 @@ import { presenceRefresh } from "./presence-refresh.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
-import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
+import { logout, logoutAll as revokeAllSessions, keepSession, memorySessionStore, type SessionStore, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
@@ -41,6 +42,8 @@ export interface ClientOptions {
   readonly persona?: string;
   /** A session from `guest()`, `login()` or `signup()` (deployed servers). */
   readonly session?: Session;
+  /** Share rotation custody across clients and restarts. */
+  readonly sessionStore?: SessionStore;
   /** A bare bearer token, when the app keeps sessions itself. */
   readonly token?: string;
   /** Explicitly request engine work; loopback dev includes it by default and serve never returns it. */
@@ -160,6 +163,8 @@ export function createClient(options: ClientOptions): Client {
     return response;
   };
   const base = options.url.replace(/\/$/, "");
+  const sessions = options.sessionStore ?? memorySessionStore();
+  const rotateSession = sessionRotation(base, sessions, doFetch, options);
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   let session = options.persona ? null : options.session ?? null;
@@ -348,7 +353,7 @@ export function createClient(options: ClientOptions): Client {
     for (const listener of viewerListeners) listener(next);
   };
 
-  let transportFailure: Refusal | undefined;
+  let transportFailure: Refusal | undefined, changesRefusal: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
@@ -407,7 +412,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
-    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code))) return;
+    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || rotationFenced(refreshOutcome))) return;
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - refreshBeforeExpiry);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -425,13 +430,12 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) return refreshing;
     const token = headers.authorization?.slice("Bearer ".length);
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
-    if (refreshOutcome && !refreshOutcome.ok && ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code)) return Promise.resolve(refreshOutcome);
     const expectedPrincipal = viewer;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     credentialRevision += 1;
     const deliverReset = resetWatches(false);
-    const rotation = rotateSession(base, token, doFetch);
+    const rotation = rotateSession(token, session);
     let retired = false;
     const retire = (result: SignIn) => {
       if (retired || (!result.ok && (credentials || !result.why.retryable))) return;
@@ -462,6 +466,9 @@ export function createClient(options: ClientOptions): Client {
       }
       session = refreshed.session;
       headers.authorization = `Bearer ${session.token}`;
+      try { await keepSession(base, session, sessions); }
+      catch (error) { return { ok: false, why: { code: "E_STORE", family: "store", message: `session save failed: ${String(error)}` } }; }
+      if (closed || !credentials || storeRefusal) { retire(refreshed); return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) }; }
       setViewer(session.principal as Principal);
       for (const listener of [...sessionListeners]) listener(session);
       if (!closed) {
@@ -577,7 +584,7 @@ export function createClient(options: ClientOptions): Client {
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
-    if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet);
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
@@ -761,7 +768,7 @@ export function createClient(options: ClientOptions): Client {
   async function poll() {
     if (polling) return;
     polling = true;
-    while (!closed && !storeRefusal && watches.size > 0) {
+    while (!closed && !storeRefusal && !changesRefusal && watches.size > 0) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
         if (!closed && credentials && link === "offline") await probe();
@@ -782,6 +789,12 @@ export function createClient(options: ClientOptions): Client {
         if (await obsoleteRefusal(json.denied, revision)) continue;
         if (closed || storeRefusal || !credentials) break;
         if (await pauseRefusal(response, json.denied, aborter.signal)) continue;
+        if (refusal(json.denied)) {
+          changesRefusal = json.denied; queryEpoch++;
+          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null); } });
+          deliver(); for (const watch of watches.values()) notify(watch);
+          break;
+        }
         if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
@@ -1093,13 +1106,15 @@ export function createClient(options: ClientOptions): Client {
   };
   trackDispatch(client, dispatch);
   bindWatchPeek(client, watches, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
-  const start = () => {
+  const start = async () => {
     if (closed) return;
-    if (session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) void refreshCurrent();
-    else scheduleRefresh();
+    // Establish the in-flight barrier synchronously, before protected reads.
+    if (session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= refreshBeforeExpiry) { void refreshCurrent(); return; }
+    if (session) { const restored = await rotateSession.restore(session); refreshOutcome ??= restored; }
+    scheduleRefresh();
   };
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);
-  if (!deferStart(options, start)) start();
+  if (!deferStart(options, start)) void start().catch(() => scheduleRefresh(60_000));
   return client;
 }

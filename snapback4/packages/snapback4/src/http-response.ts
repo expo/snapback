@@ -10,6 +10,16 @@ export function refusal(value: unknown): Refusal | undefined {
   return value as Refusal;
 }
 export const overloaded = (why?: Refusal): boolean => why?.code === 'E_RATE_LIMIT' && why.retryable === true;
+export const knownNonDispatch = new WeakSet<Refusal>();
+// Only connection establishment failures prove no request reached the peer.
+// Body errors, resets, timeouts after connect and opaque browser errors do not.
+export function provenNonDispatch(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const failure = error as { code?: string; cause?: unknown; errors?: unknown[] };
+  if (failure.errors?.length) return failure.errors.every(provenNonDispatch);
+  return ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT'].includes(failure.code ?? '') ||
+    failure.cause !== undefined && failure.cause !== error && provenNonDispatch(failure.cause);
+}
 export function transportRefusal(error?: unknown): Refusal {
   const failure = error as { code?: string; message?: string; cause?: { code?: string; message?: string } } | undefined;
   const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.code ?? failure?.message;
@@ -58,7 +68,7 @@ export async function readWithAdmissionRetry(send: () => Promise<Response>, curr
 }
 /** A delivered refusal is not a transport outage. Polls wait before trying again. */
 export async function pauseRefusal(response: Response, why: Refusal | undefined, signal: AbortSignal): Promise<boolean> {
-  if (!refusal(why)) return false;
+  if (!refusal(why)?.retryable) return false;
   await pause(jitter(Math.max(1000, retryAfter(response.headers.get('retry-after')))), signal);
   return true;
 }

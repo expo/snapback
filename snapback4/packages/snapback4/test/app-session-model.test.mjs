@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I14 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     t.signal.throwIfAborted();
@@ -259,3 +259,9 @@ test("publication seed 11: fair recovery waits for overlapping model work before
     ]);
   }
 });
+
+for (const tier of ["online", "local"]) test(`I14 ${tier}: a shared-store peer cannot refresh a claimed predecessor`, () => execute([
+  { op: "guest", app: 0 }, { op: "reopen", app: 1 },
+  { op: "refresh", app: 0, hold: true }, { op: "refresh", app: 1, expectOk: false },
+  { op: "release", app: 0 },
+], {}, tier));

@@ -75142,3 +75142,65 @@ change, comparative-packet edit, push or publication. LLP 3000, ephemeral guide
 and client reference accompany the code; local.ts remains 1,500 lines. Report:
 reports/20260928-fu-fresh-replay-uploads/round3/REPORT.md. The local commit carries
 Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 4: rotation custody belongs to the session
+
+Read rounds 0–3's prompts, reports and journal entries, Astra's complete
+round-3 NOT READY review and Grok's completed round-2 review. Applied llp-orient
+within the Snapback 4 fence and read the paved session reference. Fetched
+origin; main is still 9ef49d43c, as recorded in round 3. No merge needed.
+
+Both client tiers persist a token-bound refresh claim in the existing session
+record under its lock before dispatch. Peer clients and fresh-process restarts
+consult it; saving the same bearer cannot erase it. Proven refusal/non-dispatch
+clears the claim; successful authorized successor adoption replaces it. Online
+refresh now awaits that save before notifying onSession, removing its duplicate
+notification save. Only connection-establishment failures prove non-dispatch;
+reset, opaque failure and lost bodies remain unknown. HTTP 200 without a valid
+session is E_HTTP_RESPONSE, not terminal E_AUTH. App auth.why exposes a paused
+renewal and the sign-in action, including restoration outside the refresh window.
+Failure to persist the detailed diagnostic leaves the original claim and warning.
+
+A peer can see an in-flight claim before its owner proves non-dispatch. Explicit
+calls therefore consult shared storage again; pending claims can be rechecked
+on the existing retry cadence. A remaining claim never permits network replay,
+including after an owner crash. Once a proven refusal clears it, the peer can
+renew explicitly or automatically and clears only its rotation warning.
+Public tests cover all three doors (online app, wasm app, direct local), real
+server 200 followed by discarded response, serialized state in a fresh Node
+process, a concurrent peer, and explicit/scheduled/peer non-dispatch recovery.
+
+Probe recovery delays every unsuccessful unverified attempt, including
+nonretryable E_RATE_LIMIT and malformed replies. Its public test advertises
+Retry-After: 3 and checks the requested delay. Nonretryable changes refusals,
+including omitted retryable, become visible denied reads and stop polling while
+the link stays online. Retryable refusals keep their existing delay. No server,
+core, contract, dependency or capacity change; local.ts is 1,499 lines.
+
+Final affected scope clears 596 cases across ten files. The last combined run
+was 595 pass / 1 fail / 0 cancelled or skipped. The one failure was ours: a new
+fixture still expected E_OFFLINE on a later explicit call after intentionally
+failing the diagnostic save; shared custody correctly returned the durable
+E_HTTP_RESPONSE claim. The corrected test separately checks the original
+automatic warning and later durable claim, with one server rotation; both tiers
+pass the final 2/2 rerun. No product change after that combined run. The previous
+combined selection passed 590/590. Seven isolated negative mutations fail 29
+named public cases, including stale peer outcome caching.
+
+Scoped session model: 54/54, 100 seeds per tier and three runtimes per sequence,
+plus fixed regressions and two I14 cases. I2 permits only claim metadata to
+change on failed refresh; credentials and epoch still cannot change. I14 refuses
+a second dispatch of any consumed refresh bearer. Whole guide 98/98;
+build/typecheck, docs budget, references and whitespace pass. Every earlier red
+is attributed in round4/FAILURES.md: all ours (including fixtures and intentional
+controls); no baseline or environmental failure. The first expanded app run was
+stopped on a fixture's nested storage lock using only its recorded PIDs; the
+repaired complete app file passes 78/78. scripts/test.sh was not run.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, 711 B below the
+593,719 B budget; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Measured the round-2 artifact; no wasm inputs changed. No tool installation,
+other-lane edits, push or publication. LLP 3000 and the client reference land
+with the code. Report: reports/20260928-fu-fresh-replay-uploads/round4/REPORT.md.
+Local commit carries Co-Authored-By: Codex <noreply@openai.com>.

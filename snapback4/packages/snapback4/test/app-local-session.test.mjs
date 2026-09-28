@@ -13,7 +13,7 @@ test("a failed local rotation save is not silently repeated by its notification"
   const { url } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let fail = false, failures = 0, successor;
   const store = { ...memory, async set(k, value) {
-    if (fail && k === key && JSON.parse(value).token) { fail = false; failures++; throw Error("one rotation save failed"); }
+    if (fail && k === key && successor && JSON.parse(value).token === successor.token) { fail = false; failures++; throw Error("one rotation save failed"); }
     await memory.set(k, value);
   } };
   const options = { url, sessionStore: store, device: device(), fetch: async (input, init) => {
@@ -24,7 +24,11 @@ test("a failed local rotation save is not silently repeated by its notification"
   const app = createApp(options); t.after(() => app.close()); await app.ready; await app.auth.guest();
   const before = await memory.get(key); fail = true;
   await assert.rejects(app.client.refreshSession(), /one rotation save failed/);
-  assert.equal(failures, 1); assert.equal(await memory.get(key), before);
+  assert.equal(failures, 1);
+  const saved = JSON.parse(await memory.get(key));
+  assert.ok(saved.snapback4Rotation, "the predecessor stays claimed when successor persistence fails");
+  delete saved.snapback4Rotation;
+  assert.deepEqual(saved, JSON.parse(before));
   assert.equal(app.client.session().token, successor.token, "the live runtime owns the committed rotation until persistence recovers");
   await app.close();
   assert.equal((await restoreSession(url, store)).token, successor.token);

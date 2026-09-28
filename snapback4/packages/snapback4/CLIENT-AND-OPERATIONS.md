@@ -61,7 +61,7 @@ Its auth is `restoring` while opening or clearing a session, then becomes `signe
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
 guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local
 credentials and attempts server revocation; `logoutEverywhere` revokes every
-session after server confirmation. `auth.why` exposes a restore/storage failure.
+session after server confirmation. `auth.why` exposes a restore/storage failure or a paused session renewal; its `rewrite` says how to recover.
 
 ```tsx
 import { createApp } from "snapback4/app";
@@ -119,8 +119,10 @@ session lock:
   currently stored bearer. Explicit logout first commits a logout tombstone,
   then revokes the displaced session in the background.
 - **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
-  logout preserves the session bytes and epoch. The sole logout intermediate
-  state is a tombstone; every reader recognizes it as signed out.
+  logout preserves credentials and epoch. Refresh may add/update a token-bound
+  rotation claim before dispatch; failure keeps that claim when delivery is
+  unknown. The sole logout intermediate state is a tombstone; every reader
+  recognizes it as signed out.
 - **I3 — retirement custody.** A server-minted bearer stays with its live
   runtime, the stored session, or a durable revocation obligation. Displacement
   is journaled before commit; revocations drain only after that commit. An
@@ -193,6 +195,14 @@ session lock:
   that acknowledged it after restart. Receipt recovery still omits historical result values and refusal
   details; a hidden account cannot look up retained receipts.
 
+- **I14 — shared rotation custody.** A consumed refresh bearer is never sent
+  again by a cooperating client sharing the session store. A durable claim
+  precedes dispatch under the session lock. Proven refusal or non-dispatch
+  releases it; successor adoption replaces it atomically with the credential.
+  Crash, restart and another client cannot erase an unknown predecessor. A peer
+  may recheck an in-flight claim on the retry cadence; this is a store read,
+  never permission to dispatch while the claim remains.
+
 The state-machine suite runs 5,000 seeded sequences on each of the online and
 local tiers. The local tier uses the production Rust/Wasm device, outbox and
 receipt storage; the server and session-store faults are modeled. It generates
@@ -252,7 +262,7 @@ store and network eventually recover. The server consumes a refresh token
 before returning its successor. If all persistence and revocation attempts fail
 and the process is forcibly killed, a newly minted, never-persisted successor
 cannot be recovered by this client protocol. Lost server responses have the same
-limit. Durable recovery of that case requires a server protocol that can recover
+limit, but the persisted predecessor claim prevents replay of that refresh. Durable recovery of that case requires a server protocol that can recover
 an issuance by request ID; createApp cannot manufacture that guarantee.
 I7 likewise requires a durable refusal fence before the last informed runtime
 is lost: if every tombstone write fails, then the process dies, a new offline
@@ -460,9 +470,26 @@ provided session within 24 hours of
 expiry rotates before the protected backend is fetched (temporary action sessions cannot refresh); a running client
 schedules the same rotation. A lost refresh reply or malformed HTTP response
 may have consumed the bearer, so automatic rotation stops, including during
-startup and after clock updates. Only an explicit retryable refusal schedules
-another attempt. After an unknown outcome, `refreshSession()` on that client
-returns the retained failure without sending again; sign in for a new bearer.
+startup and after clock updates. Both tiers persist a token-bound claim under
+the session-store lock before dispatch; peers and restarts consult it. Proven
+retryable refusals and connection-establishment failures such as `ECONNREFUSED`
+release the claim and allow the next scheduled or explicit renewal. A reset,
+opaque failure or lost body stays unknown, even if a body error names a connect
+failure. HTTP 200 without a valid session is `E_HTTP_RESPONSE`, not sign-out.
+After an unknown outcome, `refreshSession()` consults the shared claim and
+returns its failure without sending again. If an in-flight owner later proves
+non-dispatch, peers can renew explicitly or on their scheduled store recheck;
+successful renewal clears the rotation warning. `app.auth.why` supplies an actionable sign-in warning,
+also on restoration outside the automatic refresh window. Sign in for a new
+bearer. A claim is bounded metadata in the existing session record, not another
+journal; saving the same bearer preserves it.
+Raw `createClient` callers can supply `sessionStore` to share rotation custody;
+without one, custody lasts for that client. `createApp` always supplies its store.
+Nonretryable `/changes` refusals stop polling and appear in observed reads; the
+link remains reachable. Reopen after correcting the refusal. Unverified probes
+wait after every failed attempt; validated refusals respect `Retry-After` even
+when `retryable` is false, and malformed replies back off.
+
 A successful rotation replaces the stored
 session and the Authorization bearer before `onSession` receives it. Local
 `signOut()` fences refresh and removes persisted credentials before completing;

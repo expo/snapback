@@ -43,7 +43,7 @@ test("the default session store stays in memory and browser persistence is expli
     await keepSession(url, session("persistent-token"), persistent);
     assert.equal((await restoreSession(url, persistent)).token, "persistent-token");
     await forgetSession(url, persistent);
-    assert.deepEqual(calls.map(([op]) => op), ["set", "get", "delete"]);
+    assert.deepEqual(calls.map(([op]) => op), ["get", "set", "get", "delete"]);
   } finally {
     if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
     else delete globalThis.localStorage;

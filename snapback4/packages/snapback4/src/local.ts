@@ -1,4 +1,5 @@
-import { readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
+import { sessionRotation, rotationFenced } from "./session-rotation.ts";
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
@@ -19,13 +20,7 @@ import { defaultFetch } from "#fetch";
 import { ClosingResponses, trackClose, type ClosingResponse } from "./closing-responses.ts";
 import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
-// The local-first tier (LLP 3000 §7, one implementation): the device is
-// the Rust module — the partition in its own store, the stream applied,
-// the outbox kept, queries and predictions answered — and this client is
-// what remains: sessions, links, transport and reads. The module is
-// reached through one JSON call (`DeviceCore`), so the wasm device on the
-// web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
-// `snapback4 device` process for Node (`snapback4/native`) all fit.
+// LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
@@ -48,7 +43,7 @@ import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } 
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
-  refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
+  restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
@@ -61,6 +56,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   const sessions = options.sessionStore ?? defaultSessionStore;
+  const rotateSession = sessionRotation(base, sessions, doFetch, options);
   let session: Session | null = null, refreshOutcome: SignIn | undefined;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
@@ -76,7 +72,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
     if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
-      const refreshed = refreshOutcome = await rotateSession(base, session.token, doFetch);
+      const refreshed = refreshOutcome = await rotateSession(session.token, session);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
           await forgetSession(base, sessions);
@@ -187,7 +183,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // the order its predictions finished — and continues from what the
   // module's outbox holds.
   let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1;
-  let partitionDenied: Refusal | null = null;
+  let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
   const ephemeralReads = new EphemeralReads(aborter.signal);
@@ -413,7 +409,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
-    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code))) return;
+    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || rotationFenced(refreshOutcome))) return;
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -428,7 +424,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
     if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     if (refreshing) return refreshing;
-    if (refreshOutcome && !refreshOutcome.ok && ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code)) return Promise.resolve(refreshOutcome);
     const token = session.token;
     const expectedPrincipal = session.principal;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -439,7 +434,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
     });
-    const rotation = rotateSession(base, token, doFetch);
+    const rotation = rotateSession(token, session);
     rotatingSession = rotation;
     let retired = false;
     const retire = (result: SignIn) => {
@@ -788,18 +783,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const capture = await captureStore();
       if (!capture) return;
       const response = await doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal });
-      let json: Record<string, unknown> = {};
-      try { json = (await response.json()) as Record<string, unknown>; } catch {}
+      const json = await readResponse(response);
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
-      if (overloaded(refusal(json.denied)) && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) { setLink("online"); await pauseRefusal(response, refusal(json.denied), aborter.signal); return; }
+      const denied = refusal(json.denied ?? json.why);
+      if (denied && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
+        if (denied.code !== "E_HTTP_RESPONSE") setLink("online");
+        await pauseRefusal(response, { ...denied, retryable: true }, aborter.signal); return;
+      }
       if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
         if (await witnessRestore(json.store_id, json.seq, capture)) return;
         if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
         identityChecked = true;
         setLink("online");
-      } else if ((json.denied as Refusal | undefined)?.code !== "E_RATE_LIMIT" && (response.status !== 200 || json.ok !== true)) setLink("offline");
+      } else if (response.status !== 200 || json.ok !== true) setLink("offline");
     } catch (error) { transportFailure = transportRefusal(error); setLink("offline"); }
   }
   const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network(probe); });
@@ -822,6 +820,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH" && !json.denied.retryable) return false;
         if (await pauseRefusal(response, json.denied, aborter.signal)) return false;
+        if (refusal(json.denied)) { changesStopped = json.denied!; for (const watch of watches.values()) void rerun(watch); return false; }
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
@@ -851,7 +850,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function follow() {
     if (following) return;
     following = (async () => {
-      while (!closed && !sessionDead && partitionDenied?.code !== "E_STORE_RESTORE") {
+      while (!closed && !sessionDead && !changesStopped && partitionDenied?.code !== "E_STORE_RESTORE") {
         if (caughtUp && !await waitForChange()) continue;
         let ok = false;
         try {
@@ -875,7 +874,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const queryEnvironment = {
       coldRead: bypass,
       get backend() { return backend!; },
-      get partitionDenied() { return partitionDenied; },
+      get partitionDenied() { return changesStopped ?? partitionDenied; },
       get credentialRevision() { return credentialRevision; },
       get incarnation() { return incarnation; },
       get authority() { return answers.revision; },
@@ -1464,9 +1463,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   flushRecovered = () => { void flush(); };
   const start = async () => {
     if (closed) return;
+    if (!refreshOutcome && session) refreshOutcome = await rotateSession.restore(session);
     if (prepared && session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
-    // Exit and ordinary replay share the same startup checks, even offline.
-    // Native owners retain their existing snapshot/receipt coordination first.
+    // Exit and ordinary replay share the host's startup checks, even offline.
     const replayAllowed = core.onSuspend && await replayOnOpen();
     if (replayAllowed) listenForExit();
     // Install the same-head exit retry before awaiting ordinary delivery.

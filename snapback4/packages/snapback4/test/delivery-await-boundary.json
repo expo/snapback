@@ -48,8 +48,8 @@
     "sha256": "519063f1f627020515ba84e1b23b1cc078150770b65a2171a3d1c2c248d89b3a"
   },
   "auth.ts": {
-    "count": 11,
-    "sha256": "ed8f1f0ce04f21ea953a58a08fd8ba476b89a9b459a1e5eacff7af3d4ab7a5fa"
+    "count": 14,
+    "sha256": "bd687fe33e455569d79f2a4f4bd6d3c7e4e6637a80cc19a603c8c09ab8d09054"
   },
   "backend.ts": {
     "count": 0,
@@ -64,8 +64,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 57,
-    "sha256": "4a6256098226a26e66264ae979d543ee53db59854787c5cf017c0e0cf9c30f86"
+    "count": 59,
+    "sha256": "31afad4a5a146e06c2ce398e2d566d63179e1ebed6594e58e2c8673839d43edc"
   },
   "clock.ts": {
     "count": 7,
@@ -192,8 +192,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local.ts": {
-    "count": 160,
-    "sha256": "a314ac6842e11208d1348c710d80ce458830e98d6bad83b1319eba8ec56d3984"
+    "count": 161,
+    "sha256": "50e935e880b2cdb1b4ac8315eb1b1fe723564c3fb8befe86397cf46f354e92f6"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -310,6 +310,14 @@
   "session-authority.ts": {
     "count": 8,
     "sha256": "be4925d40c7bfade37e486991c06919a5829702b2180b93e32c6586f6e8a9268"
+  },
+  "session-rotation.ts": {
+    "count": 9,
+    "sha256": "136afe53e3b9b38d7b156e898943115e342bca3d3f298e6acde60998e2f1868c"
+  },
+  "session-transaction.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "sha256.ts": {
     "count": 0,

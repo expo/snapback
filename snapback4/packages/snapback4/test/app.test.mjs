@@ -302,18 +302,17 @@ for (const tier of ["online", "local"]) test(`a stale ${tier} refresh preserves 
   const bOptions = { ...options, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "tab-b"), binary }) } : {}) };
   t.after(() => a.close());
   await a.ready; await a.auth.guest();
-  let release, rejected = false;
-  const gate = new Promise(resolve => { release = resolve; });
+  let refreshRequests = 0;
   const b = createApp({ ...bOptions, fetch: async (input, init) => {
-    if (new URL(input).pathname === "/auth/refresh") { rejected = true; await gate; }
+    if (new URL(input).pathname === "/auth/refresh") refreshRequests++;
     return fetch(input, init);
   } });
-  t.after(async () => { release(); await b.close(); });
+  t.after(() => b.close());
   await b.ready;
-  const stale = b.client.refreshSession(); await until(() => rejected);
   const fresh = await a.client.refreshSession(); assert.equal(fresh.ok, true);
   await until(async () => (await restoreSession(url, store))?.token === fresh.session.token);
-  release(); assert.equal((await stale).ok, false);
+  assert.equal((await b.client.refreshSession()).ok, false);
+  assert.equal(refreshRequests, 0, "shared custody refuses the consumed predecessor before dispatch");
   await until(() => b.auth.state === "signed-out");
   assert.equal((await restoreSession(url, store))?.token, fresh.session.token);
   assert.deepEqual((await a.client.query(list, {})).data, []);
@@ -330,12 +329,14 @@ for (const [tier, stage] of [["online", "first save"], ["local", "first save"], 
     if (key.endsWith(".session")) saved.push(JSON.parse(value).token);
     await memory.set(key, value);
   } };
-  let held = false, release, requested = false, releaseResponse;
+  let held = false, release, requested = false, releaseResponse, returned = false;
   const gate = new Promise(resolve => { release = resolve; });
   const responseGate = new Promise(resolve => { releaseResponse = resolve; });
   const b = createApp({ url, sessionStore: store, fetch: async (input, init) => {
     if (new URL(input).pathname === "/auth/refresh") { requested = true; await responseGate; }
-    return fetch(input, init);
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") returned = true;
+    return response;
   } });
   t.after(async () => { release(); releaseResponse(); await b.close(); });
   await b.ready; await b.auth.guest();
@@ -354,9 +355,10 @@ for (const [tier, stage] of [["online", "first save"], ["local", "first save"], 
   }, ...(tier === "local" ? { device: processDevice({ dir: join(dir, "restoring-device"), binary }) } : {}) });
   t.after(async () => { release(); await a.close(); });
   await until(() => held, "A captured the old session");
-  // Online refresh reports its successor before its async onSession save
-  // completes. Queue that save behind A's read, ahead of A's opening saves.
+  // Rotation now completes after successor persistence. Queue its save
+  // behind A's stale read, then release that read before awaiting adoption.
   releaseResponse();
+  if (stage === "first save") { await until(() => returned); release(); }
   const fresh = await refreshing; assert.equal(fresh.ok, true);
   assert.notEqual(fresh.session.token, old);
   if (stage !== "first save") await until(async () => (await restoreSession(url, memory))?.token === fresh.session.token);
@@ -465,19 +467,22 @@ test("a sign-in started before another app's logout cannot overwrite its later l
 
 for (const damage of ["invalid JSON", "expired session"]) test(`restoration cleanup of ${damage} preserves a replacement written after its read`, { timeout: 15_000 }, async t => {
   const { url } = await server(t), store = memorySessionStore();
-  let held = false, release, requested = false, releaseResponse;
+  let held = false, release, requested = false, releaseResponse, returned = false;
   const gate = new Promise(resolve => { release = resolve; });
   const responseGate = new Promise(resolve => { releaseResponse = resolve; });
   const a = createApp({ url, sessionStore: store, fetch: async (input, init) => {
     if (new URL(input).pathname === "/auth/refresh") { requested = true; await responseGate; }
-    return fetch(input, init);
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") returned = true;
+    return response;
   } });
   t.after(async () => { release(); releaseResponse(); await a.close(); });
   await a.ready; await a.auth.guest();
   const bytes = damage === "invalid JSON" ? "NOTJSON" : JSON.stringify({ ...a.client.session(), expiresAt: 0 });
-  await store.set(sessionKey(url), bytes);
   const refreshing = a.client.refreshSession();
   await until(() => requested);
+  // Inject damaged bytes after the pre-dispatch claim, while its reply is held.
+  await store.set(sessionKey(url), bytes);
   const b = createApp({ url, sessionStore: { ...store, async get(key) {
     const value = await store.get(key);
     if (key === sessionKey(url) && !held) { held = true; await gate; }
@@ -485,10 +490,10 @@ for (const damage of ["invalid JSON", "expired session"]) test(`restoration clea
   } } });
   t.after(async () => { release(); await b.close(); });
   await until(() => held, "B read the damaged session");
-  releaseResponse();
-  const rotated = await refreshing; assert.equal(rotated.ok, true);
-  // A's onSession save is queued ahead of B's compare-and-delete cleanup.
-  release(); assert.equal((await b.ready).ok, true);
+  releaseResponse(); await until(() => returned);
+  // Release B's stale read so the queued successor save can commit first.
+  release(); const rotated = await refreshing; assert.equal(rotated.ok, true);
+  assert.equal((await b.ready).ok, true);
   assert.equal((await restoreSession(url, store))?.token, rotated.session.token);
   assert.equal(b.client.session()?.token, rotated.session.token);
   assert.deepEqual((await a.client.query(list, {})).data, []);
@@ -940,7 +945,9 @@ test("native smoke observes only the published replacement of a near-expiry rest
       const kept = await restoreSession(url, storage);
       const successor = await refreshSession(url, kept.token);
       assert.equal(successor.ok, true);
-      await keepSession(url, successor.session, storage);
+      // This injected writer deliberately bypasses the SDK lock already held
+      // by get(), to test the stale-snapshot comparison against external writes.
+      await storage.set(sessionKey(url), JSON.stringify(successor.session));
     }
     return storage.get(key);
   } };

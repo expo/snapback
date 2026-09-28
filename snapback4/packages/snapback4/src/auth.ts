@@ -8,7 +8,8 @@ import { defaultFetch } from "#fetch";
 
 import { storeKey, logoutEpoch } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
-import { readResponse, transportRefusal } from "./http-response.ts";
+import { readResponse, transportRefusal, invalidResponse, knownNonDispatch, provenNonDispatch } from "./http-response.ts";
+import { managedSessionStore, sessionTransaction } from "./session-transaction.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
 
@@ -46,13 +47,17 @@ export function login(url: string, email: string, password: string, doFetch: typ
 /** Replace one live bearer token. The server invalidates `token` before it
  * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
+  let received = false;
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    received = true;
     const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
-    return { ok: false, why: json.denied ?? refused("session refresh was refused") };
+    return { ok: false, why: json.denied ?? invalidResponse(response.status, "session refresh") };
   } catch (error) {
-    return { ok: false, why: transportRefusal(error) };
+    const why = transportRefusal(error);
+    if (!received && provenNonDispatch(error)) knownNonDispatch.add(why);
+    return { ok: false, why };
   }
 }
 
@@ -121,7 +126,17 @@ export async function restoreSession(url: string, store: SessionStore = defaultS
 }
 
 export async function keepSession(url: string, session: Session, store: SessionStore = defaultSessionStore): Promise<void> {
-  await store.set(sessionKey(url), JSON.stringify(session));
+  const key = sessionKey(url);
+  if (managedSessionStore(store)) { await store.set(key, JSON.stringify(session)); return; }
+  await sessionTransaction(store, key, async storage => {
+    const bytes = await storage.get(key);
+    let saved; try { saved = bytes ? JSON.parse(bytes) : null; } catch {}
+    // Reopening the predecessor must not erase its pending rotation claim.
+    const next = { ...session } as Session & { snapback4Rotation?: unknown };
+    delete next.snapback4Rotation;
+    if (saved?.token === session.token && saved.snapback4Rotation) next.snapback4Rotation = saved.snapback4Rotation;
+    await storage.set(key, JSON.stringify(next));
+  });
 }
 
 export async function forgetSession(url: string, store: SessionStore = defaultSessionStore): Promise<void> {
