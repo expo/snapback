@@ -443,6 +443,8 @@ test("local auth invalidation notifies viewer listeners before session deletion 
 });
 
 test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async (t) => {
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
   const change = deferred();
   let queries = 0, expiresAt = 0;
   const device = emptyDevice({ call: async (request) => {
@@ -463,6 +465,9 @@ test("local observations rerun when the device-reported visible lifetime expires
   const observed = client.observe(query("read"), {});
   const unsubscribe = observed.subscribe(() => {});
   await until(() => observed.getSnapshot().data?.[0] === "alive", "pre-expiry row was not observed");
+  now = expiresAt - 1;
+  assert.deepEqual(observed.getSnapshot().data, ["alive"]);
+  now = expiresAt;
   await until(() => queries >= 2 && observed.getSnapshot().data?.length === 0, "expiry did not rerun the observation", 1000);
   unsubscribe(); observed.close();
   expiresAt = Date.now() + 80;
@@ -471,6 +476,7 @@ test("local observations rerun when the device-reported visible lifetime expires
   const stop = abandoned.subscribe(() => {});
   await until(() => queries === before + 1, "second observation did not schedule expiry");
   stop(); abandoned.close();
+  now = expiresAt;
   await sleep(120);
   assert.equal(queries, before + 1, "closed observation retained its expiry timer");
   await client.close();
