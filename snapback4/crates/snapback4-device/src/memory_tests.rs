@@ -40,6 +40,26 @@ table items:
     assert!(tx.store.state.borrow().entries == scalar.state.borrow().entries);
     tx.commit().unwrap();
     assert_eq!(bulk.drain(), scalar.drain(), "durable changes keep the same row representation");
+    {
+        let before = bulk.export();
+        let entries = bulk.state.borrow().entries.clone();
+        let tx = bulk.transaction().unwrap();
+        let old = row(0);
+        let mut replacement = row(400);
+        if let Value::Row(fields) = &mut replacement { fields.insert("id".into(), Value::Id("row-0000".into())); }
+        tx.put("items", table, &replacement, Some(&old)).unwrap();
+        tx.savepoint("after-overwrite").unwrap();
+        let result = tx.replace_rows(|| {
+            tx.put("items", table, &row(900), None)?;
+            Err(RuntimeError::Input("interrupted replacement after overwrite".into()))
+        });
+        assert!(result.is_err());
+        // Drop must restore the replacement tree AND the earlier entry undos.
+        // Rolling back only to the savepoint would not exercise that ordering.
+        drop(tx);
+        assert!(bulk.state.borrow().entries == entries, "older index undos survive restoration of the saved tree");
+        assert_eq!(bulk.export(), before, "every persisted image returns to its pre-transaction value");
+    }
     for fail in [false, true] {
         let before = bulk.export();
         let tx = bulk.transaction().unwrap();

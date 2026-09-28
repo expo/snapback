@@ -85,3 +85,21 @@ fn full_builder_original_and_restored_bodies_compile() {
     let state = &b.programs.iter().find(|p| p.program.name == "postState").unwrap().program;
     assert!(snapback4_core::ir::read_sites(state).iter().all(|r| r.table.starts_with("$ownKeys:")));
 }
+
+#[test]
+fn diagnostic_recipe_preserves_the_public_summary_and_offers_owner_key_existence() {
+    let card = snapback4_lang::guide::card("offline-interactions").unwrap();
+    assert!(!card.contains("not available yet"));
+    let examples = snapback4_lang::guide::quarry(card);
+    assert_eq!(examples.len(), 2);
+    let summary = bound(&examples[0]);
+    assert!(summary.notes.iter().any(|d| d.code == "N_MAINTAIN_SYNCED"));
+    assert!(!summary.schema.required_capabilities().contains("owner-key-coverage"));
+    let keys = bound(&examples[1]);
+    assert!(keys.notes.is_empty(), "{:?}", keys.notes);
+    assert_eq!(keys.schema.tables["likes"].sync, summary.schema.tables["likes"].sync);
+    assert!(!keys.schema.tables.contains_key("ownLikes"));
+    assert!(keys.schema.required_capabilities().contains("owner-key-coverage"));
+    let state = &keys.programs.iter().find(|p| p.program.name == "postState").unwrap().program;
+    assert!(snapback4_core::ir::read_sites(state).iter().any(|r| r.table == "$ownKeys:likes"));
+}

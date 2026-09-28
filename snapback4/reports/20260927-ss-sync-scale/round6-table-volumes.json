@@ -1,0 +1,161 @@
+{
+  "central": {
+    "tables": {
+      "conversations": {
+        "rows": 1000,
+        "bytes": 292600,
+        "responses": 1
+      },
+      "dms": {
+        "rows": 900,
+        "bytes": 207000,
+        "responses": 1
+      },
+      "followingEdges": {
+        "rows": 5,
+        "bytes": 1620,
+        "responses": 1
+      },
+      "followingFeed": {
+        "rows": 439,
+        "bytes": 209074,
+        "responses": 1
+      },
+      "followingWork": {
+        "rows": 40,
+        "bytes": 19520,
+        "responses": 1
+      },
+      "likes": {
+        "rows": 2000,
+        "bytes": 512000,
+        "responses": 1
+      },
+      "members": {
+        "rows": 2048,
+        "bytes": 551960,
+        "responses": 1
+      },
+      "messages": {
+        "rows": 90500,
+        "bytes": 35166891,
+        "responses": 10
+      },
+      "ownLikes": {
+        "rows": 5008,
+        "bytes": 1612576,
+        "responses": 2
+      },
+      "ownReposts": {
+        "rows": 1004,
+        "bytes": 321280,
+        "responses": 1
+      },
+      "posts": {
+        "rows": 1000,
+        "bytes": 414000,
+        "responses": 1
+      },
+      "profiles": {
+        "rows": 1008,
+        "bytes": 433425,
+        "responses": 1
+      },
+      "reactions": {
+        "rows": 2000,
+        "bytes": 696500,
+        "responses": 1
+      },
+      "reposts": {
+        "rows": 1000,
+        "bytes": 312000,
+        "responses": 1
+      },
+      "unread": {
+        "rows": 2048,
+        "bytes": 458654,
+        "responses": 1
+      }
+    },
+    "wireBytes": 41586226,
+    "responses": 13,
+    "rows": 110000
+  },
+  "u0500": {
+    "tables": {
+      "conversations": {
+        "rows": 100,
+        "bytes": 33400,
+        "responses": 1
+      },
+      "followingEdges": {
+        "rows": 500,
+        "bytes": 162000,
+        "responses": 1
+      },
+      "followingFeed": {
+        "rows": 1000,
+        "bytes": 478689,
+        "responses": 1
+      },
+      "followingWork": {
+        "rows": 63,
+        "bytes": 30744,
+        "responses": 1
+      },
+      "likes": {
+        "rows": 2000,
+        "bytes": 512000,
+        "responses": 1
+      },
+      "members": {
+        "rows": 248,
+        "bytes": 66860,
+        "responses": 1
+      },
+      "messages": {
+        "rows": 500,
+        "bytes": 197121,
+        "responses": 1
+      },
+      "ownLikes": {
+        "rows": 5008,
+        "bytes": 1612576,
+        "responses": 1
+      },
+      "ownReposts": {
+        "rows": 1004,
+        "bytes": 321280,
+        "responses": 2
+      },
+      "posts": {
+        "rows": 1000,
+        "bytes": 414000,
+        "responses": 1
+      },
+      "profiles": {
+        "rows": 1008,
+        "bytes": 433425,
+        "responses": 1
+      },
+      "reactions": {
+        "rows": 2000,
+        "bytes": 696500,
+        "responses": 1
+      },
+      "reposts": {
+        "rows": 1000,
+        "bytes": 312000,
+        "responses": 1
+      },
+      "unread": {
+        "rows": 248,
+        "bytes": 55454,
+        "responses": 1
+      }
+    },
+    "wireBytes": 5370728,
+    "responses": 3,
+    "rows": 15679
+  }
+}

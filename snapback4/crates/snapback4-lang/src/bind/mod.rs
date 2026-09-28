@@ -7,6 +7,7 @@ mod ephemeral;
 mod defaults;
 mod maintains;
 mod own_keys;
+pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
 pub mod program;

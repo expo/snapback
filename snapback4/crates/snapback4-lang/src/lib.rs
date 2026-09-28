@@ -56,6 +56,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
             }
         }
     }
+    bind::audience_diagnostics::parser_context(&documents, &mut diagnostics);
     repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
         return Bound { view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };

@@ -13,7 +13,7 @@ if (process.argv[2] === 'unicode') {
 }
 if (process.argv.length > 2) throw new Error(`unknown IndexedDB witness verb: ${process.argv[2]}`);
 
-const witness = await launch({ extraSource: `table secrets:
+const witness = await launch({ worker: process.env.SS_WORKER === "1", extraSource: `table secrets:
   photo: image <=100000 once
   read <- allow
   insert <- allow

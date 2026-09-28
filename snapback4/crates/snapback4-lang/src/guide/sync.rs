@@ -262,6 +262,8 @@ grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
 `online only`; `snapback4 test --residency` measures its cold rows. `check`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
+Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
+coverage; see `guide maintains` and the replica census in `guide offline-interactions`.
 
 ## Operations
 
@@ -314,6 +316,46 @@ source; without a dev store it says not measured and names the fixture command.
 Use `--verbose` for all table counts, declared facts and notes; on `test` it
 also runs the query meters as before. The default acquisition report fits
 one screen even for hundreds of tables or personas. No count is extrapolated.
+
+## Bound the cold start
+
+Size the largest account, not just a typical screen. A `last 500` message
+window in 1,000 conversations can acquire 500,000 messages; member rows,
+public tables and inherited maintained views add to that total. A query's
+`last 20` limits its answer, not the device's acquisition.
+
+A public source's horizon does not bound its maintained view. For example,
+`view ownLikes: count likes by .principal, .post` inherits the public audience
+and delivers every interaction key to every device, even if the source holds
+only its latest 2,000 likes. The name `ownLikes` does not scope it to the viewer.
+`N_MAINTAIN_SYNCED` names this cost. Use `online only` on the view when its
+state may need the server; that state then cannot be answered offline from
+the view. If it must be offline, model authorized state scoped to its viewer.
+Do not remove table read rules or certify missing keys as zero to save bytes.
+
+Run `check --residency --verbose` against a representative store (or use its
+`--fixture` form), including the account with the most groups. Bound each
+growing sync group with a horizon or a justified cap, then measure a fresh
+browser through `client.acquired`. Inspect inherited views separately.
+`N_NO_HORIZON` can be suppressed by prediction requirements, and a cap per
+group does not cap the number of groups. Neither absence of notes nor a small
+on-screen page promises a fast cold start.
+
+For large browser accounts, `webDevice({ worker: true })` runs the wasm
+device and IndexedDB saves in a dedicated Worker. The default remains
+`webDevice()`. The Worker keeps the page responsive during atomic publication;
+it adds startup, another realm and RPC, and does not reduce the declared data.
+Custom persistence providers stay on the default device. The bundler must
+package the Worker entry and wasm asset; Vite and the Clique Metro web export
+are exercised by the browser witnesses. See the SS round-6 report for the
+real app's acquisition, longest tasks and qualification limits; these are
+fixture measurements, not a cold-start deadline for other declarations.
+On the copied Clique scale store in Chromium on Linux, two Worker runs from
+fresh navigation through login and readiness took 27.4–28.8 s for the
+1,000-conversation account and 4.05–4.17 s for the 100-conversation account.
+The longest page task including boot was 77 ms; the default device still
+blocked about 7.5 s during the large account's publication. These results
+recommend the opt-in for this workload, not a change to the package default.
 
 ## Online store changes
 
@@ -412,4 +454,12 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync."##;
+column or index; do not make private rows public just to enable sync.
+For a maintained view, E_SYNC names inherited public sync from its source,
+without a horizon, and the conflicting explicit read. Keep the public read
+(or omit it) for the public offline summary, or use `online only` and lose
+offline aggregate/absence coverage. A view cannot declare a separate sync
+audience; do not narrow its public source to make it private. See `guide
+maintains` and `guide offline-interactions` for the replica census and the
+explicit source owner-key coverage alternative for viewer-owned existence.
+That alternative keeps the public window; it does not supply aggregate totals."##;

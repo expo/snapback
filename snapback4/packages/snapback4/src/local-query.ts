@@ -23,14 +23,16 @@ import { operationTables, type BackendJson } from "./backend.ts";
 import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
+import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
+  coldRead?: ColdReadControl | undefined;
   backend: BackendJson;
   ephemeralReads: EphemeralReads;
   partitionDenied: Refusal | null;
@@ -98,8 +100,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const denied = env.unavailable() ?? env.partitionDenied;
     if (denied) throw new Interrupted<R>({ read: { denied }, tables, nextExpiry: null });
     if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
+    if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
   const pending = async () => {
+    if (env.coldRead) return env.coldRead.pending(possible);
     const entries = await env.queued(); checkpoint();
     return entries.some(entry => {
       if (entry.observed_seq != null || entry.predictable !== true) return false;
@@ -234,6 +238,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
+    // @ref LLP 3000.016#2.2 — only an already server-answered cold watch may
+    // bypass the busy VM. No held read, local composition or remembered fallback.
+    if (env.coldRead) return held ? { result: loading, origin: "local" } : server();
     if (ephemeral) return server();
     // Rule 2: run every query locally when possible, even `runs: server`.
     if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
@@ -304,7 +311,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
-      if (origin !== "local" || !("data" in result.read)) return { ...result, localWakeup: origin === "remembered" };
+      if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
     }

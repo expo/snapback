@@ -1,0 +1,72 @@
+[
+  {
+    "name": "preparation-rejects-admission",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/worker-protocol.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/preparation-rejects-admission/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/preparation-rejects-admission/run.log",
+    "failures": [
+      "exit preparation failure preserves known admission success",
+      "exit preparation failure preserves known admission refusal"
+    ]
+  },
+  {
+    "name": "empty-worker-footprint",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/empty-worker-footprint/worker-protocol.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/empty-worker-footprint/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/empty-worker-footprint/run.log",
+    "failures": [
+      "Worker emits durable prediction tables after admission acknowledgement"
+    ]
+  },
+  {
+    "name": "forget-proof-before-save",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/forget-proof-before-save/worker-protocol.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/forget-proof-before-save/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/forget-proof-before-save/run.log",
+    "failures": [
+      "restore evidence survives a failed strict save and is drained before the next read"
+    ]
+  },
+  {
+    "name": "lost-restore-proof",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/lost-restore-proof/worker-watch.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/lost-restore-proof/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/lost-restore-proof/run.log"
+  },
+  {
+    "name": "old-observer-clears-refusal",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/old-observer-clears-refusal/worker-watch.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/old-observer-clears-refusal/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/old-observer-clears-refusal/run.log"
+  },
+  {
+    "name": "missing-control-drops-proof",
+    "exit": 1,
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/missing-control-drops-proof/worker-watch.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/missing-control-drops-proof/result.json"
+    ],
+    "log": "target/lane-ss-round7/mutants/missing-control-drops-proof/run.log"
+  }
+]

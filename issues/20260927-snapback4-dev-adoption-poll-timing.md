@@ -41,3 +41,40 @@ records are retained under `snapback4/target/lane-dc-round10/`.
 Follow-up: distinguish watcher/adoption/waiter latency from test-process
 scheduling under load, then fix the responsible path or fixture without
 weakening its behavioral generation assertion or silently raising the limit.
+
+## 2026-09-28 — SS round 8: mounted wasm ephemeral-interest timing
+
+The single full-suite run on `sb4-intent/ss-sync-at-scale`, after merging main
+in `1366c700c`, reports `== 1 failure(s) in 1422 s` (exit 1, client tests).
+Its only failure is the related test at `ephemeral-adoption.test.mjs:66`,
+“wasm: adoption replaces mounted ephemeral interests, including removal”.
+The new viewing row reached the watch, but line 92's unchanged
+`performance.now() - began <= 500` assertion failed. The **whole test** took
+2,466.604486 ms; the failed interval itself was not logged. Do not substitute
+the whole-test duration for that interval.
+
+Attribution: **baseline timing failure**, with environmental scheduling a
+possible cause, not a proven one. The test/server/wasm and exercised adoption
+paths are unchanged by SS round 8. This fixture uses `memoryPersistence()`
+and the default device: neither the changed IndexedDB quiescence path nor
+Worker cold-restore handling runs. The added cold-restore helper is constructed
+but never invoked, because this device has no cold-restore capability.
+
+Three interleaved isolated runs each against the merged pre-round SDK and
+current SDK pass the original 500 ms assertion. Elapsed logging immediately
+before that assertion measures baseline **24.48, 35.53, 33.83 ms**, current
+**33.35, 30.11, 49.83 ms**. These controls do not reproduce or clear the full-run
+failure, and do not identify which scheduling/server/client wait took longer.
+No assertion, timeout or product path was changed to mask it.
+
+Reproduce the focused case from `snapback4/` with the pinned toolchain:
+
+```sh
+node --test --test-name-pattern='^wasm: adoption replaces mounted ephemeral interests, including removal$' packages/snapback4/test/ephemeral-adoption.test.mjs
+```
+
+For the observed context use `scripts/test.sh`'s ordinary concurrent client
+file set; SS did not rerun the full suite. Retained logs, baseline/control
+construction and timings are in `snapback4/reports/20260927-ss-sync-scale/`
+under `round8-full-suite.log.gz`, `round8-adoption-controls.py`,
+`round8-adoption-controls.json` and `round8-adoption-*.log.gz`.

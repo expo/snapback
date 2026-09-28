@@ -1,0 +1,46 @@
+[
+  {
+    "label": "core-authorization",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "authorization",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 485.196
+  },
+  {
+    "label": "core-owner-keys",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "own_keys",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 0.079
+  },
+  {
+    "label": "cli-check-timeline",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "check",
+      "--test",
+      "timeline_adoption",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "seconds": 38.358
+  }
+]

@@ -26,6 +26,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   presenceEvery?: number | undefined;
   /** The last accepted observation used the server while acquiring. */
   serverRead?: boolean;
+  /** Whole server answer only: a composed retained answer cannot bypass its VM. */
+  serverOnly?: boolean;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
