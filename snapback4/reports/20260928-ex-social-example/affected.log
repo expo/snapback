@@ -1,0 +1,16 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (74.00207ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1697.531184ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (422.567354ms)
+  ✔ account reset clears draft and stops the prior typing owner (156.459387ms)
+✔ social recipes in React/browser: real online signals and media, controlled read interleavings (3489.011226ms)
+✔ published social starter and guide snippets typecheck against generated operations (1190.226124ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (3272.061388ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4926.201271

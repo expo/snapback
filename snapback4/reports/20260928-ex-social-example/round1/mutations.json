@@ -1,0 +1,50 @@
+[
+  {
+    "name": "empty-renewal",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-empty-renewal.log.gz"
+  },
+  {
+    "name": "no-viewer-withdrawal",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-no-viewer-withdrawal.log.gz"
+  },
+  {
+    "name": "allow-revalidating-member",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-allow-revalidating-member.log.gz"
+  },
+  {
+    "name": "keep-sensitive-reads",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-keep-sensitive-reads.log.gz"
+  },
+  {
+    "name": "no-route-key",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-no-route-key.log.gz"
+  },
+  {
+    "name": "no-route-visibility",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-no-route-visibility.log.gz"
+  },
+  {
+    "name": "no-stop-on-cleanup",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-no-stop-on-cleanup.log.gz"
+  },
+  {
+    "name": "close-arm-before-stop",
+    "exit": 1,
+    "killed_by_target": true,
+    "log": "mutant-close-arm-before-stop.log.gz"
+  }
+]

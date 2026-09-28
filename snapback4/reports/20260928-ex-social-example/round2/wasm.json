@@ -1,0 +1,9 @@
+{
+  "raw": 2018847,
+  "gzip": 585970,
+  "sha256": "9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1",
+  "cap": 586193,
+  "headroom": 223,
+  "toolchain": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127"
+}

@@ -1,0 +1,13 @@
+{
+  "command": [
+    "bash",
+    "scripts/test.sh"
+  ],
+  "started_utc": "2026-09-28T11:25:48.523244+00:00",
+  "head": "c72f716b8050439b70e2e456cec18772c6cbf4fe",
+  "environment_overrides": {},
+  "pid": 3347268,
+  "exit": 0,
+  "seconds": 1324.77,
+  "finished_utc": "2026-09-28T11:47:53.290750+00:00"
+}

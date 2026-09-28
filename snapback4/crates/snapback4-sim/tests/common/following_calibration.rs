@@ -98,7 +98,7 @@ pub fn check_counts(counts: &BTreeMap<String, (usize, usize)>) {
         let digits = n.to_string();
         digits.chars().enumerate().map(|(i, c)| if i > 0 && (digits.len() - i).is_multiple_of(3) { format!(",{c}") } else { c.to_string() }).collect()
     }
-    let card = include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md");
+    let card = include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md");
     for table in ["feedAuthors", "feedFollows", "feedPosts", "feedFeed", "follows", "posts", "profiles", "feedBroadcast"] {
         let (rows, bytes) = counts[table];
         let line = card.lines().find(|line| line.starts_with(&format!("| `{table}`"))).unwrap();

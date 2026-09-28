@@ -1,0 +1,14 @@
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (73.110626ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1697.679009ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (442.759674ms)
+  ✔ account reset clears draft and stops the prior typing owner (75.060138ms)
+✔ social recipes in React/browser: real online signals and media, controlled read interleavings (3412.327353ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3857.222781

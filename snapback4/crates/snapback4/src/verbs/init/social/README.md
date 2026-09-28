@@ -1,0 +1,95 @@
+# Small social
+
+An Expo Router app with Following, chats, a pinned conversation, search and
+profile screens. All backend forms are in `snapback/schema.q`; `check` emits
+their types. The three client recipes are also in `snapback4 guide social`.
+
+```sh
+npm install
+npx snapback4 check
+npx snapback4 dev
+# In another terminal:
+npm start
+# or npm run web, npm run ios:dev
+```
+
+Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
+uses the wasm replica; a development/production native build uses
+`snapback4-expo`. Expo Go uses the online tier and has no retained history
+offline. Change the app's bundle IDs before building your own native app.
+The iOS simulator uses `http://127.0.0.1:4400`. Set
+`EXPO_PUBLIC_SNAPBACK_URL` for another host or a physical device.
+
+Sign up or continue as a guest. Save a profile, then post. Open another
+browser profile or simulator, sign in as another account and exchange the
+account IDs from Profile. Follow that ID to populate Following. Create a
+chat, invite the other ID, and exchange messages. Leaving keeps only history
+this replica acquired; a remaining member can invite the departed account
+again. Reload preserves the URL, account and replica. Guests cannot recover
+their account after explicit sign-out; use passwords for that walkthrough.
+
+Avatar uploads are ordinary images. Attach once photo uploads an image for
+one viewing per account. Select View once photo, then Open media; close it
+and try again to see `E_ASSET_VIEWED`. The viewer lives above the history
+list. Loading or recycling that list cannot fetch another view or revoke
+the current handle. Close, identity change and a late result after close all
+release it. No once bytes are persisted; retained text grants no server media
+access. Only JPEG, PNG and WebP are accepted; an unsupported library image
+reports the server refusal.
+
+`createApp` owns the account and local replica. `useOnlineArm` borrows the
+current bearer for a short-lived `createClient` used only by typing; rotation
+or account change closes that arm. `useTyping` owns its observation and short
+renewal interval. Send, blur, inactivity, backgrounding, disconnect and
+unmount stop it. Failed cleanup expires within the schema's four-second life.
+Reconnect does not replay a hint; the next keystroke starts a new one. Typing
+never enters the durable outbox and its availability never gates the composer.
+
+`ConversationScreen` pins ordinary `history` to the route ID. The composer
+and once viewer sit above transient lists; room, history and receipt
+decorations have independent reads. History and room explicitly choose the
+SDK's default one-second `revalidating` retention; no application cache holds
+old protected answers. A gap shows Loading while keeping draft and focus.
+Membership and receipt decorations withdraw immediately. Missing membership
+keeps the draft and disables send; stale/retained/revalidating rows never grant
+authority. The server still checks every action. Account change clears UI
+state through `AppProvider`. Delivery is reported by the SDK's
+`reports delivery` binding; only foreground visible settled messages report
+`seen`. Receipts appear on each bubble, using the same cursor as its history
+page. `usePendingWrites` shows outstanding sends and posts. Every send saves
+its ID and complete arguments (including the attachment ID) in an account-
+and backend-scoped intent journal before dispatch. Each saved ID observes its
+own settlement; Edit restores a failed message, and Dismiss removes only the
+UI reference. Unknown outcomes never trigger automatic resubmission.
+
+## Current coverage choices
+
+History uses `messages where .conversation = conversation last 20 by
+byConversationOrdinal after c`, as `guide sync` teaches. Its safe leading
+equality establishes the same scope and coverage as a bracket prefix.
+Receipt pages share that index and history cursor.
+
+Likes declare `sync public last 2000 by .at with own keys .principal`.
+Ordinary `exists likes[post, viewer]` answers “did I like this?” from the
+caller's complete key partition, even outside the public window. Before
+that partition is acquired an unknown like remains loading, never false.
+Other viewers' old keys are not covered. This adds only the caller's key
+projection alongside the existing public window, not a public all-viewer
+summary. Inspect `client.residency()` or `snapback4 test --residency` for your
+actual holdings; see `snapback4 guide offline-interactions`.
+
+Per-chat search uses one ordinary unguarded pinned query in both link states.
+The current all-chat recipe uses `searchNewest` for current memberships
+online and `searchHeld` for this device's current and retained holdings
+offline. It labels that domain difference explicitly. Do not apply the
+membership rewrite suggested for `searchHeld`: it would drop retained hits
+after leave. Search order is time;
+the acquired history window is ordinal, so offline search can be incomplete.
+No all-history or mixed-domain completeness claim is made. Adopt ordinary
+all-chat search when its inferred audience and retained merge ship. See
+`snapback4 guide search` for cuts and continuation limits.
+
+This small app deliberately has no push delivery, message deletion, expiry,
+media cache, or background catch-up scan. Those features need their own
+documented contracts; the receipt run recipe here assumes immutable message
+positions with no deletion. `snapback4 guide receipts` explains the binding.

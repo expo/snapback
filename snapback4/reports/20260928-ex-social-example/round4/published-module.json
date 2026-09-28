@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "reports/20260928-ex-social-example/round3/check-published-module.py",
+    "--named-keys"
+  ],
+  "exit": 0,
+  "seconds": 0.14,
+  "doc_sha256": "e3024a3188eb6d120913377e3dc76e2ef9f191d7b5be3a28d0287d90c59d5e8a",
+  "packed_document_matches_worktree": true
+}

@@ -66,6 +66,15 @@ Do not force a redundant production POST or relax the exactness assertion to
 hide which recovery path the test exercised. This unrelated fixture repair
 was not folded into the small delivery-bound round.
 
+## 2026-09-28 — EX round 1 recurrence
+
+The sole full run after merging `5763da073` failed at the same assertion:
+one POST, expected two, at `client-seams.test.mjs:293`. The test and all SDK,
+core and device runtime sources are unchanged by EX. A focused serial rerun
+passed (two POSTs, one application); that does not close this known race.
+Evidence: `snapback4/reports/20260928-ex-social-example/round1/test-sh.log.gz`
+and `full-failure-controls.log.gz`. No runtime workaround was introduced.
+
 ## Resolution — 2026-09-28, Lane FL
 
 Confirmed on merged main `ea7ecc896` with the exact 100 ms delayed throw:

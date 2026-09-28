@@ -1,0 +1,52 @@
+[
+  {
+    "path": "document-load-search.txt.gz",
+    "uncompressed_bytes": 42077,
+    "sha256": "0dbbb4c4ff78c6cfc52c400c513a5ebecaf21ca28e5eaf179a049e5a0037f306"
+  },
+  {
+    "path": "guide.log.gz",
+    "uncompressed_bytes": 7167,
+    "sha256": "2b9201c13af61d828bc200e5867f0f9b4c142a9dcd8cfa1f8c4bbd5b4bc302c4"
+  },
+  {
+    "path": "published-module.log.gz",
+    "uncompressed_bytes": 1721,
+    "sha256": "365f82164cea134921c1ed29e3648f3bcfadcdee6c552ab199246aefcac55c50"
+  },
+  {
+    "path": "ref-check.log.gz",
+    "uncompressed_bytes": 80,
+    "sha256": "719b6ae66cb0da7569730164df65ecf39aadfb5fb5c4f0879950aa69ddf2628a"
+  },
+  {
+    "path": "snapback4-device-device.log.gz",
+    "uncompressed_bytes": 45378,
+    "sha256": "189a761d04924e8c3b4f515f9e80a917ab05e04b74a7eba2567a8d658c649718"
+  },
+  {
+    "path": "snapback4-device-readauth.log.gz",
+    "uncompressed_bytes": 3892,
+    "sha256": "68f821d3bcf4150e2bc22092e20c560615ae362ccc72918e493103d4bbdae474"
+  },
+  {
+    "path": "snapback4-init.log.gz",
+    "uncompressed_bytes": 2212,
+    "sha256": "208598d166acd5bd7c3a67531a7d37b001196dfa585d88e2f21e14cff1ade5ed"
+  },
+  {
+    "path": "snapback4-sim-clique.log.gz",
+    "uncompressed_bytes": 25161,
+    "sha256": "8c0a083dbd481f2e32a1fe809a5a4568530cec61bbcbab06c2e277e2db202e65"
+  },
+  {
+    "path": "test-sh.log.gz",
+    "uncompressed_bytes": 653353,
+    "sha256": "dd81ed71a11dd10e834f252ae697f6fa4c90e2e9241f821c7d060c3c93169cb6"
+  },
+  {
+    "path": "tested-diff.patch.gz",
+    "uncompressed_bytes": 5063,
+    "sha256": "3876b0e29622ccc41e11a617aa3b3075abf55e399de45ca506de175d44043f7f"
+  }
+]

@@ -1,0 +1,20 @@
+✔ Retired Following installer and orphan options preserve fresh and existing directory trees (301.742604ms)
+✔ Removed search recipe gets the ordinary unknown-recipe refusal (5.416601ms)
+✔ CCP expo generated intent transitions (353.348877ms)
+✔ CCP web generated intent transitions (28.605449ms)
+▶ social recipes in React/browser: real online signals and media, controlled read interleavings
+  ✔ route, history and decorations revalidate independently without draft/focus loss (67.515396ms)
+  ✔ typing expires, drops on disconnect, needs a fresh keystroke and never queues (1616.91004ms)
+  ✔ one handle survives list remount, closes, rejects second open and cleans a late result (481.213576ms)
+  ✔ account reset clears draft and stops the prior typing owner (185.140892ms)
+✔ social recipes in React/browser: real online signals and media, controlled read interleavings (4505.194689ms)
+✔ published social starter and guide snippets typecheck against generated operations (1262.675235ms)
+✔ social starter runs through the public client: feed, likes, receipts, typing, media and retained history (2577.355731ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4950.679377

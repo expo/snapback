@@ -7,7 +7,7 @@ pub const READERS: [(&str, usize); 2] = [("dev:reader5", 5), ("dev:reader500", 5
 pub fn id(s: &str) -> Value { Value::Id(s.into()) }
 pub fn author(n: usize) -> String { format!("dev:author{n:03}") }
 pub fn app() -> String {
-    snapback4_lang::guide::quarry(include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
+    snapback4_lang::guide::quarry(include_str!("../../../../packages/snapback4/FOLLOWING-ADOPTION.md")).into_iter()
         .find(|block| block.starts_with("-- Existing installed feed module; not a new application starter\n")).unwrap()
 }
 pub fn built() -> snapback4_lang::Bound {

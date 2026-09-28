@@ -519,7 +519,7 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert_eq!(bound.notes[0].code, "N_SPARSE_FILTER");
         return bound;
     }
-    if source == quarry(card("offline-interactions").unwrap())[0] {
+    if quarry(card("offline-interactions").unwrap()).iter().any(|block| block == source && block.contains("view ownLikes:")) {
         assert_eq!((bound.notes.len(), bound.notes.first().map(|n| n.code.as_str())), (1, Some("N_MAINTAIN_SYNCED")), "{label}: {:?}", bound.notes);
         return bound;
     }
@@ -782,7 +782,7 @@ fn every_card_compiles_clean() {
     }
     assert!(errors.is_empty(), "unclean blocks: {errors:?}");
     // The relocation preserves compiling adoption instructions for already installed apps.
-    let adoption = quarry(include_str!("../src/recipe/ADOPTION.md"));
+    let adoption = quarry(include_str!("../../../packages/snapback4/FOLLOWING-ADOPTION.md"));
     assert!(!adoption.is_empty(), "installed-app adoption must remain executable");
     for (index, block) in adoption.iter().enumerate() {
         clean(&format!("existing feed adoption block {}", index + 1), &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));

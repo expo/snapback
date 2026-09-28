@@ -1,0 +1,6 @@
+{
+  "raw_bytes": 2018847,
+  "gzip_bytes": 585970,
+  "sha256": "9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1",
+  "measurement": "GNU gzip -9 file input, before full suite"
+}

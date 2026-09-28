@@ -1,0 +1,7 @@
+{
+  "raw": 2017908,
+  "gzip": 585100,
+  "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a",
+  "budget": 586193,
+  "comparison": "Byte-identical after the sole full-suite wasm build; EX raw/gzip delta 0/0"
+}
