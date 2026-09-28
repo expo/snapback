@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PageDeviceControl, coldReadControl, coldSnapshot, coldReplyMatches } from '../dist/device-control.js';
+import { PageDeviceControl, coldReadControl, coldSnapshot, coldReplyStatus } from '../dist/device-control.js';
 import { evaluateLocal } from '../dist/local-query.js';
 import { RememberedAnswers } from '../dist/local-reads.js';
 import { EphemeralReads } from '../dist/ephemeral-reads.js';
@@ -77,10 +77,24 @@ test('only eligible cold watches receive the capability; restart cannot revive a
   assert.equal(coldSnapshot(() => before, true, 2), undefined);
   page.discard(); page.publish(snapshot()); assert.equal(coldReadControl(() => page.read(), before).current(), false);
 });
-test('transport keeps store and retained-image floors and omits supplementary manifests', () => {
-  for (const body of [{ store_id: 'other', head: 10 }, { store_id: 'store', head: 4 }, { store_id: 'store' }]) assert.equal(coldReplyMatches(snapshot(), body), false);
+test('transport distinguishes restore proof from unusable responses and omits delivery', () => {
+  for (const body of [{ store_id: 'other', head: 10 }, { store_id: 'store' },
+    { store_id: 'store', head: -1 }, { store_id: 'store', head: 1.5 }]) assert.equal(coldReplyStatus(snapshot(), body), 'unusable');
+  assert.equal(coldReplyStatus(snapshot(), { store_id: 'store', head: 4 }), 'restore');
   const body = { store_id: 'store', head: 5, delivery: {} };
-  assert.equal(coldReplyMatches(snapshot(), body), true); assert.equal(body.delivery, undefined);
+  assert.equal(coldReplyStatus(snapshot(), body), 'match'); assert.equal(body.delivery, undefined);
+});
+test('page restore refusal survives later publication and Worker restart', () => {
+  const page = new PageDeviceControl(); page.publish(snapshot({ restore_images_at: 100 }));
+  const capture = page.read();
+  assert.equal(coldReplyStatus(capture, { store_id: 'store', head: 90 }), 'restore');
+  page.refuseRestore('store');
+  page.publish(snapshot({ watermark: 101, restore_images_at: 101 }));
+  assert.equal(page.read().restore_refusal.code, 'E_STORE_RESTORE');
+  assert.equal(coldReadControl(() => page.read(), capture).current(), false);
+  assert.equal(coldSnapshot(() => page.read(), true, 1), undefined);
+  page.discard(); page.publish(snapshot());
+  assert.equal(page.read().restore_refusal.code, 'E_STORE_RESTORE');
 });
 test('a transient Worker fence withholds cold fallback without queueing a VM read', async () => {
   const f = fixture(); const unblock = f.page.block();

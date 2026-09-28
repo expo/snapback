@@ -1,0 +1,12 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "restore evidence survives a failed strict save and is drained before the next read",
+      "ok": false,
+      "error": "TypeError: Cannot read properties of undefined (reading 'code')\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/forget-proof-before-save/worker-protocol.mjs:354:107\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/forget-proof-before-save/worker-protocol.mjs:259:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/forget-proof-before-save/worker-protocol.mjs:340:3"
+    }
+  ],
+  "pageErrors": [],
+  "failures": 1
+}

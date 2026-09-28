@@ -3,6 +3,7 @@ import type { DeviceOpening } from "./local-device.ts";
 import type { JournalInvoke } from "./web-journal-execution.ts";
 import { indexedDbStore } from "./web-idb.ts";
 import { PageDeviceControl } from "./device-control.ts";
+import { restoreFloor, restoreObservation, type RestoreEvidence } from "./device-restore.ts";
 
 type Reply = Record<string, any>;
 export type WorkerWasmSource = string | BufferSource | WebAssembly.Module;
@@ -37,6 +38,35 @@ export class WebWorkerHost {
   private opened = false;
   private opening: Promise<Change[]> | undefined;
   private released: Promise<void> | undefined;
+  private restore: RestoreEvidence | undefined;
+
+  fenceRestore(evidence: RestoreEvidence): Promise<void> {
+    this.restore ??= { ...evidence, capture: { ...evidence.capture } };
+    this.control.refuseRestore(evidence.storeId);
+    this.invalidatePreparation();
+    // Queue now; already queued transactions also drain the proof first.
+    return this.transaction(async tx => { await tx.commit(); });
+  }
+
+  private async persistRestore(): Promise<void> {
+    const proof = this.restore;
+    if (!proof) return;
+    const { ok: state, denied } = await this.rpc({ action: "invoke", request: { op: "sync_state", capture: false } });
+    if (denied || !state) throw new Error("cannot persist the captured restore observation");
+    if ((state.transfer_store_id ?? state.store_id) === proof.storeId && !state.restore_refusal) {
+      // @ref LLP 3000.007#20.4 — busy-Worker restore proof precedes later reads/sends.
+      // Publication may have advanced while this already-proven regression
+      // waited. Rebind only the transaction guards, retaining the ORIGINAL
+      // floor/head. This is a same-store refusal, never adoption or progress.
+      const capture = { ...proof.capture, watermark: state.watermark, send_revision: state.send_revision,
+        restore_watermark: restoreFloor(proof.capture) };
+      const result = await this.rpc({ action: "invoke", request: restoreObservation(proof.storeId, proof.head, capture, state.generation) });
+      if (result.denied?.code !== "E_STORE_RESTORE") throw new Error("the captured restore proof was not persisted");
+    }
+    const reply = await this.rpc({ action: "commit", extra: [] });
+    this.remember(reply.journal); this.control.publish(reply.control);
+    this.restore = undefined; // A failed save/Worker restart must retain it.
+  }
 
   constructor(private readonly claim: PersistenceClaim,
     private readonly createWorker = () => new Worker(new URL("./web-worker-entry.js", import.meta.url), { type: "module" })) {}
@@ -105,7 +135,7 @@ export class WebWorkerHost {
     this.activity++;
     if (this.closing || !this.opened) return Promise.reject(new Error("the device is closed or has not opened"));
     const result = this.chain.then(async () => {
-      try { if (!this.worker) { await this.stopping; await this.start(null); } }
+      try { if (!this.worker) { await this.stopping; await this.start(null); } await this.persistRestore(); }
       catch (error) { await this.stop(); throw error; }
       let active = true, dirty = false;
       const unblock: (() => void)[] = [];
@@ -210,6 +240,8 @@ export class WebWorkerHost {
         try { await this.start(null); }
         catch (error) { await this.stop(); throw error; }
       }
+      try { await this.persistRestore(); }
+      catch (error) { await this.stop(); throw error; }
       await this.stop();
       await this.release();
     });

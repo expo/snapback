@@ -72469,3 +72469,68 @@ review, bucket amplification and budget-constrained indexes. Worker total
 memory and broader platform qualification are not established here. File map,
 forms, every failure, all measurements and commands: reports/20260927-ss-sync-scale/ROUND6.md.
 All round-6 commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 7: sticky cold-read restore proof and known admissions
+
+Merged origin/main 3a8360db1 first, without conflicts, in e608e25db;
+read rounds 0–6's prompts/reports/SS entries and Astra's full NOT READY review.
+Grok had no verdict at startup; did not wait. No push/publication or tool install.
+
+Cold queries now distinguish malformed/foreign replies from proved same-store
+regression. The latter synchronously fences the client and page controls,
+including prepared exit permission. The Worker host retains the original head
+and floors through a failed strict save or Worker restart, drains proof before
+later transactions and close, and commits the existing observe_store refusal.
+A terminal publication that overtakes the request can rebind only the current
+transaction guards; it cannot erase the original proof. A later 101 cannot
+bless the store after 100 → 90. New admission invalidates read publication,
+not that restore fact. Query/admission/action/upload/exit and ordinary transport
+guards prevent further dispatch. Ordinary restore observation was extracted
+without behavior changes to keep local.ts at 1,500 lines.
+
+Exit preparation now has separate failure handling after a completed call:
+retain its success or known NOT_ADMIN, invalidate permission, and retry using
+the existing bounded background recovery. New Chromium cases preserve both
+outcomes and journal cancellation/transfer. A real Worker-produced prediction
+footprint from a persisted admitted send blocks the intersecting server answer
+after the page's admission barrier has cleared.
+
+The blocked-Worker client regression covers private/image floor 100, reply 90,
+a delayed reply 101, an intervening pending admission and one-shot read, both
+ordinary and keep:true watches, no later sends, terminal watermark advancing
+to 101, strict refusal and offline reopen. Another protocol case interrupts
+proof persistence and requires the next read and reopen to remain refused.
+Six isolated mutants fail at their intended assertions: drop restore handling,
+propagate preparation failure, emit an empty runtime footprint, forget proof
+before commit, let an older sync observer clear the refusal, discard proof
+when the page control is temporarily unavailable. The last audit
+found that completion race; a fifth browser case and adjacent completion
+guards keep the refusal sticky through old observation/adoption replies.
+Captured proof also survives unavailable page control until host revalidation.
+Earlier copied-mutant package/opener setup errors and one wrong-cwd edit,
+absent-file reads and a reused-store fixture are classified as ours, corrected,
+and retained separately.
+
+Qualification: web/clock 193/193; sync-scale and repair-B 73/73; observer audit
+316 pass, one existing skip; final sync/generation completion 85 pass and
+one existing skip; controls 19/19; Worker protocol 40/40;
+busy-Worker watches 5/5; navigation default and Worker 10/10 each; whole guide
+92/92. Package build/typecheck, refs, whitespace and source sizes pass.
+Both IDB browser witnesses retain only the two baseline adoptionRejected /
+adoptionUnlocked failures (deferred orphan recovery versus eager-open fixture),
+tracked since round 4; all other reported checks pass. No unresolved own or
+environmental qualification failure. Observer-by-observer audit, file map,
+commands, all failures and raw evidence: reports/20260927-ss-sync-scale/ROUND7.md.
+
+Did not run scripts/test.sh, per round-7 instruction. Round 6's historical
+`== 0 failure(s) in 1349 s` stands; supervisor runs the landing suite. No new
+scale measurement, independent READY claim or change to the default device.
+Wasm remeasured unchanged: 2,019,815 B raw / 585,384 B canonical gzip, zero
+delta, 809 B below the unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+LLP 3000.007 §20.4 records the fixes. Existing performance/platform/memory
+limits remain. Before strict restore commit, page-memory proof has the same
+page-destruction limitation as ordinary queued observation; no synchronous
+restore journal or physical-power-loss guarantee is claimed. Worker failure
+with a surviving page, durable refusal, close and offline reopen are tested.
+All local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

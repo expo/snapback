@@ -1,6 +1,7 @@
 import type { DeviceCore, DeviceOpening } from "./local-device.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceControl } from "./device-control.ts";
+import { deviceRestore } from "./device-restore.ts";
 import type { Change } from "./web.ts";
 import { indexedDbPersistence } from "./web.ts";
 import { claimStore } from "./web-ownership.ts";
@@ -152,6 +153,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
   };
   const core: DeviceCore = {
     [deviceControl]: () => host.control.read(),
+    [deviceRestore]: evidence => host.fenceRestore(evidence),
     onOutbox(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     onSuspend: flush => suspension.onSuspend(flush),
     media: {
@@ -180,7 +182,14 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
               host.control.admitted(admission.entry.id); return refused;
             }) : execute(tx, request, admission, committed);
           });
-          if (pendingCalls === 1 && ["admit", "enqueue", "settle", "settle_exit", "begin_send"].includes(String(request.op))) await suspension.prepare();
+          if (pendingCalls === 1 && ["admit", "enqueue", "settle", "settle_exit", "begin_send"].includes(String(request.op))) {
+            try { await suspension.prepare(); }
+            catch {
+              // The requested transaction already completed. Preparation is
+              // separate custody work, never an unknown admission outcome.
+              host.invalidatePreparation(); recovered = false; retry();
+            }
+          }
           return reply;
         } catch (error) {
           recovered = false;

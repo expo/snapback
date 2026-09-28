@@ -56,6 +56,10 @@ writeFileSync(join(dir, 'entry.js'), `
 import { WebWorkerHost } from '${sdk}/web-worker-host.js';
 import { WebWorkerSuspend } from '${sdk}/web-worker-suspend.js';
 import { deliveryCommit } from '${sdk}/local-device.js';
+import { deviceControl, coldSnapshot } from '${sdk}/device-control.js';
+import { evaluateLocal } from '${sdk}/local-query.js';
+import { RememberedAnswers } from '${sdk}/local-reads.js';
+import { EphemeralReads } from '${sdk}/ephemeral-reads.js';
 import { AdmissionJournal } from '${sdk}/web-journal.js';
 import { indexedDbPersistence, webDevice } from '${sdk}/web.js';
 const backend = ${JSON.stringify(schema)};
@@ -122,6 +126,48 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  async predictionFootprint() {
+    const core = cores.get('footprint');
+    const durable = (await persist.load('footprint')).filter(c => c.s === 'o').map(c => JSON.parse(c.v));
+    const snapshot = core[deviceControl]();
+    let posts = 0;
+    const env = { backend, coldRead: coldSnapshot(core[deviceControl], true, 1).control,
+      ephemeralReads: new EphemeralReads(new AbortController().signal),
+      partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0, refreshing: null,
+      link: 'online', caughtUp: false, identityChecked: true, lastSyncAt: 0, principal: 'dev:alice',
+      partitionCurrent: true, nativeReady: false, signal: new AbortController().signal,
+      unavailable: () => null, queued: async () => { throw Error('queued behind Worker'); },
+      call: async () => { throw Error('read behind Worker'); },
+      post: async () => { posts++; return { ok: true, json: { data: ['server answer over prediction'], seq: 5 } }; },
+      installNative: async () => false, notify() {}, offline: () => ({ code: 'E_OFFLINE' }),
+      deviceNow: () => 20, serverNow: () => 20, serverAnswers: new RememberedAnswers().view() };
+    const answer = await evaluateLocal(env, { name: 'thread', kind: 'query' }, { conversationId: 'c1' }, 0, 0);
+    return { snapshot, durable, posts, answer: answer.read };
+  },
+  async preparationFailure(refuse) {
+    const core = cores.get('preparation');
+    if (refuse) ok(await core.call({ op: 'apply', page: { store_id: 'worker-store', generation: 1,
+      snapshot: false, events: [{ table: 'memberships', id: 'm1', kind: 'put',
+        data: { id: 'm1', conversationId: 'c1', principal: 'dev:alice', role: 'member', joinedAt: 1 } }], watermark: 6, more: false } }));
+    const original = WebWorkerSuspend.prototype.prepare;
+    let calls = 0, committed, sends = 0;
+    WebWorkerSuspend.prototype.prepare = async function() {
+      calls++; await original.call(this);
+      if (calls === 1) throw Error('failure immediately after admission, during exit preparation');
+    };
+    const stop = core.onSuspend((entries, begin) => { if (begin()) sends++; });
+    try {
+      const entry = { id: 'preparation-write', seq: 1, op: refuse ? 'addMember' : 'send',
+        args: refuse ? { conversationId: 'c1', principal: 'dev:bob' } : { conversationId: 'c1', body: 'prepared' },
+        viewer: 'dev:alice', now: 20, new_ids: ['preparation-row'], predictable: true, predicted: [] };
+      const reply = await core.call({ op: 'admit', entry }, value => committed = value).catch(error => ({ error: String(error) }));
+      dispatchEvent(new PageTransitionEvent('pagehide')); const immediateSends = sends;
+      dispatchEvent(new PageTransitionEvent('pageshow'));
+      const start = performance.now(); while (calls < 2 && performance.now() - start < 4000) await new Promise(r => setTimeout(r, 10));
+      return { reply, committed, immediateSends, calls, records: records(),
+        queued: (await core.call({ op: 'queued' })).ok };
+    } finally { stop(); WebWorkerSuspend.prototype.prepare = original; }
+  },
   async coreWasm(kind) {
     const response = await fetch(new URL('${sdk}/wasm/snapback4_device_bg.wasm', import.meta.url));
     const bytes = await response.arrayBuffer();
@@ -157,6 +203,7 @@ window.w = { open, call, recover, capture, admit, counts, records, first, second
     });
     dispatchEvent(new PageTransitionEvent('pagehide')); stop(); return { sent, captured };
   },
+  fenceRestore: evidence => host.fenceRestore(evidence),
   control: () => host.control.read(), pending: id => host.control.capture(id), admitted: id => host.control.admitted(id),
   async acquire() { await call(first); await call(second); await call(terminal); },
   arm(point, crash = false) { hit = new Promise(r => signal = r); worker.postMessage({ test: 'arm', point, crash }); },
@@ -263,6 +310,48 @@ try {
     assert.equal(result.pending.predictions, null); assert.equal(result.discarded, null);
     assert.equal(result.restored.predictions, null); assert.equal(result.stillPending.predictions, null);
     assert.ok(result.pending.queuedRevision > result.before.queuedRevision);
+    return result;
+  });
+  await run('Worker emits durable prediction tables after admission acknowledgement', async page => {
+    const result = await page.evaluate(async () => {
+      await w.coreOpen('footprint', 'footprint'); await w.coreAcquire('footprint');
+      const admitted = await w.coreAdmit('footprint', 'predicted-write');
+      await w.coreCall('footprint', { op: 'clear_rows' });
+      const result = await w.predictionFootprint(); await w.coreClose('footprint'); return { admitted, ...result };
+    });
+    assert.equal(result.admitted.ok.predictable, true);
+    assert.ok(result.durable[0].predicted.includes('messages/predicted-write'));
+    assert.ok(result.snapshot.predictions.includes('messages'), 'real runtime, no pending admission barrier');
+    assert.equal(result.snapshot.acquired, false); assert.equal(result.posts, 0);
+    assert.deepEqual(result.answer, { loading: true }); return result;
+  });
+  for (const refuse of [false, true]) await run('exit preparation failure preserves known admission ' + (refuse ? 'refusal' : 'success'), async page => {
+    const result = await page.evaluate(async refuse => {
+      await w.coreOpen('preparation', 'preparation'); await w.coreAcquire('preparation');
+      const result = await w.preparationFailure(refuse); await w.coreClose('preparation'); return result;
+    }, refuse);
+    assert.equal(result.reply.error, undefined); assert.deepEqual(result.reply, result.committed);
+    if (refuse) { assert.equal(result.reply.denied.code, 'NOT_ADMIN'); assert.deepEqual(result.queued, []); }
+    else { assert.equal(result.reply.ok.id, 'preparation-write'); assert.equal(result.queued[0].id, 'preparation-write'); }
+    assert.equal(result.records.length, 0, 'admission transferred or refusal cancelled');
+    assert.equal(result.immediateSends, 0, 'failed preparation withdraws permission');
+    assert.ok(result.calls >= 2, 'separate background preparation retry'); return result;
+  });
+  await run('restore evidence survives a failed strict save and is drained before the next read', async page => {
+    const result = await page.evaluate(async () => {
+      await w.open('restore-retry'); await w.acquire();
+      const capture = w.control();
+      w.arm('before-commit');
+      const pending = w.fenceRestore({ storeId: 'worker-store', head: 4, capture }).then(() => 'resolved', error => String(error));
+      await w.hit(); const fenced = w.control();
+      await w.terminate(); const failed = await pending;
+      const next = await w.call({ op: 'sync_state', capture: false });
+      await w.close(); await w.open('restore-retry', false, true);
+      const reopened = await w.call({ op: 'sync_state', capture: false });
+      return { capture, fenced, failed, next, reopened };
+    });
+    assert.equal(result.capture.watermark, 5); assert.match(result.failed, /stopped/);
+    for (const state of [result.fenced, result.next, result.reopened]) assert.equal(state.restore_refusal.code, 'E_STORE_RESTORE');
     return result;
   });
   await run('Worker accepts supplied bytes, Response promises and compiled wasm modules', async page => {
