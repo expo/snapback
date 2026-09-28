@@ -194,18 +194,27 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if (await blocked()) return loading;
     checkpoint();
     const credential = env.credentialRevision;
-    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after } }, r => ledger.decode(r)); checkpoint();
+    // The supplied candidates are bounded by this page. The response certifies
+    // only point readability; current rows win even outside the needle/keyset.
+    ledger.charge("heap_bytes", 128 + (local.data?.length ?? 0) * 64);
+    ledger.charge("steps", local.data?.length ?? 0);
+    const retained = local.cut && !local.next ? [] : (local.data ?? []).map(row => row.id);
+    if (retained.length > plan.limit + 1) throw new SearchBound("overlap candidates");
+    ledger.text(jsonBound(retained, ledger));
+    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r)); checkpoint();
     if (!response.ok || response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
+    const remote = response.json as Page;
+    // A permanent refusal publishes no rows or cursor. It must not become an
+    // identity refresh loop, including an old server's early decoder refusal.
+    if (remote.denied) return { ...loading, read: { denied: remote.denied }, credential };
+    if (remote.loading) return loading;
     if (!response.searchIdentity || position.identity !== null && position.identity !== response.searchIdentity) {
       env.refreshSearch?.(name);
       return loading;
     }
     position.identity = response.searchIdentity;
-    const remote = response.json as Page;
-    // Refusals, including opening failures, remain the original operation's.
-    if (remote.denied) return { ...loading, read: { denied: remote.denied }, credential };
-    if (remote.loading || !Array.isArray(remote.data)) return loading;
+    if (!Array.isArray(remote.data)) return loading;
     const afterReply = await env.call({ op: "search_state", name, spent: ledger.used }); checkpoint();
     if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
     const after = afterReply.ok as State | undefined;
@@ -249,12 +258,20 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       local = { data: [], complete: false, cut: local.cut, next: null };
       if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
     }
+    const current = response.json.searchCurrent;
+    if (Array.isArray(current)) ledger.charge("steps", current.length * (retained.length * 136 + 1));
+    if (!Array.isArray(current) || current.length > retained.length || !current.every(id => typeof id === "string" && retained.includes(id))) {
+      return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } };
+    }
+    ledger.charge("heap_bytes", 128 + current.length * 64);
+    const suppressed = new Set(current);
     const left = local.data!, right = remote.data;
     ledger.charge("heap_bytes", 128 + plan.limit * 128);
     const data: Row[] = [];
     let retainedEmitted = false;
     const seen = new Set<string>();
     let i = 0, j = 0;
+    let consumed = false;
     const before = (a: Row, b: Row) => {
       ledger.charge("steps", 2);
       let cmp = Number(a[plan.column]) - Number(b[plan.column]);
@@ -276,8 +293,8 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (i === left.length && j === right.length) break;
       const fromLocal = j === right.length || i < left.length && before(left[i]!, right[j]!);
       const row = fromLocal ? left[i]! : right[j]!;
-      ledger.charge("steps", 2); // selection + deduplication
-      if (!seen.has(row.id)) {
+      ledger.charge("steps", 2 + row.id.length * 2); // selection + both ID hash lookups
+      if (!(fromLocal && suppressed.has(row.id)) && !seen.has(row.id)) {
         ledger.text(64 + row.id.length);
         // Decoded rows are already reserved; output serializing/copying is also paid.
         const bytes = jsonBound(row, ledger);
@@ -290,12 +307,12 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       // Both lanes seek the combined consumed key on the next request. A new
       // match before that key is outside this live traversal even if its lane
       // emitted nothing yet. All fetched/unconsumed keys after it remain eligible.
-      position.after = next;
+      position.after = next; consumed = true;
       if (fromLocal) { position.local = next; i++; } else { position.server = next; j++; }
     }
     const more = i < left.length || j < right.length || !!local.next || !!remote.next;
     let next: string | null = null;
-    if (more && data.length) {
+    if (more && consumed) {
       ledger.text(2048 + binding.length + (position.local?.length ?? 0) + (position.server?.length ?? 0) + (position.after?.length ?? 0));
       next = prefix + encoded(position);
       if (next.length > maxCursor) throw new SearchBound("cursor");

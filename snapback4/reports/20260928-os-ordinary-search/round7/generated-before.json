@@ -1,0 +1,32 @@
+[
+  {
+    "host": "process",
+    "seeds": 4,
+    "failed": [
+      1,
+      2,
+      4
+    ],
+    "ms": 639,
+    "coverage": {
+      "argument-change": 1,
+      "new": 2,
+      "terminal:none": 1
+    }
+  },
+  {
+    "host": "wasm",
+    "seeds": 4,
+    "failed": [
+      1,
+      2,
+      4
+    ],
+    "ms": 848,
+    "coverage": {
+      "argument-change": 1,
+      "new": 2,
+      "terminal:none": 1
+    }
+  }
+]

@@ -74063,3 +74063,75 @@ in issues/closed/. Report, sibling census, commands, digests and compressed
 raw evidence accompany this entry. No shared-path tool installation, push or
 publication. scripts/test.sh was not run; the supervisor owns the landing
 suite. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 7: point overlap, proven page identity and terminal refusals
+
+Round 7 first fetched and merged origin/main in `d023a8fd6`, keeping both
+parents' append-only journal blocks and the automatically merged source. Read
+all binding lane prompts, prior reports/OS entries, the Snapback 4 fence and
+scoped LLP/guide context using llp-orient read-only. Astra's full rounds-5/6
+NOT READY review and all four reproductions are incorporated. Grok had progress
+notes initially, then finished READY with lows; its final text is preserved and
+its cut-model and cursor-wording findings are addressed. No tool was installed.
+
+The server now point-checks only this page's supplied retained IDs under the
+query's existing transaction, authorization/expiry boundary and meter. At most
+the page size plus lookahead is admitted; capped checks refuse. Current readable
+IDs suppress retained candidates even after deletion/reinsertion, scope updates,
+match changes, filtering or movement outside the requested keyset. Hidden,
+absent and expired images have the same negative answer; no unsupplied ID, new
+body, scope or order key is disclosed. LLP 3000.028 §3.3 records the decision and
+disclosure argument. Immutable-scope admission and N_SEARCH_MUTABLE_SCOPE are
+removed. Immutable order advice remains. Every page still makes one server
+invocation; all-suppressed prefixes may return an empty advancing page, with no
+refill or skipped unconsumed server key. No runtime allowance is raised.
+
+Generated source-row page handles carry `rowKey: "id"`; Pages deduplicates only
+with that proof and keeps the newest observed image. A projected `id: .room`
+keeps ordinary list semantics. Authenticated early refusals capture a reader's
+store/head/generation, and the coordinator handles refusals before identity
+refresh. Mounted React/wasm invalid input settles E_INPUT after one request,
+remaining settled over 200 ms. Pre-authentication auth/origin refusals retain
+their metadata-free envelope; final review caught and tested the overly broad
+initial metadata patch before restoring that disclosure boundary.
+
+The extended generator reproduced all three blockers before repairs: seeds
+1/2/4 fail on process and wasm; changed-needle seed 3 already passes. It now
+generates ID reuse, projected non-identity IDs, permanent invalid inputs and
+argument changes. Restart/withdrawal follows modeled events, not returned
+cursor fields. Fixture conditions determine lane suspension. Partial offline
+safety samples never supply the model's next key; all uncut and suspended-current
+pages retain exact independent keyset comparison. The first complete sweep's
+225/240/300 failures per host were model mistakes: some offline pages fill before
+the fixture's cut. They are corrected and fully logged.
+
+Final oracle: 300/300 process and 300/300 wasm seeds, plus 22 current-only
+server differential schedules per host with 194 identical pages each. Process
+183.141 s, wasm 134.262 s. Each host generates 50 reinsertion cases and 74 each
+of projections, invalid inputs and changed arguments. An isolated mutation
+removing arguments from the cursor binding fails both Astra's needle regression
+and generated seed 3 on both hosts. Product artifacts were never mutated.
+
+Qualification: 160 affected JavaScript cases pass in the final combined run,
+plus the added pre-authentication disclosure regression in the focused refusal
+rerun (161 unique affected cases). 83 affected Rust tests pass, including 75
+search/device/meter cases and eight HTTP query cases; one existing prepared-M7
+scale case is ignored by its named prerequisite. Whole guide: 94 pass. Client
+build/typecheck, 36 wasm codec/family tests, family/server-only absence checks
+and reference audit pass. `scripts/test.sh` was not run, as instructed.
+
+Canonical wasm: 2,039,451 B raw / 592,719 B gzip, 0 raw / −3 gzip from round 6.
+The unchanged 586,193 B cap still fails by 6,526 B (ours, inherited expected
+budget failure). The server-only overlap and TypeScript metadata/coordinator
+add no device function family; whole-artifact bytes include merged source/layout.
+No budget raise here. No baseline or environmental test failure. Development
+product/model/fixture/mutation failures, including the initial auth-metadata
+regression, are retained and classified in the
+[round-7 report](./reports/20260928-os-ordinary-search/REPORT.md). The revised
+word-dense drain fixture pays the overlap inside the existing allowance and
+checks unconsumed hits through a third explicitly requested page.
+
+Round-1 full-builder u0500/floor/guard evidence remains historical; this round
+reruns real process/wasm and mounted browser cases, not a native Expo witness or
+the full copied calibration store. Prior round-6 report is preserved as ROUND6.md.
+Commit carries the co-author trailer; push and publication remain forbidden.

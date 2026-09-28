@@ -886,11 +886,19 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None);
         (result, cut)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>) -> Result<QueryOutcome, Refusal> {
+    // @ref LLP 3000.028#3.3 — point overlap and page share one transaction/ledger.
+    #[cfg(feature = "server-search")]
+    pub fn query_search_at(&mut self, name: &str, context: Context, retained: Option<&[String]>) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current);
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
@@ -949,6 +957,13 @@ impl Engine {
         let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         #[cfg(feature = "server-search")]
         { runner.ordinary_search_cursor = inferred_search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
+        #[cfg(feature = "server-search")]
+        if let Some(ids) = _retained {
+            let original = &self.programs[name];
+            let descriptor = crate::search_plan::ordinary::composition(&self.schema, original)
+                .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
+            *_current = Some(runner.search_overlap(&descriptor, ids)?);
+        }
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;

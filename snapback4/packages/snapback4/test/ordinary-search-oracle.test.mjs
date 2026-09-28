@@ -9,9 +9,9 @@ import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
+import { generatedCategory } from './helpers/search-oracle-categories.mjs';
 import { random, compare, SearchModel, KeysetModel, schema } from './helpers/search-oracle.mjs';
 const query = { kind: 'query', name: 'search' }, wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-const decode = c => c?.startsWith('sb4s:') ? JSON.parse(Buffer.from(c.slice(5), 'base64url')) : null;
 async function scenario(host, seed, currentOnly = false) {
     const rng = random(seed), direction = rng(2) ? 'first' : 'last', limit = seed % 75 === 0 ? 100 : [2, 3, 5, 9][rng(4)], mutable = seed % 11 === 0;
     const cut = seed % 75 === 0 ? 'meter' : seed % 12 === 0 ? 'words' : null, source = schema({ direction, limit, mutable });
@@ -50,7 +50,7 @@ async function scenario(host, seed, currentOnly = false) {
         client = await createLocalClient(options);
         await client.sync();
         model.sync();
-        async function mutate(name, args) { const fields = name === 'edit' ? ['id', 'text', 'at', 'expires'] : name === 'relocate' ? ['id', 'room', 'text', 'at'] : ['room']; const r = await (name === 'leave' ? owner : admin).mutate({ kind: 'mutation', name }, Object.fromEntries(fields.map(k => [k, args[k]]))); assert.equal(r.state, 'sent', JSON.stringify(r)); }
+        async function mutate(name, args) { const fields = name === 'rebirth' ? ['id', 'room', 'text', 'at'] : name === 'edit' ? ['id', 'text', 'at', 'expires'] : name === 'relocate' ? ['id', 'room', 'text', 'at'] : ['room']; const r = await (name === 'leave' ? owner : admin).mutate({ kind: 'mutation', name }, Object.fromEntries(fields.map(k => [k, args[k]]))); assert.equal(r.state, 'sent', JSON.stringify(r)); }
         if (!currentOnly) {
             await mutate('leave', { room: 'left' });
             model.members.delete('left');
@@ -63,30 +63,37 @@ async function scenario(host, seed, currentOnly = false) {
             model.write(next);
             trace.push('pre-traversal move');
         }
-        const visible = () => model.readable(!offline && !mutable);
+        if (!currentOnly && !cut) await generatedCategory({ seed, direction, limit, model, client, owner, mutate, calls: () => calls, events });
+        const visible = () => model.readable(!offline);
         const keyset = new KeysetModel(visible(), direction);
-        let c, changed = false, freshIdentity = false, forceReset = false, resets = 0;
-        const differential = currentOnly && !mutable && !cut;
+        let c, changed = false, freshIdentity = false, forceReset = false, resets = 0, suspended = false, cursorOnline = false, cursorAudience = new Set(model.members);
+        const differential = currentOnly && !cut;
         let serverCursor, differentialPages = 0;
-        function restart() { keyset.restart(visible()); serverCursor = undefined; resets++; }
+        function restart() { keyset.restart(visible()); serverCursor = undefined; suspended = false; resets++; }
         function synced() {
             if (offline) return;
             if (freshIdentity) {
                 model.reset();
                 freshIdentity = false;
                 changed = true;
-                forceReset = !mutable;
+                forceReset = true;
             }
             model.sync();
         }
         for (let page = 0; page < 200; page++) {
+            // Restart and withdrawal come from modeled events and fixture
+            // custody. No response row or cursor field selects either branch.
+            const resetForEvent = forceReset || changed && cursorOnline && offline;
+            if (resetForEvent) restart();
+            const audienceChanged = [...model.members].sort().join() !== [...cursorAudience].sort().join();
+            const unsyncedRejoin = [...model.images.values()].some(row => !model.held.has(row.room) && model.members.has(row.room));
+            const expectedWithdrawal = offline ? !model.acquired
+                : !freshIdentity && (unsyncedRejoin || !!c && cursorOnline && !resetForEvent && audienceChanged);
             keyset.observe(visible());
             const before = calls, read = await client.query(query, { q: 'cof', c });
             trace.push({ page, c: !!c, ids: read.data?.map(r => r.id), loading: read.loading, denied: read.denied?.code, cut: read.cut, complete: read.complete, next: !!read.next, calls: calls - before });
-            if (!offline && !mutable)
+            if (!offline)
                 assert.equal(calls - before, 1, 'exactly one invocation per online page');
-            else if (mutable)
-                assert.ok(calls - before <= 1);
             else
                 assert.equal(calls, before);
             if (freshIdentity && !offline && calls > before) {
@@ -100,8 +107,8 @@ async function scenario(host, seed, currentOnly = false) {
                 changed = false;
                 continue;
             }
-            if (read.loading) {
-                assert.ok(changed || freshIdentity || offline, 'unexplained withdrawn page');
+            if (expectedWithdrawal) {
+                assert.equal(read.loading,true, 'modeled withdrawal');
                 if (offline) {
                     offline = false;
                     trace.push('reconnect after reset without acquired data');
@@ -116,15 +123,13 @@ async function scenario(host, seed, currentOnly = false) {
                 changed = false;
                 continue;
             }
+            assert.notEqual(read.loading,true, 'unexplained withdrawn page');
             if (read.denied) {
                 assert.ok(cut && ['E_BOUND', 'E_SEARCH_OPEN'].includes(read.denied.code), JSON.stringify(read));
                 events.push(`refusal:${read.denied.code}`);
                 break;
             }
             assert.ok(Array.isArray(read.data), JSON.stringify(read));
-            const old = decode(c), next = decode(read.next);
-            if (forceReset && !mutable || changed && old && (offline || next && (old.epoch !== next.epoch || old.binding !== next.binding)))
-                restart();
             changed = false;
             forceReset = false;
             const readable = visible(), allowed = new Map(readable.map(r => [r.id, r]));
@@ -132,24 +137,44 @@ async function scenario(host, seed, currentOnly = false) {
             assert.deepEqual(read.data.map(r => r.id), [...read.data].sort((a, b) => (direction === 'first' ? 1 : -1) * compare(a, b)).map(r => r.id), 'page order');
             for (const row of read.data) {
                 assert.ok(allowed.has(row.id), `unreadable ${row.id}`);
-                assert.ok([allowed.get(row.id), ...(mutable ? [model.images.get(row.id)] : [])].some(r => r && Object.keys(row).every(k => row[k] === r[k])), `wrong visible image ${row.id}`);
+                assert.ok([allowed.get(row.id), ].some(r => r && Object.keys(row).every(k => row[k] === r[k])), `wrong visible image ${row.id}`);
             }
-            // Cuts keep their original incomplete-subset contract. An online
-            // suspended retained lane must still equal the server keyset page.
-            const suspended = !offline && !mutable && (next?.localCut || old?.localCut);
+            // Independently derive retained suspension from the fixture's known
+            // device discovery/scan limits, never the returned localCut flag.
+            const heldImages = [...model.images.values()].filter(r => !r.tombstone && r.expires == null && r.text.startsWith('cof'));
+            const retainedImages = heldImages.filter(r => !model.held.has(r.room));
+            const scan = keyset.remaining(heldImages);
+            const discoveryCut = cut === 'words' && new Set(heldImages.map(r => r.text)).size > 32;
+            const meterCut = cut === 'meter' && scan.length > 8192 && scan.slice(0,8192).filter(r => !model.held.has(r.room)).length < limit;
+            // Offline may fill its page before the meter limit. Only actual
+            // fixture-derived word discovery cuts enter the partial safety lane.
+            if (offline && discoveryCut) {
+                assert.equal(read.complete, false);
+                assert.ok(read.data.length || read.next, 'partial result is not a dead end');
+                events.push('partial-safety');
+                break; // never learn a keyset position from partial returned rows
+            }
+            if (!offline && retainedImages.length && (discoveryCut || meterCut)) suspended = true;
             const domain = suspended ? readable.filter(row => model.members.has(row.room)) : readable;
             const remaining = keyset.remaining(domain);
-            const expected = remaining.slice(0, limit);
-            if (!cut || !offline && !mutable) {
-                assert.deepEqual(read.data, expected, 'page equals current combined keyset model');
-                if (!read.next) assert.ok(remaining.length <= limit, 'terminal keyset omission');
-                if (read.complete && !read.next) assert.ok(!keyset.remaining(readable).slice(limit).length, 'false terminal complete');
-                keyset.consume(expected);
-            } else {
-                // The ordinary device cut need not establish a global prefix;
-                // authorization/order/one-call/dead-end checks still apply.
-                keyset.consume(read.data);
+            let expected = remaining.slice(0, limit), consumed = expected;
+            // The overlap check inspects at most one retained candidate page.
+            // Suppression may end the proved prefix before the output limit;
+            // even an all-suppressed prefix has an independently modeled key.
+            if (!offline && !suspended) {
+                const rawLeft = keyset.remaining(retainedImages), candidates = rawLeft.slice(0, limit);
+                if (rawLeft.length > limit) {
+                    const boundary = candidates.at(-1), sign = direction === 'first' ? 1 : -1;
+                    expected = expected.filter(row => sign * compare(row,boundary) <= 0);
+                    if (expected.length < limit) consumed = [boundary];
+                    else consumed = expected;
+                }
             }
+            assert.deepEqual(read.data, expected, 'page equals current combined keyset model');
+            if (!read.next) assert.ok(remaining.length <= expected.length, 'terminal keyset omission');
+            if (read.complete && !read.next) assert.ok(!keyset.remaining(readable).slice(expected.length).length, 'false terminal complete');
+            keyset.consume(expected);
+            if (consumed.length) keyset.position = {at:consumed.at(-1).at,id:consumed.at(-1).id};
             for (const id of keyset.stable.keys()) assert.ok((keyset.counts.get(id) ?? 0) <= 1, `stable duplicate: ${id}`);
             if (differential && !offline) {
                 const direct = await owner.query(query, { q: 'cof', c: serverCursor });
@@ -168,7 +193,7 @@ async function scenario(host, seed, currentOnly = false) {
                 events.push(`terminal:${read.cut ?? 'none'}`);
                 break;
             }
-            c = read.next;
+            c = read.next; cursorOnline = !offline; cursorAudience = new Set(model.members);
             if (page === 199)
                 assert.fail('nonterminating traversal');
             if (page >= 5)

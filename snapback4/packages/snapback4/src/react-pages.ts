@@ -102,11 +102,11 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
       if (!Array.isArray(read.data)) { last = LOADING as Read<R>; break; }
       // @ref LLP 3000.028#3.3 — keyset edits may repeat IDs across pages.
       // Keep the first display position and the most recently observed image,
-      // including a refreshed earlier page. Scalar/projection arrays without
-      // a string ID preserve their ordinary list semantics.
+      // including a refreshed earlier page. Only compiler-proved source row IDs are accumulation keys; arbitrary
+      // projections preserve ordinary list semantics, including a field named id.
       const revision = this.imageRevisions.get(read.data)!;
       for (const item of read.data as readonly R[number][]) {
-        const id = item && typeof item === "object" && "id" in item ? item.id : undefined;
+        const id = this.op.rowKey === "id" && item && typeof item === "object" && "id" in item ? item.id : undefined;
         const previous = typeof id === "string" ? identities.get(id) : undefined;
         if (previous) {
           if (revision >= previous.revision) {

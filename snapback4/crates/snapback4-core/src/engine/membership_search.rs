@@ -4,6 +4,35 @@ use super::super::runner::extrema::Aggregate;
 
 
 impl Runner<'_> {
+    // @ref LLP 3000.028#3.3 — only caller-supplied IDs, through the ordinary
+    // point boundary. Hidden/absent/expired all answer false; no current key or
+    // scope is returned. A capped check must refuse, never certify absence.
+    pub(in crate::engine) fn search_overlap(&mut self, plan: &crate::schema::SearchComposition, ids: &[String]) -> Result<Vec<String>, RuntimeError> {
+        if ids.len() as u64 > plan.limit.saturating_add(1) {
+            return Err(RuntimeError::Input("retained overlap exceeds this search page plus lookahead".into()));
+        }
+        if !self.meter.charge(MeterKind::OutputBytes, 19)? { self.meter.require_uncapped()?; }
+        self.meter.heap(word_heap::slots::<String>(ids.len()))?;
+        let mut current = Vec::with_capacity(ids.len());
+        for id in ids {
+            if !crate::value::identity_fits(id) {
+                return Err(RuntimeError::Input("invalid retained search ID".into()));
+            }
+            self.meter.heap(512 + 16 * (plan.table.len() + id.len()) as u64)?;
+            self.meter.step(1)?;
+            let read = Read { site: "ordinary search overlap".into(), table: plan.table.clone(), index: "byId".into(),
+                key: vec![Expr::Literal(Value::Id(id.clone()))], provenance: KeyProvenance::Computed };
+            let value = self.get(&read)?;
+            self.meter.require_uncapped()?;
+            if !matches!(value, Value::Null) {
+                self.meter.heap(word_heap::text(id))?;
+                if !self.meter.charge(MeterKind::OutputBytes, 4 + id.len() as u64 * 6)? { self.meter.require_uncapped()?; }
+                current.push(id.clone());
+            }
+        }
+        Ok(current)
+    }
+
     pub(in crate::engine) fn opening_error(&self, merge: &Merge, count: usize, discovered: bool) -> RuntimeError {
         let ceilings = self.meter.ceilings;
         let kind = self.meter.capped_at.as_ref().map(|cap|cap.0)

@@ -268,7 +268,7 @@ Jobs run as the system: select the recipient's authorized data before emitting. 
 the worker still deduplicates provider delivery. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
 
 Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
-items, `hasMore`, `loadMore` and read completeness. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds joins the lingering live watch with its current snapshot. `useMutation` tracks writes; `useAsset` resolves
+items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds joins the lingering live watch with its current snapshot. `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
 

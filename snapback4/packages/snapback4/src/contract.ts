@@ -166,7 +166,8 @@ export interface Op<Args, Result> {
   readonly __args?: Args;
   readonly __result?: Result;
 }
-export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query"; readonly ephemeralReads?: readonly string[] };
+/** rowKey is emitted only for pages of source rows; projected `id` fields are not identity. */
+export type Query<Args, Result> = Op<Args, Result> & { readonly kind: "query"; readonly ephemeralReads?: readonly string[]; readonly rowKey?: "id" };
 // @ref LLP 3000.017#24-the-client — disjoint mutations keep durable custody out of the ephemeral lane.
 export type Mutation<Args, Result> = Op<Args, Result> & { readonly kind: "mutation"; readonly ephemeral?: false };
 export type Ephemeral<Args, Result> = Op<Args, Result> & {

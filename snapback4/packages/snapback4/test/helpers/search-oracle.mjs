@@ -2,6 +2,7 @@
 export function random(seed) { let s = seed; return n => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) % n; }; }
 export const compare = (a, b) => a.at - b.at || Buffer.compare(Buffer.from(a.id), Buffer.from(b.id));
 export class SearchModel {
+    acquired = false;
     rows = new Map();
     images = new Map();
     members = new Set(['live', 'left']);
@@ -19,6 +20,7 @@ export class SearchModel {
             && row.expires != null && row.expires <= Date.now()) this.pending.add(row.id);
     }
     sync() {
+        this.acquired = true;
         for (const id of this.pending) this.images.delete(id);
         this.pending.clear();
         for (const room of this.members) {
@@ -28,6 +30,7 @@ export class SearchModel {
         this.held = new Set(this.members);
     }
     reset() {
+        this.acquired = false;
         this.images.clear(); this.held.clear(); this.pending.clear();
     }
     readable(online, now = Date.now()) {
@@ -86,10 +89,16 @@ ${mutable ? '' : '  immutable room'}
   read <- exists members[.room, viewer]
   insert <- true
   update <- true
+  delete <- true
   sync to members[.room]
   retain delivered-history
 query search(q: text <=100, c: cursor ?):
   return messages matching q where not .tombstone ${direction} ${limit} by .at after c
+query summaries(c: cursor ?):
+  return messages[room = 'live'] first ${limit} by .at after c { id: .room, text }
+mutation rebirth(id: id, room: id, text: text <=200, at: time):
+  delete messages[id]
+  insert messages { id, room, text, at, tombstone: false, expires: null }
 mutation leave(room: id):
   delete members[room, viewer]
 mutation join(room: id):

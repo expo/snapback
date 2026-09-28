@@ -3,9 +3,6 @@
 `check` and `check --cost` distinguish search admission and independent costs, each
 with a source site and rewrite:
 
-- **N_SEARCH_MUTABLE_SCOPE:** current and retained sources are not composed because
-  scope ownership can move. Add `immutable` for the named scope column on the
-  searched table; server inference still works with the existing routing.
 - **N_SEARCH_UNSCOPED:** the read rule varies within the searched index.
   Preserve the filters and add the schema's membership predicate. The rewrite
   keeps direction, order and take to enumerate authorized scopes. Hidden physical progress cannot be a cursor.

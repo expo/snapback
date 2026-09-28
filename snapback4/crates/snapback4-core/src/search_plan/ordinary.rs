@@ -129,22 +129,8 @@ fn composition_shape(schema: &Schema, program: &Program) -> Option<crate::schema
         needle: needle.clone(), cursor: cursor.clone(), variant: scan.variant })
 }
 
-// @ref LLP 3000.028#3.3 — disjoint scopes imply disjoint row IDs only when
-// ownership cannot change. Server inference itself does not need this proof.
+// @ref LLP 3000.028#3.3 — per-page authorized point overlap covers both
+// mutable scope updates and deletion/reinsertion of an immutable scope's ID.
 pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
-    let descriptor = composition_shape(schema, program)?;
-    let table = schema.table(&descriptor.table)?;
-    let RuleExpr::Exists { key, .. } = &table.rules.read else { return None };
-    let RuleTerm::Field(scope) = key.first()? else { return None };
-    (scope == "id" || table.immutable_fields().any(|field| field == scope)).then_some(descriptor)
-}
-
-/// Exact one-step repair for an otherwise composable ordinary search.
-pub fn mutable_scope(schema: &Schema, program: &Program) -> Option<(String, String)> {
-    let descriptor = composition_shape(schema, program)?;
-    let table = schema.table(&descriptor.table)?;
-    let RuleExpr::Exists { key, .. } = &table.rules.read else { return None };
-    let RuleTerm::Field(scope) = key.first()? else { return None };
-    (scope != "id" && !table.immutable_fields().any(|field| field == scope))
-        .then(|| (descriptor.table, scope.clone()))
+    composition_shape(schema, program)
 }

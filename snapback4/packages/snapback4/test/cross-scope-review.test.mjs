@@ -55,7 +55,7 @@ const decode = c => JSON.parse(Buffer.from(c.slice(5), 'base64url'));
 async function setup(t, tier = 'process', expires = null, options = {}) {
   const {url, dir} = await server(t, '', options.whole ? source.replace('sync to members[.room] last 100 by .at', 'sync to members[.room]') : source);
   const backend=await fetch(`${url}/schema`,{headers:{"x-snapback-persona":"bob"}}).then(r=>r.json());
-  assert.ok(!backend.schema.operations.search.search, JSON.stringify({fact:backend.schema.operations.search,program:backend.programs.find(p=>p.name==='search'),indexes:backend.schema.tables.messages.indexes}));
+  assert.ok(backend.schema.operations.search.search, JSON.stringify({fact:backend.schema.operations.search,program:backend.programs.find(p=>p.name==='search'),indexes:backend.schema.tables.messages.indexes}));
   const owner = createClient({url, persona: 'bob'}), admin = createClient({url, persona: 'alice'});
   const rows = [{table:'members',id:'ml',room:'live',principal:'dev:bob'}, {table:'members',id:'mr',room:'left',principal:'dev:bob'}];
   rows.push({table:'members',id:'al',room:'live',principal:'dev:alice'}, {table:'members',id:'ar',room:'left',principal:'dev:alice'});
@@ -100,8 +100,9 @@ for (const tier of ['process','wasm']) test(`review cross-scope current image mu
  const all=[];let c;
  for(let page=0;page<10;page++){
   const before=f.requests.length,read=await f.client.query(q,{q:'coffee',c});
-  assert.ok(f.requests.length-before<=1);all.push(...read.data);c=read.next;if(!c)break;
+  assert.equal(f.requests.length-before,1);all.push(...read.data);c=read.next;if(!c)break;
  }
  console.log(tier,all.filter(r=>r.id==='m001'),all.length);
  assert.equal(all.filter(r=>r.id==='m001').length,1,'same ID must appear once across pages');
+ assert.equal(all.find(r=>r.id==='m001').text,'coffee moved');
 });

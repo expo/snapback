@@ -1,0 +1,15 @@
+{
+  "argument_binding": {
+    "change": "Remove args from the combined cursor binding in an isolated copied dist package",
+    "path": "target/os-r7-argument-mutant",
+    "result": "killed",
+    "failed": [
+      "Astra needle change process",
+      "Astra needle change wasm",
+      "generated seed 3 process",
+      "generated seed 3 wasm"
+    ],
+    "log": "mutation-arguments.log.gz",
+    "product_modified": false
+  }
+}

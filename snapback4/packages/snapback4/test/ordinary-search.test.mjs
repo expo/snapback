@@ -325,18 +325,19 @@ import {SnapbackProvider,useQuery} from 'snapback4/react';
 import {createLocalClient} from 'snapback4/local';
 import {webDevice,memoryPersistence} from 'snapback4/web';
 import {parkedChanges} from 'sync-control';
-let offline=false;
+let offline=false; window.queryCalls=0;
 const wasm=await fetch('/@fs/${root}/packages/snapback4/src/wasm/snapback4_device_bg.wasm').then(r=>r.arrayBuffer());
 const client=await createLocalClient({url:${JSON.stringify(f.url)},persona:'bob',device:webDevice({wasm,persist:memoryPersistence()}),fetch:(input,init)=>{
  if(offline)throw new TypeError('offline');
  if(new URL(input).pathname==='/changes')return Promise.resolve(parkedChanges(init.signal));
+ if(new URL(input).pathname.startsWith('/q/'))window.queryCalls++;
  return fetch(input,init);
 }});
 await client.sync();
 window.network=async on=>{offline=!on;await client.sync();};
 window.sync=()=>client.sync();
 const op={kind:'query',name:'search'};
-function Search(){const read=useQuery(op,{q:'coffee'});window.read=read;
+function Search(){const [q,setQ]=React.useState('coffee');window.setNeedle=setQ;const read=useQuery(op,{q});window.read=read;
  return <div><span id="coverage">{read.loading?'Loading':read.data?(read.complete?'Complete':'Results may be incomplete'):'Refused'}</span><span id="ids">{read.data?.map(r=>r.id).join(',')}</span></div>;}
 const root=createRoot(document.getElementById('root'));root.render(<SnapbackProvider client={client}><Search/></SnapbackProvider>);
 window.finish=async()=>{root.unmount();await client.close();};
@@ -367,6 +368,12 @@ window.finish=async()=>{root.unmount();await client.close();};
     assert.equal((await f.admin.mutate(m('join'),{room:'left'})).state,'sent');await page.evaluate(()=>window.network(true));
     await page.waitForFunction(()=>window.read?.fresh===true&&window.read.data?.[0]?.id==='m063');
     assert.equal(await page.locator('#coverage').textContent(),'Complete');
+    const count=await page.evaluate(()=>window.queryCalls);
+    await page.evaluate(()=>window.setNeedle(123));
+    await page.waitForFunction(()=>window.read?.denied?.code==='E_INPUT');
+    await new Promise(resolve=>setTimeout(resolve,200));
+    assert.equal(await page.evaluate(()=>window.queryCalls)-count,1,'mounted refusal makes one request, without retry');
+    assert.equal(await page.locator('#coverage').textContent(),'Refused');
     assert.deepEqual(errors,[]);await page.evaluate(()=>window.finish());
   } catch(error){assert.fail(JSON.stringify({error:String(error),errors,read:await page.evaluate(()=>window.read)}));}
 });
@@ -417,13 +424,13 @@ test(`ordinary mixed search ${tier}: combined keyset boundary excludes new heads
 
 test('ordinary mixed search: real word-dense drain pages follow the combined keyset once', {timeout:120000}, async t=>{
   const f=await setup(t);
-  // The compact plan's default 8,192 examined allowance opens 4,077 live
-  // dense scopes but cuts during drain. They need not be acquired locally.
-  for(let first=0;first<248;first+=100){
+  // Overlap points share the 8,192 examined allowance with opening and drain.
+  // 246 full 32-word extra scopes plus one 25-word scope leave a short drain.
+  for(let first=0;first<247;first+=100){
     const rows=[];
-    for(let n=first;n<Math.min(first+100,248);n++) {
+    for(let n=first;n<Math.min(first+100,247);n++) {
       rows.push({table:'members',row:{id:`extraMember${n}`,room:`extra${n}`,principal:'dev:bob'}});
-      for(let w=0;w<32;w++) rows.push({table:'messages',row:{id:`extraMessage${n}-${w}`,room:`extra${n}`,text:`coffee${String(w).padStart(2,'0')}`,at:1,tombstone:false,expires:null}});
+      for(let w=0;w<(n===246?25:32);w++) rows.push({table:'messages',row:{id:`extraMessage${n}-${w}`,room:`extra${n}`,text:`coffee${String(w).padStart(2,'0')}`,at:1,tombstone:false,expires:null}});
     }
     const reply=await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json());
     assert.equal(reply.seeded,rows.length,JSON.stringify(reply));
@@ -441,6 +448,11 @@ test('ordinary mixed search: real word-dense drain pages follow the combined key
   assert.equal(f.requests.length-start,2);assert.equal(f.requests.at(-1).body.args.c,decode(first.next).after);
   assert.ok(ids(next).length>0);assert.deepEqual(ids(next),f.rows.filter(r=>r.at<1045).reverse().slice(0,ids(next).length).map(r=>r.id));assert.equal(next.complete,false);assert.equal(next.cut,'meter');
   const fetched=f.requests.at(-1).json;
-  assert.ok(fetched.data.every(row=>ids(next).includes(row.id)),'this short drain consumes every returned server hit');
-  assert.equal(decode(next.next).server,fetched.next,'only that fully consumed server prefix advances');
+  const consumed=fetched.data.filter(row=>ids(next).includes(row.id));
+  assert.ok(consumed.length,'a short drain consumed a server prefix');
+  const key=JSON.parse(Buffer.from(decode(next.next).server,'base64url'))[5];
+  assert.deepEqual(key,[{Int:consumed.at(-1).at},{Id:consumed.at(-1).id}]);
+  const third=await f.client.query(q,{q:'coffee',c:next.next});
+  assert.equal(f.requests.length-start,3);
+  assert.ok(fetched.data.filter(row=>!ids(next).includes(row.id)).every(row=>ids(third).includes(row.id)),'unconsumed server hits survive');
 });

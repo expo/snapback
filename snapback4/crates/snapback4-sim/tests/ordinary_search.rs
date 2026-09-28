@@ -352,20 +352,44 @@ fn audience_proof_is_complete_authorized_and_bounded() {
 }
 
 #[test]
-fn mutable_scope_declines_only_composition_and_names_the_immutable_rewrite() {
-    let mutable = bound(&SOURCE.replace("  immutable room\n", ""));
-    let program = &mutable.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program;
-    assert!(snapback4_core::search_plan::ordinary::plan(&mutable.schema, program).is_some(), "server inference remains valid");
-    assert!(mutable.schema.operations["ordinary"].search.is_none());
-    assert!(snapback4_core::search_plan::ordinary::composition(&mutable.schema, program).is_none());
-    let note = mutable.notes.iter().find(|n| n.code == "N_SEARCH_MUTABLE_SCOPE").unwrap();
-    assert!(note.message.contains("messages.room is mutable"));
-    assert_eq!(note.rewrite, "add `immutable room` to table messages");
-    let immutable = bound(SOURCE);
-    assert!(immutable.schema.operations["ordinary"].search.is_some());
-    assert!(!immutable.notes.iter().any(|n| n.code == "N_SEARCH_MUTABLE_SCOPE"));
-    // Runtime re-proof must not trust a descriptor created before ownership changed.
-    let mut schema = immutable.schema.clone();
-    schema.tables.get_mut("messages").unwrap().constraints.retain(|c| !matches!(c, snapback4_core::schema::Constraint::Immutable { .. }));
-    assert!(snapback4_core::search_plan::ordinary::composition(&schema, program).is_none());
+fn mutable_scope_composes_with_the_same_point_overlap_boundary() {
+    for source in [SOURCE.to_owned(), SOURCE.replace("  immutable room\n", "")] {
+        let b = bound(&source);
+        let program = &b.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program;
+        assert!(b.schema.operations["ordinary"].search.is_some());
+        assert!(snapback4_core::search_plan::ordinary::composition(&b.schema, program).is_some());
+    }
+}
+
+#[test]
+fn search_overlap_is_a_bounded_authorized_point_under_the_page_meter() {
+    let mut engine = setup(2);
+    let ids = vec!["room00000-4".into(), "room00002-1".into(), "missing".into()];
+    // A readable tombstone does not match this query, but is still current.
+    // Hidden and absent IDs are indistinguishable, and never echoed.
+    let normal = engine.query("ordinary", cx("absent", None)).unwrap();
+    let (page, cut, current) = engine.query_search_at("ordinary", cx("absent", None), Some(&ids));
+    let page = page.unwrap();
+    assert_eq!(current, Some(vec!["room00000-4".into()]));
+    assert_eq!(cut, Some(page.seq));
+    assert!(page.metered.examined >= normal.metered.examined + 2);
+    assert!(page.metered.rule_probes > normal.metered.rule_probes);
+    assert!(page.metered.output_bytes > normal.metered.output_bytes);
+    assert!(engine.query_search_at("ordinary", cx("absent", None), Some(&["x".repeat(135)])).0.is_ok(), "overlap accepts the ordinary ID byte limit");
+    let oversized = vec!["missing".into(); 4];
+    assert_eq!(engine.query_search_at("ordinary", cx("coffee", None), Some(&oversized)).0.unwrap_err().code, "E_INPUT");
+    assert_eq!(engine.query_search_at("explicit", cx("coffee", None), Some(&ids)).0.unwrap_err().code, "E_INPUT");
+    engine.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
+    assert_eq!(engine.query_search_at("ordinary", cx("coffee", None), Some(&ids)).0.unwrap_err().code, "E_BOUND");
+}
+
+#[test]
+fn emitted_row_identity_excludes_projected_ids() {
+    let source = format!("{SOURCE}\nquery summaries(c: cursor ?):\n  return messages first 2 by .at after c {{ id: .room, body }}\n");
+    let b = bound(&source);
+    let ts = snapback4_lang::emit::typescript(&b);
+    let ordinary = ts.lines().find(|line| line.contains("name: \"ordinary\"")).unwrap();
+    let projected = ts.lines().find(|line| line.contains("name: \"summaries\"")).unwrap();
+    assert!(ordinary.contains("rowKey: \"id\""), "{ordinary}");
+    assert!(!projected.contains("rowKey"), "{projected}");
 }

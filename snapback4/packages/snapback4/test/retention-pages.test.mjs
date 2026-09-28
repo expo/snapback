@@ -53,7 +53,7 @@ test("usePage clears a later page's revalidating mark on replacement and replace
 });
 
 for (const name of ["search", "history"]) test(`usePage ${name} repeats keep one newest image by ID through page refresh`, t => {
-  const { pages, source, notify } = fixture(t, { kind: "query", name });
+  const { pages, source, notify } = fixture(t, { kind: "query", name, rowKey: "id" });
   source(null).publish(ready([{ id: "a", body: "old" }, { id: "b" }], "second")); notify(null);
   pages.loadMore();
   source("second").publish(ready([{ id: "a", body: "edited" }, { id: "c" }], null)); notify("second");

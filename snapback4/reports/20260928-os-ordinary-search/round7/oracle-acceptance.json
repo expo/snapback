@@ -1,0 +1,62 @@
+[
+  {
+    "host": "process",
+    "seeds": 300,
+    "failed": [],
+    "ms": 183141,
+    "coverage": {
+      "projection": 74,
+      "at": 105,
+      "sync": 135,
+      "membership": 263,
+      "terminal:none": 304,
+      "invalid-input": 74,
+      "reset": 71,
+      "link": 102,
+      "argument-change": 74,
+      "new": 152,
+      "rebirth": 50,
+      "body": 90,
+      "replacement": 84,
+      "expiry": 107,
+      "reopen": 54,
+      "differential-page": 194,
+      "generation": 36,
+      "partial-safety": 6,
+      "move": 10,
+      "terminal:words": 4,
+      "terminal:meter": 1,
+      "refusal:E_BOUND": 7
+    }
+  },
+  {
+    "host": "wasm",
+    "seeds": 300,
+    "failed": [],
+    "ms": 134262,
+    "coverage": {
+      "projection": 74,
+      "at": 105,
+      "sync": 135,
+      "membership": 263,
+      "terminal:none": 304,
+      "invalid-input": 74,
+      "reset": 71,
+      "link": 102,
+      "argument-change": 74,
+      "new": 152,
+      "rebirth": 50,
+      "body": 90,
+      "replacement": 84,
+      "expiry": 107,
+      "reopen": 54,
+      "differential-page": 194,
+      "generation": 36,
+      "partial-safety": 6,
+      "move": 10,
+      "terminal:words": 4,
+      "terminal:meter": 1,
+      "refusal:E_BOUND": 7
+    }
+  }
+]

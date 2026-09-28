@@ -24,7 +24,7 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
       const found=live.filter(x=>x.at<sourceCursor(body.args.c));
       const data=found.slice(0,cut?3:20);
       const stopped=cut&&found.length>data.length;
-      const json={searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
+      const json={searchCurrent:[],searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
       const parsed=await decode(new Response(JSON.stringify(json)));
       if(race==='membership'||race==='reset'||race==='edit'||race==='rejoin')epoch='b';
       if(race==='expiry')now=5;
@@ -50,7 +50,7 @@ test('mixed drain stops at its established head even when more retained rows cou
 });
 test('decoder and coordinator cannot reset a nearly exhausted device scan ledger',async()=>{
   const f=fixture({exhaust:true});const result=await f.run();
-  assert.equal(f.calls(),1);assert.equal(result.read.denied.code,'E_BOUND');
+  assert.equal(f.calls(),0,'candidate request reservation exhausts before HTTP');assert.equal(result.read.denied.code,'E_BOUND');
   assert.equal(f.scanUsed().heap_bytes,ceilings.heap_bytes-1);
   const alone=new SearchLedger(ceilings);await alone.decode(new Response(JSON.stringify({data:rows(100,20)})));
   assert.ok(alone.used.heap_bytes<ceilings.heap_bytes-1,'decode fits alone; the joined allowance is exhausted');
@@ -60,7 +60,7 @@ for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step 
   // The final state receipt leaves just enough for both mixed rows. One fewer
   // step must refuse. These fixed allowances include all merge/output work;
   // deleting either comparison charge makes the corresponding tight run pass.
-  const steps=tie?1656:1644;
+  const steps=tie?1678:1666;
   const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
   const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
   const full=await enough.run(),cut=await tight.run();
@@ -147,4 +147,27 @@ test('a read cut retains rejected charges while every coordinator dimension stay
   for(const kind of ['steps','heap_bytes','output_bytes','rows_written']){
     assert.throws(()=>new SearchLedger(ceilings).resume({...counts(),[kind]:ceilings[kind]+1},true),SearchBound,kind);
   }
+});
+
+for (const code of ['E_INPUT','E_OP','E_SEARCH_OPEN','E_BOUND']) for (const retryable of [false,true])
+test(`composition propagates ${code} retryable=${retryable} without identity refresh`, async()=>{
+  const f=fixture({retained:[]});let refresh=0;
+  f.env.refreshSearch=()=>refresh++;
+  f.env.searchPost=async()=>({ok:true,json:{denied:{code,family:'input',message:'permanent refused input',retryable}}});
+  assert.equal((await f.run()).read.denied.code,code);assert.equal(refresh,0);
+});
+
+test('missing overlap support refuses permanently without publishing retained candidates', async()=>{
+  const f=fixture(),post=f.env.searchPost;let refresh=0;
+  f.env.refreshSearch=()=>refresh++;
+  f.env.searchPost=async(...args)=>{const r=await post(...args);delete r.json.searchCurrent;return r;};
+  assert.equal((await f.run()).read.denied?.code,'E_INPUT');assert.equal(refresh,0);
+});
+
+test('complete certifies a bounded page even when the combined next has more rows',async()=>{
+  const f=fixture({retained:rows(200,20),live:rows(100,1),localComplete:true});
+  const first=await f.run();assert.equal(first.read.complete,true);assert.ok(first.read.next);
+  assert.deepEqual(first.read.data,rows(200,20));
+  const second=await f.run(first.read.next);assert.equal(second.read.complete,true);
+  assert.equal(second.read.next,null);assert.deepEqual(second.read.data,rows(100,1));
 });

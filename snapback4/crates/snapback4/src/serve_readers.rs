@@ -136,6 +136,24 @@ impl Shared {
     }
     pub(super) fn memory_store(&self) -> bool { lock(&self.readers).memory }
 
+    // Identity, head and generation are captured from one reader incarnation.
+    pub(super) fn read_identity(&self) -> Result<(String, u64, u64), Refusal> {
+        match self.reader() {
+            Ok((epoch, mut reader)) => {
+                let generation = reader.generation();
+                let head = response_head(&mut reader).map(|(id, head)| (id, head, generation));
+                lock(&self.readers).put(&epoch, reader.into_inner());
+                head
+            }
+            Err(_) if self.memory_store() => {
+                let mut engine = lock(&self.engine);
+                let generation = engine.generation();
+                response_head(&mut engine).map(|(id, head)| (id, head, generation))
+            }
+            Err(error) => Err(error.refusal()),
+        }
+    }
+
     pub(super) fn read_head(&self) -> Result<(String, u64), Refusal> {
         match self.reader() {
             Ok((epoch, mut reader)) => {

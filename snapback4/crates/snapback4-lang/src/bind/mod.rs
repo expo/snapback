@@ -417,11 +417,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             continue;
         }
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
-        if let Some((table, scope)) = snapback4_core::search_plan::ordinary::mutable_scope(schema, &bound.program) {
-            notes.push(Diagnostic::new(&bound.site, "N_SEARCH_MUTABLE_SCOPE",
-                format!("{}: current and retained search are not composed because {table}.{scope} is mutable; moving a row between scopes can repeat its ID", bound.program.name),
-                format!("add `immutable {scope}` to table {table}")).guide("search"));
-        }
+
         for scan in snapback4_core::ir::scans(&bound.program) {
             if inferred_search.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) { continue; }
             let Some(table) = schema.table(&scan.table) else { continue };
