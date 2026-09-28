@@ -1,0 +1,27 @@
+table members:
+  roomId: id
+  principal: principal
+  unique roomId, principal
+  cap 100 by roomId
+  read <- exists members[.roomId, viewer]
+  sync to members[.roomId]
+
+table messages:
+  immutable roomId
+  roomId: id
+  body: text <=4000
+  at: time
+  search body
+  read <- exists members[.roomId, viewer]
+  sync to members[.roomId] last 200 by .at
+
+query searchHeld(q: text <=100, c: cursor ?) held:
+  return messages matching q after c last 20 by .at
+
+-- everything, grouped by chat: any number of chats; a cut carries `next`
+query searchGrouped(q: text <=100, c: cursor ?):
+  return members[principal = viewer] after c first 20 by .roomId where exists (messages[roomId = .roomId] by .at matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by .at }
+
+-- one newest-first stream across chats: for a first screen; complete while the chats open in one read
+query searchNewest(q: text <=100, c: cursor ?):
+  return messages matching q where exists members[.roomId, viewer] last 20 by .at after c
