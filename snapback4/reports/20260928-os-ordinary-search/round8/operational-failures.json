@@ -1,0 +1,14 @@
+{
+  "classification": "ours",
+  "failures": [
+    "report path omitted snapback4",
+    "empty nested report directory prevented initial log redirection; removed",
+    "unpopulated skill links; used an existing read-only copy",
+    "guessed source, LLP and old run-ledger paths absent",
+    "Node timeout did not bound mocked-timer baseline; recorded PIDs terminated, split with external timeout",
+    "merge conflicts in journal and LLP Revised resolved with both histories",
+    "schema.operations absent in historical chat fixture inspection; query metadata supplied in test adapter",
+    "ref-check wrapper invoked from repository root instead of snapback4; corrected invocation passes",
+    "staged whitespace found COMMANDS.md extra EOF blank line; removed"
+  ]
+}

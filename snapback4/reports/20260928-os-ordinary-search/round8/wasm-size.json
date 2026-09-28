@@ -1,0 +1,13 @@
+{
+  "raw": 2039451,
+  "gzip": 592719,
+  "budget": 586193,
+  "over": 6526,
+  "sha256": "7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d",
+  "round7_delta_raw": 0,
+  "round7_delta_gzip": 0,
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "wasm_opt": false,
+  "measurement": "GNU gzip -9c with file input"
+}

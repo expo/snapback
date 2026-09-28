@@ -1,0 +1,14 @@
+{
+  "name": "affected-device",
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-device",
+    "--test",
+    "device",
+    "search_merge"
+  ],
+  "exit": 0,
+  "seconds": 55.061
+}

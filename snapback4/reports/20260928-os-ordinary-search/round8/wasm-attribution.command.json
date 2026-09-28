@@ -1,0 +1,12 @@
+{
+  "name": "wasm-attribution",
+  "command": [
+    "node",
+    "scripts/attribute-wasm.mjs",
+    "--families",
+    "--check-families",
+    "--check-absent"
+  ],
+  "exit": 0,
+  "seconds": 0.383
+}

@@ -1,0 +1,1002 @@
+{
+  "baseline": "129ffc368",
+  "round7": "c81476d5f",
+  "addedOrChanged": [
+    {
+      "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)",
+      "line": 537
+    },
+    {
+      "id": "local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "searchReplyIdentity(capture, json, generation, witnessRestore)",
+      "line": 559
+    },
+    {
+      "id": "local-query.ts:route:blocked()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "blocked()",
+      "line": 263
+    },
+    {
+      "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "ordinarySearch(env, op.name, args, search, checkpoint, blocked)",
+      "line": 267
+    },
+    {
+      "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+      "file": "local-search.ts",
+      "owner": "searchReplyIdentity",
+      "expression": "witness(json.store_id, json.head ?? json.seq, capture)",
+      "line": 14
+    },
+    {
+      "id": "local-search.ts:decode:reader.read()#1",
+      "file": "local-search.ts",
+      "owner": "decode",
+      "expression": "reader.read()",
+      "line": 68
+    },
+    {
+      "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
+      "file": "local-search.ts",
+      "owner": "decode",
+      "expression": "reader.cancel().catch(() => {})",
+      "line": 77
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"search_state\", name })",
+      "line": 153
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })",
+      "line": 187
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:blocked()#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "blocked()",
+      "line": 194
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))",
+      "line": 204
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:blocked()#2",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "blocked()",
+      "line": 205
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"search_state\", name, spent: ledger.used })",
+      "line": 218
+    },
+    {
+      "id": "request-wait.ts:postForCaller:decode(response)#1",
+      "file": "request-wait.ts",
+      "owner": "postForCaller",
+      "expression": "decode(response)",
+      "line": 18
+    }
+  ],
+  "removedOrChanged": [
+    {
+      "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status))#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status))",
+      "line": 535
+    },
+    {
+      "id": "local.ts:sendPost:witnessRestore(json.store_id, json.head ?? json.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "witnessRestore(json.store_id, json.head ?? json.seq, capture)",
+      "line": 558
+    }
+  ],
+  "moved": [
+    {
+      "id": "local.ts:createLocalClient:restoreSession(base, sessions, () => 0)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "restoreSession(base, sessions, () => 0)",
+      "line": 78,
+      "beforeLine": 77
+    },
+    {
+      "id": "local.ts:createLocalClient:forgetSession(base, sessions)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "forgetSession(base, sessions)",
+      "line": 81,
+      "beforeLine": 80
+    },
+    {
+      "id": "local.ts:createLocalClient:guest(base, doFetch)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "guest(base, doFetch)",
+      "line": 84,
+      "beforeLine": 83
+    },
+    {
+      "id": "local.ts:createLocalClient:rotateSession(base, session.token, doFetch)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "rotateSession(base, session.token, doFetch)",
+      "line": 90,
+      "beforeLine": 89
+    },
+    {
+      "id": "local.ts:createLocalClient:forgetSession(base, sessions)#2",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "forgetSession(base, sessions)",
+      "line": 93,
+      "beforeLine": 92
+    },
+    {
+      "id": "local.ts:createLocalClient:forgetSession(base, sessions)#3",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "forgetSession(base, sessions)",
+      "line": 98,
+      "beforeLine": 97
+    },
+    {
+      "id": "local.ts:createLocalClient:keepSession(base, session, sessions)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "keepSession(base, session, sessions)",
+      "line": 102,
+      "beforeLine": 101
+    },
+    {
+      "id": "local.ts:createLocalClient:loadBackend(doFetch, base, requestCredentials().headers)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "loadBackend(doFetch, base, requestCredentials().headers)",
+      "line": 137,
+      "beforeLine": 136
+    },
+    {
+      "id": "local.ts:createLocalClient:forgetSession(base, sessions)#4",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "forgetSession(base, sessions)",
+      "line": 140,
+      "beforeLine": 139
+    },
+    {
+      "id": "local.ts:createLocalClient:options.device.open(storeName, null).catch(error => { // This refusal permits a conditional first-install request: another // owner may have initialized the name since the failed open. // Store corruption, ownership and other open failures must not fall back. const message = error instanceof Error ? error.message : String(error); if (!backend || !message.includes(\"E_AUTH\") || !message.includes(\"this device has never synced: the server must be reachable once to open\")) throw error; return options.device.open(storeName, { initial_backend: backend }); })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "options.device.open(storeName, null).catch(error => { // This refusal permits a conditional first-install request: another // owner may have initialized the name since the failed open. // Store corruption, ownership and other open failures must not fall back. const message = error instanceof Error ? error.message : String(error); if (!backend || !message.includes(\"E_AUTH\") || !message.includes(\"this device has never synced: the server must be reachable once to open\")) throw error; return options.device.open(storeName, { initial_backend: backend }); })",
+      "line": 151,
+      "beforeLine": 150
+    },
+    {
+      "id": "local.ts:read:call({ op: \"meta\", key: \"write-history\" })#1",
+      "file": "local.ts",
+      "owner": "read",
+      "expression": "call({ op: \"meta\", key: \"write-history\" })",
+      "line": 172,
+      "beforeLine": 171
+    },
+    {
+      "id": "local.ts:lookup:call({ op: \"meta\", key: \"write-history\", lookup: true })#1",
+      "file": "local.ts",
+      "owner": "lookup",
+      "expression": "call({ op: \"meta\", key: \"write-history\", lookup: true })",
+      "line": 173,
+      "beforeLine": 172
+    },
+    {
+      "id": "local.ts:save:terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})#1",
+      "file": "local.ts",
+      "owner": "save",
+      "expression": "terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})",
+      "line": 175,
+      "beforeLine": 174
+    },
+    {
+      "id": "local.ts:createLocalClient:requireSyncProtocol(core)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "requireSyncProtocol(core)",
+      "line": 179,
+      "beforeLine": 178
+    },
+    {
+      "id": "local.ts:createLocalClient:call({ op: \"state\" })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "call({ op: \"state\" })",
+      "line": 180,
+      "beforeLine": 179
+    },
+    {
+      "id": "local.ts:createLocalClient:call({ op: \"backend\" })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "call({ op: \"backend\" })",
+      "line": 182,
+      "beforeLine": 181
+    },
+    {
+      "id": "local.ts:createLocalClient:clock.attach(core)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "clock.attach(core)",
+      "line": 184,
+      "beforeLine": 183
+    },
+    {
+      "id": "local.ts:createLocalClient:forgetSession(base, sessions)#5",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "forgetSession(base, sessions)",
+      "line": 186,
+      "beforeLine": 185
+    },
+    {
+      "id": "local.ts:createLocalClient:media.open()#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "media.open()",
+      "line": 190,
+      "beforeLine": 189
+    },
+    {
+      "id": "local.ts:createLocalClient:installNative()#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "installNative()",
+      "line": 192,
+      "beforeLine": 191
+    },
+    {
+      "id": "local.ts:createLocalClient:call({ op: \"next_submission\" })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "call({ op: \"next_submission\" })",
+      "line": 208,
+      "beforeLine": 207
+    },
+    {
+      "id": "local.ts:createLocalClient:call({ op: \"meta\", key: \"syncedAt:wall:1\" })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "call({ op: \"meta\", key: \"syncedAt:wall:1\" })",
+      "line": 224,
+      "beforeLine": 223
+    },
+    {
+      "id": "local.ts:createLocalClient:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 228,
+      "beforeLine": 227
+    },
+    {
+      "id": "local.ts:refreshAcquired:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "refreshAcquired",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 244,
+      "beforeLine": 243
+    },
+    {
+      "id": "local.ts:createLocalClient:refreshAcquired()#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "refreshAcquired()",
+      "line": 259,
+      "beforeLine": 258
+    },
+    {
+      "id": "local.ts:createLocalClient:queued()#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "queued()",
+      "line": 261,
+      "beforeLine": 260
+    },
+    {
+      "id": "local.ts:createLocalClient:history.acknowledged(entry.id, seq, true)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "history.acknowledged(entry.id, seq, true)",
+      "line": 263,
+      "beforeLine": 262
+    },
+    {
+      "id": "local.ts:createLocalClient:history.keep(receipt)#1",
+      "file": "local.ts",
+      "owner": "createLocalClient",
+      "expression": "history.keep(receipt)",
+      "line": 263,
+      "beforeLine": 262
+    },
+    {
+      "id": "local.ts:captureStore:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "captureStore",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 310,
+      "beforeLine": 309
+    },
+    {
+      "id": "local.ts:call:history.persistPending()#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "history.persistPending()",
+      "line": 317,
+      "beforeLine": 316
+    },
+    {
+      "id": "local.ts:call:work#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "work",
+      "line": 345,
+      "beforeLine": 344
+    },
+    {
+      "id": "local.ts:call:media?.reconcile()#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "media?.reconcile()",
+      "line": 349,
+      "beforeLine": 348
+    },
+    {
+      "id": "local.ts:endSession:persistingSession#1",
+      "file": "local.ts",
+      "owner": "endSession",
+      "expression": "persistingSession",
+      "line": 397,
+      "beforeLine": 395
+    },
+    {
+      "id": "local.ts:endSession:forgetSession(base, sessions)#1",
+      "file": "local.ts",
+      "owner": "endSession",
+      "expression": "forgetSession(base, sessions)",
+      "line": 398,
+      "beforeLine": 396
+    },
+    {
+      "id": "local.ts:endSession:media?.clear()#1",
+      "file": "local.ts",
+      "owner": "endSession",
+      "expression": "media?.clear()",
+      "line": 399,
+      "beforeLine": 397
+    },
+    {
+      "id": "local.ts:refusedSession:endSession()#1",
+      "file": "local.ts",
+      "owner": "refusedSession",
+      "expression": "endSession()",
+      "line": 427,
+      "beforeLine": 425
+    },
+    {
+      "id": "local.ts:refreshCurrent:Promise.race([rotation, refreshStopped])#1",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "Promise.race([rotation, refreshStopped])",
+      "line": 467,
+      "beforeLine": 465
+    },
+    {
+      "id": "local.ts:refreshCurrent:endSession()#1",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "endSession()",
+      "line": 473,
+      "beforeLine": 471
+    },
+    {
+      "id": "local.ts:refreshCurrent:endSession()#2",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "endSession()",
+      "line": 481,
+      "beforeLine": 479
+    },
+    {
+      "id": "local.ts:refreshCurrent:(persistingSession = keepSession(base, session, sessions))#1",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "(persistingSession = keepSession(base, session, sessions))",
+      "line": 489,
+      "beforeLine": 487
+    },
+    {
+      "id": "local.ts:refreshCurrent:priorSync#1",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "priorSync",
+      "line": 501,
+      "beforeLine": 499
+    },
+    {
+      "id": "local.ts:refreshCurrent:syncOnce()#1",
+      "file": "local.ts",
+      "owner": "refreshCurrent",
+      "expression": "syncOnce()",
+      "line": 503,
+      "beforeLine": 501
+    },
+    {
+      "id": "local.ts:sendPost:captureStore()#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "captureStore()",
+      "line": 534,
+      "beforeLine": 532
+    },
+    {
+      "id": "local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "holds.record((body as { id: string }).id, why.code)",
+      "line": 542,
+      "beforeLine": 540
+    },
+    {
+      "id": "local.ts:sendPost:refusedSession(denied, request.revision)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "refusedSession(denied, request.revision)",
+      "line": 549,
+      "beforeLine": 548
+    },
+    {
+      "id": "local.ts:refusePartition:refusedSession(denied, revision)#1",
+      "file": "local.ts",
+      "owner": "refusePartition",
+      "expression": "refusedSession(denied, revision)",
+      "line": 568,
+      "beforeLine": 566
+    },
+    {
+      "id": "local.ts:syncRound:history.persistPending()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "history.persistPending()",
+      "line": 589,
+      "beforeLine": 587
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"state\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"state\" })",
+      "line": 590,
+      "beforeLine": 588
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\" })",
+      "line": 608,
+      "beforeLine": 606
+    },
+    {
+      "id": "local.ts:syncRound:fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) })",
+      "line": 623,
+      "beforeLine": 621
+    },
+    {
+      "id": "local.ts:syncRound:response.json()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "response.json()",
+      "line": 625,
+      "beforeLine": 623
+    },
+    {
+      "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusePartition(denied, pageRevision)",
+      "line": 650,
+      "beforeLine": 648
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })",
+      "line": 662,
+      "beforeLine": 660
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 677,
+      "beforeLine": 675
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })",
+      "line": 682,
+      "beforeLine": 680
+    },
+    {
+      "id": "local.ts:syncRound:loadBackend(doFetch, base, request.headers, aborter.signal)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "loadBackend(doFetch, base, request.headers, aborter.signal)",
+      "line": 699,
+      "beforeLine": 697
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })",
+      "line": 701,
+      "beforeLine": 699
+    },
+    {
+      "id": "local.ts:syncRound:refreshAcquired(true)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refreshAcquired(true)",
+      "line": 709,
+      "beforeLine": 707
+    },
+    {
+      "id": "local.ts:syncRound:installNative(aborter.signal)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "installNative(aborter.signal)",
+      "line": 710,
+      "beforeLine": 708
+    },
+    {
+      "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusedSession(error.denied, backendRevision)",
+      "line": 712,
+      "beforeLine": 710
+    },
+    {
+      "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#2",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusePartition(denied, pageRevision)",
+      "line": 730,
+      "beforeLine": 728
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)",
+      "line": 737,
+      "beforeLine": 735
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 746,
+      "beforeLine": 744
+    },
+    {
+      "id": "local.ts:syncRound:refreshAcquired()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refreshAcquired()",
+      "line": 768,
+      "beforeLine": 766
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })",
+      "line": 771,
+      "beforeLine": 769
+    },
+    {
+      "id": "local.ts:probe:captureStore()#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "captureStore()",
+      "line": 797,
+      "beforeLine": 795
+    },
+    {
+      "id": "local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })",
+      "line": 799,
+      "beforeLine": 797
+    },
+    {
+      "id": "local.ts:probe:response.json()#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "response.json()",
+      "line": 801,
+      "beforeLine": 799
+    },
+    {
+      "id": "local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "refusedSession(json.denied ?? json.why, request.revision)",
+      "line": 803,
+      "beforeLine": 801
+    },
+    {
+      "id": "local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "witnessRestore(json.store_id, json.seq, capture)",
+      "line": 806,
+      "beforeLine": 804
+    },
+    {
+      "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 816,
+      "beforeLine": 814
+    },
+    {
+      "id": "local.ts:waitForChange:probe()#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "probe()",
+      "line": 817,
+      "beforeLine": 815
+    },
+    {
+      "id": "local.ts:waitForChange:probe()#2",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "probe()",
+      "line": 820,
+      "beforeLine": 818
+    },
+    {
+      "id": "local.ts:waitForChange:captureStore()#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "captureStore()",
+      "line": 825,
+      "beforeLine": 823
+    },
+    {
+      "id": "local.ts:waitForChange:changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)",
+      "line": 827,
+      "beforeLine": 825
+    },
+    {
+      "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "refusedSession(json.denied, request.revision)",
+      "line": 830,
+      "beforeLine": 828
+    },
+    {
+      "id": "local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "witnessRestore(json.store_id, json.seq, capture)",
+      "line": 837,
+      "beforeLine": 835
+    },
+    {
+      "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 852,
+      "beforeLine": 850
+    },
+    {
+      "id": "local.ts:follow:waitForChange()#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "waitForChange()",
+      "line": 861,
+      "beforeLine": 859
+    },
+    {
+      "id": "local.ts:follow:syncOnce()#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "syncOnce()",
+      "line": 864,
+      "beforeLine": 862
+    },
+    {
+      "id": "local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 869,
+      "beforeLine": 867
+    },
+    {
+      "id": "local.ts:runLocal:evaluateLocal(queryEnvironment, op, args, revision, authority, watch)#1",
+      "file": "local.ts",
+      "owner": "runLocal",
+      "expression": "evaluateLocal(queryEnvironment, op, args, revision, authority, watch)",
+      "line": 907,
+      "beforeLine": 902
+    },
+    {
+      "id": "local.ts:runLocal:new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt))#1",
+      "file": "local.ts",
+      "owner": "runLocal",
+      "expression": "new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt))",
+      "line": 912,
+      "beforeLine": 907
+    },
+    {
+      "id": "local-query.ts:pending:env.queued()#1",
+      "file": "local-query.ts",
+      "owner": "pending",
+      "expression": "env.queued()",
+      "line": 116,
+      "beforeLine": 107
+    },
+    {
+      "id": "local-query.ts:blocked:pending()#1",
+      "file": "local-query.ts",
+      "owner": "blocked",
+      "expression": "pending()",
+      "line": 126,
+      "beforeLine": 117
+    },
+    {
+      "id": "local-query.ts:recover:blocked(true)#1",
+      "file": "local-query.ts",
+      "owner": "recover",
+      "expression": "blocked(true)",
+      "line": 134,
+      "beforeLine": 125
+    },
+    {
+      "id": "local-query.ts:local:env.call({ op: \"query\", name: op.name, viewer: env.principal, args, now: env.deviceNow() })#1",
+      "file": "local-query.ts",
+      "owner": "local",
+      "expression": "env.call({ op: \"query\", name: op.name, viewer: env.principal, args, now: env.deviceNow() })",
+      "line": 149,
+      "beforeLine": 140
+    },
+    {
+      "id": "local-query.ts:server:blocked()#1",
+      "file": "local-query.ts",
+      "owner": "server",
+      "expression": "blocked()",
+      "line": 171,
+      "beforeLine": 162
+    },
+    {
+      "id": "local-query.ts:server:recover()#1",
+      "file": "local-query.ts",
+      "owner": "server",
+      "expression": "recover()",
+      "line": 172,
+      "beforeLine": 163
+    },
+    {
+      "id": "local-query.ts:fetch:env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph)#1",
+      "file": "local-query.ts",
+      "owner": "fetch",
+      "expression": "env.post(`/q/${op.name}`, { args, ...(provenance ? { provenance: true } : {}) }, undefined, eph)",
+      "line": 178,
+      "beforeLine": 169
+    },
+    {
+      "id": "local-query.ts:fetch:blocked()#1",
+      "file": "local-query.ts",
+      "owner": "fetch",
+      "expression": "blocked()",
+      "line": 182,
+      "beforeLine": 173
+    },
+    {
+      "id": "local-query.ts:fetch:recover()#1",
+      "file": "local-query.ts",
+      "owner": "fetch",
+      "expression": "recover()",
+      "line": 183,
+      "beforeLine": 174
+    },
+    {
+      "id": "local-query.ts:fetch:env.refreshing#1",
+      "file": "local-query.ts",
+      "owner": "fetch",
+      "expression": "env.refreshing",
+      "line": 185,
+      "beforeLine": 176
+    },
+    {
+      "id": "local-query.ts:server:watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, ...(retain ? {} : { retain: false }) })#1",
+      "file": "local-query.ts",
+      "owner": "server",
+      "expression": "watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, ...(retain ? {} : { retain: false }) })",
+      "line": 200,
+      "beforeLine": 191
+    },
+    {
+      "id": "local-query.ts:server:fetch()#1",
+      "file": "local-query.ts",
+      "owner": "server",
+      "expression": "fetch()",
+      "line": 200,
+      "beforeLine": 191
+    },
+    {
+      "id": "local-query.ts:server:fetch()#2",
+      "file": "local-query.ts",
+      "owner": "server",
+      "expression": "fetch()",
+      "line": 200,
+      "beforeLine": 191
+    },
+    {
+      "id": "local-query.ts:routeLocal:blocked()#1",
+      "file": "local-query.ts",
+      "owner": "routeLocal",
+      "expression": "blocked()",
+      "line": 216,
+      "beforeLine": 207
+    },
+    {
+      "id": "local-query.ts:routeLocal:recover()#1",
+      "file": "local-query.ts",
+      "owner": "routeLocal",
+      "expression": "recover()",
+      "line": 217,
+      "beforeLine": 208
+    },
+    {
+      "id": "local-query.ts:routeLocal:server(retainedRows, retain)#1",
+      "file": "local-query.ts",
+      "owner": "routeLocal",
+      "expression": "server(retainedRows, retain)",
+      "line": 219,
+      "beforeLine": 210
+    },
+    {
+      "id": "local-query.ts:routeLocal:local()#1",
+      "file": "local-query.ts",
+      "owner": "routeLocal",
+      "expression": "local()",
+      "line": 225,
+      "beforeLine": 216
+    },
+    {
+      "id": "local-query.ts:routeLocal:blocked()#2",
+      "file": "local-query.ts",
+      "owner": "routeLocal",
+      "expression": "blocked()",
+      "line": 228,
+      "beforeLine": 219
+    },
+    {
+      "id": "local-query.ts:route:env.installNative(env.signal)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "env.installNative(env.signal)",
+      "line": 256,
+      "beforeLine": 247
+    },
+    {
+      "id": "local-query.ts:route:server()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "server()",
+      "line": 261,
+      "beforeLine": 252
+    },
+    {
+      "id": "local-query.ts:route:local()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "local()",
+      "line": 270,
+      "beforeLine": 254
+    },
+    {
+      "id": "local-query.ts:route:routeLocal(first)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "routeLocal(first)",
+      "line": 271,
+      "beforeLine": 255
+    },
+    {
+      "id": "local-query.ts:publish:blocked(candidate.origin === \"remembered\")#1",
+      "file": "local-query.ts",
+      "owner": "publish",
+      "expression": "blocked(candidate.origin === \"remembered\")",
+      "line": 280,
+      "beforeLine": 264
+    },
+    {
+      "id": "local-query.ts:publish:local()#1",
+      "file": "local-query.ts",
+      "owner": "publish",
+      "expression": "local()",
+      "line": 300,
+      "beforeLine": 284
+    },
+    {
+      "id": "local-query.ts:publish:routeLocal(refreshed, false)#1",
+      "file": "local-query.ts",
+      "owner": "publish",
+      "expression": "routeLocal(refreshed, false)",
+      "line": 304,
+      "beforeLine": 288
+    },
+    {
+      "id": "local-query.ts:evaluateLocal:route()#1",
+      "file": "local-query.ts",
+      "owner": "evaluateLocal",
+      "expression": "route()",
+      "line": 336,
+      "beforeLine": 320
+    },
+    {
+      "id": "local-query.ts:evaluateLocal:publish(candidate)#1",
+      "file": "local-query.ts",
+      "owner": "evaluateLocal",
+      "expression": "publish(candidate)",
+      "line": 337,
+      "beforeLine": 321
+    }
+  ]
+}

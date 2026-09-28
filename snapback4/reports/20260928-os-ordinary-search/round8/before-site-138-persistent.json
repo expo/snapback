@@ -1,0 +1,17 @@
+[
+  {
+    "index": 138,
+    "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
+    "mode": "persistent",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbed": false,
+    "retryDelays": [],
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  }
+]

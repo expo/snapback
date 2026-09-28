@@ -1,242 +1,201 @@
-# Lane OS — round 7: bounded current-ID overlap
+# Lane OS — round 8: delivery fault matrix integration
 
-The three Astra blockers are repaired. Current point readability suppresses a
-retained replacement image inside the page's existing server invocation;
-source-row metadata gates SDK accumulation; early permanent refusals terminate
-instead of refreshing identity. Immutable scope admission is no longer needed.
-The local wasm budget remains the sole expected qualification failure. Nothing
-is pushed or published, and no budget or shared installation is changed.
+All **313 matrix checks pass**: 156 sites × transient/persistent faults, plus
+the census. All 140 RG classifications, recipes and non-rejecting-wait flags
+are preserved by site identity; the additional search decoder and query-only boundaries are optional.
+The defect was stale census/recipe metadata after OS added a decoder await,
+which shifted later numeric case indices. No production guard needed changing.
+The affected search/delivery tests, 600-seed oracle and whole guide pass.
+The unchanged wasm cap remains the only final qualification failure.
 
-Prior evidence remains in [round 0](./ROUND0.md), [round 1](./ROUND1.md),
-[round 2](./ROUND2.md), [round 3](./ROUND3.md), [round 4](./ROUND4.md),
-[round 5](./ROUND5.md), and the preserved [round 6](./ROUND6.md).
-Round-7 commands/results live under `round7/`; compressed logs retain their
-original output. No `scripts/test.sh` invocation belongs to this round.
+Prior reports remain [rounds 0–6](./ROUND6.md) and [round 7](./ROUND7.md), with
+links onward to their original evidence. [Commands and results](./round8/COMMANDS.md),
+[exact await delta](./round8/AWAIT-DELTA.md), [matrix results](./round8/matrix-qualified.json),
+[search-site fault cases](./round8/SEARCH-SITES.md), and
+[failure index](./round8/failure-index.json) carry this round's evidence.
+Text logs are gzip-compressed without changing their contents.
+No scripts/test.sh, tool installation, budget increase, push or publication.
 
-## Integration and review
+## Untouched round-7 reproduction
 
-First fetched and merged origin/main in `d023a8fd6`. Both journal conflicts
-preserve both parents' appended records; source merged automatically, including
-main's delivery/client fixes. Read the binding prompts, prior reports and OS
-journal records, Snapback 4 fence and LLP/guide context. Applied llp-orient
-read-only from an existing populated skill copy; `round7/ORIENTATION.md` records
-the scoped constraints and location. No skill/tool installation.
+Ran the matrix first at **c81476d5f**, before any source or manifest edit and
+before merging main. It failed the source boundary census, then the decoder
+and displaced recipes. The ordinary all-cases run stalled entering the
+change-feed tail of the matrix; its raw output is retained as
+`matrix-before.log.gz`. A rerun with Node's test timeout also stalled under
+mocked timers (`matrix-before-bounded.log.gz`). Both were terminated by their
+recorded PIDs. No other lane's process was touched.
 
-Read Astra's full NOT READY review and copied all four reproductions. Their
-shared setup is extracted into `helpers/astra-search.mjs`, preserving the
-reproductions without three copies of unrelated tests. Grok had only progress
-notes initially; its final READY review arrived during this round and was read
-in full. Both review texts are preserved in `round7/os-r56.*.md`.
+To finish the census of failures, ran unchanged sites 0–135 together and sites
+136–140 separately, each mode, with external 15-second bounds. The merged main
+had no changes to these SDK source/matrix files: these split runs still use the
+exact round-7 source. All 282 case combinations were attempted. Unique outcomes
+were **253 passes, 28 assertion/recipe failures and one stalled persistent case**,
+plus the failed census. The 0–135 group completed its case assertions but also
+needed the external bound during teardown. These are diagnostic runs, not
+qualification. `before-runs.json` records every exit including timeouts.
 
-Grok's review used a scripted coordinator harness, not the 600 real-host seeds.
-Its cut-model Low is fixed below. Its cursor-wording Low is fixed in the search
-card: both sources seek the combined consumed key. Its completeness observation
-is the existing page contract, now stated explicitly and tested: `complete`
-can coexist with `next`, which determines whether more results remain. Its
-untested per-page `seen` defense is not claimed as the ID-lifetime proof; the
-point overlap and generated ID-reuse cases establish the new boundary. The
-mutable-scope regression now also requires the current body and one request on
-each page. Astra's real projection/ID-reuse reproductions take precedence over
-Grok's narrower assertions that string IDs and immutable scopes were sufficient.
+The failing original-tree case indices were:
 
-## Implementation
+- **116, 117, 118, 121, 122, 125, 129, 131, 132, 134:** both transient and
+  persistent. These name the new decoder, original JSON response, legacy JSON,
+  legacy retry fetch, restore witness, native state/install, hold revision/save,
+  and clock persistence respectively.
+- **133:** persistent clock fetch. Transient happened to pass despite being
+  assigned the wrong optional recipe.
+- **136:** persistent change-stream reader stalls; transient passes.
+- **137 and 138:** both change-feed JSON and race cases fail.
+- **139:** persistent FIFO iterator fails; transient happens to pass.
+- **140:** both fallback media remove cases fail with no recipe.
 
-**One metered, authorized overlap.** The SDK sends only this page's retained
-candidate IDs in `searchRetained`. The server recomputes the eligible descriptor,
-rejects lists longer than limit plus lookahead, and uses ordinary authorized
-`byId` point reads in the same transaction, Context and meter as the search.
-A capped point refuses rather than certifying absence. `searchCurrent` returns
-only supplied IDs whose current row is readable; hidden, absent and expired
-rows are indistinguishable. Point and output work share the server's original
-allowance; SDK candidate allocation/serialization, decode, validation, ID lookup
-and cursor work share the device scan's allowance.
+Every failure is ours: OS had not reconciled its new awaits with RG's matrix.
+No new production failure at clock, native install, hold metadata or restore is
+inferred from a case running the wrong recipe. The final corrected matrix tests
+those actual boundaries again under their original classifications.
 
-Current IDs win even when the new image is older, no longer matches, is filtered
-by the query, or is outside this keyset page. No new row body, order key, scope
-or discovered ID is returned by the check. LLP 3000.028 §3.3 records the disclosure
-argument. This also covers mutable-scope updates, so both immutable admission and
-N_SEARCH_MUTABLE_SCOPE are removed. Immutable order advice remains. Ordinary
-server inference and explicit/guarded/held queries keep their previous meaning.
+Then fetched/merged main **ae265b730** in **54ca4b1d3**. The journal and LLP Revised
+line conflicted; both parents' journal sequences and all complete revision notes
+are retained. The merge brings EX's published guide/starter work; SDK source
+merges unchanged. `merge-preservation.json` records the parent commits and the
+subsequence audit. Round-7 reviews are left for the later commissioned round.
 
-Suppressed candidates are safe consumed discards. A page may be short, or empty
-with an advancing cursor, when its entire bounded retained prefix is suppressed.
-It cannot pass an unproved retained head or refill automatically. Both sources
-continue after the combined key; an unconsumed fetched server hit remains
-eligible. Two real-host tests replace every retained row with a nonmatching
-current image and traverse to all remaining current hits after an empty first
-page. Other tests cover older replacements, hidden replacements, mutable moves,
-Unicode IDs, request count and candidate/proof bounds. A missing overlap protocol
-refuses permanently rather than publishing unchecked retained images.
+## Exact new, changed and moved awaits
 
-**Accumulate proven identities only.** The TypeScript emitter adds `rowKey: "id"`
-only to source-row page handles (`Ty::Page`), not arbitrary projected objects.
-`Pages` uses that metadata to retain the first display position and newest
-observed image. Projections with `id: .room` preserve both distinct messages.
-Existing search/history image refresh, suffix withdrawal, deadline and retention
-checks still pass. No new public Read field or accumulated server session.
+The untouched delivery census grows **140 → 141**; final expanded coverage is **156**; the source-wide boundary changes only
+`local.ts`, `request-wait.ts`, `local-query.ts`, and new `local-search.ts`.
+`source-await-delta.json` inventories every added/changed await across those
+files; `delivery-site-mapping.json` records every old/new index, line and ID.
 
-**Refusals.** Authenticated early input/op/body refusals use a single reader's captured
-store/head/generation. The coordinator handles refusals before cursor-identity
-refresh: a refusal publishes neither rows nor a continuation. It also handles
-loading before that refresh. State, local-scan and second-state refusals already
-precede their associated success checks; decoder/coordinator bounds still end
-in E_BOUND. Transport failures stay unavailable. Unauthenticated auth/origin refusals retain their metadata-free envelope: exposing
-a store head before authentication would be a disclosure. An unavailable store cannot
-supply truthful metadata and remains a retryable transport/store refusal; no
-identity is invented. Tests cover malformed JSON, bad/extra arguments, wrong or
-missing operations, malformed overlap, old-server/missing-proof behavior, and
-E_INPUT/E_OP/E_SEARCH_OPEN/E_BOUND with and without retryability at the SDK seam.
-The mounted real React/wasm observation and process observation each make one
-request for `{q:123}`, settle E_INPUT and stay settled over 200 ms.
+| Site | Change | Classification and proof |
+| --- | --- | --- |
+| `local.ts:sendPost:postForCaller(…)#1`, index 9 | Adds the `decode` argument, line 535 → 537 | **Required**, unchanged: shared mutation transport can have an unknown response. It must retain custody and retry the same ID after recovery. Both original fault modes pass, including caller/lookup/event agreement after recovery. |
+| `local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1`, index 12 | Replaces inline `witnessRestore(…)`, line 558 → 559 | **Optional**, query-only bookkeeping. Existing `sendPost` catch returns unavailable after rejection; both modes allow all healthy queued IDs to POST once. Removing that guard fails both modes. |
+| `request-wait.ts:postForCaller:decode(response)#1`, new index 116 | Added await, line 18 | **Optional to delivery**, search-only decoder callback. New queryDecode transient/persistent cases inject below this await while a successful unobserved head and two admitted tails exist. The existing sendPost guard absorbs ordinary decoding failure; removing it fails both modes. |
+| `request-wait.ts:postForCaller:response.json()#1` | Same line/expression; index 116 → 117 | **Required**, unchanged mutation outcome decoding. Same-ID recovery remains mandatory and passes. |
+| Original indices 117–139 | Each shifts by +1; expressions unchanged | Every original recipe, required/optional classification and absorbs flag follows its site. The final search expansion moves the iterator/media appendix further to 154/155. This includes restore, native, local-sync, pending-writes, clock, changes, iterator and media fallback. |
 
-The deliberate round-0 change remains: admitted bare membership word search
-returns the compact current-scope page instead of the old empty incomplete result.
-No runtime allowance or authority is relaxed.
+There are also source-line moves earlier in local.ts. In total, **two existing
+expressions change, 70 existing delivery entries move by line and/or index,
+and 68 are completely unchanged**. The exact mapping table omits none of the
+moved sites. No previously optional site becomes required. Required count stays
+**48**; optional count becomes **108** (the decoder plus 15 query-path entries).
 
-## Oracle: findings before fixes and independence
+Required reads still mean unknown FIFO/custody cannot safely be skipped.
+Required response reads retain the unknown mutation's ID/outcome ownership.
+The matrix removes each fault and proves FIFO progress, one terminal event,
+lookup agreement and same-ID collection with no new POST. Persistent required
+failure may outlast the caller's 25-second wait; later same-ID collection returns
+the terminal outcome. No successful outcome is invented to make a case pass.
 
-Before any product fix, generated seeds **1, 2 and 4 failed on both hosts**:
-projected non-identity IDs collapsed, invalid input became loading, and a
-reinsertion left a stale retained image. Seed 3's changed-needle check passed.
-`generated-before.log` preserves all traces. The copied Astra tests separately
-reported **6 failures / 2 passes**: the same three blockers, with argument binding
-already working. These are inherited lane defects, not baseline-main failures.
+The 11 initially outside-owner awaits are **two in local-query.route and nine in
+local-search**. They are independent query evaluation, not prerequisites awaited
+by delivery. All are now **inside the matrix**, with optional transient and
+persistent cases. Expanding the whole route owner also includes its four
+pre-existing awaits. No search await is waived or excluded, and no existing
+owner is removed. [SEARCH-SITES.md](./round8/SEARCH-SITES.md) gives every exact ID,
+reason, guard and fixture branch. The source-wide seal remains strict.
 
-The extended generator uses seeded page sizes, first/last direction, tied and
-Unicode IDs, and replacement selection. It generates ID reuse, projected `id`
-fields, invalid/permanently refused inputs (including observed request counts),
-and argument changes with an old cursor. The main inter-page schedule retains
-sync/no-sync, membership, writes, body/order/mutable-scope edits, expiry,
-store/generation replacement, reset/reopen and link flaps. Mutable scopes now
-exercise composition rather than fallback.
+The test-only fixture launches public query calls alongside the healthy queued
+sends and repeats the queries across eight five-second advances. It scripts only
+the query host replies/state/meter receipts to reach the SDK branches; all
+outbox/receipt calls still run on the real wasm device. Native fallback,
+missing-program fallback, unknown local coverage, stream reading/cancellation,
+identity, both state reads and every speculative-read fence are reached.
+Cancellation injection extends response-method instrumentation to reader.cancel;
+the original direct-failure allowlist and absorbs set remain unchanged.
+Actual search-engine behavior is separately qualified by the 600 real-host seeds.
 
-Restart and expected withdrawal derive from modeled acquisition, membership,
-identity and link events. The test no longer decodes response cursors to select
-its expected domain or restart. Lane suspension is derived from the fixture's
-known 32-word and examined-row conditions. Offline partial discovery samples
-check authorized row images, order, incompleteness and progress, then stop that
-safety sample without advancing a model from returned rows. Ordinary uncut pages,
-including offline pages that fill before the meter limit, retain exact keyset
-comparison. Online suspended-lane pages compare exactly to current server rows.
-An overlap-limited short/empty prefix advances the independent model through its
-own computed discarded candidate, never through a returned row.
+No new catch is added: existing query transport guards already prevent healthy
+send starvation. SearchBound still reaches ordinarySearch's E_BOUND result;
+ordinary failures make that query unavailable. Sync/reset invalidation schedules
+`void rerun(watch)`; query evaluation is not inserted into the delivery network
+chain. The rerun owner catches evaluation errors. A one-shot query retains its
+own caller failure semantics. No authorization, disclosure or meter rule changes.
 
-The first extended 300-seed sweep failed **225, 240, 300 on each host** because
-my new safety branch incorrectly assumed every offline page in a cut fixture
-must be incomplete. Their offline reads actually fill the page before cutting,
-or have fewer words after reset. Correcting the fixture-based classification
-preserves exact comparison and passes those seeds; no product fix or weaker
-assertion was needed. `oracle-first.log`, `oracle-cuts-fixed.log` and the
-subsequent complete sweeps preserve that development history.
+## Verification and controls
 
-Final acceptance: **300/300 seeds on process and 300/300 on wasm**, zero failed
-seeds. Process 183.141 s; wasm 134.262 s (317.403 s combined). Each host covers
-50 generated ID reuses and 74 each of projections, invalid inputs and changed
-arguments; the separate cut schedules keep their original fixture. The final summary/coverage is in
-`round7/oracle-acceptance.json`, with every passing seed in the matching log.
-Each host also runs **22 current-only differential schedules / 194 identical
-pages**, comparing full row images, completeness and continuation presence.
-Stable-row exactly-once and terminal keyset completeness remain asserted.
-The explicit accepted cut/refusal cases are not counted as complete searches.
-
-Removing arguments from the cursor binding in an isolated copied package fails
-both Astra's named needle-change test and generated seed 3, on both hosts:
-**4/4 mutation checks fail for the intended result mismatch**. The product files
-and final artifacts were never mutated. `mutation-arguments.log` retains the
-negative control; the normal tests pass.
-
-## Acceptance matrix
-
-| Requirement | Round-7 evidence |
+| Check | Result |
 | --- | --- |
-| ID reuse and scope updates | Point overlap; copied rebirth and mutable-move regressions pass on process/wasm; current body asserted. |
-| Current ID not matching or before/after key | Generated reinsertion plus nonmatching, older and hidden replacement cases; current authority independent of search match. |
-| Bounded authorized overlap | Rust cap/hidden/absent/tombstone/ordinary-ID-bound/meter cases; supplied IDs only; at most one page plus lookahead. |
-| One invocation, consumed prefix, no refill | Real-host request counters, all-suppressed empty-progress traversal and word-dense drain continuation. |
-| Projected non-identity id | Copied two-message projection and generated projection cases preserve list semantics; emitter test proves metadata exclusion. |
-| Newest source-row accumulation | Existing search/history Pages refresh, metadata-only revalidation, suffix-drop and deadline cases pass with source-identity metadata. |
-| Permanent refusals | One-shot process/wasm, generated observed inputs, real mounted React/wasm and early HTTP identity cases; one request. |
-| Oracle independence | Modeled events select restart/withdrawal; fixture conditions select suspension; partial safety never supplies a next model key. |
-| Argument binding | Copied test, generated category and four failing mutation controls. |
-| Generated/differential | 300 seeds per host; 22 additional server-only differential schedules per host. |
-| Existing identity/audience/reset/retention | Prior named store, generation, reset, same-count audience, expiry, unrelated sync and retained-only filter tests pass. |
-| Rust and whole guide | 83 affected Rust tests plus 94 whole-guide tests; one existing scale fixture ignored by name. |
-| JavaScript | 161 affected cases; additional codec/family and TypeScript checks pass. |
-| Builder u0500 / coffee / floor / guarded control | Historical round-1 501-page / 10,014-ID walks, searchChat floor and NOT_MEMBER matrix retained; full copied store not rerun. |
-| Wasm | 2,039,451 raw / 592,719 gzip B; delta from round 6: 0 raw / −3 gzip B. Local unchanged cap still fails. |
-| Full suite | Not run, as instructed. Supervisor owns landing rerun and budget decision. |
+| Complete matrix after reconciliation | **313 passed**, 0 failed/cancelled/skipped; every fault site reached and injected |
+| Search/process/wasm/mounted React and Pages | **161 passed** |
+| Delivery audit, receipts, clock, pending, transport, restore and sync | **331 passed**, one pre-existing named skip requiring SNAPBACK4_LEGACY_BIN |
+| Generated search oracle | **300/300 process + 300/300 wasm**, no failing seeds |
+| Current-only server differential | **22 schedules / 194 identical pages per host**, inside the oracle |
+| Affected Rust ordinary/membership/merge and device merge | **66 passed** |
+| Whole guide, including merged EX work | **98 passed**, no skips |
+| Wasm codec/families/server-only absence tests | **38 passed**; separate attribution checks pass |
+| Native build, client build, typecheck | pass |
+| Negative controls | **5/5 killed for the intended assertions** |
+| Reference, whitespace, classification preservation, append-only journal | pass |
+| Canonical wasm budget | **FAIL — ours, inherited**; 6,526 B above unchanged cap |
 
-## Meter envelope and wasm
+Oracle times: process **174.770 s**, wasm **127.520 s**. All prior categories
+remain, including 50 ID reuses and 74 each of projection, invalid-input and
+argument-change cases per host, alongside keyset, identity, scope, expiry,
+reset and link schedules. This round does not rerun the full copied builder
+store or native Expo; their earlier acceptance evidence remains historical.
 
-The prior 249-scope × words drain fixture now refuses during opening because
-20 overlap points spend the same 8,192 examined allowance. That is an honest
-new cost, not an extra allowance. The revised fixture has **248 current scopes**:
-the existing live scope, 246 full 32-word scopes and one 25-word scope. It opens,
-drain-cuts and preserves unconsumed server hits through a third explicit request.
-The original 4,077-scope refusal/differential control also remains passing.
-The nearly exhausted device ledger now refuses while reserving candidate request
-storage, before HTTP; its expected request count is zero, with no meter reset.
-Mixed comparison and ID-hashing exhaustion still have exact boundary controls.
+The negative controls use isolated src/dist copies in this worktree's target:
+remove the query decode guard; remove the query identity guard; add an
+unclassified delivery await; add an unclassified helper await; add an await to
+the search module. Every control fails with ERR_ASSERTION and its intended
+message, not merely a process error. Production artifacts are never mutated.
+An initial scope expansion used nonexistent client.once and failed all 30 new
+cases on the existing reach/inject assertion. Corrected to public client.query;
+all cases then pass. No assertion was weakened. The full RG historical 38-control campaign is not newly claimed; the original
+140 site recipes and all liveness/FIFO/exactly-once/backoff assertions are retained.
 
-Canonical Rust 1.97.0 / wasm-bindgen 0.2.127, file-input GNU gzip -9, no wasm-opt:
+## Acceptance matrix note
 
-| Artifact | Raw B | Gzip B |
-| --- | ---: | ---: |
-| Round 6 recorded | 2,039,451 | 592,722 |
-| Round 7 final | 2,039,451 | 592,719 |
-| Delta | 0 | −3 |
+| Existing OS acceptance | Round-8 addition |
+| --- | --- |
+| One query, one invocation, consumed prefix, shared ledger, disclosure and lifecycle fences | All 161 named affected tests and 600 real-host seeds still pass. No product behavior changes. |
+| Healthy queued sends remain independent of search | New decoder transient/persistent cases and changed identity-helper cases preserve FIFO, exactly one POST/event, caller/lookup agreement and bounded retries. Guard-removal controls fail. |
+| Required custody recovers | All 48 RG-required boundaries retain classification and pass both fault modes/recovery assertions. |
+| Census and scope | 156 classified matrix rows; all 140 old semantic recipes preserved; every new search await tested, with no waiver or exclusion. |
+| Whole guide | 98/98 on the merged tree. |
+| Wasm | Unchanged from round 7; local cap remains red and belongs to the supervisor. |
 
-SHA-256: `7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d`.
-`round7/wasm-size.json` records toolchain and measurement. Over the unchanged
-586,193 B cap by **6,526 B**. The new overlap is server-feature-only; Query
-metadata/emission, coordinator and Pages are outside device wasm. No new device
-function family is introduced. The whole-artifact comparison includes merged
-main and source/layout changes; no additive per-feature gzip claim is made.
-Existing descriptor, state/identity, ledger and retained-filter costs remain
-rounds 3–6's attribution. Family/codec/server-only absence checks pass.
+## Wasm
 
-## All failures and qualification limits
+Canonical build: **2,039,451 B raw / 592,719 B GNU file-input gzip-9**.
+**Delta from round 7: 0 raw / 0 gzip**; from round 6: 0 raw / −3 gzip.
+Unchanged budget: **586,193 B**, over by **6,526 B**.
+SHA-256 `7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d`.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt or tool installation.
+This round changes no wasm input. Existing OS composition metadata, retained
+filtering, shared ledger/state identity and reset counter account for the
+inherited excess; no new per-feature gzip attribution is asserted.
 
-Final affected Rust, JavaScript, guide, typecheck, codec/family and reference
-checks pass. The one final failing qualification is **wasm build — ours,
-inherited expected cap**, 6,526 B over. **Baseline failures: none.
-Environmental failures: none.** No full-suite or publication claim.
+## Every failure
 
-All development failures are retained and classified:
+- **Ours, integration:** the untouched matrix census and all 28 failing case
+  combinations named above; one persistent change-feed case stalls, and the
+  prefix diagnostic run stalls in teardown. Reindexing preserves the real
+  fault recipes; final full matrix completes in 17.394 s within an external 60-second bound (exit 0; no cancellation).
+- **Ours, new fixture:** its first 30 cases called nonexistent client.once and
+  therefore failed the mandatory reach/injection assertion. Corrected to
+  client.query; final 30 cases pass, including repeated persistent failures.
+- **Ours, runner setup:** Node's test timeout did not bound the mocked-timer
+  stall; terminated only recorded child/parent PIDs, then used external bounds.
+  Those interrupted logs remain, including the prefix teardown timeout.
+- **Ours, expected controls:** five deliberately mutated variants fail as
+  specified in controls.json; neither these nor baseline failures count as passes.
+- **Ours, inherited wasm budget:** the artifact builds, but build-wasm.sh exits 1
+  at the unchanged cap. No other final qualification command fails.
+- **Ours, operational setup:** initial report lookup omitted snapback4/; the
+  first log-directory command doubled that prefix, preventing redirection;
+  guessed source/LLP/old-ledger paths were absent; local skill symlinks were
+  unpopulated. Corrected reads/paths, removed the empty accidental directory,
+  and used an existing read-only skill copy. Some discovery greps returned no
+  matches; inspecting absent schema.operations in the old chat fixture raised
+  TypeError before the test-only query metadata was installed. The first
+  ref-check wrapper ran from the wrong working directory and failed to open its
+  log; the corrected audit passes. Staging found an extra EOF blank line in
+  COMMANDS.md, removed before the passing final whitespace check. The merge's expected conflict exit was resolved with both histories.
+- **Baseline failures: none observed. Environmental test failures: none observed.**
 
-- **Ours, reproduced product defects:** six copied Astra failures and generated
-  seeds 1/2/4 on both hosts before repairs; argument tests already pass.
-- **Ours, model:** 225/240/300 per host in the first 300-seed sweep, as explained
-  above. An attempted targeted rerun before correcting a failed edit repeated
-  the same three failures (`oracle-cuts.log`). The corrected reruns pass.
-- **Ours, fixture expectations:** first affected JS run had two failures: the
-  ledger now refused before HTTP (expected 1 request, observed 0), and the old
-  dense drain reached E_SEARCH_OPEN after point charges. The smaller replacement
-  fixture then exposed a test assumption that every fetched server hit had been
-  consumed; it now asserts the precise consumed key and recovery of the remaining
-  hits on the third page. Final affected checks pass without a budget change.
-- **Ours, final-review regression:** the first metadata patch attached the store
-  head to pre-authentication E_AUTH responses too. A new negative test fails
-  before repair (`auth-boundary-before.log`); pre-authentication responses now
-  retain their original metadata-free envelope. Authenticated input refusals
-  still carry captured generation, and all refusals still terminate before
-  identity refresh. Final query tests pass.
-- **Ours, intentional mutation:** four failures when deleting argument binding;
-  isolated under this worktree's ignored target directory.
-- **Ours, operational:** several guessed read paths and edit commands with a
-  duplicated `snapback4/` prefix failed without changing files; corrected to
-  absolute worktree paths. A few log probes preceded file creation. These are
-  not counted as product tests or baseline/environment failures.
-- **Ours, expected wasm cap:** both canonical builds produce the same artifact
-  and exit 1 at the unchanged cap. No other qualification stage fails.
-
-Rust HTTP filtering leaves the existing prepared-M7 scale test ignored because
-SNAPBACK4_ADOPTION_HTTP_DB was not supplied. Native Expo and the full-scale
-builder copy were not rerun; the real mounted browser uses the wasm device and
-shared React hooks. These are explicit limits, not inferred passes.
-
-The reproduction commands and affected JS filenames are in
-[round7/COMMANDS.md](./round7/COMMANDS.md). The default
-`ordinary-search-oracle.test.mjs` runs 300 seeds per host plus differential.
-Use `SB4_SEARCH_SEEDS=1,2,3,4` for the new categories and `=225,240,300` for the
-cut-model controls. Environment and exact results are recorded in `round7/`.
+Round-7 review findings are not part of this repair or claimed resolved.
+The existing RG allowlist/retry-strength follow-up remains open. One journal
+entry and a scoped LLP implementation note accompany this report. Commit uses
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Push and publication are forbidden.

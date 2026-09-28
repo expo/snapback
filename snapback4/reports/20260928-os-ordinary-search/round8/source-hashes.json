@@ -1,0 +1,12 @@
+{
+  "packages/snapback4/test/delivery-fault-instrument.mjs": "7dcb0f499dec3544025a2c52eef90ad5d2303004de6f5a5363b90be5d5987f51",
+  "packages/snapback4/test/delivery-fault-matrix.test.mjs": "5a534905d60df79408e693e2d2eccb53f195559cc1cf6f3a497c45badca5a8db",
+  "packages/snapback4/test/delivery-fault-recipes.mjs": "d5d56074ff254e90e5581cdcaf8720b213208312927d00a7a140e52132f6f150",
+  "packages/snapback4/test/delivery-fault-sites.json": "15d73d8f4d3d6ad7bc3a60777ae634d82aab4e248ae5176f10348492a82f50c0",
+  "packages/snapback4/test/delivery-await-boundary.json": "8c828c36ff8ba2ff43f22ba004f31623c7181f6aa155441449aaa824bb11f3de",
+  "packages/snapback4/src/local.ts": "d3a1e62102a3afeeb568f64a140aefc56a840d623afe92cf3764283a4568547a",
+  "packages/snapback4/src/local-query.ts": "d7212f762e46ef69287d0a7425ba598ccb136c75716620698733ee6754d66e7f",
+  "packages/snapback4/src/local-search.ts": "7272671bf99948157f5db6324aee27758cb38da7af6f72eb9bb887b03eb46a83",
+  "packages/snapback4/src/request-wait.ts": "d1db0cf3055920ae3d48a5d6cbca06ab1ab6ecbb227992a807a72e0689b6e437",
+  "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d"
+}

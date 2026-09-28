@@ -1,0 +1,27 @@
+{
+  "name": "affected-delivery",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=4",
+    "packages/snapback4/test/store-reset-review.test.mjs",
+    "packages/snapback4/test/server-clock.test.mjs",
+    "packages/snapback4/test/server-clock-recovery.test.mjs",
+    "packages/snapback4/test/server-clock-regressions.test.mjs",
+    "packages/snapback4/test/pending-writes.test.mjs",
+    "packages/snapback4/test/app-local-receipts.test.mjs",
+    "packages/snapback4/test/app-receipts.test.mjs",
+    "packages/snapback4/test/legacy-receipts.test.mjs",
+    "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+    "packages/snapback4/test/delivery-cas.test.mjs",
+    "packages/snapback4/test/delivery-publication.test.mjs",
+    "packages/snapback4/test/delivery-refusal.test.mjs",
+    "packages/snapback4/test/transport-http.test.mjs",
+    "packages/snapback4/test/transport-outcomes.test.mjs",
+    "packages/snapback4/test/store-reset-reconnect.test.mjs",
+    "packages/snapback4/test/sync-generation.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 66.226
+}

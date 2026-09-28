@@ -74412,3 +74412,61 @@ The final staged whitespace check caught two blank context lines in the raw
 retained diff artifact (ours, evidence formatting). Compressed the exact patch
 without changing its hash or content; the staged check then passes. This is
 recorded separately from the zero test failures. No tested source changed.
+
+## 2026-09-28 — Lane OS round 8: reconcile and extend the delivery await matrix
+
+Ran RG's matrix on untouched round-7 c81476d5f first. The census rejected two
+changed expressions and the added search decoder. The decoder shifted subsequent
+case indices; old recipes then faulted the wrong awaits. The complete initial
+run stalled at the displaced change-feed cases. Recorded-PID termination and
+externally bounded split runs attempted every case: 253 pass, 28 fail, one
+persistent case stalls, plus census failure and a prefix teardown timeout.
+These are ours, not evidence of broken production clock/native/restore guards.
+Exact IDs, line/index moves, logs and exits are retained under round8/.
+
+Then fetched/merged origin/main ae265b730 in 54ca4b1d3. Preserved both parents'
+journal sequences and all complete LLP revision notes. Read rounds 0–7 prompts,
+reports and OS journal entries, the RG round-6 matrix/report, scoped LLPs and
+current guide; applied llp-orient read-only from the populated enginefix skill.
+Round-7 reviews remain for the later commissioned round. No tool installation.
+
+All original 140 site classifications, recipes and absorbs flags are preserved.
+Shared mutation transport/JSON decoding and unknown custody remain required;
+query identity and the new search decoder are optional to healthy delivery.
+Existing sendPost guards already handle their failures, proven by guard-removal
+controls. No production code changes. Expanded scope includes all nine search
+module awaits and all six query-route awaits, including four pre-existing ones.
+No search waiver or exclusion. The direct-failure allowlist and all RG delivery
+assertions remain unchanged. Stream cancellation receives its own low-level
+injection; fallback recipes reach real I/O. Scripted query host replies drive
+the SDK branches while the actual wasm outbox admits/delivers the queued sends.
+Public query calls repeat during the persistent fault, and all finish on recovery.
+
+Final matrix: 313 passes, 156 sites (108 optional / 48 required), every T/P case
+reached and injected. Healthy optional-fault sends POST once; required faults
+recover FIFO/caller/event/lookup agreement. Affected JS: 161 search/React and
+331 delivery/receipt/clock/pending/transport cases pass, one existing legacy-bin
+skip. Oracle: 300/300 process and 300/300 wasm, plus 22 differential schedules /
+194 identical pages per host. Times 174.770 / 127.520 seconds. Affected Rust:
+66 pass; merged whole guide: 98 pass. Client/native builds, typecheck, 38 wasm
+codec/family tests, family/absence attribution, reference/whitespace and parent
+journal checks pass. All five targeted negative controls fail for their intended
+assertions. scripts/test.sh was not run.
+
+Every failure is in the report and round8/failure-index.json: the initial
+metadata drift/timeouts; 30 new-fixture reach failures from using nonexistent
+client.once (corrected to client.query); the expected mutation failures;
+read/path/skill and schema-inspection setup errors; expected merge conflicts;
+and the inherited wasm cap. No baseline or environmental test failure observed.
+The existing RG matrix-Lows ticket remains open; no sound-call-graph or complete
+historical-control-rerun claim is made.
+
+Wasm remains 2,039,451 B raw / 592,719 B GNU file-input gzip-9, zero delta from
+round 7 and 6,526 B above the unchanged 586,193 B cap (ours, inherited expected
+failure). SHA-256 7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d.
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt. This round adds no wasm input;
+prior composition state/ledger/filter/reset attribution remains. Supervisor owns
+the budget decision. Report acceptance note and LLP 3000.028 update accompany
+this append. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push, publication, other worktree edit, original evidence mutation or shared
+installation. Round-7 report remains as ROUND7.md.

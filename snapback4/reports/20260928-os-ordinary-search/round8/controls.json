@@ -1,0 +1,32 @@
+[
+  {
+    "name": "search-decode-guard",
+    "exit": 1,
+    "assertion": "optional search decoding does not reject dispatch transport",
+    "killed": true
+  },
+  {
+    "name": "search-identity-guard",
+    "exit": 1,
+    "assertion": "optional query bookkeeping does not reject dispatch transport",
+    "killed": true
+  },
+  {
+    "name": "new-delivery-await",
+    "exit": 1,
+    "assertion": "new or changed await needs delivery reachability classification",
+    "killed": true
+  },
+  {
+    "name": "new-helper-await",
+    "exit": 1,
+    "assertion": "new or changed await needs delivery reachability classification",
+    "killed": true
+  },
+  {
+    "name": "new-search-await",
+    "exit": 1,
+    "assertion": "new or changed await needs delivery reachability classification",
+    "killed": true
+  }
+]

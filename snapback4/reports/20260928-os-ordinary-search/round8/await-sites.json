@@ -1,0 +1,1407 @@
+[
+  {
+    "id": "local.ts:read:call({ op: \"meta\", key: \"write-history\" })#1",
+    "file": "local.ts",
+    "owner": "read",
+    "expression": "call({ op: \"meta\", key: \"write-history\" })",
+    "line": 172,
+    "start": 9892,
+    "end": 9940
+  },
+  {
+    "id": "local.ts:lookup:call({ op: \"meta\", key: \"write-history\", lookup: true })#1",
+    "file": "local.ts",
+    "owner": "lookup",
+    "expression": "call({ op: \"meta\", key: \"write-history\", lookup: true })",
+    "line": 173,
+    "start": 9988,
+    "end": 10050
+  },
+  {
+    "id": "local.ts:save:terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})#1",
+    "file": "local.ts",
+    "owner": "save",
+    "expression": "terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})",
+    "line": 175,
+    "start": 10120,
+    "end": 10224
+  },
+  {
+    "id": "local.ts:refreshAcquired:call({ op: \"sync_state\", capture: false })#1",
+    "file": "local.ts",
+    "owner": "refreshAcquired",
+    "expression": "call({ op: \"sync_state\", capture: false })",
+    "line": 244,
+    "start": 14022,
+    "end": 14070
+  },
+  {
+    "id": "local.ts:captureStore:call({ op: \"sync_state\", capture: false })#1",
+    "file": "local.ts",
+    "owner": "captureStore",
+    "expression": "call({ op: \"sync_state\", capture: false })",
+    "line": 310,
+    "start": 17416,
+    "end": 17464
+  },
+  {
+    "id": "local.ts:call:history.persistPending()#1",
+    "file": "local.ts",
+    "owner": "call",
+    "expression": "history.persistPending()",
+    "line": 317,
+    "start": 17978,
+    "end": 18008
+  },
+  {
+    "id": "local.ts:call:work#1",
+    "file": "local.ts",
+    "owner": "call",
+    "expression": "work",
+    "line": 345,
+    "start": 20128,
+    "end": 20138
+  },
+  {
+    "id": "local.ts:call:media?.reconcile()#1",
+    "file": "local.ts",
+    "owner": "call",
+    "expression": "media?.reconcile()",
+    "line": 349,
+    "start": 20548,
+    "end": 20572
+  },
+  {
+    "id": "local.ts:sendPost:captureStore()#1",
+    "file": "local.ts",
+    "owner": "sendPost",
+    "expression": "captureStore()",
+    "line": 534,
+    "start": 30136,
+    "end": 30156
+  },
+  {
+    "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)#1",
+    "file": "local.ts",
+    "owner": "sendPost",
+    "expression": "postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)",
+    "line": 537,
+    "start": 30312,
+    "end": 30465
+  },
+  {
+    "id": "local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1",
+    "file": "local.ts",
+    "owner": "sendPost",
+    "expression": "holds.record((body as { id: string }).id, why.code)",
+    "line": 542,
+    "start": 30788,
+    "end": 30845
+  },
+  {
+    "id": "local.ts:sendPost:refusedSession(denied, request.revision)#1",
+    "file": "local.ts",
+    "owner": "sendPost",
+    "expression": "refusedSession(denied, request.revision)",
+    "line": 549,
+    "start": 31311,
+    "end": 31357
+  },
+  {
+    "id": "local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1",
+    "file": "local.ts",
+    "owner": "sendPost",
+    "expression": "searchReplyIdentity(capture, json, generation, witnessRestore)",
+    "line": 559,
+    "start": 32068,
+    "end": 32136
+  },
+  {
+    "id": "local.ts:syncRound:history.persistPending()#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "history.persistPending()",
+    "line": 589,
+    "start": 33480,
+    "end": 33510
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"state\" })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"state\" })",
+    "line": 590,
+    "start": 33571,
+    "end": 33598
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"sync_state\" })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"sync_state\" })",
+    "line": 608,
+    "start": 34313,
+    "end": 34345
+  },
+  {
+    "id": "local.ts:syncRound:fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) })",
+    "line": 623,
+    "start": 35895,
+    "end": 36248
+  },
+  {
+    "id": "local.ts:syncRound:response.json()#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "response.json()",
+    "line": 625,
+    "start": 36344,
+    "end": 36365
+  },
+  {
+    "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "refusePartition(denied, pageRevision)",
+    "line": 650,
+    "start": 37826,
+    "end": 37869
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })",
+    "line": 662,
+    "start": 38548,
+    "end": 38732
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"sync_state\", capture: false })",
+    "line": 677,
+    "start": 39776,
+    "end": 39824
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })",
+    "line": 682,
+    "start": 40095,
+    "end": 40161
+  },
+  {
+    "id": "local.ts:syncRound:loadBackend(doFetch, base, request.headers, aborter.signal)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "loadBackend(doFetch, base, request.headers, aborter.signal)",
+    "line": 699,
+    "start": 41143,
+    "end": 41208
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })",
+    "line": 701,
+    "start": 41357,
+    "end": 41510
+  },
+  {
+    "id": "local.ts:syncRound:refreshAcquired(true)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "refreshAcquired(true)",
+    "line": 709,
+    "start": 41907,
+    "end": 41934
+  },
+  {
+    "id": "local.ts:syncRound:installNative(aborter.signal)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "installNative(aborter.signal)",
+    "line": 710,
+    "start": 41962,
+    "end": 41997
+  },
+  {
+    "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "refusedSession(error.denied, backendRevision)",
+    "line": 712,
+    "start": 42078,
+    "end": 42129
+  },
+  {
+    "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#2",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "refusePartition(denied, pageRevision)",
+    "line": 730,
+    "start": 42869,
+    "end": 42912
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)",
+    "line": 737,
+    "start": 43253,
+    "end": 43338
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"sync_state\", capture: false })",
+    "line": 746,
+    "start": 43886,
+    "end": 43934
+  },
+  {
+    "id": "local.ts:syncRound:refreshAcquired()#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "refreshAcquired()",
+    "line": 768,
+    "start": 44810,
+    "end": 44833
+  },
+  {
+    "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1",
+    "file": "local.ts",
+    "owner": "syncRound",
+    "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })",
+    "line": 771,
+    "start": 44895,
+    "end": 44976
+  },
+  {
+    "id": "local.ts:probe:captureStore()#1",
+    "file": "local.ts",
+    "owner": "probe",
+    "expression": "captureStore()",
+    "line": 797,
+    "start": 46169,
+    "end": 46189
+  },
+  {
+    "id": "local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
+    "file": "local.ts",
+    "owner": "probe",
+    "expression": "doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })",
+    "line": 799,
+    "start": 46242,
+    "end": 46326
+  },
+  {
+    "id": "local.ts:probe:response.json()#1",
+    "file": "local.ts",
+    "owner": "probe",
+    "expression": "response.json()",
+    "line": 801,
+    "start": 46394,
+    "end": 46415
+  },
+  {
+    "id": "local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1",
+    "file": "local.ts",
+    "owner": "probe",
+    "expression": "refusedSession(json.denied ?? json.why, request.revision)",
+    "line": 803,
+    "start": 46488,
+    "end": 46551
+  },
+  {
+    "id": "local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1",
+    "file": "local.ts",
+    "owner": "probe",
+    "expression": "witnessRestore(json.store_id, json.seq, capture)",
+    "line": 806,
+    "start": 46840,
+    "end": 46894
+  },
+  {
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "new Promise((r) => setTimeout(r, 1000))",
+    "line": 816,
+    "start": 47513,
+    "end": 47558
+  },
+  {
+    "id": "local.ts:waitForChange:probe()#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "probe()",
+    "line": 817,
+    "start": 47595,
+    "end": 47608
+  },
+  {
+    "id": "local.ts:waitForChange:probe()#2",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "probe()",
+    "line": 820,
+    "start": 47664,
+    "end": 47677
+  },
+  {
+    "id": "local.ts:waitForChange:captureStore()#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "captureStore()",
+    "line": 825,
+    "start": 47866,
+    "end": 47886
+  },
+  {
+    "id": "local.ts:waitForChange:changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)",
+    "line": 827,
+    "start": 47955,
+    "end": 48156
+  },
+  {
+    "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "refusedSession(json.denied, request.revision)",
+    "line": 830,
+    "start": 48261,
+    "end": 48312
+  },
+  {
+    "id": "local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "witnessRestore(json.store_id, json.seq, capture)",
+    "line": 837,
+    "start": 48720,
+    "end": 48774
+  },
+  {
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2",
+    "file": "local.ts",
+    "owner": "waitForChange",
+    "expression": "new Promise((r) => setTimeout(r, 1000))",
+    "line": 852,
+    "start": 49534,
+    "end": 49579
+  },
+  {
+    "id": "local.ts:follow:waitForChange()#1",
+    "file": "local.ts",
+    "owner": "follow",
+    "expression": "waitForChange()",
+    "line": 861,
+    "start": 49849,
+    "end": 49870
+  },
+  {
+    "id": "local.ts:follow:syncOnce()#1",
+    "file": "local.ts",
+    "owner": "follow",
+    "expression": "syncOnce()",
+    "line": 864,
+    "start": 49935,
+    "end": 49951
+  },
+  {
+    "id": "local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1",
+    "file": "local.ts",
+    "owner": "follow",
+    "expression": "new Promise((r) => setTimeout(r, 1000))",
+    "line": 869,
+    "start": 50054,
+    "end": 50099
+  },
+  {
+    "id": "local.ts:flush:flushOnce()#1",
+    "file": "local.ts",
+    "owner": "flush",
+    "expression": "flushOnce()",
+    "line": 1078,
+    "start": 62357,
+    "end": 62374
+  },
+  {
+    "id": "local.ts:flushOnce:exitDone#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "exitDone",
+    "line": 1095,
+    "start": 63193,
+    "end": 63207
+  },
+  {
+    "id": "local.ts:flushOnce:media?.reconcile()#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "media?.reconcile()",
+    "line": 1097,
+    "start": 63310,
+    "end": 63334
+  },
+  {
+    "id": "local.ts:flushOnce:exitDone#2",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "exitDone",
+    "line": 1099,
+    "start": 63457,
+    "end": 63471
+  },
+  {
+    "id": "local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)",
+    "line": 1103,
+    "start": 63588,
+    "end": 63673
+  },
+  {
+    "id": "local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "queued().catch(() => { retryFlush(); return undefined; })",
+    "line": 1105,
+    "start": 63873,
+    "end": 63936
+  },
+  {
+    "id": "local.ts:flushOnce:syncOnce()#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncOnce()",
+    "line": 1105,
+    "start": 63979,
+    "end": 63995
+  },
+  {
+    "id": "local.ts:flushOnce:network(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "network(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; const current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })",
+    "line": 1110,
+    "start": 64092,
+    "end": 66632
+  },
+  {
+    "id": "local.ts:flushOnce:exitDone#3",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "exitDone",
+    "line": 1111,
+    "start": 64130,
+    "end": 64144
+  },
+  {
+    "id": "local.ts:flushOnce:queued()#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "queued()",
+    "line": 1113,
+    "start": 64241,
+    "end": 64255
+  },
+  {
+    "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)",
+    "line": 1118,
+    "start": 64537,
+    "end": 64665
+  },
+  {
+    "id": "local.ts:flushOnce:call({ op: \"begin_send\", id: entry.id })#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "call({ op: \"begin_send\", id: entry.id })",
+    "line": 1124,
+    "start": 64993,
+    "end": 65039
+  },
+  {
+    "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)",
+    "line": 1127,
+    "start": 65283,
+    "end": 65447
+  },
+  {
+    "id": "local.ts:flushOnce:post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response)#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response)",
+    "line": 1130,
+    "start": 65719,
+    "end": 65858
+  },
+  {
+    "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined)#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined)",
+    "line": 1135,
+    "start": 66126,
+    "end": 66430
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved()#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved()",
+    "line": 1144,
+    "start": 66660,
+    "end": 66682
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved()#2",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved()",
+    "line": 1148,
+    "start": 66943,
+    "end": 66965
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved(outcome.state === \"sent\")#1",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved(outcome.state === \"sent\")",
+    "line": 1160,
+    "start": 67854,
+    "end": 67900
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved()#3",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved()",
+    "line": 1164,
+    "start": 68046,
+    "end": 68068
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved()#4",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved()",
+    "line": 1165,
+    "start": 68110,
+    "end": 68132
+  },
+  {
+    "id": "local.ts:flushOnce:syncUnobserved()#5",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "syncUnobserved()",
+    "line": 1168,
+    "start": 68233,
+    "end": 68255
+  },
+  {
+    "id": "local.ts:replayOnOpen:captureStore()#1",
+    "file": "local.ts",
+    "owner": "replayOnOpen",
+    "expression": "captureStore()",
+    "line": 1172,
+    "start": 68484,
+    "end": 68504
+  },
+  {
+    "id": "local.ts:replayOnOpen:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
+    "file": "local.ts",
+    "owner": "replayOnOpen",
+    "expression": "doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })",
+    "line": 1177,
+    "start": 68723,
+    "end": 68807
+  },
+  {
+    "id": "local.ts:replayOnOpen:response.json()#1",
+    "file": "local.ts",
+    "owner": "replayOnOpen",
+    "expression": "response.json()",
+    "line": 1180,
+    "start": 68958,
+    "end": 68979
+  },
+  {
+    "id": "local.ts:replayOnOpen:refusedSession(head.denied ?? head.why, request.revision)#1",
+    "file": "local.ts",
+    "owner": "replayOnOpen",
+    "expression": "refusedSession(head.denied ?? head.why, request.revision)",
+    "line": 1181,
+    "start": 68987,
+    "end": 69050
+  },
+  {
+    "id": "local.ts:replayOnOpen:witnessRestore(head.store_id, head.seq, capture)#1",
+    "file": "local.ts",
+    "owner": "replayOnOpen",
+    "expression": "witnessRestore(head.store_id, head.seq, capture)",
+    "line": 1183,
+    "start": 69188,
+    "end": 69242
+  },
+  {
+    "id": "local.ts:commit:history.read(write.id, true)#1",
+    "file": "local.ts",
+    "owner": "commit",
+    "expression": "history.read(write.id, true)",
+    "line": 1441,
+    "start": 83863,
+    "end": 83897
+  },
+  {
+    "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+    "file": "local.ts",
+    "owner": "commit",
+    "expression": "receiptCall({ op: \"settle_exit\", write })",
+    "line": 1443,
+    "start": 83985,
+    "end": 84032
+  },
+  {
+    "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+    "file": "local.ts",
+    "owner": "listenForExit",
+    "expression": "holds.record(entry.id, why.code)",
+    "line": 1452,
+    "start": 84372,
+    "end": 84410
+  },
+  {
+    "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore)#1",
+    "file": "local-receipts.ts",
+    "owner": "settleReceipt",
+    "expression": "history.keep(write, revalidatedStore)",
+    "line": 11,
+    "start": 592,
+    "end": 635
+  },
+  {
+    "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
+    "file": "local-receipts.ts",
+    "owner": "settleReceipt",
+    "expression": "call({ op: \"settle\", id: write.id, ...(write.state === \"sent\" ? { seq: write.seq } : {}) })",
+    "line": 12,
+    "start": 655,
+    "end": 752
+  },
+  {
+    "id": "local-receipts.ts:receiptBatch:queued()#1",
+    "file": "local-receipts.ts",
+    "owner": "receiptBatch",
+    "expression": "queued()",
+    "line": 30,
+    "start": 1548,
+    "end": 1562
+  },
+  {
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1",
+    "file": "local-receipts.ts",
+    "owner": "deliverAcknowledgedReceipt",
+    "expression": "history.acknowledged(entry.id, seq, true)",
+    "line": 43,
+    "start": 2261,
+    "end": 2308
+  },
+  {
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1",
+    "file": "local-receipts.ts",
+    "owner": "deliverAcknowledgedReceipt",
+    "expression": "settleReceipt(history, call, receipt)",
+    "line": 44,
+    "start": 2344,
+    "end": 2387
+  },
+  {
+    "id": "local-receipts.ts:syncSettledWrites:queued()#1",
+    "file": "local-receipts.ts",
+    "owner": "syncSettledWrites",
+    "expression": "queued()",
+    "line": 65,
+    "start": 3366,
+    "end": 3380
+  },
+  {
+    "id": "local-receipts.ts:syncSettledWrites:sync()#1",
+    "file": "local-receipts.ts",
+    "owner": "syncSettledWrites",
+    "expression": "sync()",
+    "line": 66,
+    "start": 3511,
+    "end": 3523
+  },
+  {
+    "id": "local-receipts.ts:recoverReceipt:history.read(id, true)#1",
+    "file": "local-receipts.ts",
+    "owner": "recoverReceipt",
+    "expression": "history.read(id, true)",
+    "line": 70,
+    "start": 3731,
+    "end": 3759
+  },
+  {
+    "id": "local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1",
+    "file": "local-receipts.ts",
+    "owner": "recoverReceipt",
+    "expression": "history.acknowledged(id, observedSeq, qualified)",
+    "line": 70,
+    "start": 3762,
+    "end": 3816
+  },
+  {
+    "id": "local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1",
+    "file": "local-receipts.ts",
+    "owner": "recoverReceipt",
+    "expression": "settleReceipt(history, call, known)",
+    "line": 74,
+    "start": 4032,
+    "end": 4073
+  },
+  {
+    "id": "local-receipts.ts:lookupWrite:queued()#1",
+    "file": "local-receipts.ts",
+    "owner": "lookupWrite",
+    "expression": "queued()",
+    "line": 82,
+    "start": 4476,
+    "end": 4490
+  },
+  {
+    "id": "local-receipts.ts:lookupWrite:history.lookup(id)#1",
+    "file": "local-receipts.ts",
+    "owner": "lookupWrite",
+    "expression": "history.lookup(id)",
+    "line": 86,
+    "start": 4617,
+    "end": 4641
+  },
+  {
+    "id": "local-receipts.ts:lookupWrite:queued()#2",
+    "file": "local-receipts.ts",
+    "owner": "lookupWrite",
+    "expression": "queued()",
+    "line": 88,
+    "start": 4695,
+    "end": 4709
+  },
+  {
+    "id": "local-receipts.ts:lookupWrite:history.read(id)#1",
+    "file": "local-receipts.ts",
+    "owner": "lookupWrite",
+    "expression": "history.read(id)",
+    "line": 94,
+    "start": 4894,
+    "end": 4916
+  },
+  {
+    "id": "local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1",
+    "file": "local-receipts.ts",
+    "owner": "lookupWrite",
+    "expression": "history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))",
+    "line": 94,
+    "start": 4919,
+    "end": 5016
+  },
+  {
+    "id": "local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1",
+    "file": "local-receipts.ts",
+    "owner": "terminalDeviceCall",
+    "expression": "call(reply => { durable = reply; })",
+    "line": 108,
+    "start": 5850,
+    "end": 5891
+  },
+  {
+    "id": "local-receipts.ts:readQueued:call({ op: \"queued\" })#1",
+    "file": "local-receipts.ts",
+    "owner": "readQueued",
+    "expression": "call({ op: \"queued\" })",
+    "line": 117,
+    "start": 6231,
+    "end": 6259
+  },
+  {
+    "id": "writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1",
+    "file": "writes.ts",
+    "owner": "keep",
+    "expression": "this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))",
+    "line": 154,
+    "start": 7822,
+    "end": 7932
+  },
+  {
+    "id": "writes.ts:acknowledged:this.read(id, true)#1",
+    "file": "writes.ts",
+    "owner": "acknowledged",
+    "expression": "this.read(id, true)",
+    "line": 181,
+    "start": 9331,
+    "end": 9356
+  },
+  {
+    "id": "writes.ts:acknowledged:this.keep(sent)#1",
+    "file": "writes.ts",
+    "owner": "acknowledged",
+    "expression": "this.keep(sent)",
+    "line": 187,
+    "start": 9901,
+    "end": 9922
+  },
+  {
+    "id": "writes.ts:persistPending:this.keep(write)#1",
+    "file": "writes.ts",
+    "owner": "persistPending",
+    "expression": "this.keep(write)",
+    "line": 194,
+    "start": 10198,
+    "end": 10220
+  },
+  {
+    "id": "writes.ts:read:this.keep(known)#1",
+    "file": "writes.ts",
+    "owner": "read",
+    "expression": "this.keep(known)",
+    "line": 200,
+    "start": 10377,
+    "end": 10399
+  },
+  {
+    "id": "writes.ts:read:this.storage?.read()#1",
+    "file": "writes.ts",
+    "owner": "read",
+    "expression": "this.storage?.read()",
+    "line": 203,
+    "start": 10517,
+    "end": 10543
+  },
+  {
+    "id": "writes.ts:lookup:this.read(id)#1",
+    "file": "writes.ts",
+    "owner": "lookup",
+    "expression": "this.read(id)",
+    "line": 215,
+    "start": 11302,
+    "end": 11321
+  },
+  {
+    "id": "writes.ts:lookup:this.storage.lookup()#1",
+    "file": "writes.ts",
+    "owner": "lookup",
+    "expression": "this.storage.lookup()",
+    "line": 217,
+    "start": 11488,
+    "end": 11515
+  },
+  {
+    "id": "local-exit.ts:exitTransport:response.json()#1",
+    "file": "local-exit.ts",
+    "owner": "exitTransport",
+    "expression": "response.json()",
+    "line": 38,
+    "start": 2139,
+    "end": 2160
+  },
+  {
+    "id": "local-exit.ts:exitTransport:held?.(entry, why)#1",
+    "file": "local-exit.ts",
+    "owner": "exitTransport",
+    "expression": "held?.(entry, why)",
+    "line": 41,
+    "start": 2381,
+    "end": 2405
+  },
+  {
+    "id": "local-exit.ts:exitTransport:refused?.(entry, why)#1",
+    "file": "local-exit.ts",
+    "owner": "exitTransport",
+    "expression": "refused?.(entry, why)",
+    "line": 42,
+    "start": 2473,
+    "end": 2500
+  },
+  {
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1",
+    "file": "local-exit-settlement.ts",
+    "owner": "exitRefusalSettlement",
+    "expression": "options.commit(write)",
+    "line": 22,
+    "start": 963,
+    "end": 990
+  },
+  {
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:work#1",
+    "file": "local-exit-settlement.ts",
+    "owner": "exitRefusalSettlement",
+    "expression": "work",
+    "line": 25,
+    "start": 1066,
+    "end": 1076
+  },
+  {
+    "id": "local-assets.ts:call:this.core.call(request)#1",
+    "file": "local-assets.ts",
+    "owner": "call",
+    "expression": "this.core.call(request)",
+    "line": 52,
+    "start": 2889,
+    "end": 2918
+  },
+  {
+    "id": "local-assets.ts:home:this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })#1",
+    "file": "local-assets.ts",
+    "owner": "home",
+    "expression": "this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })",
+    "line": 70,
+    "start": 3655,
+    "end": 3740
+  },
+  {
+    "id": "local-assets.ts:save:this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })#1",
+    "file": "local-assets.ts",
+    "owner": "save",
+    "expression": "this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })",
+    "line": 73,
+    "start": 3790,
+    "end": 3899
+  },
+  {
+    "id": "local-assets.ts:drop:this.store.remove(id)#1",
+    "file": "local-assets.ts",
+    "owner": "drop",
+    "expression": "this.store.remove(id)",
+    "line": 79,
+    "start": 4091,
+    "end": 4118
+  },
+  {
+    "id": "local-assets.ts:check:this.home(entry.id, entry.home)#1",
+    "file": "local-assets.ts",
+    "owner": "check",
+    "expression": "this.home(entry.id, entry.home)",
+    "line": 95,
+    "start": 4799,
+    "end": 4836
+  },
+  {
+    "id": "local-assets.ts:check:this.drop(entry.id)#1",
+    "file": "local-assets.ts",
+    "owner": "check",
+    "expression": "this.drop(entry.id)",
+    "line": 97,
+    "start": 4975,
+    "end": 5000
+  },
+  {
+    "id": "local-assets.ts:check:this.drop(entry.id)#2",
+    "file": "local-assets.ts",
+    "owner": "check",
+    "expression": "this.drop(entry.id)",
+    "line": 104,
+    "start": 5290,
+    "end": 5315
+  },
+  {
+    "id": "local-assets.ts:check:this.save()#1",
+    "file": "local-assets.ts",
+    "owner": "check",
+    "expression": "this.save()",
+    "line": 108,
+    "start": 5390,
+    "end": 5407
+  },
+  {
+    "id": "request-wait.ts:postForCaller:doFetch(`${base}${path}`, { method: \"POST\", headers, body: JSON.stringify(body), ...(path.startsWith(\"/q/\") ? { signal: stopped } : {}) })#1",
+    "file": "request-wait.ts",
+    "owner": "postForCaller",
+    "expression": "doFetch(`${base}${path}`, { method: \"POST\", headers, body: JSON.stringify(body), ...(path.startsWith(\"/q/\") ? { signal: stopped } : {}) })",
+    "line": 17,
+    "start": 1103,
+    "end": 1247
+  },
+  {
+    "id": "request-wait.ts:postForCaller:decode(response)#1",
+    "file": "request-wait.ts",
+    "owner": "postForCaller",
+    "expression": "decode(response)",
+    "line": 18,
+    "start": 1275,
+    "end": 1297
+  },
+  {
+    "id": "request-wait.ts:postForCaller:response.json()#1",
+    "file": "request-wait.ts",
+    "owner": "postForCaller",
+    "expression": "response.json()",
+    "line": 18,
+    "start": 1300,
+    "end": 1321
+  },
+  {
+    "id": "local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1",
+    "file": "local-sync.ts",
+    "owner": "legacyInput",
+    "expression": "response.clone().json().catch(() => null)",
+    "line": 50,
+    "start": 2217,
+    "end": 2264
+  },
+  {
+    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1",
+    "file": "local-sync.ts",
+    "owner": "syncTransport",
+    "expression": "doFetch(url, { ...init, body: JSON.stringify(attempt) })",
+    "line": 67,
+    "start": 3205,
+    "end": 3267
+  },
+  {
+    "id": "local-sync.ts:syncTransport:legacyInput(response)#1",
+    "file": "local-sync.ts",
+    "owner": "syncTransport",
+    "expression": "legacyInput(response)",
+    "line": 68,
+    "start": 3322,
+    "end": 3349
+  },
+  {
+    "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1",
+    "file": "local-sync.ts",
+    "owner": "syncTransport",
+    "expression": "doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })",
+    "line": 69,
+    "start": 3373,
+    "end": 3445
+  },
+  {
+    "id": "device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1",
+    "file": "device-restore.ts",
+    "owner": "restoreWitness",
+    "expression": "call(restoreObservation(storeId, Number(head), capture, generation()))",
+    "line": 57,
+    "start": 3364,
+    "end": 3440
+  },
+  {
+    "id": "local-backend.ts:loadBackend:doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) })#1",
+    "file": "local-backend.ts",
+    "owner": "loadBackend",
+    "expression": "doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) })",
+    "line": 11,
+    "start": 408,
+    "end": 483
+  },
+  {
+    "id": "local-backend.ts:loadBackend:response.json()#1",
+    "file": "local-backend.ts",
+    "owner": "loadBackend",
+    "expression": "response.json()",
+    "line": 13,
+    "start": 549,
+    "end": 570
+  },
+  {
+    "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
+    "file": "local-native.ts",
+    "owner": "installNativeAttempt",
+    "expression": "call({ op: \"state\" })",
+    "line": 16,
+    "start": 1028,
+    "end": 1055
+  },
+  {
+    "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
+    "file": "local-native.ts",
+    "owner": "installNativeAttempt",
+    "expression": "loadBackend(doFetch, base, requestCredentials().headers, signal)",
+    "line": 28,
+    "start": 1699,
+    "end": 1769
+  },
+  {
+    "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
+    "file": "local-native.ts",
+    "owner": "installNativeAttempt",
+    "expression": "doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })",
+    "line": 41,
+    "start": 2184,
+    "end": 2281
+  },
+  {
+    "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
+    "file": "local-native.ts",
+    "owner": "installNativeAttempt",
+    "expression": "response.arrayBuffer()",
+    "line": 43,
+    "start": 2356,
+    "end": 2384
+  },
+  {
+    "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
+    "file": "local-native.ts",
+    "owner": "installNativeAttempt",
+    "expression": "call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })",
+    "line": 46,
+    "start": 2506,
+    "end": 2599
+  },
+  {
+    "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
+    "file": "pending-writes.ts",
+    "owner": "revision",
+    "expression": "call({ op: \"sync_state\", capture: false })",
+    "line": 50,
+    "start": 2519,
+    "end": 2567
+  },
+  {
+    "id": "pending-writes.ts:record:revision()#1",
+    "file": "pending-writes.ts",
+    "owner": "record",
+    "expression": "revision()",
+    "line": 57,
+    "start": 2847,
+    "end": 2863
+  },
+  {
+    "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
+    "file": "pending-writes.ts",
+    "owner": "record",
+    "expression": "call({ op: \"hold_write\", id, reason })",
+    "line": 60,
+    "start": 2942,
+    "end": 2986
+  },
+  {
+    "id": "clock.ts:wrapped:fetcher(input, init)#1",
+    "file": "clock.ts",
+    "owner": "wrapped",
+    "expression": "fetcher(input, init)",
+    "line": 89,
+    "start": 5499,
+    "end": 5525
+  },
+  {
+    "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
+    "file": "clock.ts",
+    "owner": "save",
+    "expression": "core.call({ op: \"set_meta\", key: \"server-clock\", value })",
+    "line": 135,
+    "start": 8328,
+    "end": 8391
+  },
+  {
+    "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+    "file": "changes.ts",
+    "owner": "changeFeed",
+    "expression": "doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })",
+    "line": 52,
+    "start": 2865,
+    "end": 3099
+  },
+  {
+    "id": "changes.ts:changeFeed:reader.read()#1",
+    "file": "changes.ts",
+    "owner": "changeFeed",
+    "expression": "reader.read()",
+    "line": 61,
+    "start": 3426,
+    "end": 3445
+  },
+  {
+    "id": "changes.ts:changeFeed:response.json()#1",
+    "file": "changes.ts",
+    "owner": "changeFeed",
+    "expression": "response.json()",
+    "line": 70,
+    "start": 3928,
+    "end": 3949
+  },
+  {
+    "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
+    "file": "changes.ts",
+    "owner": "changeFeed",
+    "expression": "Promise.race([work, aborted])",
+    "line": 74,
+    "start": 4060,
+    "end": 4095
+  },
+  {
+    "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+    "file": "local-search.ts",
+    "owner": "searchReplyIdentity",
+    "expression": "witness(json.store_id, json.head ?? json.seq, capture)",
+    "line": 14,
+    "start": 907,
+    "end": 967
+  },
+  {
+    "id": "local-search.ts:decode:reader.read()#1",
+    "file": "local-search.ts",
+    "owner": "decode",
+    "expression": "reader.read()",
+    "line": 68,
+    "start": 4051,
+    "end": 4070
+  },
+  {
+    "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
+    "file": "local-search.ts",
+    "owner": "decode",
+    "expression": "reader.cancel().catch(() => {})",
+    "line": 77,
+    "start": 4510,
+    "end": 4547
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "env.call({ op: \"search_state\", name })",
+    "line": 153,
+    "start": 8420,
+    "end": 8464
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })",
+    "line": 187,
+    "start": 10872,
+    "end": 11046
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:blocked()#1",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "blocked()",
+    "line": 194,
+    "start": 11350,
+    "end": 11365
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))",
+    "line": 204,
+    "start": 11978,
+    "end": 12115
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:blocked()#2",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "blocked()",
+    "line": 205,
+    "start": 12180,
+    "end": 12195
+  },
+  {
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used })#1",
+    "file": "local-search.ts",
+    "owner": "ordinarySearch",
+    "expression": "env.call({ op: \"search_state\", name, spent: ledger.used })",
+    "line": 218,
+    "start": 12862,
+    "end": 12926
+  },
+  {
+    "id": "local-query.ts:route:env.installNative(env.signal)#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "env.installNative(env.signal)",
+    "line": 256,
+    "start": 18149,
+    "end": 18184
+  },
+  {
+    "id": "local-query.ts:route:server()#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "server()",
+    "line": 261,
+    "start": 18426,
+    "end": 18440
+  },
+  {
+    "id": "local-query.ts:route:blocked()#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "blocked()",
+    "line": 263,
+    "start": 18622,
+    "end": 18637
+  },
+  {
+    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "ordinarySearch(env, op.name, args, search, checkpoint, blocked)",
+    "line": 267,
+    "start": 18734,
+    "end": 18803
+  },
+  {
+    "id": "local-query.ts:route:local()#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "local()",
+    "line": 270,
+    "start": 18941,
+    "end": 18954
+  },
+  {
+    "id": "local-query.ts:route:routeLocal(first)#1",
+    "file": "local-query.ts",
+    "owner": "route",
+    "expression": "routeLocal(first)",
+    "line": 271,
+    "start": 18989,
+    "end": 19012
+  },
+  {
+    "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
+    "file": "local.ts",
+    "owner": "flushOnce",
+    "expression": "receiptBatch(queued, history)",
+    "line": 1098,
+    "start": 63392,
+    "end": 68228,
+    "iterator": true
+  },
+  {
+    "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
+    "file": "local-assets.ts",
+    "owner": "remove",
+    "expression": "this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })",
+    "line": 48,
+    "start": 2708,
+    "end": 2780
+  }
+]

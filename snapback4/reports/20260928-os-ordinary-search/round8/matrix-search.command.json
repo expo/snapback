@@ -1,0 +1,16 @@
+{
+  "name": "matrix-search",
+  "command": [
+    "env",
+    "RG_MATRIX_SITE=139,140,141,142,143,144,145,146,147,148,149,150,151,152,153",
+    "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round8/matrix-search.json",
+    "timeout",
+    "60s",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+  ],
+  "exit": 1,
+  "seconds": 6.918
+}

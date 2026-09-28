@@ -1,0 +1,262 @@
+{
+  "before-site-136-persistent.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ]
+  },
+  "before-site-136-transient.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified"
+    ]
+  },
+  "before-site-137-persistent.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "137 persistent: changes.ts:70 changeFeed"
+    ]
+  },
+  "before-site-137-transient.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "137 transient: changes.ts:70 changeFeed"
+    ]
+  },
+  "before-site-138-persistent.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "138 persistent: changes.ts:74 changeFeed"
+    ]
+  },
+  "before-site-138-transient.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "138 transient: changes.ts:74 changeFeed"
+    ]
+  },
+  "before-site-139-persistent.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "139 persistent: local.ts:1098 flushOnce"
+    ]
+  },
+  "before-site-139-transient.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified"
+    ]
+  },
+  "before-site-140-persistent.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "140 persistent: local-assets.ts:48 remove"
+    ]
+  },
+  "before-site-140-transient.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "140 transient: local-assets.ts:48 remove"
+    ]
+  },
+  "before-sites-0-135.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "116 transient: request-wait.ts:18 postForCaller",
+      "116 persistent: request-wait.ts:18 postForCaller",
+      "117 transient: request-wait.ts:18 postForCaller",
+      "117 persistent: request-wait.ts:18 postForCaller",
+      "118 transient: local-sync.ts:50 legacyInput",
+      "118 persistent: local-sync.ts:50 legacyInput",
+      "121 transient: local-sync.ts:69 syncTransport",
+      "121 persistent: local-sync.ts:69 syncTransport",
+      "122 transient: device-restore.ts:57 restoreWitness",
+      "122 persistent: device-restore.ts:57 restoreWitness",
+      "125 transient: local-native.ts:16 installNativeAttempt",
+      "125 persistent: local-native.ts:16 installNativeAttempt",
+      "129 transient: local-native.ts:46 installNativeAttempt",
+      "129 persistent: local-native.ts:46 installNativeAttempt",
+      "131 transient: pending-writes.ts:57 record",
+      "131 persistent: pending-writes.ts:57 record",
+      "132 transient: pending-writes.ts:60 record",
+      "132 persistent: pending-writes.ts:60 record",
+      "133 persistent: clock.ts:89 wrapped",
+      "134 transient: clock.ts:135 save",
+      "134 persistent: clock.ts:135 save",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ]
+  },
+  "matrix-before-bounded.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "116 transient: request-wait.ts:18 postForCaller",
+      "116 persistent: request-wait.ts:18 postForCaller",
+      "117 transient: request-wait.ts:18 postForCaller",
+      "117 persistent: request-wait.ts:18 postForCaller",
+      "118 transient: local-sync.ts:50 legacyInput",
+      "118 persistent: local-sync.ts:50 legacyInput",
+      "121 transient: local-sync.ts:69 syncTransport",
+      "121 persistent: local-sync.ts:69 syncTransport",
+      "122 transient: device-restore.ts:57 restoreWitness",
+      "122 persistent: device-restore.ts:57 restoreWitness",
+      "125 transient: local-native.ts:16 installNativeAttempt",
+      "125 persistent: local-native.ts:16 installNativeAttempt",
+      "129 transient: local-native.ts:46 installNativeAttempt",
+      "129 persistent: local-native.ts:46 installNativeAttempt",
+      "131 transient: pending-writes.ts:57 record",
+      "131 persistent: pending-writes.ts:57 record",
+      "132 transient: pending-writes.ts:60 record",
+      "132 persistent: pending-writes.ts:60 record",
+      "133 persistent: clock.ts:89 wrapped",
+      "134 transient: clock.ts:135 save",
+      "134 persistent: clock.ts:135 save",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ]
+  },
+  "matrix-before.log.gz": {
+    "classification": "ours",
+    "kind": "round-7 recipe/census integration defect",
+    "failures": [
+      "every delivery await is explicitly classified",
+      "116 transient: request-wait.ts:18 postForCaller",
+      "116 persistent: request-wait.ts:18 postForCaller",
+      "117 transient: request-wait.ts:18 postForCaller",
+      "117 persistent: request-wait.ts:18 postForCaller",
+      "118 transient: local-sync.ts:50 legacyInput",
+      "118 persistent: local-sync.ts:50 legacyInput",
+      "121 transient: local-sync.ts:69 syncTransport",
+      "121 persistent: local-sync.ts:69 syncTransport",
+      "122 transient: device-restore.ts:57 restoreWitness",
+      "122 persistent: device-restore.ts:57 restoreWitness",
+      "125 transient: local-native.ts:16 installNativeAttempt",
+      "125 persistent: local-native.ts:16 installNativeAttempt",
+      "129 transient: local-native.ts:46 installNativeAttempt",
+      "129 persistent: local-native.ts:46 installNativeAttempt",
+      "131 transient: pending-writes.ts:57 record",
+      "131 persistent: pending-writes.ts:57 record",
+      "132 transient: pending-writes.ts:60 record",
+      "132 persistent: pending-writes.ts:60 record",
+      "133 persistent: clock.ts:89 wrapped",
+      "134 transient: clock.ts:135 save",
+      "134 persistent: clock.ts:135 save",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+    ]
+  },
+  "matrix-search.log.gz": {
+    "classification": "ours",
+    "kind": "new-fixture setup",
+    "failures": [
+      "not ok 2 - 139 transient: local-search.ts:14 searchReplyIdentity",
+      "not ok 3 - 139 persistent: local-search.ts:14 searchReplyIdentity",
+      "not ok 4 - 140 transient: local-search.ts:68 decode",
+      "not ok 5 - 140 persistent: local-search.ts:68 decode",
+      "not ok 6 - 141 transient: local-search.ts:77 decode",
+      "not ok 7 - 141 persistent: local-search.ts:77 decode",
+      "not ok 8 - 142 transient: local-search.ts:153 ordinarySearch",
+      "not ok 9 - 142 persistent: local-search.ts:153 ordinarySearch",
+      "not ok 10 - 143 transient: local-search.ts:187 ordinarySearch",
+      "not ok 11 - 143 persistent: local-search.ts:187 ordinarySearch",
+      "not ok 12 - 144 transient: local-search.ts:194 ordinarySearch",
+      "not ok 13 - 144 persistent: local-search.ts:194 ordinarySearch",
+      "not ok 14 - 145 transient: local-search.ts:204 ordinarySearch",
+      "not ok 15 - 145 persistent: local-search.ts:204 ordinarySearch",
+      "not ok 16 - 146 transient: local-search.ts:205 ordinarySearch",
+      "not ok 17 - 146 persistent: local-search.ts:205 ordinarySearch",
+      "not ok 18 - 147 transient: local-search.ts:218 ordinarySearch",
+      "not ok 19 - 147 persistent: local-search.ts:218 ordinarySearch",
+      "not ok 20 - 148 transient: local-query.ts:256 route",
+      "not ok 21 - 148 persistent: local-query.ts:256 route",
+      "not ok 22 - 149 transient: local-query.ts:261 route",
+      "not ok 23 - 149 persistent: local-query.ts:261 route",
+      "not ok 24 - 150 transient: local-query.ts:263 route",
+      "not ok 25 - 150 persistent: local-query.ts:263 route",
+      "not ok 26 - 151 transient: local-query.ts:267 route",
+      "not ok 27 - 151 persistent: local-query.ts:267 route",
+      "not ok 28 - 152 transient: local-query.ts:270 route",
+      "not ok 29 - 152 persistent: local-query.ts:270 route",
+      "not ok 30 - 153 transient: local-query.ts:271 route",
+      "not ok 31 - 153 persistent: local-query.ts:271 route"
+    ]
+  },
+  "new-delivery-await.log.gz": {
+    "classification": "ours",
+    "kind": "expected mutation",
+    "failures": [
+      "not ok 1 - every delivery await is explicitly classified"
+    ]
+  },
+  "new-helper-await.log.gz": {
+    "classification": "ours",
+    "kind": "expected mutation",
+    "failures": [
+      "not ok 1 - every delivery await is explicitly classified"
+    ]
+  },
+  "new-search-await.log.gz": {
+    "classification": "ours",
+    "kind": "expected mutation",
+    "failures": [
+      "not ok 1 - every delivery await is explicitly classified"
+    ]
+  },
+  "search-decode-guard.log.gz": {
+    "classification": "ours",
+    "kind": "expected mutation",
+    "failures": [
+      "not ok 2 - 116 transient: request-wait.ts:18 postForCaller",
+      "not ok 3 - 116 persistent: request-wait.ts:18 postForCaller"
+    ]
+  },
+  "search-identity-guard.log.gz": {
+    "classification": "ours",
+    "kind": "expected mutation",
+    "failures": [
+      "not ok 2 - 12 transient: local.ts:559 sendPost",
+      "not ok 3 - 12 persistent: local.ts:559 sendPost"
+    ]
+  },
+  "wasm-build.log.gz": {
+    "classification": "ours",
+    "kind": "inherited wasm cap",
+    "failures": [
+      "wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md)."
+    ]
+  },
+  "operational-failures.json": {
+    "classification": "ours",
+    "failures": [
+      "report path omitted snapback4",
+      "empty nested report directory prevented initial log redirection; removed",
+      "unpopulated skill links; used an existing read-only copy",
+      "guessed source, LLP and old run-ledger paths absent",
+      "Node timeout did not bound mocked-timer baseline; recorded PIDs terminated, split with external timeout",
+      "merge conflicts in journal and LLP Revised resolved with both histories",
+      "schema.operations absent in historical chat fixture inspection; query metadata supplied in test adapter",
+      "ref-check wrapper invoked from repository root instead of snapback4; corrected invocation passes",
+      "staged whitespace found COMMANDS.md extra EOF blank line; removed"
+    ],
+    "kind": "operational setup and evidence formatting"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "affected-search",
+  "command": [
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-concurrency=1",
+    "packages/snapback4/test/astra-arguments.test.mjs",
+    "packages/snapback4/test/astra-invalid-input.test.mjs",
+    "packages/snapback4/test/astra-projection.test.mjs",
+    "packages/snapback4/test/astra-rebirth.test.mjs",
+    "packages/snapback4/test/cross-scope-review.test.mjs",
+    "packages/snapback4/test/identity-review.test.mjs",
+    "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+    "packages/snapback4/test/ordinary-search.test.mjs",
+    "packages/snapback4/test/react.test.mjs",
+    "packages/snapback4/test/retention-pages.test.mjs",
+    "packages/snapback4/test/review-probes.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 41.623
+}

@@ -64,7 +64,7 @@
   },
   {
     "index": 9,
-    "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status))#1",
+    "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -85,7 +85,7 @@
   },
   {
     "index": 12,
-    "id": "local.ts:sendPost:witnessRestore(json.store_id, json.head ?? json.seq, capture)#1",
+    "id": "local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1",
     "recipe": "query",
     "classification": "optional",
     "absorbs": false
@@ -813,167 +813,279 @@
   },
   {
     "index": 116,
+    "id": "request-wait.ts:postForCaller:decode(response)#1",
+    "recipe": "queryDecode",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 117,
     "id": "request-wait.ts:postForCaller:response.json()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 117,
+    "index": 118,
     "id": "local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1",
     "recipe": "legacy",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 118,
+    "index": 119,
     "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 119,
+    "index": 120,
     "id": "local-sync.ts:syncTransport:legacyInput(response)#1",
     "recipe": "legacy",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 120,
+    "index": 121,
     "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1",
     "recipe": "legacy",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 121,
+    "index": 122,
     "id": "device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 122,
+    "index": 123,
     "id": "local-backend.ts:loadBackend:doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 123,
+    "index": 124,
     "id": "local-backend.ts:loadBackend:response.json()#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 124,
+    "index": 125,
     "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 125,
+    "index": 126,
     "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 126,
+    "index": 127,
     "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 127,
+    "index": 128,
     "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 128,
+    "index": 129,
     "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 129,
+    "index": 130,
     "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 130,
+    "index": 131,
     "id": "pending-writes.ts:record:revision()#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 131,
+    "index": 132,
     "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 132,
+    "index": 133,
     "id": "clock.ts:wrapped:fetcher(input, init)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 133,
+    "index": 134,
     "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
     "recipe": "clock",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 134,
+    "index": 135,
     "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 135,
+    "index": 136,
     "id": "changes.ts:changeFeed:reader.read()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 136,
+    "index": 137,
     "id": "changes.ts:changeFeed:response.json()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 137,
+    "index": 138,
     "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 138,
+    "index": 139,
+    "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 140,
+    "id": "local-search.ts:decode:reader.read()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 141,
+    "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 142,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 143,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 144,
+    "id": "local-search.ts:ordinarySearch:blocked()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 145,
+    "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 146,
+    "id": "local-search.ts:ordinarySearch:blocked()#2",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 147,
+    "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used })#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 148,
+    "id": "local-query.ts:route:env.installNative(env.signal)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 149,
+    "id": "local-query.ts:route:server()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 150,
+    "id": "local-query.ts:route:blocked()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 151,
+    "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 152,
+    "id": "local-query.ts:route:local()#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 153,
+    "id": "local-query.ts:route:routeLocal(first)#1",
+    "recipe": "search",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 154,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 139,
+    "index": 155,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",
