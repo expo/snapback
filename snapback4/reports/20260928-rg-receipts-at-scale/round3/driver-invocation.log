@@ -1,0 +1,9 @@
+The evidence command file was edited while the original bash driver still held it open. After scripts/test.sh completed with the preserved summary, bash resumed at an obsolete byte offset. This is an invocation error, not a second full-suite run.
+
+full-suite 1
+reports/20260928-rg-receipts-at-scale/round3/commands.txt: line 32: apback4/test/local-e2e.test.mjs: No such file or directory
+client-media-after-suite 0
+suite-corrections-after-suite 0
+reports/20260928-rg-receipts-at-scale/round3/commands.txt: line 35: syntax error near unexpected token `;;'
+reports/20260928-rg-receipts-at-scale/round3/commands.txt: line 35: `;;'
+Driver exit 2. The two accidental passing logs have -driver-before-rebuild suffixes. Final checks run from a fresh invocation after rebuilding the client.

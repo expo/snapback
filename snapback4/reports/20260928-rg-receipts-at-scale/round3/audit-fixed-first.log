@@ -1,0 +1,98 @@
+✖ recovered refusal delivery survives post-commit media failure (346.632465ms)
+✖ recovered refusal delivery survives post-commit host failure (5.360874ms)
+✖ replacement retired-success delivery survives post-commit state failure (3.421217ms)
+✖ replacement retired-success delivery survives post-commit metadata failure (2.898804ms)
+✖ replacement retired-success delivery survives post-commit media failure (2.794438ms)
+✖ replacement retired-success delivery survives post-commit host failure (2.877081ms)
+✖ keepalive refusal delivery survives post-commit media failure (3.058854ms)
+✖ keepalive refusal delivery survives post-commit host failure (2.550292ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 491.064683
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:252:42
+✖ recovered refusal delivery survives post-commit media failure (346.632465ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:253:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:252:42
+✖ recovered refusal delivery survives post-commit host failure (5.360874ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:253:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit state failure (3.421217ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:291:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit metadata failure (2.898804ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:291:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit media failure (2.794438ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:291:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit host failure (2.877081ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:291:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:323:42
+✖ keepalive refusal delivery survives post-commit media failure (3.058854ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:330:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:323:42
+✖ keepalive refusal delivery survives post-commit host failure (2.550292ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:330:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

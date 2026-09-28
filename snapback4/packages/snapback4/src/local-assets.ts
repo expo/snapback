@@ -24,6 +24,11 @@ export function assetRetention(options?: AssetRetention): AssetRetention {
   }
   return { keep, maxBytes };
 }
+// @ref LLP 3000.019#3.5 — a same-store observation changes only sync metadata.
+// Publication, replacement, predictions and expiry still recheck media.
+export function changesMediaAuthority(op: string, result: unknown): boolean {
+  return op !== "observe_store" || (result as { reset?: boolean } | undefined)?.reset !== false;
+}
 interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
 interface Entry { confirmed?: true; id: string; home: Home; bytes: number; used: number }
 const identity = (home: Home) => JSON.stringify([home.store_id, home.table, home.row, home.column, home.generation]);

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "media-gate-throws",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "persistent media failure must not stop the queued tail",
+    "killed": true
+  },
+  {
+    "name": "observation-catch-empty",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "the observation catch must arm its retry",
+    "killed": true
+  },
+  {
+    "name": "admission-raw-call",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "a committed admission must not become a local E_STORE refusal",
+    "killed": true
+  },
+  {
+    "name": "receipt-save-raw-call",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "durable receipt-save housekeeping must not strand the queued tail",
+    "killed": true
+  },
+  {
+    "name": "media-flag-not-cleared",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "only admission reconciles; the flush flag was cleared",
+    "killed": true
+  },
+  {
+    "name": "media-backoff-reset",
+    "exit": 1,
+    "expected": 1,
+    "assertion": "failed housekeeping retains exponential backoff",
+    "killed": true
+  }
+]

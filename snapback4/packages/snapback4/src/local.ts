@@ -36,9 +36,9 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, recoverReceipt, settleReceipt, successSequence, readQueued } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
@@ -171,7 +171,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
     lookup: async () => (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null,
     save: async value => {
-      const reply = await call({ op: "keep_write", value });
+      const reply = await terminalDeviceCall(committed => call({ op: "keep_write", value }, undefined, committed), () => {});
       if (reply.denied) throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
     },
   });
@@ -213,6 +213,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
+  const completeWrite = (write: Exclude<Write, { state: "pending" }>) => {
+    settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
+  };
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
@@ -309,7 +312,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
     return capture;
   }
-  async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
+  async function call(request: Record<string, unknown>, committedTables?: Set<string>, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     let observed = false;
     const delivery: (() => void)[] = [];
@@ -317,6 +320,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const committed = (result: { ok?: unknown; denied?: Refusal }) => {
       if (observed) return;
       observed = true;
+      terminalCommit?.(result);
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op));
@@ -327,7 +331,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
       // is read separately and must never be a prerequisite for invalidation.
-      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
+        observeIncarnation(undefined, true, delivery);
+        delivery.push(...retiredReceipts(history, (result.ok as { retired: Record<string, number> }).retired, completeWrite));
+      }
       if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
     };
     if (deliveryQueue?.enabled) request = { ...request, delivery_now: clock.issuedDeviceNow() };
@@ -338,7 +345,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       committed(result);
       deliver();
       if (!result.denied && ["apply", "settle", "withdraw", "dequeue"].includes(String(request.op))) deliveryQueue?.published();
-      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op))) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); deliver(); }
@@ -671,11 +678,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             publishedStore = observedState?.store_id;
             storeIdentity = publishedStore ?? undefined;
             await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
-            for (const [id, sentSeq] of Object.entries(observation.retired)) {
-              const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
-              settled.get(id)?.resolve(receipt); settled.delete(id);
-              emitWrite(receipt);
-            }
             for (const watch of watches.values()) void rerun(watch);
           }
         }
@@ -1051,7 +1053,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  function queued() { return readQueued(call, mutationIds, history); }
+  function queued() { return readQueued(call, mutationIds, history, settling); }
+  let reconcileNeeded = false; // @ref LLP 3000.019#3.3 — failed housekeeping retries without gating dispatch.
+  const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
+    committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
@@ -1086,24 +1091,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retryMs = Math.min(5000, retryMs * 2);
   }
   async function flushOnce(acquire = true) {
+    const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
     await exitDone;
     if (closed || !sendingAllowed) return;
-    for (const entry of await queued()) {
+    if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch { reconcileNeeded = true; retryFlush(); } }
+    for await (const entry of receiptBatch(queued, history)) {
       await exitDone;
       if (closed) return;
       const success = successSequence(entry);
       if (success != null) {
-        const receipt = (await history.acknowledged(entry.id, success, true))!;
-        // A sent outbox entry already persisted its receipt before settlement;
-        // re-reading it must not refresh an evicted receipt. Emission is per
-        // client: another owner's durable receipt is still this client's first
-        // completion, and the emitted set suppresses a repeat.
-        if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
-        settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
-        emitWrite(receipt);
-        // A published acknowledgement already includes this effect. Starting
-        // another sync would withdraw freshness from a completed acquisition.
-        if (acquire && (entry.observed_seq == null || !caughtUp)) await syncOnce();
+        try { await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite); } catch { retryFlush(); continue; }
+        // @ref LLP 3000.019#3.3 — proven-success recovery/observation cannot gate the tail.
+        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued().catch(() => { retryFlush(); return undefined; }))?.every(e => successSequence(e) != null)) await syncOnce();
         continue;
       }
       let ownsSettlement = false;
@@ -1113,19 +1112,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (closed || sessionDead) return { ok: false as const };
           const current = (await queued()).find(current => current.id === entry.id);
           if (!current) return { ok: true as const, retired: true as const };
-          const known = await recoverReceipt(history, call, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
-          if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
-          const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
-          if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
           settling.add(entry.id);
           ownsSettlement = true;
+          const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
+          if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
+          const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
+          if (!binding) return { ok: false as const };
           try {
             const revision = credentialRevision;
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }>; qualified?: boolean } | undefined)?.receipt;
-            if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
+            if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
             if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const };
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
@@ -1133,20 +1132,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
                 try {
-                  await settleReceipt(history, call, json.state === "sent"
+                  await settleReceipt(history, receiptCall, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
                     : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
-                } catch { retryFlush(); return { ...response, persistencePending: true }; }
+                } catch { return { ...response, persistencePending: true }; }
               }
             }
             return response;
           } finally { ordinarySending = undefined; }
         });
-        if (!result.ok) { retryFlush(); return; }
+        if (!result.ok) { await syncUnobserved(); retryFlush(); return; }
         if ("retired" in result) continue;
         const json = result.json;
         const why = (json.why ?? json.denied) as Refusal | undefined;
-        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { await syncUnobserved(); retryFlush(); return; }
         retryMs = 250;
         const settle = settled.get(entry.id);
         settled.delete(entry.id);
@@ -1156,15 +1155,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
         if (!closed && !("persistencePending" in result)) {
-          if (outcome.state === "sent") { if (acquire) await syncOnce(); }
-          else rerunTables(predictedTables(entry.predicted));
+          if (outcome.state !== "sent") rerunTables(predictedTables(entry.predicted));
+          // Durable completion survives a failed observation check; retry sync separately.
+          try { await syncUnobserved(outcome.state === "sent"); } catch { retryFlush(); }
         }
         settle?.resolve(outcome);
         emitWrite(outcome);
-        if ("persistencePending" in result) return;
-      } catch { retryFlush(); return; }
+        if ("persistencePending" in result) { await syncUnobserved(); retryFlush(); return; }
+      } catch { await syncUnobserved(); retryFlush(); return; }
       finally { if (ownsSettlement) settling.delete(entry.id); }
     }
+    await syncUnobserved();
   }
   // @ref LLP 3000.007#18.2 — early replay needs the persisted store's identity and head; a replacement must retire known receipts through sync first.
   async function replayOnOpen(): Promise<boolean> {
@@ -1238,7 +1239,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
         try {
           // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
-          const admitted = await call(request);
+          const admitted = await receiptCall(request); // Committed admission survives media/host housekeeping failure.
           if (admitted.denied) {
             settled.delete(id);
             const failed = { state: "failed" as const, id, why: admitted.denied };
@@ -1439,13 +1440,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       commit: async write => {
         const known = await history.read(write.id, true);
         if (known && known.state !== "pending") return false;
-        const applied = await call({ op: "settle_exit", write });
+        const applied = await receiptCall({ op: "settle_exit", write });
         if (applied.denied) throw new Error(applied.denied.message);
         return applied.ok === true;
       },
       publish: write => {
-        settled.get(write.id)?.resolve(write); settled.delete(write.id);
-        emitWrite(write);
+        completeWrite(write);
         for (const watch of watches.values()) void rerun(watch);
       },
     }), async (entry, why) => {

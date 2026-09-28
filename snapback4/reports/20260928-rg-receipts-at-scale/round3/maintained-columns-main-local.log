@@ -1,0 +1,24 @@
+TAP version 13
+# {"family":"sqlite","interruptedPage":{"acknowledged":{"01M3KGVY6ZTWAAVTX192M5JE8J":4},"events":[{"data":{"active":true,"amount":3,"id":"l","postId":"p"},"id":"l","kind":"put","seq":4,"table":"likes"},{"data":{"at":1,"id":"p","likeCount":1,"selected":1,"total":3},"id":"p","kind":"put","seq":4,"table":"posts"}],"generation":1,"images_at":4,"joined":{},"more":false,"now":1790582851741,"sent":{"01M3KGVY6ZTWAAVTX192M5JE8J":4},"snapshot":false,"store_id":"2b1573278e21a5da9fc89018c3e0f76c","watermark":4},"interrupted":{"at":1,"id":"p","likeCount":1,"selected":1,"total":3},"state":{"ok":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"c8492a38159cd5363c892562799ce5fdb4fbae05ca70ac0d5a73b2912f7c1c11","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"9","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"2b1573278e21a5da9fc89018c3e0f76c","device:watermark":"4"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":2,"pending_complete":true,"pending_ids":["01M3KGW245T3G911ZZ2AAY9F77"],"pending_through":2,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":4,"send_revision":9,"snapshot_catchup":false,"store_id":"2b1573278e21a5da9fc89018c3e0f76c","transfer_store_id":"2b1573278e21a5da9fc89018c3e0f76c","transfer_watermark":4,"watermark":4}},"queued":{"ok":[{"args":{"at":3,"id":"pending-parent"},"dispatch":"","id":"01M3KGW245T3G911ZZ2AAY9F77","new_ids":[],"now":1790582851717,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-parent"],"receipt_store":{"id":"2b1573278e21a5da9fc89018c3e0f76c","success_seq":5},"sent_seq":5,"seq":2,"viewer":"dev:alice"}]}}
+# Subtest: maintained columns: sqlite watches use server values across interrupted sync and reopen
+ok 1 - maintained columns: sqlite watches use server values across interrupted sync and reopen
+  ---
+  duration_ms: 6249.501963
+  type: 'test'
+  ...
+# {"family":"web","interruptedPage":{"acknowledged":{"01M3KGW4JJPZZCSDVVTJM1PPMQ":4},"events":[{"data":{"active":true,"amount":3,"id":"l","postId":"p"},"id":"l","kind":"put","seq":4,"table":"likes"},{"data":{"at":1,"id":"p","likeCount":1,"selected":1,"total":3},"id":"p","kind":"put","seq":4,"table":"posts"}],"generation":1,"images_at":4,"joined":{},"more":false,"now":1790582858260,"sent":{"01M3KGW4JJPZZCSDVVTJM1PPMQ":4},"snapshot":false,"store_id":"74346ac4e32cf65c6d89910d322f637b","watermark":4},"interrupted":{"at":1,"id":"p","likeCount":1,"selected":1,"total":3},"state":{"ok":{"acquired":true,"adoption_capture":{"device:acquired-generation":"1","device:backend-identity":"c8492a38159cd5363c892562799ce5fdb4fbae05ca70ac0d5a73b2912f7c1c11","device:backend-required":null,"device:deferred:cursor":null,"device:deferred:identity":null,"device:deferred:images_at":null,"device:generation":"1","device:native:digest":null,"device:restore-refused":null,"device:send_revision":"9","device:snapshot:images_at":null,"device:snapshot:owner":null,"device:snapshot:through":null,"device:store_id":"74346ac4e32cf65c6d89910d322f637b","device:watermark":"4"},"backend_required":false,"generation":1,"outbox_status":true,"pending_bound":2,"pending_complete":true,"pending_ids":["01M3KGW8FR5PGFSWDGM6GW5FK8"],"pending_through":2,"receipt_outcomes":true,"restore_images_at":0,"restore_watermark":4,"send_revision":9,"snapshot_catchup":false,"store_id":"74346ac4e32cf65c6d89910d322f637b","transfer_store_id":"74346ac4e32cf65c6d89910d322f637b","transfer_watermark":4,"watermark":4}},"queued":{"ok":[{"args":{"at":3,"id":"pending-parent"},"dispatch":"","id":"01M3KGW8FR5PGFSWDGM6GW5FK8","new_ids":[],"now":1790582858233,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-parent"],"receipt_store":{"id":"74346ac4e32cf65c6d89910d322f637b","success_seq":5},"sent_seq":5,"seq":2,"viewer":"dev:alice","store_id":"74346ac4e32cf65c6d89910d322f637b"}]}}
+# Subtest: maintained columns: web watches use server values across interrupted sync and reopen
+ok 2 - maintained columns: web watches use server values across interrupted sync and reopen
+  ---
+  duration_ms: 6506.120309
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12895.639815

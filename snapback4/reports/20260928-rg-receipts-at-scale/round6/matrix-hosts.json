@@ -1,0 +1,134 @@
+[
+  {
+    "index": 74,
+    "id": "local.ts:commit:history.read(write.id, true)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 75,
+    "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 76,
+    "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 129,
+    "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 130,
+    "id": "pending-writes.ts:record:revision()#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 131,
+    "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 132,
+    "id": "clock.ts:wrapped:fetcher(input, init)#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 133,
+    "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 134,
+    "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+    "mode": "persistent",
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 135,
+    "id": "changes.ts:changeFeed:reader.read()#1",
+    "mode": "persistent",
+    "injected": 5,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 136,
+    "id": "changes.ts:changeFeed:response.json()#1",
+    "mode": "persistent",
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 137,
+    "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
+    "mode": "persistent",
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

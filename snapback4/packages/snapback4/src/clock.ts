@@ -22,6 +22,7 @@ export class ServerClock {
   private listeners = new Set<(shift: number, reschedule: boolean) => void>();
   private save: ((value: string) => Promise<void>) | undefined;
   private saving: Promise<void> = Promise.resolve();
+  private lastSave: { owner: (value: string) => Promise<void>; value: string; result: Promise<void> } | undefined;
   constructor(private wall: () => number = Date.now) { readers.set(this.issuedDeviceNow, this); }
   fork(): ServerClock {
     const copy = new ServerClock(this.wall);
@@ -136,10 +137,16 @@ export class ServerClock {
     };
     await this.persist();
   }
+  // @ref LLP 3000.019#3.3 — share unchanged offset persistence, never admission floors.
   persist(): Promise<void> {
     if (!this.save) return Promise.resolve();
     const save = this.save, value = JSON.stringify({ offset: this.offset, issuedOffset: this.issuedOffset ?? 0 });
+    if (this.lastSave?.owner === save && this.lastSave.value === value) return this.lastSave.result;
     this.saving = this.saving.catch(() => {}).then(() => save(value));
+    const saved = this.lastSave = { owner: save, value, result: this.saving };
+    // A failed save remains a failure to its callers, and is retried by the
+    // next caller. Attaching another device always supplies a new owner.
+    void this.saving.catch(() => { if (this.lastSave === saved) this.lastSave = undefined; });
     return this.saving;
   }
   async detach() { const pending = this.persist(); this.save = undefined; await pending; }

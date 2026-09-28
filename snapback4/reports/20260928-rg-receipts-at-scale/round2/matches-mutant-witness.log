@@ -1,0 +1,3 @@
+AssertionError [ERR_ASSERTION]: exact unread for quiet99-p0 seeded mixed range: {"data":6,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"delivery":{"heapBytes":2368,"outputBytes":204,"steps":114},"examined":3,"heapBytes":1538,"indexEntries":0,"outputBytes":9,"probes":3,"rowsWritten":0,"steps":13}}
+
+6 !== 1

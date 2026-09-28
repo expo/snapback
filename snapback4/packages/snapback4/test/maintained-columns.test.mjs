@@ -25,7 +25,7 @@ async function until(check) {
   for (;;) { const result=await check(); if(result) return result; if(Date.now()>deadline) throw Error("watch did not converge"); await new Promise(r=>setTimeout(r,20)); }
 }
 
-for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watches use server values across interrupted sync and reopen`, {timeout:180000}, async t => {
+for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) test(`maintained columns: ${family} watches use server values across interrupted sync and reopen (${queuedTail ? "queued tail" : "one write"})`, {timeout:180000}, async t => {
   const directory=mkdtempSync(join(tmpdir(),"sb4-columns-"));
   mkdirSync(join(directory,"snapback"));
   writeFileSync(join(directory,"snapback/schema.q"),source);
@@ -64,10 +64,13 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
   const opener=family==="sqlite"?processDevice({dir:join(directory,"devices"),binary}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
   const receivedPages=[];
-  let offline=false,interrupt=false,interruptions=0,delivered=0,interruptedPage;
+  let offline=false,interrupt=false,interruptions=0,delivered=0,interruptedPage,tailPosted=false;
   const open=()=>createLocalClient({url,persona:"alice",waitSeconds:1,device:{open:async(...args)=>{core=await opener.open(...args);return core}},fetch:async(input,init)=>{
     if(offline)throw new TypeError("offline");
     if(String(input).includes("/sync") && init?.body) {
+      // Explicit/background sync can race the FIFO drain. Exercise the page
+      // whose image head includes both commits, regardless of that scheduling.
+      if(interrupt && queuedTail && !tailPosted)throw new TypeError("catch-up held until queued tail posted");
       const catchup=interrupt;
       if(catchup && interruptedPage){interruptions++;throw new TypeError("interrupted catch-up")}
       const request=JSON.parse(init.body);request.limit=1;
@@ -81,7 +84,9 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
       }
       return response;
     }
-    return fetch(input,init);
+    const response=await fetch(input,init);
+    if(String(input).includes("/m/post") && response.ok && JSON.parse(init.body).args.id==="pending-parent")tailPosted=true;
+    return response;
   }});
   client=await open();
   assert.equal((await client.query(api,{id:"p"})).data.likeCount,0);
@@ -94,10 +99,13 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   offline=true;
   await client.mutate({kind:"mutation",name:"like"},{id:"l",postId:"p",active:true,amount:3});
   assert.equal((await client.query(api,{id:"p"})).data.likeCount,0,"a predicted like never increments its parent");
-  await client.mutate({kind:"mutation",name:"post"},{id:"pending-parent",at:3});
-  const pendingParent=(await client.query(api,{id:"pending-parent"})).data;
-  assert.deepEqual(triple(pendingParent),[0,0,0]);
-  assert.equal(pendingParent.pending,true);
+  const predictParent=async()=>{
+    await client.mutate({kind:"mutation",name:"post"},{id:"pending-parent",at:3});
+    const pendingParent=(await client.query(api,{id:"pending-parent"})).data;
+    assert.deepEqual(triple(pendingParent),[0,0,0]);
+    assert.equal(pendingParent.pending,true);
+  };
+  if(queuedTail)await predictParent();
   const predicted=await core.call({op:"query",name:"postRow",viewer:"dev:alice",args:{id:"p"},now:1000});
   assert.equal(predicted.ok.data.likeCount,0);
   await mutation("post","second-parent",{id:"q",at:2});
@@ -109,12 +117,24 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   const deliveredParent=deliveredParents[0].data;
   assert.deepEqual(triple(deliveredParent),[1,1,3],"interrupt only after receiving a nonzero authoritative parent image");
   const interrupted=(await client.query(api,{id:"p"})).data;
-  assert.deepEqual(triple(interrupted),triple(deliveredParent),"the delivered image is readable before resuming sync");
+  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — receiving an image ahead of another queued commit does not publish it.
+  if(queuedTail){
+    assert.ok(interruptedPage.images_at>interruptedPage.watermark);
+    assert.equal(Object.keys(interruptedPage.committed_above).length,1,"the queued parent committed above this page's cut");
+    const state=(await core.call({op:"sync_state",capture:false})).ok;
+    assert.ok(state.watermark<interruptedPage.watermark,"the public watermark stays with the unchanged base");
+    assert.equal(state.transfer_watermark,interruptedPage.watermark,"only private transfer progress advances");
+    assert.deepEqual(triple(interrupted),[0,0,0],"a deferred page cannot publish its maintained values");
+  }else{
+    assert.equal(interruptedPage.images_at,interruptedPage.watermark);
+    assert.deepEqual(triple(interrupted),triple(deliveredParent),"an eligible delivered image is readable before resuming sync");
+  }
   await until(()=>JSON.stringify(triple(watch.getSnapshot().data??{}))===JSON.stringify(triple(interrupted)));
   assert.deepEqual(triple(watch.getSnapshot().data),triple(interrupted));
   watch.close();await client.close();
   offline=true;interrupt=false;client=await open();
-  assert.deepEqual(triple((await client.query(api,{id:"p"})).data),triple(interrupted),"interrupted page is restored before any network request");
+  assert.deepEqual(triple((await client.query(api,{id:"p"})).data),triple(interrupted),"the published base survives reopening while an interrupted page remains private");
+  if(!queuedTail)await predictParent();
   offline=false;
   watch=client.observe(api,{id:"p"});watch.subscribe(record);
   await until(async()=>{await client.sync();return watch.getSnapshot().data?.likeCount===1});

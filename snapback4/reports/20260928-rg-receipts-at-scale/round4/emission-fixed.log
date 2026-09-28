@@ -1,0 +1,18 @@
+✔ review: reset delivery retains a prior emission across concurrent lookup (428.904033ms)
+✔ review: acknowledged success retirement retains prior emission across lookup (10.520863ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (7.833574ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (10.028655ms)
+✔ replacement cannot duplicate a success still in an older flush snapshot (33.345063ms)
+✔ overlapping receipt notifications keep their emission marker: replacement-first (0.284247ms)
+✔ overlapping receipt notifications keep their emission marker: acknowledgement-first (0.076434ms)
+✔ receipt emission protection releases after settle throws (0.416285ms)
+✔ receipt emission protection releases after publish throws (0.101432ms)
+✔ receipt emission protection releases after replacement-publish throws (0.122824ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 601.8385

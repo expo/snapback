@@ -1,0 +1,10 @@
+{
+  "measurement": "after the single round-3 full suite rebuilt wasm",
+  "raw_bytes": 2019815,
+  "gzip_bytes": 585381,
+  "gzip_command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "sha256": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0",
+  "budget_bytes": 586193,
+  "headroom_bytes": 812,
+  "unchanged_from_round2": true
+}

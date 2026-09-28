@@ -1,0 +1,356 @@
+TAP version 13
+# (node:475094) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web admission review: recovery and transport respect the session boundary
+    # Subtest: hiding during strict admission releases the session lock before transport and peer logout
+    ok 1 - hiding during strict admission releases the session lock before transport and peer logout
+      ---
+      duration_ms: 1064.305603
+      type: 'test'
+      ...
+    # Subtest: exit notification waits for a session turn queued after strict admission
+    ok 2 - exit notification waits for a session turn queued after strict admission
+      ---
+      duration_ms: 459.773749
+      type: 'test'
+      ...
+    # Subtest: navigation recovers its original outbox id before held-sync startup completes
+    ok 3 - navigation recovers its original outbox id before held-sync startup completes
+      ---
+      duration_ms: 834.132405
+      type: 'test'
+      ...
+    # Subtest: navigation recovers its original outbox id before offline startup completes
+    ok 4 - navigation recovers its original outbox id before offline startup completes
+      ---
+      duration_ms: 1799.817476
+      type: 'test'
+      ...
+    # Subtest: backend-required custody cannot exit offline and enables exit after validated adoption
+    ok 5 - backend-required custody cannot exit offline and enables exit after validated adoption
+      ---
+      duration_ms: 2276.124883
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its accepted decision
+    ok 6 - a hide during the startup probe waits for its accepted decision
+      ---
+      duration_ms: 935.125883
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its refused decision
+    ok 7 - a hide during the startup probe waits for its refused decision
+      ---
+      duration_ms: 918.379806
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its restore decision
+    ok 8 - a hide during the startup probe waits for its restore decision
+      ---
+      duration_ms: 1022.750068
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its replacement decision
+    ok 9 - a hide during the startup probe waits for its replacement decision
+      ---
+      duration_ms: 1431.401448
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its observed-replacement decision
+    ok 10 - a hide during the startup probe waits for its observed-replacement decision
+      ---
+      duration_ms: 2374.367054
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false)
+    ok 11 - legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false)
+      ---
+      duration_ms: 898.427901
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false)
+    ok 12 - legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false)
+      ---
+      duration_ms: 912.002564
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+    ok 13 - legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+      ---
+      duration_ms: 915.804463
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+    ok 14 - stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+      ---
+      duration_ms: 1044.119976
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false)
+    ok 15 - legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false)
+      ---
+      duration_ms: 996.892739
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+    ok 16 - legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+      ---
+      duration_ms: 974.901107
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+    ok 17 - stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+      ---
+      duration_ms: 938.376385
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true)
+    ok 18 - legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true)
+      ---
+      duration_ms: 1025.288331
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+    ok 19 - legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+      ---
+      duration_ms: 873.57645
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+    ok 20 - stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+      ---
+      duration_ms: 902.261829
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true)
+    ok 21 - legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true)
+      ---
+      duration_ms: 1006.81248
+      type: 'test'
+      ...
+    # Subtest: an accepted probe enables exit before ordinary replay resolves
+    ok 22 - an accepted probe enables exit before ordinary replay resolves
+      ---
+      duration_ms: 821.299672
+      type: 'test'
+      ...
+    # Subtest: a successful reconnect enables exit after startup 503s
+    ok 23 - a successful reconnect enables exit after startup 503s
+      ---
+      duration_ms: 1869.592103
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its accepted probe
+    ok 24 - an empty-outbox open gates new clicks on its accepted probe
+      ---
+      duration_ms: 4915.816842
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its refused probe
+    ok 25 - an empty-outbox open gates new clicks on its refused probe
+      ---
+      duration_ms: 4986.691341
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its restore probe
+    ok 26 - an empty-outbox open gates new clicks on its restore probe
+      ---
+      duration_ms: 4959.741571
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its replacement probe
+    ok 27 - an empty-outbox open gates new clicks on its replacement probe
+      ---
+      duration_ms: 4939.478887
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+    ok 28 - A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+      ---
+      duration_ms: 1060.5998
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+    ok 29 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+      ---
+      duration_ms: 926.553265
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+    ok 30 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+      ---
+      duration_ms: 1040.650729
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first
+    ok 31 - a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first
+      ---
+      duration_ms: 1297.244148
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first
+    ok 32 - a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first
+      ---
+      duration_ms: 1246.605456
+      type: 'test'
+      ...
+    # Subtest: receipt abort then retry persists sent before any replacement sync or POST
+    ok 33 - receipt abort then retry persists sent before any replacement sync or POST
+      ---
+      duration_ms: 1767.856032
+      type: 'test'
+      ...
+    # Subtest: sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen
+    ok 34 - sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen
+      ---
+      duration_ms: 1293.633444
+      type: 'test'
+      ...
+    # Subtest: a refused _ops row never acknowledges success after its NOT_ADMIN response is lost
+    ok 35 - a refused _ops row never acknowledges success after its NOT_ADMIN response is lost
+      ---
+      duration_ms: 934.751144
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup
+    ok 36 - a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup
+      ---
+      duration_ms: 1237.841716
+      type: 'test'
+      ...
+    # Subtest: a legacy refused observation with no history remains pending until same-id replay
+    ok 37 - a legacy refused observation with no history remains pending until same-id replay
+      ---
+      duration_ms: 2208.492123
+      type: 'test'
+      ...
+    # Subtest: final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification
+    ok 38 - final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification
+      ---
+      duration_ms: 480.279119
+      type: 'test'
+      ...
+    # Subtest: lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen
+    ok 39 - lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen
+      ---
+      duration_ms: 7212.800523
+      type: 'test'
+      ...
+    # Subtest: a pending changes rewind waits for an aborted successful receipt to become durable
+    ok 40 - a pending changes rewind waits for an aborted successful receipt to become durable
+      ---
+      duration_ms: 1917.099497
+      type: 'test'
+      ...
+    # Subtest: outbox-only sent_seq evidence rejects a replacement refusal without terminal history
+    ok 41 - outbox-only sent_seq evidence rejects a replacement refusal without terminal history
+      ---
+      duration_ms: 5453.04402
+      type: 'test'
+      ...
+    # Subtest: outbox-only observed_seq evidence rejects a replacement refusal without terminal history
+    ok 42 - outbox-only observed_seq evidence rejects a replacement refusal without terminal history
+      ---
+      duration_ms: 5616.834494
+      type: 'test'
+      ...
+    # Subtest: a keepalive settlement held past the exit timeout excludes ordinary delivery until commit
+    ok 43 - a keepalive settlement held past the exit timeout excludes ordinary delivery until commit
+      ---
+      duration_ms: 6591.835096
+      type: 'test'
+      ...
+    # Subtest: an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+    ok 44 - an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+      ---
+      duration_ms: 6451.229693
+      type: 'test'
+      ...
+    # Subtest: replacement after validation refuses the original orphan binding at the server (ordinary transport)
+    ok 45 - replacement after validation refuses the original orphan binding at the server (ordinary transport)
+      ---
+      duration_ms: 6677.458028
+      type: 'test'
+      ...
+    # Subtest: replacement after validation refuses the original orphan binding at the server (exit transport)
+    ok 46 - replacement after validation refuses the original orphan binding at the server (exit transport)
+      ---
+      duration_ms: 6519.46108
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan bound to A is retired before enqueue on B (ordinary transport)
+    ok 47 - a fresh orphan bound to A is retired before enqueue on B (ordinary transport)
+      ---
+      duration_ms: 6127.909797
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan bound to A is retired before enqueue on B (exit transport)
+    ok 48 - a fresh orphan bound to A is retired before enqueue on B (exit transport)
+      ---
+      duration_ms: 6119.941395
+      type: 'test'
+      ...
+    # Subtest: a recovered orphan bound to A is retired before enqueue on B (ordinary transport)
+    ok 49 - a recovered orphan bound to A is retired before enqueue on B (ordinary transport)
+      ---
+      duration_ms: 1697.648795
+      type: 'test'
+      ...
+    # Subtest: a recovered orphan bound to A is retired before enqueue on B (exit transport)
+    ok 50 - a recovered orphan bound to A is retired before enqueue on B (exit transport)
+      ---
+      duration_ms: 1708.896889
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan waits for an unidentified destination and delivers its original id after matching sync
+    ok 51 - a fresh orphan waits for an unidentified destination and delivers its original id after matching sync
+      ---
+      duration_ms: 6155.286951
+      type: 'test'
+      ...
+    # Subtest: same-epoch logout tombstone refuses live admission
+    ok 52 - same-epoch logout tombstone refuses live admission
+      ---
+      duration_ms: 755.933337
+      type: 'test'
+      ...
+    # Subtest: same-epoch logout tombstone refuses live admission even with retained session fields
+    ok 53 - same-epoch logout tombstone refuses live admission even with retained session fields
+      ---
+      duration_ms: 587.837814
+      type: 'test'
+      ...
+    # Subtest: a confirmed epoch mismatch fences existing observations while the change poll is held
+    ok 54 - a confirmed epoch mismatch fences existing observations while the change poll is held
+      ---
+      duration_ms: 525.156568
+      type: 'test'
+      ...
+    1..54
+ok 1 - web admission review: recovery and transport respect the session boundary
+  ---
+  duration_ms: 130690.171511
+  type: 'test'
+  ...
+# {"mode":"held-sync","id":"01M3KJ15P3A34737588Q678RAY","outboxBeforeSync":true,"keepalive":true}
+# {"mode":"offline","id":"01M3KJ16FQS79WR2A97FDA957C","outboxBeforeSync":true,"keepalive":true}
+# {"mode":"accepted","originalId":"01M3KJ1AH6DPYF1Z7A031J8MQ7","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"refused","originalId":"01M3KJ1BF9YQM3X19NQT1J8T51","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"restore","originalId":"01M3KJ1CAS3NFH5Q3JVV6BCXNM","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"replacement","originalId":"01M3KJ1D94YQ1BG39VBVVG2S28","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+# {"mode":"observed-replacement","originalId":"01M3KJ1EMGZ4PF1BASMWFJRSRK","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+# {"afterValidation":true,"transport":"ordinary","id":"01M3KJ3ZGA7VQSFRYB268Q0ZMG","originalStore":"7329b879883af0f6c4de0b6ccea78138","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+# {"afterValidation":true,"transport":"keepalive","id":"01M3KJ45YF8KMRPD7MS63HSDX8","originalStore":"7329b879883af0f6c4de0b6ccea78138","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+# {"orphan":"01M3KJ4CC5DS44FS771CEGZCHK","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KJ4JBE9KBWRY3VK6417C9P","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KJ4R9SFSA397N3SJDSSH83","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KJ4SXEZK4FM32V0RDRREPP","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+1..1
+# tests 55
+# suites 0
+# pass 55
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 130793.52619

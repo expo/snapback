@@ -1,0 +1,69 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 1.72s
+     Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-4ea80e05e72217ab)
+
+running 6 tests
+test repeated_count_reads_release_transient_members ... ok
+test a_new_live_basis_and_later_sweep_cannot_subtract_the_same_input_twice ... ok
+test private_expiry_recount_reconciles_edits_clock_advance_and_sweep ... ok
+test count_member_decode_obeys_the_same_heap_bound_as_an_ordinary_read ... ok
+test generated_scalar_comparisons_count_insertions_and_forward_reverse_marks ... ok
+test pending_and_completed_expiry_corrections_have_identical_public_meters ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.71s
+
+     Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-bd289e42604a4622)
+
+running 18 tests
+test hidden_source_interval_does_not_select_background_work ... ok
+test hidden_count_digit_boundary_keeps_query_meters_identical ... ok
+test undelivered_hidden_expiry_does_not_change_catchup ... ok
+test astra_scratch_regressions_refuse_unsupported_audiences ... ok
+test blind_nonowner_cannot_infer_a_private_parent_from_source_admission ... ok
+test hidden_conversation_presence ... ok
+test row_key_target_exists_but_is_unreadable ... ok
+test shared_grant_blind_member_write_cannot_select_hidden_recount_traffic ... ok
+test old_mark_through_background_quiescence ... ok
+test hidden_source_contribution_all_write_kinds ... ok
+test public_source_blind_private_parent_refuses_without_recount_work ... ok
+test legacy_adoption_expiry_and_member_interpretations ... ok
+test grok_born_expired_cardinality_is_absent_from_counts_meters_and_commits ... ok
+test formerly_live_populations_and_insertion_orders_have_identical_transcripts ... ok
+test value_witnesses_and_mixed_live_expiry_ranges ... ok
+test redundant_logical_witness_alternatives ... ok
+test interleaved_expired_prefix_live_suffix_before_mark ... ok
+test generated_populations_transitions_and_expiry has been running for over 60 seconds
+test generated_populations_transitions_and_expiry ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 188.48s
+
+     Running tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-3195cae6d768e1c6)
+
+running 1 test
+test legacy_source_default_adoption_then_expiry_sweep ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-90f33c9055d606c0)
+
+running 3 tests
+test denied_view_witness_reserves_before_hidden_presence ... ok
+test ordinary_member_witness_control ... ok
+test hidden_member_payload_through_witness ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s
+
+     Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-c2b7edbbb14729a3)
+
+running 2 tests
+test refused_idempotency_records_never_acknowledge_execution ... ok
+test stream_heads_and_receipt_intervals ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-4e842cf00be0587f)
+
+running 1 test
+test cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s

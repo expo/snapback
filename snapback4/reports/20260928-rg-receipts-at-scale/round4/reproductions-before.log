@@ -1,0 +1,48 @@
+✖ review: reset delivery retains a prior emission across concurrent lookup (442.893566ms)
+✖ review: acknowledged success retirement retains prior emission across lookup (11.231169ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (7.913364ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (10.087094ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 582.159156
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:116:1
+✖ review: reset delivery retains a prior emission across concurrent lookup (442.893566ms)
+  AssertionError [ERR_ASSERTION]: reset cannot emit an already-delivered success again
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:138:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:141:1
+✖ review: acknowledged success retirement retains prior emission across lookup (11.231169ms)
+  AssertionError [ERR_ASSERTION]: known-success retirement cannot emit twice
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:168:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,11 @@
+{
+  "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "rawBytes": 2019815,
+  "gzipBytes": 585381,
+  "sha256": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0",
+  "budgetBytes": 586193,
+  "headroomBytes": 812,
+  "gzipCommand": "gzip -9 -c (build-wasm.sh convention)",
+  "phase": "before full-suite rebuild",
+  "round2Identical": true
+}

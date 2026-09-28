@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Run from snapback4/. Tools already present; no installs, push or publication.
+set -u
+export CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+ulimit -n 65536
+out=reports/20260928-rg-receipts-at-scale/round3
+run() {
+  local name="$1"
+  shift
+  "$@" > "$out/$name.log" 2>&1
+  local result=$?
+  printf '%s %s\n' "$name" "$result" | tee -a "$out/check-exits.txt"
+}
+case "${1:-client}" in
+client)
+run client-typecheck bun run --cwd packages/snapback4 typecheck
+run client-clock-outbox node --test --test-concurrency=4 packages/snapback4/test/react.test.mjs packages/snapback4/test/server-clock.test.mjs packages/snapback4/test/server-clock-recovery.test.mjs packages/snapback4/test/server-clock-regressions.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/pending-writes.test.mjs
+run client-receipts-delivery node --test --test-concurrency=4 packages/snapback4/test/*receipt*.test.mjs packages/snapback4/test/delivery*.test.mjs packages/snapback4/test/timeline-delivery.test.mjs
+run settlement node --test --test-concurrency=4 packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/app-store-replacement.test.mjs packages/snapback4/test/transport-outcomes.test.mjs
+run client-media node --test --test-concurrency=4 packages/snapback4/test/asset-blob-lifecycle.test.mjs packages/snapback4/test/expo-media-storage.test.mjs
+;;
+client-after-suite)
+run client-typecheck-after-suite bun run --cwd packages/snapback4 typecheck
+run client-clock-outbox-after-suite node --test --test-concurrency=4 packages/snapback4/test/react.test.mjs packages/snapback4/test/server-clock.test.mjs packages/snapback4/test/server-clock-recovery.test.mjs packages/snapback4/test/server-clock-regressions.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/pending-writes.test.mjs
+run client-receipts-delivery-after-suite node --test --test-concurrency=4 packages/snapback4/test/*receipt*.test.mjs packages/snapback4/test/delivery*.test.mjs packages/snapback4/test/timeline-delivery.test.mjs
+run settlement-after-suite node --test --test-concurrency=4 packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/app-store-replacement.test.mjs packages/snapback4/test/transport-outcomes.test.mjs
+run client-media-after-suite node --test --test-concurrency=4 packages/snapback4/test/asset-blob-lifecycle.test.mjs packages/snapback4/test/expo-media-storage.test.mjs
+run suite-corrections-after-suite node --test --test-reporter=tap --test-concurrency=3 packages/snapback4/test/maintained-columns.test.mjs packages/snapback4/test/transport-http.test.mjs packages/snapback4/test/unread-range.test.mjs
+;;
+rust)
+run rust-row-views cargo test -p snapback4-core --lib engine::row_views -- --nocapture
+run rust-row-integration cargo test -p snapback4-core --test row_view_accounting --test row_view_witness --test row_view_legacy --test row_view_disclosure --test sync_count_batch --test stream_receipts --no-fail-fast
+run rust-device cargo test -p snapback4-device --test unread_range --test row_view_expiry --test row_view_disclosure --test delivery --no-fail-fast
+run rust-guide-delivery cargo test -p snapback4-lang --test guide --test receipt_gaps --test delivery --test delivery_clause --test delivery_integration --test delivery_replay_conversion --no-fail-fast
+;;
+maintained)
+run maintained-columns-fixed2 node --test --test-reporter=tap packages/snapback4/test/maintained-columns.test.mjs
+;;
+suite-corrections)
+run maintained-columns-fixed2 node --test --test-reporter=tap packages/snapback4/test/maintained-columns.test.mjs
+run transport-http-fixed2 node --test --test-reporter=tap packages/snapback4/test/transport-http.test.mjs
+run unread-range-fixed node --test --test-reporter=tap packages/snapback4/test/unread-range.test.mjs
+;;
+suite)
+run full-suite env SNAPBACK4_RUST_TEST_PROCESSES=8 scripts/test.sh
+;;
+esac

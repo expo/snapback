@@ -1,0 +1,1277 @@
+{
+  "pass": true,
+  "cold": {
+    "documentMs": 113.16216600000007,
+    "credentialsMs": 108.93982600000004,
+    "loginAndFeedMs": 4405.422526,
+    "navigationAndScreenMs": 1157.7115560000002,
+    "remainingAcquisitionMs": 4.03639000000021
+  },
+  "coldWebReadyMs": 5789.309389,
+  "browserActor": "u0500",
+  "accountConversations": 100,
+  "roster": 50,
+  "initialHistory": 10000,
+  "k": 20,
+  "warmups": 3,
+  "samples": [
+    {
+      "sendRenderMs": 479.9019990000015,
+      "readConvergenceMs": 1966.4517479999995
+    },
+    {
+      "sendRenderMs": 2098.459210000001,
+      "readConvergenceMs": 3668.4705460000005
+    },
+    {
+      "sendRenderMs": 609.065928,
+      "readConvergenceMs": 1797.3231869999981
+    },
+    {
+      "sendRenderMs": 2155.1572909999995,
+      "readConvergenceMs": 4386.901605999999
+    },
+    {
+      "sendRenderMs": 1144.5884140000016,
+      "readConvergenceMs": 2346.402721999999
+    },
+    {
+      "sendRenderMs": 483.5485840000001,
+      "readConvergenceMs": 2516.2579710000027
+    },
+    {
+      "sendRenderMs": 2730.919228999999,
+      "readConvergenceMs": 4032.977178000001
+    },
+    {
+      "sendRenderMs": 611.6717329999956,
+      "readConvergenceMs": 2217.1761659999975
+    },
+    {
+      "sendRenderMs": 1741.7118990000017,
+      "readConvergenceMs": 3715.411125999999
+    },
+    {
+      "sendRenderMs": 1894.1096620000026,
+      "readConvergenceMs": 3066.8864449999965
+    },
+    {
+      "sendRenderMs": 481.1800230000008,
+      "readConvergenceMs": 1866.5270390000005
+    },
+    {
+      "sendRenderMs": 2097.103342000002,
+      "readConvergenceMs": 3449.3026339999997
+    },
+    {
+      "sendRenderMs": 581.5037349999984,
+      "readConvergenceMs": 2118.4796110000025
+    },
+    {
+      "sendRenderMs": 2925.279834000001,
+      "readConvergenceMs": 4297.848867000001
+    },
+    {
+      "sendRenderMs": 382.6883670000025,
+      "readConvergenceMs": 1549.4526470000055
+    },
+    {
+      "sendRenderMs": 1723.403744999996,
+      "readConvergenceMs": 2849.882040999997
+    },
+    {
+      "sendRenderMs": 808.3670809999967,
+      "readConvergenceMs": 2199.6752699999997
+    },
+    {
+      "sendRenderMs": 467.5773939999999,
+      "readConvergenceMs": 2569.7934659999955
+    },
+    {
+      "sendRenderMs": 2078.79028999999,
+      "readConvergenceMs": 3329.965207999994
+    },
+    {
+      "sendRenderMs": 508.02303699999175,
+      "readConvergenceMs": 2158.034224999996
+    }
+  ],
+  "sendRenderP95Ms": 2730.919228999999,
+  "readConvergenceP95Ms": 4297.848867000001,
+  "note": "Actual production web client on isolated full-corpus copy; 49 authenticated API peers read each new message before acknowledging. Original verified fixture remains unchanged.",
+  "domMs": [
+    102.92422999999962,
+    61.859379000001354,
+    62.056134000000384,
+    44.94706000000042,
+    180.4661449999985,
+    76.80721399999675,
+    65.44433200000276,
+    59.034944999999425,
+    45.262462000002415,
+    62.84305399999721,
+    62.67008399999759,
+    43.882282999999006,
+    62.54103999999643,
+    44.495613000006415,
+    64.72960099999909,
+    45.106909000001906,
+    65.29686100000254,
+    62.08760099999927,
+    226.35630599999422,
+    44.89076499999646,
+    44.95630399999936,
+    59.34303699999873,
+    69.67919999999867
+  ],
+  "domP95Ms": 180.4661449999985,
+  "warmupSamples": [
+    {
+      "index": 0,
+      "sendRenderMs": 561.8140050000002,
+      "readConvergenceMs": 2979.0957799999996
+    },
+    {
+      "index": 1,
+      "sendRenderMs": 1889.671977,
+      "readConvergenceMs": 3164.5865240000003
+    },
+    {
+      "index": 2,
+      "sendRenderMs": 515.4057240000002,
+      "readConvergenceMs": 2182.518314000001
+    }
+  ],
+  "routes": {
+    "/auth/login": {
+      "roundTrip": {
+        "n": 1,
+        "sumMs": 25,
+        "p50Ms": 25,
+        "p95Ms": 25,
+        "maxMs": 25
+      },
+      "bytes": 153,
+      "rowsByTable": {},
+      "total": {
+        "n": 1,
+        "sumMs": 21.825,
+        "p50Ms": 21.825,
+        "p95Ms": 21.825,
+        "maxMs": 21.825
+      },
+      "wait": {
+        "n": 1,
+        "sumMs": 0.0,
+        "p50Ms": 0.0,
+        "p95Ms": 0.0,
+        "maxMs": 0.0
+      },
+      "engine": {
+        "n": 1,
+        "sumMs": 0.873,
+        "p50Ms": 0.873,
+        "p95Ms": 0.873,
+        "maxMs": 0.873
+      },
+      "cpu": {
+        "n": 1,
+        "sumMs": 21.189,
+        "p50Ms": 21.189,
+        "p95Ms": 21.189,
+        "maxMs": 21.189
+      }
+    },
+    "/schema": {
+      "roundTrip": {
+        "n": 3,
+        "sumMs": 36.236,
+        "p50Ms": 10.001,
+        "p95Ms": 18.563,
+        "maxMs": 18.563
+      },
+      "bytes": 1069359,
+      "rowsByTable": {},
+      "total": {
+        "n": 3,
+        "sumMs": 26.242,
+        "p50Ms": 6.004,
+        "p95Ms": 14.332,
+        "maxMs": 14.332
+      },
+      "wait": {
+        "n": 3,
+        "sumMs": 0.917,
+        "p50Ms": 0.001,
+        "p95Ms": 0.915,
+        "maxMs": 0.915
+      },
+      "engine": {
+        "n": 3,
+        "sumMs": 0.963,
+        "p50Ms": 0.248,
+        "p95Ms": 0.548,
+        "maxMs": 0.548
+      },
+      "cpu": {
+        "n": 3,
+        "sumMs": 25.619,
+        "p50Ms": 5.82,
+        "p95Ms": 14.119,
+        "maxMs": 14.119
+      }
+    },
+    "/q/home": {
+      "roundTrip": {
+        "n": 2,
+        "sumMs": 14.543,
+        "p50Ms": 7.968,
+        "p95Ms": 7.968,
+        "maxMs": 7.968
+      },
+      "bytes": 33820,
+      "rowsByTable": {},
+      "total": {
+        "n": 2,
+        "sumMs": 9.959,
+        "p50Ms": 5.115,
+        "p95Ms": 5.115,
+        "maxMs": 5.115
+      },
+      "wait": {
+        "n": 2,
+        "sumMs": 0.002,
+        "p50Ms": 0.001,
+        "p95Ms": 0.001,
+        "maxMs": 0.001
+      },
+      "engine": {
+        "n": 2,
+        "sumMs": 9.38,
+        "p50Ms": 4.865,
+        "p95Ms": 4.865,
+        "maxMs": 4.865
+      },
+      "cpu": {
+        "n": 2,
+        "sumMs": 9.417,
+        "p50Ms": 4.979,
+        "p95Ms": 4.979,
+        "maxMs": 4.979
+      }
+    },
+    "/sync": {
+      "roundTrip": {
+        "n": 45,
+        "sumMs": 1581.161,
+        "p50Ms": 20.672,
+        "p95Ms": 79.21,
+        "maxMs": 369.155
+      },
+      "bytes": 6661528,
+      "rowsByTable": {
+        "conversations": 123,
+        "followingEdges": 500,
+        "followingFeed": 1000,
+        "followingWork": 63,
+        "likes": 2000,
+        "members": 1391,
+        "messages": 523,
+        "ownLikes": 5008,
+        "ownReposts": 1004,
+        "posts": 1000,
+        "profiles": 1008,
+        "reactions": 2000,
+        "reposts": 1000,
+        "unread": 2541,
+        "runs": 2252
+      },
+      "total": {
+        "n": 45,
+        "sumMs": 1476.848,
+        "p50Ms": 19.012,
+        "p95Ms": 66.816,
+        "maxMs": 360.934
+      },
+      "wait": {
+        "n": 45,
+        "sumMs": 0.051,
+        "p50Ms": 0.001,
+        "p95Ms": 0.002,
+        "maxMs": 0.002
+      },
+      "engine": {
+        "n": 45,
+        "sumMs": 1444.014,
+        "p50Ms": 18.688,
+        "p95Ms": 55.552,
+        "maxMs": 353.153
+      },
+      "cpu": {
+        "n": 45,
+        "sumMs": 1466.455,
+        "p50Ms": 18.781,
+        "p95Ms": 66.617,
+        "maxMs": 360.643
+      }
+    },
+    "/changes": {
+      "roundTrip": {
+        "n": 751,
+        "sumMs": 2975.899,
+        "p50Ms": 3.625,
+        "p95Ms": 5.463,
+        "maxMs": 47.852
+      },
+      "bytes": 142020,
+      "rowsByTable": {},
+      "total": {
+        "n": 751,
+        "sumMs": 1265.927,
+        "p50Ms": 1.575,
+        "p95Ms": 2.597,
+        "maxMs": 5.234
+      },
+      "wait": {
+        "n": 751,
+        "sumMs": 824.345,
+        "p50Ms": 1.033,
+        "p95Ms": 1.869,
+        "maxMs": 4.628
+      },
+      "engine": {
+        "n": 751,
+        "sumMs": 344.761,
+        "p50Ms": 0.398,
+        "p95Ms": 0.867,
+        "maxMs": 1.734
+      },
+      "cpu": {
+        "n": 751,
+        "sumMs": 1034.902,
+        "p50Ms": 1.406,
+        "p95Ms": 2.064,
+        "maxMs": 3.785
+      }
+    },
+    "/m/send": {
+      "roundTrip": {
+        "n": 23,
+        "sumMs": 180.521,
+        "p50Ms": 7.697,
+        "p95Ms": 9.812,
+        "maxMs": 10.632
+      },
+      "bytes": 3703,
+      "rowsByTable": {},
+      "total": {
+        "n": 23,
+        "sumMs": 132.596,
+        "p50Ms": 5.839,
+        "p95Ms": 6.463,
+        "maxMs": 7.395
+      },
+      "wait": {
+        "n": 23,
+        "sumMs": 0.009,
+        "p50Ms": 0.0,
+        "p95Ms": 0.001,
+        "maxMs": 0.001
+      },
+      "engine": {
+        "n": 23,
+        "sumMs": 125.813,
+        "p50Ms": 5.542,
+        "p95Ms": 6.182,
+        "maxMs": 7.103
+      },
+      "cpu": {
+        "n": 23,
+        "sumMs": 115.356,
+        "p50Ms": 5.249,
+        "p95Ms": 5.805,
+        "maxMs": 5.931
+      }
+    }
+  },
+  "receiptOnlyPages": {
+    "n": 18,
+    "bytes": 19780,
+    "rows": 63,
+    "examples": [
+      {
+        "at": 6391.847815,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790571367960.1938,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.196,
+          "responseStart": 19.294,
+          "responseEnd": 20.726
+        },
+        "server": "total;dur=18.812, wait;dur=0.001, engine;dur=18.534, cpu;dur=18.598",
+        "bytes": 443,
+        "events": 1,
+        "tables": {
+          "runs": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 10819.42818,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790571372388.226,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.116,
+          "responseStart": 18.791,
+          "responseEnd": 19.516
+        },
+        "server": "total;dur=18.424, wait;dur=0.002, engine;dur=18.192, cpu;dur=18.271",
+        "bytes": 796,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 11986.074067,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790571373553.5112,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.176,
+          "responseStart": 19.559,
+          "responseEnd": 20.526
+        },
+        "server": "total;dur=19.012, wait;dur=0.002, engine;dur=18.706, cpu;dur=18.781",
+        "bytes": 796,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 19364.422507,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790571380929.061,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.225,
+          "responseStart": 18.808,
+          "responseEnd": 21.487
+        },
+        "server": "total;dur=18.234, wait;dur=0.001, engine;dur=17.890, cpu;dur=18.051",
+        "bytes": 796,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      }
+    ]
+  },
+  "browser": {
+    "calls": {
+      "sync_state:": {
+        "n": 362,
+        "ms": 2455.9000000953674,
+        "wait": 2290.100000858307,
+        "max": 58.39999961853027,
+        "waitMax": 57.19999980926514,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "state:": {
+        "n": 44,
+        "ms": 30.20000123977661,
+        "wait": 29.5,
+        "max": 29.600000381469727,
+        "waitMax": 29.5,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "meta:": {
+        "n": 1572,
+        "ms": 1842.0999937057495,
+        "wait": 1769.6999998092651,
+        "max": 357.09999990463257,
+        "waitMax": 338.19999980926514,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "queued:": {
+        "n": 2192,
+        "ms": 8304.399990081787,
+        "wait": 7880.899995803833,
+        "max": 443.69999980926514,
+        "waitMax": 424.8999996185303,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "set_meta:": {
+        "n": 107,
+        "ms": 308.9000024795532,
+        "wait": 30.69999933242798,
+        "max": 42.30000019073486,
+        "waitMax": 13,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "asset_home:": {
+        "n": 3869,
+        "ms": 7607.800004959106,
+        "wait": 6703.400000572205,
+        "max": 371.19999980926514,
+        "waitMax": 370.59999990463257,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "next_submission:": {
+        "n": 1,
+        "ms": 0,
+        "wait": 0,
+        "max": 0,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "delivery:": {
+        "n": 63,
+        "ms": 238.20000171661377,
+        "wait": 106.29999923706055,
+        "max": 79.80000019073486,
+        "waitMax": 40.40000009536743,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:progress": {
+        "n": 195,
+        "ms": 2722.999999523163,
+        "wait": 2005.2999982833862,
+        "max": 406.7999997138977,
+        "waitMax": 397.40000009536743,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:history": {
+        "n": 202,
+        "ms": 1062.2999968528748,
+        "wait": 830.8999972343445,
+        "max": 45.700000286102295,
+        "waitMax": 45,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:conversationScreen": {
+        "n": 201,
+        "ms": 955.1999931335449,
+        "wait": 903.2999963760376,
+        "max": 16.40000009536743,
+        "waitMax": 15.800000190734863,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:messageReceipts": {
+        "n": 202,
+        "ms": 6091.999994754791,
+        "wait": 951.9999928474426,
+        "max": 70.2000002861023,
+        "waitMax": 16.40000009536743,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:myProfile": {
+        "n": 143,
+        "ms": 4572.399998188019,
+        "wait": 4524.0999965667725,
+        "max": 70.5,
+        "waitMax": 70.2000002861023,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "observe_store:": {
+        "n": 276,
+        "ms": 1551.7000002861023,
+        "wait": 1184.7000002861023,
+        "max": 351.80000019073486,
+        "waitMax": 338.30000019073486,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:messageReactions": {
+        "n": 4130,
+        "ms": 140223.59991455078,
+        "wait": 139276.79991483688,
+        "max": 77.69999980926514,
+        "waitMax": 77.5,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "apply:": {
+        "n": 41,
+        "ms": 8473.80000114441,
+        "wait": 64,
+        "max": 429.1000003814697,
+        "waitMax": 32.80000019073486,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "admit:": {
+        "n": 41,
+        "ms": 757.8000001907349,
+        "wait": 204.2000002861023,
+        "max": 36,
+        "waitMax": 25.09999990463257,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:profileByPrincipal": {
+        "n": 2360,
+        "ms": 78988.0999622345,
+        "wait": 78517.19996643066,
+        "max": 76.30000019073486,
+        "waitMax": 76,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "begin_send:": {
+        "n": 40,
+        "ms": 215.60000038146973,
+        "wait": 71.09999990463257,
+        "max": 43.90000009536743,
+        "waitMax": 40.5,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "keep_write:": {
+        "n": 63,
+        "ms": 175.60000085830688,
+        "wait": 70.80000019073486,
+        "max": 19.299999713897705,
+        "waitMax": 18.299999713897705,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "settle:": {
+        "n": 39,
+        "ms": 268.5,
+        "wait": 94.39999914169312,
+        "max": 49.5,
+        "waitMax": 44.09999990463257,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "wasm": {
+      "sync_state:": {
+        "n": 904,
+        "ms": 71.99999666213989,
+        "wait": 0,
+        "max": 0.3000001907348633,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "queued:": {
+        "n": 2444,
+        "ms": 156.59999465942383,
+        "wait": 0,
+        "max": 0.3000001907348633,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "state:": {
+        "n": 44,
+        "ms": 0.20000076293945312,
+        "wait": 0,
+        "max": 0.10000038146972656,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "meta:": {
+        "n": 1613,
+        "ms": 34.699995040893555,
+        "wait": 0,
+        "max": 0.20000028610229492,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "set_meta:": {
+        "n": 107,
+        "ms": 3.700003147125244,
+        "wait": 0,
+        "max": 0.20000028610229492,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "asset_home:": {
+        "n": 3869,
+        "ms": 840.7000069618225,
+        "wait": 0,
+        "max": 0.7000002861022949,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "next_submission:": {
+        "n": 42,
+        "ms": 0.20000028610229492,
+        "wait": 0,
+        "max": 0.10000038146972656,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "delivery:": {
+        "n": 63,
+        "ms": 4.5,
+        "wait": 0,
+        "max": 0.20000028610229492,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:progress": {
+        "n": 195,
+        "ms": 632.6000008583069,
+        "wait": 0,
+        "max": 7.699999809265137,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:history": {
+        "n": 202,
+        "ms": 178.79999780654907,
+        "wait": 0,
+        "max": 2.1999998092651367,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:conversationScreen": {
+        "n": 201,
+        "ms": 43.20000076293945,
+        "wait": 0,
+        "max": 0.6999998092651367,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:messageReceipts": {
+        "n": 202,
+        "ms": 5128.000002861023,
+        "wait": 0,
+        "max": 57,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:myProfile": {
+        "n": 143,
+        "ms": 30.800003051757812,
+        "wait": 0,
+        "max": 0.5,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "observe_store:": {
+        "n": 276,
+        "ms": 39.00000047683716,
+        "wait": 0,
+        "max": 2.1000003814697266,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:messageReactions": {
+        "n": 4130,
+        "ms": 773.7000007629395,
+        "wait": 0,
+        "max": 1.700000286102295,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "apply:": {
+        "n": 41,
+        "ms": 122.9000015258789,
+        "wait": 0,
+        "max": 8.400000095367432,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "admit:": {
+        "n": 41,
+        "ms": 25.199998378753662,
+        "wait": 0,
+        "max": 5,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "query:profileByPrincipal": {
+        "n": 2360,
+        "ms": 388.8999967575073,
+        "wait": 0,
+        "max": 0.5,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "begin_send:": {
+        "n": 40,
+        "ms": 1.0999999046325684,
+        "wait": 0,
+        "max": 0.10000038146972656,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "keep_write:": {
+        "n": 63,
+        "ms": 6.69999885559082,
+        "wait": 0,
+        "max": 0.2999997138977051,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "settle:": {
+        "n": 39,
+        "ms": 29.999998569488525,
+        "wait": 0,
+        "max": 2.0999999046325684,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "idb": {
+      "readonly:": {
+        "n": 69164,
+        "ms": 29739.500044345856,
+        "wait": 0,
+        "max": 371.5,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 0,
+        "bytes": 0
+      },
+      "readwrite:": {
+        "n": 519,
+        "ms": 8715.199996948242,
+        "wait": 0,
+        "max": 420.5,
+        "waitMax": 0,
+        "puts": 4362,
+        "rows": 0,
+        "bytes": 0
+      }
+    },
+    "saves": {
+      "save:": {
+        "n": 519,
+        "ms": 9431.899997234344,
+        "wait": 0,
+        "max": 421.7999997138977,
+        "waitMax": 0,
+        "puts": 0,
+        "rows": 4696,
+        "bytes": 2541373
+      }
+    },
+    "mutations": 3926,
+    "longTasks": [
+      {
+        "at": 209.90000009536743,
+        "ms": 373
+      },
+      {
+        "at": 727.2000002861023,
+        "ms": 317
+      },
+      {
+        "at": 1555.7000002861023,
+        "ms": 53
+      },
+      {
+        "at": 3476.800000190735,
+        "ms": 55
+      },
+      {
+        "at": 8763.200000286102,
+        "ms": 74
+      },
+      {
+        "at": 10970.700000286102,
+        "ms": 50
+      },
+      {
+        "at": 11886.599999904633,
+        "ms": 94
+      },
+      {
+        "at": 14200.800000190735,
+        "ms": 57
+      },
+      {
+        "at": 16459.300000190735,
+        "ms": 53
+      },
+      {
+        "at": 17011.099999904633,
+        "ms": 86
+      },
+      {
+        "at": 19624.900000095367,
+        "ms": 62
+      },
+      {
+        "at": 20811.200000286102,
+        "ms": 60
+      },
+      {
+        "at": 23189,
+        "ms": 54
+      },
+      {
+        "at": 24908.200000286102,
+        "ms": 100
+      },
+      {
+        "at": 26253.599999904633,
+        "ms": 143
+      },
+      {
+        "at": 29691.400000095367,
+        "ms": 59
+      },
+      {
+        "at": 30793.800000190735,
+        "ms": 50
+      },
+      {
+        "at": 31596.5,
+        "ms": 108
+      },
+      {
+        "at": 33077.5,
+        "ms": 74
+      },
+      {
+        "at": 34860.59999990463,
+        "ms": 59
+      },
+      {
+        "at": 35322.800000190735,
+        "ms": 82
+      },
+      {
+        "at": 35475.5,
+        "ms": 53
+      },
+      {
+        "at": 41157.800000190735,
+        "ms": 119
+      },
+      {
+        "at": 42044.5,
+        "ms": 57
+      },
+      {
+        "at": 43807.800000190735,
+        "ms": 70
+      },
+      {
+        "at": 45397.59999990463,
+        "ms": 85
+      },
+      {
+        "at": 45884.300000190735,
+        "ms": 69
+      },
+      {
+        "at": 46723.90000009537,
+        "ms": 172
+      },
+      {
+        "at": 48506.5,
+        "ms": 54
+      },
+      {
+        "at": 50278,
+        "ms": 53
+      },
+      {
+        "at": 52094.2000002861,
+        "ms": 68
+      },
+      {
+        "at": 52591.300000190735,
+        "ms": 89
+      },
+      {
+        "at": 52716.7000002861,
+        "ms": 57
+      },
+      {
+        "at": 56044.90000009537,
+        "ms": 54
+      },
+      {
+        "at": 57038.09999990463,
+        "ms": 70
+      },
+      {
+        "at": 58012,
+        "ms": 104
+      },
+      {
+        "at": 59073.7000002861,
+        "ms": 62
+      },
+      {
+        "at": 59488.800000190735,
+        "ms": 97
+      },
+      {
+        "at": 59655.300000190735,
+        "ms": 59
+      },
+      {
+        "at": 60169.800000190735,
+        "ms": 55
+      },
+      {
+        "at": 60992.09999990463,
+        "ms": 146
+      },
+      {
+        "at": 62101.09999990463,
+        "ms": 52
+      },
+      {
+        "at": 62817.300000190735,
+        "ms": 52
+      },
+      {
+        "at": 63503,
+        "ms": 51
+      },
+      {
+        "at": 64335.7000002861,
+        "ms": 96
+      }
+    ],
+    "networkChain": {
+      "n": 80,
+      "sumMs": 54326.7,
+      "p50Ms": 630.9,
+      "p95Ms": 1051.7,
+      "maxMs": 1422.1
+    },
+    "networkQueue": {
+      "n": 80,
+      "sumMs": 629.6,
+      "p50Ms": 0,
+      "p95Ms": 0.1,
+      "maxMs": 593.7
+    },
+    "sendAdmissionToPostMs": [
+      92.0,
+      1360.8000001907349,
+      52.90000009536743,
+      52.19999980926514,
+      1352.0999999046326,
+      53.5,
+      1485.5999999046326,
+      638.3999996185303,
+      61.40000009536743,
+      2291.699999809265,
+      63.5,
+      806.0999999046326,
+      1336.6000003814697,
+      63.299999713897705,
+      1538.8000001907349,
+      67.60000038146973,
+      2312.9000000953674,
+      67.89999961853027,
+      1071.2999997138977,
+      69.90000009536743,
+      69.40000009536743,
+      1619.3000001907349,
+      66.59999990463257
+    ]
+  },
+  "cpuProfile": {
+    "sampledMs": {
+      "(program)": 9076.083999999983,
+      "(idle)": 31128.461000000545,
+      "JavaScript": 15148.490999999301,
+      "(garbage collector)": 1579.1389999999874,
+      "wasm": 8655.103000000257
+    },
+    "coldSampledMs": {
+      "(program)": 800.4250000000011,
+      "(idle)": 2397.269999999996,
+      "JavaScript": 1530.4509999999902,
+      "(garbage collector)": 258.15299999999957,
+      "wasm": 802.1660000000015
+    },
+    "topSelfMs": [
+      [
+        "(idle)",
+        31128.461000000545
+      ],
+      [
+        "(program)",
+        9076.083999999983
+      ],
+      [
+        "<anonymous>",
+        1712.7149999999956
+      ],
+      [
+        "open",
+        1625.4729999999936
+      ],
+      [
+        "(garbage collector)",
+        1579.1389999999874
+      ],
+      [
+        "get",
+        1051.9920000000022
+      ],
+      [
+        "transaction",
+        961.6050000000013
+      ],
+      [
+        "wasm-function[2088]",
+        751.8609999999974
+      ],
+      [
+        "e",
+        497.0290000000003
+      ],
+      [
+        "request",
+        496.19000000000017
+      ],
+      [
+        "h",
+        488.8580000000003
+      ],
+      [
+        "wasm-function[38]",
+        454.86700000000053
+      ],
+      [
+        "setItem",
+        445.6299999999998
+      ],
+      [
+        "wasm-function[5117]",
+        414.9920000000005
+      ],
+      [
+        "i",
+        397.26000000000084
+      ],
+      [
+        "fetch",
+        357.9499999999999
+      ],
+      [
+        "put",
+        351.11999999999983
+      ],
+      [
+        "n",
+        348.04400000000004
+      ]
+    ],
+    "note": "Exclusive sampled stack leaves; cold window approximately first coldWebReadyMs after profiler start, including navigation."
+  },
+  "oneSecondTargetPass": false
+}

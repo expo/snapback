@@ -1,0 +1,63 @@
+{
+  "rust-row-views": {
+    "passed": 23,
+    "failed": 0,
+    "ignored": 0
+  },
+  "rust-row-integration": {
+    "passed": 31,
+    "failed": 0,
+    "ignored": 0
+  },
+  "rust-device": {
+    "passed": 53,
+    "failed": 0,
+    "ignored": 0
+  },
+  "rust-guide-delivery": {
+    "passed": 135,
+    "failed": 0,
+    "ignored": 1
+  },
+  "cost-after": {
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  "client-clock-settlement-final": {
+    "tests": 171,
+    "pass": 171,
+    "fail": 0,
+    "skipped": 0
+  },
+  "refused-tail-after": {
+    "tests": 30,
+    "pass": 30,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-receipts-delivery": {
+    "tests": 212,
+    "pass": 212,
+    "fail": 0,
+    "skipped": 0
+  },
+  "clock-extra": {
+    "tests": 57,
+    "pass": 57,
+    "fail": 0,
+    "skipped": 0
+  },
+  "settlement": {
+    "tests": 38,
+    "pass": 38,
+    "fail": 0,
+    "skipped": 0
+  },
+  "guide-final": {
+    "passed": 93,
+    "failed": 0,
+    "ignored": 0,
+    "overlaps": "rust-guide-delivery"
+  }
+}

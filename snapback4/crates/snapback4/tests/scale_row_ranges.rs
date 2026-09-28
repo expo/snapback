@@ -47,7 +47,7 @@ fn range_whole_group_non_expiring_and_witness_costs_are_distinct() {
             for text in [
                 "whole live basis",
                 "one examined unit and one step",
-                "the walk is not metered",
+                "probes and walks consume the internal ledger",
             ] {
                 assert!(line.contains(text), "{line}");
             }
@@ -114,7 +114,7 @@ fn certificate_uses_the_guide_plan_and_actual_fields_without_invented_backlog() 
         let query=b.programs.iter().find(|p|["badge","myUnread"].contains(&p.program.name.as_str())).unwrap();
         let result=analyze(&b.schema,&query.program);
         let line=result.line();
-        for text in ["parent/expiry index", "unswept expired rows are not visited", "reserving one examined unit and one step", "does not use the private-walk allowance", "Member lookup, authorization and the result cost more", "source group is readable by its audience", "full floor key", "and the scan finishes", "online client takes the server's count when permitted", "partial and does not ask", "expired rows in the range cost device work", "every range operand is null"] {
+        for text in ["at most 64 stored keys", "necessary predicate index", "candidates include unswept expired rows", "expiry and the full predicate", "Larger ranges keep the shared parent/expiry index walk", "reserving one examined unit and one step", "probes and walks consume the internal ledger", "does not use the private-walk allowance", "Member lookup, authorization and the result cost more", "source group is readable by its audience", "full floor key", "and the scan finishes", "online client takes the server's count when permitted", "partial and does not ask", "expired rows in the range cost device work", "every range operand is null"] {
             assert!(line.contains(text),"missing {text}: {line}");
         }
         if source.contains("seenThrough") {

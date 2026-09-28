@@ -1,0 +1,10 @@
+{
+  "packages/snapback4/src/local.ts": "c03160108822fc66716990da7ea3001a122ea7ccc03f7d9c4a68d604b96d8c35",
+  "packages/snapback4/src/local-receipts.ts": "0eb14bb4070b0de81af904ce666d06942af2e3043afed9867c8d6491dfcd5dab",
+  "packages/snapback4/src/writes.ts": "26c1c08f6460b3727bc8cf59bc478c9b75212cc0781002c22a175b29f599d2cc",
+  "packages/snapback4/test/store-reset-review.test.mjs": "047419dea558d14b683831859b938b2f69ed3cf3fd181477d0727f75d5abb38f",
+  "packages/snapback4/dist/local.js": "3686f944e2201f33f59d913308c0ae2bb6eaa35c8d36f780e2a9e06aa528f662",
+  "packages/snapback4/dist/local-receipts.js": "e9710633a796995ae1305666e82cf288f4869a2a507cc83b0807add902ab53d7",
+  "packages/snapback4/dist/writes.js": "a8e0b65c5ede6ce77b9b673a45030f47aab23f68838c87260f6f6ec747cc0dab",
+  "packages/snapback4/dist/wasm/snapback4_device_bg.wasm": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0"
+}

@@ -1192,6 +1192,30 @@ cases["web composer fences old account callbacks and preserves saved write ident
   check(otherBackend.read().intents.length === 0, "references do not cross backends");
   await unmount();
 };
+cases["receipt notifications read one pending list for ten thousand message hooks"] = async () => {
+  const client = controlled(), listeners = new Set();
+  let reads = 0, renders = 0, entries = [];
+  client.onPendingWrites = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+  client.pendingWrites = async () => { reads++; return entries.map(entry => ({ ...entry })); };
+  function Bubble() { const writes = usePendingWrites(mutation); renders++; return h("span", null, writes.length); }
+  await mount(h("div", null, Array.from({ length: 10000 }, (_, key) => h(Bubble, { key }))), client);
+  equal(listeners.size, 1, "the message history shares one pending-list subscription");
+  const startReads = reads, startRenders = renders;
+  for (let peer = 1; peer < 50; peer++) {
+    await act(async () => { for (const notify of listeners) notify(); });
+  }
+  equal(reads - startReads, 49, "per-receipt work is independent of message count");
+  equal(renders, startRenders, "unchanged empty outboxes do not rerender the history");
+  entries = [{ id: "own", op: "write", args: {}, state: "queued", predicted: [] }];
+  await act(async () => { for (const notify of listeners) notify(); });
+  check([...host.querySelectorAll("span")].every(span => span.textContent === "1"), "every hook sees an admitted own write");
+  entries = [];
+  await act(async () => { for (const notify of listeners) notify(); });
+  check([...host.querySelectorAll("span")].every(span => span.textContent === "0"), "settlement reaches every hook");
+  await unmount();
+  equal(listeners.size, 0, "last unmount releases the shared subscription");
+};
+
 cases["pending-write lists filter, update, fence old reads, and release StrictMode subscriptions"] = async () => {
   const listeners = new Set(), reads = [];
   let values = [], current;

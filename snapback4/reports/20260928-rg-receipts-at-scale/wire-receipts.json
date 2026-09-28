@@ -1,0 +1,245 @@
+{
+  "published": [
+    {
+      "op": "delivered",
+      "from": 395645,
+      "writeSeq": 395646,
+      "watermark": 395646,
+      "bytes": 533,
+      "rows": 2,
+      "tables": {
+        "runs": 2
+      },
+      "serverTiming": null,
+      "roundTripMs": 24.800070000000005,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 395646,
+          "bytes": 88
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 395646,
+          "bytes": 252
+        }
+      ]
+    },
+    {
+      "op": "seen",
+      "from": 395646,
+      "writeSeq": 395647,
+      "watermark": 395647,
+      "bytes": 715,
+      "rows": 2,
+      "tables": {
+        "members": 1,
+        "unread": 1
+      },
+      "serverTiming": null,
+      "roundTripMs": 145.60667200000006,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "members",
+          "seq": 395647,
+          "bytes": 286
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "unread",
+          "seq": 395647,
+          "bytes": 236
+        }
+      ]
+    }
+  ],
+  "main": [
+    {
+      "op": "delivered",
+      "from": 393147,
+      "writeSeq": 393148,
+      "watermark": 393148,
+      "bytes": 533,
+      "rows": 2,
+      "tables": {
+        "runs": 2
+      },
+      "serverTiming": "total;dur=16.482, wait;dur=0.001, engine;dur=16.321, cpu;dur=16.344",
+      "roundTripMs": 17.579567999999995,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 393148,
+          "bytes": 88
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 393148,
+          "bytes": 252
+        }
+      ]
+    },
+    {
+      "op": "seen",
+      "from": 393148,
+      "writeSeq": 393149,
+      "watermark": 393149,
+      "bytes": 715,
+      "rows": 2,
+      "tables": {
+        "members": 1,
+        "unread": 1
+      },
+      "serverTiming": "total;dur=110.385, wait;dur=0.001, engine;dur=110.105, cpu;dur=110.210",
+      "roundTripMs": 111.973253,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "members",
+          "seq": 393149,
+          "bytes": 286
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "unread",
+          "seq": 393149,
+          "bytes": 236
+        }
+      ]
+    }
+  ],
+  "fixed-guide": [
+    {
+      "op": "delivered",
+      "from": 401727,
+      "writeSeq": 401728,
+      "watermark": 401728,
+      "bytes": 533,
+      "rows": 2,
+      "tables": {
+        "runs": 2
+      },
+      "serverTiming": "total;dur=17.589, wait;dur=0.000, engine;dur=17.387, cpu;dur=17.428",
+      "roundTripMs": 18.94587100000001,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 401728,
+          "bytes": 88
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "runs",
+          "seq": 401728,
+          "bytes": 252
+        }
+      ]
+    },
+    {
+      "op": "seen",
+      "from": 401728,
+      "writeSeq": 401729,
+      "watermark": 401729,
+      "bytes": 715,
+      "rows": 2,
+      "tables": {
+        "members": 1,
+        "unread": 1
+      },
+      "serverTiming": "total;dur=20.132, wait;dur=0.001, engine;dur=19.895, cpu;dur=19.989",
+      "roundTripMs": 21.22001899999998,
+      "events": [
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "members",
+          "seq": 401729,
+          "bytes": 286
+        },
+        {
+          "keys": [
+            "data",
+            "id",
+            "kind",
+            "seq",
+            "table"
+          ],
+          "table": "unread",
+          "seq": 401729,
+          "bytes": 236
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: repeating media failure cannot gate an already queued send and retries stay bounded
+ok 1 - repeating media failure cannot gate an already queued send and retries stay bounded
+  ---
+  duration_ms: 480.484773
+  type: 'test'
+  ...
+# Subtest: review extra: repeating acknowledged-observation failure cannot strand queued tail
+ok 2 - review extra: repeating acknowledged-observation failure cannot strand queued tail
+  ---
+  duration_ms: 39.391075
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4607.068167

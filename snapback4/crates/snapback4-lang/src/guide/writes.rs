@@ -52,7 +52,7 @@ Failed receipt saves retain known summaries separately until persistence or clos
 256 server terminal receipts and its current outbox directly, so another native
 owner's settlement cannot leave a stale pending outcome. Reads and repeated
 flushes do not refresh the window. Queued terminal writes emit at most once
-per client: their event ids stay remembered until the outbox entry leaves.
+per client, including through retirement and overlapping notifications. Lookups never emit.
 Local receipts survive reopen. Before deleting an adopted web tab's store,
 its terminal receipts enter a shared server/viewer window bounded to 256 in
 recovery order. Existing shared ids keep their outcome and position. Openers

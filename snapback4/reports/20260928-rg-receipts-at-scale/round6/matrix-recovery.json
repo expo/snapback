@@ -1,0 +1,156 @@
+[
+  {
+    "index": 5,
+    "id": "local.ts:call:history.persistPending()#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 8,
+    "id": "local.ts:sendPost:captureStore()#1",
+    "mode": "persistent",
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  },
+  {
+    "index": 12,
+    "id": "local.ts:sendPost:witnessRestore(json.store_id, json.head ?? json.seq, capture)#1",
+    "mode": "persistent",
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  },
+  {
+    "index": 13,
+    "id": "local.ts:syncRound:history.persistPending()#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 60,
+    "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 2,
+    "postedAfterRecovery": 2,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 81,
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 85,
+    "id": "local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 1,
+    "postedUnderFault": 2,
+    "postedAfterRecovery": 2,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 86,
+    "id": "local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 2,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 96,
+    "id": "writes.ts:acknowledged:this.keep(sent)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 97,
+    "id": "writes.ts:persistPending:this.keep(write)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 98,
+    "id": "writes.ts:read:this.keep(known)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 110,
+    "id": "local-assets.ts:drop:this.store.remove(id)#1",
+    "mode": "persistent",
+    "injected": 20,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 112,
+    "id": "local-assets.ts:check:this.drop(entry.id)#1",
+    "mode": "persistent",
+    "injected": 20,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 113,
+    "id": "local-assets.ts:check:this.drop(entry.id)#2",
+    "mode": "persistent",
+    "injected": 20,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

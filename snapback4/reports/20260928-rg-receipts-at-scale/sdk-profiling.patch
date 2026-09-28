@@ -1,0 +1,35 @@
+--- a/node_modules/snapback4/dist/web.js
++++ b/node_modules/snapback4/dist/web.js
+@@ -312 +312 @@
+-                call(request, committedReply) {
++                call(request, committedReply) { const rg={at:performance.now(),op:request.op,name:request.name};
+@@ -326 +326 @@
+-                    const answer = chain.then(() => run(async () => {
++                    const answer = chain.then(() => run(async () => { rg.wait=performance.now()-rg.at;
+@@ -442 +442 @@
+-                    chain = answer.catch(() => undefined);
++                    void answer.then(()=>{rg.ms=performance.now()-rg.at;globalThis.__rg?.calls.push(rg)},()=>{}); chain = answer.catch(() => undefined);
+--- a/node_modules/snapback4/dist/web-idb.js
++++ b/node_modules/snapback4/dist/web-idb.js
+@@ -29 +29 @@
+-    const save = async (name, changes, current) => {
++    const save = async (name, changes, current) => {const rg={at:performance.now(),rows:changes.filter(c=>c.s==="r").length,changes:changes.length,bytes:JSON.stringify(changes).length};
+@@ -103 +103 @@
+-            db.close();
++            db.close(); rg.ms=performance.now()-rg.at;globalThis.__rg?.saves.push(rg);
+--- a/node_modules/snapback4/dist/local.js
++++ b/node_modules/snapback4/dist/local.js
+@@ -186 +186 @@
+-            const result = networkTail.then(body);
++            const queuedAt=performance.now(); const result = networkTail.then(async()=>{const start=performance.now();try{return await body();}finally{window.__rg?.network.push({at:queuedAt,wait:start-queuedAt,ms:performance.now()-start});}});
+@@ -1421 +1421 @@
+-                            ordinarySending = entry.id;
++                            ordinarySending = entry.id; window.__rg?.operations.push({at:performance.now(),op:entry.op,event:"post"});
+@@ -1570 +1570 @@
+-                    const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } };
++                    window.__rg?.operations.push({at:performance.now(),op:op.name,event:"admit"}); const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } };
+--- a/node_modules/snapback4/dist/wasm/snapback4_device.js
++++ b/node_modules/snapback4/dist/wasm/snapback4_device.js
+@@ -398,0 +399,2 @@
++
++const rgCall=WebDevice.prototype.call;WebDevice.prototype.call=function(request){const q=JSON.parse(request),at=performance.now();try{return rgCall.call(this,request)}finally{globalThis.__rg?.wasm.push({at,ms:performance.now()-at,op:q.op,name:q.name})}};

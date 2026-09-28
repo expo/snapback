@@ -1,0 +1,52 @@
+TAP version 13
+# Subtest: 49 persistent: local.ts:1103 flushOnce
+ok 1 - 49 persistent: local.ts:1103 flushOnce
+  ---
+  duration_ms: 473.129246
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1105 flushOnce
+ok 2 - 50 persistent: local.ts:1105 flushOnce
+  ---
+  duration_ms: 55.326504
+  type: 'test'
+  ...
+# Subtest: 54 persistent: local.ts:1113 flushOnce
+ok 3 - 54 persistent: local.ts:1113 flushOnce
+  ---
+  duration_ms: 37.359131
+  type: 'test'
+  ...
+# Subtest: 74 persistent: local-receipts.ts:30 receiptBatch
+ok 4 - 74 persistent: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 32.005186
+  type: 'test'
+  ...
+# Subtest: 75 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 5 - 75 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 30.863945
+  type: 'test'
+  ...
+# Subtest: 89 persistent: writes.ts:154 keep
+ok 6 - 89 persistent: writes.ts:154 keep
+  ---
+  duration_ms: 36.762206
+  type: 'test'
+  ...
+# Subtest: 94 persistent: writes.ts:203 read
+ok 7 - 94 persistent: writes.ts:203 read
+  ---
+  duration_ms: 30.139479
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5655.061888

@@ -361,6 +361,22 @@ fn receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook() {
 }
 
 #[test]
+fn receipts_migrates_the_history_walking_hook_that_does_not_scale() {
+    let text = normalize(&card("receipts").unwrap());
+    assert!(text.contains("history-walking hook does not scale to a large group"));
+    for migration in ["remove its delivery debt", "automatic history `loadMore()`", "background `progress` polling writers",
+        "adding `reports delivery`", "Keep the visible screen's `seen` report", "Replace the mounted `progress` read with `receiptMember`"] {
+        assert!(text.contains(migration), "missing migration step: {migration}");
+    }
+    let hook = text.split("function useReceipts(").nth(1).expect("worked migrated hook");
+    assert!(hook.contains("useQuery(api.receiptMember"));
+    assert!(hook.contains("client.mutate(api.seen"));
+    for history_writer in ["loadMore(", "api.progress", "api.delivered"] {
+        assert!(!hook.contains(history_writer), "migrated hook still uses {history_writer}");
+    }
+}
+
+#[test]
 fn expiring_mutation_programs_card_states_prediction_class() {
     let programs = card("programs").unwrap();
     assert!(programs.contains("Mutation scans of expiring tables require `predicts: \"never\"`"));

@@ -1,0 +1,102 @@
+{
+  "pass": true,
+  "cold": {
+    "documentMs": 169.70333900000014,
+    "credentialsMs": 156.81399199999987,
+    "loginAndFeedMs": 6283.7661069999995,
+    "navigationAndScreenMs": 2052.3356440000007,
+    "remainingAcquisitionMs": 5.518750999999611
+  },
+  "coldWebReadyMs": 8668.173276000001,
+  "browserActor": "u0500",
+  "accountConversations": 100,
+  "roster": 50,
+  "initialHistory": 10000,
+  "k": 20,
+  "warmups": 3,
+  "samples": [
+    {
+      "sendRenderMs": 826.6987479999989,
+      "readConvergenceMs": 4185.089559
+    },
+    {
+      "sendRenderMs": 1146.4456019999998,
+      "readConvergenceMs": 6019.4165619999985
+    },
+    {
+      "sendRenderMs": 994.889952000005,
+      "readConvergenceMs": 5056.412591
+    },
+    {
+      "sendRenderMs": 600.563854,
+      "readConvergenceMs": 3666.6275890000034
+    },
+    {
+      "sendRenderMs": 834.8554240000012,
+      "readConvergenceMs": 3955.5493050000005
+    },
+    {
+      "sendRenderMs": 602.0357700000022,
+      "readConvergenceMs": 3943.529591999999
+    },
+    {
+      "sendRenderMs": 703.3979550000004,
+      "readConvergenceMs": 4619.404669000003
+    },
+    {
+      "sendRenderMs": 699.5996720000039,
+      "readConvergenceMs": 3763.5518660000016
+    },
+    {
+      "sendRenderMs": 618.9358490000013,
+      "readConvergenceMs": 4007.3128889999934
+    },
+    {
+      "sendRenderMs": 1347.6368669999938,
+      "readConvergenceMs": 4234.344610999993
+    },
+    {
+      "sendRenderMs": 597.8818259999971,
+      "readConvergenceMs": 3199.117834000004
+    },
+    {
+      "sendRenderMs": 590.566782000009,
+      "readConvergenceMs": 3641.4516440000007
+    },
+    {
+      "sendRenderMs": 481.2475919999997,
+      "readConvergenceMs": 3273.6521820000053
+    },
+    {
+      "sendRenderMs": 610.7918350000109,
+      "readConvergenceMs": 3328.21721100001
+    },
+    {
+      "sendRenderMs": 509.35794200000237,
+      "readConvergenceMs": 3246.8114960000094
+    },
+    {
+      "sendRenderMs": 489.64020999999775,
+      "readConvergenceMs": 2716.7966250000027
+    },
+    {
+      "sendRenderMs": 486.2979409999971,
+      "readConvergenceMs": 3566.3034909999988
+    },
+    {
+      "sendRenderMs": 469.49111200000334,
+      "readConvergenceMs": 3466.810488000003
+    },
+    {
+      "sendRenderMs": 509.79112200000964,
+      "readConvergenceMs": 2965.894459000003
+    },
+    {
+      "sendRenderMs": 494.5133050000004,
+      "readConvergenceMs": 3234.9259659999952
+    }
+  ],
+  "sendRenderP95Ms": 1146.4456019999998,
+  "readConvergenceP95Ms": 5056.412591,
+  "note": "Actual production web client on isolated full-corpus copy; 49 authenticated API peers read each new message before acknowledging. Original verified fixture remains unchanged."
+}
