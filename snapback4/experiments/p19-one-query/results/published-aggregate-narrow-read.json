@@ -1,0 +1,1 @@
+{"ok":false,"problems":[{"code":"E_SYNC","guide":"sync","mechanical":false,"message":"sync public needs a public read rule; ownLikes reads under `.principal = viewer`","rewrite":"make the sync audience exactly match the table's read rule","site":{"col":1,"file":"schema.q","line":92}}]}

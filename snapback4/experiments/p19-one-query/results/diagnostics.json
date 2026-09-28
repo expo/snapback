@@ -1,0 +1,38 @@
+[
+  {
+    "version": "published",
+    "case": "aggregate-explicit-sync",
+    "exit": 1,
+    "stderr": ""
+  },
+  {
+    "version": "published",
+    "case": "aggregate-narrow-read",
+    "exit": 1,
+    "stderr": ""
+  },
+  {
+    "version": "published",
+    "case": "digest-query",
+    "exit": 1,
+    "stderr": ""
+  },
+  {
+    "version": "main",
+    "case": "aggregate-explicit-sync",
+    "exit": 1,
+    "stderr": ""
+  },
+  {
+    "version": "main",
+    "case": "aggregate-narrow-read",
+    "exit": 1,
+    "stderr": ""
+  },
+  {
+    "version": "main",
+    "case": "digest-query",
+    "exit": 1,
+    "stderr": ""
+  }
+]

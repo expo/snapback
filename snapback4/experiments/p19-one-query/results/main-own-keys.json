@@ -1,0 +1,86 @@
+[
+  {
+    "stage": "start",
+    "pid": 2427009
+  },
+  {
+    "stage": "device",
+    "pid": 2427064
+  },
+  {
+    "stage": "device",
+    "pid": 2427077
+  },
+  {
+    "stage": "residency",
+    "likes": {
+      "bytes": 426,
+      "rows": 3
+    },
+    "reposts": {
+      "bytes": 142,
+      "rows": 1
+    },
+    "totalBytes": 29876224
+  },
+  {
+    "stage": "absent",
+    "read": {
+      "data": {
+        "liked": false,
+        "reposted": false
+      },
+      "complete": true,
+      "cut": null,
+      "fresh": false,
+      "next": null,
+      "since": 1790571650799
+    }
+  },
+  {
+    "stage": "present",
+    "read": {
+      "data": {
+        "liked": true,
+        "reposted": false
+      },
+      "complete": true,
+      "cut": null,
+      "fresh": false,
+      "next": null,
+      "since": 1790571650799
+    }
+  },
+  {
+    "stage": "offline-after-remote-delete",
+    "read": {
+      "data": {
+        "liked": true,
+        "reposted": false
+      },
+      "complete": true,
+      "cut": null,
+      "fresh": false,
+      "next": null,
+      "since": 1790571650799
+    }
+  },
+  {
+    "stage": "synced-delete-offline",
+    "read": {
+      "data": {
+        "liked": false,
+        "reposted": false
+      },
+      "complete": true,
+      "cut": null,
+      "fresh": false,
+      "next": null,
+      "since": 1790571650927
+    }
+  },
+  {
+    "stage": "finished",
+    "pass": true
+  }
+]

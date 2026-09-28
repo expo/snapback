@@ -1,0 +1,26 @@
+{
+  "snapback/schema.q": {
+    "bytes": 24497,
+    "sha256": "3cac14ad097703a0106d0a2f64256b096e03c07702d34d577b5f52ed7a33c99e"
+  },
+  "scale-instance/.snapback4/store.sqlite": {
+    "bytes": 2418200576,
+    "sha256": "8a1ddcec183fabea3257c84a14d77d496a1d865813ac88e6111a01bfeadc3a07"
+  },
+  "scale-instance/.snapback4/store.sqlite-wal": {
+    "bytes": 57420472,
+    "sha256": "9833c6501edb2f26ca8ae4378921ce57094cfd2ade4a61e6b93f2d830aba673e"
+  },
+  "run-log.md": {
+    "bytes": 38461,
+    "sha256": "9a576fb37f288408d4bbc912cd6e6abf052c9df59a3d8a529dff85420574cb33"
+  },
+  "essay.md": {
+    "bytes": 9859,
+    "sha256": "069274dae30250e4a0873445e59e284e9f0dff2e6e82aa23042f59d7b7f85e6e"
+  },
+  "diary.md": {
+    "bytes": 14562,
+    "sha256": "8080ec9eb1111022407e9a65c6085177b73514705fbbdfe559ee130fb26abb2d"
+  }
+}

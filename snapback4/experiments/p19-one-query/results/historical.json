@@ -1,0 +1,116 @@
+{
+  "run-log.md": {
+    "sha256": "9a576fb37f288408d4bbc912cd6e6abf052c9df59a3d8a529dff85420574cb33",
+    "excerpts": [
+      {
+        "line": 91,
+        "text": "1790556969 retry/correction attribution: ambiguous; latest M3 regression passes quote and live delivery, misses typing and transient retained-history count. For confirmed former members, switch to explicit held history (server cannot supply their retained rows); current members keep ordinary server-backed paging. Avoid redundant seen before watermark known. evidence: evidence/m4-m3-regression-5.log, src/receipts.ts, snapback/schema.q historyHeld"
+      },
+      {
+        "line": 100,
+        "text": "1790558410 M5 implementation settings, parent-owned single-use media handles, expiry-filtered render, online and held search; knowledge source: fixture/UI kit and published guide/assets/search/expire; evidence: src/Chat.tsx src/OnceViewer.tsx src/Search.tsx evidence/m5-check-2.txt"
+      },
+      {
+        "line": 135,
+        "text": "1790560141 M6 correction-loop agent-error/authoring: bounded raw like/repost horizons cannot prove absent compound keys offline; independent acquired process replica returned loading for postState and composed post even without pending writes. Added fully synced maintained interaction-key summaries over already-public sources; offline probe now complete. Attempted narrower aggregate audience refused E_QUARRY_SYNTAX (explicit sync on maintain) then E_SYNC (inherited public audience); kept source public semantics. Evidence: evidence/why-postState.txt evidence/m6-offline-post-probe.log evidence/m6-own-state-check*.txt evidence/m6-offline-post-probe-2.log. No brief capability gap: supported summary workaround."
+      },
+      {
+        "line": 142,
+        "text": "1790560305 correction agent-error: several diagnostic log-tail commands and first M6 boundary invocation used mistyped timestamp filenames; corrected using actual directory listing. No artifact or status changed by failed ENOENT invocation. Evidence: milestones.json and actual m6 receipt."
+      }
+    ]
+  },
+  "evidence/m4-decisions.md": {
+    "sha256": "3e10002a36c3ac8f172b904fc2177c24b266523825f478b3a126b19c29d8c9fd",
+    "excerpts": [
+      {
+        "line": 8,
+        "text": "- A joined history response was abandoned because published retention guidance prefers a bare page. Quote excerpt readiness is handled by the quoted bubble component."
+      },
+      {
+        "line": 9,
+        "text": "- Independent process-device and browser probes preserve removed-member history, deny new delivery, and preserve history through another tab and reload. Frozen membership checks nevertheless caught a transient absence. The documented default one-second revalidation withdrawal is relevant: explicit keep:true on retained history made that check pass in the next regression run. SDK expiry, denial, and identity withdrawals still apply; media uses separate authenticated handles."
+      },
+      {
+        "line": 13,
+        "text": "- A debug-only URL exposed the documented client link, pending list, and point queries. It showed a healthy online client and empty outbox while the UI had returned to \u201cOpening conversation\u2026\u201d. DM route resolution was destroying the conversation during query refresh. The route now owns resolved principal/conversation IDs independently. The debug bridge was removed."
+      },
+      {
+        "line": 16,
+        "text": "- Confirmed former members use a held history query; members retain ordinary paging and server fallback. M3 regression now passes retained-history removal and cutoff."
+      }
+    ]
+  },
+  "evidence/m4-m3-regression-5.log": {
+    "sha256": "c9cd2c56751429507615ab2312a7f244de09fc1efac3f2952f5c9c2351fbfd43",
+    "excerpts": [
+      {
+        "line": 2,
+        "text": "STRUCTURED CHOREOGRAPHY MISS {\"schemaVersion\":\"social-messenger.choreography-miss.v1\",\"outcomeClass\":\"application\",\"segment\":\"m3\",\"assertion\":\"member-add-promote-remove-leave-and-live-cutoff\",\"attempts\":[{\"attempt\":1,\"durationMs\":29597.8,\"settlementWaitMs\":27160.3,\"error\":\"removed member lost or duplicated retained group history\"}],\"receipts\":\"/Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/evidence/m3-choreo-1790556678408.jsonl\",\"observations\":\"ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/evidence/m3-choreo-1790556678408.jsonl.observations.jsonl\"}"
+      }
+    ]
+  },
+  "evidence/m6-own-state-check.txt": {
+    "sha256": "afc6f9e0c885556601ed8254834194b83bf4c1c95556dbfb02a828b0ea9a73a9",
+    "excerpts": [
+      {
+        "line": 1,
+        "text": "schema.q:94:3 \u2014 E_QUARRY_SYNTAX: a maintain inherits its source's sync; `online only` opts out"
+      },
+      {
+        "line": 2,
+        "text": "  rewrite: remove this sync line to inherit, or replace it with `online only`"
+      },
+      {
+        "line": 3,
+        "text": "  guide: residency"
+      },
+      {
+        "line": 4,
+        "text": ""
+      }
+    ]
+  },
+  "evidence/m6-own-state-check-2.txt": {
+    "sha256": "8c34ed8a1da743969fc77f10f8c38d9a62fde62ca89a057a4930bfcba855b393",
+    "excerpts": [
+      {
+        "line": 1,
+        "text": "schema.q:92:1 \u2014 E_SYNC: sync public needs a public read rule; ownLikes reads under `.principal = viewer`"
+      },
+      {
+        "line": 2,
+        "text": "  rewrite: make the sync audience exactly match the table's read rule"
+      },
+      {
+        "line": 3,
+        "text": "  guide: sync"
+      },
+      {
+        "line": 4,
+        "text": ""
+      }
+    ]
+  },
+  "evidence/m8-check.txt": {
+    "sha256": "98c0c1606bdbecec411dd39475fe814c6dc656f468b3b4ca492233476ff5c7b8",
+    "excerpts": [
+      {
+        "line": 1,
+        "text": "schema.q:504:17 \u2014 E_QUARRY_BOUND: read or declaration on members (principal, id) at schema.q:504:17: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns"
+      },
+      {
+        "line": 2,
+        "text": "  rewrite: use `first N`: `members where .principal = reader first 50 by .id`; for a complete read, scan by an index leading with conversation, id and pin the deciding columns (N_NEVER_COMPLETE)"
+      },
+      {
+        "line": 3,
+        "text": "  guide: bounds"
+      },
+      {
+        "line": 4,
+        "text": ""
+      }
+    ]
+  }
+}
