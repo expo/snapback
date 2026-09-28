@@ -1,5 +1,9 @@
 # Lane SY — explicit sync observes a round begun after its call
 
+**Round 1:** both review gaps are covered, all three named mutations fail,
+and production code is unchanged. See [the round-1 record](#round-1--review-regressions-2026-09-28)
+below. The intervening sections retain the round-0 implementation and evidence.
+
 Date: 2026-09-28. Branch: `sb4-intent/sy-sync-after-call`.
 Baseline: `ede1f11773671436a1e9ce9ec09416500cd7e946`.
 The first command was `git fetch origin && git merge origin/main`; it reported
@@ -231,3 +235,123 @@ Expo uses that path unchanged.
 
 The final local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing is pushed or published.
+
+## Round 1 — review regressions (2026-09-28)
+
+First ran `git fetch origin && git merge origin/main`. Main advanced from
+`ede1f1177` to `b8400c291`; the merge completed without conflicts, preserving
+both sides. Merge commit `f86705f7a` includes the required co-author trailer.
+Read the lane prompt, this report, the round-0 journal entry, and both complete
+reviews (`~/sb4-intent/reviews/sy-r0.astra.md` and `sy-r0.grok.md`). Accepted
+both test gaps. Neither the reviews nor the new tests found a runtime defect;
+**no production code changed in this round**.
+
+Used the populated `lane-a5/vendor/llp/skills/llp-orient/SKILL.md` read-only
+because this worktree's skill link remains unpopulated. Scope is the existing
+scheduler test and its `LLP 3000#explicit-sync-after-call` reference. LLP 3000
+and LLP 2000.000 are in `llp/current/`, not `foundation/`; section 7.2 of the
+latter supplies the partition/watermark context. The former's explicit-sync
+ruling, the sync card and the operations manual still agree. No design
+question, contract change, new LLP or skill hand-off is needed; report and
+journal updates record the additional evidence.
+
+### Added coverage
+
+Three cases were added to `packages/snapback4/test/sync-after-call.test.mjs`:
+
+- **Older network failure:** hold the older fetch inside the injected
+  transport, commit a new mock-server head, call explicit sync, then reject
+  the held fetch. The older public call fulfills without a value because
+  `syncRound` handles the network error by returning `false`.
+- **Older HTTP 500:** the same sequence returns HTTP 500 from the held fetch,
+  exercising the other ordinary fulfilled-`false` branch. The fixture's
+  existing failure callback can now return an HTTP response as well as throw.
+- **Older background round:** commit head 1, release a change notification
+  with `wake()`, and hold that background round's rendered response. Commit
+  head 2, call explicit sync, then release the old response. No explicit call
+  starts the held round.
+
+Every case requires exactly one follow-up `/sync` and holds its response too,
+proving that the explicit caller stays pending. The failure cases verify
+watermark 0 and an offline link while the follow-up is held, then watermark 1,
+an online link and an `undefined` public result after it succeeds. The wake
+case verifies head 1 while the follow-up is held, then head 2, online and
+`undefined` after awaiting explicit sync. This is the existing custom-handle
+and mock-transport fixture; the unchanged ordinary-history and asset-list
+tests supply real-server, process-device and wasm coverage.
+
+### Mutation evidence
+
+`round1/mutations.mjs` substitutes the built scheduler in memory. It changes
+neither production source nor generated files. Run from `snapback4/`, once
+with each `SY_SYNC_MUTATION` value `false`, `ok`, and `background`:
+
+```sh
+SY_SYNC_MUTATION=false node \
+  --import ./reports/20260928-sy-sync-after-call/round1/mutations.mjs \
+  --test --test-reporter=tap packages/snapback4/test/sync-after-call.test.mjs
+```
+
+| Mutation | Result over all ten scheduler cases | New assertion that fails |
+| --- | --- | --- |
+| `prior.then(ok => ok ? once() : false, once)` | 8 pass, 2 fail, exit 1 | Network-error and HTTP-500 cases see 1 request instead of 2 |
+| `prior.then(ok => ok ? once() : ok, once)` | 8 pass, 2 fail, exit 1 | Network-error and HTTP-500 cases see 1 request instead of 2 |
+| Mark explicitly started round promises; return unmarked in-flight promises directly | 9 pass, 1 fail, exit 1 | Held wake-driven case sees 1 request instead of 2 |
+
+All seven original scheduler cases pass under all three mutations. No case
+times out or is cancelled. The unmodified scheduler passes all **10/10**.
+Raw TAP is preserved in `round1/scheduler.log.gz` and
+`round1/mutation-{false,ok,background}.log.gz`.
+
+### Qualification and every failure
+
+Commands run from `snapback4/`, except root `./ref-check --verbose`:
+
+```sh
+bun run --cwd packages/snapback4 build
+bun run --cwd packages/snapback4 typecheck
+node --test --test-concurrency=8 --test-reporter=tap \
+  packages/snapback4/test/sync*.test.mjs \
+  packages/snapback4/test/local*.test.mjs \
+  packages/snapback4/test/ordinary-history.test.mjs \
+  packages/snapback4/test/asset-lists.test.mjs \
+  packages/snapback4/test/*react*.test.mjs
+cargo test -p snapback4-lang --test guide
+cargo test -p snapback4-core -p snapback4-device --test asset_lists
+```
+
+- **Affected clients including React:** 202 passed, 0 failed, 1 inherited
+  skip across 203 tests (59.599 s). The skip still requires
+  `SNAPBACK4_LEGACY_BIN` for the published 0.2.32 server.
+- **Whole guide:** 92 passed, 0 failed.
+- **Rust asset lists:** core 28 passed, device 22 passed; 0 failed.
+- **Build/typecheck:** both passed. **References:** 521 LLPs, 9,746 refs,
+  0 errors and 0 unchecked. Whitespace check passed.
+- **Ours, deliberate negative controls:** the five assertion failures across
+  the three mutation runs are expected, detailed above. They are not failures
+  of the unmodified client.
+- **Ours, inspection command:** an initial `rg` named nonexistent
+  `sync.test.mjs` and `local.test.mjs` files and printed two missing-file
+  errors. File discovery supplied the actual names; the qualification command
+  uses the existing `sync*` and `local*` patterns. No test was omitted.
+- **Baseline failures:** none. **Environmental failures:** none. There were
+  no unexpected test or build failures in this round.
+
+Node 24.13.1, Bun 1.3.14 and Rust 1.97.0 were already installed. Cargo uses
+eight jobs, dev/test debug info off, incremental off, packaged SQLite flags
+and eight Rust test threads, matching round 0; client tests use fd limit
+65,536. No tool was installed or shared tool path changed. Commands, results
+and hashes are in `round1/qualification-inputs.json`; complete check output
+is in `round1/*.log.gz`.
+
+**Did not run `scripts/test.sh`**, as requested: the supervisor's landing
+suite runs next. Round 0's complete-suite result and 50 isolated repetitions
+of each original race test remain historical evidence above, not new runs.
+
+The existing round-0 wasm was remeasured, not rebuilt: **2,019,815 B raw /
+585,384 B gzip**, identical SHA-256
+`083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625`.
+Delta **0 / 0 B**; unchanged gzip budget **586,193 B**, slack **809 B**.
+`round1/wasm.json` records the comparison. No dependency, version, budget,
+device or wire change. The round-1 commit carries
+`Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.

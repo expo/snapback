@@ -27,7 +27,8 @@ async function fixture(t) {
     const path = new URL(input).pathname;
     if (path === "/schema") return Response.json(backend);
     if (path === "/sync") {
-      await fail?.();
+      const failure = await fail?.();
+      if (failure) return failure;
       return Response.json({ snapshot: false, events: [], watermark: head, more: false, generation: 1, acknowledged: {} });
     }
     if (path === "/changes") {
@@ -83,6 +84,26 @@ test("a wake-driven round is not doubled", { timeout: 5000 }, async t => {
   assert.equal(f.control.attempts - before, 1);
 });
 
+test("explicit sync during a held wake-driven round observes the newer head", { timeout: 5000 }, async t => {
+  const f = await fixture(t), before = f.control.attempts;
+  f.commit(); const old = f.control.hold(); f.wake(); await old.ready;
+  f.commit();
+  const next = f.control.hold();
+  let settled = false;
+  const explicit = f.client.sync();
+  void explicit.then(() => { settled = true; }, () => { settled = true; });
+  old.release(); await turn();
+  assert.equal(f.control.attempts - before, 2, "the background round requires an explicit follow-up");
+  assert.equal(settled, false, "the older background response cannot complete this call");
+  await next.ready;
+  assert.equal(f.watermark, 1, "only the older head has been applied while the follow-up is held");
+  next.release();
+  assert.equal(await explicit, undefined);
+  assert.equal(f.watermark, 2, "sync observes the commit made after the background response was rendered");
+  assert.equal(f.client.link(), "online");
+  assert.equal(f.control.attempts - before, 2);
+});
+
 test("a wake during an explicit round coalesces without an extra round", { timeout: 5000 }, async t => {
   const f = await fixture(t), before = f.control.attempts;
   f.commit(); const old = f.control.hold(), first = f.client.sync(); await old.ready;
@@ -110,6 +131,37 @@ for (const failure of ["offline fetch", "device rejection"]) test(`explicit sync
     assert.equal(await explicit, undefined);
     assert.equal(f.client.link(), "offline");
   } else await assert.rejects(explicit, /device unavailable/);
+});
+
+for (const failure of ["network error", "HTTP 500"]) test(`an older round returning false after ${failure} cannot skip the explicit follow-up`, { timeout: 5000 }, async t => {
+  const entered = Promise.withResolvers(), release = Promise.withResolvers();
+  t.after(() => release.resolve());
+  const f = await fixture(t), before = f.control.attempts;
+  f.fail(async () => {
+    f.fail(undefined);
+    entered.resolve(); await release.promise;
+    if (failure === "network error") throw Error("old round offline");
+    return new Response(null, { status: 500 });
+  });
+  const first = f.client.sync(); await entered.promise;
+  f.commit();
+  const next = f.control.hold();
+  let settled = false;
+  const explicit = f.client.sync();
+  void explicit.then(() => { settled = true; }, () => { settled = true; });
+  release.resolve();
+  assert.equal(await first, undefined, "the older transport failure fulfills instead of rejecting");
+  await turn();
+  assert.equal(f.control.attempts - before, 2, "the older false result still requires a follow-up attempt");
+  assert.equal(settled, false, "explicit sync waits for the follow-up's result");
+  await next.ready;
+  assert.equal(f.watermark, 0, "the failed round applied no page");
+  assert.equal(f.client.link(), "offline");
+  next.release();
+  assert.equal(await explicit, undefined);
+  assert.equal(f.watermark, 1, "the follow-up applies the new server head");
+  assert.equal(f.client.link(), "online", "the follow-up's success owns the link state");
+  assert.equal(f.control.attempts - before, 2);
 });
 
 test("a failed older round cannot skip the explicit follow-up attempt", { timeout: 5000 }, async t => {

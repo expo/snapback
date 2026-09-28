@@ -72107,3 +72107,42 @@ processes, debug info and incremental off, packaged SQLite flags, fd limit
 65,536. No tool installed or shared tool path changed. Report and compressed
 evidence: reports/20260928-sy-sync-after-call/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-28 — Lane SY round 1: false-result and background-round regressions
+
+First fetched and merged origin/main b8400c291 without conflicts; merge
+f86705f7a preserves both sides and carries the co-author trailer. Read the
+round-0 prompt, report and journal entry, and both complete Astra/Grok reviews.
+Accepted their test gaps. Used llp-orient read-only from the populated lane-a5
+skill. The existing LLP 3000 explicit-sync contract and guide still apply.
+
+Added three scheduler regressions. Two hold an older fetch until explicit
+sync is called, then return a network error or HTTP 500, making syncRound
+fulfill false. Both require a follow-up request, keep the explicit caller
+pending while it is held, and check its new watermark, online state and public
+undefined result. The third holds a round started by a wake/change notification,
+commits a newer mock-server head, and requires explicit sync to apply that
+new head. The existing real-server history and asset cases remain unchanged.
+No new test found a runtime defect; no production code changed.
+
+Both reviewed false-result mutations fail the two new transport cases (8 pass,
+2 fail each). The mutation returning background round promises directly fails
+the new wake case (9 pass, 1 fail). All failures are request-count assertions,
+1 instead of 2; no timeouts/cancellations. All seven old scheduler cases pass
+under every mutation. In-memory loaders leave source and generated files intact.
+Unmodified scheduler: 10/10. Affected sync/local/history/assets/React: 202 pass,
+0 fail, 1 inherited legacy-binary skip. Whole guide: 92/92. Rust asset lists:
+28 core and 22 device pass. Build, typecheck, whitespace and ref-check pass;
+references: 521 LLPs, 9,746 refs, zero errors/unchecked.
+
+Failure ledger: five deliberate mutation failures are ours. An inspection rg
+named two nonexistent test filenames (ours); discovery corrected the paths.
+No unexpected test/build failures, baseline failures or environmental failures.
+Did not run scripts/test.sh: the supervisor's landing suite runs next. Round-0
+complete-suite and 50+50 repetition evidence remains historical, not rerun.
+
+Remeasured the existing round-0 wasm, without rebuilding: 2,019,815 B raw /
+585,384 B gzip, identical SHA-256, delta 0/0; unchanged 586,193 B budget.
+No tool installed or shared tool path changed. Report and compressed logs:
+reports/20260928-sy-sync-after-call/REPORT.md and round1/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
