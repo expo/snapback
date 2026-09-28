@@ -12,7 +12,7 @@ for (const [status, code, retryable, auth] of [
   [401, "E_AUTH", true, true],
   [401, undefined, undefined, true],
 ]) {
-  test(`schema startup ${status}/${code ?? "no refusal"}/${retryable}: ${auth ? "forgets refused session" : "keeps saved session offline"}`, async t => {
+  test(`schema startup ${status}/${code ?? "no refusal"}/${retryable}: ${auth ? "forgets refused session" : "keeps saved session connected"}`, async t => {
     const base = "https://schema-session.invalid";
     const session = { principal: "user:alice", kind: "user", token: "saved-bearer", expiresAt: Date.now() + 7 * 86400_000 };
     const stored = new Map();
@@ -54,7 +54,7 @@ for (const [status, code, retryable, auth] of [
       const client = await opening;
       t.after(() => client.close());
       assert.equal(opens, 1);
-      assert.equal(client.link(), "offline");
+      assert.equal(client.link(), "online");
       assert.equal(client.viewer(), session.principal);
       assert.deepEqual(client.session(), session);
       assert.deepEqual(await restoreSession(base, sessionStore), session);

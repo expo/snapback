@@ -75033,3 +75033,61 @@ its sole difference from the full-run artifact is a source-line word (105 to
 no wasm-opt. No shared tool installation, comparative-packet edits, push or
 publication. Report: reports/20260928-fu-fresh-replay-uploads/round1/REPORT.md.
 The local commit carries Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 2: refusals across startup and credential rotation
+
+Merged origin/main first (492ff2419, including W13 pin 8861dd636), then read
+both earlier lane records and Astra's full round-1 review. Grok completed
+while the one full run was underway; all its findings were incorporated.
+The unchanged search scope passes 50/50, including the 16 former baseline
+failures; the full Rust phase also passes them.
+
+Once-view downloads preserve ambiguous outcomes across credential rotation;
+a successful obsolete handle is revoked without another GET. Only a proven
+auth/admission refusal permits the online credential retry. Ephemeral writes
+return validated refusals without dropping the link or queued calls and keep
+their no-replay policy. Schema acquisition uses bounded safe-read admission
+retry; typed refusal survives never-synced startup, and saved devices keep
+received overload distinct from transport loss. Probes and sync can restore
+reachability from validated overload without adopting identity or replay
+proof. Auth preserves status/transport cause and stops automatic rotation
+retry after an ambiguous outcome. Other delivered change-feed refusals stay
+connected; uncached local assets retain the original transport cause.
+
+Jitter now follows the maximum of exponential delay and Retry-After, including
+uploads. A PendingRequest guard refuses and counts actual thread-spawn failure
+before the request destructor can drain an unfinished upload on the dispatcher.
+The report inventories every client request path, its refusal/reset/unreachable
+handling and retry owner. LLP 3000, LLP 3000.017 and guide cards were updated;
+no capacity, contract or wasm budget changed.
+
+Public regressions fail on round 1 in 44 cases; removing mutation jitter fails
+both tiers. Disabling the spawn guard in an isolated source copy makes the
+final real HTTP test return 500 instead of bounded 503; the guarded original
+passes. Real full-worker and full-connection witnesses assert four SDK attempts,
+nonzero summary counters, server survival and upload recovery.
+
+Ran scripts/test.sh exactly once, exit 1: `== 1 failure(s) in 1270 s`, category
+client tests. Rust: 4,295 pass / 0 fail / 33 ignored. Client shards: 4,503 pass /
+2 fail / 8 cancelled timeouts / 10 skipped. Models: 79/79; fixtures: 9/9.
+All ten full-run failures are ours: the await census and asynchronous cleanup
+loaded during late edits, plus eight old upload-lifetime timer mocks that
+missed jitter. All are repaired in affected reruns; every name is recorded in
+round2/FAILURES.md. No second full run or all-green full-suite claim. Outside
+that run, one unchanged HTTP token-bucket test crossed its 50 ms refill window
+under high concurrency (environmental); it passes alone and in the qualified
+four-thread HTTP scope. Setup mistakes and expected controls are also retained.
+
+Final affected client selection: 429 pass, including the 315-test await matrix.
+Upload-lifetime: 46/46; asset lifecycle: 30/30. HTTP: 136 pass / 3 existing
+ignored; spawn/pool/counter tests: 3/3; whole guide: 98/98. Build, typecheck,
+docs-budget and ref-check pass. The final server was rebuilt and its three
+overload tests passed again after the isolated negative control.
+
+Wasm: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, unchanged from round 1;
+593,719 B budget, 711 B headroom. SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. No shared tool installation,
+other-lane/packet edits, push or publication. Report:
+reports/20260928-fu-fresh-replay-uploads/round2/REPORT.md. Local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.

@@ -8,10 +8,10 @@ import { defaultFetch } from "#fetch";
 
 import { storeKey, logoutEpoch } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
+import { readResponse, transportRefusal } from "./http-response.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
 
-const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
 const refused = (message: string): Refusal => ({ code: "E_AUTH", family: "auth", message });
 const isSession = (value: unknown, now = Date.now()): value is Session => {
   const found = value as Partial<Session> | null;
@@ -21,11 +21,11 @@ const isSession = (value: unknown, now = Date.now()): value is Session => {
 async function post(url: string, path: string, body: unknown, doFetch: typeof fetch): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const json = (await response.json()) as { session?: Session; denied?: Refusal };
+    const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("sign-in was refused") };
-  } catch {
-    return { ok: false, why: offline() };
+  } catch (error) {
+    return { ok: false, why: transportRefusal(error) };
   }
 }
 
@@ -48,11 +48,11 @@ export function login(url: string, email: string, password: string, doFetch: typ
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
-    const json = (await response.json()) as { session?: Session; denied?: Refusal };
+    const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("session refresh was refused") };
-  } catch {
-    return { ok: false, why: offline() };
+  } catch (error) {
+    return { ok: false, why: transportRefusal(error) };
   }
 }
 
@@ -60,12 +60,12 @@ export async function refreshSession(url: string, token: string, doFetch: typeof
 export async function logoutAll(url: string, token: string, doFetch: typeof fetch = defaultFetch): Promise<SessionRevocation> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/logout-all`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
-    const json = (await response.json()) as { ok?: boolean; revoked?: number; denied?: Refusal };
+    const json = (await readResponse(response)) as { ok?: boolean; revoked?: number; denied?: Refusal };
     if (json.denied) return { ok: false, why: json.denied };
     if (response.ok && (json.ok === true || typeof json.revoked === "number")) return { ok: true, revoked: Number(json.revoked ?? 0) };
     return { ok: false, why: refused("session revocation was refused") };
-  } catch {
-    return { ok: false, why: offline() };
+  } catch (error) {
+    return { ok: false, why: transportRefusal(error) };
   }
 }
 

@@ -57,6 +57,7 @@ for (const tier of ["online", "web"]) test(`${tier} upload retries two HTTP admi
 
 function immediateTimers(t) {
   const delays = [];
+  t.mock.method(Math, "random", () => 0.5);
   t.mock.method(globalThis, "setTimeout", (callback, delay) => { delays.push(delay); queueMicrotask(callback); return 0; });
   return delays;
 }
@@ -67,7 +68,7 @@ test("upload admission attempts are bounded and return the last refusal unchange
   const result = await uploadAsset("http://uploads.invalid", {}, async () => {
     attempts++; return Response.json({ denied: rateLimit }, { status: 429 });
   }, bytes);
-  assert.equal(attempts, 4); assert.deepEqual(delays, [250, 500, 1000]);
+  assert.equal(attempts, 4); assert.deepEqual(delays, [281.25, 562.5, 1125]);
   assert.deepEqual(result, { ok: false, why: rateLimit });
 });
 
@@ -106,7 +107,7 @@ test("repeated Retry-After: 6 consumes the cumulative ten-second wait budget", a
     return Response.json({ denied: rateLimit }, { status: 429, headers: { "Retry-After": "6" } });
   }, bytes);
   assert.equal(attempts, 2);
-  assert.deepEqual(delays, [6000]);
+  assert.deepEqual(delays, [6750]);
   assert.deepEqual(result, { ok: false, why: rateLimit });
 });
 
@@ -150,7 +151,7 @@ test("upload preserves a server store refusal and its actual cause", async () =>
   assert.deepEqual(result, { ok: false, why });
 });
 
-test("fresh replay host reports connection overload to the real upload transport and recovers", { timeout: 20_000 }, async t => {
+for (const capacity of ["connection", "worker"]) test(`fresh replay host reports ${capacity} overload to the real upload transport and recovers`, { timeout: 20_000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), "sb4-upload-overload-"));
   await mkdir(join(dir, "snapback"));
   await writeFile(join(dir, "snapback/schema.q"), `use personas alice
@@ -180,13 +181,18 @@ table photos:
     child.once("exit", () => { clearTimeout(timeout); reject(Error(`server exited: ${log}`)); });
   });
   const port = Number(new URL(url).port);
-  // The 128 slow-header sockets occupy only connection leases, not request
-  // workers, the engine or assets. No fixture rows or writes are needed.
-  await Promise.all(Array.from({ length: 128 }, async () => {
+  // Slow headers fill connection leases; 100-continue witnesses prove that
+  // unfinished mutations occupy all 32 workers before the upload is attempted.
+  await Promise.all(Array.from({ length: capacity === "connection" ? 128 : 32 }, async () => {
     const socket = connect(port, "127.0.0.1");
     socket.on("error", () => {});
     sockets.push(socket);
     await once(socket, "connect");
+    if (capacity === "worker") {
+      const ready = once(socket, "data");
+      socket.write("POST /m/held HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nContent-Length: 100000\r\nExpect: 100-continue\r\n\r\n");
+      assert.match(String((await ready)[0]), /HTTP\/1.1 100 Continue/);
+    }
   }));
   const png = Buffer.alloc(2081);
   Buffer.from("89504e470d0a1a0a0000000d494844520000000100000001", "hex").copy(png);
@@ -196,7 +202,7 @@ table photos:
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);
-  assert.match(log, /E_RATE_LIMIT at http: all 128 HTTP connections/);
+  assert.match(log, capacity === "connection" ? /E_RATE_LIMIT at http: all 128 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/);
   assert.equal(child.exitCode, null, "host remains alive");
   for (const socket of sockets) socket.destroy();
   const recovered = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
@@ -210,7 +216,7 @@ for (const [header, expected] of [["2", 2000], ["Thu, 24 Sep 2026 12:00:03 GMT",
     let attempts = 0;
     const result = await uploadAsset("http://uploads.invalid", {}, async () => ++attempts === 1
       ? Response.json({ denied: rateLimit }, { status: 429, headers: { "Retry-After": header } }) : Response.json({ asset }), bytes);
-    assert.equal(result.ok, true); assert.deepEqual(delays, [expected]);
+    assert.equal(result.ok, true); assert.deepEqual(delays, [expected * 1.125]);
   });
 }
 

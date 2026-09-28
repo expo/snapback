@@ -28,6 +28,11 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  // Round 2: auth handling precedes refusal wait; schema send/body now share
+  // the safe-read await (body I/O is also exercised by readResponse).
+  if (index === 41) index = 42;
+  else if (index === 42) index = 41;
+  if (index >= 124) index += 1;
   if (index >= 17 && index <= 40) return index + 1;
   // The shared JSON await is required: it also reads mutation receipts, where
   // failure must retain the same ID and wait for recovery before the FIFO tail.

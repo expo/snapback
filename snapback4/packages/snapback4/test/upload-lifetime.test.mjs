@@ -106,12 +106,13 @@ for (const tier of ["online", "web"]) {
   for (const ending of ["sign-out", "rotation"]) {
     test(`${tier} upload stops before retry when ${ending} occurs during backoff`, { timeout: 10_000 }, async t => {
       const backoff = deferred();
+      t.mock.method(Math, "random", () => 0.5);
       let resume;
       const { client, requests, facts } = await fixture(t, tier, async attempt => attempt === 1
         ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset }));
       const originalTimer = globalThis.setTimeout;
       t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
-        if (delay !== 250) return originalTimer(callback, delay, ...args);
+        if (delay !== 281.25) return originalTimer(callback, delay, ...args);
         resume = () => callback(...args); backoff.resolve(); return 0;
       });
       const uploading = client.upload(bytes);
@@ -295,12 +296,13 @@ for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.en
   }
   test(`${tier} upload continues backoff after a completed ${failure} refresh failure`, { timeout: 10_000 }, async t => {
     const backoff = deferred();
+    t.mock.method(Math, "random", () => 0.5);
     let resume;
     const { client, requests } = await fixture(t, tier, async attempt => attempt === 1
       ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset }), refresh);
     const originalTimer = globalThis.setTimeout;
     t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
-      if (delay !== 250) return originalTimer(callback, delay, ...args);
+      if (delay !== 281.25) return originalTimer(callback, delay, ...args);
       resume = () => callback(...args); backoff.resolve(); return 0;
     });
     const uploading = client.upload(bytes);

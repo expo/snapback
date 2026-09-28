@@ -78,7 +78,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
         if(scenario === 'search' && path === '/q/matrixQuery') return index === 141 ? new Response('invalid JSON') : Response.json({data:[],complete:true,store_id:'A',head:11,generation:1,searchScopes:['live'],searchCurrent:[]});
         if(index === 12 && path.startsWith('/q/')) return Response.json({data:'A',complete:true,store_id:'A',head:11});
         if(index === 137 && path === '/changes' && failures < budget) return {ok:true,status:200,headers:new Headers(),async json(){ fault();return {seq:11,store_id:'A'};}};
-        if(index === 42 && path === '/changes' && failures < budget) return Response.json({denied:{...why,retryable:true}},{status:500});
+        if([42,156].includes(index) && path === '/changes' && failures < budget) return Response.json({denied:{...why,retryable:true}},{status:500});
         if(scenario === 'exit' && init.keepalive) return Response.json({state:'failed',why:{code:'E_STORE_REPLACED',family:'store',message:'replaced',retryable:[76,103].includes(index)}});
         if (scenario === 'native') {
           if(path === '/schema') return Response.json({...original,generation:1,native:{digest:'matrix'}});

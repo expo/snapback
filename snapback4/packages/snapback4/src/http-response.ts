@@ -49,16 +49,16 @@ export async function readWithAdmissionRetry(send: () => Promise<Response>, curr
   for (let attempt = 0; ; attempt++) {
     const response = await send(), json = await readResponse(response, decode);
     if (!overloaded(refusal(json.denied ?? json.why)) || attempt === 3 || !current()) return { response, json };
-    const delay = Math.max(jitter(250 * 2 ** attempt), retryAfter(response.headers.get('retry-after')));
+    const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get('retry-after'))));
     if (waited + delay > 10_000) return { response, json };
     await pause(delay, signal);
     waited += delay;
     if (!current() || signal?.aborted) return { response, json };
   }
 }
-/** Polls remain connected when the server explicitly refuses admission. */
-export async function pauseOverload(response: Response, why: Refusal | undefined, signal: AbortSignal): Promise<boolean> {
-  if (why?.code !== 'E_RATE_LIMIT') return false;
-  await pause(Math.max(jitter(1000), retryAfter(response.headers.get('retry-after'))), signal);
+/** A delivered refusal is not a transport outage. Polls wait before trying again. */
+export async function pauseRefusal(response: Response, why: Refusal | undefined, signal: AbortSignal): Promise<boolean> {
+  if (!refusal(why)) return false;
+  await pause(jitter(Math.max(1000, retryAfter(response.headers.get('retry-after')))), signal);
   return true;
 }

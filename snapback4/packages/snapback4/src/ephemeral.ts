@@ -1,5 +1,6 @@
 // @ref LLP 3000.017#24-the-client — one ordered, memory-only lane; only proven renewals coalesce.
 import type { Client, Ephemeral, Link, MutateOptions, Mutation, MutationPromise, Refusal, Signal } from "./contract.ts";
+import { refusal, transportRefusal } from "./http-response.ts";
 
 export const ephemeralOffline = (): Refusal => ({ code: "E_OFFLINE", family: "link", retryable: true,
   message: "an ephemeral write needs an online link; it is dropped, not held or retried" });
@@ -71,16 +72,17 @@ export function ephemeralLane(options: Options) {
           body: JSON.stringify({ id: entry.id, args: entry.args, ...(store ? { store_id: store } : {}) }),
         });
         const json = await response.json();
+        const denied = refusal(json?.denied ?? json?.why);
+        if (denied) return failedSignal(entry.id, denied);
         if (json?.state === "sent" && Object.hasOwn(json, "result") && !("seq" in json)) {
           return { state: "sent", id: entry.id, result: json.result };
         }
-        if (json?.state === "failed" && typeof json.why?.code === "string") return failedSignal(entry.id, json.why);
         throw new Error("unrecognized ephemeral response");
       })();
       return await Promise.race([work, interrupted]);
-    } catch {
+    } catch (error) {
       if (!options.signal.aborted) options.offline();
-      return failedSignal(entry.id, unavailable() ?? ephemeralOffline());
+      return failedSignal(entry.id, (options.signal.aborted ? unavailable() : options.unavailable?.()) ?? transportRefusal(error));
     } finally {
       clearTimeout(timeout);
       options.signal.removeEventListener("abort", abort);

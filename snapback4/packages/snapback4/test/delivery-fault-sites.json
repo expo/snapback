@@ -288,14 +288,14 @@
   },
   {
     "index": 41,
-    "id": "local.ts:waitForChange:pauseOverload(response, json.denied, aborter.signal)#1",
+    "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 42,
-    "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
+    "id": "local.ts:waitForChange:pauseRefusal(response, json.denied, aborter.signal)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
@@ -862,244 +862,237 @@
   },
   {
     "index": 123,
-    "id": "local-backend.ts:loadBackend:doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) })#1",
+    "id": "local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 124,
-    "id": "local-backend.ts:loadBackend:response.json()#1",
-    "recipe": "adoption",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 125,
     "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 126,
+    "index": 125,
     "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 127,
+    "index": 126,
     "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 128,
+    "index": 127,
     "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 129,
+    "index": 128,
     "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
     "recipe": "native",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 130,
+    "index": 129,
     "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 131,
+    "index": 130,
     "id": "pending-writes.ts:record:revision()#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 132,
+    "index": 131,
     "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
     "recipe": "hold",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 133,
+    "index": 132,
     "id": "clock.ts:wrapped:fetcher(input, init)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 134,
+    "index": 133,
     "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
     "recipe": "clock",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 135,
+    "index": 134,
     "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 136,
+    "index": 135,
     "id": "changes.ts:changeFeed:reader.read()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 137,
+    "index": 136,
     "id": "changes.ts:changeFeed:response.json()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 138,
+    "index": 137,
     "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 139,
+    "index": 138,
     "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 140,
+    "index": 139,
     "id": "local-search.ts:decode:reader.read()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 141,
+    "index": 140,
     "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 142,
+    "index": 141,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 143,
+    "index": 142,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 144,
+    "index": 143,
     "id": "local-search.ts:ordinarySearch:blocked()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 145,
+    "index": 144,
     "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r))#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 146,
+    "index": 145,
     "id": "local-search.ts:ordinarySearch:blocked()#2",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 147,
+    "index": 146,
     "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used })#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 148,
+    "index": 147,
     "id": "local-query.ts:route:env.installNative(env.signal)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 149,
+    "index": 148,
     "id": "local-query.ts:route:server()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 150,
+    "index": 149,
     "id": "local-query.ts:route:blocked()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 151,
+    "index": 150,
     "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 152,
+    "index": 151,
     "id": "local-query.ts:route:local()#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 153,
+    "index": 152,
     "id": "local-query.ts:route:routeLocal(first)#1",
     "recipe": "search",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 154,
+    "index": 153,
     "id": "http-response.ts:readResponse:decode(response)#1",
     "recipe": "queryDecode",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 155,
+    "index": 154,
     "id": "http-response.ts:readResponse:response.json()#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 156,
+    "index": 155,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 157,
+    "index": 156,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",

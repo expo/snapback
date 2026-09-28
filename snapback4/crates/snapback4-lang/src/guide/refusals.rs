@@ -55,9 +55,14 @@ envelope; its status is in the message. An upload's outcome is unknown, so
 inspect server/proxy logs before retrying. E_OFFLINE applies when no HTTP
 response could be consumed. It retains the host's transport cause when supplied;
 otherwise it reports an unspecified transport failure. A received E_RATE_LIMIT
-keeps the link online and effect workers retrying. Reads and same-ID mutations
-back off with jitter; uploads and downloads retry only explicit admission
-refusals. An undeliverable overload response can still look like a transport
+keeps the link online and effect workers retrying. Reads (including schema
+startup) and same-ID mutations back off with jitter. Exhausted startup overload
+keeps its code even on a fresh device. Ephemeral writes return the refusal
+without replay. Uploads and downloads retry only explicit admission refusals,
+with jitter after the Retry-After minimum. A probe or sync overload restores
+an offline link without establishing store identity or acquisition.
+Credential rotation cannot replay an ambiguous once-view download; an ambiguous
+token refresh also stops automatic rotation. An undeliverable overload response can still look like a transport
 failure; operator counters distinguish the admission layers.
 
 `snapback4 why <CODE>` prints its explanation and diagnostic details,

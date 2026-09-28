@@ -423,10 +423,26 @@ struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: Ato
 #[derive(Clone, Copy)]
 enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
+// @ref LLP 3000#http-overload-diagnostics — spawn failure drops the closure on the dispatcher; refuse before Request can drain an unfinished body.
+struct PendingRequest { request: Option<Request>, admission: Arc<RequestAdmission>, class: RequestClass }
+impl PendingRequest {
+    fn take(mut self) -> Request { self.request.take().unwrap() }
+}
+impl Drop for PendingRequest {
+    fn drop(&mut self) {
+        if let Some(request) = self.request.take() { self.admission.refuse(request, self.class); }
+    }
+}
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
+    fn refuse(&self, request: Request, class: RequestClass) {
+        let result = request.refuse_overload();
+        let increment = |counter: &AtomicUsize| { let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1))); };
+        increment(&self.refused[class as usize]);
+        if result.http_written == 0 { increment(&self.undelivered[class as usize]); }
+    }
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
         match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
@@ -438,6 +454,10 @@ impl RequestAdmission {
 }
 
 fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
+    dispatch_with_builder(request, shared, admission, loopback_listener, std::thread::Builder::new().name("request".into()));
+}
+
+fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool, builder: std::thread::Builder) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
     let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
@@ -454,13 +474,12 @@ fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmissi
             || shared.personas && matches!((request.method(), path), (Method::Get, "/dev/latency") | (Method::Post, "/dev/latency/reset")) { RequestClass::Short }
         else { RequestClass::Mutation };
     let Some(permit) = admission.acquire(class) else {
-        let result = request.refuse_overload();
-        let increment = |counter: &AtomicUsize| { let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1))); };
-        increment(&admission.refused[class as usize]);
-        if result.http_written == 0 { increment(&admission.undelivered[class as usize]); }
+        admission.refuse(request, class);
         return;
     };
-    if let Err(error) = std::thread::Builder::new().name("request".into()).spawn(move || { let _permit = permit;
+    let pending = PendingRequest { request: Some(request), admission, class };
+    if let Err(error) = builder.spawn(move || { let _permit = permit;
+        let request = pending.take();
         if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } }) {
         snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
     }

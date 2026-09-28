@@ -78,7 +78,7 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.
       if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };
-      const delay = Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after")));
+      const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
       // Never retry earlier than the server permits. A long Retry-After ends
       // this bounded call instead of parking an upload indefinitely.
       if (waited + delay > 10_000) return { ok: false, why };
@@ -111,7 +111,7 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       const why = refusal(json?.denied) ?? invalidResponse(response.status, "download");
       // An admission refusal proves the once-view response never started.
       // A reset, including during blob consumption, exits without retrying.
-      const delay = Math.max(jitter(250 * 2 ** attempt), retryAfter(response.headers.get("retry-after")));
+      const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
       if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return { denied: why };
       await new Promise(resolve => setTimeout(resolve, delay));
       waited += delay;

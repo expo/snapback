@@ -1,4 +1,4 @@
-import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseOverload } from "./http-response.ts";
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -218,8 +218,8 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) await refreshing;
     if (closed || storeRefusal || !credentials || !watches.size) return false;
     const revision = credentialRevision;
-    const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
-    const next = await response.json() as BackendJson & { denied?: Refusal };
+    const { response, json } = await readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal }), () => !closed && credentials && revision === credentialRevision, aborter.signal);
+    const next = json as unknown as BackendJson & { denied?: Refusal };
     if (closed || storeRefusal || !watches.size) return false;
     if (await obsoleteRefusal(next.denied, revision)) return false;
     if (!credentials || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
@@ -424,6 +424,8 @@ export function createClient(options: ClientOptions): Client {
     const token = headers.authorization?.slice("Bearer ".length);
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = undefined;
     credentialRevision += 1;
     const deliverReset = resetWatches(false);
     const rotation = rotateSession(base, token, doFetch);
@@ -446,8 +448,8 @@ export function createClient(options: ClientOptions): Client {
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
       if (!refreshed.ok) {
-        if (refreshed.why.code === "E_AUTH") endCredentials();
-        else if (refreshed.why.retryable) scheduleRefresh(60_000);
+        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials();
+        else if (refreshed.why.retryable && !["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshed.why.code)) scheduleRefresh(60_000);
         return refreshed;
       }
       if (expectedPrincipal !== null && refreshed.session.principal !== expectedPrincipal) {
@@ -476,7 +478,7 @@ export function createClient(options: ClientOptions): Client {
   // A rotation invalidates the old token. Its late refusal is not a refusal
   // of the replacement: retry at the new revision (writes keep their id).
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
-    if (why?.code !== "E_AUTH") return false;
+    if (why?.code !== "E_AUTH" || why.retryable) return false;
     if (refreshing) await refreshing;
     if (storeRefusal || closed) return false;
     if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
@@ -743,6 +745,7 @@ export function createClient(options: ClientOptions): Client {
         if (attempt < 3) { await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt)); await probeOnce(attempt + 1); }
         return;
       }
+      if (overloaded(refusal(json.denied)) && credentials && revision === credentialRevision) setLink("online");
       if (response.status === 200 && json.ok === true && credentials) {
         probed = true;
         setLink("online");
@@ -771,12 +774,12 @@ export function createClient(options: ClientOptions): Client {
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
-        if (await pauseOverload(response, json.denied, aborter.signal)) continue;
-        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
         if (closed || storeRefusal || !credentials) break;
+        if (await pauseRefusal(response, json.denied, aborter.signal)) continue;
+        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
@@ -859,7 +862,7 @@ export function createClient(options: ClientOptions): Client {
           finally { sending = null; }
           if (!sent) {
             if (closed || storeRefusal || !credentials) return;
-            retry = setTimeout(() => { retry = undefined; void flush(); }, Math.max(retryOverload ? jitter(retryMs) : retryMs, retryAfterMs));
+            retry = setTimeout(() => { retry = undefined; void flush(); }, retryOverload ? jitter(Math.max(retryMs, retryAfterMs)) : Math.max(retryMs, retryAfterMs));
             retryAfterMs = 0; retryOverload = false;
             (retry as { unref?: () => void }).unref?.();
             retryMs = Math.min(retryMs * 2, 5000);
@@ -988,11 +991,14 @@ export function createClient(options: ClientOptions): Client {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      // A successful reply is just as credential-bound as a refusal. Do not
-      // publish bytes fetched under a bearer that rotated while it was away.
+      // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
       if (revision !== credentialRevision) {
-        if ("url" in read) read.revoke();
-        return client.asset(id);
+        if ("denied" in read) {
+          if (read.denied.code === "E_AUTH" || (read.denied.code === "E_RATE_LIMIT" && read.denied.retryable)) return client.asset(id);
+          return read;
+        }
+        read.revoke();
+        return { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
       }
       if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
       if (storeRefusal || closed || !credentials) {

@@ -1,4 +1,4 @@
-import { readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseOverload } from "./http-response.ts";
+import { readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
@@ -31,7 +31,7 @@ import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
-import { BackendAuthError, loadBackend } from "./local-backend.ts";
+import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
@@ -115,14 +115,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
-  // Restore the kept backend before installing anything from the server.
-  // A generation change can erase the evidence needed to detect a restore;
-  // the ordinary sync preflight and captured adoption must run first.
-  // One store per server and viewer.
+  // Restore before installing a backend: sync must validate the old evidence
+  // before adoption. Each server/viewer pair has one store.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online", linkRevision = 0;
   let generation = 0;
   let backend: BackendJson | null = null;
+  let startupRefusal: BackendRefusalError | undefined;
   try {
     backend = await loadBackend(doFetch, base, requestCredentials().headers);
   } catch (error) {
@@ -130,22 +129,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await forgetSession(base, sessions);
       throw new Error(`createLocalClient: ${error.denied.code}: ${error.denied.message}`);
     }
-    link = "offline";
+    if (error instanceof BackendRefusalError) startupRefusal = error;
+    if (!startupRefusal || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(startupRefusal.denied.code)) link = "offline";
   }
   const active = new Set<Promise<unknown>>();
   let closed = false;
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
-  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — startup must preserve the evidence until the server head has been validated.
-  const core = await options.device.open(storeName, null).catch(error => {
-    // This refusal permits a conditional first-install request: another
-    // owner may have initialized the name since the failed open.
-    // Store corruption, ownership and other open failures must not fall back.
-    const message = error instanceof Error ? error.message : String(error);
-    if (!backend || !message.includes("E_AUTH") || !message.includes("this device has never synced: the server must be reachable once to open")) throw error;
-    return options.device.open(storeName, { initial_backend: backend });
-  });
+  const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
   // Web mutations can arrive after publication but before startup validation.
   let sendingAllowed = !core.onSuspend;
@@ -415,7 +407,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return work;
   };
   const refusedSession = async (denied: unknown, revision: number) => {
-    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH") await endSession();
+    if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession();
   };
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -437,6 +429,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (refreshing) return refreshing;
     const token = session.token;
     const expectedPrincipal = session.principal;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = undefined;
     rotating = true;
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
@@ -461,8 +455,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!refreshed.ok) {
         rotating = false;
         credentialRevision += 1;
-        if (refreshed.why.code === "E_AUTH" && session?.token === token) await endSession();
-        else if (refreshed.why.retryable) scheduleRefresh(60_000);
+        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession();
+        else if (refreshed.why.retryable && !["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshed.why.code)) scheduleRefresh(60_000);
         return refreshed;
       }
       if (refreshed.session.principal !== expectedPrincipal) {
@@ -641,6 +635,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
         if (denied && !generationChanged && !responsePageTooLarge(denied)) {
+          if (overloaded(refusal(denied))) setLink("online");
           await refusePartition(denied, pageRevision);
           return false;
         }
@@ -795,6 +790,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
+      if (overloaded(refusal(json.denied)) && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) { setLink("online"); return; }
       if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
         if (await witnessRestore(json.store_id, json.seq, capture)) return;
@@ -820,10 +816,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!capture) return false;
       const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal);
       if (!ephemeralReads.current(eph)) return false;
-      if (await pauseOverload(response, json.denied, aborter.signal)) return false;
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
-        if (json.denied?.code === "E_AUTH") return false;
+        if (json.denied?.code === "E_AUTH" && !json.denied.retryable) return false;
+        if (await pauseRefusal(response, json.denied, aborter.signal)) return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
       if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
@@ -1083,7 +1079,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   function retryFlush() {
     if (closed || sessionDead || retry || partitionDenied?.code === "E_STORE_RESTORE") return;
-    retry = setTimeout(() => { retry = undefined; void flush(); }, Math.max(retryOverload ? jitter(retryMs) : retryMs, retryAfterMs));
+    retry = setTimeout(() => { retry = undefined; void flush(); }, retryOverload ? jitter(Math.max(retryMs, retryAfterMs)) : Math.max(retryMs, retryAfterMs));
     retryAfterMs = 0; retryOverload = false;
     (retry as { unref?: () => void }).unref?.();
     retryMs = Math.min(5000, retryMs * 2);
@@ -1316,12 +1312,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response));
       if ("denied" in read) {
         await refusedSession(read.denied, request.revision);
-        if (read.denied.code === "E_OFFLINE" && !unavailable()) { setLink("offline"); return media!.read(id); }
+        if (read.denied.code === "E_OFFLINE" && !unavailable()) {
+          setLink("offline");
+          const retained = await media!.read(id);
+          return "url" in retained ? retained : read;
+        }
         await media!.invalidate(id);
       }
       if (unavailable() || request.revision !== credentialRevision) {
         if ("url" in read) read.revoke();
-        return { denied: unavailable() ?? offline() };
+        return unavailable() ? { denied: unavailable()! } : "denied" in read ? read : { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
       }
       return read;
     },

@@ -53,3 +53,30 @@ fn every_worker_pool_counts_and_returns_the_same_public_refusal() {
         assert_eq!(host.admission.counter(class).load(Ordering::Acquire), permits.len());
     }
 }
+
+#[test]
+fn failed_thread_spawn_refuses_unfinished_upload_and_releases_permit() {
+    let host = Host::new(true);
+    let server = Server::http_with_limits("127.0.0.1:0", tiny_http::ConnectionLimits::default()).unwrap();
+    let address = server.server_addr().to_ip().unwrap();
+    let peer = thread::spawn(move || {
+        let mut stream = TcpStream::connect(address).unwrap();
+        stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+        stream.write_all(b"POST /assets HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100000\r\n\r\n").unwrap();
+        let mut response = String::new();
+        let read = stream.read_to_string(&mut response);
+        (response, read)
+    });
+    let request = server.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+    // This cannot fit in a process address space. Exercise the actual spawn Err
+    // path without lowering shared-host limits or exhausting any real resource.
+    let builder = thread::Builder::new().name("request".into()).stack_size(usize::MAX / 2);
+    dispatch_with_builder(request, host.shared.clone(), host.admission.clone(), true, builder);
+    let (response, read) = peer.join().unwrap();
+    assert!(read.is_ok(), "unfinished body must not delay refusal: {read:?}; {response}");
+    assert_eq!(status(&response), 503, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_RATE_LIMIT");
+    assert_eq!(host.admission.mutations.load(Ordering::Acquire), 0);
+    assert_eq!(host.admission.refused[RequestClass::Mutation as usize].load(Ordering::Relaxed), 1);
+    assert_eq!(status(&host.request("GET", "/auth/config", "", "")), 200);
+}
