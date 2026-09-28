@@ -16,9 +16,8 @@ npx snapback4 dev
 The installed README explains native, Expo Go and web setup. Its Quarry file
 keeps profiles, follows, Following, likes, retained conversations/messages,
 SDK delivery reporting, typing, ordinary images and once images together.
-The current public like summary expands every replica; see
-`guide offline-interactions` and the starter's census note. Until owner-key
-coverage ships, a raw missing like is unknown, never false. The current
+Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
+unknown coverage stays loading. See `guide offline-interactions`. The current
 all-chat search labels current memberships online versus held history offline;
 per-chat search is one ordinary pinned operation. See `guide search` for cuts.
 

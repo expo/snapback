@@ -72982,3 +72982,62 @@ and round2/. Local merge commit carries Co-Authored-By: GPT-6 Astra
 Evidence staging also caught eight Cargo logs with extra EOF blank lines
 (ours). Removed only trailing log whitespace; final whitespace checks pass.
 The report retains this non-test failure alongside the inherited source one.
+
+## 2026-09-28 — Lane EX round 1: recover every send and enforce client lifetimes
+
+Read the original EX prompt, round-0 report/journal and both full reviews.
+Merged origin/main 5763da073 into this lane in 3845a6ba5, retaining both
+journal histories and all LLP revision notes. Adopted the implemented owner
+key policy for likes and ordinary viewer-owned exists; OS/EQ wait for round 2.
+No push, publication, version, dependency, meter or budget change.
+
+The social starter now journals every submitted ID and complete arguments
+under account/backend, including attachments, before SDK dispatch. Each send
+observes its own pending/terminal/unknown outcome without replaying it. Edit
+restores a failed draft and attachment. Each message bubble gets its own
+receipt, and receipt pages share the actual history cursor/index. Removed
+quote, explained reposts and the retained-search membership-rewrite hazard.
+The no-template new command lists social and exits nonzero without writing.
+Compiler notes use the existing ephemeral fact to say signals fail offline
+and are not queued; durable online-only writes still queue, tested separately.
+Published prose now explains facts without repository reports or lane/LLP
+pointers, guarded across every compiled card and package reference.
+
+The React browser mounts the real route with controlled host views, focus,
+AppState and clock. It requires renewal, idle stop without blur before expiry,
+Send/navigation/unmount cleanup, no later renewal, correct keep options and
+revalidating-member refusal. The viewer's own read now traverses loading,
+recovery and withdrawal with both open and in-flight handles. A real
+createApp/wasm/IndexedDB scenario queues two offline sends, leaves through
+another password session, reconnects, and recovers both NOT_MEMBER failures,
+texts and attachment after remount. The stronger typing witness exposed arm
+close cancelling consumer stop; close now waits for started bounded signal
+calls. Eight targeted mutants fail their intended assertions.
+
+Affected tests pass 17/17; whole guide 94/94; prediction notes 41/41;
+owner-key regression 4/4; starter generation/check, generated app and four
+snippets typecheck, and public-client smoke including a real paged receipt
+cursor pass. Native Expo/Hermes lifecycle proof remains outstanding for all
+three recipes; DOM hosts and typechecking do not replace it.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1436 s`, exit 1,
+categories cargo test and client tests. Rust 4,188 passed / 1 failed /
+33 ignored; client shards 3,939 passed / 2 failed / 10 skipped; models 79/79;
+fixtures 9/9. Three test failures: ours, the owner-key guide test's old example
+order, corrected with all semantic assertions retained (4/4 focused pass);
+baseline, the known native lost-reply one-POST/two-POST fixture race (existing
+ticket updated); baseline, online typing burst retention in unchanged code,
+cause unconfirmed (new ticket). Both client failures pass isolated controls;
+neither is erased or called resolved. No environmental classification and no
+second full suite. Final prose cleanup is covered by the 94-test guide pass.
+The report records every exploratory failure as ours and corrected, separately
+from the expected mutation reds and the full-suite snapshot.
+
+Wasm is byte-identical to merged main: 2,017,908 B raw / 585,100 B GNU
+file-input gzip-9, EX delta 0/0, 1,093 B below the unchanged 586,193 B cap.
+SHA-256 1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a.
+README remains 300/300; source cap, whitespace and references pass. LLP
+3000.028 §8 and its Revised line record this round. Evidence and limitations:
+reports/20260928-ex-social-example/round1/REPORT.md. Exact logs are compressed
+without changing their contents. Co-authored local commit uses
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

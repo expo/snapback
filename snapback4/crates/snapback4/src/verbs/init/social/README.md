@@ -55,23 +55,30 @@ keeps the draft and disables send; stale/retained/revalidating rows never grant
 authority. The server still checks every action. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
-`seen`. `usePendingWrites` shows outstanding sends and posts.
+`seen`. Receipts appear on each bubble, using the same cursor as its history
+page. `usePendingWrites` shows outstanding sends and posts. Every send saves
+its ID and complete arguments (including the attachment ID) in an account-
+and backend-scoped intent journal before dispatch. Each saved ID observes its
+own settlement; Edit restores a failed message, and Dismiss removes only the
+UI reference. Unknown outcomes never trigger automatic resubmission.
 
 ## Current coverage choices
 
-Likes use the currently supported `ownLikes` aggregate. Despite its name it
-is PUBLIC and horizon-free: every device acquires every principal's like
-keys, beyond the 2,000-row public source window. At calibration scale that
-recipe cost 5,008 groups / 1,121,792 logical row bytes just for likes. Measure
-your own `client.residency()` or `snapback4 test --residency`. See
-`snapback4 guide offline-interactions`. Replace this summary with ordinary
-`exists likes[post, viewer]` only after source owner-key coverage ships.
-An unknown like must remain loading; a missing windowed row is not false.
+Likes declare `sync public last 2000 by .at with own keys .principal`.
+Ordinary `exists likes[post, viewer]` answers “did I like this?” from the
+caller's complete key partition, even outside the public window. Before
+that partition is acquired an unknown like remains loading, never false.
+Other viewers' old keys are not covered. This adds only the caller's key
+projection alongside the existing public window, not a public all-viewer
+summary. Inspect `client.residency()` or `snapback4 test --residency` for your
+actual holdings; see `snapback4 guide offline-interactions`.
 
 Per-chat search uses one ordinary unguarded pinned query in both link states.
 The current all-chat recipe uses `searchNewest` for current memberships
 online and `searchHeld` for this device's current and retained holdings
-offline. It labels that domain difference explicitly. Search order is time;
+offline. It labels that domain difference explicitly. Do not apply the
+membership rewrite suggested for `searchHeld`: it would drop retained hits
+after leave. Search order is time;
 the acquired history window is ordinal, so offline search can be incomplete.
 No all-history or mixed-domain completeness claim is made. Adopt ordinary
 all-chat search when its inferred audience and retained merge ship. See

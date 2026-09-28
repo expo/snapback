@@ -1564,8 +1564,6 @@ A lost transport response also returns pending because admission may
 have succeeded. Actions never enter a device outbox or predict rows.
 `{ waitSeconds: 0 }` only admits or collects; the maximum/default is 25.
 `useAction(op)` returns `{ run, last, inFlight }`, mirroring `useMutation`.
-`Act`, including its pre-admission denial, is a new card word needing the
-author's ruling (LLP 2000.000 §8).
 
 ### Workers and services (`snapback4/worker`)
 
@@ -2002,7 +2000,7 @@ response starts immediately and sends JSON whitespace every 2 seconds before the
 must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
 `denied`, including `E_AUTH` if the session ended while waiting. Every reply of a query that may read `connected[p]`, refusals included,
 carries `refresh: 5000`: presence changes without a commit, so the clients re-read that watch in the background
-5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it (LLP 3000.018). `POST /assets` (the file's bytes as the body,
+5 seconds after each reply settles, keeping the answer on screen until a newer one replaces it. `POST /assets` (the file's bytes as the body,
 64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
 works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
 uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{

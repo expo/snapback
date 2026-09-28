@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 // @ref LLP 3000.028#8 — one integrated app carries the three client recipes.
 pub(super) fn files() -> Vec<(&'static str, String)> {
     let mut files = super::expo_files();
-    files.retain(|(name, _)| matches!(*name, "package.json" | "babel.config.js" | "metro.config.js" | "metro-wasm-transformer.cjs" | "src/intents.ts" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts"));
+    files.retain(|(name, _)| matches!(*name, "package.json" | "babel.config.js" | "metro.config.js" | "metro-wasm-transformer.cjs" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts"));
     let package = files.iter_mut().find(|(name, _)| *name == "package.json").unwrap();
     let mut value: Value = serde_json::from_str(&package.1).unwrap();
     value["name"] = json!("snapback4-social-starter");
@@ -17,6 +17,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
     files.extend([
         ("snapback/schema.q", include_str!("social/schema.q").to_owned()),
         ("README.md", include_str!("social/README.md").to_owned()),
+        ("src/intents.ts", include_str!("social/intents.ts").to_owned()),
         ("src/client.ts", include_str!("social/client.ts").to_owned()),
         ("src/useOnlineArm.ts", include_str!("social/useOnlineArm.ts").to_owned()),
         ("src/useTyping.ts", include_str!("social/useTyping.ts").to_owned()),

@@ -49,7 +49,6 @@ table messages:
   text: text <=2000
   photo: image <=5000000 once ?
   search text
-  quote: messages ?
   at: time
   unique byConversationOrdinal: conversation, ordinal
   immutable conversation, sender, ordinal, recipients, at
@@ -82,7 +81,7 @@ query history(conversation: conversations, c: cursor ?):
   return messages[conversation = conversation] last 20 by byConversationOrdinal after c
 
 query messageReceipts(conversation: conversations, c: cursor ?):
-  return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
+  return messages[conversation = conversation] last 20 by byConversationOrdinal after c { id, receipt: receipt(.) }
 
 query receiptMember(conversation: conversations):
   return members[conversation, viewer]
@@ -194,6 +193,7 @@ table follows:
   delete <- .followerId = viewer
   online only
 
+-- Reposts supplies the second source required by view following; no repost action yet.
 table reposts:
   actorId: principal
   postId: posts
@@ -226,12 +226,9 @@ table likes:
   public 'public likes'
   insert <- .principal = viewer
   delete <- .principal = viewer
-  sync public last 2000 by .at
--- Until owner-key coverage ships, this horizon-free PUBLIC summary sends
--- every viewer's keys to every device. See guide offline-interactions.
-view ownLikes: count likes by .principal, .post
+  sync public last 2000 by .at with own keys .principal
 query postState(post: posts):
-  return { liked: ownLikes[viewer, post] > 0 }
+  return { liked: exists likes[post, viewer] }
 mutation setLike(post: posts, liked: bool):
   if liked:
     insert likes { post, principal: viewer, at: now } if absent
@@ -262,5 +259,7 @@ query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
 -- Current memberships online; device holdings (including retained) offline.
 query searchNewest(q: text <=100, c: cursor ?):
   return messages matching q where exists members[.conversation, viewer] last 20 by .at after c
+-- Keep this held query unguarded: check's membership rewrite would discard
+-- lawful retained hits after leave. The current online/held split is deliberate.
 query searchHeld(q: text <=100, c: cursor ?) held:
   return messages matching q last 20 by .at after c

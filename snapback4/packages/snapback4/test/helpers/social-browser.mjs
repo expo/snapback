@@ -2,6 +2,11 @@
 // DOM counterparts; this does not claim an iOS/Android input or layout witness.
 export const nativeViews = `
 import React from "react";
+export const AppState = {
+  currentState: "active", listeners: new Set(),
+  addEventListener(_name, callback) { this.listeners.add(callback); return { remove: () => this.listeners.delete(callback) }; },
+};
+window.background = value => { AppState.currentState = value ? "background" : "active"; for (const listener of AppState.listeners) listener(AppState.currentState); };
 export const View = ({children, testID}) => <div data-testid={testID}>{children}</div>;
 export const ScrollView = View;
 export function FlatList({ data, renderItem, keyExtractor, onViewableItemsChanged, testID }) {
@@ -20,25 +25,50 @@ export const harness = `
 import React, { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider } from "snapback4/react";
-import { createClient } from "snapback4/client";
-import { ConversationScreen } from "starter-conversation";
+import { createClient } from "real-client";
+import { createApp } from "snapback4/app";
+import { webDevice } from "snapback4/web";
+import { keepSession, localStorageSessionStore } from "snapback4/auth";
+import ConversationRoute from "starter-route";
 import { api } from "starter-api";
 const config = await (await fetch("/fixture.json")).json();
 const { url, conversation, alice, bob, carol, history, photo, latePhoto } = config;
 const originalFetch = window.fetch.bind(window);
 let disconnected = false;
+let logical = Date.now(), elapsed = 0, nextTimer = -1;
+const intervals = new Map(), realInterval = window.setInterval, realClear = window.clearInterval;
+const realPerformance = performance.now.bind(performance);
+Date.now = () => logical;
+performance.now = () => realPerformance() + elapsed;
+window.setInterval = (callback, delay, ...args) => {
+  if (delay !== 1000) return realInterval(callback, delay, ...args);
+  const id = nextTimer--; intervals.set(id, () => callback(...args)); return id;
+};
+window.clearInterval = id => { intervals.delete(id); realClear(id); };
+window.tick = async (ms = 1001) => {
+  await originalFetch(url + "/dev/clock/advance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ duration: ms + "ms" }) });
+  logical += ms; elapsed += ms;
+  for (const callback of [...intervals.values()]) callback();
+};
 window.requests = []; window.revoked = []; window.assetCalls = []; window.components = { mounts: 0, unmounts: 0 };
 window.fetch = async (input, init) => {
-  const path = new URL(input).pathname;
-  const token = new Headers(init?.headers).get("authorization");
-  window.requests.push({ path, account: token === "Bearer " + alice.token ? "alice" : "other" });
+  const path = new URL(input instanceof Request ? input.url : input, location.href).pathname;
+  const token = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get("authorization");
+  window.requests.push({ path, body: init?.body, account: token === "Bearer " + alice.token ? "alice" : "other" });
   if (disconnected && token === "Bearer " + alice.token) throw Error("offline");
   return originalFetch(input, init);
 };
-const raw = createClient({ url, token: alice.token });
+const sessionStore = localStorageSessionStore();
+await keepSession(url, alice, sessionStore);
+const ownerApp = createApp({ url, sessionStore, fetch: (input, init) => { if (disconnected) return Promise.reject(Error("offline")); return window.fetch(input, init); }, device: webDevice({ wasm: fetch("/device.wasm") }) });
+const opened = await ownerApp.ready;
+if (!opened.ok) throw Error(JSON.stringify(opened));
+const raw = ownerApp.client;
+await raw.sync();
 const peer = createClient({ url, token: bob.token });
 const other = createClient({ url, token: carol.token });
 const ready = (data, extra = {}) => ({ data, complete: true, fresh: true, cut: null, next: null, ...extra });
+window.observations = [];
 let session = alice, currentRaw = raw;
 const values = new Map([
   ["conversationScreen", ready({ id: conversation, title: "Friends" })],
@@ -52,22 +82,24 @@ let link = "online";
 let holdAsset = false, releaseAsset;
 function controlled() {
   const ownedSession = session, assetClient = currentRaw;
-  const pendingListeners = new Set();
+
   return {
     viewer: () => ownedSession.principal, onViewer: () => () => {},
     session: () => ownedSession, onSession: () => () => {},
     now: () => Date.now(), link: () => link, onLink: callback => { linkListeners.add(callback); return () => linkListeners.delete(callback); },
-    pendingWrites: async () => [], onPendingWrites: callback => { pendingListeners.add(callback); return () => pendingListeners.delete(callback); },
-    onWrite: () => () => {}, write: async () => undefined,
+    pendingWrites: assetClient.pendingWrites, onPendingWrites: assetClient.onPendingWrites,
+    onWrite: assetClient.onWrite, write: assetClient.write,
     mutate: (op, args, options) => assetClient.mutate(op, args, options),
-    observe(op, args) {
+    observe(op, args, options) {
+      window.observations.push({ op: op.name, args, options });
       const listeners = new Set();
-      const value = op.name === "messagePhoto" ? ready(history.find(row => row.id === args.id)) : values.get(op.name);
+      const value = op.name === "messagePhoto" ? ready(history.find(row => row.id === args.id)) : values.get(args.c ? op.name + ":" + args.c : op.name);
       const record = { op, args, value, getSnapshot() { return record.value; },
         subscribe(callback) { listeners.add(callback); return () => listeners.delete(callback); },
         close() { records.delete(record); }, set(value) { record.value = value; for (const callback of listeners) callback(); } };
       records.add(record); return record;
     },
+    upload: async () => ({ ok: true, asset: { id: window.pickAsset } }),
     async asset(id) {
       window.assetCalls.push(id);
       const result = await assetClient.asset(id);
@@ -86,13 +118,15 @@ const app = { client: controlled(), auth: { getSnapshot: () => snapshot,
   onChange(listener) { listeners.add(listener); return () => listeners.delete(listener); } } };
 function Mounted() {
   useEffect(() => { window.components.mounts++; return () => { window.components.unmounts++; }; }, []);
-  return <ConversationScreen conversation={conversation} url={url} />;
+  return <ConversationRoute />;
 }
 const root = createRoot(document.getElementById("root"));
-root.render(<AppProvider app={app}><Mounted /></AppProvider>);
+window.mount = () => root.render(<AppProvider app={app}><Mounted /></AppProvider>);
+window.unmount = () => root.render(null);
+window.mount();
 window.setRead = (name, value) => {
   values.set(name, value);
-  for (const record of records) if (record.op.name === name) record.set(value);
+  for (const record of records) if ((record.args.c ? record.op.name + ":" + record.args.c : record.op.name) === name) record.set(value);
 };
 window.ready = ready;
 window.historyRows = history;
@@ -105,12 +139,16 @@ window.restore = () => {
 window.typingAtPeer = async () => (await peer.query(api.typingIn, { conversation })).data ?? [];
 window.peerTyping = () => peer.mutate(api.setTyping, { conversation });
 window.peerStop = () => peer.mutate(api.stopTyping, { conversation });
-window.drop = () => { disconnected = true; link = "offline"; for (const listener of linkListeners) listener(link); };
-window.reconnect = () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); };
-window.outboxes = async () => [await raw.pendingWrites(), await peer.pendingWrites()];
+window.drop = async () => { disconnected = true; link = "offline"; for (const listener of linkListeners) listener(link); await Promise.all(window.onlineArms.map(arm => arm.query(api.typingIn, { conversation }))); };
+window.reconnect = async () => { disconnected = false; link = "online"; for (const listener of linkListeners) listener(link); await raw.sync(); };
+window.outboxes = async () => Promise.all(window.onlineArms.map(arm => arm.pendingWrites()));
+window.savedSends = () => app.client.pendingWrites();
+window.sendOutcomes = async () => { const key = "snapback4-social:" + JSON.stringify([url, alice.principal]); const intents = JSON.parse(localStorage.getItem(key) ?? '{"intents":[]}').intents; return Promise.all(intents.map(async i => ({ id: i.id, outcome: await raw.write(i.id) }))); };
+window.restoreRoute = () => { window.navigate(conversation); };
 window.expire = () => originalFetch(url + "/dev/clock/advance", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ duration: "5s" }) });
-window.leave = () => raw.mutate(api.leave, { conversation });
-window.rejoin = () => peer.mutate(api.add, { conversation, principal: alice.principal });
+window.serverHistory = () => peer.query(api.history, { conversation });
+window.leave = () => window.leaveSession();
+window.rejoin = () => window.rejoinSession();
 window.holdAsset = () => { holdAsset = true; };
 window.assetHeld = () => !!releaseAsset;
 window.releaseAsset = () => { releaseAsset?.(); releaseAsset = null; };
@@ -120,6 +158,39 @@ window.accountSwitch = () => {
   window.setRead("history", ready([])); window.setRead("conversationScreen", ready(null)); window.setRead("receiptMember", ready(null));
   for (const listener of listeners) listener();
 };
-window.finish = async () => { root.unmount(); await Promise.all([raw.close(), peer.close(), other.close()]); };
+window.finish = async () => { root.unmount(); await Promise.all([ownerApp.close(), peer.close(), other.close(), ...window.onlineArms.map(arm => arm.close())]); };
 window.fixtureReady = true;
+`;
+
+// The real Router route runs with controlled navigation/focus/foreground input.
+export const routerHarness = `
+import React from "react";
+const config = await (await fetch("/fixture.json")).json();
+let route = config.conversation, focused = true;
+const listeners = new Set();
+export const router = { push() {} };
+export function useLocalSearchParams() {
+  const id = React.useSyncExternalStore(cb => { listeners.add(cb); return () => listeners.delete(cb); }, () => route);
+  return { id };
+}
+export function useFocusEffect(callback) {
+  const focus = React.useSyncExternalStore(cb => { listeners.add(cb); return () => listeners.delete(cb); }, () => focused);
+  React.useEffect(() => { if (focus) return callback(); }, [callback, focus]);
+}
+window.navigate = id => { route = id; for (const listener of listeners) listener(); };
+window.focusRoute = value => { focused = value; for (const listener of listeners) listener(); };
+`;
+export const onlineClientHarness = `
+export * from "real-client";
+import { createClient as realCreateClient } from "real-client";
+window.onlineArms = [];
+export function createClient(options) {
+  const client = realCreateClient(options), observe = client.observe;
+  window.onlineArms.push(client);
+  client.observe = (op, args, options) => {
+    window.observations.push({ op: op.name, args, options });
+    return observe(op, args, options);
+  };
+  return client;
+}
 `;

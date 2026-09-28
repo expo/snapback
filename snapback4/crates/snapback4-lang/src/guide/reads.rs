@@ -90,8 +90,7 @@ that query asks no server; a write with an unknown predicted footprint blocks
 every query. Writes to unrelated tables do not hold it. A withheld answer
 (a total/extremum over input past the horizon, a point read past it, or another
 speculative answer) stays `loading`; a local partial answer (`complete: false`,
-e.g. an order unlike the window's) stays partial. See `prediction-routing.test.mjs`
-for the unchanged Rules 1–5.
+e.g. an order unlike the window's) stays partial.
 Keep a screen query locally complete (`snapback4 why <query>`); put server-needing
 decorations in their own query so the main list never waits on them.
 Keep the screen shell and draft mounted; render current reads.

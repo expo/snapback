@@ -59,9 +59,9 @@ their existing opening cuts, which can lack `next` and E_SEARCH_OPEN.
 one-word fixture (8,192 examined rows). At 4,077 a drain cut has `next`;
 The device still reaches its earlier heap boundary near 2,700 memberships.
 10,000 cannot finish discovery and refuses E_SEARCH_OPEN. The calibration
-copy has 100 memberships and completes. Round 1's empty-chat extension reached
+copy has 100 memberships and completes. An empty-chat extension reached
 heap first on continuations: bare pages fit 5,493 memberships; decorated pages
-fit 5,317. Those calibration limits predate actual-size admission; see its report.
+fit 5,317. Those calibration limits predate actual-size admission.
 These are fixture measurements, not a universal chat limit: word width,
 further-term misses, expiry, filters and decoration consume the same meters.
 

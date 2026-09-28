@@ -693,7 +693,7 @@ horizon order columns remain on the member table. A device predicts source
 deltas for every held, current member even if other members are outside its
 horizon; retained members are not updated by prediction.
 
-This is LLP 3000.015's unread expression. If members also have a `joinedAt`
+This counts unread messages. If members also have a `joinedAt`
 position, add `and .ordinal > m.joinedAt` to exclude pre-join history. The
 engine assigns the sequence position at commit, shared per conversation.
 Own sends and tombstones are excluded explicitly. A source already expired at

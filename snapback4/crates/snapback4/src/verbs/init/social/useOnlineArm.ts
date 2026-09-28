@@ -12,8 +12,17 @@ export function useOnlineArm(url: string): Client | null {
   useEffect(() => {
     if (!token) return;
     const client = createClient({ url, token });
+    // Keep the arm alive through consumer cleanup (stopTyping). All signal
+    // calls have the SDK's bounded wait; closing early would cancel the stop.
+    const pending = new Set<Promise<unknown>>();
+    const mutate = client.mutate;
+    client.mutate = ((...args: Parameters<typeof mutate>) => {
+      const call = mutate(...args); pending.add(call);
+      void call.finally(() => pending.delete(call));
+      return call;
+    }) as typeof mutate;
     setArm({ owner, token, client });
-    return () => { void client.close(); };
+    return () => { queueMicrotask(() => { void Promise.allSettled([...pending]).then(() => client.close()); }); };
   }, [url, owner, token]);
   return token && arm?.owner === owner && arm.token === token ? arm.client : null;
 }

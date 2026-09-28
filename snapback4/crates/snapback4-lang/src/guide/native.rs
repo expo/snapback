@@ -45,7 +45,7 @@ fn personalize(ctx: &Ctx, args: &Json) -> Result<Json> {
 }
 ```
 
-**A native read is the twin** (LLP 3000.005 §9): `query name(args):
+**A native read is the twin**: `query name(args):
 native` runs the same Rust on the server as the viewer — every `Ctx` read
 under the viewer's rules and the read meter, `complete` from the meter —
 and on a native device (the Expo module, Exact2's hosts, the `snapback4
@@ -89,7 +89,7 @@ like any job. Quarry still declares
 the table, its rules and its `sync`; a mutation cannot be native,
 because a device predicts Quarry and the server replays it. Anything
 that needs the network stays outside and writes into a table the job
-reads. A query, not a mutation, can be native too (LLP 3000.005 §9).
+reads. A query can be native too; a mutation cannot.
 
 ## Operations
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import ts from "typescript";
 import { createApp } from "snapback4/app";
@@ -21,6 +21,16 @@ function starter(t) {
   }
   return dir;
 }
+test("new requires an explicit template and names what init creates", t => {
+  const dir = mkdtempSync(join(root, ".social-test-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const result = spawnSync(binary, ["new", dir], { encoding: "utf8" });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Choose a template: social/);
+  assert.match(result.stderr, /schema-only setup use snapback4 init/);
+  assert.deepEqual(readdirSync(dir), []);
+});
+
 export async function generatedApi(dir) {
   const source = readFileSync(join(dir, "snapback/generated/api.ts"), "utf8");
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
@@ -117,7 +127,15 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   await b.sync();
   const handle = await b.asset(upload.asset.id); assert.ok("url" in handle, JSON.stringify(handle)); handle.revoke();
   assert.equal((await b.asset(upload.asset.id)).denied.code, "E_ASSET_VIEWED");
-  const beforeLeave = (await b.query(api.history, { conversation })).data.map(row => row.id);
+  for (let n = 0; n < 21; n++) await write(a, api.send, { conversation, text: `history page ${n}`, photo: null });
+  await b.sync();
+  const firstPage = await b.query(api.history, { conversation });
+  assert.ok(firstPage.next, "history crosses its 20-message page");
+  const older = await b.query(api.history, { conversation, c: firstPage.next });
+  const olderReceipts = await b.query(api.messageReceipts, { conversation, c: firstPage.next });
+  assert.ok(older.data.length > 0 && "data" in olderReceipts);
+  assert.deepEqual(olderReceipts.data.map(row => row.id), older.data.map(row => row.id), "real receipt query accepts the exact history cursor");
+  const beforeLeave = firstPage.data.map(row => row.id);
   await write(b, api.leave, { conversation }); await b.sync();
   await write(a, api.send, { conversation, text: "after leave", photo: null }); await b.sync();
   const retained = await b.query(api.history, { conversation });

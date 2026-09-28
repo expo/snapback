@@ -75,6 +75,10 @@ fn main() -> ExitCode {
             println!("snapback4 {}", env!("CARGO_PKG_VERSION"));
             0
         }
+        "new" if !options.flags.contains_key("template") => {
+            eprintln!("Choose a template: social\nusage: snapback4 new <dir> --template social\nFor schema-only setup use snapback4 init <dir>.");
+            2
+        }
         "init" | "new" => verbs::init(&options),
         "deploy" => verbs::deploy(&options),
         "rollback" => verbs::rollback(&options),
