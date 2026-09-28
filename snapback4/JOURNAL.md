@@ -72457,3 +72457,57 @@ Did not run scripts/test.sh, per instruction; the supervisor owns landing
 qualification. Report and logs: reports/20260928-dg/ROUND2.md. LLP 3000.028
 Revised line and implementation notes updated. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+
+## 2026-09-28 — Lane OS round 2: ordinary search review corrections
+
+Read both binding lane prompts, round-0/1 reports and journal entries, the full
+Astra NOT READY review and available Grok review. First fetched and merged
+origin/main into sb4-intent/os-ordinary-search; merge 1ce4f594e preserves both
+OS and DG sides of the RFC revision/journal conflicts. Applied llp-orient
+read-only. No original evidence database or other lane was modified.
+
+Repaired Astra's four findings. System contexts keep the original evaluator,
+including every system-readable room and its continuation. Optional scoped
+indexes now follow baseline schema/program binding and enter schema/catalog
+only after the final runtime audience proof, schema validation and portable
+key/label budgets succeed. Declining leaves the original schema and evaluator;
+it never raises E_INDEX_KEY_BYTES for a speculative access path. Scope is
+prepended to the bound ordinary index, preserving equality pins, words and
+cursor suffix even when zone sorts after tombstone. The standalone fixture
+contains only the bare query, checks the exact scoped index and traverses all
+authorized IDs completely; a no-op capture now fails it.
+
+The regressions first reproduced all three correctness failures. Restoring old
+provisioning separately fails both 380-character denied/readable schemas.
+Additional checks cover small denied discovery, optional label overflow, and
+20,000 newer hidden rows under zone. Builder program/index compatibility,
+hidden receipt equality, opening/drain and held/guarded/explicit controls pass.
+Grok's exact-sync-target/prefix proof mutation now fails its own regression.
+Round 1 already fixes Grok's retained-result publication finding; new process
+and wasm witnesses explicitly preserve departed hits over a complete empty
+server page. Disabling composition reproduces the loss on both tiers. Exact
+offline IDs after a real server cursor now match an independent full-key oracle.
+
+Round-1 merge checks reran after the system fix (22 passes), after optional
+admission/scope-order fixes (26 passes), and after every mutation was restored
+(26 passes). They cover consumed prefixes, one invocation, real mixed drain,
+shared ledger, reset/reopen, membership/expiry delivery races, retained edits,
+rejoin and mounted React. Final affected Rust: 16 ordinary, 24 membership and
+11 search-merge tests pass. Compiler/library checks: 73 pass. Whole guide:
+92 pass. Native/client builds and typecheck pass. Reference audit: zero errors
+or unchecked; original input hashes including SQLite/WAL remain unchanged.
+Full-builder 501-page/10,014-ID traversals and the complete searchChat floor
+matrix remain round-1 evidence, distinguished from this round's reruns.
+
+Per the round-2 instruction, did not rerun scripts/test.sh. Round 1 already ran
+it once: exact summary "== 1 failure(s) in 1816 s", only wasm build (ours).
+Canonical wasm remains 2,044,274 B raw / 593,309 B gzip, delta 0 / 0 from round 1,
+7,116 B over the unchanged 586,193 B cap. This is our inherited round-1 budget
+failure, not a new round-2 regression; no ceiling raised. No baseline or
+environmental failure observed. The report retains every expected-red mutation,
+the initial Option reference test compilation error, and harmless path mistakes.
+No tool installed, shared-path tool change, push or publication. Report and
+acceptance matrix: reports/20260928-os-ordinary-search/REPORT.md; prior report
+preserved as ROUND1.md, new logs under round2/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

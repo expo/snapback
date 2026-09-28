@@ -108,6 +108,34 @@ for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retai
   const stateBound=await f.core().call({op:'search_state',name:'search',spent});
   assert.equal(stateBound.denied.code,'E_BOUND','the state fence also shares the output allowance');
 });
+for (const tier of ['process', 'wasm']) test(`ordinary mixed search ${tier}: complete empty server cannot replace departed hits`, async t => {
+  const f = await setup(t, tier);
+  assert.equal((await f.owner.mutate(m('leave'), {room:'live'})).state, 'sent');
+  await f.client.sync();
+  const before = f.requests.length;
+  const read = await f.client.query(q, {q:'coffee'});
+  assert.equal(f.requests.length - before, 1);
+  assert.deepEqual(f.requests.at(-1).json.data, []);
+  assert.equal(f.requests.at(-1).json.complete, true);
+  assert.deepEqual(ids(read), f.rows.slice(45).reverse().map(r => r.id));
+  assert.equal(read.complete, false);
+  assert.ok(read.next);
+});
+for (const tier of ['process', 'wasm']) test(`ordinary mixed search ${tier}: server cursor seeks the exact offline suffix`, async t => {
+  const f = await setup(t, tier);
+  const serverPage = await f.owner.query(q, {q:'coffee'});
+  assert.ok(serverPage.next);
+  const last = serverPage.data.at(-1);
+  const compare = (a, b) => a.at - b.at || Buffer.compare(Buffer.from(a.id), Buffer.from(b.id));
+  const expected = f.rows.filter(r => compare(r, last) < 0).sort((a, b) => compare(b, a)).slice(0, 20).map(r => r.id);
+  assert.ok(expected.length > 0);
+  await f.network(false);
+  const before = f.requests.length;
+  const read = await f.client.query(q, {q:'coffee', c:serverPage.next});
+  assert.deepEqual(ids(read), expected);
+  assert.equal(read.complete, false);
+  assert.equal(f.requests.length, before);
+});
 test('ordinary mixed search: link change and state reset restart, rejoin excludes stale retained lane',async t=>{
   const f=await setup(t);
   const first=await f.client.query(q,{q:'coffee'});

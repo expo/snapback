@@ -129,6 +129,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     }
     actions::bind(&catalog, &mut schema, &mut programs, &mut diagnostics);
     routes::bind(&catalog, &mut schema, &mut diagnostics);
+    if diagnostics.is_empty() { intent_search::provision(&mut catalog, &mut schema, &programs); }
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());

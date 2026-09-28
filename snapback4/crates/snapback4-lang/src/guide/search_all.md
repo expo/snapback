@@ -14,6 +14,10 @@ incomplete answer to the compact membership page when the work fits. Explicit
 membership predicates and query guards keep their meaning; other audiences,
 joins and native functions keep their existing evaluator. Empty needles still
 take the existing browse branch, whose coverage can remain incomplete.
+System reads keep their original evaluator and full system-authorized domain.
+Inference also requires readable membership discovery. If its additional scoped
+index cannot fit the portable key or label budget, compilation keeps the original
+indexes and evaluator; that search may remain incomplete.
 
 For the proved bare time-ordered page on a local client, the SDK merges current
 server rows with this device's certified departed images. Both use the same

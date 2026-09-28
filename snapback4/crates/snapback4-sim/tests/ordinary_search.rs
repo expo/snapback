@@ -37,16 +37,20 @@ fn bound(source: &str) -> snapback4_lang::bind::Bound {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     bound
 }
-fn setup(groups: usize) -> Engine {
-    let b = bound(SOURCE);
+fn setup(groups: usize) -> Engine { setup_source(SOURCE, groups) }
+fn setup_source(source: &str, groups: usize) -> Engine {
+    setup_bound(bound(source), groups)
+}
+fn setup_bound(b: snapback4_lang::bind::Bound, groups: usize) -> Engine {
+    let scope = if b.schema.tables["messages"].columns.contains_key("zone") { "zone" } else { "room" };
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let id = |s: &str| Value::Id(s.into());
     let mut rows = Vec::new();
     for group in 0..=groups {
         let room = format!("room{group:05}");
-        rows.push(("members".into(), object([("id", id(&room)), ("room", id(&room)), ("principal", id(if group == groups {"bob"} else {"alice"}))])));
+        rows.push(("members".into(), object([("id", id(&room)), (scope, id(&room)), ("principal", id(if group == groups {"bob"} else {"alice"}))])));
         for at in 0..5 {
-            rows.push(("messages".into(), object([("id", id(&format!("{room}-{at}"))), ("room", id(&room)), ("body", Value::String(if at == 1 {"coffee rare"} else {"coffee zebra"}.into())), ("at", Value::Int(at)), ("tombstone", Value::Bool(at == 4))])));
+            rows.push(("messages".into(), object([("id", id(&format!("{room}-{at}"))), (scope, id(&room)), ("body", Value::String(if at == 1 {"coffee rare"} else {"coffee zebra"}.into())), ("at", Value::Int(at)), ("tombstone", Value::Bool(at == 4))])));
         }
     }
     engine.seed_at(rows, 100).unwrap();
@@ -77,15 +81,149 @@ fn ordinary_server_matches_explicit_pages() {
         assert!(actual.windows(2).all(|p| p[0].field("id").unwrap() != p[1].field("id").unwrap()));
     }
 }
+fn standalone() -> String {
+    SOURCE.split("query explicit").next().unwrap().to_owned()
+}
 #[test]
 fn a_standalone_bare_program_provisions_its_scoped_index() {
-    let source = SOURCE.replace("query explicit(q: text <=100, c: cursor ?):\n  return messages matching q where exists members[.room, viewer] and not .tombstone last 2 by .at after c\n", "");
+    let source = standalone();
     let b = bound(&source);
-    let program = &b.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program;
-    assert!(snapback4_core::search_plan::ordinary::plan(&b.schema, program).is_some());
+    assert_eq!(b.programs.len(), 1, "no guarded/explicit query can supply the index");
+    let program = &b.programs[0].program;
+    let plan = snapback4_core::search_plan::ordinary::plan(&b.schema, program).unwrap();
+    let table = &b.schema.tables["messages"];
+    let original = &table.indexes[&plan.cursor_indexes.1];
+    let scoped = &table.indexes[&plan.cursor_indexes.0];
+    assert_eq!(scoped.components[0].column().map(String::as_str), Some("room"));
+    assert_eq!(scoped.components[1..], original.components);
     let composed = b.schema.operations["ordinary"].search.as_ref().unwrap();
     assert_eq!((&*composed.needle, &*composed.cursor, &*composed.column, composed.limit), ("q", "c", "at", 2));
     assert!(snapback4_core::search_plan::merges(&program.body).is_empty(), "device keeps the bare scan");
+    let mut engine = setup_bound(b, 2);
+    let mut oracle = setup(2);
+    let expected = walk(&mut oracle, "explicit", "coffee");
+    assert_eq!(expected.len(), 8);
+    assert_eq!(walk(&mut engine, "ordinary", "coffee"), expected);
+}
+#[test]
+fn system_search_keeps_the_original_evaluator() {
+    let mut engine = setup(2);
+    let mut original = bound(SOURCE);
+    original.programs.iter_mut().find(|p| p.program.name == "ordinary").unwrap().program.body.insert(0,
+        snapback4_core::ir::Stmt::Require { condition: snapback4_core::ir::Expr::Literal(Value::Bool(true)), code: "CONTROL".into(), site: None });
+    let mut original = setup_bound(original, 2);
+    let mut cursor = None;
+    let mut count = 0;
+    loop {
+        let mut context = Context::system().at(100);
+        context.args = cx("coffee", cursor).args;
+        let expected = original.query("ordinary", context.clone()).unwrap();
+        let actual = engine.query("ordinary", context).unwrap();
+        assert_eq!(actual.data, expected.data);
+        assert_eq!(actual.complete, expected.complete);
+        assert_eq!(actual.next, expected.next);
+        assert_eq!(actual.cut, expected.cut);
+        assert!(actual.search_scopes.is_none());
+        count += actual.data.as_array().unwrap().len();
+        cursor = actual.next;
+        if cursor.is_none() { break; }
+    }
+    assert_eq!(count, 12, "system sees all three rooms, including Bob's");
+}
+#[test]
+fn denied_discovery_cannot_add_or_reject_an_optional_index() {
+    speculative_index_fallback("deny", 380);
+    speculative_index_fallback("deny", 20);
+}
+#[test]
+fn readable_discovery_with_an_oversized_key_keeps_the_baseline() {
+    speculative_index_fallback(".principal = viewer", 380);
+}
+fn speculative_index_fallback(read: &str, max: usize) {
+    let source = format!(r#"
+table members:
+  room: text <={max}
+  principal: principal
+  unique room, principal
+  read <- {read}
+  online only
+table messages:
+  room: text <={max}
+  body: text <=2000
+  at: time
+  search body
+  read <- exists members[.room, viewer]
+  sync to members[.room] last 2 by .at
+query ordinary(q: text <=100, c: cursor ?):
+  return messages matching q last 2 by .at after c
+"#);
+    // held suppresses optional provisioning without changing the authored IR.
+    let mut baseline = bound(&source.replace("c: cursor ?):", "c: cursor ?) held:"));
+    baseline.schema.operations.get_mut("ordinary").unwrap().held = false;
+    let candidate = bound(&source);
+    assert_eq!(candidate.schema.tables, baseline.schema.tables);
+    assert_eq!(candidate.programs[0].program, baseline.programs[0].program);
+    assert!(candidate.schema.operations["ordinary"].search.is_none());
+    let seed = vec![
+        ("members".into(), object([("id", Value::Id("member".into())), ("room", Value::String("room".into())), ("principal", Value::Id("alice".into()))])),
+        ("messages".into(), object([("id", Value::Id("message".into())), ("room", Value::String("room".into())), ("body", Value::String("coffee".into())), ("at", Value::Int(1))])),
+    ];
+    let mut old = Engine::memory(baseline.schema, baseline.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut new = Engine::memory(candidate.schema, candidate.programs.into_iter().map(|p| p.program)).unwrap();
+    old.seed_at(seed.clone(), 100).unwrap(); new.seed_at(seed, 100).unwrap();
+    let expected = old.query("ordinary", cx("coffee", None)).unwrap();
+    let actual = new.query("ordinary", cx("coffee", None)).unwrap();
+    assert_eq!(actual.data, expected.data);
+    assert_eq!(actual.complete, expected.complete);
+    assert_eq!(actual.next, expected.next);
+    assert_eq!(actual.metered, expected.metered);
+}
+#[test]
+fn an_optional_index_label_over_budget_keeps_the_baseline() {
+    let bare = standalone();
+    let held = bare.replace("c: cursor ?):", "c: cursor ?) held:");
+    let baseline = bound(&held);
+    let longest = baseline.schema.tables["messages"].indexes.keys().map(String::len).max().unwrap();
+    let table = "m".repeat(snapback4_core::rows::MAX_INDEX_LABEL_BYTES - longest);
+    let baseline = bound(&held.replace("messages", &table));
+    let actual = bound(&bare.replace("messages", &table));
+    assert_eq!(actual.schema.tables, baseline.schema.tables);
+    assert!(snapback4_core::search_plan::ordinary::plan(&actual.schema, &actual.programs[0].program).is_none());
+}
+#[test]
+fn audience_proof_requires_the_exact_sync_target_and_prefix() {
+    use snapback4_core::schema::Audience;
+    let b = bound(&standalone());
+    assert!(snapback4_core::search_plan::ordinary::plan(&b.schema, &b.programs[0].program).is_some());
+    for audience in [
+        Audience::Public,
+        Audience::Target { table: "otherMembers".into(), prefix: vec!["room".into()], principal: "principal".into() },
+        Audience::Target { table: "members".into(), prefix: vec!["otherRoom".into()], principal: "principal".into() },
+    ] {
+        // Isolate this proof guard on bound IR, without an earlier source
+        // compiler refusal masking a missing runtime admission condition.
+        let mut schema = b.schema.clone();
+        schema.tables.get_mut("messages").unwrap().sync.as_mut().unwrap().audience = audience;
+        assert!(snapback4_core::search_plan::ordinary::plan(&schema, &b.programs[0].program).is_none());
+    }
+}
+#[test]
+fn scope_after_an_equality_pin_still_gets_a_complete_paginated_plan() {
+    let source = standalone().replace("room", "zone");
+    let b = bound(&source);
+    let plan = snapback4_core::search_plan::ordinary::plan(&b.schema, &b.programs[0].program).unwrap();
+    let index = &b.schema.tables["messages"].indexes[&plan.cursor_indexes.0];
+    assert_eq!(index.components[0].column().map(String::as_str), Some("zone"));
+    assert_eq!(index.components[1].column().map(String::as_str), Some("tombstone"));
+    let mut engine = setup_bound(b, 2);
+    engine.seed_at((0..20000).map(|n| ("messages".into(), object([
+        ("id", Value::Id(format!("hidden-{n}"))), ("zone", Value::Id("room00002".into())),
+        ("body", Value::String("coffee secret".into())), ("at", Value::Int(1000 + n)), ("tombstone", Value::Bool(false)),
+    ]))).collect::<Vec<_>>(), 100).unwrap();
+    let actual = walk(&mut engine, "ordinary", "coffee");
+    let mut oracle = setup_source(&SOURCE.replace("room", "zone"), 2);
+    assert_eq!(actual, walk(&mut oracle, "explicit", "coffee"));
+    assert_eq!(actual.len(), 8);
 }
 #[test]
 fn guards_explicit_predicates_held_and_nonmembers_keep_their_meaning() {

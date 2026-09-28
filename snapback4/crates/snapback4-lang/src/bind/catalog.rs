@@ -36,7 +36,7 @@ impl TableInfo {
 
 #[derive(Default)]
 pub struct Catalog {
-    pub ordinary_searches: Vec<ReadExpr>,
+    pub ordinary_searches: Vec<String>,
     pub source: crate::source::SourceMap,
     pub feed_views: BTreeMap<String, super::feed_view::Plan>,
     pub extremum_domains: BTreeMap<String, ReadExpr>,

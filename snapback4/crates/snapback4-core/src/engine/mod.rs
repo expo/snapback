@@ -901,7 +901,7 @@ impl Engine {
         // @ref LLP 3000.028#3.3 — only server execution substitutes this
         // audience plan. The stored/device body keeps its retained domain.
         #[cfg(feature = "server-search")]
-        let inferred_search = crate::search_plan::ordinary::plan(&self.schema, &program);
+        let inferred_search = (!context.is_system()).then(|| crate::search_plan::ordinary::plan(&self.schema, &program)).flatten();
         #[cfg(feature = "server-search")]
         let program = inferred_search.as_ref().map_or(&program, |plan| &plan.program);
         if context.now.is_none() {
