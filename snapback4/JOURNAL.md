@@ -73379,3 +73379,52 @@ LLP 3000.028 §8 and its Revised line record this round. Report and evidence:
 reports/20260928-ex-social-example/round3/REPORT.md. Task-local package files
 only; no shared tool installation. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 4: every adoption witness reads the published text
+
+Read rounds 0–3 prompts, reports and EX journal entries. Kept branch
+sb4-intent/ex-social-example at its existing base; no main merge, push or
+publication. The supervisor's two round-2 init residency failures were ours:
+four test loaders still read the now-forwarding-only recipe document.
+Changed all four to packages/snapback4/FOLLOWING-ADOPTION.md. The example,
+calibration table and authorization census now consume the same text builders
+read. Every assertion and the exact census are unchanged; so is the package
+document. Removed the unused forwarder and updated the live legacy-fixture
+link. Historical records and deliberate inaccessible-path controls remain.
+
+Audited guides, recipes, package documents and the embedded starter README
+changed by rounds 0–3, including direct loaders, read aliases, compiled cards
+and CLI guide calls. Traced shared modules to their actual Cargo targets:
+65 source consumers across a conservative 45-target Rust inventory, seven
+package test files, docs-budget and the retained published-module checker.
+The latter's packed document matches the current file: manual wiring passes
+published 0.4.7 after the previously recorded explicit legacy-key adjustment;
+the absent feedAppPublish helper refuses with E_QUARRY_UNKNOWN as expected.
+
+Focused targets pass: init 21, readauth 81, device 436 (one existing ignored),
+simulator clique 253 (one existing ignored), whole guide 97. Then ran
+scripts/test.sh exactly once: `== 0 failure(s) in 1325 s`, exit 0.
+Rust 4,210 passed / 0 failed / 33 ignored; eight client shards 3,944 passed /
+0 failed / 10 skipped; models 79/79; fixtures 9/9. All builds, wasm budget,
+release guard, package and app typechecks, and README 300/300 budget pass.
+All mapped consumers ran. Starter new/check, full app and snippet typechecks,
+public-client smoke, cold native/wasm owner keys and browser lifetimes pass.
+No assertions, timeouts or test inventory were weakened. No post-suite source
+repair or second full run. Failures this round: ours 0, baseline 0,
+environmental 0. The report separately records expected negative controls
+and corrected inspection path/glob misses, not product failures.
+
+Fresh full-suite wasm remains 2,018,847 B raw / 585,970 B GNU file-input
+gzip-9, delta 0/0; unchanged 586,193 B cap, 223 B headroom. SHA-256
+9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+No device/core/build/budget, dependency or version changes. LLP 3000.028 §8
+and its Revised line record this repair. Report and complete logs:
+reports/20260928-ex-social-example/round4/REPORT.md. Native Expo/Hermes
+lifecycle qualification and OS adoption remain outstanding. No shared tool
+installation. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+The final staged whitespace check caught two blank context lines in the raw
+retained diff artifact (ours, evidence formatting). Compressed the exact patch
+without changing its hash or content; the staged check then passes. This is
+recorded separately from the zero test failures. No tested source changed.

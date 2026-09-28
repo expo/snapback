@@ -1,0 +1,15 @@
+{
+  "journal_preserves_complete_previous_bytes": true,
+  "journal_entries_appended": 1,
+  "tested_code_diff_unchanged": true,
+  "tested_diff_sha256": "3876b0e29622ccc41e11a617aa3b3075abf55e399de45ca506de175d44043f7f",
+  "whitespace_check": "passed",
+  "ref_check": "522 LLP docs, 9792 refs, 0 errors, 0 unchecked",
+  "new_source_files": 0,
+  "source_line_cap": 1500,
+  "assertions_unchanged": true,
+  "no_main_merge": true,
+  "no_push_or_publication": true,
+  "staged_whitespace_initial": "failed on two blank context lines in retained raw patch; ours",
+  "evidence_correction": "gzip the exact patch without changing bytes; staged check rerun"
+}

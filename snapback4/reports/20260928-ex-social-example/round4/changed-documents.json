@@ -1,0 +1,20 @@
+[
+  "snapback4/crates/snapback4-lang/src/guide.rs",
+  "snapback4/crates/snapback4-lang/src/guide/client.md",
+  "snapback4/crates/snapback4-lang/src/guide/discovery.rs",
+  "snapback4/crates/snapback4-lang/src/guide/feeds.md",
+  "snapback4/crates/snapback4-lang/src/guide/language.rs",
+  "snapback4/crates/snapback4-lang/src/guide/maintains.md",
+  "snapback4/crates/snapback4-lang/src/guide/native.rs",
+  "snapback4/crates/snapback4-lang/src/guide/offline_interactions.md",
+  "snapback4/crates/snapback4-lang/src/guide/reads.rs",
+  "snapback4/crates/snapback4-lang/src/guide/search_all.md",
+  "snapback4/crates/snapback4-lang/src/guide/social.rs",
+  "snapback4/crates/snapback4-lang/src/guide/sync.rs",
+  "snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md",
+  "snapback4/crates/snapback4/src/verbs/init/social/README.md",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+  "snapback4/packages/snapback4/FOLLOWING-ADOPTION.md",
+  "snapback4/packages/snapback4/README.md",
+  "snapback4/packages/snapback4/SERVER.md"
+]

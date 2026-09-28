@@ -1,0 +1,328 @@
+[
+  {
+    "source": "crates/snapback4/tests/check.rs",
+    "package": "snapback4",
+    "target": "check"
+  },
+  {
+    "source": "crates/snapback4/tests/clock.rs",
+    "package": "snapback4",
+    "target": "clock"
+  },
+  {
+    "source": "crates/snapback4/tests/doctor/mod.rs",
+    "package": "snapback4",
+    "target": "snapback4",
+    "via": "crates/snapback4/src/verbs.rs doctor_tests (binary unit target)"
+  },
+  {
+    "source": "crates/snapback4/tests/feed_bridge.rs",
+    "package": "snapback4",
+    "target": "feed_bridge"
+  },
+  {
+    "source": "crates/snapback4/tests/fix.rs",
+    "package": "snapback4",
+    "target": "fix"
+  },
+  {
+    "source": "crates/snapback4/tests/maintenance_chunks.rs",
+    "package": "snapback4",
+    "target": "maintenance_chunks"
+  },
+  {
+    "source": "crates/snapback4/tests/maintenance_latency.rs",
+    "package": "snapback4",
+    "target": "maintenance_latency"
+  },
+  {
+    "source": "crates/snapback4/tests/scale.rs",
+    "package": "snapback4",
+    "target": "scale"
+  },
+  {
+    "source": "crates/snapback4/tests/scale_row_ranges.rs",
+    "package": "snapback4",
+    "target": "scale_row_ranges"
+  },
+  {
+    "source": "crates/snapback4/tests/timeline_adoption.rs",
+    "package": "snapback4",
+    "target": "timeline_adoption"
+  },
+  {
+    "source": "crates/snapback4-core/tests/lane_source.rs",
+    "package": "snapback4-core",
+    "target": "lane_source"
+  },
+  {
+    "source": "crates/snapback4-core/tests/review_walk.rs",
+    "package": "snapback4-core",
+    "target": "review_walk"
+  },
+  {
+    "source": "crates/snapback4-device/tests/guide_examples/mod.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-device/tests/presence/effect_reads.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-device/tests/presence/mod.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-device/tests/readauth/census.rs",
+    "package": "snapback4-device",
+    "target": "readauth"
+  },
+  {
+    "source": "crates/snapback4-device/tests/readauth/outcomes.rs",
+    "package": "snapback4-device",
+    "target": "readauth"
+  },
+  {
+    "source": "crates/snapback4-device/tests/trending/mod.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-device/tests/trending/rolling.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-device/tests/unread_range.rs",
+    "package": "snapback4-device",
+    "target": "unread_range"
+  },
+  {
+    "source": "crates/snapback4-device/tests/upsert/mod.rs",
+    "package": "snapback4-device",
+    "target": "device"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/aggregate_copies.rs",
+    "package": "snapback4-lang",
+    "target": "aggregate_copies"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/attribution_guide.rs",
+    "package": "snapback4-lang",
+    "target": "attribution_guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/audience_bounds.rs",
+    "package": "snapback4-lang",
+    "target": "audience_bounds"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/constraint_diagnostics.rs",
+    "package": "snapback4-lang",
+    "target": "constraint_diagnostics"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/derived_maintains.rs",
+    "package": "snapback4-lang",
+    "target": "derived_maintains"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/effect_reads.rs",
+    "package": "snapback4-lang",
+    "target": "effect_reads"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/ephemeral.rs",
+    "package": "snapback4-lang",
+    "target": "ephemeral"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/client.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/definitions.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/familiar.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/feeds.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/feeds_followups.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/intent.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/published.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide/recovery.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/guide.rs",
+    "package": "snapback4-lang",
+    "target": "guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/held_unknown.rs",
+    "package": "snapback4-lang",
+    "target": "held_unknown"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/list_reference_repair.rs",
+    "package": "snapback4-lang",
+    "target": "list_reference_repair"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/maintains.rs",
+    "package": "snapback4-lang",
+    "target": "maintains"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/natural_forms.rs",
+    "package": "snapback4-lang",
+    "target": "natural_forms"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/own_keys.rs",
+    "package": "snapback4-lang",
+    "target": "own_keys"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/presence.rs",
+    "package": "snapback4-lang",
+    "target": "presence"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/receipt_gaps.rs",
+    "package": "snapback4-lang",
+    "target": "receipt_gaps"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/repairs.rs",
+    "package": "snapback4-lang",
+    "target": "repairs"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/residency_notes.rs",
+    "package": "snapback4-lang",
+    "target": "residency_notes"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/routes.rs",
+    "package": "snapback4-lang",
+    "target": "routes"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/row_keyed_views.rs",
+    "package": "snapback4-lang",
+    "target": "row_keyed_views"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/search_guidance.rs",
+    "package": "snapback4-lang",
+    "target": "search_guidance"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/sequence_by.rs",
+    "package": "snapback4-lang",
+    "target": "sequence_by"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/server_opt_in.rs",
+    "package": "snapback4-lang",
+    "target": "server_opt_in"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/shape_overrides.rs",
+    "package": "snapback4-lang",
+    "target": "shape_overrides"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/sync_windows.rs",
+    "package": "snapback4-lang",
+    "target": "sync_windows"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/timeline_guide.rs",
+    "package": "snapback4-lang",
+    "target": "timeline_guide"
+  },
+  {
+    "source": "crates/snapback4-lang/tests/written_by.rs",
+    "package": "snapback4-lang",
+    "target": "written_by"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/common/following_app.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/common/following_calibration.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/digest/mod.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/search_directory/mod.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/search_global/fixture.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/trending/lanes_fixture.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4-sim/tests/trending/mod.rs",
+    "package": "snapback4-sim",
+    "target": "clique"
+  },
+  {
+    "source": "crates/snapback4/tests/init.rs",
+    "package": "snapback4",
+    "target": "init"
+  },
+  {
+    "source": "crates/snapback4/tests/witness.rs",
+    "package": "snapback4",
+    "target": "witness"
+  },
+  {
+    "source": "crates/snapback4/tests/latency.rs",
+    "package": "snapback4",
+    "target": "latency"
+  }
+]
