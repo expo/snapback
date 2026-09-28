@@ -1,0 +1,19 @@
+[
+  {
+    "name": "adoption-clears-restore-refusal",
+    "exit": 1,
+    "failures": [
+      {
+        "name": "generation-changing adoption completion preserves restore refusal",
+        "ok": false,
+        "error": "AssertionError [ERR_ASSERTION]: asynchronous completion cannot reauthorize action dispatch\n+ actual - expected\n\n+ undefined\n- 'E_STORE_RESTORE'\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:343:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:315:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:335:52"
+      }
+    ],
+    "pageErrors": [],
+    "command": [
+      "node",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs",
+      "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/result.json"
+    ]
+  }
+]

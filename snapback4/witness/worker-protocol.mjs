@@ -9,6 +9,7 @@ import { chromium } from 'playwright-core';
 import { chromiumExecutable, root } from './lib.mjs';
 import { webShell } from '../packages/snapback4/bin/web-shell.js';
 import { replacementEntry, replacementWorker } from './worker-restore-replacement.mjs';
+import { adoptionEntry } from './worker-restore-adoption.mjs';
 
 const out = resolve(process.argv[2] ?? join(root, 'target/lane-ss-round4/worker-protocol.json'));
 const dir = join(root, 'target/lane-ss-round4/worker-protocol');
@@ -19,7 +20,7 @@ const schema = JSON.parse(readFileSync(join(root, 'packages/snapback4/test/chat-
 writeFileSync(join(dir, 'index.html'), '<!doctype html><script type="module" src="/entry.js"></script>');
 writeFileSync(join(dir, 'fault-worker.js'), `
 import { WorkerRuntime, serveWorker } from '${sdk}/web-worker-runtime.js';
-let armed, lastOp;
+let armed, lastOp, restoreFailure, abortRestore = false;
 const hit = async point => {
   if (armed?.point !== point) return;
   const fault = armed; armed = undefined;
@@ -30,12 +31,17 @@ const hit = async point => {
 addEventListener('message', e => {
   if (e.data?.test === 'arm') { armed = e.data; e.stopImmediatePropagation(); }
   if (e.data?.test === 'crash') { e.stopImmediatePropagation(); setTimeout(() => { throw new Error('controlled idle crash'); }); }
+  if (e.data?.test === 'restore-failure') { e.stopImmediatePropagation(); restoreFailure = e.data.mode; }
 });
 const execute = WorkerRuntime.prototype.execute;
 WorkerRuntime.prototype.execute = async function(message) {
   if (message.action === 'invoke') { lastOp = message.request?.op; await hit('before-invoke'); }
   if (message.action === 'commit') await hit('before-commit');
   const value = await execute.call(this, message);
+  if (message.action === 'invoke' && message.request?.op === 'observe_store' && value.denied?.code === 'E_STORE_RESTORE') {
+    if (restoreFailure === 'observation') { postMessage({ test: 'restore-failed', mode: restoreFailure }); return { ok: {} }; }
+    if (restoreFailure === 'idb') abortRestore = true;
+  }
   if (message.action === 'invoke') await hit('after-invoke');
   if (message.action === 'commit') await hit('after-commit');
   return value;
@@ -43,6 +49,10 @@ WorkerRuntime.prototype.execute = async function(message) {
 const put = IDBObjectStore.prototype.put;
 IDBObjectStore.prototype.put = function(...args) {
   const request = put.apply(this, args);
+  if (abortRestore && this.transaction.mode === 'readwrite') {
+    abortRestore = false; this.transaction.abort();
+    postMessage({ test: 'restore-failed', mode: 'idb', strict: this.transaction.durability });
+  }
   if (armed?.point === 'during-commit' && this.transaction.mode === 'readwrite') {
     const store = this, fault = armed; armed = undefined;
     const keep = () => { const r = store.get(['m', 'device:store_id']); r.onsuccess = keep; };
@@ -71,7 +81,8 @@ const persist = indexedDbPersistence();
 const cores = new Map();
 const ok = reply => { if (reply.denied) throw new Error(JSON.stringify(reply)); return reply.ok; };
 const records = () => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:'));
-let host, journal, suspension, worker, hit, signal, workerStarts = 0;
+let host, journal, suspension, worker, hit, signal, workerStarts = 0, restoreFailure;
+const restoreFailures = [];
 const events = [
   { table: 'conversations', id: 'c1', title: 'General', creatorId: 'dev:alice' },
   { table: 'memberships', id: 'm1', conversationId: 'c1', principal: 'dev:alice', role: 'admin', joinedAt: 1 },
@@ -86,6 +97,8 @@ async function open(name, fault = true, kept = false) {
     workerStarts++;
     worker = new Worker(new URL('./fault-worker.js', import.meta.url), { type: 'module' });
     worker.addEventListener('message', e => { if (e.data?.test === 'hit') signal?.(e.data); });
+    worker.addEventListener('message', e => { if (e.data?.test === 'restore-failed') restoreFailures.push(e.data); });
+    if (restoreFailure) worker.postMessage({ test: 'restore-failure', mode: restoreFailure });
     return worker;
   }) : new WebWorkerHost(claim);
   const saved = await host.open(kept ? null : backend);
@@ -130,6 +143,23 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  async closeRestoreFailure(mode) {
+    await open('app'); await w.acquire();
+    const capture = host.control.read(); w.arm('before-commit');
+    const proof = host.fenceRestore({ storeId: 'worker-store', head: 4, capture }).catch(e => String(e));
+    await w.hit(); await host.terminate(); await proof;
+    restoreFailure = mode;
+    const closing = host.close(), sameAttempt = closing === host.close();
+    const failed = await closing.then(() => null, e => String(e));
+    const starts = workerStarts;
+    const repeated = await host.close().then(() => null, e => String(e));
+    const restarted = starts !== workerStarts;
+    const held = (await navigator.locks.query()).held.map(lock => lock.name);
+    restoreFailure = undefined;
+    const claim = await persist.claim('app', true);
+    const nextClaim = claim.name; await claim.release();
+    return { failed, repeated, sameAttempt, restarted, held, nextClaim, faults: restoreFailures };
+  },
   async claimFailure(worker) {
     await persist.save('app', [{ s: 'm', k: 'probe', v: 'present' }]);
     const transaction = IDBDatabase.prototype.transaction;
@@ -254,6 +284,7 @@ window.w = { open, call, recover, capture, admit, counts, records, first, second
   },
 };
 ${replacementEntry(sdk)}
+${adoptionEntry(sdk)}
 `);
 const require = createRequire(join(root, 'apps/chat/package.json'));
 const { build } = await import(require.resolve('vite'));
@@ -290,6 +321,28 @@ const run = async (name, body) => {
   console.log(`${results.at(-1).ok ? 'PASS' : 'FAIL'} ${name}`);
 };
 try {
+  for (const mode of ['idb', 'observation']) await run('failed close releases app after restore ' + mode + ' failure', async page => {
+    const result = await page.evaluate(mode => w.closeRestoreFailure(mode), mode);
+    assert.ok(result.failed, 'the first close reports its persistence failure');
+    if (mode === 'observation') assert.match(result.failed, /captured restore proof was not persisted/);
+    assert.equal(result.faults.length, 1); assert.equal(result.faults[0].mode, mode);
+    if (mode === 'idb') assert.equal(result.faults[0].strict, 'strict');
+    assert.equal(result.nextClaim, 'app', 'the next claimant gets the primary store after failed close');
+    assert.ok(!result.held.includes('app')); assert.ok(!result.held.includes('snapback4-worker:app'));
+    assert.equal(result.sameAttempt, true); assert.equal(result.repeated, null); assert.equal(result.restarted, false);
+    return result;
+  });
+  for (const phase of ['observation', 'adoption']) await run('generation-changing ' + phase + ' completion preserves restore refusal', async page => {
+    const result = await page.evaluate(phase => window.adoptionRestore(phase), phase);
+    assert.equal(result.capture.restore_images_at, 100);
+    assert.equal(result.pageGeneration, result.capture.generation + 1);
+    assert.equal(result.observationHeld, true);
+    assert.equal(result.adoptionHeld, phase === 'adoption');
+    if (phase === 'adoption') assert.equal(result.adopted.denied, undefined, 'real adoption completed before the refusal was latched');
+    assert.equal(result.before.denied?.code, 'E_STORE_RESTORE');
+    assert.equal(result.after.denied?.code, 'E_STORE_RESTORE', 'asynchronous completion cannot reauthorize action dispatch');
+    assert.equal(result.actions, 0); return result;
+  });
   for (const failValidation of [false, true]) await run('obsolete A proof retires only its provisional refusal after B restart' + (failValidation ? ' and validation retry' : ''), async page => {
     const result = await page.evaluate(failed => window.replacementRestore(failed), failValidation);
     assert.equal(result.capture.store_id, 'A'); assert.equal(result.capture.restore_images_at, 100);

@@ -241,17 +241,21 @@ export class WebWorkerHost {
 
   close(): Promise<void> {
     return this.closing ??= this.chain.then(async () => {
-      // A failed/terminated owner keeps custody through durable restoration,
+      // A failed/terminated owner attempts durable restoration under its claim,
       // even when close is the next operation rather than another device call.
-      if (this.opened && !this.worker) {
-        await this.stopping;
-        try { await this.start(null); }
-        catch (error) { await this.stop(); throw error; }
+      try {
+        if (this.opened && !this.worker) {
+          await this.stopping;
+          await this.start(null);
+        }
+        await this.persistRestore();
+      } finally {
+        // Restore failure still closes this owner. A failed termination
+        // barrier keeps custody; only a quiescent Worker can release it.
+        await this.stop();
+        await this.release();
+        this.closing = Promise.resolve();
       }
-      try { await this.persistRestore(); }
-      catch (error) { await this.stop(); throw error; }
-      await this.stop();
-      await this.release();
     });
   }
 }

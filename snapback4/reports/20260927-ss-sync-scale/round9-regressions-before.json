@@ -1,0 +1,112 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "failed close releases app after restore idb failure",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: the next claimant gets the primary store after failed close\n+ actual - expected\n\n+ 'app:tab-mxmyj9am'\n- 'app'\n      ^\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:330:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:315:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:324:46"
+    },
+    {
+      "name": "failed close releases app after restore observation failure",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: the next claimant gets the primary store after failed close\n+ actual - expected\n\n+ 'app:tab-t3qc3p2f'\n- 'app'\n      ^\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:330:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:315:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:324:46"
+    },
+    {
+      "name": "generation-changing observation completion preserves restore refusal",
+      "ok": true,
+      "ms": 1171.7124559999997,
+      "detail": {
+        "capture": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 100,
+          "restore_watermark": 100,
+          "restore_images_at": 100,
+          "send_revision": 1,
+          "acquisition": 1,
+          "queuedRevision": 13,
+          "issuedFloor": 0,
+          "predictions": []
+        },
+        "pageGeneration": 2,
+        "observationHeld": true,
+        "adoptionHeld": false,
+        "before": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3KBQED0TNHPNAMRAAAJY6GT"
+        },
+        "after": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3KBQEDB01YM3TR51ZH8W0W0"
+        },
+        "actions": 0,
+        "followupHeld": false
+      }
+    },
+    {
+      "name": "generation-changing adoption completion preserves restore refusal",
+      "ok": true,
+      "ms": 1150.8839960000005,
+      "detail": {
+        "capture": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 100,
+          "restore_watermark": 100,
+          "restore_images_at": 100,
+          "send_revision": 1,
+          "acquisition": 1,
+          "queuedRevision": 13,
+          "issuedFloor": 0,
+          "predictions": []
+        },
+        "pageGeneration": 2,
+        "observationHeld": true,
+        "adoptionHeld": true,
+        "adopted": {
+          "ok": null
+        },
+        "before": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3KBQFH0CA2C03P02PVSMKKP"
+        },
+        "after": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3KBQFHAZKN8MZB39F1WANA7"
+        },
+        "actions": 0,
+        "followupHeld": false
+      }
+    }
+  ],
+  "pageErrors": [],
+  "failures": 2
+}

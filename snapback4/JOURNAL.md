@@ -72597,3 +72597,54 @@ Historical performance and pre-durable-commit page-destruction limits remain.
 Detailed file map, forms, all failures, reproduction and retained evidence:
 reports/20260927-ss-sync-scale/ROUND8.md and round8-* in that directory.
 Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 9: failed close releases custody; adoption guard pinned
+
+First fetched and merged origin/main (already up to date, no conflicts), from
+lane 6f7253beaa and fetched main a745b110f. Read rounds 0–8 prompts, reports
+and SS entries, and Grok's complete round-7 review. No push/publication or
+tool installation; the supervisor owns integration and independent review.
+
+WebWorkerHost.close now terminates in finally and releases the page claim
+after its lifetime-lock and IndexedDB barriers succeed, even when restoration
+or proof persistence fails. The original close still rejects; after release,
+later host closes resolve without starting another Worker. Concurrent closes
+share their attempt. A failed termination barrier still keeps its sticky
+failure and the claim; the existing regression stays green.
+
+Two new Chromium cases abort the actual strict restore save or replace the
+restore observation with a non-refusal. Before the fix both leave the next
+claimant on app:tab-*; after the fix both give exactly app with no remaining
+page/lifetime lock. Both the repeated-close and no-restart assertions pass.
+The two generation-changing cases capture floor 100 and hold head 90, then
+latch the refusal while either observation or a successful adoption reply is
+held. The next action remains E_STORE_RESTORE with zero dispatches. The second
+case allows observation to finish and reaches the previously untested guard;
+a following state observation is held if reached so it cannot mask a cleared
+latch. Deleting only the post-adoption restore condition in an isolated built
+SDK copy fails that assertion, while the observation case still passes.
+Local.ts is unchanged. No engine, meter, authorization, format or ABI change.
+
+Qualification: web/clock 198/198; sync-scale/repair-B/generation/store-reset
+158 passed, one existing skip; Worker protocol 48/48; busy-Worker watches 5/5;
+navigation default/Worker 10/10 each; whole guide 92/92. Build/typecheck,
+reference audit (522 LLPs, 9758 references), whitespace and source lengths
+pass. Both IDB runs retain only the baseline adoptionRejected/adoptionUnlocked
+failures from the eager-orphan-recovery fixture. The pre-fix close reds are
+corrected; the adoption mutation red is intentional. Two exploratory absent/
+not-yet-written file reads were corrected. No environmental or unresolved
+lane-owned qualification failure.
+
+Did not run scripts/test.sh, as instructed. Round 8's historical exact result
+stands: == 1 failure(s) in 1422 s, client tests; its baseline <=500 ms wasm
+ephemeral-adoption timing failure remains unlocalized and is not claimed fixed.
+Wasm remeasured, not rebuilt: 2,019,815 B raw / 585,384 B GNU file-input gzip-9,
+delta 0/0, 809 B below unchanged 586,193 B cap; SHA-256
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+Existing acquisition/platform/memory limits remain; no new scale measurement.
+A failed close does not promise that its unsaved restore proof became durable.
+
+LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
+Full file map, forms, failures, commands and retained evidence:
+reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
