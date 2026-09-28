@@ -80,7 +80,7 @@ export class ReadObservation<T> {
           // One round has at most four requests, with 25/50/100 ms backoff.
           // A later invalidation can start another round; this one must settle.
           if (attempt === 3) {
-            this.publish({ loading: true }); notify();
+            this.reload(); notify();
             return { ...result, read: this.snapshot, retryExhausted: true };
           }
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
@@ -93,28 +93,43 @@ export class ReadObservation<T> {
         // this observation (or let a peer close it). That retires this fetch.
         if (revision !== this.revision) return { ...result, read: this.snapshot };
         if (publishResult) {
-          this.publish(result.transportOffline ? { loading: true } : result.read);
+          this.update(result.transportOffline ? { loading: true } : result.read);
           notify();
         }
         return result;
       }
     } catch (error) {
-      if (publishResult && revision === this.revision) { this.publish({ loading: true }); notify(); }
+      if (publishResult && revision === this.revision) { this.reload(); notify(); }
       throw error;
     }
   }
 
-  // @ref LLP 3000.023#3.2 — only an invalidation retains; publishing loading always withdraws.
+  // @ref LLP 3000.029#3 — only plain revalidation retains; evidence uses reset/publish.
   reload(): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger);
+    this.snapshot = revalidatingAnswer(this.snapshot, false);
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
+  }
+
+  // No new answer is not evidence against the last authorized answer. Callers
+  // must reset at the evidence boundary, before starting their asynchronous read.
+  update(read: Read<T>): void {
+    if ("loading" in read) this.reload(); else this.publish(read);
+  }
+
+  offline(): void {
+    this.reload();
+    if ("data" in this.snapshot) {
+      this.snapshot = copyAnswer(this.snapshot, { ...this.snapshot, fresh: false,
+        ...(this.since === undefined ? {} : { since: this.since }) });
+      this.deliver("answer")();
+    }
   }
 
   publish(read: Read<T>): void { this.replace(read); }
@@ -142,4 +157,21 @@ export class ReadObservation<T> {
   reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; return this.replace(read, "reset", deferred); }
   // @ref LLP 3000.023#3.6 — source expiry withdraws its facade hold in the sweep's notification phase.
   expire(): () => void { this.resetVersion++; return this.replace({ loading: true }, "expiry", true); }
+}
+
+// @ref LLP 3000.029#4 — an unavailable replacement cannot forget the held answer's inputs.
+export function readInputs(previous: Set<string>, next: Iterable<string>, retained: boolean): Set<string> {
+  return retained && previous.size === 0 ? previous : new Set([...(retained ? previous : []), ...next]);
+}
+
+// @ref LLP 3000.029#4 — a one-shot refusal/absence also invalidates matching live hooks.
+export function invalidateReadEvidence(watches: Iterable<ReadObservation<unknown> & { op: { name: string }; args: unknown; subscribers: Set<() => void> }>,
+  op: { name: string }, args: unknown, read: Read<unknown>): void {
+  const deliveries: (() => void)[] = [];
+  for (const watch of watches) if (watch.op.name === op.name && JSON.stringify(watch.args) === JSON.stringify(args)) {
+    deliveries.push(watch.reset(read, true));
+    clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
+    deliveries.push(() => { for (const notify of watch.subscribers) notify(); });
+  }
+  deliverReadNotifications(deliveries);
 }

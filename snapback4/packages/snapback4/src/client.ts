@@ -1,3 +1,5 @@
+import { readInputs, invalidateReadEvidence } from "./read-observation.ts";
+import { AssetLifetime } from "./asset-lifetime.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -198,8 +200,10 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
+  const assetLifetime = new AssetLifetime(() => clock.estimatedServerNow());
   const resetWatches = (publish = true) => {
     const deliver = deferReadNotifications(() => {
+      assetLifetime.invalidate();
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
     });
@@ -253,7 +257,7 @@ export function createClient(options: ClientOptions): Client {
     }, 500);
     try {
       let backoff = 25;
-      while (!closed && !storeRefusal && credentials && watches.size > 0) {
+      while (!closed && !storeRefusal && credentials && (watches.size > 0 || assetLifetime.size > 0)) {
         try { backendLoaded = await waitForCaller(refreshBackend(minimumGeneration), aborter.signal) === true; } catch { backendLoaded = false; }
         if (backendLoaded) return true;
         await waitForCaller(new Promise(resolve => setTimeout(resolve, backoff)), aborter.signal);
@@ -318,10 +322,10 @@ export function createClient(options: ClientOptions): Client {
     link = next;
     const changed: Watch[] = [];
     const deliver = deferReadNotifications(() => {
-      if (next === "signed-out") endLingering(watches.values());
+      if (next === "signed-out") { assetLifetime.invalidate(); endLingering(watches.values()); }
       if (next !== "online") for (const watch of watches.values()) {
         if (next === "signed-out" || "data" in watch.snapshot) {
-          watch.publish(next === "signed-out" ? { denied: auth() } : { loading: true });
+          if (next === "signed-out") watch.publish({ denied: auth() }); else watch.offline();
           changed.push(watch);
         }
       }
@@ -358,7 +362,7 @@ export function createClient(options: ClientOptions): Client {
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
     // @ref LLP 3000.023#3.4 — even lingering approvals withdraw before callbacks can inspect a peer.
     const deliver = deferReadNotifications(() => {
-      endLingering(watches.values());
+      assetLifetime.invalidate(); endLingering(watches.values());
       queryEpoch++;
       // Terminal connectivity is observable without discarding the session that
       // createApp may validate on its replacement client.
@@ -646,6 +650,7 @@ export function createClient(options: ClientOptions): Client {
   async function refreshPresence(watch: Watch) {
     if (closed || storeRefusal || !credentials || watches.get(watch.key) !== watch) return;
     if (watch.inFlight) return; // The fetch in flight re-arms the refresh when it settles.
+    watch.reload(); notify(watch);
     const shown = watch.snapshot;
     const result = await runQuery(watch.op, watch.args, true);
     if (closed || watches.get(watch.key) !== watch) return;
@@ -654,10 +659,10 @@ export function createClient(options: ClientOptions): Client {
     // A failed or stale reply keeps the answer and the interval, and retries.
     if (result.transportOffline || !currentRead(result, watch)) { schedulePresence(watch, false); return; }
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
-    // An accepted reply is published whatever it says, loading and refusals included.
-    watch.publish(result.read);
+    // Absence retains only if no input or deadline invalidated this observation.
+    watch.update(result.read);
     acceptDelivery(result, watch.snapshot);
-    watch.tables = new Set(result.tables);
+    watch.tables = readInputs(watch.tables, result.tables, watch.kept);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
     if (!watch.kept) scheduleExpiry(watch, result.nextExpiry);
     notify(watch);
@@ -679,7 +684,7 @@ export function createClient(options: ClientOptions): Client {
       const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => {
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
-        scheduleExpiry(watch, result.nextExpiry);
+        if (!(result.transportOffline || "loading" in result.read) || !("data" in watch.snapshot)) scheduleExpiry(watch, result.nextExpiry);
         return true;
       } });
       if (resetVersion !== watch.resetVersion) { watch.dirty = credentials; return; }
@@ -687,16 +692,16 @@ export function createClient(options: ClientOptions): Client {
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
-        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.publish({ loading: true });
+        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.reload();
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
         return;
       }
-      watch.publish(result.transportOffline ? { loading: true } : result.read);
+      watch.update(result.transportOffline ? { loading: true } : result.read);
       acceptDelivery(result, watch.snapshot);
       notify(watch);
-      watch.tables = new Set(tables);
+      watch.tables = readInputs(watch.tables, tables, watch.kept);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
@@ -748,7 +753,7 @@ export function createClient(options: ClientOptions): Client {
   async function poll() {
     if (polling) return;
     polling = true;
-    while (!closed && !storeRefusal && watches.size > 0) {
+    while (!closed && !storeRefusal && (watches.size > 0 || assetLifetime.size > 0)) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
         if (!closed && credentials && link === "offline") await probe();
@@ -782,10 +787,17 @@ export function createClient(options: ClientOptions): Client {
         generation = backend?.generation ?? json.generation;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
-          const touched = new Set(json.tables);
-          for (const watch of watches.values()) {
-            if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
-          }
+          const inputs = Array.isArray(json.tables) ? json.tables : undefined;
+          const touched = new Set(inputs);
+          // @ref LLP 3000.029#4 — invalidate every affected answer before any
+          // callback can inspect a peer, then start asynchronous revalidation.
+          const affected = [...watches.values()].filter(watch => !inputs || changedGeneration || watch.tables.size === 0 || [...watch.tables].some(t => touched.has(t)));
+          const deliver = deferReadNotifications(() => {
+            if (!inputs || touched.size) assetLifetime.invalidate(json.seq);
+            for (const watch of affected) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+          });
+          deliver();
+          for (const watch of affected) { notify(watch); void refresh(watch); }
         }
       } catch {
         if (closed || storeRefusal) break;
@@ -818,6 +830,9 @@ export function createClient(options: ClientOptions): Client {
       const outcome = json.replayed === true
         ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
+      // A mutation receipt has no dependency footprint. It may revoke rows;
+      // withdraw before onWrite/custody callbacks can inspect an observation.
+      resetWatches();
       entry.resolve(outcome);
       emitWrite(outcome);
       for (const watch of watches.values()) void refresh(watch);
@@ -873,8 +888,8 @@ export function createClient(options: ClientOptions): Client {
 
   const stopClock = clock.subscribe((shift, revised) => {
     // Sub-frame sampling noise must not make a query response refetch itself.
-    if (closed || (!revised && Math.abs(shift) < 10)) return;
-    sweepExpiries();
+    if (closed || (!revised && Math.abs(shift) < 10)) { assetLifetime.check(); return; }
+    deferReadNotifications(() => { assetLifetime.check(); sweepExpiries(); })();
     scheduleRefresh();
   });
   delivery = onlineDelivery({ offline: () => setLink("offline"), url: base, fetch: doFetch, mint: mintId,
@@ -898,6 +913,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       if (!currentRead(result)) return { loading: true };
+      if (!result.transportOffline && ("denied" in result.read || ("data" in result.read && (result.read.data === null || (Array.isArray(result.read.data) && result.read.data.length === 0))))) invalidateReadEvidence(watches.values(), op, args, result.read);
       acceptDelivery(result, result.read);
       return result.read;
     },
@@ -967,6 +983,7 @@ export function createClient(options: ClientOptions): Client {
       return uploaded;
     },
     async asset(id) {
+      const assetRevision = assetLifetime.revision;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
@@ -988,7 +1005,9 @@ export function createClient(options: ClientOptions): Client {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      return read;
+      const owned = assetLifetime.own(read, assetRevision);
+      void poll();
+      return owned;
     },
     assetSource: (id) => storeRefusal || closed ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
@@ -1046,8 +1065,9 @@ export function createClient(options: ClientOptions): Client {
     close() {
       if (closing) return closing;
       closed = true;
+      const withdrawn = deferReadNotifications(() => { assetLifetime.invalidate(); closeWatchAnswers(watches, storeRefusal ?? ended())(); });
       void delivery?.stop();
-      closeWatchAnswers(watches, storeRefusal ?? ended())();
+      withdrawn();
       pendingEvents.notify(); pendingEvents.clear();
       stopClock();
       closingResponses.begin();

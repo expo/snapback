@@ -93,10 +93,13 @@ export class EphemeralReads {
     this.epoch = version.epoch;
     if (!replaced) {
       const tables = new Set((value as EphemeralVersion & { tables?: string[] }).tables ?? []);
+      const deliveries: (() => void)[] = [];
       for (const interest of this.interests.values()) if ([...interest.tables].some(table => tables.has(table))) {
         if (interest.floor?.incarnation !== version.incarnation || interest.floor.epoch < version.epoch) interest.floor = version;
-        interest.invalidate(false)?.();
+        const deliver = interest.invalidate(true);
+        if (deliver) deliveries.push(deliver);
       }
+      for (const deliver of deliveries) deliver();
     }
     return true;
   }

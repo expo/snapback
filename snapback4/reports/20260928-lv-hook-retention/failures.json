@@ -1,0 +1,4272 @@
+[
+  {
+    "log": "additional-disclosure.log.gz",
+    "line": 49,
+    "failure": "online: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 1,
+    "failure": "wasm: apply revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 2,
+    "failure": "wasm: admit revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 3,
+    "failure": "wasm: transfer revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 5,
+    "failure": "wasm: apply revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 6,
+    "failure": "wasm: admit revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 7,
+    "failure": "wasm: transfer revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 8,
+    "failure": "wasm: apply revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 9,
+    "failure": "wasm: admit revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 10,
+    "failure": "wasm: transfer revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 11,
+    "failure": "wasm: apply revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 12,
+    "failure": "wasm: admit revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 13,
+    "failure": "wasm: transfer revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 18,
+    "failure": "process: apply revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 19,
+    "failure": "process: admit revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 20,
+    "failure": "process: transfer revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 22,
+    "failure": "process: apply revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 23,
+    "failure": "process: admit revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 24,
+    "failure": "process: transfer revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 25,
+    "failure": "process: apply revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 26,
+    "failure": "process: admit revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 27,
+    "failure": "process: transfer revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 28,
+    "failure": "process: apply revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 29,
+    "failure": "process: admit revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 30,
+    "failure": "process: transfer revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 35,
+    "failure": "online: revoked data, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 36,
+    "failure": "online: revoked data, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 37,
+    "failure": "online: revoked data, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 38,
+    "failure": "online: revoked data, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 63,
+    "failure": "createApp wasm keep=undefined: held expiry fences late HTTP memory before rollback, preserving newer B",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 64,
+    "failure": "createApp wasm keep=true: held expiry fences late HTTP memory before rollback, preserving newer B",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 65,
+    "failure": "createApp keep=undefined property: online, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 66,
+    "failure": "createApp keep=undefined property: online, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 67,
+    "failure": "createApp keep=undefined property: online, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 68,
+    "failure": "createApp keep=undefined property: wasm, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 69,
+    "failure": "createApp keep=undefined property: wasm, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 70,
+    "failure": "createApp keep=undefined property: wasm, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 71,
+    "failure": "createApp keep=undefined property: process, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 72,
+    "failure": "createApp keep=undefined property: process, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 73,
+    "failure": "createApp keep=undefined property: process, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 74,
+    "failure": "createApp keep=true property: online, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 75,
+    "failure": "createApp keep=true property: online, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 76,
+    "failure": "createApp keep=true property: online, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 77,
+    "failure": "createApp keep=true property: wasm, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 78,
+    "failure": "createApp keep=true property: wasm, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 79,
+    "failure": "createApp keep=true property: wasm, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 80,
+    "failure": "createApp keep=true property: process, seed 23, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 81,
+    "failure": "createApp keep=true property: process, seed 44, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 82,
+    "failure": "createApp keep=true property: process, seed 445, 50ms authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 83,
+    "failure": "createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 84,
+    "failure": "createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 96,
+    "failure": "opening remount getter and notifications follow shared replacements, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 98,
+    "failure": "a live waiting facade holds A until its peer approves shared B, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 105,
+    "failure": "opening remount getter and notifications follow shared replacements, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 107,
+    "failure": "a live waiting facade holds A until its peer approves shared B, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 110,
+    "failure": "opening remount receives the revalidating mark during replacement, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 112,
+    "failure": "opening remount receives the revalidating mark during replacement, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 113,
+    "failure": "facade holds A until its device deadline (timer), including a lingering remount",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 114,
+    "failure": "facade holds A until its device deadline (correction), including a lingering remount",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 115,
+    "failure": "facade holds A until its server deadline (timer), including a lingering remount",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 116,
+    "failure": "facade holds A until its server deadline (correction), including a lingering remount",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 117,
+    "failure": "held server data ignores a device reobservation wakeup, even when device time is ahead",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 119,
+    "failure": "all facade deadlines withdraw before a subscriber rolls the clock back",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 120,
+    "failure": "held approval ends on scope",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 121,
+    "failure": "held approval ends on denied",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 122,
+    "failure": "held approval ends on authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 123,
+    "failure": "held approval ends on fence",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 124,
+    "failure": "held approval ends on linger",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 127,
+    "failure": "held device deadline is latched by peek before timer delivery",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 128,
+    "failure": "held server deadline is latched by snapshot before timer delivery",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 129,
+    "failure": "held server deadline is latched by peek before timer delivery",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 130,
+    "failure": "opening remount is notified on reset",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 131,
+    "failure": "opening remount is notified on denied",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 132,
+    "failure": "opening remount is notified on retire",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 133,
+    "failure": "independent authority completions preserve the newest check: B-first",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 177,
+    "failure": "wasm: keep=undefined across apply publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 178,
+    "failure": "wasm: keep=undefined across admit publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 179,
+    "failure": "wasm: keep=undefined across settle publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 180,
+    "failure": "wasm: keep=undefined across revoke publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 181,
+    "failure": "wasm: keep=undefined across leave publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 182,
+    "failure": "wasm: keep=undefined across refusal publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 183,
+    "failure": "process: keep=undefined across apply publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 184,
+    "failure": "process: keep=undefined across admit publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 185,
+    "failure": "process: keep=undefined across settle publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 186,
+    "failure": "process: keep=undefined across revoke publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 187,
+    "failure": "process: keep=undefined across leave publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 188,
+    "failure": "process: keep=undefined across refusal publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 189,
+    "failure": "wasm: keep=true across apply publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 190,
+    "failure": "wasm: keep=true across admit publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 191,
+    "failure": "wasm: keep=true across settle publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 192,
+    "failure": "wasm: keep=true across revoke publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 193,
+    "failure": "wasm: keep=true across leave publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 194,
+    "failure": "wasm: keep=true across refusal publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 195,
+    "failure": "process: keep=true across apply publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 196,
+    "failure": "process: keep=true across admit publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 197,
+    "failure": "process: keep=true across settle publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 198,
+    "failure": "process: keep=true across revoke publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 199,
+    "failure": "process: keep=true across leave publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 200,
+    "failure": "process: keep=true across refusal publishes no loading and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 204,
+    "failure": "wasm: keep=undefined never publishes an evaluation captured before a newer commit",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 205,
+    "failure": "process: keep=undefined never publishes an evaluation captured before a newer commit",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 206,
+    "failure": "wasm: keep=true never publishes an evaluation captured before a newer commit",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 207,
+    "failure": "process: keep=true never publishes an evaluation captured before a newer commit",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 209,
+    "failure": "wasm: a closed raw local observation still latches its episode deadline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 211,
+    "failure": "process: a closed raw local observation still latches its episode deadline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 212,
+    "failure": "wasm keep=undefined: expiry withdraws across apply with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 213,
+    "failure": "wasm keep=undefined: expiry withdraws across admit with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 214,
+    "failure": "wasm keep=undefined: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 215,
+    "failure": "wasm keep=true: expiry withdraws across apply with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 216,
+    "failure": "wasm keep=true: expiry withdraws across admit with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 217,
+    "failure": "wasm keep=true: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 221,
+    "failure": "process keep=undefined: expiry withdraws across apply with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 222,
+    "failure": "process keep=undefined: expiry withdraws across admit with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 223,
+    "failure": "process keep=undefined: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 224,
+    "failure": "process keep=true: expiry withdraws across apply with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 225,
+    "failure": "process keep=true: expiry withdraws across admit with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 226,
+    "failure": "process keep=true: expiry withdraws across settle with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 230,
+    "failure": "online keep=undefined: expiry withdraws across notification with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 231,
+    "failure": "online keep=true: expiry withdraws across notification with the replacement held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 258,
+    "failure": "local keep: apply fences in-flight answers and keeps active and lingering data",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 259,
+    "failure": "local keep: admit fences in-flight answers and keeps active and lingering data",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 260,
+    "failure": "local keep: settle fences in-flight answers and keeps active and lingering data",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 265,
+    "failure": "keep carries original freshness through reload, and every published result replaces it",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 268,
+    "failure": "online keep: mutation waits without loading, then publishes next",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 269,
+    "failure": "online keep: mutation waits without loading, then publishes denied",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 270,
+    "failure": "online keep: notification waits without loading, then publishes next",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 271,
+    "failure": "online keep: notification waits without loading, then publishes denied",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 279,
+    "failure": "online keep: an in-flight answer read before a newer commit never replaces the kept answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 280,
+    "failure": "the app client forwards keep while its lifetime fence still withdraws data",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 282,
+    "failure": "createApp keeps a superseded answer while replacement authority is held",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 324,
+    "failure": "replacement completes and clears revalidation: keep=undefined, \"B\"",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 325,
+    "failure": "replacement completes and clears revalidation: keep=undefined, null",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 326,
+    "failure": "replacement completes and clears revalidation: keep=undefined, []",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 327,
+    "failure": "replacement completes and clears revalidation: keep=undefined, {\"denied\":{\"code\":\"HIDDEN\",\"family\":\"rule\",\"message\":\"hidden\"}}",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 328,
+    "failure": "hard withdrawals replace retained data: keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 329,
+    "failure": "hard withdrawals replace retained data: keep=undefined, transportOffline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 330,
+    "failure": "hard withdrawals replace retained data: keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 332,
+    "failure": "hard withdrawals replace retained data: keep=undefined, loading",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 337,
+    "failure": "hard withdrawals replace retained data: keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 338,
+    "failure": "hard withdrawals replace retained data: keep=true, transportOffline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 339,
+    "failure": "hard withdrawals replace retained data: keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 341,
+    "failure": "hard withdrawals replace retained data: keep=true, loading",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 351,
+    "failure": "one stable episode withdrawal at the deadline via snapshot, late success still lands",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 352,
+    "failure": "one stable episode withdrawal at the deadline via peek, late success still lands",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 353,
+    "failure": "one stable episode withdrawal at the deadline via timer, late success still lands",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 354,
+    "failure": "successful fallback and held composition keep the same episode: keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 362,
+    "failure": "facade and opening remount share source expiry, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 363,
+    "failure": "facade and opening remount share source loading, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 364,
+    "failure": "facade and opening remount share source transportOffline, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 365,
+    "failure": "facade and opening remount share source retain:false, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 366,
+    "failure": "facade and opening remount share source reset, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 367,
+    "failure": "facade and opening remount share source denied, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 368,
+    "failure": "facade and opening remount share source expiry, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 369,
+    "failure": "facade and opening remount share source loading, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 370,
+    "failure": "facade and opening remount share source transportOffline, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 371,
+    "failure": "facade and opening remount share source retain:false, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 372,
+    "failure": "facade and opening remount share source reset, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 373,
+    "failure": "facade and opening remount share source denied, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 374,
+    "failure": "facade inherits A's episode timestamp from the invalidation, through B and C authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 375,
+    "failure": "an early episode timer rearms to the original deadline without accessor help",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 376,
+    "failure": "facade withdrawal notifies once, including an opening remount, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 380,
+    "failure": "an episode due inside a grouped commit waits until the settled peer is revalidating",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 465,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 467,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 468,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 469,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 470,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 471,
+    "failure": "online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 472,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 474,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 475,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 476,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 477,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 478,
+    "failure": "online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 479,
+    "failure": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 480,
+    "failure": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 481,
+    "failure": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 516,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 518,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 519,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 520,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 521,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 522,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 523,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 525,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 526,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 527,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 528,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 529,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 530,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 531,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 532,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 567,
+    "failure": "schema discovery withdraws an overlapping invalidation: keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 568,
+    "failure": "schema discovery withdraws an overlapping invalidation: keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 569,
+    "failure": "online link loss withdraws a live settled answer immediately, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 570,
+    "failure": "online link loss withdraws a live invalidated answer immediately, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 573,
+    "failure": "online link loss withdraws a live settled answer immediately, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 574,
+    "failure": "online link loss withdraws a live invalidated answer immediately, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 575,
+    "failure": "usePage checks first page deadline before cached return without timer delivery",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-initial.log.gz",
+    "line": 576,
+    "failure": "usePage checks second page deadline before cached return without timer delivery",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 131,
+    "failure": "createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 132,
+    "failure": "createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 229,
+    "failure": "wasm: keep=undefined across leave withdraws changed inputs and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 235,
+    "failure": "process: keep=undefined across leave withdraws changed inputs and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 241,
+    "failure": "wasm: keep=true across leave withdraws changed inputs and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 247,
+    "failure": "process: keep=true across leave withdraws changed inputs and replaces the old answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 330,
+    "failure": "createApp keeps a superseded answer while replacement authority is held",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 420,
+    "failure": "facade inherits A's episode timestamp from the invalidation, through B and C authority",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-second.log.gz",
+    "line": 426,
+    "failure": "an episode due inside a grouped commit waits until the settled peer is revalidating",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "affected-third.log.gz",
+    "line": 77,
+    "failure": "createApp withdraws a superseded answer while replacement authority is held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 20,
+    "failure": "a delayed transient conversion cannot publish an obsolete session's asset",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 51,
+    "failure": "native: a download delayed across store replacement cannot retain legacy bytes, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 52,
+    "failure": "native: a download delayed across store replacement preserves the newer download, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 53,
+    "failure": "native: a once download delayed across store replacement preserves the newer download, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 54,
+    "failure": "wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 55,
+    "failure": "wasm: a download delayed across store replacement preserves the newer download, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 56,
+    "failure": "wasm: a once download delayed across store replacement preserves the newer download, even after reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 59,
+    "failure": "wasm: list cache retires on expiry and stays retired after offline reopen",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "assets.log.gz",
+    "line": 75,
+    "failure": "live online asset handle withdraws on membership",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "browser-expiry-followup.log.gz",
+    "line": 2,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "browser-expiry-followup.log.gz",
+    "line": 4,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "browser-fifth.log.gz",
+    "line": 1,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "browser-fourth.log.gz",
+    "line": 82,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "browser-third.log.gz",
+    "line": 61,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "deadline-followup.log.gz",
+    "line": 5,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "deadline-followup.log.gz",
+    "line": 7,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 4,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 11,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 46,
+    "failure": "wasm: an accepted loading is published, and recovery never brings back the answer it replaced",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 49,
+    "failure": "wasm: an accepted background reply does not replace a newer answer another read remembered",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 57,
+    "failure": "wasm: an accepted background reply does not undo a newer read's deletion of an absent answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 59,
+    "failure": "process: an accepted loading is published, and recovery never brings back the answer it replaced",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 62,
+    "failure": "process: an accepted background reply does not replace a newer answer another read remembered",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "evidence-followup.log.gz",
+    "line": 70,
+    "failure": "process: an accepted background reply does not undo a newer read's deletion of an absent answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "expiry-qualified.log.gz",
+    "line": 4,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "expiry-qualified.log.gz",
+    "line": 11,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-affected.log.gz",
+    "line": 266,
+    "failure": "W8R1a online opted-out server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 1,
+    "failure": "wasm: apply revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 2,
+    "failure": "wasm: admit revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 3,
+    "failure": "wasm: transfer revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 4,
+    "failure": "wasm: remount revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 5,
+    "failure": "wasm: apply revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 6,
+    "failure": "wasm: admit revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 7,
+    "failure": "wasm: transfer revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 8,
+    "failure": "wasm: apply revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 9,
+    "failure": "wasm: admit revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 10,
+    "failure": "wasm: transfer revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 11,
+    "failure": "wasm: apply revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 12,
+    "failure": "wasm: admit revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 13,
+    "failure": "wasm: transfer revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 14,
+    "failure": "wasm: apply revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 15,
+    "failure": "wasm: admit revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 16,
+    "failure": "wasm: transfer revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 17,
+    "failure": "wasm: remount revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 18,
+    "failure": "wasm: apply revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 19,
+    "failure": "wasm: admit revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 20,
+    "failure": "wasm: transfer revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 21,
+    "failure": "wasm: remount revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 22,
+    "failure": "wasm: apply revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 23,
+    "failure": "wasm: admit revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 24,
+    "failure": "wasm: transfer revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 25,
+    "failure": "wasm: apply revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 26,
+    "failure": "wasm: admit revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 27,
+    "failure": "wasm: transfer revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 28,
+    "failure": "wasm: apply revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 29,
+    "failure": "wasm: admit revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 30,
+    "failure": "wasm: transfer revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 31,
+    "failure": "process: apply revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 32,
+    "failure": "process: admit revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 33,
+    "failure": "process: transfer revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 34,
+    "failure": "process: remount revocation, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 35,
+    "failure": "process: apply revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 36,
+    "failure": "process: admit revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 37,
+    "failure": "process: transfer revocation, keep=undefined, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 38,
+    "failure": "process: apply revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 39,
+    "failure": "process: admit revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 40,
+    "failure": "process: transfer revocation, keep=undefined, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 41,
+    "failure": "process: apply revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 42,
+    "failure": "process: admit revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 43,
+    "failure": "process: transfer revocation, keep=undefined, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 44,
+    "failure": "process: apply revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 45,
+    "failure": "process: admit revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 46,
+    "failure": "process: transfer revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 47,
+    "failure": "process: remount revocation, keep=false, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 48,
+    "failure": "process: apply revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 49,
+    "failure": "process: admit revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 50,
+    "failure": "process: transfer revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 51,
+    "failure": "process: remount revocation, keep=true, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 52,
+    "failure": "process: apply revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 53,
+    "failure": "process: admit revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 54,
+    "failure": "process: transfer revocation, keep=true, throw",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 55,
+    "failure": "process: apply revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 56,
+    "failure": "process: admit revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 57,
+    "failure": "process: transfer revocation, keep=true, unavailable",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 58,
+    "failure": "process: apply revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 59,
+    "failure": "process: admit revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 60,
+    "failure": "process: transfer revocation, keep=true, retryExhausted",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 61,
+    "failure": "online: revoked data, keep=undefined, held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 83,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 196,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=false, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 197,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=false, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 198,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=false, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 199,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=true, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 200,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=true, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 201,
+    "failure": "wasm guard: closed facade honors row expiry, live peer=true, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 202,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=false, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 203,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=false, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 204,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=false, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 205,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=true, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 206,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=true, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 207,
+    "failure": "wasm createApp: closed facade honors row expiry, live peer=true, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 220,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private B, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 221,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private A, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 222,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private B, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 223,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private A, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 224,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private B, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 225,
+    "failure": "wasm guard: closed facade withdraws when peer republishes private A, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 226,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private B, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 227,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private A, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 228,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private B, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 229,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private A, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 230,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private B, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 231,
+    "failure": "wasm createApp: closed facade withdraws when peer republishes private A, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 233,
+    "failure": "wasm: closing a standalone withdrawing facade releases its raw owner and callbacks",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 240,
+    "failure": "wasm: client close keeps one denial past its row deadline, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 241,
+    "failure": "wasm detached handle: client close keeps one denial past its row deadline, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 242,
+    "failure": "wasm: client close keeps one denial past its row deadline, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 243,
+    "failure": "wasm detached handle: client close keeps one denial past its row deadline, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 244,
+    "failure": "wasm: client close keeps one denial past its row deadline, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 245,
+    "failure": "wasm detached handle: client close keeps one denial past its row deadline, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 246,
+    "failure": "wasm: resubscription delivers saved row expiry without an accessor, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 247,
+    "failure": "wasm: resubscription delivers saved row expiry without an accessor, keep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 248,
+    "failure": "wasm: closed handle expiry fences memory across rollback",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 249,
+    "failure": "wasm: live handle expiry fences memory across rollback",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 250,
+    "failure": "wasm: closed A expiry preserves newer unexpired B in memory across rollback",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 319,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 320,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 321,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 322,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 323,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 324,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 325,
+    "failure": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 326,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 327,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 328,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 329,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 330,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 331,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 332,
+    "failure": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 333,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 334,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 335,
+    "failure": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 336,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 337,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 338,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 339,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 340,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 341,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 342,
+    "failure": "wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 343,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 344,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 345,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 346,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 347,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 348,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 349,
+    "failure": "wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 350,
+    "failure": "wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 351,
+    "failure": "wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 352,
+    "failure": "wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 353,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 354,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 355,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 356,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 357,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 358,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 359,
+    "failure": "wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 360,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 361,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 362,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 363,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 364,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 365,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 366,
+    "failure": "wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 367,
+    "failure": "wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 368,
+    "failure": "wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-boundaries.log.gz",
+    "line": 369,
+    "failure": "wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "final-witnesses.log.gz",
+    "line": 51,
+    "failure": "an asset's readable rule witness expires offline at its original deadline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "guide-final.log.gz",
+    "line": 33,
+    "failure": "test familiar::every_moved_fact_has_its_why_or_details_home ... FAILED",
+    "classification": "ours",
+    "occurrences": 1
+  },
+  {
+    "log": "native-expo.log.gz",
+    "line": 5,
+    "failure": "Error: WITNESS_UDID must name your dedicated booted iOS simulator",
+    "classification": "environmental",
+    "occurrences": 1
+  },
+  {
+    "log": "new-tests-second.log.gz",
+    "line": 61,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "new-tests.log.gz",
+    "line": 61,
+    "failure": "browser: EnsureProfile preserves /conversation/bob through a held plain revalidation",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "optout-diagnosis-2.log.gz",
+    "line": 1,
+    "failure": "W8R1a online opted-out server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "optout-diagnosis.log.gz",
+    "line": 1,
+    "failure": "W8R1a online opted-out server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "optout-followup.log.gz",
+    "line": 1,
+    "failure": "W8R1a online opted-out server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "remaining-affected.log.gz",
+    "line": 39,
+    "failure": "expiry retry server pagination wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "remaining-affected.log.gz",
+    "line": 40,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "remaining-affected.log.gz",
+    "line": 46,
+    "failure": "expiry retry server pagination process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "remaining-affected.log.gz",
+    "line": 47,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "rule-change-qualified.log.gz",
+    "line": 3,
+    "failure": "online: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "rule-change-qualified.log.gz",
+    "line": 4,
+    "failure": "wasm: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "rule-change-retry.log.gz",
+    "line": 3,
+    "failure": "online: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "rule-change-retry.log.gz",
+    "line": 4,
+    "failure": "wasm: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1972,
+    "failure": "closed facade follows same identity's revalidation (close before=false), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1973,
+    "failure": "closed facade follows same identity's revalidation (close before=true), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1976,
+    "failure": "release fences pending authority before raw callback delivery, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1977,
+    "failure": "release fences pending authority before raw callback delivery, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1978,
+    "failure": "closed captured episode enforces its deadline even when the source copy has none (close before=false)",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1979,
+    "failure": "closed captured episode enforces its deadline even when the source copy has none (close before=true)",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1980,
+    "failure": "oracle preserves captured episode after source omits it (close before=false)",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1981,
+    "failure": "oracle preserves captured episode after source omits it (close before=true)",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1982,
+    "failure": "oracle fences opening refusal after closed peer restores raw denial (throws=false), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1983,
+    "failure": "oracle fences opening refusal after closed peer restores raw denial (throws=true), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1986,
+    "failure": "oracle checks raw expiry from an opening getter before its sourced peer, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1987,
+    "failure": "oracle requires same-answer recovery for every live facade, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1988,
+    "failure": "oracle rejects an older success after a closed opening succeeds, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1991,
+    "failure": "oracle fences pending approval before completion, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1992,
+    "failure": "oracle separates retired and recreated raw owners, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1993,
+    "failure": "oracle validates every callback in batched completions, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1994,
+    "failure": "oracle ignores superseded refusal (newest first=false), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1995,
+    "failure": "oracle ignores superseded refusal (newest first=true), keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 1996,
+    "failure": "oracle preserves recovery across duplicate opening denial, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2001,
+    "failure": "oracle preserves closed loading across raw denial, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2003,
+    "failure": "seed 1",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2004,
+    "failure": "seed 2",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2005,
+    "failure": "seed 3",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2006,
+    "failure": "seed 4",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2007,
+    "failure": "seed 5",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2008,
+    "failure": "seed 6",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2009,
+    "failure": "seed 7",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2010,
+    "failure": "seed 8",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2011,
+    "failure": "seed 9",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2012,
+    "failure": "seed 10",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2013,
+    "failure": "seed 11",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2014,
+    "failure": "seed 12",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2015,
+    "failure": "seed 13",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2016,
+    "failure": "seed 14",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2017,
+    "failure": "seed 15",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2018,
+    "failure": "seed 16",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2019,
+    "failure": "seed 17",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2020,
+    "failure": "seed 18",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2021,
+    "failure": "seed 19",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2022,
+    "failure": "seed 20",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2023,
+    "failure": "seed 21",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2024,
+    "failure": "seed 22",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2025,
+    "failure": "seed 23",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2026,
+    "failure": "seed 24",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2027,
+    "failure": "seed 25",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2028,
+    "failure": "seed 26",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2029,
+    "failure": "seed 27",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2030,
+    "failure": "seed 28",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2031,
+    "failure": "seed 29",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2032,
+    "failure": "seed 30",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2033,
+    "failure": "seed 31",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2034,
+    "failure": "seed 32",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2035,
+    "failure": "seed 33",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2036,
+    "failure": "seed 34",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2037,
+    "failure": "seed 35",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2038,
+    "failure": "seed 36",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2039,
+    "failure": "seed 37",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2040,
+    "failure": "seed 38",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2041,
+    "failure": "seed 39",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2042,
+    "failure": "seed 40",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2043,
+    "failure": "seed 41",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2044,
+    "failure": "seed 42",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2045,
+    "failure": "seed 43",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2046,
+    "failure": "seed 44",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2047,
+    "failure": "seed 45",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2048,
+    "failure": "seed 46",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2049,
+    "failure": "seed 47",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2050,
+    "failure": "seed 48",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2051,
+    "failure": "seed 49",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2052,
+    "failure": "seed 50",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2053,
+    "failure": "seed 51",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2054,
+    "failure": "seed 52",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2055,
+    "failure": "seed 53",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2056,
+    "failure": "seed 54",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2057,
+    "failure": "seed 55",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2058,
+    "failure": "seed 56",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2059,
+    "failure": "seed 57",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2060,
+    "failure": "seed 58",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2061,
+    "failure": "seed 59",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2062,
+    "failure": "seed 60",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2063,
+    "failure": "seed 61",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2064,
+    "failure": "seed 62",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2065,
+    "failure": "seed 63",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2066,
+    "failure": "seed 64",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2067,
+    "failure": "seed 65",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2068,
+    "failure": "seed 66",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2069,
+    "failure": "seed 67",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2070,
+    "failure": "seed 68",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2071,
+    "failure": "seed 69",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2072,
+    "failure": "seed 70",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2073,
+    "failure": "seed 71",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2074,
+    "failure": "seed 72",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2075,
+    "failure": "seed 73",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2076,
+    "failure": "seed 74",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2077,
+    "failure": "seed 75",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2078,
+    "failure": "seed 76",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2079,
+    "failure": "seed 77",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2080,
+    "failure": "seed 78",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2081,
+    "failure": "seed 79",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2082,
+    "failure": "seed 80",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2083,
+    "failure": "seed 81",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2084,
+    "failure": "seed 82",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2085,
+    "failure": "seed 83",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2086,
+    "failure": "seed 84",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2087,
+    "failure": "seed 85",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2088,
+    "failure": "seed 86",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2089,
+    "failure": "seed 87",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2090,
+    "failure": "seed 88",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2091,
+    "failure": "seed 89",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2092,
+    "failure": "seed 90",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2093,
+    "failure": "seed 91",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2094,
+    "failure": "seed 92",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2095,
+    "failure": "seed 93",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2096,
+    "failure": "seed 94",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2097,
+    "failure": "seed 95",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2098,
+    "failure": "seed 96",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2099,
+    "failure": "seed 97",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2100,
+    "failure": "seed 98",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2101,
+    "failure": "seed 99",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2102,
+    "failure": "seed 100",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2103,
+    "failure": "seed 101",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2104,
+    "failure": "seed 102",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2105,
+    "failure": "seed 103",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2106,
+    "failure": "seed 104",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2107,
+    "failure": "seed 105",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2108,
+    "failure": "seed 106",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2109,
+    "failure": "seed 107",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2110,
+    "failure": "seed 108",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2111,
+    "failure": "seed 109",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2112,
+    "failure": "seed 110",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2113,
+    "failure": "seed 111",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2114,
+    "failure": "seed 112",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2115,
+    "failure": "seed 113",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2116,
+    "failure": "seed 114",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2117,
+    "failure": "seed 115",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2118,
+    "failure": "seed 116",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2119,
+    "failure": "seed 117",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2120,
+    "failure": "seed 118",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2121,
+    "failure": "seed 119",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2122,
+    "failure": "seed 120",
+    "classification": "ours",
+    "occurrences": 4
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2123,
+    "failure": "seeded independent shared approval oracle, keep=undefined",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2266,
+    "failure": "oracle fences opening refusal after closed peer restores raw denial (throws=false), keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2267,
+    "failure": "oracle fences opening refusal after closed peer restores raw denial (throws=true), keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2270,
+    "failure": "oracle checks raw expiry from an opening getter before its sourced peer, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2271,
+    "failure": "oracle requires same-answer recovery for every live facade, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2272,
+    "failure": "oracle rejects an older success after a closed opening succeeds, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2275,
+    "failure": "oracle fences pending approval before completion, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2276,
+    "failure": "oracle separates retired and recreated raw owners, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2277,
+    "failure": "oracle validates every callback in batched completions, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2278,
+    "failure": "oracle ignores superseded refusal (newest first=false), keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2279,
+    "failure": "oracle ignores superseded refusal (newest first=true), keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2280,
+    "failure": "oracle preserves recovery across duplicate opening denial, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2285,
+    "failure": "oracle preserves closed loading across raw denial, keep=true",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2407,
+    "failure": "seeded independent shared approval oracle, keep=true",
+    "classification": "ours",
+    "occurrences": 1
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2539,
+    "failure": "online: a rule change withdraws a displayed row and asset before its held replacement",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2744,
+    "failure": "W8R1a online server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2745,
+    "failure": "W8R1a native server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2746,
+    "failure": "W8R1a web server-run observations retain nothing during a replacing fetch",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2870,
+    "failure": "createApp online: superseded answer never reports; approved successor reports exactly once",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2871,
+    "failure": "createApp online: episode expiry before approval never collects",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2881,
+    "failure": "createApp online: background-only delivery waits for facade approval with changes held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2884,
+    "failure": "createApp local: superseded answer never reports; approved successor reports exactly once",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2885,
+    "failure": "createApp local: episode expiry before approval never collects",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2895,
+    "failure": "createApp local: background-only delivery waits for facade approval with changes held",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 2918,
+    "failure": "every delivery await is explicitly classified",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3397,
+    "failure": "online: kept typing survives member commits and expires during a held re-read",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3398,
+    "failure": "wasm: kept typing survives member commits and expires during a held re-read",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3399,
+    "failure": "process: kept typing survives member commits and expires during a held re-read",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3491,
+    "failure": "expiry retry server pagination wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3492,
+    "failure": "expiry retry server pagination watch wasm",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3498,
+    "failure": "expiry retry server pagination process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3499,
+    "failure": "expiry retry server pagination watch process",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 3831,
+    "failure": "createApp keep=true: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 4304,
+    "failure": "online assets revoke late credential-bound URLs across rotation, sign-out and close",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 4327,
+    "failure": "probe: replacement is terminal for all reads and writes",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 4328,
+    "failure": "probe: regression is terminal for all reads and writes",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 5085,
+    "failure": "ordinary search generated oracle process: 300 seeds",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 5947,
+    "failure": "ordinary search generated oracle wasm: 300 seeds",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 5979,
+    "failure": "mounted React ordinary search follows departure, offline and rejoin without switching queries",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6289,
+    "failure": "wasm: an accepted loading is published, and recovery never brings back the answer it replaced",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6292,
+    "failure": "wasm: an accepted background reply does not replace a newer answer another read remembered",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6296,
+    "failure": "wasm: a refusal read at a later store cut outranks an answer remembered before it landed",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6297,
+    "failure": "wasm: a read retried after its store changed takes a new place in the order",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6300,
+    "failure": "wasm: an accepted background reply does not undo a newer read's deletion of an absent answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6302,
+    "failure": "process: an accepted loading is published, and recovery never brings back the answer it replaced",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6305,
+    "failure": "process: an accepted background reply does not replace a newer answer another read remembered",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6309,
+    "failure": "process: a refusal read at a later store cut outranks an answer remembered before it landed",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6310,
+    "failure": "process: a read retried after its store changed takes a new place in the order",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6313,
+    "failure": "process: an accepted background reply does not undo a newer read's deletion of an absent answer",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6321,
+    "failure": "an accepted loading answer is published, and a background failure keeps the answer and the link",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6440,
+    "failure": "closing a raw local handle stops its episode timer but keeps the deadline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6441,
+    "failure": "resubscribing a raw local handle rearms its original episode deadline",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6474,
+    "failure": "keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6486,
+    "failure": "useQuery createApp remount first commits the lingering answer during a held re-read",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6487,
+    "failure": "usePage createApp remount first commits the lingering answer during a held re-read",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6585,
+    "failure": "React hooks and reference-app lifetimes",
+    "classification": "ours",
+    "occurrences": 1
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6587,
+    "failure": "one replacing fetch ends retention: loading",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 6589,
+    "failure": "one replacing fetch ends retention: failure",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7373,
+    "failure": "typing expires, drops on disconnect, needs a fresh keystroke and never queues",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7374,
+    "failure": "one handle survives list remount, closes, rejects second open and cleans a late result",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7375,
+    "failure": "the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7377,
+    "failure": "observations make retention explicit",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7379,
+    "failure": "social recipes in React/browser: real online signals and media, controlled read interleavings",
+    "classification": "ours",
+    "occurrences": 1
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7384,
+    "failure": "social starter runs through the public client: feed, likes, receipts, typing, media and retained history",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7568,
+    "failure": "an unpublished 503 refresh keeps acquisition polling alive",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7569,
+    "failure": "an unpublished prediction refresh keeps acquisition polling alive",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 7570,
+    "failure": "an unpublished expiry refresh keeps acquisition polling alive",
+    "classification": "ours",
+    "occurrences": 2
+  },
+  {
+    "log": "test-sh.log.gz",
+    "line": 15288,
+    "failure": "-- FAIL: client tests (747 s)",
+    "classification": "ours",
+    "occurrences": 1
+  }
+]

@@ -290,7 +290,9 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
         interceptLocal = undefined;
         const second = await client.query(op, { c: first.next });
         assert.deepEqual(second.data.map(row => row.body), ["audits-2", "audits-1", "audits-0"]);
-        assert.deepEqual(requests.map(request => request.args), [{ c: null }, { c: first.next }]);
+        // A mounted source invalidated during the held fallback re-reads that
+        // page before publication; the one-shot read needs no observation retry.
+        assert.deepEqual(requests.map(request => request.args), [...(live ? [{ c: null }] : []), { c: null }, { c: first.next }]);
       }
     }
   });

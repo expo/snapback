@@ -1,4 +1,4 @@
-# Client: preserve intent through read gaps
+# Client: reads stay visible through revalidation
 
 Keep drafts, routes and viewer ownership above transient lists; render protected rows only from current reads.
 Submit once at custody, then let the user continue.
@@ -32,7 +32,15 @@ The reference saved-intent journal is in the starters: `snapback4 init --expo` /
 ## Honest read boundaries
 
 The signed-in tree follows `useAuth().state`, not a profile query. Decide the first route once per account/backend; subsequent `loading` never unmounts that tree, a route or draft.
-Keep headers and composers mounted through `loading`; rows follow the current read, never a saved previous answer. Reset user-owned state on account/backend change.
+`useQuery` and `usePage` retain their last answer through plain revalidation by default,
+with `revalidating: true` and no timer. Render their current result directly;
+no application cache or “had data” latch is needed. An EnsureProfile loading gate
+cannot unmount its children during plain revalidation after data has appeared.
+Keep routes owned by identity so actual invalidation can also preserve navigation.
+A changed dependency (including rule probes), denial, deadline or account/backend
+change withdraws immediately. Table-level evidence is conservative: even a harmless
+write to an input table can invalidate. `{ keep: false }` opts out of retention.
+Reset user-owned state on account/backend change.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 While this device holds a predictable pending write to a table a query reads, that query asks no server; a write with an unknown predicted footprint blocks every query. Writes to unrelated tables do not hold it.
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
@@ -48,35 +56,29 @@ The recipient set is membership at send time: later joins never enter it, and le
 ## One-view photos
 
 Mount this viewer **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`; the point query returns the message's photo, tombstone and deadline.
-Open fetches once, never from a render/effect. List refetch/recycling cannot consume or lose the handle; unmount/account change revokes it, including a late response.
-The point read closes/revokes on gone (`data: null`), denied, tombstoned, changed asset or deadline, never on `loading`. Keep the known deadline ticking through loading.
+Only Open selects the asset for `useAsset`; a render never selects it by itself. List refetch/recycling cannot consume or lose the handle; unmount/account change revokes it, including a late response.
+The point read closes/revokes on gone (`data: null`), denied, tombstoned, changed asset or deadline, on invalidation as well. Keep the known deadline ticking; plain revalidation returns data with `revalidating: true`.
 
 ```tsx
-import { useEffect, useRef, useState } from "react";
-import { useClient, useNow, useQuery } from "snapback4/react";
+import { useRef, useState } from "react";
+import { useAsset, useNow, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function OneView({ messageId, assetId }: { messageId: string; assetId: string }) {
-  const client = useClient(), row = useQuery(api.messagePhoto, { id: messageId });
-  const handle = useRef<{ revoke(): void } | null>(null), alive = useRef(false), deadline = useRef<number | null>(null);
-  const [started, setStarted] = useState(false), [url, setUrl] = useState<string | null>(null), [problem, setProblem] = useState("");
-  const opened = useRef(false);
+  const row = useQuery(api.messagePhoto, { id: messageId });
+  const [started, setStarted] = useState(false);
+  const opened = useRef(false), deadline = useRef<number | null>(null);
   if ("data" in row && row.data) deadline.current = row.data.expiresAt;
   const now = useNow(deadline.current);
-  const closed = "denied" in row || ("data" in row && (!row.data || row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);
+  const closed = (opened.current && "loading" in row) || "denied" in row || ("data" in row && (!row.data || row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);
   const invalid = useRef(false); invalid.current ||= closed;
-  useEffect(() => { alive.current = true; return () => { alive.current = false; handle.current?.revoke(); }; }, []);
-  useEffect(() => { if (closed) { handle.current?.revoke(); handle.current = null; setUrl(null); } }, [closed]);
-  async function open() {
-    if (opened.current || invalid.current || !("data" in row)) return;
+  const asset = useAsset(started && !invalid.current ? assetId : null);
+  function open() {
+    if (opened.current || invalid.current || !("data" in row) || row.revalidating) return;
     opened.current = true; setStarted(true);
-    const result = await client.asset(assetId);
-    if ("denied" in result) { if (alive.current) setProblem(result.denied.message); return; }
-    if (!alive.current || invalid.current) { result.revoke(); return; }
-    handle.current = result; setUrl(result.url);
   }
-  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || "loading" in row} onClick={() => void open()}>Open photo</button>}{problem}</>;
+  return invalid.current ? null : <>{asset.status === "ready" ? <img src={asset.url} alt="One-view photo" /> : <button disabled={started || !("data" in row) || row.revalidating} onClick={open}>Open photo</button>}{asset.status === "denied" && asset.why.message}</>;
 }
 ```
 
-`useAsset` revokes on unmount: use this ownership for one-view photos. Never refetch one (`E_ASSET_VIEWED` on the second fetch); this is a transient handle, not a media cache.
+`useAsset` revokes on invalidation, expiry, identity change and unmount: use this ownership for one-view photos. Never refetch one (`E_ASSET_VIEWED` on the second fetch); this is a transient handle, not a media cache.
 Integrated messaging app and all three lifetimes: `snapback4 new my-social --template social`, then `snapback4 guide social`. Typing schema: `guide ephemeral`.

@@ -95,8 +95,10 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
         Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home, x-snapback-asset-read").unwrap(),
     ];
+    // @ref LLP 3000.029#4 — the handle carries its original authorization deadline and cut.
+    headers.push(Header::from_bytes("X-Snapback-Asset-Read", json!({"seq":grant.seq,"nextExpiry":grant.next_expiry}).to_string()).unwrap());
     // @ref LLP 3000.019#3.5 — only the download's ledger home authorizes retention.
     if let Some((table, row, column)) = &grant.home {
         let receipt = json!({"store_id":grant.store_id,"table":table,"row":row,"column":column}).to_string();

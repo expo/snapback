@@ -1,3 +1,4 @@
+import { assetEvidence } from "./asset-lifetime.ts";
 // @ref LLP 3000.007#8 — ordinary viewed media belongs to its current home row
 import type { AssetRead } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
@@ -122,7 +123,7 @@ export class MediaCache {
     this.live.set(entry.id, handles);
     const revoke = () => { if (!uri) URL.revokeObjectURL(url); handles.delete(revoke); };
     handles.add(revoke);
-    return { url, type: entry.home.type, bytes: entry.bytes, revoke };
+    return assetEvidence({ url, type: entry.home.type, bytes: entry.bytes, revoke }, { nextExpiry: entry.home.expiresAt });
   }
   read(id: string): Promise<AssetRead> {
     return this.serial(async () => {

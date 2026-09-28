@@ -52,7 +52,7 @@ export function approvalOracle(t, keep) {
     invalidate(owner); owner.approved = value; owner.registered = false; associate(owner);
   };
   const mark = value => value.kind !== "data" || value.revalidating ? value
-    : { ...value, revalidating: true, episode: keep === undefined ? host + 1000 : undefined };
+    : { ...value, revalidating: true, episode: undefined };
   const rowDue = value => value.kind === "data" &&
     ((value.server !== null && server >= value.server) || (value.device !== null && device >= value.device));
   const episodeDue = value => value.kind === "data" && value.episode !== undefined && host >= value.episode;
@@ -191,8 +191,8 @@ export function approvalOracle(t, keep) {
     trace.push(`publish ${value.id}`);
     owner.raw = value;
     if (owner.registered) {
-      if (keep === false) withdraw(owner);
-      else { owner.approved = mark(owner.approved); associate(owner); }
+      // A different data image immediately invalidates the old approval.
+      withdraw(owner);
     }
     f.publish(value.id, deadlines);
     value.identity = answerIdentity(f.owner().snapshot);

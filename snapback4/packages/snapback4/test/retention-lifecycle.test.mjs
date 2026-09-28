@@ -291,14 +291,16 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
       if (boundary === "offline" || boundary === "sign-out") assert.ok(seen.some(event => event.kind === "link"));
       for (const event of seen) {
         for (const read of [...event.raw, ...event.reads, event.peek].filter(Boolean)) {
-          assert.ok(!("data" in read), `${event.kind} callback must see every peer withdrawn: ${JSON.stringify(read)}`);
+          if (boundary === "offline" && "data" in read) {
+            assert.equal(read.revalidating, true); assert.equal(read.fresh, false);
+          } else assert.ok(!("data" in read), `${event.kind} callback must see every peer withdrawn: ${JSON.stringify(read)}`);
         }
         if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
           for (const read of [...event.raw, ...event.reads]) assert.equal(read.denied?.code, event.closing ? "E_CLOSED" : "E_AUTH",
             `${event.kind} callback must deny with E_AUTH until signOut calls close`);
         }
       }
-      assert.ok(!peer.getSnapshot().data, "the second peer was also withdrawn");
+      if (boundary !== "offline" || peerKeep === false) assert.ok(!peer.getSnapshot().data, "the second peer was also withdrawn");
       if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
         assert.ok(seen.some(event => !event.closing), "sign-out delivered its denial before closing");
         assert.ok(seen.some(event => event.closing), "close delivered the terminal denial");

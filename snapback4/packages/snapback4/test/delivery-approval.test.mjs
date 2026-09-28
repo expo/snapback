@@ -25,14 +25,14 @@ for (const tier of ['online', 'local']) {
     await until(() => h.pending.length >= 2 && h.queries === 2);
     assert.equal(peekObservation(h.raw, op, {}).data[0].ordinal, 43);
     h.pending[0].resolve(true); await silent(h, 'superseded 41');
-    h.pending[1].resolve(true);
+    h.pending.at(-1).resolve(true);
     await until(() => watch.getSnapshot().data?.[0]?.ordinal === 43);
     await until(() => h.reports.length === 1);
     assert.deepEqual(h.collections, [manifest([43])]);
     assert.deepEqual(h.reports.map(r => r.args), [{ conversation: 'c', from: 43, through: 43 }]);
   });
 
-  for (const deadline of ['episode', 'row']) test(`createApp ${tier}: ${deadline} expiry before approval never collects`, async t => {
+  for (const deadline of ['row']) test(`createApp ${tier}: ${deadline} expiry before approval never collects`, async t => {
     const h = await fixture(t, tier), next = Promise.withResolvers();
     t.after(() => next.resolve(answer([])));
     h.onAnswer(n => {
@@ -42,13 +42,7 @@ for (const tier of ['online', 'local']) {
     const watch = h.observe(); await until(() => h.pending.length);
     const read = peekObservation(h.raw, op, {}), owner = answerObservation(read);
     assert.equal(read.data[0].ordinal, 41);
-    if (deadline === 'episode') {
-      // Begin the real raw watch's retention episode without delivering its timer.
-      // The delayed approval must consult the same identity's deadline latch.
-      owner.reload();
-      assert.equal(answerIdentity(owner.snapshot), answerIdentity(read));
-    }
-    await delay(deadline === 'episode' ? 1050 : 550);
+    await delay(550);
     h.release();
     await silent(h, `expired ${deadline}`);
     assert.ok(!('data' in watch.getSnapshot()));
@@ -146,8 +140,8 @@ for (const tier of ['online', 'local']) {
     const watch = h.observe(); await until(() => watch.getSnapshot().data?.length === 0);
     await until(() => h.pending.length && h.queries === 2);
     await silent(h, 'background 47 awaiting approval');
-    assert.equal(watch.getSnapshot().data?.length, 0);
-    h.pending[0].resolve(true);
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "different data invalidates the old approval");
+    h.pending.at(-1).resolve(true);
     await until(() => watch.getSnapshot().data?.[0]?.ordinal === 47);
     await until(() => h.reports.length === 1);
     assert.deepEqual(h.collections, [manifest([47])]);

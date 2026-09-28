@@ -1886,3 +1886,11 @@ Decision, implementation, measurements and explicit grouped-search refusal
 beyond its envelope. The retained-session and stateless multi-pass contracts
 remain future RFC work. Budgets, disclosure rules and the no-query-cache
 exclusion are unchanged; round 1's report records qualification failures.
+
+### 2026-09-28: Lane LV — retention with invalidation evidence
+
+The author commissioned LLP 3000.029: unlimited default retention through plain
+revalidation, immediate withdrawal on invalidation evidence, with disclosure and
+route witnesses. It replaces LLP 3000.023's one-second allowance. Dependency
+changes are conservatively invalidating under the existing table-granularity
+protocol; no authorization or meter rule changes.

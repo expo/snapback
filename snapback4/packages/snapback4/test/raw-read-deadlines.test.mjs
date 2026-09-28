@@ -32,7 +32,7 @@ function fixture(t, keep) {
     arm: d => arm(owner, { device: null, server: null, localWakeup: false, ...d }) };
 }
 
-test("closing a raw local handle stops its episode timer but keeps the deadline", t => {
+test("closing a raw local handle keeps plain revalidation without an episode deadline", t => {
   const f = fixture(t);
   f.owner.reload(); f.handle.close();
   assert.equal(f.watches.size, 0);
@@ -41,11 +41,11 @@ test("closing a raw local handle stops its episode timer but keeps the deadline"
   f.wall(2000); t.mock.timers.tick(1000);
   assert.equal(f.owner.snapshot.data, "private", "close stopped the episode timer");
   const loading = f.handle.getSnapshot();
-  assert.deepEqual(loading, { loading: true });
-  f.wall(1000); assert.equal(f.handle.getSnapshot(), loading, "expiry remains latched across rollback");
+  assert.equal(loading.data, "private");
+  f.wall(1000); assert.equal(f.handle.getSnapshot(), loading);
 });
 
-test("resubscribing a raw local handle rearms its original episode deadline", t => {
+test("resubscribing a raw local handle does not introduce an episode deadline", t => {
   const f = fixture(t);
   f.owner.reload(); f.handle.close();
   f.wall(1500);
@@ -54,8 +54,8 @@ test("resubscribing a raw local handle rearms its original episode deadline", t 
   // Local rerun reloads when the subscription starts again.
   f.owner.reload();
   t.mock.timers.tick(499); f.wall(2000); t.mock.timers.tick(1);
-  assert.deepEqual(f.owner.snapshot, { loading: true }, "the restarted timer withdraws without an accessor");
-  assert.equal(notifications, 1, "resubscription does not renew the original deadline");
+  assert.equal(f.owner.snapshot.data, "private", "plain revalidation has no timer");
+  assert.equal(notifications, 0);
 });
 
 for (const domain of ["device", "server"]) for (const when of ["before", "after"]) {

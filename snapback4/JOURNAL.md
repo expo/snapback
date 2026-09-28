@@ -74854,3 +74854,55 @@ note, command/results and compressed evidence accompany this append.
 No scripts/test.sh, budget raise, install, push or publication. The full builder
 store/floor and native Expo evidence are not rerun. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — Lane LV: retention ends on invalidation evidence
+
+LLP 3000.029 was written before implementation and supersedes the retention
+policy of LLP 3000.023. The default and keep:true now retain same-key answers
+without a timer during plain revalidation, exposing revalidating:true;
+keep:false opts out. Changed arguments/client start a new observation.
+Dependency changes, unknown footprints, authoritative denial/absence, expiry,
+identity and store boundaries withdraw before callbacks or replacement work.
+Facade holds cannot preserve a different old data image. Withheld replies keep
+the original deadlines and dependency union. Newer direct-read refusals reach
+mounted peers, but synthetic transport E_OFFLINE does not become authority.
+
+Asset handles share the invalidation lifetime and their original home/rule
+expiry. The server supplies an additive grant cut/deadline header from the
+existing authorization transaction; asset-only online clients follow changes.
+Historical changes cannot revoke a newer grant. Once-view consumption grants
+one open view without another fetch. The three EX recipes, card, social starter,
+Read declaration documentation and CLIENT-AND-OPERATIONS agree; the viewer uses
+useAsset instead of saving an unobservable URL copy. Settlement reports its
+existing restore/replay touched set with no additional scans or meter allowance.
+Table-granular evidence remains conservative: even an innocent dependency write
+can withdraw. Offline guarantees are relative to observed evidence and known
+deadlines; old headerless servers cannot supply the new asset expiry proof.
+
+Browser: the former one-second policy reproduces EnsureProfile unmount and a
+/conversation/bob → / reset; the implementation keeps route, draft and one mount
+with zero post-data loading flashes during a held 1.6-second plain refresh.
+The new property covers 300,000 events across three retention choices; actual
+HTTP/process/wasm tests exercise membership, rules, deletion, assets, once-view,
+expiry, account and store boundaries. Native Expo was attempted but cannot run
+without a dedicated iOS simulator on this Linux host; Expo typecheck passes.
+
+The required scripts/test.sh was run exactly once: `== 1 failure(s) in 1655 s`,
+client tests. The Rust/build/guide/type/fixture and 79-test full-model stages
+passed. This intermediate run is not final full-suite qualification. Every
+captured failure is preserved and attributed in the report: implementation,
+obsolete assertions, fixtures and scheduling failures are ours; no baseline
+failure is claimed; the absent iOS simulator is environmental. The final broad
+affected run passed 831/832; its direct transport-refusal defect is fixed, and
+38 transport/refusal plus three host opt-out cases pass. Other final checks:
+93 surface cases, 16 latest social/template cases, 484 approval cases, 300 search
+seeds per device host, 28 Rust core asset cases, three HTTP asset cases and all
+98 whole-guide cases pass. No known failing affected case remains.
+
+Wasm: 2,040,999 B raw / 593,213 B gzip, unchanged 593,719 B cap (506 B headroom),
+SHA-256 001b4f9e47acead1dc202060f35e409c4ae31826d972e88965489b3e3cd8c436.
+No per-component size attribution. Dependencies installed only inside this
+worktree; no shared tool installation, push or publication. Report and complete
+failure inventory: reports/20260928-lv-hook-retention/REPORT.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

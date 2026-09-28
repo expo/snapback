@@ -48,13 +48,14 @@ An unavailable hint never gates history or the composer.
 ## Once-media handle ownership
 
 The stable viewer above the list owns this hook. Only an explicit Open action
-calls asset; render, revalidation and list remount never fetch it. Close and
+selects an asset for `useAsset`; revalidation and list remount never fetch it. Close and
 account change revoke the handle; a late result is revoked before publication.
 A second explicit open reaches the server and returns E_ASSET_VIEWED. Do not
 persist once bytes, refetch on remount, or treat retained text as a media grant.
 The point query in OnceViewer closes on a missing, denied or changed home row,
-not on loading. This starter has no message expiry or deletion; for expiring
-media keep its known deadline ticking through loading (`guide client`).
+and on input invalidation. Plain revalidation retains the point read. The SDK
+withdraws the live handle at its original home or rule-witness deadline; for
+application-specific deadlines follow `guide client`.
 
 ```ts
 // src/useOnceMedia.ts
@@ -65,8 +66,8 @@ media keep its known deadline ticking through loading (`guide client`).
 The Router pins conversation to the URL ID, even after its inbox membership
 disappears. Mount this screen keyed by that ID within AppProvider. The composer
 and once viewer sit above transient query states. Room and history choose the
-default bounded one-second revalidating retention, independently of immediately
-withdrawing decorations. No application state caches protected rows.
+default unlimited retention through plain revalidation. Input invalidation
+withdraws immediately, as do expiry and identity changes. No application state caches protected rows.
 Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revalidating/retained answers grant
 no action authority. Missing membership disables Send, while server rules

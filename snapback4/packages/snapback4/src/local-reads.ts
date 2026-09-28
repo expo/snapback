@@ -28,6 +28,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   serverRead?: boolean;
   /** Whole server answer only: a composed retained answer cannot bypass its VM. */
   serverOnly?: boolean;
+  serverSeq?: number | undefined;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
@@ -83,13 +84,15 @@ export class RememberedAnswers {
   /** The ticket of a read attempt that is about to begin. */
   begin(): number { return ++this.tickets; }
   get(key: string): ServerAnswer | undefined { return this.answers.get(key); }
-  set(key: string, answer: ServerAnswer, order: AnswerOrder): void {
-    if (this.admit(key, order)) this.answers.set(key, answer);
+  set(key: string, answer: ServerAnswer, order: AnswerOrder): boolean {
+    if (!this.admit(key, order)) return false;
+    this.answers.set(key, answer); return true;
   }
   /** A server's refusal or loading answer, or a composed read's, which is not
    * remembered: nothing is remembered for the key. */
-  delete(key: string, order: AnswerOrder): void {
-    if (this.admit(key, order)) this.answers.delete(key);
+  delete(key: string, order: AnswerOrder): boolean {
+    if (!this.admit(key, order)) return false;
+    this.answers.delete(key); return true;
   }
   /** Local expiry fences every read already begun, while preserving its cuts. */
   forget(key: string): void {
@@ -149,9 +152,25 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
-  committed(watches: Iterable<LocalWatch>, operation: string): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  // @ref LLP 3000.029#4 — committed input changes withdraw before callbacks.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+    if (!["apply", "admit", "settle"].includes(operation)) { this.clear(watches); return; }
+    this.revision++;
+    this.changed(watches, touched);
+  }
+
+  changed(watches: Iterable<LocalWatch>, touched?: readonly string[]): void {
+    this.serverAnswers.clear();
+    for (const watch of watches) {
+      if ("denied" in watch.snapshot && watch.snapshot.denied.code === "E_INPUT") continue;
+      const invalid = touched === undefined || (touched.length > 0 &&
+        (watch.tables.size === 0 || touched.some(table => watch.tables.has(table))));
+      if (invalid) {
+        watch.reset({ loading: true });
+        if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+        watch.expiryTimer = null; watch.deadlines = undefined;
+      } else watch.reload();
+    }
   }
 
   clear(watches: Iterable<LocalWatch>, reset = true): void {
@@ -170,4 +189,27 @@ export class LocalReads {
       watch.presenceEvery = undefined;
     }
   }
+}
+
+/** Unknown host replies conservatively invalidate; empty certified footprints do not. */
+export function changedInputs(operation: unknown, result: unknown): string[] | undefined {
+  const evidence = result as { touched?: string[]; predicted?: string[] } | undefined;
+  return operation === "admit" && Array.isArray(evidence?.predicted)
+    ? [...predictedTables(evidence.predicted)] : evidence?.touched;
+}
+
+/** Shared local watch plumbing; resets finish before the next async read. */
+export function watchLocalEphemeral(watch: LocalWatch, tables: string[], interests: import("./ephemeral-reads.ts").EphemeralReads,
+  current: () => boolean, clearExpiry: () => void, rerun: () => void): void {
+  if (!tables.length) { interests.remove(watch); return; }
+  interests.add(watch, tables, reset => {
+    const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
+    if (reset) clearExpiry();
+    return () => {
+      deliver?.();
+      if (!current()) return;
+      if (reset) notifyLocalWatch(watch);
+      rerun();
+    };
+  });
 }

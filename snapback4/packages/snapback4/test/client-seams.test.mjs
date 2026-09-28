@@ -879,7 +879,7 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run observations retain nothing during a replacing fetch`, { timeout: 30000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} opted-out server-run observations retain nothing during a replacing fetch`, { timeout: 30000 }, async t => {
   const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
@@ -894,7 +894,7 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run o
   const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "native" ? f.device : f.web });
   f.clients.push(client);
   if (tier !== "online") await client.sync();
-  const watches = [["filtered", {}, "meter", false], ["search", { room: "words", q: "cof" }, null, true], ["wordCut", { q: "cof" }, null, false]].map(([name, args, cut, complete]) => ({ watch: client.observe({ kind: "query", name }, args), cut, complete }));
+  const watches = [["filtered", {}, "meter", false], ["search", { room: "words", q: "cof" }, null, true], ["wordCut", { q: "cof" }, null, false]].map(([name, args, cut, complete]) => ({ watch: client.observe({ kind: "query", name }, args, { keep: false }), cut, complete }));
   t.after(() => watches.forEach(({ watch }) => watch.close()));
   for (const { watch, cut } of watches) await until(() => watch.getSnapshot().cut === cut && watch.getSnapshot().fresh);
   const before = watches.map(({ watch }) => watch.getSnapshot());
@@ -908,7 +908,9 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run o
   offline = true;
   if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
   else await client.sync();
-  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading)).catch(error => {
+    t.diagnostic(JSON.stringify({ link: client.link(), reads: watches.map(({ watch }) => watch.getSnapshot()) })); throw error;
+  });
 });
 
 for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: 30000 }, async t => {

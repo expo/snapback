@@ -85,7 +85,7 @@ for (const tier of ["wasm", "process"]) {
   });
 
   for (const [kind, reply, shown] of [
-    ["loading", body => ({ loading: true, seq: body.seq, tables: body.tables ?? [], refresh: 300 }), read => "loading" in read],
+    ["loading", body => ({ loading: true, seq: body.seq, tables: body.tables ?? [], refresh: 300 }), read => read.revalidating === true],
     ["refusal", () => ({ denied: refused, refresh: 300 }), read => read.denied?.code === "NOT_HERE"],
   ]) test(`${tier}: an accepted ${kind} is published, and recovery never brings back the answer it replaced`, { timeout: 60_000 }, async t => {
     const { client, down } = await bob(t, tier, (n, body) => n === 1 ? answer(body, 1) : reply(body));
@@ -99,7 +99,8 @@ for (const tier of ["wasm", "process"]) {
     await until(() => client.link() === "offline", "the outage took the link offline");
     await delay(300);
     stop();
-    assert.ok(!seen.some(read => read.data?.v === 1), `recovery brought back the answer the ${kind} replaced: ${JSON.stringify(seen)}`);
+    if (kind === "loading") assert.ok(seen.some(read => read.data?.v === 1 && read.revalidating), "withheld revalidation retains the authorized answer offline");
+    else assert.ok(!seen.some(read => read.data?.v === 1), `refusal brought back an invalidated answer: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an overtaken background reply changes neither the answer, the interval, nor what recovery shows`, { timeout: 60_000 }, async t => {
@@ -153,7 +154,7 @@ for (const tier of ["wasm", "process"]) {
     await until(() => client.link() === "offline", "the outage took the link offline");
     await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 3, `recovery lost the newer answer: ${JSON.stringify(seen)}`);
+    await until(() => mark.getSnapshot().fresh === false && mark.getSnapshot().data?.v === 3, "recovery eventually adopts newer memory after retaining the displayed answer");
   });
 
   test(`${tier}: an accepted background reply is what a later recovery shows`, { timeout: 60_000 }, async t => {
@@ -330,7 +331,7 @@ for (const tier of ["wasm", "process"]) {
     await until(() => reads.length >= 2, "the background refresh started");
     assert.equal((await client.query(query, { p: "dev:alice" })).denied?.code, "NOT_HERE", "the one-shot read was refused");
     held.resolve();
-    await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
+    await until(() => mark.getSnapshot().denied?.code === "NOT_HERE", "the one-shot refusal fences the held older background answer");
     const seen = [];
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();

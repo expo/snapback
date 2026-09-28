@@ -26,7 +26,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { invalidated?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -70,8 +70,8 @@ export interface QueryEnvironment {
  * an attempt. */
 export interface AnswerCache {
   get(key: string): ServerAnswer | undefined;
-  set(key: string, answer: ServerAnswer, seq?: number): void;
-  delete(key: string, seq?: number): void;
+  set(key: string, answer: ServerAnswer, seq?: number): boolean;
+  delete(key: string, seq?: number): boolean;
   forget(key: string): void;
   renew(): void;
 }
@@ -324,8 +324,13 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server" || origin === "composed") {
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
-        if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
-        else env.serverAnswers.delete(key, result.seq);
+        if (remember && "data" in result.read) {
+          const accepted = env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
+          result.invalidated = accepted && (result.read.data === null || (Array.isArray(result.read.data) && result.read.data.length === 0));
+        } else {
+          const accepted = env.serverAnswers.delete(key, result.seq);
+          result.invalidated = accepted && "denied" in result.read;
+        }
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;

@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
-for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal`, async t => {
+for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal`, async t => {
   const executablePath = chromiumExecutable();
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
@@ -52,9 +52,9 @@ for (const keep of [undefined, true]) test(`createApp keep=${keep}: useQuery and
   assert.equal(await page.locator("#page").inputValue(), "page draft");
   const result = await page.evaluate(() => window.result());
   assert.deepEqual(result.mounts, { query: 1, page: 1 });
-  assert.equal(result.loading, 0, "no intermediate loading commit unmounts an editor");
+  assert.ok(result.loading > 0, "input invalidation withdraws data while the editor stays owned by the screen");
   assert.ok(result.delays >= 20, "session authority was actually delayed");
-  assert.ok(result.stale > 0, "the UI rendered revalidating answers");
+
   await page.evaluate(() => window.finish());
 });
 
@@ -104,7 +104,7 @@ function Screen({ kind, read }) {
     if (delayed && read.loading) loading++;
     if (delayed && read.revalidating === true) stale++;
   });
-  return "data" in read ? <Editor kind={kind} /> : <span>Loading</span>;
+  return <><Editor kind={kind} />{!("data" in read) && <span>Checking changed inputs</span>}</>;
 }
 function Query() { return <Screen kind="query" read={useQuery(op, {}, options)} />; }
 function Page() { const page = usePage(op, {}, options); window.more = page.loadMore; return <Screen kind="page" read={page.read} />; }
