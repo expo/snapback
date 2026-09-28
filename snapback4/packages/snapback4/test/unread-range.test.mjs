@@ -145,7 +145,9 @@ test('unread range check names the chosen predicates, index and horizon', { time
   assert.deepEqual(range.bounds, [{ column: 'ordinal', memberField: 'readUpTo', operator: '>' }]);
   assert.equal(range.horizon.last, 3); assert.ok(range.horizon.index);
   const plain = execFileSync(binary, ['check', '--cost'], { cwd: s.dir, encoding: 'utf8' });
-  for (const text of ['device range:', '.ordinal > member.readUpTo', range.index, range.horizon.index, 'the walk is not metered']) assert.ok(plain.includes(text), text);
+  for (const text of ['device range:', '.ordinal > member.readUpTo', range.index, range.horizon.index,
+    'at most 64 stored keys uses a necessary predicate index', 'Larger ranges keep the shared parent/expiry index walk',
+    'reserving one examined unit and one step', 'probes and walks consume the internal ledger']) assert.ok(plain.includes(text), text);
   const badge = checked.scale.find(c => c.operation === 'badge');
   assert.equal(badge.class, 'grows'); assert.ok(badge.bounds.rows_examined < 8192);
   assert.ok(!badge.growth_sites.some(g => g.reason.includes('unswept expired messages contributions')));

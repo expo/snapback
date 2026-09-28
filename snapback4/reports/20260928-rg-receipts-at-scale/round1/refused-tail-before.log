@@ -1,0 +1,25 @@
+✖ a success followed by a terminal refusal syncs the committed write before the batch finishes (412.652507ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 519.568413
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-review.test.mjs:123:1
+✖ a success followed by a terminal refusal syncs the committed write before the batch finishes (412.652507ms)
+  AssertionError [ERR_ASSERTION]: the first commit is locally visible without a /changes wake
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:137:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

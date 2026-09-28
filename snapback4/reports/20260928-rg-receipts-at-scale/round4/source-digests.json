@@ -1,0 +1,6 @@
+{
+  "snapback4/packages/snapback4/src/local.ts": "83bd61594605db09badb3c945a714abf84b51ccca9b921c5286674de1c4dd0db",
+  "snapback4/packages/snapback4/src/local-receipts.ts": "0eb14bb4070b0de81af904ce666d06942af2e3043afed9867c8d6491dfcd5dab",
+  "snapback4/packages/snapback4/src/writes.ts": "26c1c08f6460b3727bc8cf59bc478c9b75212cc0781002c22a175b29f599d2cc",
+  "snapback4/packages/snapback4/test/store-reset-review.test.mjs": "602372f614d4f75c1c4107014d668753d09514fe98cc3e0edb0bb358148f0767"
+}

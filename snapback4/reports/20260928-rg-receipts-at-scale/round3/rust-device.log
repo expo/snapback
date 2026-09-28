@@ -1,0 +1,79 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 20.55s
+     Running tests/delivery.rs (target/debug/deps/delivery-3e3ca4a0a9b247c8)
+
+running 30 tests
+test binding_decoder_requires_fingerprint_and_exactly_three_arguments ... ok
+test saturation_memory ... ok
+test activation_memory ... ok
+test deferred_retarget_memory ... ok
+test settlement_memory ... ok
+test publication_memory ... ok
+test retained_memory ... ok
+test activation_room_memory ... ok
+test bounded_attempt_memory ... ok
+test horizon_memory ... ok
+test retired_adoption_memory ... ok
+test retained_sqlite ... ok
+test settlement_sqlite ... ok
+test deferred_retarget_sqlite ... ok
+test publication_sqlite ... ok
+test saturation_sqlite ... ok
+test bounded_attempt_sqlite ... ok
+test activation_room_sqlite ... ok
+test activation_sqlite_error_after_cursor_advance_retries_the_same_rows ... ok
+test activation_sqlite ... ok
+test refused_eviction_memory ... ok
+test manifest_adoption_memory ... ok
+test fingerprints_memory ... ok
+test retired_adoption_sqlite ... ok
+test manifest_rebinding_memory ... ok
+test horizon_sqlite ... ok
+test fingerprints_sqlite ... ok
+test manifest_adoption_sqlite ... ok
+test manifest_rebinding_sqlite ... ok
+test refused_eviction_sqlite ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+
+     Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-5102a4f8d4cd1157)
+
+running 6 tests
+test public_source_blind_private_parent_replays_every_device_lifecycle_channel ... ok
+test grok_born_expired_replays_every_device_lifecycle_channel ... ok
+test generated_scalar_comparisons_predict_and_settle_on_both_devices ... ok
+test formerly_live_populations_replay_both_insertion_orders_on_both_devices ... ok
+test row_views_replay_every_channel_on_memory_and_sqlite ... ok
+test generated_pairs_admission_outbox_and_settlement_on_both_devices has been running for over 60 seconds
+test generated_pairs_admission_outbox_and_settlement_on_both_devices ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 462.23s
+
+     Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-cd9bd5ede3bc55fe)
+
+running 10 tests
+test unchanged_mark_after_clock_expiry_memory ... ok
+test snapshot_spans_expiry_memory ... ok
+test inherited_expiry_replay_memory ... ok
+test snapshot_spans_expiry_sqlite ... ok
+test catchup_expired_before_and_after_watermark_memory ... ok
+test snapshot_after_expiry_then_stream_memory ... ok
+test unchanged_mark_after_clock_expiry_sqlite ... ok
+test catchup_expired_before_and_after_watermark_sqlite ... ok
+test snapshot_after_expiry_then_stream_sqlite ... ok
+test inherited_expiry_replay_sqlite ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/unread_range.rs (target/debug/deps/unread_range-ddf841546ea8b106)
+
+running 7 tests
+test guide_memory ... ok
+test guide_sqlite ... ok
+test measured::memory_candidate_visits ... ok
+test measured::sqlite_candidate_visits ... ok
+test measured::server_large_live_basis_ignores_expired_backlog ... ok
+test native_memory_scenarios ... ok
+test native_sqlite_scenarios ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.84s

@@ -1,0 +1,10 @@
+Journal: exact HEAD byte prefix retained; exactly one entry appended.
+Source: only local.ts changed; 1,500 lines; no Rust/device/server change.
+Mutation controls: 27 new + 6 round-5 + 5 round-4 = 38/38 killed.
+Round-4 controls: all five assertion failures verified.
+Round-4/5 historical files: byte content restored; no tracked changes.
+Matrix: 140 sites x two modes; every final case reached its site and injected a fault.
+Reference check: exit 0, 522 LLP docs, 9797 refs, 0 errors/unchecked (ref-check-final.log).
+Whitespace: git diff --check passes.
+New-source-helper boundary check: pass (boundary-final.log).
+Staged whitespace initially rejected TAP blank-space lines; normalized round-6 log trailing whitespace only and rechecked staged content.

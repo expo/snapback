@@ -1,0 +1,50 @@
+{
+  "snapback4/crates/snapback4-core/src/engine/row_views/live.rs": {
+    "bytes": 7572,
+    "sha256": "9654a637e32c3fe694242ca4fe4563f4c41ff52051c5ea9a5c98e232a8964742"
+  },
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch/tests.rs": {
+    "bytes": 20238,
+    "sha256": "0fe6f10c72d5b8a77406b73bf627325e31989f60e31059cf7637c0440676665a"
+  },
+  "snapback4/packages/snapback4/src/local.ts": {
+    "bytes": 84607,
+    "sha256": "1be8c2e69ddfa520c1f66455d6325015e04c3682d63ad29e17f1e6cc9129ef0a"
+  },
+  "snapback4/packages/snapback4/src/local-receipts.ts": {
+    "bytes": 3425,
+    "sha256": "9436ebff9937cdacaf16669f8216ca636a490bad9ae94c5d1aecebbb9e724c37"
+  },
+  "snapback4/packages/snapback4/test/store-reset-review.test.mjs": {
+    "bytes": 39366,
+    "sha256": "48665b3706e18de2b36161019fa77783c82d0c6cdabe865110858240a7ff1e78"
+  },
+  "snapback4/witness/receipts-scale.mjs": {
+    "bytes": 9216,
+    "sha256": "17eafce7412dacbfbd702533cd43c5575154e59cd69a7a84ff5fb0938cb09343"
+  },
+  "snapback4/witness/receipts-scale-browser.tsx": {
+    "bytes": 4453,
+    "sha256": "c76b9330f49ccc708cb7f182cacc9f5f4af3cabde8cfa8980f712f7d0f54c32f"
+  },
+  "snapback4/crates/snapback4/src/scale.rs": {
+    "bytes": 56725,
+    "sha256": "ab5ddf72c2e13eac0cd21928c2d628de35a535f6972a5e0898f47f1787a5b54b"
+  },
+  "snapback4/crates/snapback4-lang/src/guide/receipts.rs": {
+    "bytes": 17072,
+    "sha256": "e13e9ef56feef25893e7d4e5a5e74cad54734bbcfd4f1937d016deeb4c880042"
+  },
+  "snapback4/crates/snapback4-lang/src/guide/maintains.md": {
+    "bytes": 43878,
+    "sha256": "ebb172c8674bd1ca321674da272c50f0b7feafdfa8e2a5733db56f78394c74f4"
+  },
+  "snapback4/target/production/snapback4": {
+    "bytes": 17867384,
+    "sha256": "d6a30d0e6091d58ad71dc30a4391376727e04ca4dc343e467b9d151cc6cf5ac8"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2019815,
+    "sha256": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0"
+  }
+}

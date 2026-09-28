@@ -1,0 +1,55 @@
+{
+  "rust-row-views": {
+    "pass": 24,
+    "fail": 0,
+    "ignored": 0
+  },
+  "rust-row-integration": {
+    "pass": 31,
+    "fail": 0,
+    "ignored": 0
+  },
+  "rust-device": {
+    "pass": 53,
+    "fail": 0,
+    "ignored": 0
+  },
+  "rust-guide-delivery": {
+    "pass": 135,
+    "fail": 0,
+    "ignored": 1
+  },
+  "rust-cost": {
+    "pass": 12,
+    "fail": 0,
+    "ignored": 0
+  },
+  "client-clock-outbox": {
+    "tests": 172,
+    "pass": 172,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "client-receipts-delivery": {
+    "tests": 212,
+    "pass": 212,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "clock-extra": {
+    "tests": 57,
+    "pass": 57,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "settlement": {
+    "tests": 38,
+    "pass": 38,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  }
+}

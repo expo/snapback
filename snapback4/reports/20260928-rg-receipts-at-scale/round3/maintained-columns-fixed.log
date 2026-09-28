@@ -1,0 +1,50 @@
+TAP version 13
+# Subtest: maintained columns: sqlite watches use server values across interrupted sync and reopen (one write)
+ok 1 - maintained columns: sqlite watches use server values across interrupted sync and reopen (one write)
+  ---
+  duration_ms: 7189.496757
+  type: 'test'
+  ...
+# Subtest: maintained columns: sqlite watches use server values across interrupted sync and reopen (queued tail)
+ok 2 - maintained columns: sqlite watches use server values across interrupted sync and reopen (queued tail)
+  ---
+  duration_ms: 6218.311156
+  type: 'test'
+  ...
+# Subtest: maintained columns: web watches use server values across interrupted sync and reopen (one write)
+ok 3 - maintained columns: web watches use server values across interrupted sync and reopen (one write)
+  ---
+  duration_ms: 7518.352568
+  type: 'test'
+  ...
+# Subtest: maintained columns: web watches use server values across interrupted sync and reopen (queued tail)
+not ok 4 - maintained columns: web watches use server values across interrupted sync and reopen (queued tail)
+  ---
+  duration_ms: 5107.773363
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/maintained-columns.test.mjs:28:79'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+
+      assert.ok(interruptedPage.images_at>interruptedPage.watermark)
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/maintained-columns.test.mjs:117:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 3
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26177.634605

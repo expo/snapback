@@ -1,0 +1,27 @@
+[
+  {
+    "name": "pre-dispatch-raw-call",
+    "exit": 1,
+    "expected": 1
+  },
+  {
+    "name": "replacement-unprotected",
+    "exit": 1,
+    "expected": 1
+  },
+  {
+    "name": "overlap-single-owner",
+    "exit": 1,
+    "expected": 1
+  },
+  {
+    "name": "no-batch-protection",
+    "exit": 1,
+    "expected": 1
+  },
+  {
+    "name": "no-read-protection",
+    "exit": 1,
+    "expected": 1
+  }
+]

@@ -1,0 +1,32 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 41.30s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 23 tests
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::range_tests::a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::range_tests::pending_value_never_decides_a_probe_and_abort_keeps_its_host_policy ... ok
+test engine::row_views::range_tests::exhausted_provisional_rule_admission_keeps_a_covered_range_unknown ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 28.952485ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::tests::live_basis_walk_charges_bounded_candidates_on_its_internal_ledger ... ok
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... ok
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.85s

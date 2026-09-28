@@ -1,0 +1,1786 @@
+TAP version 13
+# Subtest: 0 persistent: local.ts:243 refreshAcquired
+ok 1 - 0 persistent: local.ts:243 refreshAcquired
+  ---
+  duration_ms: 468.023545
+  type: 'test'
+  ...
+# Subtest: 1 persistent: local.ts:309 captureStore
+not ok 2 - 1 persistent: local.ts:309 captureStore
+  ---
+  duration_ms: 35.852783
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 2 persistent: local.ts:316 call
+not ok 3 - 2 persistent: local.ts:316 call
+  ---
+  duration_ms: 35.300625
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 3 persistent: local.ts:344 call
+not ok 4 - 3 persistent: local.ts:344 call
+  ---
+  duration_ms: 52.070784
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 4 persistent: local.ts:348 call
+not ok 5 - 4 persistent: local.ts:348 call
+  ---
+  duration_ms: 30.40024
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 5 persistent: local.ts:532 sendPost
+not ok 6 - 5 persistent: local.ts:532 sendPost
+  ---
+  duration_ms: 29.253611
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 6 persistent: local.ts:535 sendPost
+ok 7 - 6 persistent: local.ts:535 sendPost
+  ---
+  duration_ms: 36.843599
+  type: 'test'
+  ...
+# Subtest: 7 persistent: local.ts:540 sendPost
+not ok 8 - 7 persistent: local.ts:540 sendPost
+  ---
+  duration_ms: 29.987851
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 8 persistent: local.ts:548 sendPost
+not ok 9 - 8 persistent: local.ts:548 sendPost
+  ---
+  duration_ms: 29.481873
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 9 persistent: local.ts:558 sendPost
+not ok 10 - 9 persistent: local.ts:558 sendPost
+  ---
+  duration_ms: 31.519107
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 10 persistent: local.ts:587 syncRound
+not ok 11 - 10 persistent: local.ts:587 syncRound
+  ---
+  duration_ms: 28.405219
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 11 persistent: local.ts:588 syncRound
+ok 12 - 11 persistent: local.ts:588 syncRound
+  ---
+  duration_ms: 57.587843
+  type: 'test'
+  ...
+# Subtest: 12 persistent: local.ts:606 syncRound
+ok 13 - 12 persistent: local.ts:606 syncRound
+  ---
+  duration_ms: 19.298138
+  type: 'test'
+  ...
+# Subtest: 13 persistent: local.ts:621 syncRound
+ok 14 - 13 persistent: local.ts:621 syncRound
+  ---
+  duration_ms: 19.242835
+  type: 'test'
+  ...
+# Subtest: 14 persistent: local.ts:623 syncRound
+ok 15 - 14 persistent: local.ts:623 syncRound
+  ---
+  duration_ms: 18.610127
+  type: 'test'
+  ...
+# Subtest: 15 persistent: local.ts:648 syncRound
+not ok 16 - 15 persistent: local.ts:648 syncRound
+  ---
+  duration_ms: 28.468815
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 16 persistent: local.ts:660 syncRound
+ok 17 - 16 persistent: local.ts:660 syncRound
+  ---
+  duration_ms: 29.909734
+  type: 'test'
+  ...
+# Subtest: 17 persistent: local.ts:675 syncRound
+not ok 18 - 17 persistent: local.ts:675 syncRound
+  ---
+  duration_ms: 28.123747
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 18 persistent: local.ts:680 syncRound
+not ok 19 - 18 persistent: local.ts:680 syncRound
+  ---
+  duration_ms: 30.335503
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 19 persistent: local.ts:697 syncRound
+not ok 20 - 19 persistent: local.ts:697 syncRound
+  ---
+  duration_ms: 28.100152
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 20 persistent: local.ts:699 syncRound
+not ok 21 - 20 persistent: local.ts:699 syncRound
+  ---
+  duration_ms: 50.398137
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 21 persistent: local.ts:707 syncRound
+not ok 22 - 21 persistent: local.ts:707 syncRound
+  ---
+  duration_ms: 27.575305
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 22 persistent: local.ts:708 syncRound
+not ok 23 - 22 persistent: local.ts:708 syncRound
+  ---
+  duration_ms: 27.054745
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 23 persistent: local.ts:710 syncRound
+not ok 24 - 23 persistent: local.ts:710 syncRound
+  ---
+  duration_ms: 28.000242
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 24 persistent: local.ts:728 syncRound
+not ok 25 - 24 persistent: local.ts:728 syncRound
+  ---
+  duration_ms: 26.766773
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 25 persistent: local.ts:735 syncRound
+ok 26 - 25 persistent: local.ts:735 syncRound
+  ---
+  duration_ms: 31.142432
+  type: 'test'
+  ...
+# Subtest: 26 persistent: local.ts:744 syncRound
+ok 27 - 26 persistent: local.ts:744 syncRound
+  ---
+  duration_ms: 40.745137
+  type: 'test'
+  ...
+# Subtest: 27 persistent: local.ts:766 syncRound
+ok 28 - 27 persistent: local.ts:766 syncRound
+  ---
+  duration_ms: 39.022765
+  type: 'test'
+  ...
+# Subtest: 28 persistent: local.ts:769 syncRound
+ok 29 - 28 persistent: local.ts:769 syncRound
+  ---
+  duration_ms: 62.14813
+  type: 'test'
+  ...
+# Subtest: 29 persistent: local.ts:795 probe
+not ok 30 - 29 persistent: local.ts:795 probe
+  ---
+  duration_ms: 26.399493
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 30 persistent: local.ts:797 probe
+not ok 31 - 30 persistent: local.ts:797 probe
+  ---
+  duration_ms: 28.070787
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 31 persistent: local.ts:799 probe
+not ok 32 - 31 persistent: local.ts:799 probe
+  ---
+  duration_ms: 25.750089
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 32 persistent: local.ts:801 probe
+not ok 33 - 32 persistent: local.ts:801 probe
+  ---
+  duration_ms: 25.811592
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 33 persistent: local.ts:804 probe
+not ok 34 - 33 persistent: local.ts:804 probe
+  ---
+  duration_ms: 26.285862
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 34 persistent: local.ts:814 waitForChange
+not ok 35 - 34 persistent: local.ts:814 waitForChange
+  ---
+  duration_ms: 28.220483
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 35 persistent: local.ts:815 waitForChange
+not ok 36 - 35 persistent: local.ts:815 waitForChange
+  ---
+  duration_ms: 25.846063
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 36 persistent: local.ts:818 waitForChange
+not ok 37 - 36 persistent: local.ts:818 waitForChange
+  ---
+  duration_ms: 47.972921
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 37 persistent: local.ts:823 waitForChange
+not ok 38 - 37 persistent: local.ts:823 waitForChange
+  ---
+  duration_ms: 26.111481
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 38 persistent: local.ts:825 waitForChange
+not ok 39 - 38 persistent: local.ts:825 waitForChange
+  ---
+  duration_ms: 25.947435
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 39 persistent: local.ts:828 waitForChange
+not ok 40 - 39 persistent: local.ts:828 waitForChange
+  ---
+  duration_ms: 26.869157
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 40 persistent: local.ts:835 waitForChange
+not ok 41 - 40 persistent: local.ts:835 waitForChange
+  ---
+  duration_ms: 25.388558
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 41 persistent: local.ts:850 waitForChange
+not ok 42 - 41 persistent: local.ts:850 waitForChange
+  ---
+  duration_ms: 25.652443
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 42 persistent: local.ts:859 follow
+not ok 43 - 42 persistent: local.ts:859 follow
+  ---
+  duration_ms: 28.180413
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 43 persistent: local.ts:862 follow
+not ok 44 - 43 persistent: local.ts:862 follow
+  ---
+  duration_ms: 25.374726
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 44 persistent: local.ts:867 follow
+not ok 45 - 44 persistent: local.ts:867 follow
+  ---
+  duration_ms: 25.700075
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 45 persistent: local.ts:1078 flush
+ok 46 - 45 persistent: local.ts:1078 flush
+  ---
+  duration_ms: 48.233732
+  type: 'test'
+  ...
+# Subtest: 46 persistent: local.ts:1095 flushOnce
+not ok 47 - 46 persistent: local.ts:1095 flushOnce
+  ---
+  duration_ms: 25.689148
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 47 persistent: local.ts:1097 flushOnce
+not ok 48 - 47 persistent: local.ts:1097 flushOnce
+  ---
+  duration_ms: 25.15662
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 48 persistent: local.ts:1099 flushOnce
+not ok 49 - 48 persistent: local.ts:1099 flushOnce
+  ---
+  duration_ms: 26.279173
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 49 persistent: local.ts:1103 flushOnce
+ok 50 - 49 persistent: local.ts:1103 flushOnce
+  ---
+  duration_ms: 26.446763
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1105 flushOnce
+ok 51 - 50 persistent: local.ts:1105 flushOnce
+  ---
+  duration_ms: 40.68052
+  type: 'test'
+  ...
+# Subtest: 51 persistent: local.ts:1105 flushOnce
+ok 52 - 51 persistent: local.ts:1105 flushOnce
+  ---
+  duration_ms: 27.353963
+  type: 'test'
+  ...
+# Subtest: 52 persistent: local.ts:1110 flushOnce
+ok 53 - 52 persistent: local.ts:1110 flushOnce
+  ---
+  duration_ms: 28.413972
+  type: 'test'
+  ...
+# Subtest: 53 persistent: local.ts:1111 flushOnce
+not ok 54 - 53 persistent: local.ts:1111 flushOnce
+  ---
+  duration_ms: 47.605261
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 54 persistent: local.ts:1113 flushOnce
+ok 55 - 54 persistent: local.ts:1113 flushOnce
+  ---
+  duration_ms: 28.171239
+  type: 'test'
+  ...
+# Subtest: 55 persistent: local.ts:1118 flushOnce
+ok 56 - 55 persistent: local.ts:1118 flushOnce
+  ---
+  duration_ms: 29.514533
+  type: 'test'
+  ...
+# Subtest: 56 persistent: local.ts:1124 flushOnce
+ok 57 - 56 persistent: local.ts:1124 flushOnce
+  ---
+  duration_ms: 28.577737
+  type: 'test'
+  ...
+# Subtest: 57 persistent: local.ts:1127 flushOnce
+not ok 58 - 57 persistent: local.ts:1127 flushOnce
+  ---
+  duration_ms: 24.610782
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 58 persistent: local.ts:1130 flushOnce
+ok 59 - 58 persistent: local.ts:1130 flushOnce
+  ---
+  duration_ms: 32.524374
+  type: 'test'
+  ...
+# Subtest: 59 persistent: local.ts:1135 flushOnce
+ok 60 - 59 persistent: local.ts:1135 flushOnce
+  ---
+  duration_ms: 26.126813
+  type: 'test'
+  ...
+# Subtest: 60 persistent: local.ts:1144 flushOnce
+not ok 61 - 60 persistent: local.ts:1144 flushOnce
+  ---
+  duration_ms: 24.930691
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 61 persistent: local.ts:1148 flushOnce
+not ok 62 - 61 persistent: local.ts:1148 flushOnce
+  ---
+  duration_ms: 48.537538
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 62 persistent: local.ts:1160 flushOnce
+ok 63 - 62 persistent: local.ts:1160 flushOnce
+  ---
+  duration_ms: 23.977042
+  type: 'test'
+  ...
+# Subtest: 63 persistent: local.ts:1164 flushOnce
+not ok 64 - 63 persistent: local.ts:1164 flushOnce
+  ---
+  duration_ms: 24.704442
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 64 persistent: local.ts:1165 flushOnce
+not ok 65 - 64 persistent: local.ts:1165 flushOnce
+  ---
+  duration_ms: 25.802859
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 65 persistent: local.ts:1168 flushOnce
+ok 66 - 65 persistent: local.ts:1168 flushOnce
+  ---
+  duration_ms: 57.481154
+  type: 'test'
+  ...
+# Subtest: 66 persistent: local.ts:1172 replayOnOpen
+not ok 67 - 66 persistent: local.ts:1172 replayOnOpen
+  ---
+  duration_ms: 27.485591
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 67 persistent: local.ts:1177 replayOnOpen
+not ok 68 - 67 persistent: local.ts:1177 replayOnOpen
+  ---
+  duration_ms: 24.830261
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 68 persistent: local.ts:1180 replayOnOpen
+not ok 69 - 68 persistent: local.ts:1180 replayOnOpen
+  ---
+  duration_ms: 24.999424
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 69 persistent: local.ts:1181 replayOnOpen
+not ok 70 - 69 persistent: local.ts:1181 replayOnOpen
+  ---
+  duration_ms: 48.314593
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 70 persistent: local.ts:1183 replayOnOpen
+not ok 71 - 70 persistent: local.ts:1183 replayOnOpen
+  ---
+  duration_ms: 25.055558
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 71 persistent: local.ts:1452 listenForExit
+not ok 72 - 71 persistent: local.ts:1452 listenForExit
+  ---
+  duration_ms: 24.508558
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 72 persistent: local-receipts.ts:11 settleReceipt
+ok 73 - 72 persistent: local-receipts.ts:11 settleReceipt
+  ---
+  duration_ms: 30.235493
+  type: 'test'
+  ...
+# Subtest: 73 persistent: local-receipts.ts:12 settleReceipt
+ok 74 - 73 persistent: local-receipts.ts:12 settleReceipt
+  ---
+  duration_ms: 29.854051
+  type: 'test'
+  ...
+# Subtest: 74 persistent: local-receipts.ts:30 receiptBatch
+ok 75 - 74 persistent: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 27.514805
+  type: 'test'
+  ...
+# Subtest: 75 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 76 - 75 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 25.438102
+  type: 'test'
+  ...
+# Subtest: 76 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+not ok 77 - 76 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 24.701206
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 77 persistent: local-receipts.ts:65 syncSettledWrites
+ok 78 - 77 persistent: local-receipts.ts:65 syncSettledWrites
+  ---
+  duration_ms: 79.125799
+  type: 'test'
+  ...
+# Subtest: 78 persistent: local-receipts.ts:66 syncSettledWrites
+ok 79 - 78 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 57.900642
+  type: 'test'
+  ...
+# Subtest: 79 persistent: local-receipts.ts:70 recoverReceipt
+ok 80 - 79 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 28.015576
+  type: 'test'
+  ...
+# Subtest: 80 persistent: local-receipts.ts:70 recoverReceipt
+not ok 81 - 80 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 24.668538
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 81 persistent: local-receipts.ts:74 recoverReceipt
+not ok 82 - 81 persistent: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 26.87859
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 82 persistent: local-receipts.ts:82 lookupWrite
+not ok 83 - 82 persistent: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 24.3628
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 83 persistent: local-receipts.ts:86 lookupWrite
+not ok 84 - 83 persistent: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 67.901534
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 84 persistent: local-receipts.ts:88 lookupWrite
+not ok 85 - 84 persistent: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 25.716289
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 85 persistent: local-receipts.ts:94 lookupWrite
+not ok 86 - 85 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 24.755268
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 86 persistent: local-receipts.ts:94 lookupWrite
+not ok 87 - 86 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 25.539174
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 87 persistent: local-receipts.ts:108 terminalDeviceCall
+ok 88 - 87 persistent: local-receipts.ts:108 terminalDeviceCall
+  ---
+  duration_ms: 28.465079
+  type: 'test'
+  ...
+# Subtest: 88 persistent: local-receipts.ts:117 readQueued
+ok 89 - 88 persistent: local-receipts.ts:117 readQueued
+  ---
+  duration_ms: 25.141707
+  type: 'test'
+  ...
+# Subtest: 89 persistent: writes.ts:154 keep
+ok 90 - 89 persistent: writes.ts:154 keep
+  ---
+  duration_ms: 30.904205
+  type: 'test'
+  ...
+# Subtest: 90 persistent: writes.ts:181 acknowledged
+ok 91 - 90 persistent: writes.ts:181 acknowledged
+  ---
+  duration_ms: 25.794095
+  type: 'test'
+  ...
+# Subtest: 91 persistent: writes.ts:187 acknowledged
+not ok 92 - 91 persistent: writes.ts:187 acknowledged
+  ---
+  duration_ms: 24.698874
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 92 persistent: writes.ts:194 persistPending
+not ok 93 - 92 persistent: writes.ts:194 persistPending
+  ---
+  duration_ms: 47.770818
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 93 persistent: writes.ts:200 read
+not ok 94 - 93 persistent: writes.ts:200 read
+  ---
+  duration_ms: 24.827467
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 94 persistent: writes.ts:203 read
+ok 95 - 94 persistent: writes.ts:203 read
+  ---
+  duration_ms: 26.746163
+  type: 'test'
+  ...
+# Subtest: 95 persistent: writes.ts:215 lookup
+not ok 96 - 95 persistent: writes.ts:215 lookup
+  ---
+  duration_ms: 24.1099
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 96 persistent: writes.ts:217 lookup
+not ok 97 - 96 persistent: writes.ts:217 lookup
+  ---
+  duration_ms: 24.637452
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 97 persistent: local-exit.ts:38 exitTransport
+not ok 98 - 97 persistent: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 24.917611
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 98 persistent: local-exit.ts:41 exitTransport
+not ok 99 - 98 persistent: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 26.78495
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 99 persistent: local-exit.ts:42 exitTransport
+not ok 100 - 99 persistent: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 24.423701
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 100 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+not ok 101 - 100 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 27.232211
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 101 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+not ok 102 - 101 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 49.480801
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 102 persistent: local-assets.ts:52 call
+not ok 103 - 102 persistent: local-assets.ts:52 call
+  ---
+  duration_ms: 25.432253
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 103 persistent: local-assets.ts:70 home
+not ok 104 - 103 persistent: local-assets.ts:70 home
+  ---
+  duration_ms: 24.593336
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 104 persistent: local-assets.ts:73 save
+not ok 105 - 104 persistent: local-assets.ts:73 save
+  ---
+  duration_ms: 25.880364
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 105 persistent: local-assets.ts:79 drop
+not ok 106 - 105 persistent: local-assets.ts:79 drop
+  ---
+  duration_ms: 24.36337
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 106 persistent: local-assets.ts:95 check
+not ok 107 - 106 persistent: local-assets.ts:95 check
+  ---
+  duration_ms: 24.822359
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 107 persistent: local-assets.ts:97 check
+not ok 108 - 107 persistent: local-assets.ts:97 check
+  ---
+  duration_ms: 27.137188
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 108 persistent: local-assets.ts:104 check
+not ok 109 - 108 persistent: local-assets.ts:104 check
+  ---
+  duration_ms: 24.535338
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 109 persistent: local-assets.ts:108 check
+not ok 110 - 109 persistent: local-assets.ts:108 check
+  ---
+  duration_ms: 25.122489
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 110 persistent: request-wait.ts:17 postForCaller
+ok 111 - 110 persistent: request-wait.ts:17 postForCaller
+  ---
+  duration_ms: 55.742207
+  type: 'test'
+  ...
+# Subtest: 111 persistent: request-wait.ts:18 postForCaller
+ok 112 - 111 persistent: request-wait.ts:18 postForCaller
+  ---
+  duration_ms: 30.144457
+  type: 'test'
+  ...
+# Subtest: 112 persistent: local-sync.ts:50 legacyInput
+not ok 113 - 112 persistent: local-sync.ts:50 legacyInput
+  ---
+  duration_ms: 25.337811
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 113 persistent: local-sync.ts:67 syncTransport
+ok 114 - 113 persistent: local-sync.ts:67 syncTransport
+  ---
+  duration_ms: 16.68429
+  type: 'test'
+  ...
+# Subtest: 114 persistent: local-sync.ts:68 syncTransport
+not ok 115 - 114 persistent: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 24.516821
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 115 persistent: local-sync.ts:69 syncTransport
+not ok 116 - 115 persistent: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 27.01875
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 116 persistent: device-restore.ts:57 restoreWitness
+not ok 117 - 116 persistent: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 24.205033
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 117 persistent: local-backend.ts:11 loadBackend
+not ok 118 - 117 persistent: local-backend.ts:11 loadBackend
+  ---
+  duration_ms: 24.473005
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 118 persistent: local-backend.ts:13 loadBackend
+not ok 119 - 118 persistent: local-backend.ts:13 loadBackend
+  ---
+  duration_ms: 47.075456
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 119 persistent: local-native.ts:16 installNativeAttempt
+not ok 120 - 119 persistent: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 25.473204
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 120 persistent: local-native.ts:28 installNativeAttempt
+not ok 121 - 120 persistent: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 24.078213
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 121 persistent: local-native.ts:41 installNativeAttempt
+not ok 122 - 121 persistent: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 25.707886
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 122 persistent: local-native.ts:43 installNativeAttempt
+not ok 123 - 122 persistent: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 24.503981
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 123 persistent: local-native.ts:46 installNativeAttempt
+not ok 124 - 123 persistent: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 24.441888
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:32:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:66:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..124
+# tests 124
+# suites 0
+# pass 38
+# fail 86
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9247.231545

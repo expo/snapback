@@ -130,7 +130,7 @@ test("sync request-line boundaries and a deliberate body ceiling", { timeout: 15
 
 // Each boundary owns its server and queue. These are protocol assertions;
 // concurrent queues otherwise spend the timeout contending during replay.
-for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement`, { timeout: 40_000 }, async t => {
+for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) for (const recovery of (count === 256 ? ["automatic", "explicit sync"] : ["automatic"])) test(`${tier}: maximum pending ids (${count}), cursor batches and every terminal acknowledgement (${recovery})`, { timeout: 40_000 }, async t => {
   const f = await host(t);
   // The final case also has a tail beyond sync_state's 256-id window.
   const ids = Array.from({ length: count + (count === 256 ? 17 : 0) }, (_, n) => `${tier}-${count}-${n}`.padEnd(128, "x"));
@@ -155,6 +155,7 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test
     if (new URL(input).pathname === "/m/noChange") {
       const id = JSON.parse(init.body).id;
       assert.ok(!receipts.has(id), "a sync-acknowledged terminal id must not be reposted");
+      if (recovery === "explicit sync") return new Response("replay unavailable", { status: 503 });
       const response = await fetch(input, init), write = await response.clone().json();
       assert.equal(write.state, "sent"); ordinaryReceipts.add(id);
       return response;
@@ -177,18 +178,23 @@ for (const tier of ["wasm", "native"]) for (const count of [232, 233, 256]) test
     assert.equal(write.state, "sent");
     terminal.set(write.id, (terminal.get(write.id) ?? 0) + 1);
   });
+  // Shared FIFO settlement can replay the whole tail before its next sync.
+  // Fence replay and explicitly sync after retirement advances the id window.
   // Settling up to 273 receipts is real work on the wasm store. Allow it the
   // existing 40-second test budget, reserving ten seconds for setup/cleanup.
-  await until(async () => terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0, 30_000);
+  await until(async () => {
+    if (recovery === "explicit sync") await client.sync();
+    return terminal.size === ids.length && (await core.call({ op: "queued" })).ok.length === 0;
+  }, 30_000);
   assert.equal(pendingSizes[0], count);
   assert.ok(cursors.length >= 5, "the real snapshot continues across six batches");
   assert.deepEqual([...new Set([...receipts, ...ordinaryReceipts])].sort(), [...ids].sort(), "every id has a server acknowledgement, including the tail");
-  if (count === 256) assert.ok(ids.slice(256).some(id => receipts.has(id)), "sync acknowledgements advance beyond the first pending window");
+  if (recovery === "explicit sync") assert.ok(ids.slice(256).some(id => receipts.has(id)), "sync acknowledgements advance beyond the first pending window");
   assert.ok([...terminal.values()].every(n => n === 1), "one terminal event per queued write");
   const read = await client.query({ kind: "query", name: "items" }, {});
   assert.equal(read.data.length, 37);
   assert.equal(new Set(read.data.map(row => row.id)).size, 37);
-  console.log(JSON.stringify({ store: tier, pendingBoundary: count, syncAcknowledged: receipts.size, ordinaryAcknowledged: ordinaryReceipts.size, terminalWrites: terminal.size, snapshotCursors: cursors.length }));
+  console.log(JSON.stringify({ store: tier, pendingBoundary: count, recovery, syncAcknowledged: receipts.size, ordinaryAcknowledged: ordinaryReceipts.size, terminalWrites: terminal.size, snapshotCursors: cursors.length }));
   await client.close();
 });
 

@@ -1,0 +1,906 @@
+TAP version 13
+# Subtest: wasm: local unsaved hold survives save throws until dispatch
+ok 1 - wasm: local unsaved hold survives save throws until dispatch
+  ---
+  duration_ms: 708.632893
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until hold
+ok 2 - wasm: local unsaved hold survives save throws until hold
+  ---
+  duration_ms: 77.098153
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until settlement
+ok 3 - wasm: local unsaved hold survives save throws until settlement
+  ---
+  duration_ms: 68.5315
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until signOut
+ok 4 - wasm: local unsaved hold survives save throws until signOut
+  ---
+  duration_ms: 75.594769
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until close
+ok 5 - wasm: local unsaved hold survives save throws until close
+  ---
+  duration_ms: 83.361232
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives save throws until adoption
+ok 6 - wasm: local unsaved hold survives save throws until adoption
+  ---
+  duration_ms: 103.805
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until dispatch
+ok 7 - wasm: local unsaved hold survives device refuses until dispatch
+  ---
+  duration_ms: 334.657154
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until hold
+ok 8 - wasm: local unsaved hold survives device refuses until hold
+  ---
+  duration_ms: 76.344061
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until settlement
+ok 9 - wasm: local unsaved hold survives device refuses until settlement
+  ---
+  duration_ms: 85.268762
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until signOut
+ok 10 - wasm: local unsaved hold survives device refuses until signOut
+  ---
+  duration_ms: 78.491672
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until close
+ok 11 - wasm: local unsaved hold survives device refuses until close
+  ---
+  duration_ms: 75.704043
+  type: 'test'
+  ...
+# Subtest: wasm: local unsaved hold survives device refuses until adoption
+ok 12 - wasm: local unsaved hold survives device refuses until adoption
+  ---
+  duration_ms: 92.823307
+  type: 'test'
+  ...
+# Subtest: online: dispatch subscriber signOut prevents the POST
+ok 13 - online: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 48.164787
+  type: 'test'
+  ...
+# Subtest: online: dispatch subscriber close prevents the POST
+ok 14 - online: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 44.922816
+  type: 'test'
+  ...
+# Subtest: wasm: dispatch subscriber signOut prevents the POST
+ok 15 - wasm: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 59.379169
+  type: 'test'
+  ...
+# Subtest: wasm: dispatch subscriber close prevents the POST
+ok 16 - wasm: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 67.443259
+  type: 'test'
+  ...
+# Subtest: process: dispatch subscriber signOut prevents the POST
+ok 17 - process: dispatch subscriber signOut prevents the POST
+  ---
+  duration_ms: 125.689478
+  type: 'test'
+  ...
+# Subtest: process: dispatch subscriber close prevents the POST
+ok 18 - process: dispatch subscriber close prevents the POST
+  ---
+  duration_ms: 121.918175
+  type: 'test'
+  ...
+# Subtest: online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 19 - online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 311.432577
+  type: 'test'
+  ...
+# Subtest: online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 20 - online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 310.520659
+  type: 'test'
+  ...
+# Subtest: app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 21 - app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 313.39602
+  type: 'test'
+  ...
+# Subtest: app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 22 - app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 312.702972
+  type: 'test'
+  ...
+# Subtest: wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 23 - wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 340.295377
+  type: 'test'
+  ...
+# Subtest: wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 24 - wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 331.506741
+  type: 'test'
+  ...
+# Subtest: process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 25 - process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 390.943246
+  type: 'test'
+  ...
+# Subtest: process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+ok 26 - process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications
+  ---
+  duration_ms: 392.943715
+  type: 'test'
+  ...
+# Subtest: online: custody waits and dropped connections preserve sent until settlement
+ok 27 - online: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 799.87551
+  type: 'test'
+  ...
+# Subtest: app-online: custody waits and dropped connections preserve sent until settlement
+ok 28 - app-online: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 808.32661
+  type: 'test'
+  ...
+# Subtest: wasm: custody waits and dropped connections preserve sent until settlement
+ok 29 - wasm: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 845.193059
+  type: 'test'
+  ...
+# Subtest: process: custody waits and dropped connections preserve sent until settlement
+ok 30 - process: custody waits and dropped connections preserve sent until settlement
+  ---
+  duration_ms: 971.125241
+  type: 'test'
+  ...
+# Subtest: app-online: reload preserves held head and queued tail, then settles the same ids once
+ok 31 - app-online: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 73.341591
+  type: 'test'
+  ...
+# Subtest: app-online: reload preserves sent head and queued tail, then settles the same ids once
+ok 32 - app-online: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 57.895995
+  type: 'test'
+  ...
+# Subtest: wasm: reload preserves held head and queued tail, then settles the same ids once
+ok 33 - wasm: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 120.931575
+  type: 'test'
+  ...
+# Subtest: wasm: reload preserves sent head and queued tail, then settles the same ids once
+ok 34 - wasm: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 109.757073
+  type: 'test'
+  ...
+# Subtest: process: reload preserves held head and queued tail, then settles the same ids once
+ok 35 - process: reload preserves held head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 257.212713
+  type: 'test'
+  ...
+# Subtest: process: reload preserves sent head and queued tail, then settles the same ids once
+ok 36 - process: reload preserves sent head and queued tail, then settles the same ids once
+  ---
+  duration_ms: 245.772903
+  type: 'test'
+  ...
+# Subtest: raw online queue is in memory; reopening never invents durable intent
+ok 37 - raw online queue is in memory; reopening never invents durable intent
+  ---
+  duration_ms: 47.042855
+  type: 'test'
+  ...
+# Subtest: online pending-list subscriber can admit a successor without redispatching the head
+ok 38 - online pending-list subscriber can admit a successor without redispatching the head
+  ---
+  duration_ms: 46.385009
+  type: 'test'
+  ...
+# Subtest: account facade fences both an outstanding list and its subscription
+ok 39 - account facade fences both an outstanding list and its subscription
+  ---
+  duration_ms: 1.87438
+  type: 'test'
+  ...
+# Subtest: journal storage listener belongs to the last shared owner
+ok 40 - journal storage listener belongs to the last shared owner
+  ---
+  duration_ms: 2.140789
+  type: 'test'
+  ...
+# Subtest: React hooks and reference-app lifetimes
+    # Subtest: the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself
+    ok 1 - the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself
+      ---
+      duration_ms: 11.4531
+      type: 'test'
+      ...
+    # Subtest: the receipts card leaves delivery to the SDK and reports only visible settled rows
+    ok 2 - the receipts card leaves delivery to the SDK and reports only visible settled rows
+      ---
+      duration_ms: 7.805061
+      type: 'test'
+      ...
+    # Subtest: the receipts card retains seen retries and scope without delivery reporting
+    ok 3 - the receipts card retains seen retries and scope without delivery reporting
+      ---
+      duration_ms: 2.16788
+      type: 'test'
+      ...
+    # Subtest: the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation
+    ok 4 - the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation
+      ---
+      duration_ms: 8.476127
+      type: 'test'
+      ...
+    # Subtest: useNow hides a server-answered row at its deadline and after a clock advance
+    ok 5 - useNow hides a server-answered row at its deadline and after a clock advance
+      ---
+      duration_ms: 8.537559
+      type: 'test'
+      ...
+    # Subtest: AppProvider switches real clients, resets account state and routes existing mutation/query hooks
+    ok 6 - AppProvider switches real clients, resets account state and routes existing mutation/query hooks
+      ---
+      duration_ms: 43.65734
+      type: 'test'
+      ...
+    # Subtest: failed receipt saves settle pending-write hooks and stay settled after remount
+    ok 7 - failed receipt saves settle pending-write hooks and stay settled after remount
+      ---
+      duration_ms: 21.702385
+      type: 'test'
+      ...
+    # Subtest: two online owners notify both pending-write hooks when the shared journal settles once
+    ok 8 - two online owners notify both pending-write hooks when the shared journal settles once
+      ---
+      duration_ms: 291.525382
+      type: 'test'
+      ...
+    # Subtest: useQuery owns observations through Strict Mode, equivalent arguments and unmount
+    ok 9 - useQuery owns observations through Strict Mode, equivalent arguments and unmount
+      ---
+      duration_ms: 2.90106
+      type: 'test'
+      ...
+    # Subtest: useMutation passes admission options and saved identity; custody clears inFlight
+    ok 10 - useMutation passes admission options and saved identity; custody clears inFlight
+      ---
+      duration_ms: 2.444515
+      type: 'test'
+      ...
+    # Subtest: useMutation survives replay, rejection, concurrent writes and an obsolete lifetime
+    ok 11 - useMutation survives replay, rejection, concurrent writes and an obsolete lifetime
+      ---
+      duration_ms: 3.400818
+      type: 'test'
+      ...
+    # Subtest: useMutation preserves fresh null and direct, queued and early replay receipts
+    ok 12 - useMutation preserves fresh null and direct, queued and early replay receipts
+      ---
+      duration_ms: 2.462051
+      type: 'test'
+      ...
+    # Subtest: W5c acquisition and pending writes survive remount, receipt races and client replacement
+    ok 13 - W5c acquisition and pending writes survive remount, receipt races and client replacement
+      ---
+      duration_ms: 4.909881
+      type: 'test'
+      ...
+    # Subtest: useAction tracks concurrent results, retry ids and obsolete lifetimes
+    ok 14 - useAction tracks concurrent results, retry ids and obsolete lifetimes
+      ---
+      duration_ms: 3.031885
+      type: 'test'
+      ...
+    # Subtest: useViewer subscribes and useAsset has empty and failed outcomes
+    ok 15 - useViewer subscribes and useAsset has empty and failed outcomes
+      ---
+      duration_ms: 3.690272
+      type: 'test'
+      ...
+    # Subtest: usePage rebinds insertion, deletion and reorder boundaries and aggregates read state
+    ok 16 - usePage rebinds insertion, deletion and reorder boundaries and aggregates read state
+      ---
+      duration_ms: 3.316873
+      type: 'test'
+      ...
+    # Subtest: usePage keeps the oldest stale timestamp across fresh and stale pages
+    ok 17 - usePage keeps the oldest stale timestamp across fresh and stale pages
+      ---
+      duration_ms: 2.62807
+      type: 'test'
+      ...
+    # Subtest: keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset
+    ok 18 - keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset
+      ---
+      duration_ms: 64.451553
+      type: 'test'
+      ...
+    # Subtest: online observations clear pages during fetches and on unavailable settlement, refusal and close
+    ok 19 - online observations clear pages during fetches and on unavailable settlement, refusal and close
+      ---
+      duration_ms: 58.357086
+      type: 'test'
+      ...
+    # Subtest: usePage treats every non-array ready value as loading and keeps the earlier pages
+    ok 20 - usePage treats every non-array ready value as loading and keeps the earlier pages
+      ---
+      duration_ms: 12.224006
+      type: 'test'
+      ...
+    # Subtest: usePage keeps the ready prefix while replacing an in-flight suffix
+    ok 21 - usePage keeps the ready prefix while replacing an in-flight suffix
+      ---
+      duration_ms: 3.770502
+      type: 'test'
+      ...
+    # Subtest: usePage keeps loaded pages while another loads and withdraws them on a first-page reset
+    ok 22 - usePage keeps loaded pages while another loads and withdraws them on a first-page reset
+      ---
+      duration_ms: 6.74424
+      type: 'test'
+      ...
+    # Subtest: web app closes asynchronous opens before/after cleanup and ignores obsolete failures
+    ok 23 - web app closes asynchronous opens before/after cleanup and ignores obsolete failures
+      ---
+      duration_ms: 11.91336
+      type: 'test'
+      ...
+    # Subtest: Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures
+    ok 24 - Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures
+      ---
+      duration_ms: 9.687443
+      type: 'test'
+      ...
+    # Subtest: web sign-out reports completion only after durable clearing and offers retry on failure
+    ok 25 - web sign-out reports completion only after durable clearing and offers retry on failure
+      ---
+      duration_ms: 13.89432
+      type: 'test'
+      ...
+    # Subtest: useQuery lingering remount has data in its first committed render
+    ok 26 - useQuery lingering remount has data in its first committed render
+      ---
+      duration_ms: 11.702243
+      type: 'test'
+      ...
+    # Subtest: useQuery lingering remount has data in its first committed render through the app facade
+    ok 27 - useQuery lingering remount has data in its first committed render through the app facade
+      ---
+      duration_ms: 6.774156
+      type: 'test'
+      ...
+    # Subtest: usePage lingering remount has data in its first committed render
+    ok 28 - usePage lingering remount has data in its first committed render
+      ---
+      duration_ms: 10.550016
+      type: 'test'
+      ...
+    # Subtest: usePage lingering remount has data in its first committed render through the app facade
+    ok 29 - usePage lingering remount has data in its first committed render through the app facade
+      ---
+      duration_ms: 6.356529
+      type: 'test'
+      ...
+    # Subtest: useQuery createApp remount first commits the lingering answer during a held re-read
+    ok 30 - useQuery createApp remount first commits the lingering answer during a held re-read
+      ---
+      duration_ms: 22.897738
+      type: 'test'
+      ...
+    # Subtest: usePage createApp remount first commits the lingering answer during a held re-read
+    ok 31 - usePage createApp remount first commits the lingering answer during a held re-read
+      ---
+      duration_ms: 22.267793
+      type: 'test'
+      ...
+    # Subtest: web composer preserves edits, immediate failure and offline admission
+    ok 32 - web composer preserves edits, immediate failure and offline admission
+      ---
+      duration_ms: 42.244582
+      type: 'test'
+      ...
+    # Subtest: Expo composer preserves edits, immediate failure and offline admission
+    ok 33 - Expo composer preserves edits, immediate failure and offline admission
+      ---
+      duration_ms: 31.853053
+      type: 'test'
+      ...
+    # Subtest: web submit owns a fresh field and storage failure keeps the draft
+    ok 34 - web submit owns a fresh field and storage failure keeps the draft
+      ---
+      duration_ms: 4.712185
+      type: 'test'
+      ...
+    # Subtest: Expo submit owns a fresh field and storage failure keeps the draft
+    ok 35 - Expo submit owns a fresh field and storage failure keeps the draft
+      ---
+      duration_ms: 9.346432
+      type: 'test'
+      ...
+    # Subtest: Expo observes every saved ID across reload, late refusal, unknown receipt and account switch
+    ok 36 - Expo observes every saved ID across reload, late refusal, unknown receipt and account switch
+      ---
+      duration_ms: 28.066676
+      type: 'test'
+      ...
+    # Subtest: Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete
+    ok 37 - Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete
+      ---
+      duration_ms: 20.776297
+      type: 'test'
+      ...
+    # Subtest: web composer fences old account callbacks and preserves saved write identities
+    ok 38 - web composer fences old account callbacks and preserves saved write identities
+      ---
+      duration_ms: 4.430542
+      type: 'test'
+      ...
+    # Subtest: receipt notifications read one pending list for ten thousand message hooks
+    ok 39 - receipt notifications read one pending list for ten thousand message hooks
+      ---
+      duration_ms: 402.953211
+      type: 'test'
+      ...
+    # Subtest: pending-write lists filter, update, fence old reads, and release StrictMode subscriptions
+    ok 40 - pending-write lists filter, update, fence old reads, and release StrictMode subscriptions
+      ---
+      duration_ms: 4.645505
+      type: 'test'
+      ...
+    # Subtest: web receipt labels separate admission, restoration and unknown; late refusal offers text
+    ok 41 - web receipt labels separate admission, restoration and unknown; late refusal offers text
+      ---
+      duration_ms: 4.746436
+      type: 'test'
+      ...
+    # Subtest: Expo receipt labels separate admission, restoration and unknown; late refusal offers text
+    ok 42 - Expo receipt labels separate admission, restoration and unknown; late refusal offers text
+      ---
+      duration_ms: 5.184052
+      type: 'test'
+      ...
+    # Subtest: saved write restoration ends on reject or live outcome and restarts for another id
+    ok 43 - saved write restoration ends on reject or live outcome and restarts for another id
+      ---
+      duration_ms: 2.386769
+      type: 'test'
+      ...
+    # Subtest: web room loading keeps the same input and legacy intents disclose missing text
+    ok 44 - web room loading keeps the same input and legacy intents disclose missing text
+      ---
+      duration_ms: 7.264511
+      type: 'test'
+      ...
+    # Subtest: shared online journal updates A's hook on B's admission and settlement after remount
+    ok 45 - shared online journal updates A's hook on B's admission and settlement after remount
+      ---
+      duration_ms: 26.842471
+      type: 'test'
+      ...
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: shared online journal invalidates pending hooks across browser tabs
+    ok 46 - shared online journal invalidates pending hooks across browser tabs
+      ---
+      duration_ms: 320.938347
+      type: 'test'
+      ...
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: closing the last journal owner during admission still invalidates another tab
+    ok 47 - closing the last journal owner during admission still invalidates another tab
+      ---
+      duration_ms: 253.474729
+      type: 'test'
+      ...
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 11:28:59 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: clearing localStorage in another tab invalidates the journal hook
+    ok 48 - clearing localStorage in another tab invalidates the journal hook
+      ---
+      duration_ms: 219.719935
+      type: 'test'
+      ...
+    1..48
+ok 41 - React hooks and reference-app lifetimes
+  ---
+  duration_ms: 3025.124711
+  type: 'test'
+  ...
+# Subtest: deferred journal admission advances an idle client immediately after backend adoption
+ok 42 - deferred journal admission advances an idle client immediately after backend adoption
+  ---
+  duration_ms: 351.339414
+  type: 'test'
+  ...
+# Subtest: a returned admission timestamp raises the clock even without host notifications
+ok 43 - a returned admission timestamp raises the clock even without host notifications
+  ---
+  duration_ms: 1007.813713
+  type: 'test'
+  ...
+# Subtest: reload at a held orphan commit cannot replay a waiting journal before its floor
+ok 44 - reload at a held orphan commit cannot replay a waiting journal before its floor
+  ---
+  duration_ms: 7.022688
+  type: 'test'
+  ...
+# Subtest: rejected save at a held orphan commit cannot replay a waiting journal before its floor
+ok 45 - rejected save at a held orphan commit cannot replay a waiting journal before its floor
+  ---
+  duration_ms: 5.135138
+  type: 'test'
+  ...
+# Subtest: online: a deadline behind the issued floor does not loop server refetches
+ok 46 - online: a deadline behind the issued floor does not loop server refetches
+  ---
+  duration_ms: 36.989733
+  type: 'test'
+  ...
+# Subtest: fallback: a deadline behind the issued floor does not loop server refetches
+ok 47 - fallback: a deadline behind the issued floor does not loop server refetches
+  ---
+  duration_ms: 27.780267
+  type: 'test'
+  ...
+# Subtest: composition: a deadline behind the issued floor does not loop server refetches
+ok 48 - composition: a deadline behind the issued floor does not loop server refetches
+  ---
+  duration_ms: 20.23142
+  type: 'test'
+  ...
+# Subtest: syncedAt, device since and remembered server since remain wall time under +25h skew
+ok 49 - syncedAt, device since and remembered server since remain wall time under +25h skew
+  ---
+  duration_ms: 2.643063
+  type: 'test'
+  ...
+# Subtest: held device publication enforces the 16.7ms frame bound with controlled scheduling
+ok 50 - held device publication enforces the 16.7ms frame bound with controlled scheduling
+  ---
+  duration_ms: 1.604314
+  type: 'test'
+  ...
+# Subtest: a one-millisecond recovered floor crossing republishes a held deadline immediately
+ok 51 - a one-millisecond recovered floor crossing republishes a held deadline immediately
+  ---
+  duration_ms: 1.73432
+  type: 'test'
+  ...
+# Subtest: composition publishes at both deadlines, device first
+ok 52 - composition publishes at both deadlines, device first
+  ---
+  duration_ms: 2.309983
+  type: 'test'
+  ...
+# Subtest: composition publishes at both deadlines, server first
+ok 53 - composition publishes at both deadlines, server first
+  ---
+  duration_ms: 2.034
+  type: 'test'
+  ...
+# Subtest: offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync
+ok 54 - offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync
+  ---
+  duration_ms: 1.574561
+  type: 'test'
+  ...
+# Subtest: an offline reopen clamps versioned freshness saved before a wall rollback
+ok 55 - an offline reopen clamps versioned freshness saved before a wall rollback
+  ---
+  duration_ms: 0.878326
+  type: 'test'
+  ...
+# Subtest: freshness is clamped at publication after wall time rolls back
+ok 56 - freshness is clamped at publication after wall time rolls back
+  ---
+  duration_ms: 1.431907
+  type: 'test'
+  ...
+# Subtest: useNow catches deadline between render and effect installation
+ok 57 - useNow catches deadline between render and effect installation
+  ---
+  duration_ms: 34.118599
+  type: 'test'
+  ...
+# Subtest: useNow catches correction between render and effect installation
+ok 58 - useNow catches correction between render and effect installation
+  ---
+  duration_ms: 4.807377
+  type: 'test'
+  ...
+# Subtest: useNow catches correction-before-deadline between render and effect installation
+ok 59 - useNow catches correction-before-deadline between render and effect installation
+  ---
+  duration_ms: 3.904013
+  type: 'test'
+  ...
+# Subtest: remembered wakeup retains data until its own server deadline (null, early=false)
+ok 60 - remembered wakeup retains data until its own server deadline (null, early=false)
+  ---
+  duration_ms: 2.160239
+  type: 'test'
+  ...
+# Subtest: remembered wakeup retains data until its own server deadline (null, early=true)
+ok 61 - remembered wakeup retains data until its own server deadline (null, early=true)
+  ---
+  duration_ms: 1.694391
+  type: 'test'
+  ...
+# Subtest: remembered wakeup retains data until its own server deadline (300, early=false)
+ok 62 - remembered wakeup retains data until its own server deadline (300, early=false)
+  ---
+  duration_ms: 3.272425
+  type: 'test'
+  ...
+# Subtest: remembered wakeup retains data until its own server deadline (600, early=false)
+ok 63 - remembered wakeup retains data until its own server deadline (600, early=false)
+  ---
+  duration_ms: 1.575662
+  type: 'test'
+  ...
+# Subtest: composed data with no server deadline still withdraws at its local row deadline
+ok 64 - composed data with no server deadline still withdraws at its local row deadline
+  ---
+  duration_ms: 2.313749
+  type: 'test'
+  ...
+# Subtest: receipt-driven reads share an unchanged durable clock and retry failed saves
+ok 65 - receipt-driven reads share an unchanged durable clock and retry failed saves
+  ---
+  duration_ms: 16.710952
+  type: 'test'
+  ...
+# Subtest: clock chooses the minimum RTT in a recent bounded window, then forgets old samples
+ok 66 - clock chooses the minimum RTT in a recent bounded window, then forgets old samples
+  ---
+  duration_ms: 0.278017
+  type: 'test'
+  ...
+# Subtest: advance switches windows immediately; late pre-advance replies cannot rewind it
+ok 67 - advance switches windows immediately; late pre-advance replies cannot rewind it
+  ---
+  duration_ms: 0.122944
+  type: 'test'
+  ...
+# Subtest: restart rejects every already-issued other-epoch response, including on a fork
+ok 68 - restart rejects every already-issued other-epoch response, including on a fork
+  ---
+  duration_ms: 15.683252
+  type: 'test'
+  ...
+# Subtest: streaming advances are provisional receipt stamps with no half-wait overshoot
+ok 69 - streaming advances are provisional receipt stamps with no half-wait overshoot
+  ---
+  duration_ms: 0.358718
+  type: 'test'
+  ...
+# Subtest: now stays integer and monotonic when the offset shrinks or wall time rolls back
+ok 70 - now stays integer and monotonic when the offset shrinks or wall time rolls back
+  ---
+  duration_ms: 0.125768
+  type: 'test'
+  ...
+# Subtest: an offline cold start restores the estimate and admission floor beside device identity
+ok 71 - an offline cold start restores the estimate and admission floor beside device identity
+  ---
+  duration_ms: 0.251838
+  type: 'test'
+  ...
+# Subtest: a fork owns its own persistence and a new live sample wins over stored offset
+ok 72 - a fork owns its own persistence and a new live sample wins over stored offset
+  ---
+  duration_ms: 0.191407
+  type: 'test'
+  ...
+# Subtest: malformed metadata and invalid samples cannot poison device time
+ok 73 - malformed metadata and invalid samples cannot poison device time
+  ---
+  duration_ms: 0.180381
+  type: 'test'
+  ...
+# Subtest: recovered issued time wakes deadlines without changing the estimate or accepting invalid floors
+ok 74 - recovered issued time wakes deadlines without changing the estimate or accepting invalid floors
+  ---
+  duration_ms: 0.6675
+  type: 'test'
+  ...
+# Subtest: stream final-body clock stamp supersedes pre-advance response headers
+ok 75 - stream final-body clock stamp supersedes pre-advance response headers
+  ---
+  duration_ms: 0.285058
+  type: 'test'
+  ...
+# Subtest: wall-clock rollback discards the old window and does not spin frozen deadlines
+ok 76 - wall-clock rollback discards the old window and does not spin frozen deadlines
+  ---
+  duration_ms: 0.158738
+  type: 'test'
+  ...
+# Subtest: detaching drains its final save and never queues later response samples on a closed device
+ok 77 - detaching drains its final save and never queues later response samples on a closed device
+  ---
+  duration_ms: 0.188202
+  type: 'test'
+  ...
+# Subtest: retained asset homes and expiry use the same estimated time as device reads
+ok 78 - retained asset homes and expiry use the same estimated time as device reads
+  ---
+  duration_ms: 2.834329
+  type: 'test'
+  ...
+# Subtest: a 20s response cannot latch a midpoint error (stream arrives first)
+ok 79 - a 20s response cannot latch a midpoint error (stream arrives first)
+  ---
+  duration_ms: 0.24661
+  type: 'test'
+  ...
+# Subtest: a 20s response cannot latch a midpoint error (slow arrives first)
+ok 80 - a 20s response cannot latch a midpoint error (slow arrives first)
+  ---
+  duration_ms: 4.185085
+  type: 'test'
+  ...
+# Subtest: a lone slow receipt stamp advances both clocks across a fork and offline restart
+ok 81 - a lone slow receipt stamp advances both clocks across a fork and offline restart
+  ---
+  duration_ms: 0.198738
+  type: 'test'
+  ...
+# Subtest: the durable admission floor survives retirement of every queued entry
+ok 82 - the durable admission floor survives retirement of every queued entry
+  ---
+  duration_ms: 0.107791
+  type: 'test'
+  ...
+# Subtest: a short confirmation corrects a legacy round-two issued offset and notifies watches
+ok 83 - a short confirmation corrects a legacy round-two issued offset and notifies watches
+  ---
+  duration_ms: 0.145758
+  type: 'test'
+  ...
+# Subtest: 1000ms response obeys the short-RTT boundary before and after refinement
+ok 84 - 1000ms response obeys the short-RTT boundary before and after refinement
+  ---
+  duration_ms: 0.103806
+  type: 'test'
+  ...
+# Subtest: 1001ms response obeys the short-RTT boundary before and after refinement
+ok 85 - 1001ms response obeys the short-RTT boundary before and after refinement
+  ---
+  duration_ms: 0.045668
+  type: 'test'
+  ...
+# Subtest: 2000ms response obeys the short-RTT boundary before and after refinement
+ok 86 - 2000ms response obeys the short-RTT boundary before and after refinement
+  ---
+  duration_ms: 0.034562
+  type: 'test'
+  ...
+# Subtest: real changeFeed learns an advance from three buffered two-second polls
+ok 87 - real changeFeed learns an advance from three buffered two-second polls
+  ---
+  duration_ms: 1.798296
+  type: 'test'
+  ...
+# Subtest: a non-admission last cannot pin a negative startup correction (issuedOffset 0)
+ok 88 - a non-admission last cannot pin a negative startup correction (issuedOffset 0)
+  ---
+  duration_ms: 0.168562
+  type: 'test'
+  ...
+# Subtest: a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000)
+ok 89 - a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000)
+  ---
+  duration_ms: 0.062354
+  type: 'test'
+  ...
+# Subtest: an offline legacy offset without issuedOffset preserves a valid thirty-day session
+ok 90 - an offline legacy offset without issuedOffset preserves a valid thirty-day session
+  ---
+  duration_ms: 0.120871
+  type: 'test'
+  ...
+# Subtest: a non-admission last above wall time cannot pin an offline issued offset
+ok 91 - a non-admission last above wall time cannot pin an offline issued offset
+  ---
+  duration_ms: 0.109845
+  type: 'test'
+  ...
+# Subtest: newest equal-RTT measured sample wins even when the issued floor masks its correction
+ok 92 - newest equal-RTT measured sample wins even when the issued floor masks its correction
+  ---
+  duration_ms: 0.09321
+  type: 'test'
+  ...
+# Subtest: newest equal-RTT streaming sample wins even when the issued floor masks its correction
+ok 93 - newest equal-RTT streaming sample wins even when the issued floor masks its correction
+  ---
+  duration_ms: 0.03977
+  type: 'test'
+  ...
+1..93
+# tests 141
+# suites 0
+# pass 141
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9562.910943

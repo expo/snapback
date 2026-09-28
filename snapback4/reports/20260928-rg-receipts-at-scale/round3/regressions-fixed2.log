@@ -1,0 +1,18 @@
+✔ a durable refusal still completes when its observation queue read fails (415.343006ms)
+✔ the final flush sync publishes an earlier success when the tail retires before its queue lookup (14.368162ms)
+✔ recovered refusal delivery survives post-commit media failure (9.695419ms)
+✔ recovered refusal delivery survives post-commit host failure (8.162121ms)
+✔ replacement retired-success delivery survives post-commit state failure (1007.716845ms)
+✔ replacement retired-success delivery survives post-commit metadata failure (1007.166009ms)
+✔ replacement retired-success delivery survives post-commit media failure (1009.496873ms)
+✔ replacement retired-success delivery survives post-commit host failure (1007.871508ms)
+✔ keepalive refusal delivery survives post-commit media failure (1007.843547ms)
+✔ keepalive refusal delivery survives post-commit host failure (1012.094878ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6638.842487

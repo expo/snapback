@@ -1,0 +1,59 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-device)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4)
+warning: unused import: `display::summary`
+  --> crates/snapback4/tests/../src/scale.rs:19:16
+   |
+19 | pub(crate) use display::summary;
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `analyze_bound` is never used
+  --> crates/snapback4/tests/../src/scale.rs:85:15
+   |
+85 | pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+   |               ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+
+warning: `snapback4` (test "scale_row_ranges") generated 4 warnings (run `cargo fix --test "scale_row_ranges" -p snapback4` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 32.26s
+     Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-790764f876dc804b)
+
+running 12 tests
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test optional_row_key_operands_keep_scalar_type_checks ... ok
+test certificate_uses_the_guide_plan_and_actual_fields_without_invented_backlog ... ok
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview ... ok
+test count_dependent_rule_is_refused_and_never_reported_as_a_pure_witness ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+test range_whole_group_non_expiring_and_witness_costs_are_distinct ... ok
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+test live_view_page_and_point_certificates_cover_real_receipts ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s

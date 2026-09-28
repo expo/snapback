@@ -1,0 +1,280 @@
+TAP version 13
+# Subtest: 4 persistent: local.ts:309 captureStore
+ok 1 - 4 persistent: local.ts:309 captureStore
+  ---
+  duration_ms: 450.037006
+  type: 'test'
+  ...
+# Subtest: 6 persistent: local.ts:344 call
+ok 2 - 6 persistent: local.ts:344 call
+  ---
+  duration_ms: 41.013781
+  type: 'test'
+  ...
+# Subtest: 7 persistent: local.ts:348 call
+ok 3 - 7 persistent: local.ts:348 call
+  ---
+  duration_ms: 36.156069
+  type: 'test'
+  ...
+# Subtest: 20 persistent: local.ts:675 syncRound
+ok 4 - 20 persistent: local.ts:675 syncRound
+  ---
+  duration_ms: 40.871909
+  type: 'test'
+  ...
+# Subtest: 21 persistent: local.ts:680 syncRound
+ok 5 - 21 persistent: local.ts:680 syncRound
+  ---
+  duration_ms: 40.328435
+  type: 'test'
+  ...
+# Subtest: 22 persistent: local.ts:697 syncRound
+ok 6 - 22 persistent: local.ts:697 syncRound
+  ---
+  duration_ms: 33.506869
+  type: 'test'
+  ...
+# Subtest: 23 persistent: local.ts:699 syncRound
+ok 7 - 23 persistent: local.ts:699 syncRound
+  ---
+  duration_ms: 33.654339
+  type: 'test'
+  ...
+# Subtest: 24 persistent: local.ts:707 syncRound
+ok 8 - 24 persistent: local.ts:707 syncRound
+  ---
+  duration_ms: 64.590604
+  type: 'test'
+  ...
+# Subtest: 25 persistent: local.ts:708 syncRound
+ok 9 - 25 persistent: local.ts:708 syncRound
+  ---
+  duration_ms: 38.155256
+  type: 'test'
+  ...
+# Subtest: 32 persistent: local.ts:795 probe
+ok 10 - 32 persistent: local.ts:795 probe
+  ---
+  duration_ms: 29.673011
+  type: 'test'
+  ...
+# Subtest: 33 persistent: local.ts:797 probe
+ok 11 - 33 persistent: local.ts:797 probe
+  ---
+  duration_ms: 31.500691
+  type: 'test'
+  ...
+# Subtest: 34 persistent: local.ts:799 probe
+ok 12 - 34 persistent: local.ts:799 probe
+  ---
+  duration_ms: 31.374071
+  type: 'test'
+  ...
+# Subtest: 36 persistent: local.ts:804 probe
+ok 13 - 36 persistent: local.ts:804 probe
+  ---
+  duration_ms: 31.932769
+  type: 'test'
+  ...
+# Subtest: 69 persistent: local.ts:1172 replayOnOpen
+ok 14 - 69 persistent: local.ts:1172 replayOnOpen
+  ---
+  duration_ms: 32.821451
+  type: 'test'
+  ...
+# Subtest: 70 persistent: local.ts:1177 replayOnOpen
+ok 15 - 70 persistent: local.ts:1177 replayOnOpen
+  ---
+  duration_ms: 30.924237
+  type: 'test'
+  ...
+# Subtest: 71 persistent: local.ts:1180 replayOnOpen
+ok 16 - 71 persistent: local.ts:1180 replayOnOpen
+  ---
+  duration_ms: 57.715918
+  type: 'test'
+  ...
+# Subtest: 73 persistent: local.ts:1183 replayOnOpen
+ok 17 - 73 persistent: local.ts:1183 replayOnOpen
+  ---
+  duration_ms: 32.037997
+  type: 'test'
+  ...
+# Subtest: 87 persistent: local-receipts.ts:82 lookupWrite
+ok 18 - 87 persistent: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 28.62524
+  type: 'test'
+  ...
+# Subtest: 88 persistent: local-receipts.ts:86 lookupWrite
+ok 19 - 88 persistent: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 33.395812
+  type: 'test'
+  ...
+# Subtest: 89 persistent: local-receipts.ts:88 lookupWrite
+ok 20 - 89 persistent: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 33.409252
+  type: 'test'
+  ...
+# Subtest: 90 persistent: local-receipts.ts:94 lookupWrite
+ok 21 - 90 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 36.378233
+  type: 'test'
+  ...
+# Subtest: 91 persistent: local-receipts.ts:94 lookupWrite
+ok 22 - 91 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 34.002001
+  type: 'test'
+  ...
+# Subtest: 100 persistent: writes.ts:215 lookup
+ok 23 - 100 persistent: writes.ts:215 lookup
+  ---
+  duration_ms: 54.064385
+  type: 'test'
+  ...
+# Subtest: 101 persistent: writes.ts:217 lookup
+ok 24 - 101 persistent: writes.ts:217 lookup
+  ---
+  duration_ms: 32.348953
+  type: 'test'
+  ...
+# Subtest: 107 persistent: local-assets.ts:52 call
+ok 25 - 107 persistent: local-assets.ts:52 call
+  ---
+  duration_ms: 40.43876
+  type: 'test'
+  ...
+# Subtest: 108 persistent: local-assets.ts:70 home
+ok 26 - 108 persistent: local-assets.ts:70 home
+  ---
+  duration_ms: 40.232901
+  type: 'test'
+  ...
+# Subtest: 109 persistent: local-assets.ts:73 save
+ok 27 - 109 persistent: local-assets.ts:73 save
+  ---
+  duration_ms: 27.868907
+  type: 'test'
+  ...
+# Subtest: 110 persistent: local-assets.ts:79 drop
+not ok 28 - 110 persistent: local-assets.ts:79 drop
+  ---
+  duration_ms: 30.361133
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:35:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:116:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 111 persistent: local-assets.ts:95 check
+ok 29 - 111 persistent: local-assets.ts:95 check
+  ---
+  duration_ms: 40.157077
+  type: 'test'
+  ...
+# Subtest: 112 persistent: local-assets.ts:97 check
+not ok 30 - 112 persistent: local-assets.ts:97 check
+  ---
+  duration_ms: 52.39349
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:35:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:116:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 113 persistent: local-assets.ts:104 check
+not ok 31 - 113 persistent: local-assets.ts:104 check
+  ---
+  duration_ms: 27.490449
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:35:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:116:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 114 persistent: local-assets.ts:108 check
+ok 32 - 114 persistent: local-assets.ts:108 check
+  ---
+  duration_ms: 27.125953
+  type: 'test'
+  ...
+# Subtest: 117 persistent: local-sync.ts:50 legacyInput
+ok 33 - 117 persistent: local-sync.ts:50 legacyInput
+  ---
+  duration_ms: 21.221432
+  type: 'test'
+  ...
+# Subtest: 119 persistent: local-sync.ts:68 syncTransport
+ok 34 - 119 persistent: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 19.840773
+  type: 'test'
+  ...
+# Subtest: 120 persistent: local-sync.ts:69 syncTransport
+ok 35 - 120 persistent: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 22.70766
+  type: 'test'
+  ...
+# Subtest: 121 persistent: device-restore.ts:57 restoreWitness
+ok 36 - 121 persistent: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 29.112862
+  type: 'test'
+  ...
+# Subtest: 122 persistent: local-backend.ts:11 loadBackend
+ok 37 - 122 persistent: local-backend.ts:11 loadBackend
+  ---
+  duration_ms: 28.1908
+  type: 'test'
+  ...
+# Subtest: 123 persistent: local-backend.ts:13 loadBackend
+ok 38 - 123 persistent: local-backend.ts:13 loadBackend
+  ---
+  duration_ms: 27.77162
+  type: 'test'
+  ...
+# Subtest: 124 persistent: local-native.ts:16 installNativeAttempt
+ok 39 - 124 persistent: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 56.373196
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 36
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6740.281231

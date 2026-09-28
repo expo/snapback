@@ -1,0 +1,46 @@
+✔ online app reopens after replacement; replacement accepts session: true (41.626138ms)
+✔ online app reopens after replacement; replacement accepts session: false (17.300228ms)
+✔ logout cancels replacement verification without restoring the old account (7.311191ms)
+✔ close cancels replacement verification without restoring the old account (6.476169ms)
+✔ login cancels replacement verification without restoring the old account (8.154085ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: false (38.353141ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: true (32.611163ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (14.898176ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (17.330443ms)
+✔ two devices converge through the partition stream (6082.639296ms)
+✔ queued writes flush in the order they were submitted (5092.444621ms)
+✔ a device restores its session on its own (441.678772ms)
+✔ sign-out revokes a server-committed rotation whose reply arrives after local completion (134.756746ms)
+✔ an upload is placed once and served by the home row's read rule (534.96917ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=false (107.816515ms)
+✔ online mutation: rejected body after dispatch is pending; close=false (67.57315ms)
+✔ online mutation: rejected fetch after dispatch is pending; close=true (102.73045ms)
+✔ online mutation: rejected body after dispatch is pending; close=true (284.157948ms)
+✔ online action: rejected fetch after dispatch is pending; close=false (65.452621ms)
+✔ online action: rejected body after dispatch is pending; close=false (55.542954ms)
+✔ online action: rejected fetch after dispatch is pending; close=true (52.286642ms)
+✔ online action: rejected body after dispatch is pending; close=true (55.456053ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=false (6341.131994ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=false (5105.048237ms)
+✔ wasm mutation: rejected fetch after dispatch is pending; close=true (1083.370346ms)
+✔ wasm mutation: rejected body after dispatch is pending; close=true (1096.411488ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=false (91.379512ms)
+✔ wasm action: rejected body after dispatch is pending; close=false (1081.830317ms)
+✔ wasm action: rejected fetch after dispatch is pending; close=true (85.172526ms)
+✔ wasm action: rejected body after dispatch is pending; close=true (161.181342ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=false (5131.25952ms)
+✔ native mutation: rejected body after dispatch is pending; close=false (5151.738882ms)
+✔ native mutation: rejected fetch after dispatch is pending; close=true (133.001884ms)
+✔ native mutation: rejected body after dispatch is pending; close=true (1139.619657ms)
+✔ native action: rejected fetch after dispatch is pending; close=false (1128.353016ms)
+✔ native action: rejected body after dispatch is pending; close=false (1124.030745ms)
+✔ native action: rejected fetch after dispatch is pending; close=true (1119.38551ms)
+✔ native action: rejected body after dispatch is pending; close=true (1139.766306ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32023.448185
