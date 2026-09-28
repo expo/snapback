@@ -1,0 +1,870 @@
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:9:not ok 2 - 0 transient: local.ts:171 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:15:  error: 'globalThis.__rgAwait is not a function'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:28:not ok 3 - 0 persistent: local.ts:171 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:34:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:47:not ok 4 - 1 transient: local.ts:172 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:53:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:66:not ok 5 - 1 persistent: local.ts:172 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:72:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:85:not ok 6 - 2 transient: local.ts:174 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:91:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:104:not ok 7 - 2 persistent: local.ts:174 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:110:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:123:not ok 8 - 3 transient: local.ts:243 refreshAcquired
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:129:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:142:not ok 9 - 3 persistent: local.ts:243 refreshAcquired
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:148:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:161:not ok 10 - 4 transient: local.ts:309 captureStore
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:167:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:180:not ok 11 - 4 persistent: local.ts:309 captureStore
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:186:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:199:not ok 12 - 5 transient: local.ts:316 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:205:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:218:not ok 13 - 5 persistent: local.ts:316 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:224:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:237:not ok 14 - 6 transient: local.ts:344 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:243:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:256:not ok 15 - 6 persistent: local.ts:344 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:262:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:275:not ok 16 - 7 transient: local.ts:348 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:281:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:294:not ok 17 - 7 persistent: local.ts:348 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:300:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:313:not ok 18 - 8 transient: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:319:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:332:not ok 19 - 8 persistent: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:338:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:351:not ok 20 - 9 transient: local.ts:535 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:357:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:370:not ok 21 - 9 persistent: local.ts:535 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:376:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:389:not ok 22 - 10 transient: local.ts:540 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:395:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:408:not ok 23 - 10 persistent: local.ts:540 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:414:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:427:not ok 24 - 11 transient: local.ts:548 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:433:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:446:not ok 25 - 11 persistent: local.ts:548 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:452:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:465:not ok 26 - 12 transient: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:471:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:484:not ok 27 - 12 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:490:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:503:not ok 28 - 13 transient: local.ts:587 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:509:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:522:not ok 29 - 13 persistent: local.ts:587 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:528:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:541:not ok 30 - 14 transient: local.ts:588 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:547:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:560:not ok 31 - 14 persistent: local.ts:588 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:566:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:579:not ok 32 - 15 transient: local.ts:606 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:585:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:598:not ok 33 - 15 persistent: local.ts:606 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:604:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:617:not ok 34 - 16 transient: local.ts:621 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:623:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:636:not ok 35 - 16 persistent: local.ts:621 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:642:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:655:not ok 36 - 17 transient: local.ts:623 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:661:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:674:not ok 37 - 17 persistent: local.ts:623 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:680:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:693:not ok 38 - 18 transient: local.ts:648 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:699:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:712:not ok 39 - 18 persistent: local.ts:648 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:718:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:731:not ok 40 - 19 transient: local.ts:660 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:737:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:750:not ok 41 - 19 persistent: local.ts:660 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:756:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:769:not ok 42 - 20 transient: local.ts:675 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:775:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:788:not ok 43 - 20 persistent: local.ts:675 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:794:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:807:not ok 44 - 21 transient: local.ts:680 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:813:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:826:not ok 45 - 21 persistent: local.ts:680 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:832:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:845:not ok 46 - 22 transient: local.ts:697 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:851:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:864:not ok 47 - 22 persistent: local.ts:697 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:870:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:883:not ok 48 - 23 transient: local.ts:699 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:889:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:902:not ok 49 - 23 persistent: local.ts:699 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:908:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:921:not ok 50 - 24 transient: local.ts:707 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:927:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:940:not ok 51 - 24 persistent: local.ts:707 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:946:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:959:not ok 52 - 25 transient: local.ts:708 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:965:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:978:not ok 53 - 25 persistent: local.ts:708 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:984:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:997:not ok 54 - 26 transient: local.ts:710 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1003:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1016:not ok 55 - 26 persistent: local.ts:710 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1022:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1035:not ok 56 - 27 transient: local.ts:728 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1041:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1054:not ok 57 - 27 persistent: local.ts:728 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1060:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1073:not ok 58 - 28 transient: local.ts:735 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1079:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1092:not ok 59 - 28 persistent: local.ts:735 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1098:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1111:not ok 60 - 29 transient: local.ts:744 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1117:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1130:not ok 61 - 29 persistent: local.ts:744 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1136:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1149:not ok 62 - 30 transient: local.ts:766 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1155:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1168:not ok 63 - 30 persistent: local.ts:766 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1174:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1187:not ok 64 - 31 transient: local.ts:769 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1193:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1206:not ok 65 - 31 persistent: local.ts:769 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1212:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1225:not ok 66 - 32 transient: local.ts:795 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1231:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1244:not ok 67 - 32 persistent: local.ts:795 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1250:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1263:not ok 68 - 33 transient: local.ts:797 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1269:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1282:not ok 69 - 33 persistent: local.ts:797 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1288:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1301:not ok 70 - 34 transient: local.ts:799 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1307:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1320:not ok 71 - 34 persistent: local.ts:799 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1326:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1339:not ok 72 - 35 transient: local.ts:801 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1345:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1358:not ok 73 - 35 persistent: local.ts:801 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1364:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1377:not ok 74 - 36 transient: local.ts:804 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1383:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1396:not ok 75 - 36 persistent: local.ts:804 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1402:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1415:not ok 76 - 37 transient: local.ts:814 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1421:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1434:not ok 77 - 37 persistent: local.ts:814 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1440:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1453:not ok 78 - 38 transient: local.ts:815 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1459:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1472:not ok 79 - 38 persistent: local.ts:815 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1478:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1491:not ok 80 - 39 transient: local.ts:818 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1497:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1510:not ok 81 - 39 persistent: local.ts:818 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1516:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1529:not ok 82 - 40 transient: local.ts:823 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1535:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1548:not ok 83 - 40 persistent: local.ts:823 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1554:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1567:not ok 84 - 41 transient: local.ts:825 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1573:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1586:not ok 85 - 41 persistent: local.ts:825 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1592:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1605:not ok 86 - 42 transient: local.ts:828 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1611:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1624:not ok 87 - 42 persistent: local.ts:828 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1630:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1643:not ok 88 - 43 transient: local.ts:835 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1649:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1662:not ok 89 - 43 persistent: local.ts:835 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1668:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1681:not ok 90 - 44 transient: local.ts:850 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1687:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1700:not ok 91 - 44 persistent: local.ts:850 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1706:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1719:not ok 92 - 45 transient: local.ts:859 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1725:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1738:not ok 93 - 45 persistent: local.ts:859 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1744:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1757:not ok 94 - 46 transient: local.ts:862 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1763:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1776:not ok 95 - 46 persistent: local.ts:862 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1782:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1795:not ok 96 - 47 transient: local.ts:867 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1801:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1814:not ok 97 - 47 persistent: local.ts:867 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1820:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1833:not ok 98 - 48 transient: local.ts:1078 flush
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1839:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1852:not ok 99 - 48 persistent: local.ts:1078 flush
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1858:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1871:not ok 100 - 49 transient: local.ts:1095 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1877:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1890:not ok 101 - 49 persistent: local.ts:1095 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1896:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1909:not ok 102 - 50 transient: local.ts:1097 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1915:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1928:not ok 103 - 50 persistent: local.ts:1097 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1934:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1947:not ok 104 - 51 transient: local.ts:1099 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1953:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1966:not ok 105 - 51 persistent: local.ts:1099 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1972:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1985:not ok 106 - 52 transient: local.ts:1103 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:1991:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2004:not ok 107 - 52 persistent: local.ts:1103 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2010:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2023:not ok 108 - 53 transient: local.ts:1105 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2029:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2042:not ok 109 - 53 persistent: local.ts:1105 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2048:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2061:not ok 110 - 54 transient: local.ts:1105 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2067:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2080:not ok 111 - 54 persistent: local.ts:1105 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2086:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2099:not ok 112 - 55 transient: local.ts:1110 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2105:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2118:not ok 113 - 55 persistent: local.ts:1110 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2124:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2137:not ok 114 - 56 transient: local.ts:1111 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2143:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2156:not ok 115 - 56 persistent: local.ts:1111 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2162:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2175:not ok 116 - 57 transient: local.ts:1113 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2181:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2194:not ok 117 - 57 persistent: local.ts:1113 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2200:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2213:not ok 118 - 58 transient: local.ts:1118 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2219:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2232:not ok 119 - 58 persistent: local.ts:1118 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2238:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2251:not ok 120 - 59 transient: local.ts:1124 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2257:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2270:not ok 121 - 59 persistent: local.ts:1124 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2276:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2289:not ok 122 - 60 transient: local.ts:1127 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2295:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2308:not ok 123 - 60 persistent: local.ts:1127 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2314:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2327:not ok 124 - 61 transient: local.ts:1130 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2333:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2346:not ok 125 - 61 persistent: local.ts:1130 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2352:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2365:not ok 126 - 62 transient: local.ts:1135 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2371:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2384:not ok 127 - 62 persistent: local.ts:1135 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2390:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2403:not ok 128 - 63 transient: local.ts:1144 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2409:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2422:not ok 129 - 63 persistent: local.ts:1144 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2428:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2441:not ok 130 - 64 transient: local.ts:1148 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2447:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2460:not ok 131 - 64 persistent: local.ts:1148 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2466:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2479:not ok 132 - 65 transient: local.ts:1160 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2485:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2498:not ok 133 - 65 persistent: local.ts:1160 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2504:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2517:not ok 134 - 66 transient: local.ts:1164 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2523:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2536:not ok 135 - 66 persistent: local.ts:1164 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2542:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2555:not ok 136 - 67 transient: local.ts:1165 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2561:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2574:not ok 137 - 67 persistent: local.ts:1165 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2580:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2593:not ok 138 - 68 transient: local.ts:1168 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2599:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2612:not ok 139 - 68 persistent: local.ts:1168 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2618:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2631:not ok 140 - 69 transient: local.ts:1172 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2637:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2650:not ok 141 - 69 persistent: local.ts:1172 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2656:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2669:not ok 142 - 70 transient: local.ts:1177 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2675:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2688:not ok 143 - 70 persistent: local.ts:1177 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2694:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2707:not ok 144 - 71 transient: local.ts:1180 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2713:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2726:not ok 145 - 71 persistent: local.ts:1180 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2732:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2745:not ok 146 - 72 transient: local.ts:1181 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2751:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2764:not ok 147 - 72 persistent: local.ts:1181 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2770:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2783:not ok 148 - 73 transient: local.ts:1183 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2789:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2802:not ok 149 - 73 persistent: local.ts:1183 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2808:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2821:not ok 150 - 74 transient: local.ts:1441 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2827:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2840:not ok 151 - 74 persistent: local.ts:1441 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2846:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2859:not ok 152 - 75 transient: local.ts:1443 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2865:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2878:not ok 153 - 75 persistent: local.ts:1443 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2884:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2897:not ok 154 - 76 transient: local.ts:1452 listenForExit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2903:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2916:not ok 155 - 76 persistent: local.ts:1452 listenForExit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2922:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2935:not ok 156 - 77 transient: local-receipts.ts:11 settleReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2941:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2954:not ok 157 - 77 persistent: local-receipts.ts:11 settleReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2960:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2973:not ok 158 - 78 transient: local-receipts.ts:12 settleReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2979:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2992:not ok 159 - 78 persistent: local-receipts.ts:12 settleReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:2998:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3011:not ok 160 - 79 transient: local-receipts.ts:30 receiptBatch
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3017:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3030:not ok 161 - 79 persistent: local-receipts.ts:30 receiptBatch
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3036:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3049:not ok 162 - 80 transient: local-receipts.ts:43 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3055:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3068:not ok 163 - 80 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3074:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3087:not ok 164 - 81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3093:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3106:not ok 165 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3112:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3125:not ok 166 - 82 transient: local-receipts.ts:65 syncSettledWrites
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3131:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3144:not ok 167 - 82 persistent: local-receipts.ts:65 syncSettledWrites
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3150:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3163:not ok 168 - 83 transient: local-receipts.ts:66 syncSettledWrites
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3169:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3182:not ok 169 - 83 persistent: local-receipts.ts:66 syncSettledWrites
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3188:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3201:not ok 170 - 84 transient: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3207:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3220:not ok 171 - 84 persistent: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3226:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3239:not ok 172 - 85 transient: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3245:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3258:not ok 173 - 85 persistent: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3264:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3277:not ok 174 - 86 transient: local-receipts.ts:74 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3283:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3296:not ok 175 - 86 persistent: local-receipts.ts:74 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3302:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3315:not ok 176 - 87 transient: local-receipts.ts:82 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3321:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3334:not ok 177 - 87 persistent: local-receipts.ts:82 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3340:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3353:not ok 178 - 88 transient: local-receipts.ts:86 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3359:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3372:not ok 179 - 88 persistent: local-receipts.ts:86 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3378:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3391:not ok 180 - 89 transient: local-receipts.ts:88 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3397:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3410:not ok 181 - 89 persistent: local-receipts.ts:88 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3416:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3429:not ok 182 - 90 transient: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3435:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3448:not ok 183 - 90 persistent: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3454:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3467:not ok 184 - 91 transient: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3473:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3486:not ok 185 - 91 persistent: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3492:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3505:not ok 186 - 92 transient: local-receipts.ts:108 terminalDeviceCall
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3511:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3524:not ok 187 - 92 persistent: local-receipts.ts:108 terminalDeviceCall
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3530:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3543:not ok 188 - 93 transient: local-receipts.ts:117 readQueued
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3549:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3562:not ok 189 - 93 persistent: local-receipts.ts:117 readQueued
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3568:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3581:not ok 190 - 94 transient: writes.ts:154 keep
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3587:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3600:not ok 191 - 94 persistent: writes.ts:154 keep
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3606:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3619:not ok 192 - 95 transient: writes.ts:181 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3625:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3638:not ok 193 - 95 persistent: writes.ts:181 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3644:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3657:not ok 194 - 96 transient: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3663:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3676:not ok 195 - 96 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3682:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3695:not ok 196 - 97 transient: writes.ts:194 persistPending
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3701:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3714:not ok 197 - 97 persistent: writes.ts:194 persistPending
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3720:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3733:not ok 198 - 98 transient: writes.ts:200 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3739:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3752:not ok 199 - 98 persistent: writes.ts:200 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3758:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3771:not ok 200 - 99 transient: writes.ts:203 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3777:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3790:not ok 201 - 99 persistent: writes.ts:203 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3796:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3809:not ok 202 - 100 transient: writes.ts:215 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3815:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3828:not ok 203 - 100 persistent: writes.ts:215 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3834:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3847:not ok 204 - 101 transient: writes.ts:217 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3853:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3866:not ok 205 - 101 persistent: writes.ts:217 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3872:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3885:not ok 206 - 102 transient: local-exit.ts:38 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3891:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3904:not ok 207 - 102 persistent: local-exit.ts:38 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3910:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3923:not ok 208 - 103 transient: local-exit.ts:41 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3929:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3942:not ok 209 - 103 persistent: local-exit.ts:41 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3948:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3961:not ok 210 - 104 transient: local-exit.ts:42 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3967:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3980:not ok 211 - 104 persistent: local-exit.ts:42 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3986:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:3999:not ok 212 - 105 transient: local-exit-settlement.ts:22 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4005:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4018:not ok 213 - 105 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4024:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4037:not ok 214 - 106 transient: local-exit-settlement.ts:25 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4043:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4056:not ok 215 - 106 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4062:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4075:not ok 216 - 107 transient: local-assets.ts:52 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4081:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4094:not ok 217 - 107 persistent: local-assets.ts:52 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4100:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4113:not ok 218 - 108 transient: local-assets.ts:70 home
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4119:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4132:not ok 219 - 108 persistent: local-assets.ts:70 home
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4138:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4151:not ok 220 - 109 transient: local-assets.ts:73 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4157:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4170:not ok 221 - 109 persistent: local-assets.ts:73 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4176:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4189:not ok 222 - 110 transient: local-assets.ts:79 drop
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4195:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4208:not ok 223 - 110 persistent: local-assets.ts:79 drop
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4214:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4227:not ok 224 - 111 transient: local-assets.ts:95 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4233:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4246:not ok 225 - 111 persistent: local-assets.ts:95 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4252:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4265:not ok 226 - 112 transient: local-assets.ts:97 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4271:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4284:not ok 227 - 112 persistent: local-assets.ts:97 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4290:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4303:not ok 228 - 113 transient: local-assets.ts:104 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4309:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4322:not ok 229 - 113 persistent: local-assets.ts:104 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4328:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4341:not ok 230 - 114 transient: local-assets.ts:108 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4347:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4360:not ok 231 - 114 persistent: local-assets.ts:108 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4366:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4379:not ok 232 - 115 transient: request-wait.ts:17 postForCaller
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4385:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4398:not ok 233 - 115 persistent: request-wait.ts:17 postForCaller
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4404:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4417:not ok 234 - 116 transient: request-wait.ts:18 postForCaller
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4423:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4436:not ok 235 - 116 persistent: request-wait.ts:18 postForCaller
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4442:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4455:not ok 236 - 117 transient: local-sync.ts:50 legacyInput
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4461:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4474:not ok 237 - 117 persistent: local-sync.ts:50 legacyInput
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4480:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4493:not ok 238 - 118 transient: local-sync.ts:67 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4499:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4512:not ok 239 - 118 persistent: local-sync.ts:67 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4518:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4531:not ok 240 - 119 transient: local-sync.ts:68 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4537:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4550:not ok 241 - 119 persistent: local-sync.ts:68 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4556:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4569:not ok 242 - 120 transient: local-sync.ts:69 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4575:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4588:not ok 243 - 120 persistent: local-sync.ts:69 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4594:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4607:not ok 244 - 121 transient: device-restore.ts:57 restoreWitness
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4613:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4626:not ok 245 - 121 persistent: device-restore.ts:57 restoreWitness
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4632:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4645:not ok 246 - 122 transient: local-backend.ts:11 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4651:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4664:not ok 247 - 122 persistent: local-backend.ts:11 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4670:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4683:not ok 248 - 123 transient: local-backend.ts:13 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4689:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4702:not ok 249 - 123 persistent: local-backend.ts:13 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4708:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4721:not ok 250 - 124 transient: local-native.ts:16 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4727:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4740:not ok 251 - 124 persistent: local-native.ts:16 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4746:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4759:not ok 252 - 125 transient: local-native.ts:28 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4765:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4778:not ok 253 - 125 persistent: local-native.ts:28 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4784:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4797:not ok 254 - 126 transient: local-native.ts:41 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4803:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4816:not ok 255 - 126 persistent: local-native.ts:41 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4822:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4835:not ok 256 - 127 transient: local-native.ts:43 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4841:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4854:not ok 257 - 127 persistent: local-native.ts:43 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4860:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4873:not ok 258 - 128 transient: local-native.ts:46 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4879:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4892:not ok 259 - 128 persistent: local-native.ts:46 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4898:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4911:not ok 260 - 129 transient: pending-writes.ts:50 revision
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4917:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4930:not ok 261 - 129 persistent: pending-writes.ts:50 revision
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4936:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4949:not ok 262 - 130 transient: pending-writes.ts:57 record
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4955:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4968:not ok 263 - 130 persistent: pending-writes.ts:57 record
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4974:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4987:not ok 264 - 131 transient: pending-writes.ts:60 record
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:4993:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5006:not ok 265 - 131 persistent: pending-writes.ts:60 record
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5012:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5025:not ok 266 - 132 transient: clock.ts:89 wrapped
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5031:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5044:not ok 267 - 132 persistent: clock.ts:89 wrapped
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5050:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5063:not ok 268 - 133 transient: clock.ts:135 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5069:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5082:not ok 269 - 133 persistent: clock.ts:135 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5088:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5101:not ok 270 - 134 transient: changes.ts:52 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5107:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5120:not ok 271 - 134 persistent: changes.ts:52 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5126:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5139:not ok 272 - 135 transient: changes.ts:61 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5145:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5158:not ok 273 - 135 persistent: changes.ts:61 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5164:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5177:not ok 274 - 136 transient: changes.ts:70 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5183:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5196:not ok 275 - 136 persistent: changes.ts:70 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5202:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5215:not ok 276 - 137 transient: changes.ts:74 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5221:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5234:not ok 277 - 137 persistent: changes.ts:74 changeFeed
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5240:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5253:not ok 278 - 138 transient: local.ts:1098 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5259:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5272:not ok 279 - 138 persistent: local.ts:1098 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-strengthened.log:5278:  error: 'E_AUTH: E_AUTH: this device has never synced: the server must be reachable once to open'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recovery.log:9:not ok 2 - 8 persistent: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recovery.log:15:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recovery.log:27:not ok 3 - 12 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recovery.log:33:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:165:not ok 28 - 110 persistent: local-assets.ts:79 drop
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:171:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:189:not ok 30 - 112 persistent: local-assets.ts:97 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:195:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:207:not ok 31 - 113 persistent: local-assets.ts:104 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-recipes-first.log:213:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:982:not ok 164 - 81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:988:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1004:not ok 165 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1010:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1194:not ok 194 - 96 transient: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1200:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1216:not ok 195 - 96 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-latest.log:1222:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:3:not ok 1 - 5 persistent: local.ts:316 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:9:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:21:not ok 2 - 8 persistent: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:27:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:39:not ok 3 - 12 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:45:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:57:not ok 4 - 13 persistent: local.ts:587 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:63:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:75:not ok 5 - 35 persistent: local.ts:801 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:81:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:123:not ok 11 - 49 persistent: local.ts:1095 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:129:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:141:not ok 12 - 50 persistent: local.ts:1097 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:147:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:159:not ok 13 - 51 persistent: local.ts:1099 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:165:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:177:not ok 14 - 56 persistent: local.ts:1111 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:183:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:195:not ok 15 - 60 persistent: local.ts:1127 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:201:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:213:not ok 16 - 63 persistent: local.ts:1144 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:219:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:231:not ok 17 - 64 persistent: local.ts:1148 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:237:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:249:not ok 18 - 66 persistent: local.ts:1164 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:255:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:267:not ok 19 - 67 persistent: local.ts:1165 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:273:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:285:not ok 20 - 72 persistent: local.ts:1181 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:291:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:303:not ok 21 - 74 persistent: local.ts:1441 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:309:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:321:not ok 22 - 75 persistent: local.ts:1443 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:327:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:339:not ok 23 - 76 persistent: local.ts:1452 listenForExit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:345:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:357:not ok 24 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:363:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:375:not ok 25 - 85 persistent: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:381:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:393:not ok 26 - 86 persistent: local-receipts.ts:74 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:399:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:411:not ok 27 - 96 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:417:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:429:not ok 28 - 97 persistent: writes.ts:194 persistPending
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:435:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:453:not ok 30 - 102 persistent: local-exit.ts:38 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:459:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:471:not ok 31 - 103 persistent: local-exit.ts:41 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:477:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:489:not ok 32 - 104 persistent: local-exit.ts:42 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:495:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:507:not ok 33 - 105 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:513:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:525:not ok 34 - 106 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:531:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:561:not ok 38 - 125 persistent: local-native.ts:28 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:567:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:579:not ok 39 - 126 persistent: local-native.ts:41 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:585:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:597:not ok 40 - 127 persistent: local-native.ts:43 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:603:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:615:not ok 41 - 128 persistent: local-native.ts:46 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-second.log:621:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-remove.log:33:not ok 6 - 139 transient: local-assets.ts:48 remove
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-remove.log:39:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-remove.log:51:not ok 7 - 139 persistent: local-assets.ts:48 remove
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-remove.log:57:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:3:not ok 1 - 5 persistent: local.ts:316 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:9:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:21:not ok 2 - 8 persistent: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:27:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:39:not ok 3 - 10 persistent: local.ts:540 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:45:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:57:not ok 4 - 11 persistent: local.ts:548 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:63:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:75:not ok 5 - 12 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:81:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:93:not ok 6 - 13 persistent: local.ts:587 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:99:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:111:not ok 7 - 18 persistent: local.ts:648 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:117:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:129:not ok 8 - 26 persistent: local.ts:710 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:135:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:147:not ok 9 - 27 persistent: local.ts:728 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:153:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:165:not ok 10 - 35 persistent: local.ts:801 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:171:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:183:not ok 11 - 37 persistent: local.ts:814 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:189:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:201:not ok 12 - 38 persistent: local.ts:815 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:207:  error: 'failed running after hook'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:211:not ok 13 - 39 persistent: local.ts:818 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:217:  error: 'failed running after hook'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:221:not ok 14 - 40 persistent: local.ts:823 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:227:  error: 'failed running after hook'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:231:not ok 15 - 41 persistent: local.ts:825 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-remaining-first.log:237:  error: 'failed running after hook'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:9:not ok 2 - 81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:15:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:31:not ok 3 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:37:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:53:not ok 4 - 96 transient: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:59:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:75:not ok 5 - 96 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-callers.log:81:  error: |-
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:75:not ok 13 - 74 persistent: local.ts:1441 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:81:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:93:not ok 14 - 75 persistent: local.ts:1443 commit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:99:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:111:not ok 15 - 76 persistent: local.ts:1452 listenForExit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-exit-follow.log:117:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-backoff.log:9:not ok 2 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-backoff.log:15:  error: 'flush retry backoff remains bounded and does not reset during repeated failure: 250,500,250,500,1000,2000,4000,5000,5000,5000'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-fixed.log:15:not ok 3 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-fixed.log:21:  error: 'flush retry backoff remains bounded and does not reset during repeated failure'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-fixed.log:39:not ok 5 - 96 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-ack-fixed.log:45:  error: 'flush retry backoff remains bounded and does not reset during repeated failure'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:21:not ok 4 - 12 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:27:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:45:not ok 6 - 26 persistent: local.ts:710 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:51:  error: "Cannot read properties of undefined (reading 'state')"
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:73:not ok 9 - 50 persistent: local.ts:1097 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-branches.log:79:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:9:not ok 2 - 1 persistent: local.ts:309 captureStore
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:15:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:27:not ok 3 - 2 persistent: local.ts:316 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:33:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:45:not ok 4 - 3 persistent: local.ts:344 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:51:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:63:not ok 5 - 4 persistent: local.ts:348 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:69:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:81:not ok 6 - 5 persistent: local.ts:532 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:87:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:105:not ok 8 - 7 persistent: local.ts:540 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:111:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:123:not ok 9 - 8 persistent: local.ts:548 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:129:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:141:not ok 10 - 9 persistent: local.ts:558 sendPost
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:147:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:159:not ok 11 - 10 persistent: local.ts:587 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:165:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:201:not ok 16 - 15 persistent: local.ts:648 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:207:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:225:not ok 18 - 17 persistent: local.ts:675 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:231:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:243:not ok 19 - 18 persistent: local.ts:680 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:249:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:261:not ok 20 - 19 persistent: local.ts:697 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:267:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:279:not ok 21 - 20 persistent: local.ts:699 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:285:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:297:not ok 22 - 21 persistent: local.ts:707 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:303:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:315:not ok 23 - 22 persistent: local.ts:708 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:321:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:333:not ok 24 - 23 persistent: local.ts:710 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:339:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:351:not ok 25 - 24 persistent: local.ts:728 syncRound
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:357:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:393:not ok 30 - 29 persistent: local.ts:795 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:399:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:411:not ok 31 - 30 persistent: local.ts:797 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:417:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:429:not ok 32 - 31 persistent: local.ts:799 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:435:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:447:not ok 33 - 32 persistent: local.ts:801 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:453:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:465:not ok 34 - 33 persistent: local.ts:804 probe
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:471:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:483:not ok 35 - 34 persistent: local.ts:814 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:489:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:501:not ok 36 - 35 persistent: local.ts:815 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:507:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:519:not ok 37 - 36 persistent: local.ts:818 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:525:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:537:not ok 38 - 37 persistent: local.ts:823 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:543:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:555:not ok 39 - 38 persistent: local.ts:825 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:561:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:573:not ok 40 - 39 persistent: local.ts:828 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:579:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:591:not ok 41 - 40 persistent: local.ts:835 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:597:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:609:not ok 42 - 41 persistent: local.ts:850 waitForChange
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:615:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:627:not ok 43 - 42 persistent: local.ts:859 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:633:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:645:not ok 44 - 43 persistent: local.ts:862 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:651:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:663:not ok 45 - 44 persistent: local.ts:867 follow
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:669:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:687:not ok 47 - 46 persistent: local.ts:1095 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:693:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:705:not ok 48 - 47 persistent: local.ts:1097 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:711:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:723:not ok 49 - 48 persistent: local.ts:1099 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:729:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:765:not ok 54 - 53 persistent: local.ts:1111 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:771:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:801:not ok 58 - 57 persistent: local.ts:1127 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:807:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:831:not ok 61 - 60 persistent: local.ts:1144 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:837:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:849:not ok 62 - 61 persistent: local.ts:1148 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:855:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:873:not ok 64 - 63 persistent: local.ts:1164 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:879:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:891:not ok 65 - 64 persistent: local.ts:1165 flushOnce
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:897:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:915:not ok 67 - 66 persistent: local.ts:1172 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:921:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:933:not ok 68 - 67 persistent: local.ts:1177 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:939:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:951:not ok 69 - 68 persistent: local.ts:1180 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:957:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:969:not ok 70 - 69 persistent: local.ts:1181 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:975:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:987:not ok 71 - 70 persistent: local.ts:1183 replayOnOpen
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:993:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1005:not ok 72 - 71 persistent: local.ts:1452 listenForExit
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1011:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1047:not ok 77 - 76 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1053:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1083:not ok 81 - 80 persistent: local-receipts.ts:70 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1089:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1101:not ok 82 - 81 persistent: local-receipts.ts:74 recoverReceipt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1107:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1119:not ok 83 - 82 persistent: local-receipts.ts:82 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1125:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1137:not ok 84 - 83 persistent: local-receipts.ts:86 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1143:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1155:not ok 85 - 84 persistent: local-receipts.ts:88 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1161:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1173:not ok 86 - 85 persistent: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1179:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1191:not ok 87 - 86 persistent: local-receipts.ts:94 lookupWrite
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1197:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1233:not ok 92 - 91 persistent: writes.ts:187 acknowledged
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1239:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1251:not ok 93 - 92 persistent: writes.ts:194 persistPending
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1257:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1269:not ok 94 - 93 persistent: writes.ts:200 read
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1275:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1293:not ok 96 - 95 persistent: writes.ts:215 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1299:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1311:not ok 97 - 96 persistent: writes.ts:217 lookup
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1317:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1329:not ok 98 - 97 persistent: local-exit.ts:38 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1335:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1347:not ok 99 - 98 persistent: local-exit.ts:41 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1353:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1365:not ok 100 - 99 persistent: local-exit.ts:42 exitTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1371:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1383:not ok 101 - 100 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1389:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1401:not ok 102 - 101 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1407:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1419:not ok 103 - 102 persistent: local-assets.ts:52 call
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1425:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1437:not ok 104 - 103 persistent: local-assets.ts:70 home
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1443:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1455:not ok 105 - 104 persistent: local-assets.ts:73 save
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1461:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1473:not ok 106 - 105 persistent: local-assets.ts:79 drop
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1479:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1491:not ok 107 - 106 persistent: local-assets.ts:95 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1497:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1509:not ok 108 - 107 persistent: local-assets.ts:97 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1515:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1527:not ok 109 - 108 persistent: local-assets.ts:104 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1533:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1545:not ok 110 - 109 persistent: local-assets.ts:108 check
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1551:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1575:not ok 113 - 112 persistent: local-sync.ts:50 legacyInput
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1581:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1599:not ok 115 - 114 persistent: local-sync.ts:68 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1605:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1617:not ok 116 - 115 persistent: local-sync.ts:69 syncTransport
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1623:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1635:not ok 117 - 116 persistent: device-restore.ts:57 restoreWitness
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1641:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1653:not ok 118 - 117 persistent: local-backend.ts:11 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1659:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1671:not ok 119 - 118 persistent: local-backend.ts:13 loadBackend
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1677:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1689:not ok 120 - 119 persistent: local-native.ts:16 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1695:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1707:not ok 121 - 120 persistent: local-native.ts:28 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1713:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1725:not ok 122 - 121 persistent: local-native.ts:41 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1731:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1743:not ok 123 - 122 persistent: local-native.ts:43 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1749:  error: 'the classified await must actually experience an injected fault'
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1761:not ok 124 - 123 persistent: local-native.ts:46 installNativeAttempt
+snapback4/reports/20260928-rg-receipts-at-scale/round6/matrix-census-first.log:1767:  error: 'the classified await must actually experience an injected fault'

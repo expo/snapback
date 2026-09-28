@@ -1,0 +1,13 @@
+{
+  "raw": 2018847,
+  "gzip9_file_input": 585968,
+  "budget": 586193,
+  "headroom": 225,
+  "sha256": "3fcccccdd4cefc2d4a6d441acfb8211bb6bcb94149c5ea030ced1ed717db7f52",
+  "build": "scripts/build-wasm.sh (current merged Rust sources); wasm-opt absent, standard script fallback",
+  "round5_raw": 2019815,
+  "round5_gzip9": 585381,
+  "raw_delta": -968,
+  "gzip_delta": 587,
+  "lane_delta": "Round 6 changes no wasm inputs; artifact changes follow merged origin/main."
+}

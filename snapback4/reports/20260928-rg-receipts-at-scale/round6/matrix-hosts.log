@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: 74 persistent: local.ts:1441 commit
+ok 1 - 74 persistent: local.ts:1441 commit
+  ---
+  duration_ms: 446.715131
+  type: 'test'
+  ...
+# Subtest: 75 persistent: local.ts:1443 commit
+ok 2 - 75 persistent: local.ts:1443 commit
+  ---
+  duration_ms: 38.971031
+  type: 'test'
+  ...
+# Subtest: 76 persistent: local.ts:1452 listenForExit
+ok 3 - 76 persistent: local.ts:1452 listenForExit
+  ---
+  duration_ms: 34.844115
+  type: 'test'
+  ...
+# Subtest: 129 persistent: pending-writes.ts:50 revision
+ok 4 - 129 persistent: pending-writes.ts:50 revision
+  ---
+  duration_ms: 34.089964
+  type: 'test'
+  ...
+# Subtest: 130 persistent: pending-writes.ts:57 record
+ok 5 - 130 persistent: pending-writes.ts:57 record
+  ---
+  duration_ms: 32.707673
+  type: 'test'
+  ...
+# Subtest: 131 persistent: pending-writes.ts:60 record
+ok 6 - 131 persistent: pending-writes.ts:60 record
+  ---
+  duration_ms: 31.614523
+  type: 'test'
+  ...
+# Subtest: 132 persistent: clock.ts:89 wrapped
+ok 7 - 132 persistent: clock.ts:89 wrapped
+  ---
+  duration_ms: 38.662259
+  type: 'test'
+  ...
+# Subtest: 133 persistent: clock.ts:135 save
+ok 8 - 133 persistent: clock.ts:135 save
+  ---
+  duration_ms: 53.95212
+  type: 'test'
+  ...
+# Subtest: 134 persistent: changes.ts:52 changeFeed
+ok 9 - 134 persistent: changes.ts:52 changeFeed
+  ---
+  duration_ms: 91.218997
+  type: 'test'
+  ...
+# Subtest: 135 persistent: changes.ts:61 changeFeed
+ok 10 - 135 persistent: changes.ts:61 changeFeed
+  ---
+  duration_ms: 72.108428
+  type: 'test'
+  ...
+# Subtest: 136 persistent: changes.ts:70 changeFeed
+ok 11 - 136 persistent: changes.ts:70 changeFeed
+  ---
+  duration_ms: 114.321029
+  type: 'test'
+  ...
+# Subtest: 137 persistent: changes.ts:74 changeFeed
+ok 12 - 137 persistent: changes.ts:74 changeFeed
+  ---
+  duration_ms: 84.688567
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6069.406191

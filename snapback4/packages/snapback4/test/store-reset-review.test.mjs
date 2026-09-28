@@ -6,14 +6,14 @@ import { setImmediate as tick } from "node:timers/promises";
 import { createLocalClient } from "../dist/local.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { MediaCache } from "../dist/local-assets.js";
-import { WriteHistory } from "../dist/writes.js";
-import { deliverAcknowledgedReceipt, receiptBatch, retiredReceipts } from "../dist/local-receipts.js";
+import { MutationIds, WriteHistory } from "../dist/writes.js";
+import { deliverAcknowledgedReceipt, readQueued, receiptBatch, retiredReceipts } from "../dist/local-receipts.js";
 
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
 const ok = reply => { assert.ok(!reply.denied, JSON.stringify(reply)); return reply.ok; };
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-async function until(check) { for (let i = 0; i < 10000; i++) { if (await check()) return; await tick(); } assert.fail("barrier was not reached"); }
+async function until(check, message = "barrier was not reached") { for (let i = 0; i < 10000; i++) { if (await check()) return; await tick(); } assert.fail(message); }
 const events = (store, count = 1) => [
   { table: "conversations", id: "c1", title: store, creatorId: "dev:alice" },
   { table: "memberships", id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 },
@@ -264,11 +264,25 @@ test("a failed queue snapshot releases emission cleanup", async () => {
   assert.equal(history.firstEmission("failed-read"), true);
 });
 
+test("a retired settlement keeps its emitted refusal across a queue read", async () => {
+  const history = new WriteHistory({ async read() { return null; }, async save() {} });
+  const ids = new MutationIds(), settling = new Set(["retired"]);
+  assert.equal(history.firstEmission("retired"), true);
+  await readQueued(async () => ({ ok: [] }), ids, history, settling);
+  assert.equal(history.firstEmission("retired"), false, "observation cannot forget an active settlement's prior notification");
+  settling.delete("retired");
+  await readQueued(async () => ({ ok: [] }), ids, history, settling);
+  assert.equal(history.firstEmission("retired"), true, "the finished settlement releases bounded emission history");
+});
+
 for (const order of ["replacement-first", "acknowledgement-first"]) test(`overlapping receipt notifications keep their emission marker: ${order}`, async () => {
   const history = new WriteHistory({ async read() { return null; }, async save() {} });
   const id = "overlap", retiring = gate(), finish = gate();
   let notices = 0;
-  const publish = write => { if (history.firstEmission(write.id)) notices++; };
+  const publish = write => {
+    if (write.state === "sent") assert.deepEqual(write, { state: "sent", id, seq: 11, replayed: true }, "replacement recovery preserves replayed shape without a result");
+    if (history.firstEmission(write.id)) notices++;
+  };
   publish({ id });
   const acknowledged = deliverAcknowledgedReceipt(history, async () => {
     retiring.resolve(); await finish.promise; return {};
@@ -645,7 +659,7 @@ test("the final flush sync publishes an earlier success when the tail retires be
   sending.resolve();
   await first;
   await until(() => retired);
-  await until(() => f.stats().syncStarts > syncs);
+  await until(() => f.stats().syncStarts > syncs, "the final post-loop guard must start sync");
   assert.equal(tailBegins, 0, "retired → continue, never the denied begin_send early exit");
   assert.equal(f.sends.length, 1);
   publishing.resolve();
@@ -717,7 +731,7 @@ for (const failure of ["state", "metadata", "media", "host"]) test(`replacement 
   f.replace(); f.offline(false);
   await assert.rejects(f.client.sync(), /post-reset/);
   assert.equal(failed, true);
-  assert.deepEqual(notices.filter(write => write.id === pending.id).map(write => [write.state, write.seq]), [["sent", 10]], "retirement notifies even when later reset bookkeeping fails");
+  assert.deepEqual(notices.filter(write => write.id === pending.id), [{ state: "sent", id: pending.id, seq: 10, replayed: true }], "replacement recovery preserves replayed shape without a result");
   assert.equal((await f.client.write(pending.id)).state, "sent");
   assert.equal(f.client.acquired, false, "completion never blesses the replacement partition");
   await f.client.sync();
@@ -1236,4 +1250,30 @@ test("generation discovery clears retained answers even when backend adoption ca
   await f.client.sync();
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "the old generation's authority cannot survive a failed schema fetch");
   watch.close();
+});
+
+test("review extra: repeating acknowledged-observation failure cannot strand queued tail", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired && f.changesWaiting);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], op = { kind: "mutation", name: "send" };
+  f.client.onWrite(w => notices.push(w));
+  const first = await f.client.mutate(op, { conversationId: "c1", body: "first" });
+  assert.equal(first.state, "sent");
+  for (let i=0;i<50;i++) await tick();
+  assert.ok(ok(await f.core.call({ op: "queued" })).some(e => e.id === first.id && e.sent_seq === 11));
+  let failObservation = false, failures = 0;
+  f.afterCall(req => { if (req.op === "meta" && req.key === "write-history") failObservation = true; });
+  f.beforeCall(req => {
+    if (req.op === "queued" && failObservation) {
+      failObservation = false; failures++;
+      throw Error("observation queue read failed");
+    }
+  });
+  const second = await f.client.mutate(op, { conversationId: "c1", body: "second" }, { waitSeconds: 0 });
+  for (let i=0;i<100;i++) await tick();
+  for (let n=0;n<8;n++) { t.mock.timers.tick(5000); for (let i=0;i<100;i++) await tick(); }
+  assert.ok(failures >= 8);
+  assert.equal(f.sends.length, 2, "observation failure must not strand healthy queued tail");
+  assert.deepEqual(notices.map(w => w.state), ["sent", "sent"]);
 });

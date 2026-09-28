@@ -1,0 +1,169 @@
+[
+  {
+    "name": "prior-rounds",
+    "exit": 0,
+    "killed": true
+  },
+  {
+    "name": "post-bookkeeping-guard",
+    "exit": 1,
+    "assertion": "optional query bookkeeping does not reject dispatch transport",
+    "killed": true
+  },
+  {
+    "name": "hold-metadata-guard",
+    "exit": 1,
+    "assertion": "failed hold metadata retains the retryable head reason",
+    "killed": true
+  },
+  {
+    "name": "follow-sync-guard",
+    "exit": 1,
+    "assertion": "RG injected await failure",
+    "killed": true
+  },
+  {
+    "name": "changes-guard",
+    "exit": 1,
+    "assertion": "RG injected await failure",
+    "killed": true
+  },
+  {
+    "name": "probe-guard",
+    "exit": 1,
+    "assertion": "RG injected await failure",
+    "killed": true
+  },
+  {
+    "name": "clock-serial-guard",
+    "exit": 1,
+    "assertion": "clock persistence recovers after host recovery",
+    "killed": true
+  },
+  {
+    "name": "clock-save-cache-guard",
+    "exit": 1,
+    "assertion": "clock persistence recovers after host recovery",
+    "killed": true
+  },
+  {
+    "name": "retired-result-shape",
+    "exit": 1,
+    "assertion": "replacement recovery preserves replayed shape without a result",
+    "killed": true
+  },
+  {
+    "name": "settling-marker-pruning",
+    "exit": 1,
+    "assertion": "observation cannot forget an active settlement's prior notification",
+    "killed": true
+  },
+  {
+    "name": "final-loop-sync",
+    "exit": 1,
+    "assertion": "the final post-loop guard must start sync",
+    "killed": true
+  },
+  {
+    "name": "acknowledged-observation-guard",
+    "exit": 1,
+    "assertion": "optional awaited failure must not strand a healthy queued tail",
+    "killed": true
+  },
+  {
+    "name": "acknowledged-receipt-guard",
+    "exit": 1,
+    "assertion": "optional awaited failure must not strand a healthy queued tail",
+    "killed": true
+  },
+  {
+    "name": "terminal-observation-guard",
+    "exit": 1,
+    "assertion": "healthy callers receive terminal outcomes under optional failure",
+    "killed": true
+  },
+  {
+    "name": "committed-reply-guard",
+    "exit": 1,
+    "assertion": "durable receipt-save housekeeping must not strand the queued tail",
+    "killed": true
+  },
+  {
+    "name": "known-receipt-save-guard",
+    "exit": 1,
+    "assertion": "lookup survives optional receipt persistence failure",
+    "killed": true
+  },
+  {
+    "name": "pending-persistence-guard",
+    "exit": 1,
+    "assertion": "pending receipt persistence guard schedules flush recovery",
+    "killed": true
+  },
+  {
+    "name": "sync-transport-guard",
+    "exit": 1,
+    "assertion": "transport failure resolves sync for later dispatch",
+    "killed": true
+  },
+  {
+    "name": "sync-backend-guard",
+    "exit": 1,
+    "assertion": "backend acquisition failure resolves sync for later dispatch",
+    "killed": true
+  },
+  {
+    "name": "native-discovery-guard",
+    "exit": 1,
+    "assertion": "optional native installation failure keeps the fallback",
+    "killed": true
+  },
+  {
+    "name": "native-install-guard",
+    "exit": 1,
+    "assertion": "optional native installation failure keeps the fallback",
+    "killed": true
+  },
+  {
+    "name": "legacy-json-guard",
+    "exit": 1,
+    "assertion": "legacy discovery tolerates an unreadable error body",
+    "killed": true
+  },
+  {
+    "name": "exit-rejection-guard",
+    "exit": 1,
+    "assertion": "RG injected await failure",
+    "killed": true
+  },
+  {
+    "name": "media-serial-guard",
+    "exit": 1,
+    "assertion": "media recovers when its host recovers",
+    "killed": true
+  },
+  {
+    "name": "network-serial-guard",
+    "exit": 1,
+    "assertion": "optional awaited failure must not strand a healthy queued tail",
+    "killed": true
+  },
+  {
+    "name": "flush-retry-guard",
+    "exit": 1,
+    "assertion": "final observation schedules flush retry",
+    "killed": true
+  },
+  {
+    "name": "new-helper-await",
+    "exit": 1,
+    "assertion": "new or changed await needs delivery reachability classification",
+    "killed": true
+  },
+  {
+    "name": "unclassified-await",
+    "exit": 1,
+    "assertion": "new or changed await needs delivery reachability classification",
+    "killed": true
+  }
+]

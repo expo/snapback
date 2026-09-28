@@ -1100,9 +1100,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (closed) return;
       const success = successSequence(entry);
       if (success != null) {
-        await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite);
-        // A published acknowledgement already includes this effect and stays fresh.
-        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued()).every(e => successSequence(e) != null)) await syncOnce();
+        try { await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite); } catch { retryFlush(); continue; }
+        // @ref LLP 3000.019#3.3 — proven-success recovery/observation cannot gate the tail.
+        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued().catch(() => { retryFlush(); return undefined; }))?.every(e => successSequence(e) != null)) await syncOnce();
         continue;
       }
       let ownsSettlement = false;

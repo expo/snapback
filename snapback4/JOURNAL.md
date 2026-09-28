@@ -73474,3 +73474,62 @@ No tool install, budget/version change, push or publication. Tests, fixtures,
 mutation patches, commands, exact summaries and hashes are in the round-3
 report directory. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 6: delivery await matrix and proven-success recovery
+
+Read rounds 0–5 prompts, reports and RG journal records, the Snapback 4 fence
+and governing LLPs, and Astra's full NOT READY review. Grok was incomplete at
+start and finished READY during this round; read it fully and checked again
+before completion. Merged origin/main ea7ecc896 into this lane in 87c918ebf;
+only JOURNAL conflicted, and both parents' append sequences were retained.
+
+Copied Astra's persistent observation-read reproduction, which failed with one
+POST instead of two, then caught that read alone, scheduled retry and treated
+sync eligibility as false. The matrix found the adjacent proven-success receipt
+recovery could also stop the FIFO. It now retries that recovery while continuing
+the iterator. Unknown head custody remains required. No broad sync catch, new
+state, second receipt window or server/device change; local.ts stays 1,500 lines.
+LLP 3000.019 §3.3 records both boundaries and the required-custody distinction.
+
+The AST census classifies 140 awaited sites (including the FIFO iterator):
+92 optional and 48 required, each with transient and persistent injection.
+Every fixture begins with one successful unobserved head and two admitted tails;
+branch recipes cover receipt recovery/settlement, reset/adoption, reconnect,
+exit, media pruning, native fallback, hold metadata and clock persistence.
+All 280 cases reach their site, inject a fault, check FIFO/one terminal event,
+caller/lookup agreement, recovery and bounded retries. The source-wide await
+seal also catches new helper/module awaits pending reachability classification.
+Non-rejecting timer/exit waits use upstream failure rather than an impossible
+rejection. Host internals remain behind DeviceCore.call; no claim of exhaustive
+fault injection into every IndexedDB/native transaction or authentication teardown.
+
+The complete affected qualification passes: 60 audit, 281 matrix/census,
+141 clock/pending/React, 212 receipts/delivery, 90 settlement, 72 media,
+12 transport and 55 web-admission tests; 94 whole-guide and 42 Rust
+receipt/delivery tests. Total 1,059 passes, no unmutated failures. Three existing
+named skips/ignores remain: legacy server binary, macOS media and opt-in Rust
+throughput benchmark. Build/typecheck, native/wasm build, reference/whitespace
+and append-only checks pass. scripts/test.sh was not run; supervisor owns the
+landing suite. No new performance claim or d-01 mechanism change.
+
+All 38 mutation controls die: 27 this round plus the 11 prior controls. Includes
+final-loop sync deletion, optional-site guard removals, new-await classification,
+Grok's recovered event shape and settling-marker pruning. Prior round-4 exit-1
+results additionally require assertion failures; historical report bytes are
+restored after controls run. Exactly-once protections and no-intermediate-sync
+checks remain intact.
+
+Every failure is reported in reports/20260928-rg-receipts-at-scale/round6/REPORT.md
+and its development ledger: the two lane defects, expected mutation failures,
+fixture/instrumentation mistakes and command setup mistakes are ours. Baseline
+and environmental test failures: none. The fixture's invalid shrinking watermark,
+masked guard mutations and initially missed await branch were corrected; failed
+logs remain. Existing unmutated skips are not counted as passes.
+
+Rebuilt merged-tree wasm is 2,018,847 B raw / 585,968 B GNU file-input gzip-9,
+225 B below the unchanged 586,193 B cap; SHA-256
+3fcccccdd4cefc2d4a6d441acfb8211bb6bcb94149c5ea030ced1ed717db7f52.
+Against round 5: raw -968 B, gzip +587 B from merged Rust inputs; this round
+changes no wasm input. No tool install, version/budget increase, push or
+publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

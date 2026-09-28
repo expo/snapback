@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: 12 persistent: local.ts:558 sendPost
+ok 1 - 12 persistent: local.ts:558 sendPost
+  ---
+  duration_ms: 373.78604
+  type: 'test'
+  ...
+# Subtest: 26 persistent: local.ts:710 syncRound
+ok 2 - 26 persistent: local.ts:710 syncRound
+  ---
+  duration_ms: 69.332616
+  type: 'test'
+  ...
+# Subtest: 37 persistent: local.ts:814 waitForChange
+ok 3 - 37 persistent: local.ts:814 waitForChange
+  ---
+  duration_ms: 70.240738
+  type: 'test'
+  ...
+# Subtest: 38 persistent: local.ts:815 waitForChange
+ok 4 - 38 persistent: local.ts:815 waitForChange
+  ---
+  duration_ms: 65.65322
+  type: 'test'
+  ...
+# Subtest: 39 persistent: local.ts:818 waitForChange
+ok 5 - 39 persistent: local.ts:818 waitForChange
+  ---
+  duration_ms: 82.405914
+  type: 'test'
+  ...
+# Subtest: 42 persistent: local.ts:828 waitForChange
+ok 6 - 42 persistent: local.ts:828 waitForChange
+  ---
+  duration_ms: 116.073104
+  type: 'test'
+  ...
+# Subtest: 44 persistent: local.ts:850 waitForChange
+ok 7 - 44 persistent: local.ts:850 waitForChange
+  ---
+  duration_ms: 87.17189
+  type: 'test'
+  ...
+# Subtest: 47 persistent: local.ts:867 follow
+ok 8 - 47 persistent: local.ts:867 follow
+  ---
+  duration_ms: 45.62735
+  type: 'test'
+  ...
+# Subtest: 49 persistent: local.ts:1095 flushOnce
+ok 9 - 49 persistent: local.ts:1095 flushOnce
+  ---
+  duration_ms: 55.591197
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1097 flushOnce
+ok 10 - 50 persistent: local.ts:1097 flushOnce
+  ---
+  duration_ms: 85.893081
+  type: 'test'
+  ...
+# Subtest: 51 persistent: local.ts:1099 flushOnce
+ok 11 - 51 persistent: local.ts:1099 flushOnce
+  ---
+  duration_ms: 29.415296
+  type: 'test'
+  ...
+# Subtest: 56 persistent: local.ts:1111 flushOnce
+ok 12 - 56 persistent: local.ts:1111 flushOnce
+  ---
+  duration_ms: 27.539735
+  type: 'test'
+  ...
+# Subtest: 74 persistent: local.ts:1441 commit
+not ok 13 - 74 persistent: local.ts:1441 commit
+  ---
+  duration_ms: 25.96201
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:37:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:183:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 75 persistent: local.ts:1443 commit
+not ok 14 - 75 persistent: local.ts:1443 commit
+  ---
+  duration_ms: 28.366725
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:37:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:183:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 76 persistent: local.ts:1452 listenForExit
+not ok 15 - 76 persistent: local.ts:1452 listenForExit
+  ---
+  duration_ms: 28.701697
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:37:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:183:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 102 persistent: local-exit.ts:38 exitTransport
+ok 16 - 102 persistent: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 48.991493
+  type: 'test'
+  ...
+# Subtest: 103 persistent: local-exit.ts:41 exitTransport
+ok 17 - 103 persistent: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 27.974045
+  type: 'test'
+  ...
+# Subtest: 104 persistent: local-exit.ts:42 exitTransport
+ok 18 - 104 persistent: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 27.508438
+  type: 'test'
+  ...
+# Subtest: 105 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+ok 19 - 105 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 28.439133
+  type: 'test'
+  ...
+# Subtest: 106 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+ok 20 - 106 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 27.293466
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 17
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6260.543268

@@ -1,0 +1,79 @@
+[
+  {
+    "index": 49,
+    "id": "local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 50,
+    "id": "local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1",
+    "mode": "persistent",
+    "injected": 25,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 54,
+    "id": "local.ts:flushOnce:queued()#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 74,
+    "id": "local-receipts.ts:receiptBatch:queued()#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 75,
+    "id": "local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 89,
+    "id": "writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1",
+    "mode": "persistent",
+    "injected": 17,
+    "initialPosts": 2,
+    "postedUnderFault": 2,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 94,
+    "id": "writes.ts:read:this.storage?.read()#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 1,
+    "postedUnderFault": 1,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

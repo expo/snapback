@@ -1,0 +1,99 @@
+TAP version 13
+# {"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+# {"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+# {"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+# Subtest: sync request-line boundaries and a deliberate body ceiling
+ok 1 - sync request-line boundaries and a deliberate body ceiling
+  ---
+  duration_ms: 305.644785
+  type: 'test'
+  ...
+# {"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+# Subtest: wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic)
+ok 2 - wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 1658.714706
+  type: 'test'
+  ...
+# {"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+# Subtest: wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic)
+ok 3 - wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 1102.657623
+  type: 'test'
+  ...
+# {"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+# Subtest: wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic)
+ok 4 - wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 1659.469575
+  type: 'test'
+  ...
+# {"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+# Subtest: wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync)
+ok 5 - wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync)
+  ---
+  duration_ms: 1855.65474
+  type: 'test'
+  ...
+# {"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+# Subtest: native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic)
+ok 6 - native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 1897.161155
+  type: 'test'
+  ...
+# {"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+# Subtest: native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic)
+ok 7 - native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 1927.216669
+  type: 'test'
+  ...
+# {"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+# Subtest: native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic)
+ok 8 - native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic)
+  ---
+  duration_ms: 2606.640466
+  type: 'test'
+  ...
+# {"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+# Subtest: native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync)
+ok 9 - native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync)
+  ---
+  duration_ms: 5573.201126
+  type: 'test'
+  ...
+# {"store":"wasm","offsetMs":500,"requestStartMs":18790.231334,"cutMs":19289.822144,"rejectionMs":22797.158835,"notificationMs":22797.864544,"detectionMs":3508.0423999999985}
+# {"store":"native","offsetMs":500,"requestStartMs":18826.670933,"cutMs":19326.732568,"rejectionMs":22830.490023,"notificationMs":22830.945406,"detectionMs":3504.2128379999995}
+# {"store":"wasm","offsetMs":5000,"requestStartMs":18785.846099,"cutMs":23785.670474,"rejectionMs":26796.167706,"notificationMs":26802.609094,"detectionMs":3016.938620000001}
+# {"store":"native","offsetMs":5000,"requestStartMs":18832.616067,"cutMs":23832.963266,"rejectionMs":26844.628229,"notificationMs":26878.672526,"detectionMs":3045.7092599999996}
+# {"store":"wasm","offsetMs":15000,"requestStartMs":18790.423472,"cutMs":33791.162581,"rejectionMs":36794.748576,"notificationMs":36795.343648,"detectionMs":3004.181067000005}
+# {"store":"native","offsetMs":15000,"requestStartMs":18828.542108,"cutMs":33828.844953,"rejectionMs":36833.425018,"notificationMs":36833.752709,"detectionMs":3004.9077560000005}
+# Subtest: idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores
+ok 10 - idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores
+  ---
+  duration_ms: 20182.778076
+  type: 'test'
+  ...
+# Subtest: healthy heartbeat polls, buffered native fetch and browser connectivity hints
+ok 11 - healthy heartbeat polls, buffered native fetch and browser connectivity hints
+  ---
+  duration_ms: 11066.079726
+  type: 'test'
+  ...
+# Subtest: a streaming poll rechecks a revoked bearer before its final JSON
+ok 12 - a streaming poll rechecks a revoked bearer before its final JSON
+  ---
+  duration_ms: 1060.636912
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51011.746378
