@@ -259,9 +259,15 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
     }
     const current = response.json.searchCurrent;
-    if (Array.isArray(current)) ledger.charge("steps", current.length * (retained.length * 136 + 1));
-    if (!Array.isArray(current) || current.length > retained.length || !current.every(id => typeof id === "string" && retained.includes(id))) {
-      return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } };
+    const invalidOverlap = () => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
+    if (!Array.isArray(current) || current.length > retained.length) return invalidOverlap();
+    // Validate a page-sized subset in linear work, like the scope proof above.
+    // Prepay both sets and membership probes; decoding already charged ID bytes.
+    ledger.charge("heap_bytes", 128 + retained.length * 64);
+    ledger.charge("steps", retained.length + current.length * 2);
+    const candidates = new Set(retained);
+    if (!current.every(id => typeof id === "string" && candidates.has(id))) {
+      return invalidOverlap();
     }
     ledger.charge("heap_bytes", 128 + current.length * 64);
     const suppressed = new Set(current);
@@ -269,7 +275,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     ledger.charge("heap_bytes", 128 + plan.limit * 128);
     const data: Row[] = [];
     let retainedEmitted = false;
-    const seen = new Set<string>();
+    const seen = new Set<string>(); // Defense in depth if a source/proof repeats an ID.
     let i = 0, j = 0;
     let consumed = false;
     const before = (a: Row, b: Row) => {

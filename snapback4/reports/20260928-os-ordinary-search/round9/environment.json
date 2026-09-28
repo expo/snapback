@@ -1,0 +1,20 @@
+{
+  "branch": "sb4-intent/os-ordinary-search",
+  "round8": "f05d1d364cab7ec45da2b658d7d44bef990397bb",
+  "main": "ae265b730670ac735074c761d9803a4a42a1990e",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "cargo_environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "RUST_TEST_THREADS": "8"
+  },
+  "full_suite_invocations": 0,
+  "merges": 0,
+  "tool_installs": []
+}

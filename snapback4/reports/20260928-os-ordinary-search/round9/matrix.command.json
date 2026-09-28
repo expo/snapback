@@ -1,0 +1,14 @@
+{
+  "command": [
+    "env",
+    "RG_MATRIX_OUTPUT=reports/20260928-os-ordinary-search/round9/matrix.json",
+    "timeout",
+    "60s",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/delivery-fault-matrix.test.mjs"
+  ],
+  "exit": 0,
+  "seconds": 17.969
+}

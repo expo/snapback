@@ -1,0 +1,7 @@
+{
+  "snapback4/packages/snapback4/src/local-search.ts": "09732dbb2e4b89b73472a924d054747a704054d7645ada025b835bd17dcf1273",
+  "snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs": "9e9f126f2b296b10cde051fc0f34b069230be3b8c6a22ea51b7d0f52698cf570",
+  "snapback4/packages/snapback4/test/ordinary-search-oracle.test.mjs": "429a31c6711083a181ee00ac89e7ae0b22a956116d2ea87328298b59fc523f2b",
+  "snapback4/packages/snapback4/test/helpers/search-oracle.mjs": "e8c79fc3104170ef343547a243088ea46a3563bd5808f81d1ab1e39c5672e7f9",
+  "snapback4/packages/snapback4/test/helpers/search-oracle-categories.mjs": "1b7444140c4beb96cc28c186b5c778678b4449cbeab65a3ff8acab3f01d27542"
+}

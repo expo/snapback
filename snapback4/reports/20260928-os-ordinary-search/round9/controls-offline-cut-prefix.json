@@ -1,0 +1,17 @@
+[
+  {
+    "name": "offline-cut-prefix",
+    "command": [
+      "timeout",
+      "60s",
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-name-pattern=generated oracle",
+      "/home/ccheever/sb4-intent/lane-os/snapback4/target/os-round9/controls/offline-cut-prefix/test/ordinary-search-oracle.test.mjs"
+    ],
+    "exit": 1,
+    "killed": true,
+    "assertion": "offline word-cut exact discovered prefix"
+  }
+]

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Pages } from '../../dist/react-pages.js';
 import { until } from './app-server.mjs';
-import { compare } from './search-oracle.mjs';
+import { compare, random } from './search-oracle.mjs';
 const query = { kind: 'query', name: 'search' };
 
 // Generated independently of result/cursor contents: each seed supplies the
@@ -10,11 +10,16 @@ export async function generatedCategory({ seed, direction, limit, model, client,
   const category = seed % 4;
   events.push(['rebirth', 'projection', 'invalid-input', 'argument-change'][category]);
   if (category === 0) {
-    const candidate = [...model.images.values()].filter(r => r.room === 'left')[seed % [...model.images.values()].filter(r => r.room === 'left').length];
-    const row = { ...candidate, room: 'live', at: direction === 'last' ? 999999 : -999999, text: seed % 3 ? 'tea reborn' : 'coffee reborn' };
+    // These draws are independent of the category/cut divisibility schedule.
+    const rng = random(seed ^ 0x9e3779b9), candidates = [...model.images.values()].filter(r => r.room === 'left');
+    const candidate = candidates[rng(candidates.length)], matching = !!rng(2), placement = ['before','middle','after'][rng(3)], expired = rng(4) === 0;
+    const sign = direction === 'first' ? 1 : -1;
+    const row = { ...candidate, room: 'live', at: placement === 'middle' ? candidate.at : sign * (placement === 'before' ? -999999 : 999999), text: matching ? 'coffee reborn' : 'tea reborn' };
     await mutate('rebirth', row); model.write(row);
-    // No write during this traversal: current image wins even if it does not
-    // match the needle. Check the complete identity set through bounded pages.
+    if (expired) { row.expires = 1; await mutate('edit', row); model.write(row); }
+    events.push(`reuse:${matching ? 'coffee' : 'tea'}:${placement}`, `reuse:${expired ? 'expired' : 'live'}`);
+    // No write during this traversal: a readable current image wins even if
+    // it does not match the needle. Check the complete identity set through bounded pages.
     const expected = model.readable(true).sort((a,b) => (direction === 'first' ? 1 : -1) * compare(a,b));
     const all = []; let c;
     for (let page = 0; page < 100; page++) {
@@ -52,4 +57,28 @@ export async function generatedCategory({ seed, direction, limit, model, client,
     const read = await client.query(query,{q:'tea',c:first.next});
     assert.deepEqual(read.data,[row],'generated argument change restarts at the new needle head');
   }
+}
+
+// A full page of overlap, plus lookahead, crosses the old quadratic step cap.
+// Stable rows and independent authored images determine the whole traversal.
+export async function generatedLargeOverlap({ seed, direction, limit, model, client, mutate, calls, events, placement = 'after', matching = true }) {
+  const candidates = [...model.images.values()].filter(row => row.room === 'left');
+  assert.ok(candidates.length > limit);
+  const sign = direction === 'first' ? 1 : -1;
+  for (const candidate of candidates) {
+    const row = {...candidate, room:'live', text:matching ? 'coffee reborn' : 'tea reborn',
+      at:placement === 'middle' ? candidate.at : candidate.at + sign * (placement === 'before' ? -10000 : 10000)};
+    await mutate('rebirth',row); model.write(row);
+  }
+  const expected = model.readable(true).sort((a,b)=>sign*compare(a,b)), all=[];
+  let c;
+  for(let page=0;page<20;page++) {
+    const before=calls(), read=await client.query(query,{q:'cof',c});
+    assert.equal(calls()-before,1);assert.equal(read.denied,undefined,`large overlap seed ${seed}`);
+    assert.ok(Array.isArray(read.data));assert.ok(read.data.length || read.complete || read.next);
+    assert.deepEqual(read.data,expected.slice(all.length,all.length+read.data.length),'large overlap exact next prefix');
+    all.push(...read.data);c=read.next;if(!c)break;
+  }
+  assert.equal(c,null);assert.deepEqual(all,expected,'large overlap complete traversal');
+  events.push(`large:${limit}:${direction}`,`large:${matching ? 'coffee' : 'tea'}:${placement}`);
 }

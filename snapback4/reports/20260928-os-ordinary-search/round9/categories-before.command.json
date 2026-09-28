@@ -1,0 +1,13 @@
+{
+  "command": [
+    "env",
+    "SB4_SEARCH_SEEDS=4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,75,76,80,84,88,92,96,100",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "--test-name-pattern=generated oracle",
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+  ],
+  "exit": 1,
+  "seconds": 34.755
+}

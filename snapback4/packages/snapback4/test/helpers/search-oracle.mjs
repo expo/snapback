@@ -34,7 +34,10 @@ export class SearchModel {
         this.images.clear(); this.held.clear(); this.pending.clear();
     }
     readable(online, now = Date.now()) {
-        const rows = online ? new Map([...this.rows].filter(([, row]) => this.members.has(row.room))) : new Map();
+        // Expiry removes point readability before an ID can shadow history.
+        // Needle/tombstone filters come afterward: a readable nonmatch still wins.
+        const rows = online ? new Map([...this.rows].filter(([, row]) => this.members.has(row.room)
+            && (row.expires == null || row.expires > now))) : new Map();
         for (const [id, row] of this.images) {
             if ((!online || !this.held.has(row.room)) && !rows.has(id)) rows.set(id, row);
         }

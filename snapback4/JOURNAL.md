@@ -74470,3 +74470,61 @@ the budget decision. Report acceptance note and LLP 3000.028 update accompany
 this append. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push, publication, other worktree edit, original evidence mutation or shared
 installation. Round-7 report remains as ROUND7.md.
+
+## 2026-09-28 — Lane OS round 9: linear overlap pricing and oracle coverage
+
+Read binding rounds 0–8 prompts, reports and OS journal entries, both round-7
+reviews and scoped fence/LLP/guide context; applied llp-orient read-only from the
+existing lane-ex skill copy. Fetched origin: main ae265b730 is already included,
+so no merge. Kept the round to the coordinator's subset check and its tests.
+
+Grok's blocking charge is repaired: reject current.length > retained.length
+before subset work, validate with a retained-ID Set, charge R + 2C steps for
+candidate construction, membership probes and suppression construction. Both
+Sets are prepaid on the original shared device ledger. At 100/100, subset work
+costs 300 steps rather than 1,360,100. No allowance, authorization, invocation
+count or keyset/cursor rule changes. Audited every coordinator charge and the
+adjacent Rust state/point-overlap charges; no second page-count product found.
+
+All cheap review gaps are covered: large 86/100 pages on process and wasm;
+generated match/position/expiry choices independent of category divisibility;
+expired current images removed before model shadowing; cut refusals require
+absence of a proved current prefix; offline word cuts compare the exact first
+32-word partial domain; the same-page seen Set has an intentionally unmarked
+pair defense-in-depth regression. The large generator stratifies both sizes and
+orders, while varying matching status and replacement placement independently.
+
+Before the fix, three SDK ledger cases and four named host cases fail the
+quadratic charge/length ordering. The expanded probe flags seeds 64, 68, 75,
+88, 92 and 100 on both hosts: 75's large page is the product defect, the other
+five are the expired-replacement model defect. Two tight comparison allowances
+need exactly one added Set-construction step. The first complete sweep passes
+all 600 seeds but fails both host coverage assertions for missing 86/first;
+stratification repairs that generator gap. Every failure and command is retained.
+
+Final acceptance: 300/300 seeds per host, 12 additional large-page scenarios per
+host, 22 current-only differential schedules / 194 identical pages per host,
+plus six named large/expiry host cases. Process 189.736 s, wasm 140.824 s; the
+oracle reports 8/8 tests. Each host has all six reuse match/placement cells,
+50 reuses (26 coffee, 24 tea), 15 expired replacements, six exact offline cuts
+and seven specifically justified no-current-prefix E_BOUND terminations.
+All 165 other affected JavaScript tests (including mounted React), 54 simulator
+search and 12 device merge tests, 98 whole-guide cases and 313 RG matrix checks
+pass. No await/census/classification/recipe change. Build/typecheck/reference
+checks pass. Six isolated negative controls fail as intended, including both
+hosts for cut refusal and offline truncation; live artifacts were not mutated.
+
+Canonical wasm remains 2,039,451 B raw / 592,719 B GNU file-input gzip-9,
+0/0 delta from round 8, SHA-256
+7189290aff31e3e7cdf33141cf30d09235abb14d58ca65bceb8333784ca8444d.
+The unchanged 586,193 B cap fails by 6,526 B: ours, inherited, and the only
+remaining qualification failure. No Rust/wasm input changed; prior composition
+state/ledger/filter/reset attribution remains. No baseline or environmental
+failure observed. The report also records corrected operational path mistakes.
+
+Report: reports/20260928-os-ordinary-search/REPORT.md; previous report preserved
+as ROUND8.md. Acceptance note, scoped charge audit, LLP 3000.028 implementation
+note, command/results and compressed evidence accompany this append.
+No scripts/test.sh, budget raise, install, push or publication. The full builder
+store/floor and native Expo evidence are not rerun. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

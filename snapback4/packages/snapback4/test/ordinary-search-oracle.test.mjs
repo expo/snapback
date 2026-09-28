@@ -9,19 +9,19 @@ import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
-import { generatedCategory } from './helpers/search-oracle-categories.mjs';
+import { generatedCategory, generatedLargeOverlap } from './helpers/search-oracle-categories.mjs';
 import { random, compare, SearchModel, KeysetModel, schema } from './helpers/search-oracle.mjs';
 const query = { kind: 'query', name: 'search' }, wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-async function scenario(host, seed, currentOnly = false) {
-    const rng = random(seed), direction = rng(2) ? 'first' : 'last', limit = seed % 75 === 0 ? 100 : [2, 3, 5, 9][rng(4)], mutable = seed % 11 === 0;
-    const cut = seed % 75 === 0 ? 'meter' : seed % 12 === 0 ? 'words' : null, source = schema({ direction, limit, mutable });
+async function scenario(host, seed, currentOnly = false, large = null) {
+    const rng = random(seed), direction = large?.direction ?? (rng(2) ? 'first' : 'last'), limit = large?.limit ?? (seed % 75 === 0 ? 100 : [2, 3, 5, 9][rng(4)]), mutable = seed % 11 === 0;
+    const cut = large ? null : seed % 75 === 0 ? 'meter' : seed % 12 === 0 ? 'words' : null, source = schema({ direction, limit, mutable });
     const callbacks = [], scope = { after: f => callbacks.push(f) }, trace = [{ seed, host, direction, limit, mutable, cut, currentOnly }], events = [];
     let client, admin, owner, offline = false, core, calls = 0, target, targetDir, generationChanges = 0;
     try {
         const initial = await server(scope, '', source, { watch: true });
         target = initial.url;
         targetDir = initial.dir;
-        const rows = Array.from({ length: cut === 'meter' ? 8194 : cut === 'words' ? 42 : 22 + rng(9) }, (_, i) => ({
+        const rows = Array.from({ length: large ? 2 * (limit + 1) : cut === 'meter' ? 8194 : cut === 'words' ? 42 : 22 + rng(9) }, (_, i) => ({
             id: (i % 7 === 0 ? '\ue000' : i % 7 === 1 ? '\u{10000}' : 'm') + String(i).padStart(5, '0'),
             room: cut === 'meter' ? (i < 8192 ? 'live' : 'left') : i % 2 ? 'left' : 'live',
             at: cut === 'meter' ? (i < 8192 ? i + 10 : 1) : Math.floor(i / 2) * 10, text: cut === 'words' ? `coffee${String(i).padStart(2, '0')}` : 'coffee', tombstone: false, expires: null
@@ -57,11 +57,15 @@ async function scenario(host, seed, currentOnly = false) {
         }
         await client.sync();
         model.sync();
-        if (mutable) {
+        if (mutable && !large) {
             const row = rows.find(r => r.room === 'left'), next = { ...row, room: 'live', at: direction === 'last' ? 9990 : -10, text: 'coffee moved' };
             await mutate('relocate', next);
             model.write(next);
             trace.push('pre-traversal move');
+        }
+        if (large) {
+            await generatedLargeOverlap({seed,direction,limit,model,client,mutate,calls:()=>calls,events,...large});
+            return {events,resets:0,differentialPages:0};
         }
         if (!currentOnly && !cut) await generatedCategory({ seed, direction, limit, model, client, owner, mutate, calls: () => calls, events });
         const visible = () => model.readable(!offline);
@@ -124,8 +128,20 @@ async function scenario(host, seed, currentOnly = false) {
                 continue;
             }
             assert.notEqual(read.loading,true, 'unexplained withdrawn page');
+            // Independently derive retained suspension from the fixture's known
+            // device discovery/scan limits, never the returned localCut flag.
+            const heldImages = [...model.images.values()].filter(r => !r.tombstone && (r.expires == null || r.expires > Date.now()) && r.text.startsWith('cof'));
+            const retainedImages = heldImages.filter(r => !model.held.has(r.room));
+            const scan = keyset.remaining(heldImages);
+            const discoveryCut = cut === 'words' && new Set(heldImages.map(r => r.text)).size > 32;
+            const meterCut = cut === 'meter' && scan.length > 8192 && scan.slice(0,8192).filter(r => !model.held.has(r.room)).length < limit;
+            const suspendedNow = !offline && (suspended || retainedImages.length > 0 && (discoveryCut || meterCut));
             if (read.denied) {
-                assert.ok(cut && ['E_BOUND', 'E_SEARCH_OPEN'].includes(read.denied.code), JSON.stringify(read));
+                // Two small memberships fit server opening; a fixture name
+                // alone cannot justify throwing away a proved current prefix.
+                assert.ok(suspendedNow && keyset.remaining(visible().filter(row => model.members.has(row.room))).length === 0,
+                    `unjustified cut refusal: ${JSON.stringify(read)}`);
+                assert.equal(read.denied.code,'E_BOUND');
                 events.push(`refusal:${read.denied.code}`);
                 break;
             }
@@ -139,22 +155,20 @@ async function scenario(host, seed, currentOnly = false) {
                 assert.ok(allowed.has(row.id), `unreadable ${row.id}`);
                 assert.ok([allowed.get(row.id), ].some(r => r && Object.keys(row).every(k => row[k] === r[k])), `wrong visible image ${row.id}`);
             }
-            // Independently derive retained suspension from the fixture's known
-            // device discovery/scan limits, never the returned localCut flag.
-            const heldImages = [...model.images.values()].filter(r => !r.tombstone && r.expires == null && r.text.startsWith('cof'));
-            const retainedImages = heldImages.filter(r => !model.held.has(r.room));
-            const scan = keyset.remaining(heldImages);
-            const discoveryCut = cut === 'words' && new Set(heldImages.map(r => r.text)).size > 32;
-            const meterCut = cut === 'meter' && scan.length > 8192 && scan.slice(0,8192).filter(r => !model.held.has(r.room)).length < limit;
-            // Offline may fill its page before the meter limit. Only actual
-            // fixture-derived word discovery cuts enter the partial safety lane.
+            // Each fixture has one prefix word per image. The non-uniform
+            // device discovers the first 32 authorized words lexically before
+            // applying the keyset. Assert that exact partial domain, without
+            // deriving a position from the response.
             if (offline && discoveryCut) {
-                assert.equal(read.complete, false);
-                assert.ok(read.data.length || read.next, 'partial result is not a dead end');
+                const words = new Set([...new Set(heldImages.map(row=>row.text.split(' ')[0]))].sort().slice(0,32));
+                const expected = keyset.remaining(heldImages.filter(row=>words.has(row.text.split(' ')[0]))).slice(0,limit);
+                assert.deepEqual(read.data,expected,'offline word-cut exact discovered prefix');
+                assert.equal(read.complete,false);assert.equal(read.cut,'words');assert.equal(read.next,null);
+                assert.ok(read.data.length || read.next,'partial result is not a dead end');
                 events.push('partial-safety');
-                break; // never learn a keyset position from partial returned rows
+                break;
             }
-            if (!offline && retainedImages.length && (discoveryCut || meterCut)) suspended = true;
+            suspended = suspendedNow;
             const domain = suspended ? readable.filter(row => model.members.has(row.room)) : readable;
             const remaining = keyset.remaining(domain);
             let expected = remaining.slice(0, limit), consumed = expected;
@@ -348,6 +362,13 @@ for (const host of ['process', 'wasm'])
                     assert.ok(extra.differentialPages > 0, 'current-only schedule exercised differential');
                     r.events.push(...extra.events);
                 }
+                if (seed % 25 === 0) {
+                    const rng = random(seed ^ 0x85ebca6b), cell = seed / 25 - 1;
+                    // Stratify size/order; random matching and placement must
+                    // not accidentally omit an entire large-page direction.
+                    const extra = await scenario(host,seed,false,{limit:cell % 2 ? 100 : 86,direction:Math.floor(cell / 2) % 2 ? 'first' : 'last',matching:!!rng(2),placement:['before','middle','after'][rng(3)]});
+                    r.events.push(...extra.events);
+                }
                 console.log(`ORACLE_PASS host=${host} seed=${seed}`);
                 for (const e of r.events)
                     coverage[e] = (coverage[e] ?? 0) + 1;
@@ -358,5 +379,23 @@ for (const host of ['process', 'wasm'])
             }
         }
         console.log(`ORACLE_SUMMARY ${JSON.stringify({ host, seeds: seeds.length, failed: failures.map(f => f.seed), ms: Date.now() - start, coverage })}`);
+        if (seeds.length === 300 && seeds.every((seed,i)=>seed===i+1)) {
+            for (const match of ['coffee','tea']) for (const place of ['before','middle','after'])
+                assert.ok(coverage[`reuse:${match}:${place}`] > 0,`missing reuse coverage ${match}/${place}`);
+            for (const state of ['expired','live']) assert.ok(coverage[`reuse:${state}`] > 0);
+            for (const limit of [86,100]) for (const direction of ['first','last'])
+                assert.ok(coverage[`large:${limit}:${direction}`] > 0,`missing large coverage ${limit}/${direction}`);
+        }
         assert.equal(failures.length, 0, JSON.stringify(failures.map(f => ({ seed: f.seed, message: f.message.split('\n')[0] }))));
+    });
+
+for (const host of ['process','wasm']) for (const limit of [86,100])
+    test(`ordinary search full last ${limit} overlaps ${host}`, {timeout:30000}, async()=>{
+        await scenario(host,limit,false,{limit,direction:'last'});
+    });
+
+for (const host of ['process','wasm'])
+    test(`expired current replacement keeps retained history ${host}`, async()=>{
+        const result = await scenario(host,64);
+        assert.ok(result.events.includes('reuse:expired'));
     });

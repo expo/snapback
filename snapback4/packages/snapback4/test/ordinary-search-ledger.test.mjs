@@ -8,7 +8,7 @@ const counts=()=>Object.fromEntries(Object.keys(ceilings).map(k=>[k,0]));
 const rows=(start,count)=>Array.from({length:count},(_,i)=>({id:`m${start-i}`,at:start-i,text:'coffee'}));
 const sourceCursor = c=>c?JSON.parse(Buffer.from(c,'base64url'))[5][0].Int:Infinity;
 const position = c=>JSON.parse(Buffer.from(c.slice(5),'base64url'));
-function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=null,localComplete=false,exhaust=false,race,remainingSteps}={}) {
+function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=null,localComplete=false,exhaust=false,race,remainingSteps,limit=20,overlap=false}={}) {
   let calls=0,epoch='a',now=0,scanUsed;
   const env={backend:{generation:1},principal:'u0500',link:'online',lastSyncAt:1,credentialRevision:0,
     deviceNow:()=>now,serverNow:()=>now,
@@ -18,19 +18,19 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
       scanUsed={...r.spent,heap_bytes:exhaust?ceilings.heap_bytes-1:r.spent.heap_bytes+1000,steps:r.spent.steps+100};
       if(localCut==='meter')scanUsed.examined=ceilings.examined+1;
       const found=retained.filter(x=>x.at<sourceCursor(r.args.c));
-      return {ok:{data:found.slice(0,20),complete:localComplete,cut:localCut,next:!localCut&&found.length>20?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
+      return {ok:{data:found.slice(0,limit),complete:localComplete,cut:localCut,next:!localCut&&found.length>limit?'next':null,metered:scanUsed,nextExpiry:race==='expiry'?5:null}};
     },
     async searchPost(path,body,decode){calls++;
       const found=live.filter(x=>x.at<sourceCursor(body.args.c));
-      const data=found.slice(0,cut?3:20);
+      const data=found.slice(0,cut?3:limit);
       const stopped=cut&&found.length>data.length;
-      const json={searchCurrent:[],searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
+      const json={searchCurrent:overlap?body.searchRetained:[],searchScopes:['["live"]'],data,complete:!stopped,cut:stopped?'meter':null,next:found.length>data.length?'unconsumed-response-next':null};
       const parsed=await decode(new Response(JSON.stringify(json)));
       if(race==='membership'||race==='reset'||race==='edit'||race==='rejoin')epoch='b';
       if(race==='expiry')now=5;
       return {ok:true,json:parsed,obsoleteAuth:false,searchIdentity:"store:1"};
     }};
-  return {env,run:c=>ordinarySearch(env,'search',{q:'coffee',c},plan,()=>{},async()=>false),calls:()=>calls,scanUsed:()=>scanUsed};
+  return {env,run:c=>ordinarySearch(env,'search',{q:'coffee',c},{...plan,limit},()=>{},async()=>false),calls:()=>calls,scanUsed:()=>scanUsed};
 }
 test('mixed drain: retained fills page, one invocation, cut retained and server prefix unconsumed',async()=>{
   const f=fixture({cut:true});let c,all=[];
@@ -60,7 +60,7 @@ for (const tie of [false,true]) test(`mixed comparisons exhaust the shared step 
   // The final state receipt leaves just enough for both mixed rows. One fewer
   // step must refuse. These fixed allowances include all merge/output work;
   // deleting either comparison charge makes the corresponding tight run pass.
-  const steps=tie?1678:1666;
+  const steps=tie?1679:1667;
   const inputs={retained:[{id:'\u{10000}left',at:100,text:'coffee'}],live:[{id:'\ue000live',at:tie?100:101,text:'coffee'}]};
   const enough=fixture({...inputs,remainingSteps:steps}),tight=fixture({...inputs,remainingSteps:steps-1});
   const full=await enough.run(),cut=await tight.run();
@@ -170,4 +170,33 @@ test('complete certifies a bounded page even when the combined next has more row
   assert.deepEqual(first.read.data,rows(200,20));
   const second=await f.run(first.read.next);assert.equal(second.read.complete,true);
   assert.equal(second.read.next,null);assert.deepEqual(second.read.data,rows(100,1));
+});
+
+for (const limit of [86, 100]) test(`full last ${limit} overlap fits the shared step allowance`, async()=>{
+  const retained=rows(1000,limit+1), live=retained.map(row=>({...row,at:row.at-2000,text:'coffee reborn'}));
+  const f=fixture({retained,live,limit,overlap:true,localComplete:true});
+  const first=await f.run();
+  assert.equal(first.read.denied,undefined);assert.deepEqual(first.read.data,[]);
+  assert.ok(first.read.next,'all-suppressed full prefix advances');
+  const all=[];let c=first.read.next;
+  for(let page=0;page<10;page++) {
+    const before=f.calls(), {read}=await f.run(c);
+    assert.equal(f.calls()-before,1);assert.equal(read.denied,undefined);
+    all.push(...read.data);c=read.next;if(!c)break;
+  }
+  assert.equal(c,null);assert.deepEqual(all,live);
+});
+
+test('oversized overlap proof is rejected before subset work can exhaust steps',async()=>{
+  const f=fixture({retained:rows(1000,100),limit:100}),post=f.env.searchPost;
+  f.env.searchPost=async(...args)=>{const r=await post(...args);r.json.searchCurrent=Array(101).fill('m1000');return r;};
+  assert.equal((await f.run()).read.denied?.code,'E_INPUT');assert.equal(f.calls(),1);
+});
+
+test('merge seen set is defense in depth for a same-page pair unmarked by overlap',async()=>{
+  // A valid server proof would mark this ID. Exercise the independent merge
+  // guard with an inconsistent transport fixture; it is not an overlap proof.
+  const row={id:'pair',at:100,text:'coffee'}, f=fixture({retained:[row],live:[row],localComplete:true});
+  const {read}=await f.run();
+  assert.deepEqual(read.data,[row]);assert.equal(read.next,null);assert.equal(f.calls(),1);
 });
