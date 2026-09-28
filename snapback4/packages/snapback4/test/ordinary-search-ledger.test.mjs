@@ -28,7 +28,7 @@ function fixture({retained=rows(200,20),live=rows(100,30),cut=false,localCut=nul
       const parsed=await decode(new Response(JSON.stringify(json)));
       if(race==='membership'||race==='reset'||race==='edit'||race==='rejoin')epoch='b';
       if(race==='expiry')now=5;
-      return {ok:true,json:parsed,obsoleteAuth:false};
+      return {ok:true,json:parsed,obsoleteAuth:false,searchIdentity:"store:1"};
     }};
   return {env,run:c=>ordinarySearch(env,'search',{q:'coffee',c},plan,()=>{},async()=>false),calls:()=>calls,scanUsed:()=>scanUsed};
 }

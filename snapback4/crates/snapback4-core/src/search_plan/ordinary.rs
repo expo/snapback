@@ -103,7 +103,7 @@ fn scalar(value: &Expr) -> bool {
 }
 
 /// Narrow SDK merge descriptor for the builder's time/id ordered page.
-pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
+fn composition_shape(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
     plan(schema, program)?;
     let [Stmt::Return(value)] = program.body.as_slice() else { return None };
     let scan = page(value)?;
@@ -127,4 +127,24 @@ pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::
     Some(crate::schema::SearchComposition { table: scan.table.clone(), index: scan.index.clone(),
         column: column.clone(), kind: kind.clone(), order: scan.order, limit: limit as u64,
         needle: needle.clone(), cursor: cursor.clone(), variant: scan.variant })
+}
+
+// @ref LLP 3000.028#3.3 — disjoint scopes imply disjoint row IDs only when
+// ownership cannot change. Server inference itself does not need this proof.
+pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
+    let descriptor = composition_shape(schema, program)?;
+    let table = schema.table(&descriptor.table)?;
+    let RuleExpr::Exists { key, .. } = &table.rules.read else { return None };
+    let RuleTerm::Field(scope) = key.first()? else { return None };
+    (scope == "id" || table.immutable_fields().any(|field| field == scope)).then_some(descriptor)
+}
+
+/// Exact one-step repair for an otherwise composable ordinary search.
+pub fn mutable_scope(schema: &Schema, program: &Program) -> Option<(String, String)> {
+    let descriptor = composition_shape(schema, program)?;
+    let table = schema.table(&descriptor.table)?;
+    let RuleExpr::Exists { key, .. } = &table.rules.read else { return None };
+    let RuleTerm::Field(scope) = key.first()? else { return None };
+    (scope != "id" && !table.immutable_fields().any(|field| field == scope))
+        .then(|| (descriptor.table, scope.clone()))
 }

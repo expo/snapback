@@ -3,7 +3,18 @@ import type { SearchComposition } from "./backend.ts";
 import type { Cursor, Read, Refusal } from "./contract.ts";
 import type { QueryEnvironment } from "./local-query.ts";
 import { sha256 } from "./sha256.ts";
+import type { StoreCapture } from "./local-types.ts";
 import type { LocalWatch } from "./local-reads.ts";
+
+// @ref LLP 3000.028#3.3 — identity is captured before HTTP and validated
+// before any source position can be accepted, independently of delivery images.
+export async function searchReplyIdentity(capture: StoreCapture | undefined, json: Record<string, unknown>, generation: number,
+  witness: (store: unknown, head: unknown, capture: StoreCapture) => Promise<boolean>): Promise<string | undefined> {
+  if (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id)
+    || await witness(json.store_id, json.head ?? json.seq, capture)) { delete json.delivery; return; }
+  if (!capture.backend_required && capture.generation === json.generation
+    && json.generation === generation && typeof json.store_id === "string") return `${json.store_id}:${json.generation}`;
+}
 
 export function refreshSearchRoots(watches: ReadonlyMap<string, LocalWatch>, name: string, cursor: string | undefined,
   notify: (watch: LocalWatch) => void, rerun: (watch: LocalWatch) => Promise<void>): void {
@@ -83,7 +94,7 @@ function decoded(value: string): unknown {
 type Row = Record<string, unknown> & { id: string };
 type Page = { data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
 type State = { metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
-type Position = { binding: string; epoch: string; audience: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
+type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
 // Hash that canonical proof on every page, including current-only pages. These
@@ -155,7 +166,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     const bound = [name, args, env.principal, env.backend.generation, env.linkRevision, plan];
     ledger.text(jsonBound(bound, ledger));
     const binding = JSON.stringify(bound);
-    let position: Position = { binding, epoch: state.epoch, audience: null, server: null, local: null };
+    let position: Position = { binding, epoch: state.epoch, audience: null, identity: null, server: null, local: null };
     if (combinedCursor(cursor)) {
       if (cursor.length > maxCursor) throw new SearchBound("cursor");
       let old: Position;
@@ -165,11 +176,11 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
         || old.localCut !== undefined && old.localCut !== "words" && old.localCut !== "meter") {
         return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } };
       }
-      if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string") position = old;
+      if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string" && typeof old.identity === "string") position = old;
       // State loss, membership/generation/argument changes restart both sources.
-    } else if (typeof cursor === "string") {
-      position.server = cursor; position.local = cursor;
     }
+    // A plain server/offline cursor has no store or audience binding. Online
+    // composition must start fresh; offline evaluation can still seek that key.
     let local: Page = { data: [], complete: !position.localCut, next: null, cut: position.localCut ?? null };
     if (state.left?.length && !position.localCut) {
       const reply = await env.call({ op: "query", name, args: { ...args, [plan.cursor]: position.local },
@@ -185,6 +196,11 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.server } }, r => ledger.decode(r)); checkpoint();
     if (!response.ok || response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
+    if (!response.searchIdentity || position.identity !== null && position.identity !== response.searchIdentity) {
+      env.refreshSearch?.(name);
+      return loading;
+    }
+    position.identity = response.searchIdentity;
     const remote = response.json as Page;
     // Refusals, including opening failures, remain the original operation's.
     if (remote.denied) return { ...loading, read: { denied: remote.denied }, credential };

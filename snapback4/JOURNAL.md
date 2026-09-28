@@ -73243,3 +73243,93 @@ and round2/. Local merge commit carries Co-Authored-By: GPT-6 Astra
 Evidence staging also caught eight Cargo logs with extra EOF blank lines
 (ours). Removed only trailing log whitespace; final whitespace checks pass.
 The report retains this non-test failure alongside the inherited source one.
+
+## 2026-09-28 — Lane OS round 5: generated oracle, immutable scopes and identity
+
+NOT READY for the requested traversal guarantees. First fetched and merged
+origin/main 5763da073 into OS 10f2be21c (merge 1f8792149); retained both LLP,
+journal and NOT-DOING histories, including OK/EQ. Read all five binding lane
+prompts, prior reports and journal records, Astra r34 in full and Grok r34.
+Grok finished READY with a same-count audience test gap, now covered. Used
+llp-orient read-only from the populated lane-a5 skill; no tool installation,
+shared-path change, push or publication.
+
+Built the generated instrument before product fixes. The first valid 300 seeds
+per real process/wasm host flagged the same 165 seeds per host: 91 identity,
+44 terminal whole-corpus, 9 duplicate and 21 model/lifecycle assertions. Reported
+those findings before fixing product code. Copied Astra's two reproduction files;
+all four host cases failed before repair. Every initial and subsequent seed/trace
+is retained, including corrected fixture/model mistakes rather than relabeling
+them product defects. The independent model uses authored rows, memberships,
+acquired images and lifetime events, never query-returned expected rows.
+
+Composition now requires immutable scope ownership. Mutable scopes keep ordinary
+routing and server inference, with N_SEARCH_MUTABLE_SCOPE naming the one-step
+immutable declaration; compiler and runtime reproof are tested. Search guide
+cards declare immutable scope. HTTP queries carry their actual reader generation;
+searchPost propagates captured store/generation validation, and the combined
+cursor binds the validated identity. An unsynced replacement or generation
+change withdraws the attempt until normal sync and replanning. Seed 160 exposed
+a plain offline cursor crossing into a replacement store after reconnection:
+online composition now starts fresh without source identity proof. Seed 52
+exposed reset/reacquisition of identical memberships resurrecting an old epoch:
+clear_rows atomically advances a persistent counter included in both search
+fences. This is one invalidation counter, not a saved query or unbounded ID set.
+Both discoveries have named process/wasm regressions; reset tests failed before
+repair. New ascending Unicode cases kill the descending-only comparator; a
+same-count audience swap kills a count-only digest. Removing response identity
+validation fails all four store/generation cases. Restoring raw cursor adoption
+in an isolated copied package fails both seed-160 cases; original dist untouched.
+
+Final oracle runs first/last with varied page sizes/Unicode ties, random sync,
+join/leave, new/body/at/move/expiry, replacement/generation, reset/reopen and link
+flaps, including word/meter-cut interleavings. All 600 seeds complete in 233.094 s:
+process 133.509 s, wasm 99.585 s. Both have 276 passing / 24 failing seeds, exactly
+the same assertions: 10 duplicates and 14 terminal whole-corpus failures. Three
+of the latter omit continuously matching rows after at changes; new/restored
+matches account for the others. Seed 52 is repaired and passes. The mutable
+ordinary fallback can also repeat a moved row if its at crosses the consumed key
+(seed 88); immutable-scope admission fixes Astra's composition collision, not
+that broader mutable-order guarantee. No final generated disclosure, per-page
+order, invocation-count or empty-dead-end violation was observed. Explicit
+incomplete cut subsets/E_BOUND remain the accepted round-4 behavior.
+
+The public complete contract proves page coverage, not a changing traversal's
+whole corpus. The oracle applies the stronger corpus check at terminal complete
+pages and leaves failures red in the normal CI glob. Guide, LLP 3000.028, the
+acceptance matrix and issues/20260928-snapback4-live-search-traversal.md state the
+remaining gap. Do not silently adopt a snapshot, durable session, unbounded seen
+set or unrelated-sync reset to claim these stronger invariants. The binding
+prompts permit this coherent subset with an honest matrix; no full acceptance.
+
+Final affected checks pass: 75 JavaScript cases including real process/wasm and
+mounted React, 73 Rust cases (52 search, 12 device merge, 4 meter, 4 state,
+1 reset publication), all 93 guide cases, client build/typecheck, docs budget,
+wasm family/absence attribution. Full-builder 501-page/10,014-ID and per-chat
+floor evidence remains historical round 1; Expo remains separately unwitnessed.
+Ran scripts/test.sh exactly once. Exact summary: `== 2 failure(s) in 1684 s`:
+`wasm build`, `client tests`. The wasm step is ours, expected at 592,291 B gzip,
+6,098 B over its unchanged cap. The only client failures were the two 300-seed
+oracle tests, each with 25 flags before the reset repair. Main client runner:
+3,945 pass, 2 fail, 10 existing skips; all 56 acquisition/server shard cases and
+all 79 separate client models pass. Other suite steps pass. The suite began
+before the reset repair/final cut interleavings; affected final checks and the
+600-seed sweep followed. No second suite run or claim of a green full suite.
+
+Removed left/ceilings from the second search_state response: 173 fewer wire
+bytes in the fixture, 70 fewer raw wasm bytes but 45 MORE gzip bytes. The later
+reset counter costs 576 raw / 271 gzip. Final artifact is 2,038,528 B raw /
+592,562 B gzip: net -1,416 raw / +122 gzip versus round 4, 6,369 B (1.09%) over
+586,193. SHA-256 b527ef012a469c73a5c1a191aa5cc098646146048a239901ebf986f61834e200.
+No cap raise; the supervisor owns it. Prior descriptor/state/digest/ledger/filter
+attribution still applies, and the old unused plan echo remains removed.
+
+Every failure is classified in the report: ours (copied defects, generated
+traversal failures, invalid immutable syntax/unsafe membership fixture, acquisition
+model mistakes, missed model.write insertion, unauthenticated generation probes,
+exact-optional TypeScript typing, one guide definition pin, expected mutations,
+expected wasm cap and harmless path mistakes). The isolated mutation harness
+initially lacked #fetch imports; copying its manifest made the intended tests
+run and fail. No baseline or environmental qualification failure was identified.
+Reports/round5 retain every log and seed; ROUND4.md archives the preceding report.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

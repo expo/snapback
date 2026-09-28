@@ -1,0 +1,344 @@
+{
+  "summaries": [
+    {
+      "host": "process",
+      "seeds": 300,
+      "failed": [
+        3,
+        28,
+        46,
+        88,
+        105,
+        112,
+        113,
+        136,
+        140,
+        142,
+        161,
+        178,
+        181,
+        197,
+        199,
+        207,
+        211,
+        229,
+        237,
+        246,
+        250,
+        260,
+        267,
+        292
+      ],
+      "ms": 133509,
+      "coverage": {
+        "at": 74,
+        "sync": 113,
+        "membership": 252,
+        "terminal:none": 257,
+        "reset": 63,
+        "link": 103,
+        "body": 75,
+        "replacement": 69,
+        "expiry": 93,
+        "new": 103,
+        "reopen": 45,
+        "generation": 35,
+        "terminal:words": 12,
+        "move": 7,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    },
+    {
+      "host": "wasm",
+      "seeds": 300,
+      "failed": [
+        3,
+        28,
+        46,
+        88,
+        105,
+        112,
+        113,
+        136,
+        140,
+        142,
+        161,
+        178,
+        181,
+        197,
+        199,
+        207,
+        211,
+        229,
+        237,
+        246,
+        250,
+        260,
+        267,
+        292
+      ],
+      "ms": 99585,
+      "coverage": {
+        "at": 74,
+        "sync": 113,
+        "membership": 252,
+        "terminal:none": 257,
+        "reset": 63,
+        "link": 103,
+        "body": 75,
+        "replacement": 69,
+        "expiry": 93,
+        "new": 103,
+        "reopen": 45,
+        "generation": 35,
+        "terminal:words": 12,
+        "move": 7,
+        "terminal:meter": 1,
+        "refusal:E_BOUND": 6
+      }
+    }
+  ],
+  "failures": [
+    {
+      "host": "process",
+      "seed": 3,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "process",
+      "seed": 28,
+      "failure": "duplicate m00004"
+    },
+    {
+      "host": "process",
+      "seed": 46,
+      "failure": "false complete: m00010"
+    },
+    {
+      "host": "process",
+      "seed": 88,
+      "failure": "duplicate m00003"
+    },
+    {
+      "host": "process",
+      "seed": 105,
+      "failure": "false complete: 𐀀00022"
+    },
+    {
+      "host": "process",
+      "seed": 112,
+      "failure": "duplicate 𐀀00001"
+    },
+    {
+      "host": "process",
+      "seed": 113,
+      "failure": "false complete: new4"
+    },
+    {
+      "host": "process",
+      "seed": 136,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "process",
+      "seed": 140,
+      "failure": "false complete: new4"
+    },
+    {
+      "host": "process",
+      "seed": 142,
+      "failure": "false complete: 00014"
+    },
+    {
+      "host": "process",
+      "seed": 161,
+      "failure": "duplicate m00024"
+    },
+    {
+      "host": "process",
+      "seed": 178,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "process",
+      "seed": 181,
+      "failure": "duplicate 𐀀00022"
+    },
+    {
+      "host": "process",
+      "seed": 197,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "process",
+      "seed": 199,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "process",
+      "seed": 207,
+      "failure": "duplicate m00016"
+    },
+    {
+      "host": "process",
+      "seed": 211,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "process",
+      "seed": 229,
+      "failure": "duplicate m00006"
+    },
+    {
+      "host": "process",
+      "seed": 237,
+      "failure": "false complete: m00024"
+    },
+    {
+      "host": "process",
+      "seed": 246,
+      "failure": "duplicate m00004"
+    },
+    {
+      "host": "process",
+      "seed": 250,
+      "failure": "duplicate m00016"
+    },
+    {
+      "host": "process",
+      "seed": 260,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "process",
+      "seed": 267,
+      "failure": "false complete: new2"
+    },
+    {
+      "host": "process",
+      "seed": 292,
+      "failure": "duplicate 𐀀00022"
+    },
+    {
+      "host": "wasm",
+      "seed": 3,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "wasm",
+      "seed": 28,
+      "failure": "duplicate m00004"
+    },
+    {
+      "host": "wasm",
+      "seed": 46,
+      "failure": "false complete: m00010"
+    },
+    {
+      "host": "wasm",
+      "seed": 88,
+      "failure": "duplicate m00003"
+    },
+    {
+      "host": "wasm",
+      "seed": 105,
+      "failure": "false complete: 𐀀00022"
+    },
+    {
+      "host": "wasm",
+      "seed": 112,
+      "failure": "duplicate 𐀀00001"
+    },
+    {
+      "host": "wasm",
+      "seed": 113,
+      "failure": "false complete: new4"
+    },
+    {
+      "host": "wasm",
+      "seed": 136,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "wasm",
+      "seed": 140,
+      "failure": "false complete: new4"
+    },
+    {
+      "host": "wasm",
+      "seed": 142,
+      "failure": "false complete: 00014"
+    },
+    {
+      "host": "wasm",
+      "seed": 161,
+      "failure": "duplicate m00024"
+    },
+    {
+      "host": "wasm",
+      "seed": 178,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "wasm",
+      "seed": 181,
+      "failure": "duplicate 𐀀00022"
+    },
+    {
+      "host": "wasm",
+      "seed": 197,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "wasm",
+      "seed": 199,
+      "failure": "false complete: new1"
+    },
+    {
+      "host": "wasm",
+      "seed": 207,
+      "failure": "duplicate m00016"
+    },
+    {
+      "host": "wasm",
+      "seed": 211,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "wasm",
+      "seed": 229,
+      "failure": "duplicate m00006"
+    },
+    {
+      "host": "wasm",
+      "seed": 237,
+      "failure": "false complete: m00024"
+    },
+    {
+      "host": "wasm",
+      "seed": 246,
+      "failure": "duplicate m00004"
+    },
+    {
+      "host": "wasm",
+      "seed": 250,
+      "failure": "duplicate m00016"
+    },
+    {
+      "host": "wasm",
+      "seed": 260,
+      "failure": "false complete: new3"
+    },
+    {
+      "host": "wasm",
+      "seed": 267,
+      "failure": "false complete: new2"
+    },
+    {
+      "host": "wasm",
+      "seed": 292,
+      "failure": "duplicate 𐀀00022"
+    }
+  ]
+}

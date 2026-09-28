@@ -19,6 +19,13 @@ Inference also requires readable membership discovery. If its additional scoped
 index cannot fit the portable key or label budget, compilation keeps the original
 indexes and evaluator; that search may remain incomplete.
 
+Composition also requires immutable scope ownership: declare `immutable roomId`
+(or `immutable conversation` for that schema) on the message table. Separate
+current and departed scope sets do not prove separate row IDs if a row can move.
+`check` emits **N_SEARCH_MUTABLE_SCOPE**, names the mutable column, and gives the
+single `immutable` declaration to add. Mutable scopes retain ordinary routing
+without composing the two sources; server audience inference remains available.
+
 For the proved bare time-ordered page on a local client, the SDK merges current
 server rows with this device's certified departed images. Both use the same
 `(at, id)` order and the limit applies after deduplication. A page makes one
@@ -50,10 +57,17 @@ It must not infer “No matches” from `next: null`.
 
 A membership, incarnation, generation or link change invalidates an incompatible
 continuation. Every combined cursor binds the server's authorized audience, even
-with no departed chats. An unsynced audience change withdraws the stale page and
+with no departed chats. Server replies are validated against the captured store
+and generation, and continuations bind that validated identity. An unsynced
+replacement or generation change withdraws the attempt until ordinary sync
+establishes the new incarnation; its next observation starts with fresh source
+positions. An unsynced audience change withdraws the stale page and
 refreshes the first page of a live `usePage` observation. A one-shot query returns
 loading; request a fresh first page to restart. Each observation still makes one
 server call. An unrelated sync or an older-message edit preserves pagination.
+An online composition starts fresh from a plain offline/server cursor, which
+does not carry a validated store or audience identity. Resetting device rows
+also invalidates its old combined cursors, even after reacquiring the same data.
 The broader delivery fence still withdraws changes that occur during a request. Retained edits stay at their delivered image and expiry still
 removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired
 history and constituent cuts remain incomplete. An incomplete empty answer means
@@ -61,6 +75,13 @@ history and constituent cuts remain incomplete. An incomplete empty answer means
 device searches only its current authorized domain; offline the same ordinary
 body searches authorized device holdings. Other ordered shapes keep their
 existing evaluator and routing.
+
+These are live keyset pages, not a traversal snapshot. An edit moving `at`
+across a consumed position can repeat or omit that ID. New matches inserted
+before that position require a fresh first page. This applies to the ordinary
+fallback too; immutable scope ownership only prevents a current/retained ID
+collision. `complete` proves a requested page, not that a changing corpus has
+been emitted exactly once across all pages.
 
 ```quarry
 table members:
@@ -72,6 +93,7 @@ table members:
   sync to members[.roomId]
 
 table messages:
+  immutable roomId
   roomId: id
   body: text <=4000
   at: time

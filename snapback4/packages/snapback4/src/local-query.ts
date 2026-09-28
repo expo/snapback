@@ -53,7 +53,7 @@ export interface QueryEnvironment {
   unavailable(): Refusal | null;
   queued(): Promise<Queued[]>;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
-  post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }>;
+  post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }>;
   searchPost(path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>): ReturnType<QueryEnvironment["post"]>;
   refreshSearch?(name: string): void;
   installNative(signal?: AbortSignal): Promise<boolean>;

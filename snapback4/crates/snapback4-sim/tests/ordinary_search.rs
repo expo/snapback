@@ -10,6 +10,7 @@ table members:
   delete <- .principal = viewer
   sync to members[.room]
 table messages:
+  immutable room
   room: id
   body: text <=2000
   at: time
@@ -348,4 +349,23 @@ fn audience_proof_is_complete_authorized_and_bounded() {
     assert!(engine.query("explicit", cx("absent", None)).unwrap().search_scopes.is_none());
     engine.set_ceilings(snapback4_core::Ceilings { output_bytes: 40, ..Default::default() });
     assert_eq!(engine.query("ordinary", cx("absent", None)).unwrap_err().code, "E_SEARCH_OPEN");
+}
+
+#[test]
+fn mutable_scope_declines_only_composition_and_names_the_immutable_rewrite() {
+    let mutable = bound(&SOURCE.replace("  immutable room\n", ""));
+    let program = &mutable.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program;
+    assert!(snapback4_core::search_plan::ordinary::plan(&mutable.schema, program).is_some(), "server inference remains valid");
+    assert!(mutable.schema.operations["ordinary"].search.is_none());
+    assert!(snapback4_core::search_plan::ordinary::composition(&mutable.schema, program).is_none());
+    let note = mutable.notes.iter().find(|n| n.code == "N_SEARCH_MUTABLE_SCOPE").unwrap();
+    assert!(note.message.contains("messages.room is mutable"));
+    assert_eq!(note.rewrite, "add `immutable room` to table messages");
+    let immutable = bound(SOURCE);
+    assert!(immutable.schema.operations["ordinary"].search.is_some());
+    assert!(!immutable.notes.iter().any(|n| n.code == "N_SEARCH_MUTABLE_SCOPE"));
+    // Runtime re-proof must not trust a descriptor created before ownership changed.
+    let mut schema = immutable.schema.clone();
+    schema.tables.get_mut("messages").unwrap().constraints.retain(|c| !matches!(c, snapback4_core::schema::Constraint::Immutable { .. }));
+    assert!(snapback4_core::search_plan::ordinary::composition(&schema, program).is_none());
 }

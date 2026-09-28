@@ -21,6 +21,7 @@ table members:
   delete <- true
   sync to members[.room]
 table messages:
+  immutable room
   room: id
   text: text <=200
   at: time
@@ -179,4 +180,18 @@ for(const tier of ['process','wasm']) test(`review: unsynced audience loss also 
   const fresh=await f.client.query(q,{q:'coffee'});
   assert.ok(fresh.data.every(row=>row.room==='left'));
   assert.notEqual(decode(first.next).audience,decode(fresh.next).audience);
+});
+
+for(const tier of ['process','wasm']) test(`review: same-count audience swap withdraws the old continuation ${tier}`,async t=>{
+  const f=await setup(t,tier),first=await f.client.query(q,{q:'coffee'});
+  const beforeScopes=f.requests.at(-1).json.searchScopes;
+  await f.owner.mutate(m('leave'),{room:'live'});
+  const rows=[{table:'members',row:{id:'newmember',room:'newroom',principal:'dev:bob'}},
+    {table:'messages',row:{id:'newmessage',room:'newroom',text:'coffee',at:3000,tombstone:false,expires:null}}];
+  assert.equal((await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json())).seeded,2);
+  const before=f.requests.length,second=await f.client.query(q,{q:'coffee',c:first.next});
+  assert.equal(f.requests.length-before,1);
+  assert.equal(f.requests.at(-1).json.searchScopes.length,beforeScopes.length);
+  assert.notDeepEqual(f.requests.at(-1).json.searchScopes,beforeScopes);
+  assert.deepEqual(second,{loading:true});
 });

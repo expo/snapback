@@ -1,12 +1,15 @@
 //! Internal SDK composition metadata and state fence; no query/session storage.
 use super::*;
 
+pub(super) const RESET: &str = "device:search-reset";
+
 impl<S: DeviceStore> Device<S> {
     // @ref LLP 3000.028#3.3 — a continuation binds the device incarnation and membership observation.
     pub(crate) fn search_state(&mut self, name: &str, spent: Option<snapback4_core::meter::Metered>) -> Result<serde_json::Value, RuntimeError> {
         let Some(plan) = self.schema.operations.get(name).and_then(|fact| fact.search.as_ref()) else { return Ok(serde_json::Value::Null) };
         let tx = self.store.read_transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
+        let initial = spent.is_none();
         let mut meter = snapback4_core::meter::Meter::resume_observation(Ceilings::default(), spent.unwrap_or_default())?;
         meter.heap(8192)?;
         meter.step(32)?;
@@ -22,9 +25,10 @@ impl<S: DeviceStore> Device<S> {
         // unrelated syncs. Pagination binds only incarnation/generation,
         // acquisition validity and this table's current/retained membership.
         capture.insert(history::GROUPS.into(), Some(raw));
+        capture.insert(RESET.into(), tx.meta(RESET)?);
         let delivery = snapback4_core::value::digest(&capture);
         let mut identity = BTreeMap::new();
-        for key in [STORE_ID, BACKEND_IDENTITY, GENERATION, ACQUIRED, BACKEND_REQUIRED, store_identity::RESTORE_REFUSED] {
+        for key in [STORE_ID, BACKEND_IDENTITY, GENERATION, ACQUIRED, BACKEND_REQUIRED, store_identity::RESTORE_REFUSED, RESET] {
             identity.insert(key.to_owned(), capture.get(key).cloned().flatten());
         }
         drop(capture);
@@ -32,8 +36,6 @@ impl<S: DeviceStore> Device<S> {
             identity.insert(key.clone(), Some(if *state == history::Membership::Left { "left" } else { "current" }.into()));
         }
         let epoch = snapback4_core::value::digest(&identity);
-        let left: Vec<_> = groups.get(&plan.table).into_iter().flat_map(|groups| groups.iter())
-            .filter(|(_, state)| **state == history::Membership::Left).map(|(key, _)| key.clone()).collect();
         let kind = snapback4_core::MeterKind::OutputBytes;
         if !meter.charge(kind, 8192 + bytes * 6)? {
             return Err(RuntimeError::Bound { kind, actual: meter.used.output_bytes,
@@ -42,9 +44,17 @@ impl<S: DeviceStore> Device<S> {
         tx.rollback()?;
         // Reuse the canonical text codecs instead of instantiating a second
         // typed serializer into JSON Value for the two ledger records.
-        Ok(serde_json::json!({ "epoch": epoch, "delivery": delivery, "left": left,
-            "metered": decoded::<serde_json::Value>(&encoded(&meter.used)?)?,
-            "ceilings": decoded::<serde_json::Value>(&encoded(&Ceilings::default())?)? }))
+        let mut result = serde_json::json!({ "epoch": epoch, "delivery": delivery,
+            "metered": decoded::<serde_json::Value>(&encoded(&meter.used)?)? });
+        // The delivery recheck consumes only the two fences and the receipt.
+        // Avoid rebuilding and serializing opening metadata a second time.
+        if initial {
+            let left: Vec<_> = groups.get(&plan.table).into_iter().flat_map(|groups| groups.iter())
+                .filter(|(_, state)| **state == history::Membership::Left).map(|(key, _)| key.clone()).collect();
+            result["left"] = serde_json::json!(left);
+            result["ceilings"] = decoded::<serde_json::Value>(&encoded(&Ceilings::default())?)?;
+        }
+        Ok(result)
     }
 }
 
@@ -61,6 +71,7 @@ table members:
   read <- exists members[.room, viewer]
   sync to members[.room]
 table messages:
+  immutable room
   room: id
   text: text <=200
   at: time
@@ -97,6 +108,13 @@ query search(q: text <=100, c: cursor ?):
         }
         device.clear_rows().unwrap();
         assert_ne!(first["epoch"], device.search_state("search", None).unwrap()["epoch"]);
+        // Reacquiring the same generation must not resurrect the old cursor.
+        meta(&mut device, ACQUIRED, "1");
+        let acquired = device.search_state("search", None).unwrap();
+        assert_ne!(first["epoch"], acquired["epoch"]);
+        device.clear_rows().unwrap();
+        meta(&mut device, ACQUIRED, "1");
+        assert_ne!(acquired["epoch"], device.search_state("search", None).unwrap()["epoch"]);
     }
 
     #[test]
@@ -142,6 +160,9 @@ query search(q: text <=100, c: cursor ?):
         let spent = snapback4_core::meter::Metered { examined: Ceilings::default().examined + 1,
             steps: 100, heap_bytes: 1024, ..Default::default() };
         let after = device.search_state("search", Some(spent)).unwrap();
+        assert!(after.get("left").is_none());
+        assert!(after.get("ceilings").is_none());
+        assert!(device.search_state("search", None).unwrap().get("ceilings").is_some());
         assert_eq!(after["metered"]["examined"], spent.examined);
         assert!(after["metered"]["steps"].as_u64().unwrap() > spent.steps);
         assert!(after["metered"]["heap_bytes"].as_u64().unwrap() > spent.heap_bytes);

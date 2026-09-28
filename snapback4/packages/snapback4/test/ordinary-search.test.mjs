@@ -20,6 +20,7 @@ table members:
   delete <- true
   sync to members[.room]
 table messages:
+  immutable room
   room: id
   text: text <=200
   at: time
@@ -51,7 +52,9 @@ const ids = read => { assert.ok(Array.isArray(read.data), JSON.stringify(read));
 const gate = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
 const decode = c => JSON.parse(Buffer.from(c.slice(5), 'base64url'));
 async function setup(t, tier = 'process', expires = null, options = {}) {
-  const {url, dir} = await server(t, '', options.whole ? source.replace('sync to members[.room] last 100 by .at', 'sync to members[.room]') : source);
+  let program = options.whole ? source.replace('sync to members[.room] last 100 by .at', 'sync to members[.room]') : source;
+  if(options.ascending)program=program.replaceAll('last 20 by .at','first 20 by .at');
+  const {url, dir} = await server(t, '', program);
   const backend=await fetch(`${url}/schema`,{headers:{"x-snapback-persona":"bob"}}).then(r=>r.json());
   assert.ok(backend.schema.operations.search.search, JSON.stringify({fact:backend.schema.operations.search,program:backend.programs.find(p=>p.name==='search'),indexes:backend.schema.tables.messages.indexes}));
   const owner = createClient({url, persona: 'bob'}), admin = createClient({url, persona: 'alice'});
@@ -106,7 +109,7 @@ for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retai
   assert.deepEqual(actual,f.rows.reverse().map(r=>r.id));
   assert.equal(new Set(actual).size,65);
   assert.ok(f.scans.some(s=>s.request.search&&s.request.spent.heap_bytes>0&&s.result.ok.metered.heap_bytes>s.request.spent.heap_bytes));
-  const budget=f.states.at(-1).ok.ceilings;
+  const budget=f.states.find(s=>s.ok.ceilings).ok.ceilings;
   const spent=Object.fromEntries(Object.keys(budget).map(k=>[k,0]));spent.heap_bytes=budget.heap_bytes-1;
   const exhausted=await f.core().call({op:'query',name:'search',viewer:'dev:bob',args:{q:'coffee'},now:Date.now(),search:true,spent});
   assert.ok(exhausted.ok.loading||exhausted.ok.denied?.code==='E_BOUND',JSON.stringify(exhausted));
@@ -375,4 +378,16 @@ for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: a rea
   const after=await f.client.query(q,{q:'coffee',c:first.next});
   assert.deepEqual(ids(after),f.rows.filter(r=>r.room==='live').reverse().slice(0,20).map(r=>r.id));
   assert.equal(after.fresh,true);assert.equal(f.requests.at(-1).body.args.c,null);
+});
+
+for (const tier of ['process','wasm']) test(`ordinary ascending Unicode ties cross retained/current sources ${tier}`,async t=>{
+  const f=await setup(t,tier,null,{ascending:true,whole:true}),all=[];let c;
+  for(let page=0;page<10;page++){
+    const before=f.requests.length,read=await f.client.query(q,{q:'coffee',c});
+    assert.equal(f.requests.length-before,1);all.push(...read.data);c=read.next;if(!c)break;
+  }
+  assert.equal(c,null);
+  const expected=[...f.rows].sort((a,b)=>a.at-b.at||Buffer.compare(Buffer.from(a.id),Buffer.from(b.id)));
+  assert.deepEqual(all.map(r=>r.id),expected.map(r=>r.id));
+  assert.equal(new Set(all.map(r=>r.id)).size,65);
 });

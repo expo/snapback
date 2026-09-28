@@ -1,0 +1,23 @@
+[
+  {
+    "name": "descending-only",
+    "status": 1
+  },
+  {
+    "name": "descending-only-oracle",
+    "status": 1
+  },
+  {
+    "name": "audience-count",
+    "status": 1
+  },
+  {
+    "name": "unchecked-identity",
+    "status": 1
+  },
+  {
+    "name": "raw-cursor-adoption",
+    "status": 1,
+    "scope": "isolated copied package; original dist untouched"
+  }
+]

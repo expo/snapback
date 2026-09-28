@@ -1123,7 +1123,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1131,9 +1131,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[cfg(test)]
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
+                        let query_generation = reader.generation();
                         let (outcome, cut) = reader.query_at(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence)
+                        (outcome, cut, metadata, reads_presence, query_generation)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1143,8 +1144,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
+                        let query_generation = engine.generation();
                         let (outcome, cut) = engine.query_at(&op, context);
-                        (outcome, cut, metadata, reads_presence)
+                        (outcome, cut, metadata, reads_presence, query_generation)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1158,6 +1160,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
+                            generation: u64,
                             complete: bool,
                             cut: Option<snapback4_core::engine::ReadCut>,
                             data: wire::Plain<'a>,
@@ -1188,18 +1191,18 @@ fn handle(mut request: Request, shared: &Shared) {
                             meter
                         });
                         if outcome.unavailable {
-                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
+                            let mut reply = json!({ "loading": true, "generation": query_generation, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
                             if let Some(version) = &outcome.ephemeral { reply["ephemeral"] = json!(version); }
                             if let Some(meter) = meter { reply["meter"] = meter; }
                             if let Some(refresh) = refresh { reply["refresh"] = json!(refresh); }
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "complete": false, "store_id": store_id, "head": head });
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }

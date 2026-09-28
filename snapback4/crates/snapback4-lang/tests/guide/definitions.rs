@@ -116,6 +116,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_DELIVERY_CLAUSE", "requires exactly a reference to the group table and two `int` arguments"),
     ("RUNS_FULL", "`RUNS_FULL` refuses a disjoint 65th run"),
     ("E_SEARCH_OPEN", "Its membership count includes only authorized discovered keys."),
+    ("N_SEARCH_MUTABLE_SCOPE", "scope ownership can move"),
     ("N_SEARCH_OPEN", "every membership and its authorized head must fit one read"),
     ("N_SEARCH_UNSCOPED", "the read rule varies within the searched index"),
     ("N_SEARCH_WORDS", "first-term expansion and further-term misses consume the meters"),

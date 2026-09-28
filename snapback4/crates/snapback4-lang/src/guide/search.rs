@@ -14,6 +14,7 @@ table members:
   insert <- allow
 
 table messages:
+  immutable roomId
   roomId: id
   body: text <=4000 ?
   caption: text <=200 ?
@@ -130,6 +131,7 @@ table memberships:
   sync to memberships[.conversationId]
 
 table messages:
+  immutable conversationId
   conversationId: conversations
   authorId: principal
   body: text <=4000 ?

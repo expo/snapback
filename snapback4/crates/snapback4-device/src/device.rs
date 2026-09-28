@@ -674,6 +674,11 @@ impl<S: DeviceStore> Device<S> {
     /// the watermark resets, the outbox stays.
     pub fn clear_rows(&mut self) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        // @ref LLP 3000.028#3.3 — reacquiring identical memberships after a
+        // reset must never resurrect their previous consumed source positions.
+        let reset = meta_u64(&tx, search::RESET)?.checked_add(1).ok_or_else(||
+            RuntimeError::Store("device search reset counter exhausted".into()))?;
+        tx.set_meta(search::RESET, &reset.to_string())?;
         tx.clear_rows()?;
         tx.base_clear()?;
         let identity = tx.meta(deferred::IDENTITY)?;

@@ -1,4 +1,4 @@
-import { SearchBound, refreshSearchRoots } from "./local-search.ts";
+import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
 import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
@@ -521,7 +521,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void work.finally(() => active.delete(work)).catch(() => {});
     return work;
   }
-  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }> {
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return { ok: false };
     try {
       const capture = control ?? (path.startsWith("/q/") ? await captureStore() : undefined);
@@ -549,7 +549,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           active.add(work); void work.finally(() => active.delete(work)).catch(() => {});
         }
         if (status !== "match") return { ok: false };
-      } else if (path.startsWith("/q/") && (!capture || json.store_id !== (capture.transfer_store_id ?? capture.store_id) || await witnessRestore(json.store_id, json.head ?? json.seq, capture))) delete json.delivery;
+      } else if (path.startsWith("/q/")) return { ok: true, json, obsoleteAuth, searchIdentity: await searchReplyIdentity(capture, json, generation, witnessRestore) };
       return { ok: true, json, obsoleteAuth };
     } catch (error) {
       if (error instanceof SearchBound) throw error;
