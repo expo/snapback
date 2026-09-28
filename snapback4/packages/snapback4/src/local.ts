@@ -1015,7 +1015,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
-        watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true;
+        if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
         watch.tables = tables;

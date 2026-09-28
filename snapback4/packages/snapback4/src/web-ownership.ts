@@ -24,6 +24,9 @@ export async function claimWithWebLocks(name: string, alternate: boolean): Promi
 // termination boundary. Navigation can release the page claim before its old
 // Worker and strict transaction have stopped. Neither opener may restore yet.
 async function afterWorker(locks: LockManager, name: string, release: () => Promise<void>): Promise<PersistenceClaim> {
+  // A custom in-memory provider may borrow this claim function in Node.
+  // Without IndexedDB there cannot be an old browser transaction to drain.
+  if (typeof indexedDB === "undefined") return { name, release };
   try {
     await locks.request(`snapback4-worker:${encodeURIComponent(name)}`, {}, async () => {
       const persist = indexedDbStore(async () => null);

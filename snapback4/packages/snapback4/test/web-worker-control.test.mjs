@@ -82,3 +82,15 @@ test('transport keeps store and retained-image floors and omits supplementary ma
   const body = { store_id: 'store', head: 5, delivery: {} };
   assert.equal(coldReplyMatches(snapshot(), body), true); assert.equal(body.delivery, undefined);
 });
+test('a transient Worker fence withholds cold fallback without queueing a VM read', async () => {
+  const f = fixture(); const unblock = f.page.block();
+  const blocked = coldSnapshot(() => f.page.read(), true, 1);
+  assert.ok(blocked, 'keep the cold path while authority is unknown');
+  assert.equal(blocked.snapshot.predictions, null);
+  f.env.coldRead = blocked.control;
+  assert.deepEqual((await f.run()).read, { loading: true });
+  assert.equal(f.counters.calls, 0); assert.equal(f.counters.posts, 0);
+  unblock(); assert.equal(blocked.control.current(), false);
+  f.env.coldRead = coldSnapshot(() => f.page.read(), true, 1).control;
+  assert.deepEqual((await f.run()).read.data, ['live']);
+});

@@ -16,10 +16,19 @@ import type { Queued } from "./local-types.ts";
 import type { Write } from "./contract.ts";
 class KnownAdmissionRefusal extends Error { constructor(readonly reply: Record<string, unknown>) { super("admission cancellation failed"); } }
 
-/** Internal adapter. The public opt-in is wired only after protocol parity. */
+/** Worker adapter for the opt-in browser device. */
 export async function openWorkerDevice(name: string, backend: DeviceOpening | null, wasm?: WorkerWasmSource): Promise<DeviceCore> {
   const persist = indexedDbPersistence(), claim = await claimStore(persist, name, true);
   if (!claim) throw new Error("webDevice: persistence could not claim an exclusive device store");
+  // The client first tries an offline open. Under the exclusive, quiescent
+  // claim, absence of this metadata proves that open must request a backend.
+  // Avoid starting and caching a whole VM merely to discover that absence.
+  try {
+    if (backend === null && await persist.read!(claim.name, "m", "device:backend") === null) {
+      throw new Error(JSON.stringify({ denied: { code: "E_AUTH", family: "auth",
+        message: "this device has never synced: the server must be reachable once to open" } }));
+    }
+  } catch (error) { await claim.release(); throw error; }
   const host = new WebWorkerHost(claim);
   const journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id));
   journal.load(await host.open(backend, wasm));

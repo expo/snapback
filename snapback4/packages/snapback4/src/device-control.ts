@@ -53,9 +53,9 @@ export class PageDeviceControl {
   }
   discard(): void { this.durable = undefined; this.revision++; }
   read(): DeviceControlSnapshot | undefined {
-    if (!this.durable || this.barriers) return;
+    if (!this.durable) return;
     return { ...this.durable, queuedRevision: this.revision,
-      predictions: this.pendingAdmissions.size ? null : this.durable.predictions };
+      predictions: this.pendingAdmissions.size || this.barriers ? null : this.durable.predictions };
   }
 }
 

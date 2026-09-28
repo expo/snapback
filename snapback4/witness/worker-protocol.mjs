@@ -1,4 +1,4 @@
-// Browser-only execution foundation; NOT the public webDevice opener.
+// Browser Worker ownership protocol and the public opt-in webDevice opener.
 // node witness/worker-protocol.mjs [OUTPUT]
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -218,6 +218,20 @@ const run = async (name, body) => {
   console.log(`${results.at(-1).ok ? 'PASS' : 'FAIL'} ${name}`);
 };
 try {
+  await run('new offline device refuses before Worker startup and releases its claim', async page => {
+    const result = await page.evaluate(async () => {
+      const NativeWorker = window.Worker; let starts = 0, error;
+      window.Worker = class extends NativeWorker { constructor(...args) { super(...args); starts++; } };
+      try {
+        try { await w.coreOpen('missing', 'fresh-preflight', true); } catch (e) { error = JSON.parse(e.message); }
+        const before = starts;
+        await w.coreOpen('fresh', 'fresh-preflight'); await w.coreClose('fresh');
+        return { error, before, starts, stores: await w.storeNames('fresh-preflight') };
+      } finally { window.Worker = NativeWorker; }
+    });
+    assert.equal(result.error.denied.code, 'E_AUTH'); assert.equal(result.before, 0); assert.equal(result.starts, 1);
+    assert.deepEqual(result.stores, ['fresh-preflight']); return result;
+  });
   await run('packaged entry and wasm URL; full offline shell and VM reopen', async (page, context) => {
     await page.evaluate(async () => { await w.open('offline', false); await w.acquire(); await w.close(); });
     await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));

@@ -109,7 +109,8 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   writeFileSync(join(harness, "bootstrap.ts"), `import { createLocalClient } from "${join(root, "packages/snapback4/src/local.ts")}";\nimport { webDevice, indexedDbPersistence } from "${join(root, "packages/snapback4/src/web.ts")}";\nimport { WebDevice } from "${join(root, "packages/snapback4/src/wasm/snapback4_device.js")}";\nimport { createApp } from "${join(root, "packages/snapback4/src/app.ts")}";\nimport { localStorageSessionStore } from "${join(root, "packages/snapback4/src/auth.ts")}";\nObject.assign(window, { webDevice, indexedDbPersistence, WebDevice, createApp, localStorageSessionStore });\n(window as any).createLocalClient = (options: any) => createLocalClient({ device: webDevice({ worker: ${worker} }), ...options });\n`);
   writeFileSync(entry, `import "./bootstrap.ts";\n${entrySource}\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
-  await build({ root: harness, logLevel: "silent", plugins: [{ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } }], build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
+  const overrides = () => ({ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } });
+  await build({ root: harness, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
   const dev = await devServer({ seed, extraSource, sourceDir, clockOffset });
   const { api, app, seeded, seedMs } = dev;
