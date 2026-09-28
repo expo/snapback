@@ -72258,3 +72258,70 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+
+## 2026-09-28 — Lane SS round 4: internal Worker execution; public path incomplete
+
+Fetched and merged origin/main first, at 1972112a04fc03ece3423fbd4af67646f0cd5826.
+Kept both sides of the journal conflict (17024e0d6). Removed the unlanded
+round-3 index copy reductions (f1e247c86), retaining their regression fixtures.
+Read all four prompts, reports and entries; scoped llp-orient via the populated
+sibling lane-gs skill and the governing host/ownership/expiry/delivery LLPs.
+No wasm ABI, engine meter, row authorization or disclosure change.
+
+This is the coherent subset the round allows. The public `worker: true`
+opener is NOT implemented and the ordinary web default is unchanged. New
+web-worker-host/runtime/entry modules implement internal private VM calls and
+strict IndexedDB commits in a dedicated Worker. The page retains the exclusive
+claim and synchronous localStorage capture; shared journal request plans now
+have synchronous and asynchronous executors. The Worker retains full stored
+images and persistence deltas and returns journal metadata after durability.
+Its entry and wasm URL use the package build and Vite path. The wasm cache
+loader was extracted unchanged for use in either realm.
+
+The Worker acknowledges a stable per-store lifetime Web Lock before open.
+Termination waits for that lock and IDB transaction barriers before restore
+or release; close after termination also restores before releasing the claim.
+Lost replies reject, even when already durable; replay consults
+the original transfer marker. A failed barrier remains sticky so a later close
+cannot release ownership. This is not yet the DeviceCore adapter, orphan
+adoption, prepared suspension transport, conditional delivery collection or
+the conservative page read snapshot. Mixed default/Worker navigation still
+needs lifetime coordination. No new public form or sync-card recommendation
+for a nonexistent option; all four 100/1,000-conversation performance targets
+remain unestablished. No scale run or live-writer measurement this round.
+
+Final Chromium protocol witness: 26/26, zero page errors. Covers termination
+and crash at five admission steps, strict outbox/marker atomicity before replay,
+original order/minted IDs/authority and issued-time floor, staged/terminal
+publication, navigation, admission during reacquisition, cold identity refusal,
+cleanup failure, exit-record replay, cross-tab claims, uncommitted/idle-crash
+rejection and sticky barrier failure. The production package entry and existing
+web-shell exporter also reopen offline with a new Worker and zero wasm fetches.
+Exit replay is not a Worker onSuspend transport proof. Fixture has three
+confirmed rows; it is not performance evidence.
+
+Affected results: unchanged default web tests 163/163; sync-scale/server-clock
+15/15; whole guide 92/92; existing Chromium navigation 10/10. Existing IDB
+witness exits 1: baseline adoptionRejected/adoptionUnlocked expectations,
+reproduced with main's original web host and journal. Main defers orphan
+recovery to a call/authority attach; the fixture still expects eager open.
+Filed issues/20260928-snapback4-idb-witness-assumes-eager-orphan-recovery.md.
+Lane-owned early harness brace/type errors and cold-admission assumptions
+were fixed, with early failure logs retained. No remaining environmental
+qualification failure. Final package build and Worker witness also cover the
+internal-host fixes made after the full suite's initial build.
+
+Ran scripts/test.sh once: `== 0 failure(s) in 1770 s`, exit 0. Rust 4,162
+passed / 30 ignored; client shards 3,901 passed / 10 skipped; serial models
+79/79; fixture wrappers 9/9; all build/typecheck/guide/docs/release checks pass.
+No full-suite failures. The 60 s suite time budget is not met. Initial/final
+wasm are byte-identical: 2,019,815 B raw / 585,384 B gzip, delta 0/0, unchanged
+586,193 B cap (809 B headroom). No shared tools installed, no original GS
+fixture/store/WAL touched, no pushes or publication.
+
+LLP 3000.007 section 20.4 and the acquisition ticket record this internal
+foundation and remaining work. Full file map, limitations, default criteria,
+commands, exact results and compressed evidence:
+reports/20260927-ss-sync-scale/ROUND4.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

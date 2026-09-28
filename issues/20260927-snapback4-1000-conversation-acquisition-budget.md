@@ -68,3 +68,21 @@ insufficient. The requested plan, experiments, both repetitions, mutation
 controls and qualification are in [ROUND3](../snapback4/reports/20260927-ss-sync-scale/ROUND3.md),
 including its [Worker follow-up](../snapback4/reports/20260927-ss-sync-scale/ROUND3.md#worker-decision-and-bounded-follow-up).
 No Worker or changed acquisition protocol is shipped in this round.
+
+## Round 4, 2026-09-28 — internal Worker subset
+
+Still open. The lane implements an internal page-owned Worker dispatcher and
+strict wasm/IndexedDB runtime, with page-local journal capture and shared
+synchronous/asynchronous execution plans. Chromium's 26-case protocol witness
+covers interruption before/inside/after admission commit, staged/terminal save,
+navigation, claim retention, original record recovery, cleanup failure and
+full offline shell/Worker/wasm reopen. It does not run the scale workload.
+
+`webDevice({ worker: true })` remains unimplemented. The page control snapshot,
+server-read bypass, prepared suspension transport, orphan/receipt integration,
+conditional delivery collection and mixed-opener lifetime coordination still
+need implementation/qualification. No 100/1,000 acquisition or live p95 number
+was measured this round; all four new browser targets are unestablished.
+The ordinary default remains in place. Round 3's unlanded index copy reductions
+were removed before this work. See [ROUND4](../snapback4/reports/20260927-ss-sync-scale/ROUND4.md)
+for the exact implemented subset, tests and remaining acceptance.
