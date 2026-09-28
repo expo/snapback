@@ -1,4 +1,3 @@
-import { sessionRotation, rotationFenced } from "./session-rotation.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
@@ -43,7 +42,7 @@ import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } 
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
-  restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
+  refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
@@ -56,8 +55,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   const sessions = options.sessionStore ?? defaultSessionStore;
-  const rotateSession = sessionRotation(base, sessions, doFetch, options);
-  let session: Session | null = null, refreshOutcome: SignIn | undefined;
+  let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
     session = options.session ?? await restoreSession(base, sessions, () => 0);
@@ -72,7 +70,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
     if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
-      const refreshed = refreshOutcome = await rotateSession(session.token, session);
+      const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
           await forgetSession(base, sessions);
@@ -404,12 +402,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const refusedSession = async (denied: unknown, revision: number) => {
     if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession();
   };
-  // @ref LLP 3000#http-overload-diagnostics — startup and clock changes must keep the rotation outcome.
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
-    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || rotationFenced(refreshOutcome))) return;
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -426,15 +422,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (refreshing) return refreshing;
     const token = session.token;
     const expectedPrincipal = session.principal;
-    if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = undefined;
     rotating = true;
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
       for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
     });
-    const rotation = rotateSession(token, session);
+    const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
     let retired = false;
     const retire = (result: SignIn) => {
@@ -446,14 +440,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const work = (async (): Promise<SignIn> => {
       // Sign-out stops adoption, but lets a committed rotation return its
       // successor for best-effort family revocation, even after close.
-      const refreshed = refreshOutcome = await Promise.race([rotation, refreshStopped]);
+      const refreshed = await Promise.race([rotation, refreshStopped]);
       if (sessionDead) return signedOut();
       if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
       if (!refreshed.ok) {
         rotating = false;
         credentialRevision += 1;
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession();
-        else scheduleRefresh(60_000);
+        else if (refreshed.why.retryable) scheduleRefresh(60_000);
         return refreshed;
       }
       if (refreshed.session.principal !== expectedPrincipal) {
@@ -1463,7 +1457,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   flushRecovered = () => { void flush(); };
   const start = async () => {
     if (closed) return;
-    if (!refreshOutcome && session) refreshOutcome = await rotateSession.restore(session);
     if (prepared && session && session.kind !== "action" && session.expiresAt - clock.issuedDeviceNow() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
     // Exit and ordinary replay share the host's startup checks, even offline.
     const replayAllowed = core.onSuspend && await replayOnOpen();

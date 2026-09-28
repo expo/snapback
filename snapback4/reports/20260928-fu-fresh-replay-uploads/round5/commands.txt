@@ -1,0 +1,21 @@
+# Repository root unless a cwd is stated; no push or publication.
+git fetch origin
+bun run --cwd snapback4/packages/snapback4 build
+bun run --cwd snapback4/packages/snapback4 typecheck
+node --test --test-concurrency=2 snapback4/packages/snapback4/test/overload.test.mjs snapback4/packages/snapback4/test/refresh-behavior.test.mjs
+# Above run preceded the eight additional refresh regression cases.
+node --test --test-concurrency=2 snapback4/packages/snapback4/test/refresh-behavior.test.mjs snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs
+node --test --test-concurrency=3 snapback4/packages/snapback4/test/app.test.mjs snapback4/packages/snapback4/test/app-local-session.test.mjs snapback4/packages/snapback4/test/online-session.test.mjs snapback4/packages/snapback4/test/session-security.test.mjs snapback4/packages/snapback4/test/query-publication-session.test.mjs snapback4/packages/snapback4/test/schema-session.test.mjs snapback4/packages/snapback4/test/ephemeral-sender.test.mjs
+node snapback4/reports/20260928-fu-fresh-replay-uploads/round5/controls.mjs
+# cwd snapback4, command-local descriptor limit 4096:
+bash scripts/test.sh
+# Exactly one invocation. Package builds, docs budget, release guard, Rust,
+# fixture tests, app typechecks, all client shards and full model counts.
+cargo test -p snapback4-lang --test guide
+# cwd repository root, after correcting the unshipped issue link:
+cargo test -p snapback4-lang --test guide --manifest-path snapback4/Cargo.toml
+cargo test --manifest-path snapback4/Cargo.toml -p snapback4 --bin snapback4 serve::tests::overload_tests -- --test-threads=1
+./ref-check --verbose
+git diff --check
+# GNU gzip file input, matching the wasm budget convention:
+gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm

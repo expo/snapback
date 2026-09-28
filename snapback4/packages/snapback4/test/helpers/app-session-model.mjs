@@ -182,7 +182,6 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
       if (!accounts.has(email)) return denied();
       session = issue(`user:${email}`);
     } else if (path === "/auth/refresh") {
-      invariant("I14", ![...parents.values()].includes(token), "a consumed refresh bearer was dispatched again");
       if (!live.has(token)) return denied(token);
       const principal = live.get(token); live.delete(token); session = issue(principal);
       parents.set(session.token, token);
@@ -535,12 +534,7 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
       await settle(); fault = null; active = undefined;
       if (task && !task.pending && task.result?.ok === false && !before.concurrent) {
         const tombstone = record()?.snapback4Logout !== undefined;
-        // A rotation durably claims the predecessor before dispatch. Failure
-        // can update that claim, but cannot replace credentials or epoch.
-        const withoutClaim = bytes => { const value = JSON.parse(bytes ?? "null"); if (value) delete value.snapback4Rotation; return JSON.stringify(value); };
-        const rotationClaim = (["refresh", "refreshFault", "handleRefresh", "revokeCurrent"].includes(op) || op === "revoke" && command.account) &&
-          record()?.snapback4Rotation?.why && withoutClaim(values.get(key)) === withoutClaim(before.bytes);
-        invariant("I2", values.get(key) === before.bytes || tombstone || rotationClaim, `${op} failed but session bytes changed`);
+        invariant("I2", values.get(key) === before.bytes || tombstone, `${op} failed but session bytes changed`);
         invariant("I5", epoch() === before.epoch || tombstone, `${op} failed but epoch ${before.epoch} -> ${epoch()}`);
       }
       check();
@@ -575,7 +569,7 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure, tier = "online") {
-  const identity = failure.message.match(/(?:I(?:1[01234]|[1-9])|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I(?:1[0123]|[1-9])|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);

@@ -1,0 +1,352 @@
+[
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "online: refresh empty preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "online: refresh invalid-session preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "online: refresh retryable-auth preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "web: refresh empty preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "web: refresh invalid-session preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-refresh-diagnostics-negative",
+    "test": "web: refresh retryable-auth preserves the account and allows renewal",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public asset rotation preserves ECONNRESET without consuming another view",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public asset rotation preserves invalid without consuming another view",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public asset rotation preserves success without consuming another view",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public asset rotation preserves terminal-overload without consuming another view",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: public ephemeral refusal preserves HTTP status and never replays",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: public ephemeral refusal preserves HTTP status and never replays",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public fresh web schema recover retains startup cause",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public fresh web schema exhaust retains startup cause",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public fresh web schema reset retains startup cause",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public fresh web schema invalid retains startup cause",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth guest: invalid retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth guest: reset retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth guest: unreachable retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth signup: invalid retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth signup: reset retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth signup: unreachable retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth login: invalid retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth login: reset retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth login: unreachable retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth refresh: invalid retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth refresh: reset retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth refresh: unreachable retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth logoutAll: invalid retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth logoutAll: reset retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "public auth logoutAll: unreachable retains cause with one request",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: public probe overload recovers an offline link without adopting identity",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: public probe overload recovers an offline link without adopting identity",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: public sync overload recovers an offline link without adopting identity",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: concurrent public upload retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: concurrent public asset retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: concurrent public query retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "online: concurrent public mutation retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: concurrent public upload retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: concurrent public asset retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: concurrent public query retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "baseline",
+    "kind": "expected negative control",
+    "run": "main-confirmed-reproductions-negative",
+    "test": "web: concurrent public mutation retries vary beyond Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "expected negative control",
+    "run": "round4-replacement-negative",
+    "test": "online: supplied replacement refreshes while another account is stored",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "expected negative control",
+    "run": "round4-replacement-negative",
+    "test": "web: supplied replacement refreshes while another account is stored",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "expected negative control",
+    "run": "online-probe-headers-negative",
+    "test": "public online probe recovery paces retryable and respects Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "expected negative control",
+    "run": "online-probe-headers-negative",
+    "test": "public online probe recovery paces nonretryable and respects Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "expected negative control",
+    "run": "online-probe-headers-negative",
+    "test": "public online probe recovery paces malformed and respects Retry-After",
+    "resolution": "Final SDK passes the corresponding positive case."
+  },
+  {
+    "classification": "ours",
+    "kind": "qualification",
+    "run": "guide and single full suite",
+    "test": "snapback4-lang::guide::client::published::published_file_references_resolve_against_package_contents",
+    "resolution": "Removed the package reference to the repository-only issue. Whole guide rerun passes 98/98; full suite retains its original failure."
+  },
+  {
+    "classification": "ours",
+    "kind": "editing setup",
+    "run": "three Python editing attempts",
+    "test": "ValueError: substring not found",
+    "resolution": "Two guessed function boundaries and one custody-test extraction boundary were incorrect; inspected the actual boundaries and completed the edits. No test result relied on partial edits."
+  },
+  {
+    "classification": "ours",
+    "kind": "whitespace",
+    "run": "git diff --check",
+    "test": "overload.test.mjs: new blank line at EOF",
+    "resolution": "Removed extra trailing blank line; whitespace check passes."
+  }
+]

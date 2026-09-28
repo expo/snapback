@@ -266,73 +266,8 @@ for (const tier of ['online', 'web']) test(`${tier}: public mutation overload us
 });
 
 import { guest, signup, login, refreshSession, logoutAll } from '../dist/auth.js';
-import { memorySessionStore, sessionKey } from '../dist/auth.js';
-import { createApp } from '../dist/app.js';
+import { memorySessionStore } from '../dist/auth.js';
 
-for (const door of ['constructor', 'deferred', 'online']) for (const mode of ['reset', 'invalid', 'body', 'overload', 'terminal', 'retryable-auth']) {
-  test(`public ${door} startup rotation ${mode} retains its retry decision across clock updates`, { timeout: 15000 }, async t => {
-    const { url } = await server(t), persist = memoryPersistence(), store = memorySessionStore();
-    const signed = await guest(url); assert.equal(signed.ok, true);
-    const first = await createLocalClient({ url, session: signed.session, sessionStore: store, device: webDevice({ wasm, persist }) });
-    await first.close();
-    const near = { ...signed.session, expiresAt: Date.now() + 3600000 };
-    await store.set(sessionKey(url), JSON.stringify(near));
-    const timers = new Map(), statuses = [], bearers = [];
-    const timeout = globalThis.setTimeout, clear = globalThis.clearTimeout;
-    t.mock.method(Math, 'random', () => 0.5);
-    t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
-      if (ms === 60000) { const id = { unref() {} }; timers.set(id, () => fn(...args)); return id; }
-      return timeout(fn, [281.25, 562.5, 1125].includes(ms) ? 1 : ms, ...args);
-    });
-    t.mock.method(globalThis, 'clearTimeout', id => { timers.delete(id); clear(id); });
-    const retryable = mode === 'overload' || mode === 'retryable-auth';
-    const options = { url, sessionStore: store, fetch: async (input, init) => {
-      const path = new URL(input).pathname;
-      if (path === '/auth/refresh') {
-        bearers.push(new Headers(init?.headers).get('authorization'));
-        if (bearers.length === 1 && (retryable || mode === 'terminal')) return Response.json({ denied: {
-          ...refusal, ...(mode === 'retryable-auth' ? { code: 'E_AUTH', family: 'auth' } : {}), retryable,
-        } }, { status: 503 });
-        // Real rotation consumes the predecessor before its successful reply is lost.
-        const response = await defaultFetch(input, init); statuses.push(response.status);
-        if (bearers.length === 1) {
-          await response.arrayBuffer();
-          if (mode === 'reset') throw Object.assign(Error('fetch failed'), { cause: { code: 'ECONNRESET' } });
-          if (mode === 'invalid') return new Response('busy', { status: 503 });
-          return new Response(new ReadableStream({ start(c) { c.error(Error('lost refresh body')); } }), { status: 200 });
-        }
-        // A retry after a proven refusal may adopt the real successor.
-        return response;
-      }
-      if (path === '/auth/logout') return defaultFetch(input, init);
-      return Response.json({ denied: refusal }, { status: 503, headers: path === '/q/list'
-        ? { 'x-snapback-time': String(Date.now() + 5000), 'x-snapback-clock': 'fu:1' } : {} });
-    } };
-    let client, app;
-    if (door === 'constructor') client = await createLocalClient({ ...options, device: webDevice({ wasm, persist }) });
-    else if (door === 'online') client = createClient({ ...options, session: near });
-    else { app = createApp({ ...options, device: webDevice({ wasm, persist }) }); await app.ready; client = app.client; }
-    t.after(() => app ? app.close() : client?.close());
-    assert.ok(client, app?.auth.state);
-    await until(() => bearers.length === 1);
-    // A public request carrying a new clock sample must not revive a stopped rotation.
-    await client.query({ kind: 'query', name: 'list', runs: 'server' }, {});
-    const armed = timers.size;
-    for (const [id, fire] of [...timers]) { timers.delete(id); fire(); }
-    if (armed) await until(() => bearers.length > 1);
-    assert.equal(armed, retryable ? 1 : 0, 'only an explicit retryable refusal may arm rotation');
-    assert.equal(bearers.length, retryable ? 2 : 1, 'never resend an ambiguously consumed bearer');
-    if (['reset', 'invalid', 'body'].includes(mode)) {
-      const unknown = await client.refreshSession();
-      assert.equal(unknown.why.code, mode === 'invalid' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE');
-      assert.deepEqual(await client.refreshSession(), unknown);
-      assert.equal(bearers.length, 1, 'an explicit refresh cannot reuse the unknown predecessor either');
-      assert.deepEqual(statuses, [200]);
-    } else if (retryable) await until(() => client.session()?.token !== near.token);
-    assert.equal(client.session()?.principal, near.principal);
-    if (app) assert.equal(app.auth.state, 'signed-in');
-  });
-}
 for (const [name, invoke] of [
   ['guest', f => guest('http://auth.invalid', f)],
   ['signup', f => signup('http://auth.invalid', 'a', 'b', f)],
@@ -374,7 +309,7 @@ for (const tier of ['online', 'web']) for (const mode of ['overload', 'refusal',
   else { assert.ok(!links.includes('offline')); assert.equal(client.link(), 'online'); }
 });
 
-for (const tier of ['online', 'web']) for (const mode of ['overload', 'reset', 'invalid']) test(`${tier}: public session rotation ${mode} schedules only proven refusal retries`, async t => {
+for (const tier of ['online', 'web']) for (const mode of ['overload', 'reset', 'invalid']) test(`${tier}: public session rotation ${mode} retains mainline renewal scheduling`, async t => {
   const { url } = await server(t); const signed = await guest(url); assert.equal(signed.ok, true);
   let attempts = 0; const delays = [];
   const options = { url, session: signed.session, fetch: async (input, init) => {
@@ -392,7 +327,7 @@ for (const tier of ['online', 'web']) for (const mode of ['overload', 'reset', '
   const result = await client.refreshSession();
   assert.equal(result.why.code, mode === 'overload' ? 'E_RATE_LIMIT' : mode === 'invalid' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE');
   assert.equal(attempts, 1); assert.equal(client.link(), 'online');
-  assert.equal(delays.includes(60000), mode === 'overload', JSON.stringify(delays));
+  assert.ok(delays.includes(60000), JSON.stringify(delays));
 });
 
 test('public saved web backend opens connected after exhausted schema overload', async t => {
@@ -478,7 +413,7 @@ test('public transfers jitter beyond Retry-After and stop within their cumulativ
   assert.deepEqual(delays.filter(ms => ms > 0), [1125, 1125, 1125]);
 });
 
-for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public web probe recovery paces ${mode} and respects Retry-After`, { timeout: 10000 }, async t => {
+for (const tier of ['online', 'web']) for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public ${tier} probe recovery paces ${mode} and respects Retry-After`, { timeout: 10000 }, async t => {
   const { url } = await server(t, undefined, source), entered = deferred(), release = deferred(), probes = [], waits = [];
   const timeout = globalThis.setTimeout;
   t.mock.method(Math, 'random', () => 0.5);
@@ -486,7 +421,7 @@ for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public web 
     if (ms >= 1000 && ms <= 3750) { waits.push({ probe: probes.length, ms }); return timeout(fn, 20, ...args); }
     return timeout(fn, ms, ...args);
   });
-  const client = await createLocalClient({ url, persona: 'alice', device: webDevice({ wasm, persist: memoryPersistence() }), fetch: async (input, init) => {
+  const options = { url, persona: 'alice', fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/changes') { entered.resolve(); await release.promise; throw Error('lost change feed'); }
     if (path === '/probe') {
@@ -495,11 +430,13 @@ for (const mode of ['retryable', 'nonretryable', 'malformed']) test(`public web 
       return Response.json({ denied: { ...refusal, retryable: probes.length === 1 || mode === 'retryable' } }, { status: 503, headers: { 'Retry-After': '3' } });
     }
     return defaultFetch(input, init);
-  } });
+  } };
+  const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options, device: webDevice({ wasm, persist: memoryPersistence() }) });
   t.after(() => { release.resolve(); return client.close(); });
+  const watch = client.observe({ kind: 'query', name: 'live', runs: 'server' }, {}); t.after(watch.subscribe(() => {}));
   await entered.promise; release.resolve();
   await until(() => probes.length >= 3);
-  assert.equal(client.link(), 'online');
+  if (tier === 'web') assert.equal(client.link(), 'online');
   for (let probe = 1; probe <= 3; probe++) {
     const delay = waits.find(w => w.probe === probe);
     assert.ok(delay, `every unverified probe waits: ${JSON.stringify(waits)}`);
@@ -540,4 +477,20 @@ for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'qu
   assert.ok(delays.every(ms => ms >= 1000 && ms < 1250));
   assert.deepEqual(delays.slice().sort((a, b) => a - b), [1000, 1062.5, 1125, 1187.5]);
   assert.deepEqual([...calls.values()], [2, 2, 2, 2]);
+});
+
+for (const retryable of [false, undefined]) for (const tier of ['online', 'web']) test(`${tier}: nonretryable changes (${retryable}) is visible and stops polling`, { timeout: 10000 }, async t => {
+  const { url } = await server(t), signed = await guest(url), entered = deferred(), release = deferred(); let polls = 0;
+  const why = { code: 'E_STORE', family: 'store', message: 'the partition is gone', ...(retryable === false ? { retryable } : {}) };
+  const options = { url, session: signed.session, sessionStore: memorySessionStore(), fetch: async (input, init) => {
+    if (new URL(input).pathname === '/changes') { polls++; entered.resolve(); await release.promise; return Response.json({ denied: why }, { status: 500 }); }
+    return defaultFetch(input, init);
+  } };
+  const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options, device: webDevice({ wasm, persist: memoryPersistence() }) });
+  t.after(() => { release.resolve(); return client.close(); });
+  const watch = client.observe({ kind: 'query', name: 'list' }, {}); const stop = watch.subscribe(() => {}); t.after(stop);
+  await entered.promise; await until(() => 'data' in watch.getSnapshot()); release.resolve();
+  await until(() => watch.getSnapshot().denied?.code === 'E_STORE', JSON.stringify(watch.getSnapshot()));
+  assert.equal(client.link(), 'online'); await new Promise(resolve => setTimeout(resolve, 1400)); assert.equal(polls, 1);
+  assert.equal(watch.getSnapshot().denied?.message, why.message);
 });

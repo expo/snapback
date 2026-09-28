@@ -10,16 +10,6 @@ export function refusal(value: unknown): Refusal | undefined {
   return value as Refusal;
 }
 export const overloaded = (why?: Refusal): boolean => why?.code === 'E_RATE_LIMIT' && why.retryable === true;
-export const knownNonDispatch = new WeakSet<Refusal>();
-// Only connection establishment failures prove no request reached the peer.
-// Body errors, resets, timeouts after connect and opaque browser errors do not.
-export function provenNonDispatch(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const failure = error as { code?: string; cause?: unknown; errors?: unknown[] };
-  if (failure.errors?.length) return failure.errors.every(provenNonDispatch);
-  return ['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT'].includes(failure.code ?? '') ||
-    failure.cause !== undefined && failure.cause !== error && provenNonDispatch(failure.cause);
-}
 export function transportRefusal(error?: unknown): Refusal {
   const failure = error as { code?: string; message?: string; cause?: { code?: string; message?: string } } | undefined;
   const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.code ?? failure?.message;
@@ -43,6 +33,10 @@ function pause(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 export const jitter = (delay: number): number => delay * (1 + Math.random() * 0.25);
+/** An unsuccessful probe never establishes identity, even if the peer replied. */
+export function pauseProbe(response: Response | undefined, signal: AbortSignal): Promise<void> {
+  return pause(jitter(Math.max(1000, retryAfter(response?.headers.get('retry-after') ?? null))), signal);
+}
 export async function readResponse(response: Response, decode?: (response: Response) => Promise<Record<string, unknown>>): Promise<Record<string, unknown>> {
   let json: Record<string, unknown>;
   try { json = decode ? await decode(response) : await response.json() as Record<string, unknown>; }

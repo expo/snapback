@@ -75204,3 +75204,68 @@ Measured the round-2 artifact; no wasm inputs changed. No tool installation,
 other-lane edits, push or publication. LLP 3000 and the client reference land
 with the code. Report: reports/20260928-fu-fresh-replay-uploads/round4/REPORT.md.
 Local commit carries Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 5: overload scope restored, refresh custody deferred
+
+Read rounds 0–4's prompts, reports and lane journal entries, the full Astra
+round-3/4 reviews and earlier completed Astra/Grok findings. Applied llp-orient
+within the Snapback 4 fence and read the paved session reference. Fetched origin;
+main is still 9ef49d43c, so no merge. Followed the supervisor's re-scope: the
+ambiguous-refresh problem is a separate design lane, not another custody patch.
+
+Deleted the shared rotation claim/transaction modules, instance outcome fence,
+startup suppression, warning hook and online sessionStore option. Restored main's
+app persistence, session save, refresh scheduling/startup and I1–I13 model/tests.
+Only independent refresh improvements remain: validated refusal/status decoding,
+preserved transport causes, E_HTTP_RESPONSE for malformed refresh successes,
+and retryable E_AUTH without sign-out. Unknown delivery may be refreshed again
+as on main; no cross-client/restart protection is claimed. The new filesystem
+issue records startup, cross-client, restart, proven non-dispatch, stale
+restoration, storage failure and explicit account-replacement counterexamples,
+with token/lock custody, conditional restoration, durable proof, installation
+and actionable-warning constraints. It requires its own LLP before implementation.
+
+Retained server refusal/accounting/CORS and worker retry, all client transports,
+ambiguous once-view no-retry, nonretryable changes refusals and local probe
+pacing. Online probes now preserve Retry-After through the shared decoder and
+an abortable jittered delay, including nonretryable/malformed replies. The
+three-mode public header-removal control fails. No server, core, contract,
+capacity, dependency or wasm input changed this round.
+
+Astra r4 #3 passes on both tiers: stored A plus supplied near-expiry B sends B
+once, gets HTTP 200 and opens B, without deleting A as rejected authentication.
+Both cases pass on isolated main and fail on isolated round 4. Nine non-dispatch
+renewal cases pass on main and the final SDK; all six independent malformed/
+retryable-auth diagnostics fail on main and pass here. Twelve source/test
+comparisons confirm mainline refresh parity except the named retryable-auth
+condition. All round-2 confirmed reproductions pass; the selected 42-case main
+control has 36 expected failures and six positive controls. Every expected
+negative is individually named and attributed in the round-5 ledger.
+
+Affected client selections clear 567 distinct cases (109 overload, 17 refresh,
+317 delivery fault/census, 124 adjacent); server overload 3/3. Initial whole
+guide 97/98 found our unshipped issue link in the package reference; removed it,
+then the entire guide passes 98/98. Build/typecheck, docs budget, release guard,
+references and whitespace pass. local.ts is 1,492 lines; the 158 delivery await
+classifications and fault recipes are unchanged.
+
+scripts/test.sh ran exactly once with command-local NOFILE 4096, exit 1:
+`== 1 failure(s) in 1281 s`, category cargo test. Rust 4,295 pass / 1 fail /
+33 ignored; full client shards 4,561 pass / 0 fail / 0 cancelled / 10 skipped;
+all 79 client models pass, including 5,000 session sequences per tier; fixtures
+9/9. Its sole failure is ours, guide
+client::published::published_file_references_resolve_against_package_contents,
+the same link corrected above. No baseline/environmental full-run failures;
+no second full run or all-green full-suite claim. The failure ledger also
+retains three editing-boundary errors, one whitespace correction and all
+intentional controls. Product code did not change during the full run.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, budget
+593,719 B, headroom 711 B; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+Node 24.13.1, Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. LLP 3000 and the
+client reference withdraw the custody guarantee; historical reports and journal
+entries stay untouched. Report: reports/20260928-fu-fresh-replay-uploads/round5/REPORT.md.
+Issue: ../issues/20260928-snapback4-ambiguous-session-refresh.md. No shared tool
+installation, other-lane edits, push or publication. Local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.
