@@ -1,0 +1,38 @@
+{
+  "10pct": {
+    "search100": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": null
+    },
+    "insights": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": "asOf"
+    }
+  },
+  "50pct": {
+    "search100": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": null
+    },
+    "insights": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": "asOf"
+    }
+  },
+  "full": {
+    "search100": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": null
+    },
+    "insights": {
+      "all36BatchesDataEqual": true,
+      "all36BatchesMeterEqual": true,
+      "excludedDataField": "asOf"
+    }
+  }
+}

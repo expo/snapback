@@ -74910,3 +74910,31 @@ Report and evidence: reports/20260928-ex-social-example/round5/REPORT.md;
 LLP 3000.028 §8 and Revised record adoption. Native Expo/Hermes lifecycle
 qualification remains outstanding. No shared installation, push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — PF: scale curves and empty SQLite preflights
+
+Reproduced calibration #25's exact search100 and Insights probes on main
+`ddf317b139` with reconstructed, verified 10%/50% stores and a copy of the
+supplied full store. Nine balanced ten-read batches per checkpoint, before
+and after, record host load, Server-Timing and doctor histograms. SQL plans,
+VM counters and cache probes show bounded candidates/20 maintained points;
+the global storage trees gain a level at the midpoint.
+
+SQLite now skips the payload statement after a successful empty size preflight
+in the same snapshot. Every authorization, disclosure and meter charge remains.
+Insights saves 13/12/12 seeks; warmed page accesses fall 295/363/363 to
+230/291/291. Search saves one terminal seek. LLP 3000.007 §20.24.1 records
+the change. The primary after midpoint margins are −0.053 ms search and
++0.394 ms Insights. An adjacent control passes both (+0.083/+0.032 ms), but
+baseline search also passes that repeat; stable all-green timing is unproved.
+All rounds are retained, and the remaining search margin has a filesystem ticket.
+
+Two complexity regressions pass; the existing allocation probe pins zero
+payload executions for empty scans through 1,000 repetitions. Whole guide:
+98 passed. Final `scripts/test.sh`: `== 1 failure(s) in 1335 s` (`cargo test`),
+the same 16 device-search failures reproduced on baseline; every failure is
+classified in the report. Client tests: 4,366 passed, 10 skipped; models: 79
+passed. Wasm is unchanged at 2,040,545 B raw / 593,008 B gzip, 711 B below cap.
+Reference validation and scoped formatting pass. All measurement servers were
+stopped; all stores, tools and binaries stayed in this worktree. No push or
+publication. Full evidence: [PF report](reports/20260928-pf-scale-curves/REPORT.md).

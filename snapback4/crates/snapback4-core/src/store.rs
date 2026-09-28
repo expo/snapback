@@ -949,6 +949,7 @@ impl crate::rows::Rows for Tx<'_> {
             Dir::Asc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
             Dir::Desc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
         };
+        let mut found = false;
         {
             let mut statement = self.tx.prepare_cached(sizes)?;
             let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
@@ -958,8 +959,14 @@ impl crate::rows::Rows for Tx<'_> {
                 // Refusal drops/resets this statement without stepping again.
                 // Database pages and cached VM/statement storage remain shared images.
                 meter.heap(bytes.saturating_mul(2).saturating_add(64))?;
+                found = true;
             }
         }
+        // The preflight and payload read share this transaction's snapshot.
+        // An empty preflight already proves the result; avoid seeking the same
+        // absent range again. Keep the reservation and all preflight charges.
+        // @ref LLP 3000.007#20.24.1 — empty preflights need no payload statement.
+        if !found { return Ok(Vec::new()); }
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
         let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
         let mut out = Vec::new();

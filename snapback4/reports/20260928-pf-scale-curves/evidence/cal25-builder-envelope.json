@@ -1,0 +1,68 @@
+{
+  "start": 1790601351.829,
+  "builderOnly": true,
+  "deepPaging": {
+    "page1": {
+      "n": 20,
+      "p95": 4.977500000000077
+    },
+    "page50": {
+      "n": 20,
+      "p95": 5.18166599999995
+    }
+  },
+  "checks": {
+    "deepPaging": {
+      "ratio": 1.041017780010019,
+      "maximum": 3,
+      "pass": true
+    },
+    "following500": {
+      "ratio": 2.8898644930938624,
+      "maximum": 3,
+      "pass": true
+    },
+    "celebrityRead": {
+      "ratio": 0.6897502793458933,
+      "maximum": 3,
+      "pass": true
+    },
+    "celebrityWrite": {
+      "ratio": 1.0062581761401928,
+      "maximum": 3,
+      "pass": true
+    },
+    "search100": {
+      "ratio": 2.554017776384477,
+      "maximum": 3,
+      "pass": true
+    },
+    "search100MidCurve": {
+      "measured": 16.325832999998966,
+      "maximum": 15.193458333430398,
+      "pass": false
+    },
+    "insights": {
+      "ratio": 2.943068697171039,
+      "maximum": 3,
+      "pass": true
+    },
+    "insightsMidCurve": {
+      "measured": 5.007084000000759,
+      "maximum": 4.259537222355397,
+      "pass": false
+    },
+    "trending": {
+      "ratio": 1.5843762458539397,
+      "maximum": 3,
+      "pass": true
+    },
+    "trendingMidCurve": {
+      "measured": 4.609209000000192,
+      "maximum": 9.890398444349152,
+      "pass": true
+    }
+  },
+  "allBuilderChecksPass": false,
+  "end": 1790601352.27
+}
