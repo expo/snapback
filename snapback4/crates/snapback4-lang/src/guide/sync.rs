@@ -254,6 +254,8 @@ grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
 `online only`; `snapback4 test --residency` measures its cold rows. `check`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
+Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
+coverage; see `guide maintains` and the replica census in `guide offline-interactions`.
 
 ## Operations
 
@@ -404,4 +406,10 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 key, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync."##;
+column or index; do not make private rows public just to enable sync.
+For a maintained view, E_SYNC names inherited public sync from its source,
+without a horizon, and the conflicting explicit read. Keep the public read
+(or omit it) for the public offline summary, or use `online only` and lose
+offline aggregate/absence coverage. A view cannot declare a separate sync
+audience; do not narrow its public source to make it private. See `guide
+maintains` and `guide offline-interactions` for the replica census."##;

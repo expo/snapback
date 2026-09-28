@@ -287,6 +287,10 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
         format!("scale: examined ceiling {}; E_BOUND, with no write, if exceeded; {}", certificate.bounds.meters.examined, scale.strip_prefix("scale: ").unwrap_or(&scale))
     } else { scale };
     let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {scale}")];
+    // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — why must describe the same caller authority and whole-recipient meter as the refusal.
+    if program.kind == ProgramKind::Job {
+        lines.push("    system job: helpers share the chunk meter; inner recipient work must fit one chunk even when the outer sweep adapts. An oversized recipient parks with E_BOUND; no partial digest commits. A viewer query calling the helper keeps viewer authority and query bounds; first 50 is only a partial preview (guide jobs)".into());
+    }
     for aggregate in &certificate.aggregates { lines.push(format!("    {aggregate}")); }
     for growth in &certificate.growth_sites {
         let rewrite = if growth.rewrite.is_empty() { String::new() } else { format!("; rewrite: {}", growth.rewrite) };
@@ -313,7 +317,7 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
         lines.push("    no explicit reads".into());
     }
     for site in &sites {
-        let hoist = match site.kind {
+        let hoist = if program.kind == ProgramKind::Job && matches!(site.kind, "scan" | "point") { "system job: read rules pass" } else { match site.kind {
             "scan" => {
                 let scan = scans.iter().copied().find(|scan| scan.site == site.site);
                 match scan.map(|scan| scan_visibility(&bound.schema, scan)) {
@@ -326,10 +330,11 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             "point" => "one row, one rule check",
             "write target" => "engine-private lookup; the update rule decides",
             _ => "bounded walk",
-        };
+        }};
         let scan = scans.iter().copied().find(|scan| scan.site == site.site);
         let take = if scan.is_some_and(|scan| scan.take == ir::Bound::Meter) {
-            let digits = snapback4_core::Ceilings::default().examined.to_string();
+            let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
+            let digits = ceiling.examined.to_string();
             let examined = digits.chars().enumerate().map(|(i, c)| format!("{}{c}", if i > 0 && (digits.len() - i) % 3 == 0 { "," } else { "" })).collect::<String>();
             format!(" rows ≤ meter ({examined} examined)")
         } else if site.kind == "scan" {
@@ -343,6 +348,7 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
         }
         if let Some(scan) = scan {
             lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" }
+                else if scan.take == ir::Bound::Meter && program.kind == ProgramKind::Job { "      job domain: all inner work shares this chunk's meter; a refusal rolls back the chunk, never commits a partial total" }
                 else if scan.take == ir::Bound::Meter && bound.schema.table(&scan.table).is_some_and(|table| table.is_expiring()) { "      domain aggregate: complete the domain or refuse; no partial total" }
                 else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {
@@ -859,6 +865,9 @@ pub fn why(options: &Options) -> i32 {
         if let Some(table) = bound.schema.tables.get(subject).filter(|_|bound.schema.visible(subject)) {
             println!("table {subject}");
             println!("  residency: {}", snapback4_lang::bind::residency::table_line(&bound.schema, subject));
+            if let Some(source) = &table.residency.inherited_from {
+                println!("  inherited from {source} without a horizon; keep this audience for offline aggregate/absence coverage, or use online only and lose that coverage. Measure the replica census: snapback4 test --residency; guide maintains; guide offline-interactions");
+            }
             if table.residency.inferred { println!("  inferred from read <- {}", table.rules.read.quarry()); }
             println!("  read   <- {}", table.rules.read.quarry());
             println!("  insert <- {}", table.rules.insert.quarry());

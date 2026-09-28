@@ -89,9 +89,10 @@ A schedule may also target an action: `schedule renewal every 1m as service:bill
 
 ## A digest is a job that reads
 
-Seek the period, filter the ordinal. The helper serves the UI's separate
-`unreadTotals(periodStart, periodEnd)` query as the viewer and the scheduled
-job as the system; compare the same period and row state. An all-history total
+Seek the period, filter the ordinal. The per-chat `unreadIn` helper serves the
+UI's paged `unreadPreview(periodStart, periodEnd, c)` query as the viewer and
+the scheduled job as the system; compare the same period and row state. Follow
+every cursor to inspect all chats; one page is a preview. An all-history total
 can exceed this period's digest. Keep `inbox` locally complete: an unavailable
 unread total is unknown, not zero, and must not hide the conversation.
 Expired rows are absent from their expiry instant, even before deletion;
@@ -156,7 +157,7 @@ fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, 
 
 query inbox(c: cursor ?):
   return members where .principal = viewer first 20 by .conversationId after c { conversationId }
-query unreadTotals(periodStart: time, periodEnd: time, c: cursor ?):
+query unreadPreview(periodStart: time, periodEnd: time, c: cursor ?):
   return members where .principal = viewer first 20 by .conversationId after c { conversationId, unread: unreadIn(.conversationId, viewer, .readOrdinal, periodStart, periodEnd) }
 
 fn digestTotals(p: profiles, periodStart: time, periodEnd: time):
@@ -180,6 +181,15 @@ schedule daily every 1d at 08:00: digest
 Helpers inherit loop placement: `digestTotals` accumulates per recipient.
 Top-level helper sweeps still refuse cross-chunk accumulators.
 `break` and `continue` require a loop inside the helper.
+
+A viewer query calling `digestTotals` inherits query bounds and authority.
+Its membership loop fixes principal, but conversationId decides the read rule.
+E_QUARRY_BOUND names the caller chain at that loop. `first 50` would be a partial preview, not the
+job's complete total. Keep the complete scheduled job, or use a separately
+named paged per-chat preview like `unreadPreview` above and follow its cursor.
+One recipient's inner work must fit one chunk even when the outer sweep adapts;
+an oversized recipient parks without committing a partial digest. A helper
+never gives a query system authority. See `guide bounds`.
 
 The period predicate seeks messages in each recipient's current memberships.
 Expired, tombstoned, own, already-read and out-of-period messages contribute

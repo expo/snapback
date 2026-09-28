@@ -1,0 +1,18 @@
+{
+  "snapback/schema.q": {
+    "bytes": 24497,
+    "sha256": "3cac14ad097703a0106d0a2f64256b096e03c07702d34d577b5f52ed7a33c99e"
+  },
+  "run-log.md": {
+    "bytes": 38461,
+    "sha256": "9a576fb37f288408d4bbc912cd6e6abf052c9df59a3d8a529dff85420574cb33"
+  },
+  "scale-instance/.snapback4/store.sqlite": {
+    "bytes": 2418200576,
+    "sha256": "8a1ddcec183fabea3257c84a14d77d496a1d865813ac88e6111a01bfeadc3a07"
+  },
+  "scale-instance/.snapback4/store.sqlite-wal": {
+    "bytes": 57420472,
+    "sha256": "9833c6501edb2f26ca8ae4378921ce57094cfd2ade4a61e6b93f2d830aba673e"
+  }
+}

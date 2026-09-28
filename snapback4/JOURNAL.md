@@ -72200,3 +72200,55 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+
+## 2026-09-28 — Lane DG: inherited audiences and helper query bounds
+
+First fetched and merged origin/main: already up to date at a745b110f.
+Read accepted LLP 3000.028 in full, the Snapback 4 fence/design brief,
+exclusions, journal and relevant guide cards. Used llp-orient read-only from
+the initialized lane-a5 skill; no other lane or original evidence was changed.
+
+M6 retains the explicit-sync and narrower-read refusals, naming the resolved
+public source audience, inherited lack of a horizon, conflicting read and
+site, and each repair's offline consequence. The syntax diagnostic resolves
+cross-file declarations without admitting an operation. No repair narrows the
+public source. M8 retains the helper-loop refusal with the query/helper caller
+chain, authored read and deciding columns. A named first-50 preview needs its
+cursor; a complete scheduled total remains subject to the job chunk meter,
+and an oversized recipient parks without committing a partial digest.
+
+The compiler notes, why output and guide agree. Added the compiled
+'offline-interactions' card, with the 6,012-row / 1,342,672 logical-byte public
+census and the explicitly unimplemented owner-key alternative. why digest now
+prints the existing 16,384 examined-row job ceiling and system read authority,
+correcting presentation that used the 8,192 query ceiling. No runtime,
+authority, disclosure, schema serialization, client or meter change.
+
+Acceptance uses the full P19 builder, both invalid edits on both interaction
+views, direct/transitive helper callers and cross-file declarations. Original
+builder API is byte-identical to baseline. A 100-chat preview takes two pages;
+the unchanged job returns the full total. A 16,400-message recipient parks
+with zero effects/keys. On a writable full-store copy, u0500 has 4,460 unread
+messages across two pages; all 53 emitted recipients match independent source
+row enumeration. Only the copy disables development replay suppression; no
+worker or provider runs. Original evidence hashes remain unchanged.
+
+Final affected checks: 273 pass, including whole guide 92/92 and CLI 74/74;
+the explicit full-store witness adds one pass. The single requested full suite
+exited 1 with exact summary `== 1 failure(s) in 1850 s`, naming `cargo test`.
+Its four failures were ours: ergonomics' old syntax message, residency's old
+note, server_opt_in's substring keyword check, and the guide's one-word budget
+overrun. Each was corrected and its entire target passed afterward; the full
+suite was not rerun. All other stages passed, including client tests and 79
+model tests. No baseline or environmental test/build failures. Total duration
+exceeds the documented 60-second suite budget; no budget changed and no
+baseline timing comparison was run. The report preserves all development
+failures, including fixture/setup errors, and their corrected results.
+
+Wasm is byte-identical before/after: 2,019,815 B raw / 585,384 B gzip, delta
+0/0, 809 B below the unchanged 586,193 B cap. No tool installed or shared tool
+path changed. LLP 3000.028 has a Revised line and bounded implementation notes;
+remaining owner-key/history/search/integrated-client work is not claimed here.
+Report and compressed evidence: reports/20260928-dg/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

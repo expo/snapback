@@ -1,0 +1,13 @@
+{
+  "source": "worktree-owned full store copy after M8 witness; stored tagged row JSON bytes, excluding indexes, wire and database allocation",
+  "tables": {
+    "ownLikes": [
+      5008,
+      1121792
+    ],
+    "ownReposts": [
+      1004,
+      220880
+    ]
+  }
+}

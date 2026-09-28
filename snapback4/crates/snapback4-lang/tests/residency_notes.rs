@@ -137,8 +137,8 @@ fn maintain_sync_explains_inheritance_and_both_valid_choices() {
     assert_eq!(b.diagnostics.len(), 1);
     let d = &b.diagnostics[0];
     println!("{d}");
-    assert_eq!(d.message, "a maintain inherits its source's sync; `online only` opts out");
-    assert_eq!(d.rewrite, "remove this sync line to inherit, or replace it with `online only`");
+    assert_eq!(d.message, "view likeCounts cannot declare a separate sync audience; it inherits from likes");
+    assert_eq!(d.rewrite, "remove this sync line to inherit; `online only` opts out and loses offline aggregate/absence coverage; guide maintains; guide offline-interactions");
     clean(SOURCE);
     clean(&online());
 }
