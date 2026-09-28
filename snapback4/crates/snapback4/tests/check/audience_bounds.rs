@@ -41,3 +41,22 @@ fn unrelated_job_costs_keep_visibility_without_digest_advice() {
         }
     }
 }
+
+#[test]
+fn job_cost_advice_uses_the_pinned_groups_query_ceiling() {
+    let project = Project::new();
+    for (cap, query_ineligible) in [("  cap 10 by principal\n", false), ("  cap 10000 by principal\n", true), ("", true)] {
+        let source = format!("table members:\n  principal: principal\n  unread: int\n  by byPrincipal: principal, id\n{cap}  read <- .unread = 0\n  online only\nfn total(reader: principal):\n  n = 0\n  for m in members[principal = reader] by byPrincipal:\n    n = n + 1\n  return n\njob sweep():\n  for m in members:\n    n = total(m.principal)\n");
+        // The fitting-cap reproducer includes the legal query beside the job.
+        project.source(&(source + if query_ineligible { "" } else { "query preview():\n  return total(viewer)\n" }));
+        for args in [vec!["why", "sweep"], vec!["check", "--cost"]] {
+            let output = project.run(&args);
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+            let text = String::from_utf8(output.stdout).unwrap();
+            assert!(text.contains("rule checked per row"), "{text}");
+            for advice in ["helper(s) total share the chunk meter", "inner recipient work must fit one chunk", "first 50 is only a partial preview"] {
+                assert_eq!(text.contains(advice), query_ineligible, "{cap}: {text}");
+            }
+        }
+    }
+}

@@ -72297,3 +72297,48 @@ Did not run scripts/test.sh, per the round-1 instruction; the supervisor's
 landing suite is next. Report: reports/20260928-dg/ROUND1.md, with compressed
 logs and wasm-round1.json. No tools installed, other-lane/shared paths changed,
 push or publication. Local commit carries the co-author trailer.
+
+## 2026-09-28 — Lane DG round 2: query-cap eligibility and dedicated why gates
+
+Fetched and merged origin/main first: already up to date, no conflicts.
+Read both previous prompts/reports/entries and the complete round-1 Grok
+READY WITH CHANGES review. Kept the existing helper and non-uniform checks,
+and gated job-cost metadata on the query's examined ceiling: a pinned cap
+of 10 makes the helper query-eligible and removes the partial-preview advice;
+10,000 and no cap still record it. A cap on unpinned columns does not qualify.
+The query ceiling is 8,192, not the job's 16,384. No admission, authority,
+disclosure, IR, runtime meter or device change.
+
+E_QUARRY_SYNTAX's dedicated why page now leads with the generic sync-line
+repair and requires proved horizon-free public inheritance plus a narrower
+explicit read before explaining offline loss. E_QUARRY_BOUND's why page
+requires a non-uniform meter read inside a helper reached by a job before
+promising caller-chain/job context. The tests assert these conditional
+statements and reject the old ungated sentences. The builder's job-caller
+regression now reaches digestCounts through jobCounts and wrappedCounts.
+
+Compiler coverage checks loop and count-aggregate reads with cap 10, cap
+10,000, no cap, and a cap on an unpinned column. CLI coverage checks both
+why sweep and check --cost, with the legal preview present in the cap-10
+program. All four deliberate mutations fail their intended assertions:
+using the job ceiling, restoring either old why page independently, and
+expanding only direct job callees. Mutation source was restored before
+final checks.
+
+Final affected targets: 280 pass, including the whole guide 92/92 and CLI
+76/76; one external-store witness intentionally ignored as in round 1.
+Both ordinary runtime witnesses pass. The explicit diagnostics-registry
+rerun passes. Root ref-check: 522 LLPs, 9,751 refs, zero errors/unchecked.
+Wasm rebuilt after target removal is byte-identical to the preserved round-1
+artifact: 2,019,815 B raw / 585,384 B gzip, delta 0/0, 809 B under the unchanged
+budget. No tool installed or shared path changed.
+
+Failure attribution: two pre-fix assertions reproduce our round-1 defects;
+four deliberate mutation assertions fail as intended. No final, baseline
+or environmental test/build failures. Expected missing skill/target state
+was environmental setup, and one rejected doc-only patch context was ours;
+ROUND2.md records both. Existing compiler warnings remain baseline warnings.
+Did not run scripts/test.sh, per instruction; the supervisor owns landing
+qualification. Report and logs: reports/20260928-dg/ROUND2.md. LLP 3000.028
+Revised line and implementation notes updated. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

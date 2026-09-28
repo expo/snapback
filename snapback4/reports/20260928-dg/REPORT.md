@@ -1,5 +1,8 @@
 # Lane DG — audience and helper-bound diagnostics
 
+Round 2 fixes the remaining query-cap gate and dedicated why pages, and
+strengthens the job-caller traversal regression; see [ROUND2.md](./ROUND2.md).
+
 Round 1 narrows the diagnostic scope after the Astra/Grok reviews; see
 [ROUND1.md](./ROUND1.md) for the fixes, regression evidence and final checks.
 The record below is round 0, including its historical failure ledger and

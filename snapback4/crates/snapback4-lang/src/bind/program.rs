@@ -54,7 +54,7 @@ pub struct BoundProgram {
     pub result: Ty,
     pub notes: Vec<Diagnostic>,
     pub site: Site,
-    /// Job helpers with non-uniform meter reads; diagnostic context only, never IR/wire.
+    /// Job helpers with reads that need a non-uniform meter in a query too; never IR/wire.
     pub job_bound_helpers: std::collections::BTreeSet<String>,
 }
 
@@ -461,7 +461,12 @@ impl<'a> Binder<'a> {
         // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — job/preview advice belongs only to a helper with a query-ineligible meter read.
         if self.caller_kind == ProgramKind::Job && self.call_chain.len() > 1
             && scan.take == Bound::Meter && !snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
-            self.job_bound_helpers.insert(self.call_chain.last().unwrap().0.clone());
+            // Job domains always use the meter. A fitting pinned group cap instead
+            // gives a query a literal bound, bypassing its non-uniform meter refusal.
+            let cap = self.schema.group_bound(&scan.table, &index.columns[..read.keys.len()]);
+            if cap.is_none_or(|cap| u64::from(cap) > snapback4_core::Ceilings::default().examined) {
+                self.job_bound_helpers.insert(self.call_chain.last().unwrap().0.clone());
+            }
         }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))

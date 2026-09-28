@@ -78,8 +78,8 @@ fn parser_refusal_resolves_later_source_in_another_file_and_read_after_sync() {
 #[test]
 fn helper_refusal_finds_a_transitive_job_caller() {
     let source = BUILDER.replace("totals = digestCounts(profile.principal, periodStart, periodEnd)", "totals = jobCounts(profile.principal, periodStart, periodEnd)")
-        + "\nfn jobCounts(reader: principal, periodStart: time, periodEnd: time):\n  return digestCounts(reader, periodStart, periodEnd)\n";
-    assert!(!source.contains("totals = digestCounts("), "job must reach the helper through jobCounts");
+        + "\nfn jobCounts(reader: principal, periodStart: time, periodEnd: time):\n  return wrappedCounts(reader, periodStart, periodEnd)\nfn wrappedCounts(reader: principal, periodStart: time, periodEnd: time):\n  return digestCounts(reader, periodStart, periodEnd)\n";
+    assert!(!source.contains("totals = digestCounts("), "job must reach the helper through jobCounts and wrappedCounts");
     clean(&source);
     let d = refusal(&bound(&(source + PREVIEW)), "E_QUARRY_BOUND");
     contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts"]);
@@ -107,6 +107,30 @@ fn query_only_helper_gets_the_generic_prefix_repair() {
 }
 
 #[test]
+fn job_bound_helpers_require_a_query_ineligible_prefix() {
+    for body in [
+        "  n = 0\n  for m in members[principal = reader] by byPrincipal:\n    n = n + 1\n  return n\n",
+        "  return count(members[principal = reader] by byPrincipal)\n",
+    ] {
+        for (cap, query_ineligible) in [("  cap 10 by principal\n", false), ("  cap 10000 by principal\n", true), ("", true), ("  cap 10 by unread\n", true)] {
+            let source = format!("table members:\n  principal: principal\n  unread: int\n  by byPrincipal: principal, id\n{cap}  read <- .unread = 0\n  online only\nfn total(reader: principal):\n{body}job sweep():\n  for m in members:\n    n = total(m.principal)\n");
+            let b = clean(&source);
+            let job = b.programs.iter().find(|p| p.program.name == "sweep").unwrap();
+            let helpers: Vec<_> = job.job_bound_helpers.iter().map(String::as_str).collect();
+            assert_eq!(helpers, if query_ineligible { vec!["total"] } else { vec![] }, "{source}");
+            let preview = bound(&(source + "\nquery preview():\n  return total(viewer)\n"));
+            if query_ineligible {
+                let d = refusal(&preview, "E_QUARRY_BOUND");
+                contains(&d.message, &["viewer query caller chain: preview", "-> total"]);
+                contains(&d.rewrite, &["system job caller(s) sweep", "partial preview"]);
+            } else {
+                assert!(preview.diagnostics.is_empty(), "{:?}", preview.diagnostics);
+            }
+        }
+    }
+}
+
+#[test]
 fn query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context() {
     let original = clean(BUILDER);
     for wrapper in [false, true] {
@@ -127,8 +151,17 @@ fn guide_and_why_keep_the_replica_and_partial_total_consequences() {
     for keyword in ["maintains", "sync", "residency", "offline-interactions"] {
         contains(snapback4_lang::guide::card(keyword).unwrap(), &["offline", "horizon"]);
     }
-    let why = snapback4_lang::guide::explain_code("E_QUARRY_BOUND").unwrap();
+    let why = snapback4_lang::guide::explain_code("E_QUARRY_SYNTAX").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    contains(&why, &["Remove its sync line to inherit, or replace it with `online only`.",
+        "The offline-loss repair applies only when the view is proved to inherit horizon-free public sync and its explicit read is narrower.",
+        "An unsynced or online-only source supplies no partition for the view to lose.",
+        "lose offline aggregate/absence coverage"]);
+    excludes(&why, &["Remove the view's sync line, then keep its public read"]);
+    let why = snapback4_lang::guide::explain_code("E_QUARRY_BOUND").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
     contains(&why, &["caller chain", "first 50", "partial preview", "cursor", "one chunk", "parks"]);
+    contains(&why, &["Only for a non-uniform meter read inside a helper also reached by a job does the refusal name the caller chain and job.",
+        "Other non-uniform query prefixes keep the `first N`/cursor or deciding-column repair."]);
+    excludes(&why, &["The refusal stays at the failed loop and names the caller chain."]);
     let why = Diagnostic::new(&Default::default(), "E_SYNC", "", "").guide("maintains").explanation().unwrap();
     contains(&why, &["missing horizon", "offline aggregate/absence coverage", "guide offline-interactions"]);
     let definition = snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_MAINTAIN_SYNCED").unwrap().1;
