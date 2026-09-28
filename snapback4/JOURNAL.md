@@ -72200,3 +72200,47 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-28 — Lane OK: explicit owner-key coverage (LLP 3000.028 §3.4)
+
+Implemented `with own keys .principal` on admitted public windows. The compiler
+maintains a private horizon-free unique-key projection and owner index, rewrites
+only caller-proved full-key `exists`, and fences old devices with
+`owner-key-coverage`. Empty absence requires the exact caller’s durably published
+whole partition; source/key writes, overlays, reset and markers share existing
+transactions. Streaming backfill avoids a lifetime-key totals map. The guide’s
+social example opts in explicitly; existing programs are unchanged.
+
+The calibration builder without its interaction summaries passes §7.3 through
+public native and wasm clients, including zero/last-delete/reinsert, stale remote
+delete, predicted/unpredicted pending writes, sign-out/caller switch and stopped
+publication. Additional native SIGKILL, wasm save abort, failed server adoption
+and meter rollback tests pass. Original program/log/SQLite/WAL hashes match.
+
+Affected checks: 5 device, 3 compiler, 92 whole-guide, 81 authorization and
+15 timeline-adoption tests pass. Ran scripts/test.sh exactly once:
+`== 1 failure(s) in 1862 s` (`cargo test`). All four failed assertions were ours:
+one guide authoring census and three timeline fixture assumptions; corrected
+and scoped reruns pass. All other phases pass, including 3,845 client tests
+(10 environment/legacy skips) and all 79 client-model tests. The report retains
+every failed attempt and its classification.
+
+Measured all four alternatives on identical builder copies and 1k/100k/1m-key
+synthetic owners: wire, rows/indexes, SQLite, real Chromium IndexedDB, adoption,
+backfill, memory, write/lock p50/p95 and log/partition amplification. u0500
+wire falls from 5,370,455 B with public summaries to 3,431,615 B. Prolific owners
+remain expensive: the count/canonical-ID key representation can exceed full
+own rows. No universal saving is claimed. Million-row Chromium acquisition
+stalled in all four alternatives; partial IDB usage, elapsed lower bounds and
+RSS are recorded, with an open filesystem follow-up. No complete million-key
+browser replica is claimed.
+
+Wasm: 2,017,908 B raw / 585,100 B GNU gzip-9, down 1,907 / 284 B from the
+same-toolchain baseline, 1,093 B under the unchanged 586,193 B budget. No meter,
+dependency or budget increase. JS bundle measurements are in the report.
+LLP 3000.028 remains Accepted: this owner-key lane does not claim completion of
+its search/diagnostic lanes or the React/Expo UI recipes. No tools installed;
+no other lane edited. Local commit has the co-author trailer; no push/publish.
+
+Evidence: [report](./reports/20260928-ok-owner-key-coverage/REPORT.md), P19
+owner-coverage/owner-faults/owner-browser witnesses and own_keys_cost.rs.

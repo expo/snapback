@@ -81,7 +81,7 @@ pub fn lower(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &mut Vec
             let Some(reference_type) = schema.table(&a.source).and_then(|t|t.columns.get(&a.by)).cloned() else { continue };
             let owner = ColumnOwner { table: name.clone(), column: column.name.clone() };
             let target = owner.target();
-            let m = core::Maintain { row_key: None, parent_key: None, aliases: Default::default(), private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
+            let m = core::Maintain { own_keys: None, row_key: None, parent_key: None, aliases: Default::default(), private: Some(owner), source: a.source.clone(), target: target.clone(), by: vec![a.by.clone()],
                 kind: a.of.as_ref().map_or(core::MaintainKind::Count, |of|core::MaintainKind::Sum { of: of.clone() }),
                 filter, computed: BTreeMap::new(), residency: core::Residency { online_only: true, ..Default::default() }, readable: None };
             let parent = schema.tables.get_mut(name).expect("bound parent");

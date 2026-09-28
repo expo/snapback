@@ -1,0 +1,20 @@
+(node:2951414) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:fs:559
+  return binding.open(
+                 ^
+
+Error: ENOENT: no such file or directory, open '/home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/.work/ok/browser/dist/entry.js'
+    at Object.openSync (node:fs:559:18)
+    at readFileSync (node:fs:443:35)
+    at Server.<anonymous> (file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-browser.mjs:18:91)
+    at Server.emit (node:events:508:28)
+    at parserOnIncoming (node:_http_server:1210:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/.work/ok/browser/dist/entry.js'
+}
+
+Node.js v24.13.1

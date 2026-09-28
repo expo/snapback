@@ -76,9 +76,10 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         };
         let computed = match super::maintains::keys(&source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(&source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
-        schema.maintains.push(core::Maintain { row_key: None, parent_key: schema.tables[&maintain.source].through.clone().filter(|t| maintain.read.is_none() && maintain.by.contains(&t.reference)), aliases: super::maintains::inherited_aliases(&source,maintain), private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { own_keys: None, row_key: None, parent_key: schema.tables[&maintain.source].through.clone().filter(|t| maintain.read.is_none() && maintain.by.contains(&t.reference)), aliases: super::maintains::inherited_aliases(&source,maintain), private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     super::columns::lower(catalog, &mut schema, diagnostics);
+    super::own_keys::lower(catalog, &mut schema, diagnostics);
     schema.prepare_row_views();
     schema.prepare_contribution_indexes();
     for doc in &catalog.documents {

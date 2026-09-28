@@ -397,11 +397,17 @@ impl Parser {
             } else { SyncOrder::Index(self.word()?.value) };
             horizon = Some((n, order));
         }
+        let own_keys = if self.maybe("with") {
+            self.take("own")?;
+            self.take("keys")?;
+            self.take(".")?;
+            Some(self.word()?.value)
+        } else { None };
         if !self.at_kind(Kind::Newline) && !self.at_kind(Kind::Eof) {
             return Err(syntax_with(&site, format!("unexpected {} after the sync line", self.peek().value), rewrite));
         }
         self.newline()?;
-        Ok(SyncDecl { audience, horizon, site })
+        Ok(SyncDecl { audience, horizon, own_keys, site })
     }
 
     fn parse_retention(&mut self) -> Fallible<(String, Site)> {

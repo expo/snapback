@@ -137,6 +137,14 @@ impl Runner<'_> {
                 self.charge_maintain(MeterKind::Examined, 1)?;
                 self.charge_maintain(MeterKind::Steps, maintain.evaluation_steps())?;
                 if !maintain.selected(&image) { continue; }
+                // @ref LLP 3000.028#6 — a total unique owner key has one contribution; backfill streams bounded pages instead of retaining all lifetime keys in a totals map.
+                if maintain.own_keys.is_some() {
+                    let heap = self.meter.used.heap_bytes;
+                    self.meter.heap(target_bytes)?;
+                    self.apply_aggregate(maintain, maintain.source_key(&image), 1, Some(true))?;
+                    self.meter.used.heap_bytes = heap;
+                    continue;
+                }
                 self.meter.heap(target_bytes)?;
                 let key = maintain.source_key(&image);
                 let change = delta(maintain, &image, 1)?;
@@ -262,7 +270,7 @@ mod timeline_tests {
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
         for suffix in crate::schema::timeline::OWNED_SUFFIXES {
-            let maintain = Maintain { row_key: None, parent_key: None, aliases: Default::default(), target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
+            let maintain = Maintain { own_keys: None, row_key: None, parent_key: None, aliases: Default::default(), target: format!("feed{suffix}"), source: "follows".into(), by: vec!["readerId".into()],
                 kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None, private: None };
             let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
             assert_eq!(result.unwrap_err().code(), "E_TIMELINE_OWNED");

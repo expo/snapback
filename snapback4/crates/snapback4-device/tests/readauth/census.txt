@@ -81,8 +81,10 @@ card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]
 card/feeds/2:follow | never
 card/feeds/2:post | eligible
 card/feeds/2:remove | eligible
+card/feeds/2:repost | $ownKeys:reposts/maintain | {"Eq":[{"Field":"actorId"},"Viewer"]} | read rule
 card/feeds/2:repost | eligible
 card/feeds/2:unfollow | never
+card/feeds/2:unrepost | $ownKeys:reposts/maintain | {"Eq":[{"Field":"actorId"},"Viewer"]} | read rule
 card/feeds/2:unrepost | eligible
 card/feeds/3:create | never
 card/feeds/3:remove | never

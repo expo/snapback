@@ -1,0 +1,869 @@
+{
+  "chromium": "151.0.7922.34",
+  "results": [
+    {
+      "keys": 1000,
+      "mode": "summaries",
+      "viewer": "empty",
+      "coldOpenerMs": 1475.6999998092651,
+      "pages": 5,
+      "decodedRows": 9000,
+      "wireBytes": 1786996,
+      "peakJsHeap": 93092560,
+      "peakWasmHeap": 8912896,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          },
+          "ownLikes": {
+            "rows": 7000,
+            "bytes": 1048000
+          }
+        },
+        "totalBytes": 1813824,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 28573696
+      },
+      "estimate": {
+        "quota": 10739604576,
+        "usage": 2186336,
+        "usageDetails": {
+          "indexedDB": 2186336
+        }
+      },
+      "storage": {
+        "usage": 2186336,
+        "quota": 17833729182,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 2186336
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "summaries",
+      "viewer": "prolific",
+      "coldOpenerMs": 1546.1999998092651,
+      "pages": 5,
+      "decodedRows": 9000,
+      "wireBytes": 1786996,
+      "peakJsHeap": 93096096,
+      "peakWasmHeap": 8912896,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          },
+          "ownLikes": {
+            "rows": 7000,
+            "bytes": 1048000
+          }
+        },
+        "totalBytes": 1813824,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 28573696
+      },
+      "estimate": {
+        "quota": 10739597338,
+        "usage": 2179098,
+        "usageDetails": {
+          "indexedDB": 2179098
+        }
+      },
+      "storage": {
+        "usage": 2179098,
+        "quota": 17343576611,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 2179098
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "public",
+      "viewer": "empty",
+      "coldOpenerMs": 1117.0999999046326,
+      "pages": 4,
+      "decodedRows": 7000,
+      "wireBytes": 1054755,
+      "peakJsHeap": 93010874,
+      "peakWasmHeap": 6684672,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 7000,
+            "bytes": 842780
+          }
+        },
+        "totalBytes": 1075703,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 17104896
+      },
+      "estimate": {
+        "quota": 10739364263,
+        "usage": 1946023,
+        "usageDetails": {
+          "indexedDB": 1946023
+        }
+      },
+      "storage": {
+        "usage": 1946023,
+        "quota": 15728370771,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1946023
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "public",
+      "viewer": "prolific",
+      "coldOpenerMs": 1137,
+      "pages": 4,
+      "decodedRows": 7000,
+      "wireBytes": 1054755,
+      "peakJsHeap": 93020786,
+      "peakWasmHeap": 6684672,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 7000,
+            "bytes": 842780
+          }
+        },
+        "totalBytes": 1075703,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 17104896
+      },
+      "estimate": {
+        "quota": 10739364263,
+        "usage": 1946023,
+        "usageDetails": {
+          "indexedDB": 1946023
+        }
+      },
+      "storage": {
+        "usage": 1946023,
+        "quota": 13574649008,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1946023
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "own_rows",
+      "viewer": "empty",
+      "coldOpenerMs": 519.6999998092651,
+      "pages": 1,
+      "decodedRows": 2000,
+      "wireBytes": 306370,
+      "peakJsHeap": 93079155,
+      "peakWasmHeap": 4456448,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          },
+          "ownRows": {
+            "rows": 0,
+            "bytes": 0
+          }
+        },
+        "totalBytes": 312678,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 7143424
+      },
+      "estimate": {
+        "quota": 10738997603,
+        "usage": 1579363,
+        "usageDetails": {
+          "indexedDB": 1579363
+        }
+      },
+      "storage": {
+        "usage": 1579363,
+        "quota": 15254784703,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1579363
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "own_rows",
+      "viewer": "prolific",
+      "coldOpenerMs": 600.3000001907349,
+      "pages": 2,
+      "decodedRows": 3000,
+      "wireBytes": 455380,
+      "peakJsHeap": 93084726,
+      "peakWasmHeap": 4456448,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          },
+          "ownRows": {
+            "rows": 1000,
+            "bytes": 117890
+          }
+        },
+        "totalBytes": 464568,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 8847360
+      },
+      "estimate": {
+        "quota": 10739321995,
+        "usage": 1903755,
+        "usageDetails": {
+          "indexedDB": 1903755
+        }
+      },
+      "storage": {
+        "usage": 1903755,
+        "quota": 16817582762,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1903755
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "keys",
+      "viewer": "empty",
+      "coldOpenerMs": 540.8999996185303,
+      "pages": 1,
+      "decodedRows": 2000,
+      "wireBytes": 305493,
+      "peakJsHeap": 93079702,
+      "peakWasmHeap": 4456448,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          }
+        },
+        "totalBytes": 311812,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 7340032
+      },
+      "estimate": {
+        "quota": 10739071423,
+        "usage": 1653183,
+        "usageDetails": {
+          "indexedDB": 1653183
+        }
+      },
+      "storage": {
+        "usage": 1653183,
+        "quota": 13565150812,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1653183
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 1000,
+      "mode": "keys",
+      "viewer": "prolific",
+      "coldOpenerMs": 648.8000001907349,
+      "pages": 2,
+      "decodedRows": 3000,
+      "wireBytes": 520616,
+      "peakJsHeap": 94046270,
+      "peakWasmHeap": 4784128,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 242000
+          }
+        },
+        "totalBytes": 529815,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 9502720
+      },
+      "estimate": {
+        "quota": 10739105666,
+        "usage": 1687426,
+        "usageDetails": {
+          "indexedDB": 1687426
+        }
+      },
+      "storage": {
+        "usage": 1687426,
+        "quota": 17454773214,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1687426
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "summaries",
+      "viewer": "empty",
+      "coldOpenerMs": 29809.60000038147,
+      "pages": 54,
+      "decodedRows": 108000,
+      "wireBytes": 22479982,
+      "peakJsHeap": 97392368,
+      "peakWasmHeap": 42467328,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          },
+          "ownLikes": {
+            "rows": 106000,
+            "bytes": 15700000
+          }
+        },
+        "totalBytes": 22797824,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 362414080
+      },
+      "estimate": {
+        "quota": 10743352142,
+        "usage": 5933902,
+        "usageDetails": {
+          "indexedDB": 5933902
+        }
+      },
+      "storage": {
+        "usage": 5933902,
+        "quota": 16148297718,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 5933902
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "summaries",
+      "viewer": "prolific",
+      "coldOpenerMs": 28630.300000190735,
+      "pages": 54,
+      "decodedRows": 108000,
+      "wireBytes": 22479982,
+      "peakJsHeap": 112991391,
+      "peakWasmHeap": 42467328,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          },
+          "ownLikes": {
+            "rows": 106000,
+            "bytes": 15700000
+          }
+        },
+        "totalBytes": 22797824,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 362414080
+      },
+      "estimate": {
+        "quota": 10743387720,
+        "usage": 5969480,
+        "usageDetails": {
+          "indexedDB": 5969480
+        }
+      },
+      "storage": {
+        "usage": 5969480,
+        "quota": 17536409056,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 5969480
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "public",
+      "viewer": "empty",
+      "coldOpenerMs": 29088.700000286102,
+      "pages": 53,
+      "decodedRows": 106000,
+      "wireBytes": 15802737,
+      "peakJsHeap": 93039882,
+      "peakWasmHeap": 34537472,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 106000,
+            "bytes": 12713780
+          }
+        },
+        "totalBytes": 16114703,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 241565696
+      },
+      "estimate": {
+        "quota": 10744770444,
+        "usage": 7352204,
+        "usageDetails": {
+          "indexedDB": 7352204
+        }
+      },
+      "storage": {
+        "usage": 7352204,
+        "quota": 14189220151,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 7352204
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "public",
+      "viewer": "prolific",
+      "coldOpenerMs": 28573.299999713898,
+      "pages": 53,
+      "decodedRows": 106000,
+      "wireBytes": 15802737,
+      "peakJsHeap": 125909903,
+      "peakWasmHeap": 34537472,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 106000,
+            "bytes": 12713780
+          }
+        },
+        "totalBytes": 16114703,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 241565696
+      },
+      "estimate": {
+        "quota": 10746512471,
+        "usage": 9094231,
+        "usageDetails": {
+          "indexedDB": 9094231
+        }
+      },
+      "storage": {
+        "usage": 9094231,
+        "quota": 14795811824,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 9094231
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "own_rows",
+      "viewer": "empty",
+      "coldOpenerMs": 514.9000000953674,
+      "pages": 1,
+      "decodedRows": 2000,
+      "wireBytes": 302370,
+      "peakJsHeap": 93051839,
+      "peakWasmHeap": 4456448,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          },
+          "ownRows": {
+            "rows": 0,
+            "bytes": 0
+          }
+        },
+        "totalBytes": 308678,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 7077888
+      },
+      "estimate": {
+        "quota": 10739074250,
+        "usage": 1656010,
+        "usageDetails": {
+          "indexedDB": 1656010
+        }
+      },
+      "storage": {
+        "usage": 1656010,
+        "quota": 17701517557,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1656010
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "own_rows",
+      "viewer": "prolific",
+      "coldOpenerMs": 32902.40000009537,
+      "pages": 51,
+      "decodedRows": 102000,
+      "wireBytes": 15397354,
+      "peakJsHeap": 93051986,
+      "peakWasmHeap": 34013184,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          },
+          "ownRows": {
+            "rows": 100000,
+            "bytes": 11988890
+          }
+        },
+        "totalBytes": 15697568,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 247660544
+      },
+      "estimate": {
+        "quota": 10741667373,
+        "usage": 4249133,
+        "usageDetails": {
+          "indexedDB": 4249133
+        }
+      },
+      "storage": {
+        "usage": 4249133,
+        "quota": 16552599196,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 4249133
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "keys",
+      "viewer": "empty",
+      "coldOpenerMs": 486.2999997138977,
+      "pages": 1,
+      "decodedRows": 2000,
+      "wireBytes": 301493,
+      "peakJsHeap": 93081726,
+      "peakWasmHeap": 4456448,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          }
+        },
+        "totalBytes": 307812,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 7340032
+      },
+      "estimate": {
+        "quota": 10739053905,
+        "usage": 1635665,
+        "usageDetails": {
+          "indexedDB": 1635665
+        }
+      },
+      "storage": {
+        "usage": 1635665,
+        "quota": 15965331102,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 1635665
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    },
+    {
+      "keys": 100000,
+      "mode": "keys",
+      "viewer": "prolific",
+      "coldOpenerMs": 25263.5,
+      "pages": 51,
+      "decodedRows": 102000,
+      "wireBytes": 21807590,
+      "peakJsHeap": 102974789,
+      "peakWasmHeap": 41025536,
+      "residency": {
+        "tables": {
+          "likes": {
+            "rows": 2000,
+            "bytes": 240000
+          }
+        },
+        "totalBytes": 22107815,
+        "totalBytesKind": "logical",
+        "wasmHeapBytes": 355008512
+      },
+      "estimate": {
+        "quota": 10742984207,
+        "usage": 5565967,
+        "usageDetails": {
+          "indexedDB": 5565967
+        }
+      },
+      "storage": {
+        "usage": 5565967,
+        "quota": 14952294252,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 5565967
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    }
+  ]
+}

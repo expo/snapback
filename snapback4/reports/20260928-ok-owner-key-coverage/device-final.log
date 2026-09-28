@@ -1,0 +1,68 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:121:5
+    |
+121 | /     d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+122 | |         AuthAction::Insert {table_name:"_meta"} => Authorization::Deny,
+123 | |         _=>Authorization::Allow,
+124 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+121 |     let _ = d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:126:5
+    |
+126 |     d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+126 |     let _ = d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:140:5
+    |
+140 | /     e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+141 | |         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
+142 | |         _=>Authorization::Allow,
+143 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+140 |     let _ = e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:145:5
+    |
+145 |     e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+145 |     let _ = e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: `snapback4-device` (test "own_keys") generated 4 warnings
+    Finished `test` profile [optimized] target(s) in 10.88s
+     Running tests/own_keys.rs (target/debug/deps/own_keys-08eeff2898fa2b81)
+
+running 5 tests
+test source_and_keys_share_the_unchanged_write_meter_and_rollback ... ok
+test memory ... ok
+test adoption_failure_never_publishes_an_empty_key_set ... ok
+test failed_partition_publication_keeps_absence_unavailable ... ok
+test sqlite ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s

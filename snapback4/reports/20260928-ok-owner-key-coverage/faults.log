@@ -1,0 +1,11 @@
+file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-faults.mjs:12
+assert.ok(backend.schema.capabilities.includes('owner-key-coverage'));
+                         ^
+
+TypeError: Cannot read properties of undefined (reading 'capabilities')
+    at file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-faults.mjs:12:26
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.13.1
