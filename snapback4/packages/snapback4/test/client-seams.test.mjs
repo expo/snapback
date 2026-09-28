@@ -15,12 +15,22 @@ import { processDevice } from "../dist/native.js";
 import { guest, signup, login, memorySessionStore } from "../dist/auth.js";
 import { mintSession } from "../dist/worker.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
+import { ServerClock } from "../dist/clock.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=", "base64");
 const mutation = name => ({ kind: "mutation", name });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+// Gate both dispatch and delivery: a sync already in flight must not publish
+// an acknowledgement after the fixture chooses the HTTP-retry interleaving.
+async function gatedSync(input, init, blocked) {
+  if (blocked()) return Response.json({}, { status: 503 });
+  const response = await fetch(input, init);
+  if (!blocked()) return response;
+  await response.body?.cancel();
+  return Response.json({}, { status: 503 });
+}
 async function until(check, ms = 10000) {
   const end = Date.now() + ms;
   for (;;) { const value = await check(); if (value) return value; if (Date.now() >= end) throw new Error("timed out waiting"); await sleep(20); }
@@ -188,16 +198,24 @@ for (const release of [false, true]) test(`W7c ${release ? "serve ignores" : "de
 for (const tier of ["online", "web", "native"]) {
   async function callerFixture(t) {
     const f = await fixture(t);
-    let offline = false, drop = false;
+    let offline = false, drop = false, retryRequired = false, beforeThrow;
     const attempts = [], replies = [];
     const open = async () => {
       const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: async (input, init) => {
         if (offline) throw new TypeError("offline");
+        if (new URL(input).pathname === "/sync") return gatedSync(input, init, () => retryRequired && replies.length < 2);
         if (!String(input).includes("/m/")) return fetch(input, init);
         attempts.push({ path: new URL(input).pathname, ...JSON.parse(init.body) });
         const response = await fetch(input, init);
         replies.push(await response.clone().json());
-        if (drop) { drop = false; throw new TypeError("committed acknowledgement lost"); }
+        if (drop) {
+          drop = false;
+          await beforeThrow;
+          // The ticket's reproducer stays in the fixture: the ordering must
+          // survive a delayed failure, not depend on an immediate throw.
+          await sleep(100);
+          throw new TypeError("committed acknowledgement lost");
+        }
         return response;
       } };
       const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "web" ? f.web : f.device });
@@ -205,7 +223,8 @@ for (const tier of ["online", "web", "native"]) {
       if (!offline && tier !== "online") await client.sync();
       return client;
     };
-    return { ...f, open, attempts, replies, offline: value => { offline = value; }, drop: () => { drop = true; } };
+    return { ...f, open, attempts, replies, offline: value => { offline = value; },
+      drop: ({ retry = false, held } = {}) => { drop = true; retryRequired = retry; beforeThrow = held; } };
   }
 
   test(`W6d ${tier}: caller id retries share pending writes and retained receipts`, async t => {
@@ -285,7 +304,7 @@ for (const tier of ["online", "web", "native"]) {
 
   test(`W6d ${tier}: two client POSTs with the caller id apply once after a lost reply`, async t => {
     const f = await callerFixture(t), client = await f.open(), id = mintId();
-    f.drop();
+    f.drop({ retry: true });
     const first = await client.mutate(mutation("record"), { n: 7 }, { id });
     assert.equal(first.id, id);
     await client.mutate(mutation("record"), { n: 7 }, { id });
@@ -299,6 +318,34 @@ for (const tier of ["online", "web", "native"]) {
     assert.deepEqual(await reopened.mutate(mutation("record"), { n: 7 }, { id }), receipt);
     assert.equal(f.attempts.length, tier === "online" ? 3 : 2);
     t.diagnostic(`tier=${tier} retry_posts=2 applied=1 historical_results=0`);
+  });
+
+  if (tier !== "online") test(`W6d ${tier}: one client POST recovers the caller id from sync after a lost reply`, async t => {
+    const f = await callerFixture(t), client = await f.open(), id = mintId();
+    const lost = Promise.withResolvers();
+    t.after(() => lost.resolve());
+    const events = []; client.onWrite(write => events.push(write));
+    f.drop({ held: lost.promise });
+    const first = await client.mutate(mutation("record"), { n: 7 }, { id, waitSeconds: 0 });
+    assert.equal(first.id, id); assert.equal(first.state, "pending");
+    await until(() => f.replies.length === 1);
+    // Queue acquisition behind the still-held mutation, before its failure
+    // can schedule a retry. The real sync publishes the committed receipt.
+    const acquired = client.sync();
+    lost.resolve();
+    await acquired;
+    const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
+    await until(() => events.some(write => write.id === id));
+    assert.deepEqual(await client.write(id), receipt);
+    assert.deepEqual(await client.mutate(mutation("record"), { n: 7 }, { id }), receipt);
+    assert.deepEqual(events.filter(write => write.id === id), [receipt]);
+    assert.equal(f.attempts.length, 1); assert.equal(f.attempts[0].id, id);
+    const rows = (await f.post("/q/receipts", { args: {} })).data;
+    assert.equal(rows.length, 1); assert.equal(rows[0].n, 7);
+    await client.close(); const reopened = await f.open();
+    assert.deepEqual(await reopened.write(id), receipt);
+    assert.equal(f.attempts.length, 1);
+    t.diagnostic(`tier=${tier} recovery_posts=1 applied=1 terminal_events=1 replayed=true`);
   });
 
   if (tier !== "online") test(`W6d ${tier}: reopen deduplicates the queued caller id before prediction`, async t => {
@@ -404,13 +451,13 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
       // Exercise the HTTP replay receipt deterministically. Acquisition is
       // temporarily unavailable until that reply arrives; otherwise sync can
       // acknowledge the id first and correctly avoid the second POST.
-      if (String(input).endsWith("/sync") && dropped && replies.length < 2) return Response.json({}, { status: 503 });
+      if (new URL(input).pathname === "/sync") return gatedSync(input, init, () => attempts.length > 0 && replies.length < 2);
       if (!String(input).endsWith("/m/record")) return fetch(input, init);
       attempts.push(JSON.parse(init.body));
       const response = await fetch(input, init);
       const reply = await response.clone().json();
       replies.push(reply);
-      if (!dropped) { dropped = true; throw new TypeError("first committed acknowledgement lost"); }
+      if (!dropped) { dropped = true; await sleep(100); throw new TypeError("first committed acknowledgement lost"); }
       return response;
     };
     const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: transport };
@@ -580,8 +627,11 @@ test("online createApp ignores settings that apply only with a device", { timeou
 test("ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes", async t => {
   const f = await fixture(t);
   let offline = false, assetRequests = 0;
+  const clock = new ServerClock(), fork = clock.fork.bind(clock);
+  let liveClock;
+  clock.fork = () => liveClock = fork();
   const gated = (...args) => { if (String(args[0]).includes("/assets/")) assetRequests++; return offline ? Promise.reject(new TypeError("offline")) : fetch(...args); };
-  const options = { url: f.url, persona: "alice", device: f.device, waitSeconds: 1, fetch: gated, assets: { keep: "viewed", maxBytes: png.length * 2 } };
+  const options = { url: f.url, persona: "alice", device: f.device, waitSeconds: 1, fetch: clock.wrap(gated), assets: { keep: "viewed", maxBytes: png.length * 2 } };
   let local = await createLocalClient(options); f.clients.push(local);
   const place = async (op = "attach", until = null) => {
     const uploaded = await local.upload(png); assert.equal(uploaded.ok, true, JSON.stringify(uploaded));
@@ -613,8 +663,14 @@ test("ordinary media survives a process-device offline reopen; once never persis
     await f.post(`/m/${op}`, { args: { id: item.row } }); await local.sync();
     assert.equal((await manifest()).length, 0, op); assert.equal(await stored(item.id), "", op);
   }
-  const expiring = await place("attach", Date.now() + 1000); await view(expiring.id);
+  // Place/view first, then cross this exact declared deadline while offline.
+  // Upload and device startup must not consume a one-second fixture lifetime.
+  const deadline = Date.now() + 60_000;
+  const expiring = await place("attach", deadline); await view(expiring.id);
   offline = true; await local.sync();
+  assert.equal((await manifest()).length, 1);
+  const wall = Date.now();
+  liveClock.sample(deadline, wall, wall, "fixture:1");
   await until(async () => (await manifest()).length === 0);
   assert.equal(await stored(expiring.id), "", "idle offline expiry purges bytes without a stream");
   offline = false; await local.sync(); await until(() => local.link() === "online");

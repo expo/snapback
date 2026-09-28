@@ -440,6 +440,8 @@ for (const withdrawn of [{ loading: true }, { denied: why }]) test(`app facade f
 });
 
 test("online keep preserves the existing expiry withdrawal before a held refetch", async t => {
+  let now = Date.now();
+  t.mock.method(Date, "now", () => now);
   const held = deferred(); let reads = 0;
   const client = createClient({ url: "http://keep-expiry.test", persona: "alice", fetch: async (input, init) => {
     if (new URL(input).pathname === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
@@ -450,6 +452,9 @@ test("online keep preserves the existing expiry withdrawal before a held refetch
   t.after(async () => { held.resolve(); await client.close(); });
   const watch = client.observe(q, {}, { keep: true });
   await until(() => watch.getSnapshot().data === "expires");
+  now += 99;
+  assert.equal(watch.getSnapshot().data, "expires");
+  now += 1;
   await until(() => reads === 2);
   assert.deepEqual(watch.getSnapshot(), { loading: true });
   held.resolve(); await until(() => watch.getSnapshot().data === null);

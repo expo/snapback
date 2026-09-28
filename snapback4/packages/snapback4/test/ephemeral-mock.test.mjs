@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { setTimeout as delay } from 'node:timers/promises';
 import { createMockClient } from '../dist/mock.js';
 import { until } from './helpers/app-server.mjs';
 const set = { kind: 'mutation', name: 'setTyping', ephemeral: true, renews: true, renewMs: 250 };
 const list = { kind: 'query', name: 'typing', ephemeralReads: ['typing'] };
 
 test('mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1_700_000_000_000 });
+  t.mock.method(performance, 'now', () => Date.now());
   const table = new Map(), writes = [];
   const client = createMockClient({ viewer: 'alice', tables: { typing: table, viewing: new Map() }, ephemeral: { typing: 1000, viewing: 2000 },
     ops: { mutations: {}, queries: { typing: tables => [...tables.typing.values()] }, signals: {
@@ -18,11 +19,14 @@ test('mock renews unchanged rows, expires per table, rolls back refusals, and ne
   assert.equal(await client.write(signal.id), undefined); assert.equal(table.size, 0, 'caller fixture has no lasting ephemeral rows');
   const watch = client.observe(list, {}); t.after(() => watch.close());
   assert.equal(watch.getSnapshot().data.length, 1);
-  await delay(650); await client.mutate(set, {});
-  await delay(600); assert.equal(watch.getSnapshot().data.length, 1, 'empty patch renewed');
+  t.mock.timers.tick(650); await client.mutate(set, {});
+  t.mock.timers.tick(600); assert.equal(watch.getSnapshot().data.length, 1, 'empty patch renewed');
   const refusal = await client.mutate({ ...set, name: 'refuse', renews: undefined }, {});
   assert.equal(refusal.why.code, 'NO'); assert.equal(client.tables.typing.has('refused'), false);
-  await until(() => watch.getSnapshot().data.length === 0);
+  t.mock.timers.tick(399);
+  assert.equal(watch.getSnapshot().data.length, 1, 'renewed row survives until its own deadline');
+  t.mock.timers.tick(1);
+  assert.equal(watch.getSnapshot().data.length, 0);
   assert.equal(client.tables.viewing.size, 1, 'longer table life remains');
   client.setLink('offline'); assert.equal((await client.mutate(set, {})).why.code, 'E_OFFLINE');
   assert.deepEqual(await client.query(list, {}), { loading: true });

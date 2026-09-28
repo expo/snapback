@@ -1,0 +1,38 @@
+[
+  {
+    "name": "client-tests",
+    "exit": 1
+  },
+  {
+    "name": "acquisition-0",
+    "exit": 0
+  },
+  {
+    "name": "acquisition-1",
+    "exit": 0
+  },
+  {
+    "name": "acquisition-2",
+    "exit": 0
+  },
+  {
+    "name": "acquisition-3",
+    "exit": 0
+  },
+  {
+    "name": "server-e2e-0",
+    "exit": 0
+  },
+  {
+    "name": "server-e2e-1",
+    "exit": 0
+  },
+  {
+    "name": "server-e2e-2",
+    "exit": 0
+  },
+  {
+    "name": "client-models",
+    "exit": 0
+  }
+]

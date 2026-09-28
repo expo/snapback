@@ -1,0 +1,60 @@
+packages/snapback4/test/keep-app-expiry.test.mjs:11:  const url = "http://app-kept-memory.test", wall = Date.now(), deadline = wall + 3_600_000;
+packages/snapback4/test/ephemeral-e2e.test.mjs:66:      await delay(150); // Settle startup/incarnation queries; the next write must wake this poll.
+packages/snapback4/test/ephemeral-e2e.test.mjs:93:        const deadline = performance.now() + 5500;
+packages/snapback4/test/ephemeral-fencing.test.mjs:59:  await until(() => !staleOnce); await delay(150);
+packages/snapback4/test/ephemeral-fencing.test.mjs:76:  await delay(100);
+packages/snapback4/test/client-seams.test.mjs:215:          await sleep(100);
+packages/snapback4/test/client-seams.test.mjs:459:      if (!dropped) { dropped = true; await sleep(100); throw new TypeError("first committed acknowledgement lost"); }
+packages/snapback4/test/client-seams.test.mjs:588:    persona: "bob", guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
+packages/snapback4/test/client-seams.test.mjs:662:  const expiring = await place("attach", Date.now() + 1000); await view(expiring.id);
+packages/snapback4/test/client-seams.test.mjs:1132:  await until(() => holds.length === 1); await sleep(150); assert.equal(done, false);
+packages/snapback4/test/ephemeral-capability.test.mjs:90:  await delay(650);
+packages/snapback4/test/ephemeral-capability.test.mjs:100:  const session = token => ({ principal: 'user:bob', kind: 'user', token, expiresAt: Date.now() + 7 * 86400_000 });
+packages/snapback4/test/ephemeral-capability.test.mjs:127:  await delay(650);
+packages/snapback4/test/expiry-retry-watch.test.mjs:21:  const end = Date.now() + 10000;
+packages/snapback4/test/expiry-retry-watch.test.mjs:22:  do { if (await check()) return; await sleep(10); } while (Date.now() < end);
+packages/snapback4/test/expiry-retry-watch.test.mjs:92:    const deadline = Date.now() + 3600000, later = deadline + 100;
+packages/snapback4/test/retention-lifecycle.test.mjs:67:    await keepSession(options.url, { token: "alice", principal: "alice", kind: "guest", expiresAt: Date.now() + 30 * 86400_000 }, sessionStore);
+packages/snapback4/test/keep-reset.test.mjs:26:    const session = { kind: "user", token: "old-token", principal, expiresAt: Date.now() + 90 * 86400000 };
+packages/snapback4/test/expired-server-watch.test.mjs:22:      const clock = new ServerClock(() => Date.now() + 60_000);
+packages/snapback4/test/expired-server-watch.test.mjs:43:            assert.ok(answer.nextExpiry < Date.now() + 60_000);
+packages/snapback4/test/expired-server-watch.test.mjs:95:      await delay(1100); // Beyond even the capped retry delay.
+packages/snapback4/test/expired-server-watch.test.mjs:112:      const clock = new ServerClock(() => Date.now() + (replay ? 60_000 : 0));
+packages/snapback4/test/expired-server-watch.test.mjs:130:            assert.ok(answer.nextExpiry < Date.now() + 60_000);
+packages/snapback4/test/ephemeral-watches.test.mjs:31:    await delay(1150);
+packages/snapback4/test/ephemeral-watches.test.mjs:81:    await delay(150); // No startup query or incarnation-reset response can deliver the following write.
+packages/snapback4/test/ephemeral-watches.test.mjs:121:      if (query === queried[1]) await delay(900);
+packages/snapback4/test/ephemeral-watches.test.mjs:145:    const calls = queried.length; await delay(1100); assert.equal(queried.length, calls, 'complete stops the cadence');
+packages/snapback4/test/keep-observation.test.mjs:222:  const session = { kind: "user", token: "old", principal: "alice", expiresAt: Date.now() + 90 * 86400000 };
+packages/snapback4/test/keep-observation.test.mjs:341:  const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
+packages/snapback4/test/keep-observation.test.mjs:371:  const url = "http://app-keep-expiry.test", wall = Date.now(), deadline = wall + 3_600_000;
+packages/snapback4/test/keep-observation.test.mjs:447:    if (++reads === 1) return Response.json({ ...ready("expires"), nextExpiry: Date.now() + 100 });
+packages/snapback4/test/server-clock-wire.test.mjs:158:    viewer: 'dev:alice', now: Date.now() + 4000, new_ids: [], predicted: [], predictable: false };
+packages/snapback4/test/server-clock-wire.test.mjs:205:    offset: -31 * 86_400_000, last: Date.now() + 120_000,
+packages/snapback4/test/server-clock-wire.test.mjs:213:  assert.ok(Math.abs(client.now() - Date.now() + 31 * 86_400_000) < 1000);
+packages/snapback4/test/ephemeral-mock.test.mjs:21:  await delay(650); await client.mutate(set, {});
+packages/snapback4/test/ephemeral-mock.test.mjs:22:  await delay(600); assert.equal(watch.getSnapshot().data.length, 1, 'empty patch renewed');
+packages/snapback4/test/client-lifecycle.test.mjs:29:  do { const value = await check(); if (value) return value; await sleep(10); } while (Date.now() < end);
+packages/snapback4/test/client-lifecycle.test.mjs:123:  await sleep(300);
+packages/snapback4/test/client-lifecycle.test.mjs:369:      queryReply.resolve(Response.json({ data: ["late"], complete: true, seq: 1, tables: ["rows"], nextExpiry: Date.now() + 100_000 }));
+packages/snapback4/test/client-lifecycle.test.mjs:401:      queryReply.resolve({ ok: { data: ["late"], complete: true, tables: ["rows"], unknown: false, nextExpiry: Date.now() + 100_000 } });
+packages/snapback4/test/client-lifecycle.test.mjs:415:  const session = { principal: "user:1", kind: "user", token: "token", expiresAt: Date.now() + 100_000 };
+packages/snapback4/test/client-lifecycle.test.mjs:462:  expiresAt = Date.now() + 80;
+packages/snapback4/test/client-lifecycle.test.mjs:468:  expiresAt = Date.now() + 80;
+packages/snapback4/test/client-lifecycle.test.mjs:474:  await sleep(120);
+packages/snapback4/test/native-e2e.test.mjs:84:    const reconnectDeadline = Date.now() + 20_000;
+packages/snapback4/test/ephemeral-adoption.test.mjs:87:    await delay(150);
+packages/snapback4/test/ephemeral-adoption.test.mjs:152:  await delay(150);
+packages/snapback4/test/keep-clock.test.mjs:44:  const wall = Date.now(), serverDeadline = wall + 3_600_000, deviceNow = wall + 7_200_000, deviceDeadline = deviceNow + 100;
+packages/snapback4/test/keep-clock.test.mjs:147:    const wall = Date.now(), deadline = wall + 3_600_000, gate = Promise.withResolvers();
+packages/snapback4/test/retention-store-withdrawal.test.mjs:36:        await keepSession(url, { token: "alice", principal: "alice", kind: "guest", expiresAt: Date.now() + 30 * 86400_000 }, sessionStore);
+packages/snapback4/test/server-clock-regressions.test.mjs:69:        tables: [], seq: 0, store_id: 'clock', nextExpiry: Date.now() + f.offset + 1000 };
+packages/snapback4/test/server-clock-regressions.test.mjs:120:  const f = fixture(t, 'fallback'), deadline = Date.now() + f.offset + 300;
+packages/snapback4/test/server-clock-regressions.test.mjs:137:  const deadline = Date.now() + f.offset + 4000;
+packages/snapback4/test/server-clock-regressions.test.mjs:191:  f.meta.set('syncedAt:wall:1', String(Date.now() + 4000));
+packages/snapback4/test/server-clock-regressions.test.mjs:216:  observation.publish({ ...response, fresh: false, since: Date.now() + 4000 });
+packages/snapback4/test/server-clock-regressions.test.mjs:246:  const f = fixture(t, 'fallback'), start = Date.now() + f.offset, localDeadline = start + 300;
+packages/snapback4/test/server-clock-regressions.test.mjs:301:  const f = fixture(t, 'composition'), deadline = Date.now() + f.offset + 300;
+packages/snapback4/test/keep-authority-react.test.mjs:68:await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 86400000 }, memory);
+packages/snapback4/test/keep-incarnation.test.mjs:66:  const session = { token: "old", kind: "user", principal: "dev:alice", expiresAt: Date.now() + 90 * 86400000 };
+packages/snapback4/test/keep-expiry.test.mjs:56:  const deadline = Date.now() + 60_000;
