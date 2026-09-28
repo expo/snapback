@@ -1,0 +1,6 @@
+Host: Linux x86_64
+xcrun: unavailable
+Documented ~/Dropbox/APIKeys/MACHINE_FLEET.md: absent
+FLEET_AUTO_UPDATE=off fleet machines: []
+~/.ssh/config: absent (no separately configured SSH target)
+Native Expo simulator witness: not run; no available Mac target.

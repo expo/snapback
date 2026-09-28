@@ -162,7 +162,7 @@ fn rewrite(value: &mut Expr, inputs: &Inputs, functions: &BTreeMap<String, Funct
                 let mut browse = merge.clone();
                 browse.matching = None;
                 for lane in &mut browse.lanes {
-                    lane.planned = Some(Box::new(ReadExpr {
+                    lane.planned = Some(Box::new(ReadExpr { cursor_prefix: None,
                         table: merge.table.clone(), index: Some(merge.index.clone()), computed: index.computed.clone(),
                         keys: lane.prefix.iter().enumerate().map(|(i, value)| KeyPart {
                             column: lane.columns.as_ref().and_then(|names| names.get(i).cloned().flatten()).or_else(|| index.columns.get(i).cloned()),

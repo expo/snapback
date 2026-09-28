@@ -443,7 +443,7 @@ impl<'a> Binder<'a> {
         }
         let spelling = if !read.order_keys.is_empty() { self.catalog.read_origins.get(&read.site.to_string()).cloned() } else { None };
         self.sources.insert(scan_site.clone(), (read.site.clone(), spelling.unwrap_or_else(|| print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() }))));
-        let mut scan = Scan {
+        let mut scan = Scan { cursor_pins: read.cursor_prefix.map_or(0, |old| (read.keys.len() - old) as u32),
             variant: self.variant(),
             site: scan_site,
             table: read.table.clone(),
@@ -756,7 +756,7 @@ impl<'a> Binder<'a> {
                 }
             }
             // @ref LLP 3000.007#20.12 — a merge predicate uses each lane's existing metered filter, before a candidate can be emitted.
-            let read = ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: merge.filter.clone(), seeks: Vec::new(), site: lane.site.clone() };
+            let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys: lane.prefix.iter().enumerate().map(|(position, value)| ast::KeyPart { column: lane.columns.as_ref().and_then(|c| c.get(position).cloned().flatten()), value: value.clone(), site: value.site().clone() }).collect(), index: Some(merge.index.clone()), range: Some(ast::RangeSpec { order: merge.order, take: merge.take, cursor: None, site: lane.site.clone() }), matching: matching.clone(), filter: merge.filter.clone(), seeks: Vec::new(), site: lane.site.clone() };
             let (mut scan, _) = self.scan(&read, &mut setup)?;
             self.pop_scope();
             scan.after = cursor_expr.clone().map(Box::new);
@@ -1019,7 +1019,7 @@ impl<'a> Binder<'a> {
                 return Ok(WriteKey { index: "byId".into(), key: vec![ir::var(&id)], alternate: false });
             }
         }
-        let read = ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
+        let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: info.decl.name.clone(), keys: keys.to_vec(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let (bound, index, _) = self.select_index(info, &read, ReadMode::Point, out)?;
         let key = self.order_keys(info, &index, bound)?;
         if index.name == "byId" {

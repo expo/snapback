@@ -367,7 +367,7 @@ fn raw_private_reads_and_every_resolved_dependency_are_refused() {
     let b = compile(MODEL);
     let private = b.schema.maintains[0].target.clone();
     let point=Read {table:private.clone(),index:"byId".into(),key:vec![Expr::Literal(id("p"))],site:"private".into(),provenance:KeyProvenance::Computed};
-    let scan=Scan { variant: None,table:private.clone(),index:"byId".into(),prefix:vec![],order:Order::Asc,take:Bound::Literal(1),site:"private".into(),provenance:KeyProvenance::Computed,existence:false,after:None,before:None,range:None,filter:None,opaque_cursor:false,merge_site:None};
+    let scan=Scan { cursor_pins: 0, variant: None,table:private.clone(),index:"byId".into(),prefix:vec![],order:Order::Asc,take:Bound::Literal(1),site:"private".into(),provenance:KeyProvenance::Computed,existence:false,after:None,before:None,range:None,filter:None,opaque_cursor:false,merge_site:None};
     for expression in [Expr::Get(point.clone()),Expr::Exists(point),Expr::Scan(scan)] {
         let program = Program { name:"private".into(),kind:ProgramKind::Query,args:BTreeMap::new(),read_time_granularity_ms:None,native:false,returned_shapes:Default::default(),body:vec![Stmt::Return(expression)] };
         let error = Engine::memory(b.schema.clone(),[program]).err().unwrap();

@@ -1,0 +1,10 @@
+query history(conversation: a conversations reference, c: cursor ?)
+  returns a page of at most 20 messages rows
+  history: runs: device
+    Horizon: scan messages by byHistory: sync to members[.conversation] last 500 by byHistory; selected byHistory (conversation = conversation); result: page; explicit by (site schema.q:293:10 (messages[conversation = conversation])); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+  query history:
+    scale: constant once background cleanup catches up; until then at most 8193 rows examined: expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+      programs.history.0: expired messages rows not yet swept, skipped before 20 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+    scan messages.byHistory last 20 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population

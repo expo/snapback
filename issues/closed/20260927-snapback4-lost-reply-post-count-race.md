@@ -1,6 +1,6 @@
 # Snapback 4: lost-reply test races sync receipt recovery
 
-- **Status:** Open
+- **Status:** Closed
 - **Date:** 2026-09-27
 - **Area:** `snapback4/packages/snapback4/test/client-seams.test.mjs:286`
 - **Observed during:** lane DC round 8, sole `scripts/test.sh` run on `03b510f4c`
@@ -65,3 +65,24 @@ Separately keep coverage for successful recovery through sync with one POST.
 Do not force a redundant production POST or relax the exactness assertion to
 hide which recovery path the test exercised. This unrelated fixture repair
 was not folded into the small delivery-bound round.
+
+## Resolution — 2026-09-28, Lane FL
+
+Confirmed on merged main `ea7ecc896` with the exact 100 ms delayed throw:
+one POST committed and sync recovered the sent receipt; the two-POST assertion
+failed. This was a fixture race, not a product failure.
+
+The caller-id retry fixture now gates both sync dispatch and reply delivery
+from before admission until the second HTTP reply has arrived. All three
+tiers retain exact two-POST / identical-input / one-row assertions and the
+100 ms delayed throw. New web and native tests explicitly queue sync behind
+the held first POST before allowing the loss, and require exactly one POST,
+one terminal event, a replayed sent receipt without a result, one row and
+receipt survival on reopen.
+
+The immediate/queued replay sibling now starts its sync gate before sending
+the first mutation, instead of only after receiving that mutation's reply;
+it also retains the delayed-throw reproduction. Product code is unchanged.
+
+Qualification, the sibling census, every failure and raw evidence:
+[`Lane FL report`](../../snapback4/reports/20260928-fl-client-flakes/REPORT.md).

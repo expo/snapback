@@ -1,0 +1,62 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=95",
+    "packages/snapback4/test/client-seams.test.mjs",
+    "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "packages/snapback4/test/keep-observation.test.mjs",
+    "packages/snapback4/test/client-lifecycle.test.mjs"
+  ],
+  "files": [
+    "client-seams",
+    "ephemeral-keep",
+    "ephemeral-mock",
+    "keep-observation",
+    "client-lifecycle"
+  ],
+  "repetitions": 50,
+  "parallel_invocations": 8,
+  "concurrency": 95,
+  "burners": [
+    2269027,
+    2269028,
+    2269029,
+    2269030,
+    2269031,
+    2269032,
+    2269033,
+    2269034,
+    2269035,
+    2269036,
+    2269037,
+    2269038,
+    2269039,
+    2269040,
+    2269041,
+    2269042,
+    2269043,
+    2269044,
+    2269045,
+    2269046,
+    2269047,
+    2269048,
+    2269049,
+    2269050,
+    2269051,
+    2269052,
+    2269053,
+    2269054,
+    2269055,
+    2269056,
+    2269057,
+    2269058
+  ],
+  "started": 1790591409.3348434,
+  "load": [
+    3.00537109375,
+    6.05029296875,
+    12.39111328125
+  ]
+}

@@ -1,0 +1,13 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2.67s
+     Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-10a09d18001533fd)
+
+running 5 tests
+test unsafe_optional_conflicting_and_nonleading_equalities_stay_residual ... ok
+test full_unique_equality_keeps_the_original_page_type ... ok
+test unchanged_calibration_program_compiles ... ok
+test existing_prefix_constraints_survive ... ok
+test paired_plans_residual_order_limit_and_cross_spelling_cursors ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
