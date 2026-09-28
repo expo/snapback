@@ -40,10 +40,8 @@ impl Runner<'_> {
         crate::cursor::check_variant(position, variant)?;
         #[cfg(feature = "server-search")]
         let index = self.ordinary_search_cursor.as_ref().filter(|(physical, _)| physical == index).map_or(index, |(_, public)| public.as_str());
-        if position.table != table || position.index != index || position.order != order || position.suffix != suffix {
-            return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Descriptor)));
-        }
-        Ok(())
+        position.check_descriptor(table, index, order, suffix)
+            .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
 
     /// One head per uniform lane, then advance only the winning lane. Each
@@ -75,7 +73,8 @@ impl Runner<'_> {
         {
             // The merge's initial cursor validation also allocates decode scratch.
             if metered_merge || first.variant.is_some() { self.validate_word_cursor(&token, &first.table, &first.index, order, &suffix, first.variant)?; }
-            else { decode_cursor_for(self.schema, &token, &first.table, &first.index, order, &suffix)
+            else { decode_cursor(self.schema, &token)
+                .and_then(|position| position.check_descriptor(&first.table, &first.index, order, &suffix))
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?; }
             if metered_merge { self.word_shape_cursor(site, token)?; }
             else { self.record_shape_cursor(site, Some(token)); }

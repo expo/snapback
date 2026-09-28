@@ -1,0 +1,32 @@
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.25s
+     Running tests/intent_aggregate_safety.rs (target/debug/deps/intent_aggregate_safety-d7733a6155e5a3ff)
+
+running 5 tests
+test aggregate_endpoint_proofs_follow_helper_parameter_types ... ok
+test aggregate_lone_lower_bound_seeks_without_examining_the_prefix ... ok
+test aggregate_named_id_prefix_keeps_single_row_filtering ... ok
+test aggregate_bounds_preserve_nullable_parameter_narrowing ... ok
+test aggregate_bounds_preserve_division_and_overflow_guards ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+     Running tests/intent_order.rs (target/debug/deps/intent_order-bc417706e6a779ee)
+
+running 3 tests
+test nested_table_orders_normalize_before_planning ... ok
+test union_order_after_literal_id_keeps_cross_branch_ties ... ok
+test table_order_after_id_has_identical_plans_and_cursor_pages ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-10a09d18001533fd)
+
+running 5 tests
+test unsafe_optional_conflicting_and_nonleading_equalities_stay_residual ... ok
+test full_unique_equality_keeps_the_original_page_type ... ok
+test existing_prefix_constraints_survive ... ok
+test unchanged_calibration_program_compiles ... ok
+test paired_plans_residual_order_limit_and_cross_spelling_cursors ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s

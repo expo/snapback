@@ -107,7 +107,7 @@ impl Parser {
             probe_stops.push("<probe-shape>");
             let value = self.prefix(&probe_stops)?;
             let value = if token.value == "exists" && let Expr::Name { name, site } = &value {
-                Expr::Read(ReadExpr { order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() })
+                Expr::Read(ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() })
             } else { value };
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
@@ -285,7 +285,7 @@ impl Parser {
                 // `t first N by index`: the whole table's page, the empty
                 // prefix spelled without brackets, as `chunk` takes it.
                 let Expr::Name { name, site } = value else { unreachable!() };
-                value = Expr::Read(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
+                value = Expr::Read(ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: name, keys: Vec::new(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site });
             } else if matches!(value, Expr::Name { .. } | Expr::Read(_)) && self.at("limit") && self.peek_at(1).kind == Kind::Number {
                 let site = self.take("limit")?.site;
                 let n = self.number()?;
@@ -349,7 +349,7 @@ impl Parser {
             }
         }
         self.take("]")?;
-        Ok(ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
+        Ok(ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
     }
 
     pub(super) fn parse_range(&mut self, mut read: ReadExpr, start: usize, probe: bool) -> Fallible<ReadExpr> {

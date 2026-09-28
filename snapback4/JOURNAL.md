@@ -72462,6 +72462,128 @@ Evidence: [round 1 report](./reports/20260928-ok-owner-key-coverage/ROUND1.md)
 and its round1 logs/measurements. The prior journal entry remains historical;
 this entry corrects its sign-out interpretation without rewriting it.
 
+## 2026-09-28 — Lane EQ: equality coverage on a selected index
+
+First fetched origin and merged origin/main; already up to date at
+`a745b110f2187004abb1cec8380b33b6d1396108`. Read LLP 3000.028 in full and
+oriented to its history acceptance and the selected-index planner. Safe,
+explicit equality now extends a selected plain index's contiguous prefix.
+Residual predicates, existing keys, ordering, cursor and page type survive;
+unsafe/optional/conflicting values, bare Boolean filters and gaps stay
+residual. No authorization, disclosure, meter, schema or runtime change.
+
+The separate P19 equality fixture removes historyHeld and the archived query
+selector. The immutable original still compiles; every surviving operation's
+IR and the schema match. Public process/wasm witnesses pass paired spelling,
+empty and 10,000-message groups, the exact 500-row floor, a timestamp-tie
+variant, durable publication, departure, remount, offline reopen and rejoin.
+The full-scale arm uses a private copy of the calibration store and original
+membership mutations; input hashes remain unchanged. React/IndexedDB runs the
+copied receipt hook through delayed route/progress reads without lost IDs,
+duplicates, draft or focus. Native Expo remains unqualified: Linux has no
+xcrun or available Mac/Fleet/SSH target. Full section 7.1 is not claimed.
+
+Final affected compiler/diagnostic tests: 34/34; whole guide: 92/92. Added
+named/positional prefix-extension assertions: 5/5. Settled process/wasm/React
+witnesses: 3/3; copied calibration-store witness: 1/1. scripts/test.sh ran
+once, with eight Cargo jobs and serial client files. Exact summary:
+`== 1 failure(s) in 5060 s`, listing `cargo test`. Its sole failed target was
+familiar_repairs, nested_key_repairs_keep_conjuncts_bounds_and_order: ours,
+fixed by extracting only explicit equalities, with final affected checks
+passing. Other suite phases passed: clients 3,901 passed, zero failed, ten
+existing environment-gated skips; models 79/79 with full seed counts.
+
+Every failure: ours, initial namespace fixture, source-coordinate comparison,
+and publication-watch request attribution; plus the introduced diagnostic
+regression in the full suite and its first targeted retry. All corrected;
+five failing invocations, four distinct issues. Baseline test failures: zero.
+Environmental test failures: zero; native Expo and ten opt-in client checks
+are unrun/skipped, with exact reasons in the report. The full suite retains
+its original red and is not represented as a final-tree green rerun.
+
+Wasm: 2,019,815 B raw / 585,384 B gzip, byte-identical to the same-toolchain
+baseline, delta 0/0; unchanged budget 586,193 B, 809 B headroom. No tool
+installed, shared tool path changed, push or publication. LLP 3000.028's
+Revised line and implementation notes record this scope and qualification
+limit. Report and durable observations: reports/20260928-eq/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+The staged whitespace audit also found trailing blanks in seven captured
+text logs (ours); trimming only trailing whitespace/blank EOF resolves them.
+Failure text and exact summaries are unchanged; compressed observations
+remain byte-exact against their manifest. Final reference audit: 522 LLPs,
+9,752 refs, zero errors/unchecked.
+
+## 2026-09-28 — Lane EQ round 1: conservative extraction and old cursors
+
+First fetched origin and merged origin/main; already up to date. Read the
+binding round-0 prompt/report/journal and Astra's full NOT READY review.
+Grok had no verdict at startup and was not awaited. This entry supersedes
+round 0's broad compatibility claims with the narrower rule below.
+
+Selected plain-index normalization now extracts only leading, safe,
+non-optional equalities on explicit pages. It never consumes the final index
+component; authored seeks and unpaged reads keep their original binding
+path. Regression tests preserve checked BAD_ROW and division E_DIV_ZERO,
+full-prefix scan/result shapes, existing bounds, originally invalid bounds
+and unpaged admission failures. Argument and literal variants are covered;
+a deliberate reject-all-literals mutation fails the new paired literal test.
+The builder's history case still normalizes and its surviving executable
+fields match the bracket fixture, apart from explicit cursor compatibility
+metadata. The separate equality fixture still removes historyHeld and the
+archived selector; the immutable original remains untouched.
+
+Normalized cursor pages mark only the number of extracted components in a
+defaulted Scan field appended to preserve old map and positional forms.
+The runtime validates a baseline descriptor's table, index, order, typed
+suffix, generation, variant and original prefix before converting it.
+Matching positions lose the pinned values; filter-reject meter cuts before
+or past the new group keep their continuation meaning in both directions.
+Unmarked plans retain strict validation. Twenty-four actual baseline-minted
+tokens cover direction, existing prefixes, arguments/literals and page/cut
+positions; continuation tests find no loss or duplication. Shared descriptor
+validation and removal of redundant decoding keep this under the wasm cap.
+No authorization, disclosure, meter, schema or version change.
+
+Both round-1 history runs pass all four process/wasm/React/calibration cases.
+The final rebuilt-artifact run archives 462 paired observations, including
+exact next-cursor equality, plus publication watches and React collections.
+It covers empty and 10,000-message groups, the exact 500-row floor, timestamp
+ties, publication, departure, remount, offline reopen and rejoin. Original
+program/log/SQLite/WAL hashes remain unchanged after the final rerun.
+Native Expo remains an environmental qualification gap: this Linux host has
+no xcrun or available documented Mac/Fleet/SSH target. Full section 7.1 is
+not claimed; process and React do not qualify Expo.
+
+Affected compiler tests 62/62, guide 92/92, core corpus/disclosure/meter 58/58
+and device codec 11/11 pass. scripts/test.sh ran exactly once. Exact summary:
+`== 1 failure(s) in 1856 s`, listing `cargo test`. The sole failing test was
+ours: lane_source's old positional Scan decoder, because cursor_pins was
+initially first. Appending it fixes the regression; all 10 lane-source tests,
+all 12 EQ tests and the whole 92-test guide pass afterward. Final workspace,
+client and wasm builds and the repeated witnesses pass. The original full
+suite red remains recorded, without claiming a second green complete run.
+All other suite stages passed, including 3,901 client tests (10 existing
+skips) and 79 client models with full seed counts.
+
+Every failure is classified in reports/20260928-eq/round1/REPORT.md: ours
+include deliberate round-0/mutation reproductions, test harness/constructor/
+target-name mistakes, six intermediate overbudget wasm builds, the full-suite
+positional decoder regression and corrected shell setup/read mistakes.
+Baseline test failures zero; environmental test failures zero. Expo remains
+unrun, and the ten opt-in client skips retain their reasons in the suite log.
+
+Final wasm: 2,020,387 B raw / 586,133 B gzip, +572/+749 B over the rebuilt
+same-toolchain round-0 baseline, for scoped legacy cursor conversion and its
+metadata. Unchanged cap 586,193 B; 60 B headroom. SHA-256:
+4f97bd8c5edc0100398cda8df1993221264861def35f2b47fb2f8fe5f5efbc3a.
+A Binaryen trial was installed only under this worktree's .work, with its
+npm cache there too; its worse gzip result was not used. No shared tool path,
+budget or dependency changed. LLP 3000.028's Revised line and implementation
+notes, the sync guide and the report record this scope and qualification gap.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
 ## 2026-09-28 — Lane DG: inherited audiences and helper query bounds
 
 First fetched and merged origin/main: already up to date at a745b110f.
@@ -73333,3 +73455,106 @@ initially lacked #fetch imports; copying its manifest made the intended tests
 run and fail. No baseline or environmental qualification failure was identified.
 Reports/round5 retain every log and seed; ROUND4.md archives the preceding report.
 Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-28 — Lane EQ round 2: inclusive legacy cursors preserve shape refusal
+
+First fetched origin and merged origin/main (80036b466), preserving both
+sides of the RFC revision-line and journal conflicts in merge c296e5f92.
+The final audit verifies every full parent-journal line remains in order and
+every complete RFC revision entry survives. Read both prior prompts, reports
+and EQ entries and Astra's full round-1 NOT READY review. Grok had no verdict
+at startup and was not awaited. The planner is unchanged in this round.
+
+A validated old cursor inside the newly pinned scope now records a normalized
+suffix descriptor and evaluated prefix alongside its converted position.
+Shape no-progress detection thus compares the same row as the scan. A first
+follow of an inclusive unfinished-shape cursor refuses E_SHAPE_EXCEEDS_METER
+immediately, without an extra empty meter-cut page. Existing validation and
+out-of-scope filter-reject continuation behavior are unchanged.
+
+Two saved tokens are engine-minted with the pre-EQ selected-index compiler
+path restored: one item, 9,000 details, default 8,192-row ceiling, first and
+last. Minting checks that the baseline follow already refuses. Both new
+regressions fail against round 1's runtime with Astra's exact extra-page
+behavior and pass with the fix. The existing continuation test also alters
+each prefix component in a fresh current-format token and requires E_INPUT.
+Astra's prefix-bypass mutation now fails that test; every temporary source
+mutation was restored before final qualification.
+
+Final checks: 14 EQ tests, all 92 guide tests, 68 core corpus/disclosure/meter/
+positional-decoder tests, 67 server continuation/shape tests, 134 device
+continuation/shape tests across memory and SQLite, and 11 device codec tests:
+386 passed, zero failed or ignored. Module filters leave unrelated tests
+unrun. Reference audit and staged whitespace checks pass. scripts/test.sh
+was not run, as instructed; round 1's historical exact summary remains
+`== 1 failure(s) in 1856 s`, `cargo test`, for the since-corrected lane-owned
+positional Scan decoder. No green complete-suite claim is substituted.
+
+All round-2 failures are ours and recorded in the report: the two deliberate
+pre-fix failures; the deliberate prefix-bypass mutation; an initial fixture
+context carrying undeclared k; two Cargo commands naming a module as a target;
+an intermediate wasm build 108 B over budget; corrected exploratory paths,
+merge revision parsing and a too-strict append-only merge audit. Concurrent
+merge conflicts were resolved with both sides intact. Final affected tests
+and builds pass; baseline/environmental test failures are zero. Existing
+native Expo qualification is still unrun, so full section 7.1 is not claimed.
+Round 1's paired history recordings remain historical evidence, not reruns.
+
+Official same-toolchain wasm: 2,020,770 B raw / 586,142 B gzip, +383/+9 B over
+the byte-identical merged round-1 baseline. Reusing the existing suffix
+constructor avoids the new typed-vector drain code. Unchanged budget
+586,193 B leaves 51 B headroom. Final SHA-256:
+8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b.
+No tool installation, shared-path change, budget/version/dependency change,
+push or publication. LLP 3000.028's Revised line and implementation notes,
+fixture provenance and reports/20260928-eq/round2/REPORT.md record the scope,
+commands, exact results, every failure and raw evidence hashes. The local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — Lane EQ round 3: composite shape and residual disjunction tests
+
+Read rounds 0–2 prompts, reports and EQ entries, Astra's complete round-2
+READY WITH CHANGES review and the preceding Astra/Grok reviews. This round
+is test-only on round-2 commit 361ca4cea. Fetched origin/main 5763da073;
+it has seven new commits, but did not merge because the round-3 source
+freeze and supervisor's running landing suite supersede the earlier merge
+instruction. Product source and LLPs remain unchanged; this is one append.
+
+The unfinished-shape helper retains both one-column tests and adds first/last
+cases with index (lane, bucket, id), predicate lane = 0 and bucket = 7,
+one item and 9,000 details under the unchanged 8,192-row meter. Two actual
+baseline-engine inclusive tokens, minted in a private copy with only the
+pre-EQ selected-index compiler path restored, refuse on their first follow.
+Current normalized tokens must do the same. The removed == 1 shape mutation
+leaves all 14 previous EQ tests green but fails both new composite tests
+with the extra empty meter-cut page and cursor (15 passed / 2 failed overall).
+
+The disjunction regression requires both arms' rows in first/last order for
+.key = k or .second = 0, with a third nonmatching row excluded and no prefix.
+Making split recurse through or fails its returned-ID assertion. Mutations
+only touched private copies and were restored. No product correction.
+
+Final qualification: 17 EQ, 92 whole-guide, 67 server continuation/shape and
+134 device continuation/shape tests pass: 310 passed, zero failed or ignored.
+Reference, whitespace, source-scope, evidence-hash and append-only checks pass.
+scripts/test.sh was not run, as instructed. Round 1's historical
+== 1 failure(s) in 1856 s (cargo test, the subsequently fixed positional Scan
+decoder) is unchanged; the supervisor owns the landing suite. Historical
+history/browser observations and the unrun native Expo gap remain unchanged.
+
+Every failure is recorded in reports/20260928-eq/round3/REPORT.md. All are
+ours: three intentional mutation test failures; a corrected report-parser
+assertion; an initially shared Cargo target reusing the or mutant, causing
+one EQ and two guide failures; and exploratory path/cache inspection errors.
+Qualification stopped on that unexpected invocation. No source/test edits
+followed; separate target directories plus clearing the three affected
+package artifacts restored the identical-source green results above.
+Baseline/environmental test failures: zero. Failed logs remain preserved.
+
+Existing round-2 wasm remeasured without rebuilding: 2,020,770 B raw /
+586,142 B GNU file-input gzip-9, zero growth, unchanged 586,193 B cap,
+51 B headroom; SHA-256 8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b.
+No tool install, budget/version change, push or publication. Tests, fixtures,
+mutation patches, commands, exact summaries and hashes are in the round-3
+report directory. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

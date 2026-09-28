@@ -6,7 +6,7 @@
 use super::rules::{self, Probe};
 use super::authorized_scan::Authorization;
 use super::runner::{PagePosition, Runner};
-use crate::cursor::{CursorColumn, CursorPosition, CursorScope, decode_cursor, decode_cursor_for, encode_cursor};
+use crate::cursor::{CursorColumn, CursorPosition, CursorScope, decode_cursor, encode_cursor};
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::schema::{Effect, Index, Table, materialize_optional_fields};
@@ -580,14 +580,12 @@ impl<'r> Runner<'r> {
         }
         match after {
             None | Some(Value::Null) => {}
-            Some(Value::String(token)) if scan.opaque_cursor => {
+            Some(Value::String(mut token)) if scan.opaque_cursor => {
                 // A matching merge shares its validated cursor image; each bound
                 // pays only its own retained values, before cloning them.
                 let merged = scan.merge_site.is_some() || index.word_component().is_some();
-                let suffix = if metered { word_heap::suffix(&mut self.meter, table, index, scan.prefix.len(), merged)? }
-                    else if merged { Self::merge_suffix(table, index, scan.prefix.len()) }
-                    else { Self::cursor_suffix(table, index, scan.prefix.len()) };
                 if metered {
+                    let suffix = word_heap::suffix(&mut self.meter, table, index, scan.prefix.len(), merged)?;
                     self.validate_word_cursor(&token, &scan.table, &scan.index, scan.order, &suffix, scan.variant)?;
                     let position = &self.word_cursor.as_ref().unwrap().1;
                     self.meter.heap(DisclosedKeys(&position.values).heap())?;
@@ -595,18 +593,50 @@ impl<'r> Runner<'r> {
                     else { bounds.after = Some(position.values.clone()); }
                     self.word_shape_cursor(&scan.site, token)?;
                 } else {
-                let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                let mut position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                 crate::cursor::check_variant(&position, scan.variant)?;
-                let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                let mut cursor_prefix = scan.prefix.len();
+                // @ref LLP 3000.028#3.2 — only a compiler-marked prefix extension
+                // admits its previous typed descriptor and evaluated scope.
+                if !merged && position.suffix.len() + cursor_prefix != index.components.len()
+                    && scan.cursor_pins != 0 && (scan.cursor_pins as usize) <= cursor_prefix {
+                    cursor_prefix -= scan.cursor_pins as usize;
+                }
+                let suffix = if merged { Self::merge_suffix(table, index, cursor_prefix) }
+                    else { Self::cursor_suffix(table, index, cursor_prefix) };
+                position.check_descriptor(&scan.table, &scan.index, scan.order, &suffix)
+                    .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                let mut use_position = true;
                 if scan.merge_site.is_none() && let Some(prefix) = prefix {
-                    let expected = CursorScope { variant: scan.variant, generation: self.context.generation, prefix: prefix.to_vec() };
-                    if position.scope.as_ref() != Some(&expected) {
+                    if !position.scope.as_ref().is_some_and(|scope| scope.generation == self.context.generation
+                        && scope.prefix == prefix[..cursor_prefix]) {
                         return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
                     }
+                    let removed = prefix.len() - cursor_prefix;
+                    if removed != 0 {
+                        let compared = crate::key::encode(&position.values[..removed]).cmp(&crate::key::encode(&prefix[cursor_prefix..]));
+                        if compared == std::cmp::Ordering::Equal {
+                            position.values.drain(..removed);
+                            // Shape no-progress detection must compare the same
+                            // normalized position that the scan will resume.
+                            position.suffix = Self::cursor_suffix(table, index, scan.prefix.len());
+                            position.scope.as_mut().unwrap().prefix = prefix.to_vec();
+                            token = encode_cursor(self.schema, &position)
+                                .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                        } else {
+                            // A baseline cut can stop on a filter reject. Before
+                            // this scope starts from its beginning; past it uses
+                            // an empty strict bound, in either direction.
+                            use_position = (compared == std::cmp::Ordering::Greater) == (scan.order == Order::Asc);
+                            position.values.clear();
+                            position.inclusive = false;
+                        }
+                    }
                 }
-                if position.inclusive {
-                    bounds.at_or_after = Some(values);
-                } else { bounds.after = Some(values); }
+                if use_position {
+                    if position.inclusive { bounds.at_or_after = Some(position.values); }
+                    else { bounds.after = Some(position.values); }
+                }
                 self.record_shape_cursor(&scan.site, Some(token));
                 }
             }
@@ -1291,8 +1321,10 @@ impl<'r> Runner<'r> {
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
-            crate::cursor::check_variant(&decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?, merge.variant)?;
-            decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+            let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+            crate::cursor::check_variant(&position, merge.variant)?;
+            position.check_descriptor(&first.scan.table, &first.scan.index, order, &suffix)
+                .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
             self.record_shape_cursor(&merge.site, Some(token));
         }
         let mut candidates: Vec<(Vec<Value>, Value)> = Vec::new();
