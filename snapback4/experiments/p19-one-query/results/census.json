@@ -1,0 +1,42 @@
+{
+  "likes": {
+    "global_rows": 5008,
+    "global_stored_json_bytes": 1141824,
+    "u0500_rows": 3,
+    "u0500_key_json_bytes": 339,
+    "max_owner_rows": 13,
+    "owners": 998,
+    "u0500_keys": [
+      {
+        "id": "01M3JX5BA7AVC3YQP3Q80QSR86",
+        "owner": "user:01M3JWHQ29XWRQC0CD8KZREKF9",
+        "post": "00000000008M6P6ASEWDTV3DVB"
+      },
+      {
+        "id": "01M3JY3JBPACSGWYZHDAPQV23R",
+        "owner": "user:01M3JWHQ29XWRQC0CD8KZREKF9",
+        "post": "0000000000VWQD3QK0T6MQ7ZRG"
+      },
+      {
+        "id": "01M3JY3S1FWHCWGRWNWW2ZYN77",
+        "owner": "user:01M3JWHQ29XWRQC0CD8KZREKF9",
+        "post": "00000000006E8SNKCN88PJB3K2"
+      }
+    ]
+  },
+  "reposts": {
+    "global_rows": 1004,
+    "global_stored_json_bytes": 290156,
+    "u0500_rows": 1,
+    "u0500_key_json_bytes": 113,
+    "max_owner_rows": 7,
+    "owners": 645,
+    "u0500_keys": [
+      {
+        "id": "01M3JWPQF29KT87F90Z5MHCXZZ",
+        "owner": "user:01M3JWHQ29XWRQC0CD8KZREKF9",
+        "post": "0000000000FS0NKHFZGCH7H682"
+      }
+    ]
+  }
+}

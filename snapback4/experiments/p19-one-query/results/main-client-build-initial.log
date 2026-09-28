@@ -1,0 +1,2 @@
+packages/snapback4/src/web-journal.ts(9,32): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
+packages/snapback4/src/web.ts(21,33): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
