@@ -8,7 +8,7 @@ export const groups = {
   pending: [5,13,97,98],
   reset: [20,21],
   adoption: [22,23,24,25,123,124,125],
-  probe: [4,32,33,34,35,36,122],
+  probe: [4,32,33,34,35,36,122,157],
   follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138,156],
   replay: [69,70,71,72,73],
   recovery: [60,85,86],
@@ -28,6 +28,9 @@ export const groups = {
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  // Round 3: the probe's admission refusal owns one paced recovery wait.
+  if (index === 35) return 157;
+  if (index > 35) index -= 1;
   // Round 2: auth handling precedes refusal wait; schema send/body now share
   // the safe-read await (body I/O is also exercised by readResponse).
   if (index === 41) index = 42;

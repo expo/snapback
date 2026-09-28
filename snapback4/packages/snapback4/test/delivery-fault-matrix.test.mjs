@@ -47,7 +47,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
   test(`${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
     const index = fixtureIndex(sites.indexOf(site)), scenario = recipe(sites.indexOf(site));
-    direct = [11,18,26,27,35,42,50,72,156].includes(index);
+    direct = [11,18,26,27,35,42,50,72,156,157].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};
@@ -72,7 +72,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
       fetch(path, init) {
         fault();
         if (prepared && enabled && ((index === 37 && path === '/probe') || (index === 44 && path === '/changes') || (index === 47 && path === '/sync' && stack.getStore()?.some(id=>id.startsWith('local.ts:follow:syncOnce')))) && failures < budget) { failures++; throw error; }
-        if (path === '/probe') return Response.json({ok:true,store_id:'A',seq:11});
+        if (path === '/probe') return index === 157 ? Response.json({denied:{code:'E_RATE_LIMIT',family:'limit',message:'busy',retryable:true}}, {status:503}) : Response.json({ok:true,store_id:'A',seq:11});
         if (scenario === 'acknowledgement' && queueIds.length && path === '/sync') return Response.json({snapshot:false,store_id:'A',generation:1,events:[],watermark:11,more:false});
         if (!prepared) return;
         if(scenario === 'search' && path === '/q/matrixQuery') return index === 141 ? new Response('invalid JSON') : Response.json({data:[],complete:true,store_id:'A',head:11,generation:1,searchScopes:['live'],searchCurrent:[]});

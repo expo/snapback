@@ -51,8 +51,7 @@ import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutA
   refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
-// Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
-const PAGE = 10000;
+const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
   const retention = assetRetention(options.assets);
@@ -62,7 +61,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   const sessions = options.sessionStore ?? defaultSessionStore;
-  let session: Session | null = null;
+  let session: Session | null = null, refreshOutcome: SignIn | undefined;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
     session = options.session ?? await restoreSession(base, sessions, () => 0);
@@ -77,14 +76,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
     if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - clock.estimatedServerNow() <= REFRESH_BEFORE_EXPIRY_MS) {
-      const refreshed = await rotateSession(base, session.token, doFetch);
+      const refreshed = refreshOutcome = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
           await forgetSession(base, sessions);
           throw new Error("createLocalClient: E_AUTH: a refreshed session changed principal");
         }
         session = refreshed.session;
-      } else if (refreshed.why.code === "E_AUTH") {
+      } else if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) {
         await forgetSession(base, sessions);
         throw new Error(`createLocalClient: ${refreshed.why.code}: ${refreshed.why.message}`);
       }
@@ -409,10 +408,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const refusedSession = async (denied: unknown, revision: number) => {
     if (!sessionDead && !rotating && revision === credentialRevision && (denied as Refusal | undefined)?.code === "E_AUTH" && !(denied as Refusal).retryable) await endSession();
   };
+  // @ref LLP 3000#http-overload-diagnostics — startup and clock changes must keep the rotation outcome.
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || sessionDead || options.persona || !session || session.kind === "action") return;
+    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code))) return;
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - REFRESH_BEFORE_EXPIRY_MS);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -427,6 +428,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
     if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     if (refreshing) return refreshing;
+    if (refreshOutcome && !refreshOutcome.ok && ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code)) return Promise.resolve(refreshOutcome);
     const token = session.token;
     const expectedPrincipal = session.principal;
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -449,14 +451,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const work = (async (): Promise<SignIn> => {
       // Sign-out stops adoption, but lets a committed rotation return its
       // successor for best-effort family revocation, even after close.
-      const refreshed = await Promise.race([rotation, refreshStopped]);
+      const refreshed = refreshOutcome = await Promise.race([rotation, refreshStopped]);
       if (sessionDead) return signedOut();
       if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
       if (!refreshed.ok) {
         rotating = false;
         credentialRevision += 1;
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable && session?.token === token) await endSession();
-        else if (refreshed.why.retryable && !["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshed.why.code)) scheduleRefresh(60_000);
+        else scheduleRefresh(60_000);
         return refreshed;
       }
       if (refreshed.session.principal !== expectedPrincipal) {
@@ -790,7 +792,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
-      if (overloaded(refusal(json.denied)) && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) { setLink("online"); return; }
+      if (overloaded(refusal(json.denied)) && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) { setLink("online"); await pauseRefusal(response, refusal(json.denied), aborter.signal); return; }
       if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
         if (await witnessRestore(json.store_id, json.seq, capture)) return;

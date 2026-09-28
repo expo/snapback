@@ -175,13 +175,22 @@ for (const outcome of ['ECONNRESET', 'invalid', 'success', 'auth', 'terminal-ove
   if (outcome === 'ECONNRESET') assert.match(result.denied.message, /ECONNRESET/);
 });
 
-for (const tier of ['online', 'web']) test(`${tier}: public ephemeral refusal preserves queued calls and never replays`, async t => {
+for (const tier of ['online', 'web']) for (const mode of ['refusal', 'text', 'null', 'envelope', 'success-envelope', 'reset', 'body']) test(`${tier}: public ephemeral ${mode} preserves HTTP status and never replays`, async t => {
   const { url } = await server(t, undefined, source);
   const entered = deferred(), release = deferred(); const calls = [];
   const options = { url, persona: 'alice', fetch: async (input, init) => {
     if (new URL(input).pathname === '/m/signal') {
       calls.push(JSON.parse(init.body));
-      if (calls.length === 1) { entered.resolve(); await release.promise; return Response.json({ denied: refusal }, { status: 503 }); }
+      if (calls.length === 1) {
+        entered.resolve(); await release.promise;
+        if (mode === 'reset') throw Object.assign(Error('fetch failed'), { cause: { code: 'ECONNRESET' } });
+        if (mode === 'body') return new Response(new ReadableStream({ start(c) { c.error(Object.assign(Error('body failed'), { cause: { code: 'ECONNRESET' } })); } }), { status: 503 });
+        if (mode === 'text') return new Response('busy', { status: 503 });
+        if (mode === 'null') return Response.json(null, { status: 503 });
+        if (mode === 'envelope') return Response.json({ denied: { code: 'E_RATE_LIMIT' } }, { status: 503 });
+        if (mode === 'success-envelope') return Response.json({ state: 'sent' });
+        return Response.json({ denied: refusal }, { status: 503 });
+      }
       return Response.json({ state: 'sent', result: null });
     }
     return defaultFetch(input, init);
@@ -192,7 +201,17 @@ for (const tier of ['online', 'web']) test(`${tier}: public ephemeral refusal pr
   const op = { kind: 'mutation', name: 'signal', ephemeral: true, renewMs: 1000 };
   const first = client.mutate(op, { n: 1 }); await entered.promise;
   const second = client.mutate(op, { n: 2 }); release.resolve();
-  assert.deepEqual((await first).why, refusal);
+  const result = await first;
+  if (mode === 'reset' || mode === 'body') {
+    assert.equal(result.why.code, 'E_OFFLINE'); assert.match(result.why.message, /ECONNRESET/);
+    assert.equal((await second).why.code, 'E_OFFLINE'); assert.equal(calls.length, 1);
+    assert.ok(links.includes('offline')); return;
+  }
+  if (mode === 'refusal') assert.deepEqual(result.why, refusal);
+  else {
+    assert.equal(result.why.code, 'E_HTTP_RESPONSE');
+    assert.match(result.why.message, new RegExp(`HTTP ${mode === 'success-envelope' ? 200 : 503}`));
+  }
   assert.equal((await second).state, 'sent');
   assert.deepEqual(calls.map(c => c.args.n), [1, 2]);
   assert.equal(new Set(calls.map(c => c.id)).size, 2);
@@ -247,6 +266,73 @@ for (const tier of ['online', 'web']) test(`${tier}: public mutation overload us
 });
 
 import { guest, signup, login, refreshSession, logoutAll } from '../dist/auth.js';
+import { memorySessionStore, sessionKey } from '../dist/auth.js';
+import { createApp } from '../dist/app.js';
+
+for (const door of ['constructor', 'deferred', 'online']) for (const mode of ['reset', 'invalid', 'body', 'overload', 'terminal', 'retryable-auth']) {
+  test(`public ${door} startup rotation ${mode} retains its retry decision across clock updates`, { timeout: 15000 }, async t => {
+    const { url } = await server(t), persist = memoryPersistence(), store = memorySessionStore();
+    const signed = await guest(url); assert.equal(signed.ok, true);
+    const first = await createLocalClient({ url, session: signed.session, sessionStore: store, device: webDevice({ wasm, persist }) });
+    await first.close();
+    const near = { ...signed.session, expiresAt: Date.now() + 3600000 };
+    await store.set(sessionKey(url), JSON.stringify(near));
+    const timers = new Map(), statuses = [], bearers = [];
+    const timeout = globalThis.setTimeout, clear = globalThis.clearTimeout;
+    t.mock.method(Math, 'random', () => 0.5);
+    t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
+      if (ms === 60000) { const id = { unref() {} }; timers.set(id, () => fn(...args)); return id; }
+      return timeout(fn, [281.25, 562.5, 1125].includes(ms) ? 1 : ms, ...args);
+    });
+    t.mock.method(globalThis, 'clearTimeout', id => { timers.delete(id); clear(id); });
+    const retryable = mode === 'overload' || mode === 'retryable-auth';
+    const options = { url, sessionStore: store, fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === '/auth/refresh') {
+        bearers.push(new Headers(init?.headers).get('authorization'));
+        if (bearers.length === 1 && (retryable || mode === 'terminal')) return Response.json({ denied: {
+          ...refusal, ...(mode === 'retryable-auth' ? { code: 'E_AUTH', family: 'auth' } : {}), retryable,
+        } }, { status: 503 });
+        // Real rotation consumes the predecessor before its successful reply is lost.
+        const response = await defaultFetch(input, init); statuses.push(response.status);
+        if (bearers.length === 1) {
+          await response.arrayBuffer();
+          if (mode === 'reset') throw Object.assign(Error('fetch failed'), { cause: { code: 'ECONNRESET' } });
+          if (mode === 'invalid') return new Response('busy', { status: 503 });
+          return new Response(new ReadableStream({ start(c) { c.error(Error('lost refresh body')); } }), { status: 200 });
+        }
+        // A retry after a proven refusal may adopt the real successor.
+        return response;
+      }
+      if (path === '/auth/logout') return defaultFetch(input, init);
+      return Response.json({ denied: refusal }, { status: 503, headers: path === '/q/list'
+        ? { 'x-snapback-time': String(Date.now() + 5000), 'x-snapback-clock': 'fu:1' } : {} });
+    } };
+    let client, app;
+    if (door === 'constructor') client = await createLocalClient({ ...options, device: webDevice({ wasm, persist }) });
+    else if (door === 'online') client = createClient({ ...options, session: near });
+    else { app = createApp({ ...options, device: webDevice({ wasm, persist }) }); await app.ready; client = app.client; }
+    t.after(() => app ? app.close() : client?.close());
+    assert.ok(client, app?.auth.state);
+    await until(() => bearers.length === 1);
+    // A public request carrying a new clock sample must not revive a stopped rotation.
+    await client.query({ kind: 'query', name: 'list', runs: 'server' }, {});
+    const armed = timers.size;
+    for (const [id, fire] of [...timers]) { timers.delete(id); fire(); }
+    if (armed) await until(() => bearers.length > 1);
+    assert.equal(armed, retryable ? 1 : 0, 'only an explicit retryable refusal may arm rotation');
+    assert.equal(bearers.length, retryable ? 2 : 1, 'never resend an ambiguously consumed bearer');
+    if (['reset', 'invalid', 'body'].includes(mode)) {
+      const unknown = await client.refreshSession();
+      assert.equal(unknown.why.code, mode === 'invalid' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE');
+      assert.deepEqual(await client.refreshSession(), unknown);
+      assert.equal(bearers.length, 1, 'an explicit refresh cannot reuse the unknown predecessor either');
+      assert.deepEqual(statuses, [200]);
+    } else if (retryable) await until(() => client.session()?.token !== near.token);
+    assert.equal(client.session()?.principal, near.principal);
+    if (app) assert.equal(app.auth.state, 'signed-in');
+  });
+}
 for (const [name, invoke] of [
   ['guest', f => guest('http://auth.invalid', f)],
   ['signup', f => signup('http://auth.invalid', 'a', 'b', f)],
@@ -390,4 +476,54 @@ test('public transfers jitter beyond Retry-After and stop within their cumulativ
   assert.deepEqual(delays.splice(0).filter(ms => ms > 0), [1125, 1125, 1125]);
   assert.equal((await client.asset('once')).denied.code, 'E_RATE_LIMIT');
   assert.deepEqual(delays.filter(ms => ms > 0), [1125, 1125, 1125]);
+});
+
+test('public web probe recovery paces overload while identity remains unverified', { timeout: 10000 }, async t => {
+  const { url } = await server(t, undefined, source), entered = deferred(), release = deferred(), probes = [];
+  const client = await createLocalClient({ url, persona: 'alice', device: webDevice({ wasm, persist: memoryPersistence() }), fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/changes') { entered.resolve(); await release.promise; throw Error('lost change feed'); }
+    if (path === '/probe') { await new Promise(setImmediate); probes.push(Date.now()); return Response.json({ denied: refusal }, { status: 503, headers: { 'Retry-After': '1' } }); }
+    return defaultFetch(input, init);
+  } });
+  t.after(() => { release.resolve(); return client.close(); });
+  await entered.promise; release.resolve();
+  await until(() => probes.length >= 3);
+  assert.equal(client.link(), 'online');
+  for (let i = 1; i < probes.length; i++) assert.ok(probes[i] - probes[i - 1] >= 990, `probe intervals: ${JSON.stringify(probes)}`);
+});
+
+for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'query', 'mutation']) test(`${tier}: concurrent public ${kind} retries vary beyond Retry-After`, { timeout: 15000 }, async t => {
+  const { url } = await server(t, undefined, source), clients = [], timers = [], calls = new Map();
+  let fault = false;
+  const path = { upload: '/assets', asset: '/assets/once', query: '/q/live', mutation: '/m/add' }[kind];
+  for (let n = 0; n < 4; n++) {
+    const options = { url, persona: 'alice', fetch: async (input, init) => {
+      if (fault && new URL(input).pathname === path) {
+        calls.set(n, (calls.get(n) ?? 0) + 1);
+        if (calls.get(n) === 1) return Response.json({ denied: refusal }, { status: 503, headers: { 'Retry-After': '1' } });
+        if (kind === 'upload' || kind === 'asset') return Response.json({ denied: { code: 'E_ASSET_KIND', family: 'asset', message: 'test bytes' } }, { status: 400 });
+      }
+      return defaultFetch(input, init);
+    } };
+    const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options, device: webDevice({ wasm, persist: memoryPersistence() }) });
+    clients.push(client); t.after(() => client.close());
+  }
+  const timeout = globalThis.setTimeout; let sample = 0;
+  t.mock.method(Math, 'random', () => [0, 0.25, 0.5, 0.75][sample++ % 4]);
+  t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
+    if (ms >= 1000 && ms <= 1250) timers.push({ ms });
+    return timeout(fn, ms, ...args);
+  });
+  fault = true;
+  const pending = clients.map(client => kind === 'upload' ? client.upload(new Uint8Array([1]))
+    : kind === 'asset' ? client.asset('once') : kind === 'query' ? client.query({ kind: 'query', name: 'live', runs: 'server' }, {})
+    : client.mutate({ kind: 'mutation', name: 'add' }, { body: 'one intent' }));
+  await Promise.all(pending);
+  await until(() => calls.size === 4 && [...calls.values()].every(count => count >= 2));
+  const delays = timers.slice(0, 4).map(timer => timer.ms);
+  assert.equal(new Set(delays).size, 4, 'independent calls must not all retry together');
+  assert.ok(delays.every(ms => ms >= 1000 && ms < 1250));
+  assert.deepEqual(delays.slice().sort((a, b) => a - b), [1000, 1062.5, 1125, 1187.5]);
+  assert.deepEqual([...calls.values()], [2, 2, 2, 2]);
 });

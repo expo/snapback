@@ -288,6 +288,7 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
+  let refreshOutcome: SignIn | undefined;
   let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
     stopRefresh = why => resolve({ ok: false, why });
@@ -406,6 +407,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
     if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
+    if (refreshOutcome && !refreshOutcome.ok && (!refreshOutcome.why.retryable || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code))) return;
     const untilDue = Math.max(0, session.expiresAt - clock.issuedDeviceNow() - refreshBeforeExpiry);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -423,6 +425,7 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) return refreshing;
     const token = headers.authorization?.slice("Bearer ".length);
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    if (refreshOutcome && !refreshOutcome.ok && ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshOutcome.why.code)) return Promise.resolve(refreshOutcome);
     const expectedPrincipal = viewer;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
@@ -441,7 +444,7 @@ export function createClient(options: ClientOptions): Client {
     // token. Keep reading so a cancelled caller's successor can be revoked.
     void rotation.then(result => { if (closed || storeRefusal || !credentials) retire(result); });
     const work = (async (): Promise<SignIn> => {
-      const refreshed = await Promise.race([rotation, refreshStopped]);
+      const refreshed = refreshOutcome = await Promise.race([rotation, refreshStopped]);
       if (storeRefusal) { retire(refreshed); return { ok: false, why: storeRefusal }; }
       if (closed) { retire(refreshed); return { ok: false, why: ended() }; }
       // Sign-out separately ends credentials and cancels adoption.
@@ -449,7 +452,7 @@ export function createClient(options: ClientOptions): Client {
       credentialRevision += 1;
       if (!refreshed.ok) {
         if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials();
-        else if (refreshed.why.retryable && !["E_OFFLINE", "E_HTTP_RESPONSE"].includes(refreshed.why.code)) scheduleRefresh(60_000);
+        else scheduleRefresh(60_000);
         return refreshed;
       }
       if (expectedPrincipal !== null && refreshed.session.principal !== expectedPrincipal) {

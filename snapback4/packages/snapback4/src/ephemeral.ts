@@ -1,6 +1,6 @@
 // @ref LLP 3000.017#24-the-client — one ordered, memory-only lane; only proven renewals coalesce.
 import type { Client, Ephemeral, Link, MutateOptions, Mutation, MutationPromise, Refusal, Signal } from "./contract.ts";
-import { refusal, transportRefusal } from "./http-response.ts";
+import { refusal, readResponse, invalidResponse, transportRefusal } from "./http-response.ts";
 
 export const ephemeralOffline = (): Refusal => ({ code: "E_OFFLINE", family: "link", retryable: true,
   message: "an ephemeral write needs an online link; it is dropped, not held or retried" });
@@ -71,13 +71,13 @@ export function ephemeralLane(options: Options) {
           method: "POST", headers: options.headers(), signal: controller.signal,
           body: JSON.stringify({ id: entry.id, args: entry.args, ...(store ? { store_id: store } : {}) }),
         });
-        const json = await response.json();
+        const json = await readResponse(response);
         const denied = refusal(json?.denied ?? json?.why);
         if (denied) return failedSignal(entry.id, denied);
         if (json?.state === "sent" && Object.hasOwn(json, "result") && !("seq" in json)) {
           return { state: "sent", id: entry.id, result: json.result };
         }
-        throw new Error("unrecognized ephemeral response");
+        return failedSignal(entry.id, invalidResponse(response.status, "ephemeral write"));
       })();
       return await Promise.race([work, interrupted]);
     } catch (error) {

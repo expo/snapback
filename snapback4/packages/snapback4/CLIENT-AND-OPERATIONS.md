@@ -458,7 +458,12 @@ write that first returned `pending`; it is a live-client notification, while
 the durable outbox remains the authority across a restart. A restored or
 provided session within 24 hours of
 expiry rotates before the protected backend is fetched (temporary action sessions cannot refresh); a running client
-schedules the same rotation. A successful rotation replaces the stored
+schedules the same rotation. A lost refresh reply or malformed HTTP response
+may have consumed the bearer, so automatic rotation stops, including during
+startup and after clock updates. Only an explicit retryable refusal schedules
+another attempt. After an unknown outcome, `refreshSession()` on that client
+returns the retained failure without sending again; sign in for a new bearer.
+A successful rotation replaces the stored
 session and the Authorization bearer before `onSession` receives it. Local
 `signOut()` fences refresh and removes persisted credentials before completing;
 remote logout is best effort and cannot hold that local boundary open. An

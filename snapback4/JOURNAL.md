@@ -75091,3 +75091,54 @@ Rust 1.97.0, wasm-bindgen 0.2.127, no wasm-opt. No shared tool installation,
 other-lane/packet edits, push or publication. Report:
 reports/20260928-fu-fresh-replay-uploads/round2/REPORT.md. Local commit carries
 Co-Authored-By: Codex <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 3: retain rotation outcomes through startup
+
+Read the prior three prompts, reports and journal entries, and Astra's full
+round-2 NOT READY review. Applied llp-orient within Snapback 4. Fetched origin;
+main's new PF changes are unrelated to these SDK fixes, so no merge. The
+supervisor owns integration and its round-2 landing suite. Grok was checked at
+entry and before committing; it still had progress notes, no completed verdict.
+
+The local constructor retains its refresh outcome. Both client schedulers now
+consult that result, so deferred startup completion and clock corrections cannot
+re-arm an ambiguously consumed bearer. Construction uses the running client's
+retryable-refusal policy, including retryable E_AUTH. Repeated explicit refresh
+calls also return the retained unknown failure without another send. Successful
+rotation still adopts the successor; existing sign-out, persistence and late
+successor cleanup boundaries remain. The report audits constructor, deferred,
+scheduled, clock, on-401, account-switch, explicit and revocation paths; there
+is no automatic refresh-on-401 path or new cross-process deduplication claim.
+
+Ephemeral calls use the shared response decoder. Malformed text/envelopes keep
+HTTP status as E_HTTP_RESPONSE without taking the link offline or dropping the
+waiting tail; real fetch/body failures remain transport failures. No replay.
+Concurrent public uploads, downloads, queries and same-ID mutations in both
+tiers assert distinct Retry-After-respecting delays with varied randomness.
+
+Grok's provisional rapid-probe observation reproduced: after acquisition and a
+lost change feed, overload restored reachability while leaving identity
+unverified; the loop sent 16 probes about 0–2 ms apart. The probe now takes the
+existing jittered refusal wait before returning. Its new await is classified
+and tested under transient and persistent failure. Identity/acquisition evidence
+is still required before replay. Product changes stay in three SDK files.
+
+Final affected checks: 464/464 (118 overload cases, 317 delivery fault/census
+cases, and adjacent session/ephemeral cases). The session model passes 52/52
+with 100 seeds per tier plus its fixed regressions, explicitly a scoped run.
+Whole guide 98/98; build/typecheck, docs budget, references and whitespace pass.
+Disposable round-2 controls fail 22 public cases; replacing jitter with constant
+1.125 fails all eight concurrent public paths. Final positive runs have no
+failures. The ledger records all earlier reds: our round-2 defects/intentional
+mutants, fake-timer and early-assertion fixture mistakes, the probe-mock starvation
+and exploratory wrong paths; zero unrelated baseline/environmental failures.
+The interrupted runs and raw logs are retained. scripts/test.sh was not run.
+
+Measured existing round-2 wasm: 2,040,545 B raw / 593,008 B GNU file-input gzip-9,
+711 B below the unchanged 593,719 B budget; SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409.
+No wasm input changed or rebuild was needed. No tool installation, shared-machine
+change, comparative-packet edit, push or publication. LLP 3000, ephemeral guide
+and client reference accompany the code; local.ts remains 1,500 lines. Report:
+reports/20260928-fu-fresh-replay-uploads/round3/REPORT.md. The local commit carries
+Co-Authored-By: Codex <noreply@openai.com>.
