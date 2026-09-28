@@ -1,0 +1,36 @@
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.24s
+     Running tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-e79934ba13fa2e85)
+
+running 3 tests
+test copied_calibration_store_job_and_preview_match_independent_oracle ... ignored, full calibration store: DG_STORE must name a worktree-owned writable copy
+M8: memberships=100 preview_pages=2 unread=100 full_recipients=1 job=JobRun { id: "0000000034PH285E26KVHFJRJP", name: "digest", state: Done, sweep: 1, chunks: 1, chunk_size: 64, retries: 0, heap_peak: 222112, rows_written: 1, created_at: 100, updated_at: 100, error: None }
+test unchanged_builder_job_is_complete_and_preview_requires_all_chat_pages ... ok
+M8 oversized recipient: JobRun { id: "00000000344SWKBD03H5S02F49", name: "digest", state: Parked, sweep: 0, chunks: 0, chunk_size: 1, retries: 6, heap_peak: 251969, rows_written: 0, created_at: 100, updated_at: 100, error: Some("E_BOUND: examined rows reached the ceiling 16384") }; effects=0; keys=0
+test oversized_recipient_parks_without_a_partial_digest_or_emission_key ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.92s
+
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-c84320c9aaad3540)
+
+running 5 tests
+
+thread 'developer_gets_each_cause_without_changing_one_byte_of_the_refusal' (1317566) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:23:5:
+[Diagnostic { site: Site { file: "schema.q", line: 18, col: 43 }, code: "E_QUARRY_TYPE", message: "rule comparison joins a parents reference with text <=6", rewrite: "compare a principal column with viewer, or a column with a literal of its own type", guide: "types", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... FAILED
+{"code":"E_RULE","family":"auth","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count","guide":"rules"}
+test sequence_first_membership_reproduces_before_changes ... ok
+rewritten builder reactions: [{"count":2,"emoji":"heart","mine":true},{"count":1,"emoji":"laugh","mine":false}]
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+
+failures:
+
+failures:
+    developer_gets_each_cause_without_changing_one_byte_of_the_refusal
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

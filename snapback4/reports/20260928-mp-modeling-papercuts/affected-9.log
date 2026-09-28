@@ -1,0 +1,78 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 28.92s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-ec20f23f3690cab1)
+
+running 1 test
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+     Running tests/sequence_by.rs (target/debug/deps/sequence_by-958722ffc97a0819)
+
+running 17 tests
+test store_counter_rollback_and_reset_are_atomic ... ok
+test raw_insert_update_and_upsert_cannot_supply_even_the_current_value ... ok
+test imports_of_dropped_names_refuse_without_panicking ... ok
+test parent_rewrites_distinguish_import_retargeting_from_bad_types ... ok
+test adding_a_new_sequence_column_to_existing_rows_refuses ... ok
+test descending_restoration_keeps_the_high_water_mark ... ok
+test sequence_table_creation_inside_a_savepoint_can_be_rolled_back_and_reallocated ... ok
+test device_only_floor_exhaustion_queues_instead_of_refusing_the_write ... ok
+test several_columns_allocate_in_name_order_and_exhaustion_rolls_back ... ok
+test raw_inputs_import_and_restoration_keep_counters_honest ... ok
+test sequence_table_is_lazy_and_its_creation_rolls_back ... ok
+test exhausted_counters_stay_behind_authority ... ok
+test exhausted_if_absent_cannot_collide_on_a_clamped_sequence ... ok
+test bulk_seed_captures_assigned_ordinals_in_either_row_order ... ok
+test adding_or_rebinding_sequence_on_populated_table_refuses_adoption ... ok
+test denied_sequence_targets_have_identical_refusals_and_meters ... ok
+test dense_shared_counters_rollback_noop_delete_upsert_and_reopen ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 5 tests
+test parent_totals_memory_coverage_and_expiry ... FAILED
+test parent_totals_sqlite_coverage_and_expiry ... FAILED
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+test rewritten_builder_own_state_sqlite_reopen ... ok
+test rewritten_builder_own_state_memory_reopen ... ok
+
+failures:
+
+---- parent_totals_memory_coverage_and_expiry stdout ----
+
+thread 'parent_totals_memory_coverage_and_expiry' (1506871) panicked at crates/snapback4-device/tests/mp_builder.rs:75:9:
+assertion `left == right` failed: memory QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Array([]), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 3, index_entries: 0, rule_probes: 0, steps: 7, heap_bytes: 3399, output_bytes: 12, rows_written: 0 }, tables: ["messages", "reactions", "totals"], next_expiry: None }
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- parent_totals_sqlite_coverage_and_expiry stdout ----
+
+thread 'parent_totals_sqlite_coverage_and_expiry' (1506872) panicked at crates/snapback4-device/tests/mp_builder.rs:75:9:
+assertion `left == right` failed: sqlite QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Array([]), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 3, index_entries: 0, rule_probes: 0, steps: 7, heap_bytes: 11540, output_bytes: 12, rows_written: 0 }, tables: ["messages", "reactions", "totals"], next_expiry: None }
+  left: true
+ right: false
+
+
+failures:
+    parent_totals_memory_coverage_and_expiry
+    parent_totals_sqlite_coverage_and_expiry
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+
+error: test failed, to rerun pass `-p snapback4-device --test mp_builder`

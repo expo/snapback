@@ -21,7 +21,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
-        self.device_work(|runner| {
+        let result = self.device_work(|runner| {
             let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
             runner.authorized_scratch(runner.rule_scratch(&runner.schema.tables[table].rules.read), &[(MeterKind::RuleProbes, probes)], |runner, allowance| {
                 let scratch = runner.meter.mark();
@@ -29,7 +29,10 @@ impl Runner<'_> {
                 if runner.device_work_active { runner.meter.release_heap(scratch); }
                 result
             })
-        })
+        });
+        self.trace_authorization(&result, table, crate::schema::Effect::Read, "read rule");
+        if matches!(result, Ok(false)) { self.filtered_clause(table, "read rule"); }
+        result
     }
 
     fn authorize_read_inner(&mut self, allowance: &Authorization, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
@@ -44,7 +47,7 @@ impl Runner<'_> {
     /// 0.4.2's three-valued verdict for a parent row, under the same prepaid,
     /// restoring authorization scope as a provisional read.
     pub(super) fn read_authority(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<Verdict, RuntimeError> {
-        self.device_work(|runner| {
+        let result = self.device_work(|runner| {
             let probes = if prepaid { 0 } else { rules::rule_probes(&runner.schema.tables[table].rules.read) };
             runner.authorized_scratch(runner.rule_scratch(&runner.schema.tables[table].rules.read), &[(MeterKind::RuleProbes, probes)], |runner, allowance| {
                 let scratch = runner.meter.mark();
@@ -52,7 +55,10 @@ impl Runner<'_> {
                 if runner.device_work_active { runner.meter.release_heap(scratch); }
                 result
             })
-        })
+        });
+        self.trace_authorization(&result, table, crate::schema::Effect::Read, "read rule");
+        if matches!(result, Ok(Verdict::Denied)) { self.filtered_clause(table, "read rule"); }
+        result
     }
 
     fn read_authority_inner(&mut self, allowance: &Authorization, table: &str, row: &Value, prepaid: bool) -> Result<Verdict, RuntimeError> {

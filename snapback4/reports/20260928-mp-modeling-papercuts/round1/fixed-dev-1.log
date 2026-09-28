@@ -1,0 +1,58 @@
+   Compiling zeroize v1.9.0
+   Compiling opaque-debug v0.3.1
+   Compiling log v0.4.34
+   Compiling httpdate v1.0.3
+   Compiling ascii v1.1.0
+   Compiling chunked_transfer v1.5.0
+   Compiling inout v0.1.4
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling hmac v0.12.1
+   Compiling rusqlite v0.40.2
+   Compiling poly1305 v0.8.0
+   Compiling cipher v0.4.4
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-mp/snapback4/vendor/tiny_http)
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 34.39s
+     Running tests/dev_refusals.rs (snapback4/target/debug/deps/dev_refusals-21f7d43ade8cacd6)
+
+running 4 tests
+
+thread 'simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected' (3186615) panicked at crates/snapback4/tests/dev_refusals.rs:86:133:
+assertion `left == right` failed
+  left: Array [Object {"at": Number(1790594201891), "clause": String("insert rule"), "executionSite": String("add:3"), "generation": Number(1), "operation": String("add"), "readRuleSite": String("schema.q:4:3"), "site": String("schema.q:5:3"), "table": String("rows")}]
+ right: Array []
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... FAILED
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+
+thread 'blocked_stderr_cannot_block_responses_or_later_mutations' (3186613) panicked at crates/snapback4/tests/dev_refusals.rs:108:67:
+assertion `left == right` failed: {"head":0,"id":null,"state":"failed","store_id":"a7150c22b8c916373b460dadb5343746","why":{"code":"E_RULE","family":"auth","guide":"rules","message":"rows's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"}}
+  left: String("failed")
+ right: "sent"
+test blocked_stderr_cannot_block_responses_or_later_mutations ... FAILED
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+failures:
+
+failures:
+    blocked_stderr_cannot_block_responses_or_later_mutations
+    simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+error: test failed, to rerun pass `-p snapback4 --test dev_refusals`

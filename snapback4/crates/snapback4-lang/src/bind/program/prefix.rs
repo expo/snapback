@@ -36,7 +36,13 @@ impl Binder<'_> {
         if let Some(range) = &read.range { return Ok((range.clone(), Bound::Literal(range.take))); }
         let ceiling = if self.caller_kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
         let pinned = &index.columns[..read.keys.len()];
-        let cap = self.schema.group_bound(&read.table, pinned);
+        // One group per distinct source key: a parent-scoped source cap bounds
+        // its aggregate rows too, without copying a constraint onto the view.
+        let cap = self.schema.group_bound(&read.table, pinned).or_else(|| {
+            let m = self.schema.maintain_for(&read.table)?;
+            let parent = m.parent_key.as_ref()?;
+            pinned.contains(&parent.reference).then(|| self.schema.group_bound(&m.source, &[parent.reference.clone()])).flatten()
+        });
         let bound = if position == Position::Exists { Bound::Literal(1) }
         // @ref LLP 3000.007#20.22 — ruling 24: the schema cap supplies the whole group's ordinary literal scan bound.
         // Queries with a non-uniform rule keep this existing capped path;
@@ -91,8 +97,8 @@ impl Binder<'_> {
         let rule = if missing.is_empty() { "read rule".into() } else { format!("{}-based read rule", missing.join(", ")) };
         let context = format!("; viewer query caller chain: {chain}. `{authored}` does not decide its {rule}; a helper grants no system authority");
         Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
-            format!("use `first N` only for a separately named paged preview: `{}` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE). Or keep the complete scheduled job: this loop is permitted under {job}'s chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs",
-                self.catalog.source.expression(&A::Read(page)), leading.join(", "))).guide("bounds"))
+            format!("use `first N` only for a separately named paged preview: `{}` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE). Or, if this viewer query is unused, remove `{}` and keep the complete scheduled job: this loop is permitted under {job}'s chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs",
+                self.catalog.source.expression(&A::Read(page)), leading.join(", "), self.call_chain[0].0)).guide("bounds"))
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.

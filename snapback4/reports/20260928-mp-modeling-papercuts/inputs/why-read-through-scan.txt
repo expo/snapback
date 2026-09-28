@@ -1,0 +1,7 @@
+E_READ_THROUGH_SCAN: an aggregate grouped by a read-through reference is served by its complete parent key. Replace the scan with viewName[parent]. Scanning other groups would disclose their population. guide maintains.
+
+# Views: plan, maintain or materialize
+
+E_READ_THROUGH_SCAN refuses a scan of an aggregate grouped by a read-through reference. Read `viewName[parent]` with the complete key. Authorization uses the parent; the child coverage still decides completeness. An unknown device parent or child domain never becomes a zero count.
+
+Full card: snapback4 guide maintains

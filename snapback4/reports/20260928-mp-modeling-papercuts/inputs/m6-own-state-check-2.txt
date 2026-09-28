@@ -1,0 +1,24 @@
+schema.q:92:1 — E_SYNC: sync public needs a public read rule; ownLikes reads under `.principal = viewer`
+  rewrite: make the sync audience exactly match the table's read rule
+  guide: sync
+
+E_SYNC: a sync line cannot be honoured; the message names the rule term, column or index to change.
+
+## Refusals
+
+E_SYNC means the sync declaration cannot deliver exactly its authorized
+audience. For example, `read <- .ownerId = viewer` cannot pair with
+`sync public`; use `sync` to infer delivery to the owner. For group delivery,
+match the read rule's membership probe, declare its unique group/principal
+key, and guard new memberships with existing
+membership or creation of the group. Follow the message's rule term,
+column or index; do not make private rows public just to enable sync.
+
+Full card: snapback4 guide sync
+
+schema.q:94:1 — E_SYNC: sync public needs a public read rule; ownReposts reads under `.actor = viewer`
+  rewrite: make the sync audience exactly match the table's read rule
+  guide: sync
+
+check: 2 problems
+6 mutations never predict: delivered (author marked this mutation : server), send (connected[member.principal] decides a fallible or variable-cost arm (read at schema.q:444:50)), sendMedia (connected[member.principal] decides a fallible or variable-cost arm (read at schema.q:444:50)), setFollow (writes online-only table follows), setTyping (writes online-only table typing), stopTyping (writes online-only table typing); 6 mutations have insert arms that never predict: publish (posts has horizon last 1000 by index (at, id), chosen by the planner (at, id)), saveProfile (profiles has horizon last 1200 by byId (id)), setFollow (follows is online only), setLike (likes has horizon last 2000 by index (at, id), chosen by the planner (at, id)), setRepost (reposts has horizon last 1000 by index (at, id), chosen by the planner (at, id)), setTyping (typing is online only); 11 mutations eligible, but these reads queue without a row past a horizon: addMember (profiles[principal = principal] (schema.q:252:18)), createDM (profiles[principal = other] (schema.q:231:18)), createGroup (profiles[principal = other] (schema.q:243:18)), deleteMessage (messages by byId (schema.q:401:3), messages[message] (schema.q:398:7)), editMessage (messages by byId (schema.q:396:3), messages[message] (schema.q:390:7)), placeAvatar (profiles by index (principal), chosen by the planner (schema.q:31:3)), publish (posts[parent] (schema.q:118:20)), react (delete reactions (schema.q:369:5), insert reactions (schema.q:375:7), messages by byId (schema.q:373:7), messages[message] (schema.q:365:7), reactions[message, viewer] (schema.q:371:13)), seen (messages[conversation = conversation, ordinal = through] (schema.q:345:12)), setLike (delete likes (schema.q:132:5), posts[post] (schema.q:128:18)), setRepost (delete reposts (schema.q:138:5), posts by byId (insert reposts: posts/byId), posts[post] (schema.q:134:18), reposts by byId (delete reposts: reposts/byId)) — snapback4 why <op>

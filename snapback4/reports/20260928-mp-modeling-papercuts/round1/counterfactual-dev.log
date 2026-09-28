@@ -1,0 +1,46 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 12.86s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-21f7d43ade8cacd6)
+
+running 4 tests
+
+thread 'dev_reports_source_locally_and_production_keeps_the_same_caller_refusal' (3316305) panicked at crates/snapback4/tests/dev_refusals.rs:68:103:
+assertion `left == right` failed
+  left: Array [Object {"at": Number(1790594566802), "clause": String("insert rule"), "executionSite": String("add:3"), "generation": Number(1), "operation": String("add"), "readRuleSite": String("schema.q:4:3"), "site": String("schema.q:5:3"), "table": String("rows")}]
+ right: Object {"instance": String("legacy"), "records": Array [Object {"at": Number(1790594566802), "clause": String("insert rule"), "executionSite": String("add:3"), "generation": Number(1), "operation": String("add"), "readRuleSite": String("schema.q:4:3"), "site": String("schema.q:5:3"), "table": String("rows")}]}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... FAILED
+
+thread 'simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected' (3316306) panicked at crates/snapback4/tests/dev_refusals.rs:88:33:
+assertion failed: !ambiguous.status.success()
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... FAILED
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+
+thread 'blocked_stderr_cannot_block_responses_or_later_mutations' (3316304) panicked at crates/snapback4/tests/dev_refusals.rs:50:60:
+called `Result::unwrap()` on an `Err` value: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }
+test blocked_stderr_cannot_block_responses_or_later_mutations ... FAILED
+
+failures:
+
+failures:
+    blocked_stderr_cannot_block_responses_or_later_mutations
+    dev_reports_source_locally_and_production_keeps_the_same_caller_refusal
+    simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.27s
+
+error: test failed, to rerun pass `-p snapback4 --test dev_refusals`
+error: 1 target failed:
+    `-p snapback4 --test dev_refusals`

@@ -1,0 +1,58 @@
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 10.08s
+     Running tests/audience_bounds.rs (snapback4/target/debug/deps/audience_bounds-67dcf133690907b4)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+test helper_refusal_finds_a_transitive_job_caller ... ok
+test query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context ... ok
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/mp_reproduction.rs (snapback4/target/debug/deps/mp_reproduction-7dc461985615a9c9)
+
+running 11 tests
+test cross_group_sequence_witness_does_not_promise_first_insert_refusal ... ok
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+
+thread 'aggregate_deadline_obeys_expiring_authorization_before_source_expiry' (3171116) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:28:38:
+called `Result::unwrap()` on an `Err` value: Require { code: "NOT_FOUND", site: Some("") }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test aggregate_deadline_obeys_expiring_authorization_before_source_expiry ... FAILED
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+{"code":"E_RULE","family":"auth","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count","guide":"rules"}
+test sequence_first_membership_reproduces_before_changes ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+rewritten builder reactions: [{"count":2,"emoji":"heart","mine":true},{"count":1,"emoji":"laugh","mine":false}]
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+
+thread 'read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter' (3171124) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:214:43:
+no entry found for key
+test read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter ... FAILED
+developer cause: RefusingClause { table: "members", clause: "insert rule", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "sequence read authority", site: "add:3", generation: 1 }
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+developer cause: RefusingClause { table: "members", clause: "unique key", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "cap parent", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "authorization allowance (insert)", site: "add:3", generation: 1 }
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+failures:
+
+failures:
+    aggregate_deadline_obeys_expiring_authorization_before_source_expiry
+    read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter
+
+test result: FAILED. 9 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

@@ -26,3 +26,21 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+
+In `snapback4 dev`, the log and `snapback4 why recent` show the evaluated
+clause, source site and execution site when instrumented. Each record names
+its operation, code and request ID within a store/instance. With several live
+instances, select `why recent --instance ID` (optionally `--store ID`).
+Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json` retains 32 records.
+Stopped/mismatched streams are rejected. The asynchronous 32-slot queue drops
+excess records and reports `dropped` on recovery; `why recent` refuses older
+snapshots while the latest refusal is pending or dropped.
+
+Every E_RULE/NOT_FOUND response gets a record. Missing instrumentation and
+replays say `cause not instrumented`, never reuse an earlier cause. Filtered
+reads use local code FILTERED_READ; empty/null answers without a known cause
+use EMPTY_READ, which alone does not prove denial. Query sites belong to the
+reader's generation; capture exhaustion points to `read through`, not an
+unevaluated insert rule. No arguments or row values are recorded, no HTTP
+endpoint exposes evidence, and production `serve` does not collect it.
+Caller bytes remain unchanged.

@@ -211,18 +211,19 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     }
     #[cfg(test)]
     test_work(&shared.mutation_wait);
-    let reader = {
+    let (reader, sites) = {
         let engine = lock(&shared.engine);
         // @ref LLP 3000.019#3.6 — ephemeral writes also lose authority while queued for adoption.
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
         }
-        shared.take_reader(&engine)
+        (shared.take_reader(&engine), shared.personas.then(|| Arc::new(lock(&shared.bound).refusal_sites.clone())))
     };
     let mut context = Context::new(principal.clone(), args).at(shared.now());
     context.delivery_fingerprint = fingerprint;
     let result = match reader {
         Ok((epoch, mut reader)) => {
+            if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, reader.generation()); }
             let _timing = latency::EngineSpan::new();
             let result = intent_store(&reader, &payload).and_then(|()| {
                 reader
@@ -240,6 +241,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             #[cfg(test)]
             test_work(&shared.mutation_wait);
             let mut engine = lock(&shared.engine);
+            if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))
                 .and_then(|()| {

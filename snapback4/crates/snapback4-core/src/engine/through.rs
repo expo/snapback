@@ -51,7 +51,13 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn capture_insert(
+    pub(super) fn capture_insert(&mut self, name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
+        let result = self.capture_insert_inner(name, row);
+        self.trace_authorization(&result, name, Effect::Insert, "read through capture");
+        result
+    }
+
+    fn capture_insert_inner(
         &mut self,
         name: &str,
         row: Supplied,
@@ -61,15 +67,11 @@ impl Runner<'_> {
             return Ok(row);
         };
         let mut row = row.into_value();
-        let denied = || RuntimeError::Rule {
-            table: name.into(),
-            effect: Effect::Insert,
-        };
         let id = row
             .field(&through.reference)
             .ok()
             .and_then(|v| v.as_str().ok())
-            .ok_or_else(denied)?;
+            .ok_or_else(|| self.rule_refusal(name, Effect::Insert, "read through parent reference"))?;
         let parent = &self.schema.tables[&through.parent];
         // @ref LLP 3000.015#2 — the parent lookup is authorization work under the
         // request's physical allowance; reserve_capture prepaid its logical charges.
@@ -84,7 +86,7 @@ impl Runner<'_> {
             } else { false };
             if !covered { return Err(RuntimeError::Prediction(format!("read through .{} needs a live, covered {} parent; queued without a row", through.reference, through.parent))); }
         }
-        let found = found.ok_or_else(denied)?;
+        let found = found.ok_or_else(|| self.rule_refusal(name, Effect::Insert, "read through parent missing or expired"))?;
         stamp(parent, through, &found, &mut row)?;
         table.recompute_deadline(&mut row)?;
         if !self.context.is_system() {
@@ -93,7 +95,7 @@ impl Runner<'_> {
                 rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut super::read::PrefixProbe { runner, allowance })
             })?;
             if !readable {
-                return Err(denied());
+                return Err(self.rule_refusal(name, Effect::Insert, "read through parent read rule"));
             }
         }
         Ok(row.capture_input(&CaptureInput(())))

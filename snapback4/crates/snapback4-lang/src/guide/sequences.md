@@ -177,3 +177,21 @@ populated integer column into a sequence casually: `check --store` assesses
 adoption, and a sequence change requires an empty table. Use this schema for
 a new conversation model, or preserve the existing allocator while adopting
 the receipt recipe.
+
+`N_SEQUENCE_READ` locates a first-membership trap: `read <- exists
+members[.conversation, viewer]` cannot authorize the first member's sequence
+before that member exists, even when `created conversations[.conversation]`
+admits its insert rule. A newly inserted parent or an empty live group does
+not prove a fresh shared counter: other sequence tables and deleted rows
+may have consumed ordinals. Keep the manual allocator above for that roster
+model. Seed new memberships at zero, copy the readable parent's `lastOrdinal`
+for later joins, and increment it atomically on each send. An owner-only
+membership read (`.principal = viewer`) is another model, with a different
+roster audience. The runtime does not test a hidden counter for zero to decide
+whether to admit the insert.
+
+During development, the dev log and `snapback4 why recent` name the actual
+refusing clause and its source site. When several dev instances run, select
+`why recent --instance ID`; the output identifies its store and instance.
+Those local records are not HTTP data;
+the caller still receives the generic `E_RULE`.

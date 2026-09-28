@@ -1,0 +1,1 @@
+{"ok":false,"problems":[{"code":"E_READ_THROUGH_SCAN","guide":"maintains","mechanical":false,"message":"reactionTotals groups are readable only by their parent key","rewrite":"reactionTotals[parent]","site":{"col":94,"file":"schema.q","line":523}}]}

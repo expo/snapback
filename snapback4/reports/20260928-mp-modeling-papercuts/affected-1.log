@@ -1,0 +1,27 @@
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 28.43s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-c84320c9aaad3540)
+
+running 3 tests
+{"code":"E_RULE","family":"auth","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count","guide":"rules"}
+test sequence_first_membership_reproduces_before_changes ... ok
+
+thread 'parent_denials_hide_other_groups_and_unpinned_scan_still_refuses' (1272811) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:61:70:
+assertion `left == right` failed
+  left: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 9855, output_bytes: 12, rows_written: 0 }
+ right: Metered { examined: 1, index_entries: 0, rule_probes: 1, steps: 3, heap_bytes: 9841, output_bytes: 12, rows_written: 0 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... FAILED
+rewritten builder reactions: [{"count":2,"emoji":"heart","mine":true},{"count":1,"emoji":"laugh","mine":false}]
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+
+failures:
+
+failures:
+    parent_denials_hide_other_groups_and_unpinned_scan_still_refuses
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

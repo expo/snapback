@@ -2051,6 +2051,27 @@ chunks each tick, and sweeps unplaced assets once a minute.
 
 ## 6. Release
 
+An `E_RULE` caller response keeps its cause ambiguous to avoid probing hidden
+rows. In `snapback4 dev`, the stderr line and `snapback4 why recent` identify
+the evaluated refusing clause and its schema source site when available. Each live dev instance
+keeps up to 32 records under the owner-only local
+`.snapback4/dev-refusals/<storeId>/<instance>.json`. Output identifies the store,
+instance, PID and address. When several dev instances run in this project,
+select `why recent --instance ID` (optionally `--store ID`); stopped or
+mismatched records are rejected. Logging and persistence run asynchronously:
+records may lag, and a stalled writer drops excess records from its 32-slot
+queue (`dropped` reports this when it resumes). No HTTP response exposes them,
+and production `serve` does not collect them. Every E_RULE/NOT_FOUND response
+records its operation, code and instance-scoped request ID; an uninstrumented
+path or replay says `cause not instrumented` instead of reusing an older cause.
+Query evidence uses its reader's generation and source coordinates. Capture
+exhaustion points to `read through`, even before an insert rule runs. Filtered
+reads use the local record code FILTERED_READ; empty/null query answers without
+an instrumented cause use EMPTY_READ (also within composed results). An empty
+answer alone does not prove a rule denial. `why recent` rejects a snapshot whose
+latest record is still pending or was dropped, until the writer catches up or
+you reproduce the refusal. No earlier cause is presented as that newer refusal.
+
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 
 - **`snapback4 deploy <dir> [--allow-destructive]`** (from inside the

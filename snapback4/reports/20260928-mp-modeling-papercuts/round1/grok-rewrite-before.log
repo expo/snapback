@@ -1,0 +1,21 @@
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 10.27s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-7dc461985615a9c9)
+
+running 1 test
+
+thread 'sequence_note_uses_declared_column_and_never_marks_a_different_witness_table' (3327937) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:278:5:
+preserve this membership audience with the manual allocator in `guide sequences`: use `joinedAt: int` on members, `lastOrdinal: int default 0` on rooms; seed the new parent's memberships with joinedAt: 0, set later joins from the readable parent's lastOrdinal, and increment that field atomically on each message insert. Keep the message ordinal an int and unique by (room, ordinal).
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test sequence_note_uses_declared_column_and_never_marks_a_different_witness_table ... FAILED
+
+failures:
+
+failures:
+    sequence_note_uses_declared_column_and_never_marks_a_different_witness_table
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

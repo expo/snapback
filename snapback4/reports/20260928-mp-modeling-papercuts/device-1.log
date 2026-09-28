@@ -1,0 +1,42 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 46.76s
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 5 tests
+
+thread 'parent_totals_memory_coverage_and_expiry' (1368915) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 6, col: 3 }, code: "E_QUARRY_SYNTAX", message: "expire names the time column that ends a row's life: expire at .column", rewrite: "expire at .expiresAt", guide: "language", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'parent_totals_sqlite_coverage_and_expiry' (1368916) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 6, col: 3 }, code: "E_QUARRY_SYNTAX", message: "expire names the time column that ends a row's life: expire at .column", rewrite: "expire at .expiresAt", guide: "language", mechanical: false, cascade_of: None }]
+test parent_totals_memory_coverage_and_expiry ... FAILED
+test parent_totals_sqlite_coverage_and_expiry ... FAILED
+
+thread 'rewritten_builder_own_state_memory_reopen' (1368917) panicked at crates/snapback4-device/tests/mp_builder.rs:27:39:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_TIMELINE_IMPORT", message: "fixture imports cannot restore timeline history; seed the mapped rows through operations instead" }
+test rewritten_builder_own_state_memory_reopen ... FAILED
+
+thread 'rewritten_builder_own_state_sqlite_reopen' (1368918) panicked at crates/snapback4-device/tests/mp_builder.rs:27:39:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_TIMELINE_IMPORT", message: "fixture imports cannot restore timeline history; seed the mapped rows through operations instead" }
+test rewritten_builder_own_state_sqlite_reopen ... FAILED
+own keys=false, unknown=true, result=QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 2, index_entries: 0, rule_probes: 0, steps: 8, heap_bytes: 244, output_bytes: 6, rows_written: 0 }, tables: ["likes", "reposts"], next_expiry: None }
+own keys=true, unknown=false, result=QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Row(ObjectFields({"liked": Bool(false), "reposted": Bool(false)}, false, None, false)), unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 2, index_entries: 0, rule_probes: 0, steps: 8, heap_bytes: 244, output_bytes: 58, rows_written: 0 }, tables: ["$ownKeys:likes", "$ownKeys:reposts"], next_expiry: None }
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+
+failures:
+
+failures:
+    parent_totals_memory_coverage_and_expiry
+    parent_totals_sqlite_coverage_and_expiry
+    rewritten_builder_own_state_memory_reopen
+    rewritten_builder_own_state_sqlite_reopen
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p snapback4-device --test mp_builder`

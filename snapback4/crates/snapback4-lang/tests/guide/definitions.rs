@@ -121,6 +121,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_SEARCH_WORDS", "first-term expansion and further-term misses consume the meters"),
     ("N_SEARCH_SHAPE", "repeats a group read per hit"),
     ("E_FIELD_AUTHORITY", "E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours."),
+    ("N_SEQUENCE_READ", "N_SEQUENCE_READ locates a sequence whose read authority depends on an existing"),
     ("E_SEQUENCE_PARENT", "E_SEQUENCE_PARENT names a missing, optional or non-reference parent column"),
     ("E_SEQUENCE_SUPPLIED", "`sequence by` refuses such values with E_SEQUENCE_SUPPLIED, including on updates and upserts."),
     ("E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int."),

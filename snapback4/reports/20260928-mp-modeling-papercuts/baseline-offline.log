@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on build directory
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 05s
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 1 test
+own keys=false, unknown=true, result=QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Null, unavailable: true, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 2, index_entries: 0, rule_probes: 0, steps: 8, heap_bytes: 244, output_bytes: 6, rows_written: 0 }, tables: ["likes", "reposts"], next_expiry: None }
+own keys=true, unknown=false, result=QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Row(ObjectFields({"liked": Bool(false), "reposted": Bool(false)}, false, None, false)), unavailable: false, complete: true, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 2, index_entries: 0, rule_probes: 0, steps: 8, heap_bytes: 244, output_bytes: 58, rows_written: 0 }, tables: ["$ownKeys:likes", "$ownKeys:reposts"], next_expiry: None }
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s

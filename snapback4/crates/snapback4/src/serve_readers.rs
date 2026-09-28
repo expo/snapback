@@ -10,6 +10,7 @@ pub(super) struct QueryReaders {
     pub(super) idle: Vec<Engine>,
     pub(super) source: Option<Engine>,
     memory: bool,
+    pub(super) refusal_sites: Arc<dev_refusals::Sites>,
     #[cfg(test)]
     pub(super) fail_open_after: Option<usize>,
     #[cfg(test)]
@@ -52,15 +53,17 @@ impl QueryReaders {
 }
 
 impl QueryReaders {
-    pub(super) fn new(engine: &Engine) -> Self {
+    pub(super) fn new(engine: &Engine, sites: &dev_refusals::Sites) -> Self {
         Self {
             source: engine.reader().ok(),
+            refusal_sites: Arc::new(sites.clone()),
             memory: engine.store().conn().path().is_none_or(str::is_empty),
             ..Self::default()
         }
     }
-    pub(super) fn replace(&mut self, engine: &Engine) {
+    pub(super) fn replace(&mut self, engine: &Engine, sites: &dev_refusals::Sites) {
         self.invalidate();
+        self.refusal_sites = Arc::new(sites.clone());
         self.memory = engine.store().conn().path().is_none_or(str::is_empty);
         self.source = engine.reader().ok();
     }
@@ -113,9 +116,12 @@ impl Shared {
     // The source is only a connection factory: no transaction, answer or viewer
     // is retained. Identity guards still refuse an obsolete generation.
     pub(super) fn reader(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
-        let result = self.acquire_reader(|| lock(&self.readers).detached());
+        let (result, sites) = self.acquire_reader(|| {
+            let mut readers = lock(&self.readers);
+            (readers.detached(), readers.refusal_sites.clone())
+        });
         if let Some(result) = result {
-            return result.map(|(epoch, reader)| (epoch, TimedReader { engine: reader, _timing: latency::EngineSpan::new() }));
+            return result.map(|(epoch, reader)| (epoch, TimedReader { engine: reader, refusal_sites: sites, _timing: latency::EngineSpan::new() }));
         }
         // A missing factory can also mean opening a file-backed reader failed.
         // Never acquire the writer to repair that failure under a read permit.
@@ -175,7 +181,7 @@ impl Drop for FreshDirectory {
 }
 
 // Ownership ends on return to the pool or on an error/drop (including sync).
-pub(super) struct TimedReader { engine: Engine, _timing: latency::EngineSpan }
+pub(super) struct TimedReader { engine: Engine, pub(super) refusal_sites: Arc<dev_refusals::Sites>, _timing: latency::EngineSpan }
 impl TimedReader {
     pub(super) fn into_inner(self) -> Engine { self.engine }
 }

@@ -835,9 +835,16 @@ pub fn doctor(options: &Options) -> i32 {
 
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
-        eprintln!("usage: snapback4 why <E_CODE | operation | table | id> [--release dir] [--values]");
+        eprintln!("usage: snapback4 why <E_CODE | recent | operation | table | id> [--release dir] [--values]");
         return 2;
     };
+    if subject == "recent" {
+        let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("why: {error}"); return 1; } };
+        return match crate::serve::dev_refusals::recent(&project.data_dir(), options.flags.get("store").map(String::as_str), options.flags.get("instance").map(String::as_str)) {
+            Ok(records) => { println!("{}", serde_json::to_string_pretty(&records).unwrap()); 0 }
+            Err(error) => { eprintln!("why recent: {error}"); 1 }
+        };
+    }
     if subject == "reports" {
         println!("{}", snapback4_lang::guide::card("receipts").expect("receipts card"));
         return 0;

@@ -1,0 +1,122 @@
+{
+  "llp/3000.014-a-child-reads-through-its-parent.rfc.md": {
+    "sha256": "4dcc5908d7e983c5c3dec9f131b6d3304d3a233e7b11dc864bc8885a520a9394",
+    "lines": 526
+  },
+  "llp/3000.015-shared-baseline-for-snapback5.spec.md": {
+    "sha256": "2eaf4fea3e371518119e8b28cc6b885a07bdf5fc03d19e3c76e1634159149cf3",
+    "lines": 620
+  },
+  "snapback4/crates/snapback4-core/src/engine/read.rs": {
+    "sha256": "a6db1205d55e56d59234eff4b2e483fa5510ef31693b014db4b9fe74168af6f6",
+    "lines": 1496
+  },
+  "snapback4/crates/snapback4-core/src/engine/read_auth.rs": {
+    "sha256": "361774343eefc3fff841325b63242a966dd02369224070ced371b54359f36d5b",
+    "lines": 234
+  },
+  "snapback4/crates/snapback4-core/src/engine/refusal_trace.rs": {
+    "sha256": "1bc6152f0ab00a004a384d9c444754b33369dd1916cde3ee3182bd49c59f2429",
+    "lines": 77
+  },
+  "snapback4/crates/snapback4-core/src/engine/runner.rs": {
+    "sha256": "94851526d1e016ac5c36cd5cccd2fa0b5a118ec2c691e6943896d10b271476d1",
+    "lines": 1247
+  },
+  "snapback4/crates/snapback4-core/src/engine/through.rs": {
+    "sha256": "b2c5c23db44229a9c6db600de3621f1f42347194c9358e806fda6f6d98fc3f9c",
+    "lines": 241
+  },
+  "snapback4/crates/snapback4-lang/src/bind/refusals.rs": {
+    "sha256": "373a0b0e98dfe2b58986220a7a9ce5c9c7fe7ffcfcd8228287160a4f31b2546a",
+    "lines": 50
+  },
+  "snapback4/crates/snapback4-lang/src/guide/why/E_RULE.md": {
+    "sha256": "e56e0ef80f9cfa8b4e0821525dabca4f32c1a7bd1ae35ab4baedf69316734145",
+    "lines": 46
+  },
+  "snapback4/crates/snapback4-lang/src/guide/why/N_SEQUENCE_READ.md": {
+    "sha256": "13496537def2095dd5d3839f879d6ea8bcef4c7521c079ac18b3cadec00c4793",
+    "lines": 16
+  },
+  "snapback4/crates/snapback4-lang/tests/mp_reproduction.rs": {
+    "sha256": "8a48c7d26b1059a78a8575028bded4287f7f9d20d8920ca0d7734fbd1912ae8e",
+    "lines": 350
+  },
+  "snapback4/crates/snapback4/src/dev_refusal_response.rs": {
+    "sha256": "0ce300b036aadabe20094726871b3e329059036ccc5002c5f2f39db0eece71d1",
+    "lines": 95
+  },
+  "snapback4/crates/snapback4/src/dev_refusal_watermark.rs": {
+    "sha256": "fdfa5ca351e4acc9f7e960e740c8c6de8a08f39ecc59b4fe525bfe771abea687",
+    "lines": 29
+  },
+  "snapback4/crates/snapback4/src/dev_refusals.rs": {
+    "sha256": "90199c3541ef24033cb1d8de5eb7fce682727b52f4ad6474fc45eb85c00f4425",
+    "lines": 158
+  },
+  "snapback4/crates/snapback4/src/serve.rs": {
+    "sha256": "774ff91d213d58ae61b67816cf094874176449727f27b5e3f36c29c2f93fd7fb",
+    "lines": 1428
+  },
+  "snapback4/crates/snapback4/src/serve_adoption.rs": {
+    "sha256": "fed64a33857a9390954819a4ea6d97629c658f4ff081f5b151429fafd1b8783f",
+    "lines": 246
+  },
+  "snapback4/crates/snapback4/src/serve_ephemeral.rs": {
+    "sha256": "ddc3ebe8c6daf758f42a5154e65e55f34af6e7c0adec9e6d5031e64c76a5a853",
+    "lines": 282
+  },
+  "snapback4/crates/snapback4/src/serve_readers.rs": {
+    "sha256": "cbd8c79763d87a52f50aafbb25936d6607188318173ff8d77a918248ea5c7b70",
+    "lines": 194
+  },
+  "snapback4/crates/snapback4/src/serve_tests.rs": {
+    "sha256": "4a7f5084cf0da6cff1bbe3dd9b249868a588048660473c5c8c20e32b8e94a0e9",
+    "lines": 1438
+  },
+  "snapback4/crates/snapback4/tests/dev_refusals.rs": {
+    "sha256": "e8f4e5615bfe7c6c375b58df5f18a73cb46d4172c141dc8d1198e36e1be37198",
+    "lines": 253
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/authority.rs": {
+    "sha256": "2a83625954e1cb8a450c2efe50f09d795b0c0d55d2a63b00d29b9c6043b3a12e",
+    "lines": 62
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/failure.rs": {
+    "sha256": "dfe2181bf13c1a823a6dab46bbe30419a94e30b028c50843f3ce39c64217312e",
+    "lines": 58
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/mod.rs": {
+    "sha256": "e043943f826a52fb9b08df9ae3a070de68e4c47a323e88ddae9b34e1f1ac42f2",
+    "lines": 298
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/reader_failure.rs": {
+    "sha256": "b9044a3b1ecef8ec103b4ad7b1dad384124e842dc717ebc65a6cebc0c0ac1084",
+    "lines": 91
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/reads.rs": {
+    "sha256": "50926ca5463c48f8675fb49bbe1df75b5fbca2fee60836718a258cdd6c457fb0",
+    "lines": 297
+  },
+  "snapback4/crates/snapback4/tests/serve_adoption/scale.rs": {
+    "sha256": "73c95eb690055b95e1f0b2f3585a59ea281192a4c449e352ee6f2cb36b7c8845",
+    "lines": 81
+  },
+  "snapback4/crates/snapback4/tests/serve_ephemeral/mod.rs": {
+    "sha256": "24d3be34f20ea64b68a485567b4dad603670258f582a5f93f0e0eab206b9df1c",
+    "lines": 480
+  },
+  "snapback4/crates/snapback4/tests/serve_refusals/mod.rs": {
+    "sha256": "4af006184207ff89de28cf466c944dceb709c822325f65f669a9bec1b5baecf1",
+    "lines": 165
+  },
+  "snapback4/crates/snapback4/tests/serve_sync/mod.rs": {
+    "sha256": "fe5dfbae0abc32398805bdb30f6831e6e9944cd91ee123d19bc6e1dfe517d700",
+    "lines": 168
+  },
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": {
+    "sha256": "9f5593d5c722e193126f2cf4fcea74de16909175c00375ef63bc3daa06a80674",
+    "lines": 2427
+  }
+}

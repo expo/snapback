@@ -200,7 +200,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                                 Err(problem) => eprintln!("snapback4 dev: {problem}"),
                             }
                         }
-                        lock(&shared.readers).replace(&engine);
+                        lock(&shared.readers).replace(&engine, &bound.refusal_sites);
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);

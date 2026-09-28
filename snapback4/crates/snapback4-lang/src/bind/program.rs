@@ -340,12 +340,20 @@ impl<'a> Binder<'a> {
     }
 
     fn scan_at(&mut self, read: &ReadExpr, out: &mut setup::Body, position: prefix::Position) -> Fallible<(Scan, u32)> {
-        if self.schema.maintain_for(&read.table).is_some_and(|m| m.groups_by_parent(self.schema)) {
-            return Err(Diagnostic::new(&read.site,"E_READ_THROUGH_SCAN",format!("{} groups are readable only by their parent key",read.table),format!("{}[parent]",read.table)).guide("maintains"));
-        }
         let info = self.table(&read.table, &read.site)?;
         let (keys, index, selection) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
+        // @ref LLP 3000.014#5.1 — one pinned parent authorizes all of its aggregate groups.
+        if let Some(m) = self.schema.maintain_for(&read.table).filter(|m| m.groups_by_parent(self.schema)) {
+            let parent = self.schema.tables[&m.source].through.as_ref().unwrap();
+            if m.parent_key.is_none() || !index.columns.iter().take(prefix.len()).any(|f| f == &parent.reference) {
+                let fields = m.by.iter().filter(|f| *f != &parent.reference).map(|f| format!(".{f}")).collect::<Vec<_>>().join(", ");
+                let order = if fields.is_empty() { ".id" } else { &fields };
+                return Err(Diagnostic::new(&read.site, "E_READ_THROUGH_SCAN",
+                    format!("{} must pin {} to one readable {} row before enumerating groups", read.table, parent.reference, parent.parent),
+                    format!("inside a page of {}, read `{}[{} = .id] by {order}` in its shape: `{{ *, totals: {}[{} = .id] by {order} }}`; keep the parent page's audience key, order and cursor. For a scalar supply every group key: {}[{}]. Omit an explicit aggregate read rule to inherit parent authorization", parent.parent, read.table, parent.reference, read.table, parent.reference, read.table, m.by.join(", "))).guide("maintains"));
+            }
+        }
         let (range, bound) = self.prefix_bound(read, &index, position)?;
         if info.maintained.is_some() && let Some(position) = index.columns.iter().position(|field| field == "value") {
             if prefix.len() != position {

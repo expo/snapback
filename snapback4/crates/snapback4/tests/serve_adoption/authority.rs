@@ -38,7 +38,7 @@ fn bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps() {
             let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",source,reads::VIEWS))]);
             let seq = engine.seq().unwrap();
             engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap();
-            lock(&host.shared.readers).replace(&engine);
+            lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
             let after_adoption = engine.seq().unwrap();
             assert!(after_adoption >= seq);
             engine.store().conn().execute(if revoke {"DELETE FROM _sessions"} else {"UPDATE _sessions SET expires_at = 0"}, []).unwrap();

@@ -1,3 +1,5 @@
+#[path = "../tests/serve_refusals/mod.rs"]
+mod refusal_tests;
 #[path = "../tests/latency/serve.rs"]
 mod latency_tests;
 #[path = "../tests/serve_delivery/mod.rs"] mod delivery_tests;
@@ -54,72 +56,8 @@ impl Host {
         Self::with_store_on(dev, store, source, "127.0.0.1")
     }
     fn with_store_on(dev: bool, store: snapback4_core::Store, source: &str, bind: &str) -> Self {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::new(
-            store,
-            bound.schema.clone(),
-            bound.programs.iter().map(|p| p.program.clone()),
-        )
-        .unwrap();
-        let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()));
-        let presence = Arc::new(Live::new(clock.clone()));
-        engine.set_presence(Some(presence.clone()));
-        let generation = engine.generation();
-        let readers = Mutex::new(QueryReaders::new(&engine));
-        let shared = Arc::new(Shared {
-            project: std::env::current_dir().unwrap(), temporary: true,
-            latency: Arc::new(latency::Registry::new(&bound)),
-            ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
-            wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-            adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: super::engine_lock::FairMutex::new(engine),
-            readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()),
-            bound: Mutex::new(bound),
-            generation: Mutex::new(generation),
-            worker_revision: AtomicUsize::new(0),
-            committed: Condvar::new(),
-            seq: Mutex::new(0),
-            personas: dev,
-            hold_effects: false,
-            hold_schedules: false,
-            clock, maintenance: Mutex::new(()),
-            entropy: Mutex::new(1),
-            presence,
-            asset_transfers: AssetTransfers::default(),
-            native: Mutex::new(None),
-            auth: crate::auth::Admission::default(),
-            uploads: AtomicUsize::new(0),
-            route_verification: routes::Verification::default(), owner: None,
-            auth_work: Mutex::new(None),
-            request_work: Mutex::new(None), upload_work: Mutex::new(None),
-            effect_wait: Mutex::new(None),
-            poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
-            mutation_wait: Mutex::new(None),
-        });
-        shared.install_ephemeral_wake();
-        let server = Arc::new(
-            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits::default())
-                .unwrap(),
-        );
-        let address = server.server_addr().to_ip().unwrap();
-        let admission = Arc::new(RequestAdmission::default());
-        let (s, e, a) = (server.clone(), shared.clone(), admission.clone());
-        let worker = thread::spawn(move || {
-            for request in s.incoming_requests() {
-                dispatch(request, e.clone(), a.clone(), address.ip().is_loopback());
-            }
-        });
-        Self {
-            server,
-            shared,
-            admission,
-            worker: Some(worker),
-            address,
-        }
+        Self::with_evidence(dev, store, source, bind, None)
     }
-
     fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
         exchange(
             self.address,
@@ -1394,7 +1332,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     {
         let mut engine = lock(&host.shared.engine);
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -1413,7 +1351,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     // it does not claim to execute a native-module rebuild.
     {
         let engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &lock(&host.shared.bound).refusal_sites);
         assert_eq!(engine.generation(), generation);
     }
     lock(&host.shared.readers).put(&epoch, reader);

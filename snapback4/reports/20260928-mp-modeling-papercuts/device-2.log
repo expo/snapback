@@ -1,0 +1,50 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 17.92s
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 5 tests
+test parent_totals_memory_coverage_and_expiry ... FAILED
+test parent_totals_sqlite_coverage_and_expiry ... FAILED
+test rewritten_builder_own_state_sqlite_reopen ... FAILED
+test rewritten_builder_own_state_memory_reopen ... FAILED
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+
+failures:
+
+---- parent_totals_memory_coverage_and_expiry stdout ----
+
+thread 'parent_totals_memory_coverage_and_expiry' (1415332) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_READ_THROUGH", message: "reactions.message must be immutable", rewrite: "immutable message", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- parent_totals_sqlite_coverage_and_expiry stdout ----
+
+thread 'parent_totals_sqlite_coverage_and_expiry' (1415333) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_READ_THROUGH", message: "reactions.message must be immutable", rewrite: "immutable message", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 12, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }]
+
+---- rewritten_builder_own_state_sqlite_reopen stdout ----
+
+thread 'rewritten_builder_own_state_sqlite_reopen' (1415335) panicked at crates/snapback4-device/tests/mp_builder.rs:27:39:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_TIMELINE_IMPORT", message: "fixture imports cannot restore timeline history; seed the mapped rows through operations instead" }
+
+---- rewritten_builder_own_state_memory_reopen stdout ----
+
+thread 'rewritten_builder_own_state_memory_reopen' (1415334) panicked at crates/snapback4-device/tests/mp_builder.rs:27:39:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_TIMELINE_IMPORT", message: "fixture imports cannot restore timeline history; seed the mapped rows through operations instead" }
+
+
+failures:
+    parent_totals_memory_coverage_and_expiry
+    parent_totals_sqlite_coverage_and_expiry
+    rewritten_builder_own_state_memory_reopen
+    rewritten_builder_own_state_sqlite_reopen
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p snapback4-device --test mp_builder`

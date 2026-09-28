@@ -1,0 +1,117 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2.72s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-ec20f23f3690cab1)
+
+running 1 test
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-8928882146b12cda)
+
+running 15 tests
+test generation::ring_gap_invalidates_every_requested_name_including_a_removed_table ... ok
+test layered::drop_guard_restores_updates_deletes_and_panics ... ok
+test layered::routes_reads_and_drop_guard_undoes_durable_write_and_store_error ... ok
+test expiry_joins_and_hidden_deadlines_with_no_durable_records_or_replay ... ok
+test expired_points_skip_rules_and_durable_queries_do_not_lock_the_hub ... ok
+test renewal_requires_insert_authority_and_revocation_affects_reads ... ok
+test seed_and_load_refuse_ephemeral_tables ... ok
+test durable_to_ephemeral_activation_deletes_rows_and_indexes ... ok
+test generation::ring_filters_interests_and_overflow_covers_the_interest ... ok
+test generation::adoption_fences_an_already_established_snapshot_and_rebinds_hub ... ok
+test generation::memory_mutation_does_not_need_sqlite_writer_lock_and_restart_is_empty ... ok
+test paired_world_capacity_depends_on_declared_size_not_private_payload ... ok
+test capacity_refusals_restore_rows_and_sweep_before_admission ... ok
+test failures_after_a_write_undo_every_row_and_epoch ... ok
+test generation_admission_rechecks_life_clauses_and_effect_facts ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-3d3402b11a6dc6b9)
+
+running 2 tests
+test memory_guard_and_unknown_read ... ok
+test sqlite_guard_and_unknown_read ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 5 tests
+test parent_totals_memory_coverage_and_expiry ... ok
+test parent_totals_sqlite_coverage_and_expiry ... ok
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+test rewritten_builder_own_state_memory_reopen ... ok
+test rewritten_builder_own_state_sqlite_reopen ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.92s
+
+     Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-59729d93d0f8eb9a)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+test helper_refusal_finds_a_transitive_job_caller ... ok
+test query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context ... ok
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-5322e63c9442721d)
+
+running 15 tests
+test renewal_keys_account_for_later_loop_iterations ... ok
+test renewal_keys_do_not_retain_stability_after_write_results_or_divmod_sinks ... ok
+test changing_ephemeral_tables_is_additive_but_losing_durable_rows_is_destructive ... ok
+test a_clock_controlled_key_assignment_is_not_a_renewal ... ok
+test expression_block_effects_cannot_hide_a_mixed_write ... ok
+test declaration_classification_facts_and_emission ... ok
+test minimum_written_life_sets_renewal_and_helpers_extend_read_closure ... ok
+test durable_job_action_and_held_reads_refuse ... ok
+test life_bounds_and_missing_life ... ok
+test mixed_writes_and_emit_refuse_including_inlined_helper ... ok
+test renews_only_with_stable_update_or_upsert_keys ... ok
+test no_durable_dependents_or_rule_probes ... ok
+test forbidden_table_clauses ... ok
+test following_action_and_schedule_refusals_name_ephemeral_boundary ... ok
+test renewal_requires_one_write_without_read_derived_values_or_a_result ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-24b34acaceb7dc6c)
+
+running 1 test
+test durable_schema_and_types_keep_base_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-ed570ef40e1d4695)
+
+running 8 tests
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+test sequence_first_membership_reproduces_before_changes ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s

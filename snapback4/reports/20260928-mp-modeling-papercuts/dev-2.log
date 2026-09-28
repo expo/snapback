@@ -1,0 +1,38 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 43.38s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-ec20f23f3690cab1)
+
+running 1 test
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... FAILED
+
+failures:
+
+---- dev_reports_source_locally_and_production_keeps_the_same_caller_refusal stdout ----
+
+thread 'dev_reports_source_locally_and_production_keeps_the_same_caller_refusal' (1470607) panicked at crates/snapback4/tests/dev_refusals.rs:15:3:
+: SNAPBACK4_EXIT verb=serve generation=0 status=1 reason="a deployment directory is required"
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dev_reports_source_locally_and_production_keeps_the_same_caller_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p snapback4 --test dev_refusals`

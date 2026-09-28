@@ -7,6 +7,7 @@ mod ephemeral;
 mod defaults;
 mod maintains;
 mod own_keys;
+mod refusals;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -44,6 +45,8 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    /// Compiler-side source map; never serialized into the client backend.
+    pub refusal_sites: std::collections::BTreeMap<(String, String), String>,
     pub view_types: std::collections::BTreeMap<String, crate::types::Ty>,
     /// Authoring-only opt-in; never stored in the core schema, IR or wire.
     pub server: bool,
@@ -211,7 +214,8 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     index_diagnostics::authored(&catalog, &mut diagnostics);
     index_diagnostics::authored(&catalog, &mut notes);
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
-    Bound { view_types, server, schema, programs, personas, diagnostics, notes }
+    notes.extend(refusals::sequence_notes(&catalog, &schema));
+    Bound { refusal_sites: refusals::sites(&catalog), view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {

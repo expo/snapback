@@ -11,6 +11,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_SEARCH_WORDS", &["Try a longer first term or a pinned chat"]),
     ("N_SEARCH_SHAPE", &["Return a bare hit page"]),
     ("E_FIELD_AUTHORITY", &["Name a required principal column on this table, declare a default, and omit the field when writing another principal's row."]),
+    ("N_SEQUENCE_READ", &["manual allocator", "snapback4 why recent"]),
     ("E_SEQUENCE_PARENT", &["Do not supply a value or default."]),
     ("E_SEQUENCE_SUPPLIED", &["Declare an engine sequence."]),
     ("E_SEQUENCE_EXHAUSTED", &["Create a new parent for subsequent writes"]),

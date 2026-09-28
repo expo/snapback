@@ -1,0 +1,16 @@
+snapback4/crates/snapback4-core/src/error.rs:180:            Self::Rule { .. } | Self::AuthorizationBudget { .. } => "E_RULE".into(),
+snapback4/crates/snapback4-core/src/engine/actions.rs:129:    if !allowed { return Err(RuntimeError::Require { code: "E_RULE".into(), site: Some(format!("actions.{}", program.name)) }); }
+snapback4/crates/snapback4-core/src/engine/authorized_scan.rs:297:                        if refuses { Err(RuntimeError::Rule { table: "private".into(), effect: crate::schema::Effect::Insert }) }
+snapback4/crates/snapback4-core/src/engine/write.rs:41:            if matches!(&result, Err(RuntimeError::Rule { effect: Effect::Insert, .. } | RuntimeError::AuthorizationBudget { .. }))
+snapback4/crates/snapback4-core/src/engine/write.rs:181:                } else { RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert} });
+snapback4/crates/snapback4-core/src/engine/write.rs:258:                RuntimeError::Rule {..} | RuntimeError::Input(_) => self.no_write_target(), other => other,
+snapback4/crates/snapback4-core/src/engine/write.rs:289:            return Err(if readable { RuntimeError::Rule { table: table_name.into(), effect: Effect::Update } } else { self.no_write_target() });
+snapback4/crates/snapback4-core/src/engine/write.rs:314:            return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
+snapback4/crates/snapback4-core/src/engine/write.rs:321:                RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
+snapback4/crates/snapback4-core/src/engine/write.rs:437:                    .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
+snapback4/crates/snapback4-core/src/engine/write_target.rs:34:        if matches!(&result, Err(RuntimeError::Require { code, .. }) if code == "NOT_FOUND") { self.meter.restore(mark); }
+snapback4/crates/snapback4-core/src/engine/write_target.rs:91:        RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".into() }
+snapback4/crates/snapback4-core/src/engine/write_target.rs:177:                return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
+snapback4/crates/snapback4-core/src/engine/refusal_trace.rs:34:        RuntimeError::Rule { table: table.into(), effect }
+snapback4/crates/snapback4-core/src/engine/field_authority.rs:90:            return Err(if readable { RuntimeError::Rule { table: table.into(), effect: Effect::Update } } else { self.no_write_target() });
+snapback4/crates/snapback4-core/src/engine/recorded.rs:211:        assert_eq!(err.refusal().code,"NOT_FOUND");

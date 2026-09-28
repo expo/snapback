@@ -1,0 +1,49 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 18.15s
+     Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-0709e8647d954da4)
+
+running 9 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+test helper_refusal_finds_a_transitive_job_caller ... ok
+test query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-c84320c9aaad3540)
+
+running 6 tests
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test sequence_first_membership_reproduces_before_changes ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... FAILED
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+
+failures:
+
+---- developer_gets_each_cause_without_changing_one_byte_of_the_refusal stdout ----
+developer cause: RefusingClause { table: "members", clause: "insert rule", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "sequence read authority", site: "add:3", generation: 1 }
+
+thread 'developer_gets_each_cause_without_changing_one_byte_of_the_refusal' (1460134) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:99:17:
+assertion `left == right` failed
+  left: "unique $intent:byKey:1b1fa96dae29578e"
+ right: "unique byKey"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    developer_gets_each_cause_without_changing_one_byte_of_the_refusal
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

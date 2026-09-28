@@ -20,7 +20,7 @@ fn scale_changes_waits_for_durable_adoption_while_query_and_sync_read() {
         let mut engine=lock(&host.shared.engine);
         *engine=Engine::new(snapback4_core::Store::open(&path).unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
         engine.set_presence(Some(host.shared.presence.clone()));
-        lock(&host.shared.readers).replace(&engine);
+        lock(&host.shared.readers).replace(&engine, &b.refusal_sites);
         *lock(&host.shared.bound)=b;
         *lock(&host.shared.generation)=engine.generation();
         host.shared.publish_engine(&engine);
@@ -44,7 +44,7 @@ fn scale_changes_waits_for_durable_adoption_while_query_and_sync_read() {
         let started=Instant::now();
         let next=engine.adopt(candidate.schema.clone(),candidate.programs.iter().map(|p|p.program.clone())).unwrap();
         let elapsed=started.elapsed();
-        lock(&shared.readers).replace(&engine);
+        lock(&shared.readers).replace(&engine, &candidate.refusal_sites);
         *lock(&shared.bound)=candidate;
         *lock(&shared.generation)=next;
         shared.publish_engine(&engine);

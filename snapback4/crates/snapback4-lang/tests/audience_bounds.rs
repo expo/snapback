@@ -36,6 +36,7 @@ fn builder_public_aggregate_refuses_both_edits_and_explains_each_repair() {
             contains(&d.message, &[name, "horizon-free public sync", "no horizon", &format!("from {}", if name == "ownLikes" { "likes" } else { "reposts" }), &format!("read <- .{owner} = viewer"), "cannot declare a separate sync audience"]);
             contains(&d.rewrite, &["read <- allow", "every device", "other viewers' keys", "online only", "lose offline aggregate/absence coverage", "test --residency", "guide maintains", "guide offline-interactions"]);
             contains(&d.rewrite, &["viewer-owned existence", "eligible public window", "source owner-key coverage", "ordinary `exists`", "does not supply aggregate totals"]);
+            contains(&d.rewrite, &[&format!("with own keys .{owner}"), &format!("on {}", if name == "ownLikes" {"likes"} else {"reposts"}), if name == "ownLikes" {"exists likes[post, viewer]"} else {"exists reposts[viewer, post]"}]);
             excludes(&d.rewrite.to_lowercase(), &["narrow the public source", "sync privately"]);
             assert_eq!(d.site.line, source.lines().position(|line| line == if sync { format!("  sync to .{owner}") } else { format!("  read <- .{owner} = viewer") }.as_str()).unwrap() as u32 + 1);
             let public = clean(&source.replace(&edit, &format!("{declaration}\n  read <- allow")));
@@ -84,7 +85,7 @@ fn helper_refusal_finds_a_transitive_job_caller() {
     clean(&source);
     let d = refusal(&bound(&(source + PREVIEW)), "E_QUARRY_BOUND");
     contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts"]);
-    contains(&d.rewrite, &["system job caller(s) digest", "partial preview"]);
+    contains(&d.rewrite, &["system job caller(s) digest", "partial preview", "if this viewer query is unused, remove `digestPreview`"]);
 }
 
 #[test]
@@ -167,4 +168,22 @@ fn guide_and_why_keep_the_replica_and_partial_total_consequences() {
     contains(&why, &["missing horizon", "offline aggregate/absence coverage", "guide offline-interactions"]);
     let definition = snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_MAINTAIN_SYNCED").unwrap().1;
     contains(definition, &["no horizon", "online only", "loses offline aggregate/absence coverage"]);
+}
+
+#[test]
+fn owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim() {
+    for sync in [false,true] {
+        let declaration="view ownLikes: count likes by .principal, .post";
+        let edit=format!("{declaration}\n  read <- .principal = viewer{}",if sync {"\n  sync to .principal"} else {""});
+        let bad=BUILDER.replace(declaration,&edit);
+        let d=refusal(&bound(&bad),if sync {"E_QUARRY_SYNTAX"} else {"E_SYNC"});
+        let sync_line=d.rewrite.split('`').find(|s|s.starts_with("sync public last")).unwrap();
+        let read=d.rewrite.split('`').find(|s|s.starts_with("exists likes[")).unwrap();
+        clean(&bad.replace(&edit,"").replace("sync public last 2000 by .at",sync_line)
+            .replace("ownLikes[viewer, post] > 0",read)
+            .replace("ownLikes[viewer, .id] > 0",&read.replace("[post,","[.id,")));
+    }
+    let filtered=BUILDER.replace("view ownLikes: count likes by .principal, .post", "view ownLikes: count likes where .at > 0 by .principal, .post\n  read <- .principal = viewer");
+    let d=refusal(&bound(&filtered),"E_SYNC");
+    assert!(!d.rewrite.contains("replace ownLikes with"),"a filtered count's Boolean result is not source-key existence: {d:?}");
 }
