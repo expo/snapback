@@ -197,7 +197,7 @@
   },
   {
     "index": 28,
-    "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
+    "id": "local.ts:syncRound:call({ op: \"apply\", page, predictionFreeRevision, first: !catchingUp && after === undefined }, touched)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false

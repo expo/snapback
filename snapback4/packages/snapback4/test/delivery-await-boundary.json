@@ -69,7 +69,7 @@
   },
   "client.ts": {
     "count": 56,
-    "sha256": "8db9ad9104adb1f92563f252c96df67f105cf164c0e8cb4a8624b8f058aacc04"
+    "sha256": "a9f7bca225cae7d58e0f11ab045c4fc87d64a133be86c85d8d539c26d83f9504"
   },
   "clock.ts": {
     "count": 7,
@@ -167,6 +167,10 @@
     "count": 29,
     "sha256": "cbfac9e4f99c1237c88e09d7e3ff5693645e6d55516260b3d5b8d140a517d35b"
   },
+  "local-read-publication.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "local-reads.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -193,7 +197,7 @@
   },
   "local.ts": {
     "count": 160,
-    "sha256": "be93043c4a9cebbf42a8141bd612b67270022a02133c781edf452414cedb7f11"
+    "sha256": "6ab2b1463f0c6daf478b66c8ba0dc2c69fc77ca4c6d582d85aae0ed2a9771d50"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -248,6 +252,10 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "read-expiry.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "read-nonrevoking.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },

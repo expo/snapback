@@ -66,8 +66,10 @@ keeps the live observation for 30 seconds after its last subscriber leaves.
 Invalidation always wins: changed read dependencies, unknown change footprints,
 refusals, expiry, sign-out/account change, credentials, schema adoption and store
 replacement/restore withdraw immediately for every option. Dependency changes
-are conservative: the protocol names tables, so an innocent write to an input
-table also withdraws until re-read. Rule-probe tables are dependencies too.
+remain conservative, except for proved public puts to a direct immutable-key
+public lookup. Rule-probe tables are dependencies too. New authoritative
+replacements reach every matching watch, including nonempty subsets; old
+replica reads stay fenced until sync applies the evidence.
 A null point or empty page replaces the old answer. Snapshots check deadlines
 even before delayed timers run. No application result cache is needed or safe.
 `usePage` retains a valid prefix while a later page loads, and resets its suffix

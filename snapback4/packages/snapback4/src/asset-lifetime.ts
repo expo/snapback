@@ -1,7 +1,7 @@
 import { deliverReadNotifications } from "./read-notifications.ts";
 import type { AssetRead, Refusal } from "./contract.ts";
 
-const evidence = new WeakMap<object, { seq?: number; nextExpiry?: number | null }>();
+const evidence = new WeakMap<object, { seq?: number; nextExpiry?: number | null; id?: string }>();
 export function assetEvidence(read: AssetRead, value: { seq?: number; nextExpiry?: number | null }): AssetRead { evidence.set(read, value); return read; }
 const listeners = new WeakMap<object, Set<() => void>>();
 const revoked = new WeakSet<object>();
@@ -20,7 +20,8 @@ export class AssetLifetime {
   revision = 0;
   private lastScopeReset = 0;
   private lastChange = 0;
-  private handles = new Map<() => () => void, { seq?: number; nextExpiry?: number | null }>();
+  private readonly refusals = new Map<string, number>();
+  private handles = new Map<() => () => void, { seq?: number; nextExpiry?: number | null; id?: string }>();
   constructor(private now?: () => number) {}
   get size(): number { return this.handles.size; }
   invalidate(seq?: number): void {
@@ -37,11 +38,18 @@ export class AssetLifetime {
     const notify = [...this.handles].filter(([, meta]) => meta.nextExpiry != null && now >= meta.nextExpiry).map(([revoke]) => revoke());
     deliverReadNotifications(notify);
   }
-  own(read: AssetRead, revision = this.revision): AssetRead {
-    if (!("url" in read)) return read;
+  own(read: AssetRead, revision = this.revision, id?: string): AssetRead {
+    if (!("url" in read)) {
+      if (id && "denied" in read && read.denied.code === "E_ASSET_UNKNOWN") {
+        this.refusals.set(id, ++this.revision);
+        const notify = [...this.handles].filter(([, meta]) => meta.id === id).map(([revoke]) => revoke());
+        deliverReadNotifications(notify);
+      }
+      return read;
+    }
     const meta = evidence.get(read) ?? {};
     const obsolete = revision !== this.revision && (revision < this.lastScopeReset || meta.seq === undefined || meta.seq < this.lastChange);
-    if (obsolete || assetRevoked(read)) { read.revoke(); return { denied: assetInvalidated }; }
+    if (obsolete || (id !== undefined && revision < (this.refusals.get(id) ?? 0)) || assetRevoked(read)) { read.revoke(); return { denied: assetInvalidated }; }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = () => this.check();
     const result: AssetRead = {
@@ -54,7 +62,7 @@ export class AssetLifetime {
       clearTimeout(timer); stop(); read.revoke();
       return () => { for (const listener of listeners.get(result) ?? []) { try { listener(); } catch (error) { console.error("snapback4 asset listener:", error); } } };
     };
-    this.handles.set(withdraw, meta);
+    this.handles.set(withdraw, { ...meta, ...(id ? { id } : {}) });
     const stop = onAssetRevoked(read, () => withdraw()());
     const arm = () => {
       if (!this.now || meta.nextExpiry == null || revoked.has(result)) return;

@@ -146,8 +146,8 @@ for (const tier of ["wasm", "process"]) {
     await until(() => reads.length >= 2, "the background refresh started");
     assert.equal((await client.query(query, { p: "dev:alice" })).data?.v, 3, "the one-shot read answered");
     held.resolve();
-    // Nothing overtook the refresh on this watch, so its reply is published; the one-shot answer stays remembered.
-    await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
+    // The newer one-shot answer now reconciles every matching watch.
+    await until(() => mark.getSnapshot()?.data?.v === 3, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
     const seen = [];
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
@@ -212,7 +212,7 @@ for (const tier of ["wasm", "process"]) {
     const older = client.query(query, { p: "dev:alice" });
     await until(() => mark.getSnapshot()?.data?.v === 3, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
     first.resolve();
-    assert.equal((await older).denied?.code, "NOT_HERE", "the older one-shot read was refused");
+    assert.equal((await older).loading, true, "the older one-shot completion is fenced");
     const seen = [];
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();

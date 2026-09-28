@@ -1,7 +1,13 @@
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
-import { deliverReadNotifications } from "./read-notifications.ts";
+import { deferReadNotifications, deliverReadNotifications } from "./read-notifications.ts";
 import { beginEpisode, copyEpisode, ReadEpisode } from "./read-episode.ts";
+
+// Authority belongs to wire-equivalent arguments, independent of object key order.
+export function readKey(op: { name: string }, args: unknown): string {
+  return `${op.name}:${JSON.stringify(args, (_key, value) => value && typeof value === "object" && !Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value)}`;
+}
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
@@ -74,7 +80,7 @@ export class ReadObservation<T> {
     try {
       let result = await run();
       for (let attempt = 0; ; attempt++) {
-        if (revision !== this.revision) return { ...result, read: this.snapshot };
+        if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
         // Check at publication, after the caller's asynchronous continuation.
         if (!accept(result)) {
           // One round has at most four requests, with 25/50/100 ms backoff.
@@ -85,13 +91,13 @@ export class ReadObservation<T> {
           }
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
           // Close/reset may happen during backoff, before another request starts.
-          if (revision !== this.revision) return { ...result, read: this.snapshot };
+          if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
           result = await run();
           continue;
         }
         // Acceptance may itself adopt an incarnation and synchronously reset
         // this observation (or let a peer close it). That retires this fetch.
-        if (revision !== this.revision) return { ...result, read: this.snapshot };
+        if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
         if (publishResult) {
           this.update(result.transportOffline ? { loading: true } : result.read);
           notify();
@@ -164,14 +170,18 @@ export function readInputs(previous: Set<string>, next: Iterable<string>, retain
   return retained && previous.size === 0 ? previous : new Set([...(retained ? previous : []), ...next]);
 }
 
-// @ref LLP 3000.029#4 — a one-shot refusal/absence also invalidates matching live hooks.
-export function invalidateReadEvidence(watches: Iterable<ReadObservation<unknown> & { op: { name: string }; args: unknown; subscribers: Set<() => void> }>,
-  op: { name: string }, args: unknown, read: Read<unknown>): void {
+// @ref LLP 3000.029#7 — accepted whole replacements reach every policy before callbacks.
+export function invalidateReadEvidence<W extends ReadObservation<unknown> & { op: { name: string }; args: unknown; subscribers: Set<() => void> }>(watches: Iterable<W>,
+  op: { name: string }, args: unknown, read: Read<unknown>, install: (watch: W) => void = () => {}, source?: W, publish: () => boolean = () => true): boolean {
   const deliveries: (() => void)[] = [];
-  for (const watch of watches) if (watch.op.name === op.name && JSON.stringify(watch.args) === JSON.stringify(args)) {
-    deliveries.push(watch.reset(read, true));
+  for (const watch of watches) if (watch !== source && watch.op.name === op.name && readKey(watch.op, watch.args) === readKey(op, args)) {
     clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
+    install(watch);
+    deliveries.push(deferReadNotifications(() => watch.publish(read)));
     deliveries.push(() => { for (const notify of watch.subscribers) notify(); });
   }
+  let accepted = false;
+  deliveries.push(deferReadNotifications(() => { accepted = publish(); }));
   deliverReadNotifications(deliveries);
+  return accepted;
 }

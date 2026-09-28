@@ -208,6 +208,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) te
   await until(() => captured, "old evaluation captured");
   await post("/m/edit", { id: "edit-two", args: { body: "current" } }); await client.sync();
   assert.deepEqual(watch.getSnapshot(), { loading: true });
+  values.length = 0; // Earlier checked HTTP answers predate the second commit.
   hold = false; held.resolve();
   await until(() => watch.getSnapshot().data?.body === "current", "current evaluation");
   assert.ok(values.every(read => read.data?.body !== "obsolete"), JSON.stringify(values));

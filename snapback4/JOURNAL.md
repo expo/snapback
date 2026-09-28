@@ -74961,3 +74961,66 @@ Report and evidence: reports/20260928-ex-social-example/round5/REPORT.md;
 LLP 3000.028 §8 and Revised record adoption. Native Expo/Hermes lifecycle
 qualification remains outstanding. No shared installation, push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — LV round 1: invalidation remains a fence until applied
+
+Lane `sb4-intent/lv-hook-retention`; first fetched and merged origin/main
+(`3b1ed05dd`), preserving both appended journal records. Read the round-0 prompt,
+report, LLP 3000.029 and the complete Astra and Grok reviews; applied llp-orient.
+Astra's three disclosure Highs, builder-schema Medium and documentation Low,
+and Grok's withheld-cut/opt-out/model findings are addressed in this local round.
+
+LLP 3000.029 §7 and its Revised line now define persistent table/answer cuts:
+withdrawal also fences new replica evaluations, remembered recovery, competing
+observations and old completions until published apply reaches the evidence.
+Cutless replacements require a complete sync requested after that evidence.
+Receipts cover one commit; an unseen gap invalidates conservatively. Accepted
+whole authoritative replacements, including nonempty subsets, reconcile every
+matching live retention policy with shared sequence/request ordering and deadline
+installation. Equivalent JSON arguments share authority independent of property
+order. Withheld bodies cannot advance the displayed cut; transport keeps its
+exception. Initial loading retries retain their own timer without altering a
+displayed answer's deadline. E_ASSET_UNKNOWN revokes matching owned SDK grants
+and listeners; transport failure and E_ASSET_VIEWED preserve the first view.
+
+The builder's public immutable-key profile query gets a narrow positive proof
+of non-revocation for ordinary public base-row puts. Both the mutation footprint
+and the query shape must qualify; a public table used by a guarded query does
+not. Unknown, destructive, derived, expiring, native, acquisition and prediction
+effects fail closed. Dependency tracking and query reruns remain active. The
+HTTP extension is optional and omitted from empty /changes replies, preserving
+the legacy base shape. No engine authorization, delivered-history grant, meter
+or wasm budget changed. Publication/deadline code moved to a focused helper to
+keep local.ts at 1,497 lines; README remains 300. Client/reads guides, reads-06,
+contract docs and rebuilt declarations describe the policy.
+
+Named Astra regressions cover held sync plus unrelated prediction on process
+and wasm, cross-policy null and one-shot subset replacement on all three hosts,
+asset refusal/listeners, and the actual comparative profile schema in browser
+wasm and online. Both route witnesses preserve draft and /conversation/bob with
+mounts=1 and loadingAfterData=0 through slow empty revalidation, Bob's profile
+update and Alice's unrelated mutation. The independent model separates server
+authorization, evidence delivery, replica application and competing completion
+(40 seeds × 160 events); the asset oracle covers 400 cut pairs. Ten final mutants
+are killed by assertions, including deletion of answers.changed in /changes,
+replica fence removal, both builder fixes, withheld cut and next-sequence grants.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1200 s`, cargo test and
+client tests. Intermediate client aggregate: 4,105 pass, 55 fail, 1 cancelled,
+10 skipped of 4,171; full models 79/79. The Rust wire-shape regression and all
+known affected failures are fixed. Final affected scopes pass: ordering/model/
+fences 112/112; history/browser/fences 86/86; authority/assets/policy 223/223;
+fault matrix plus fences 329/329 (313 matrix cases); provenance controls 16/16;
+HTTP Rust 155 pass / 4 ignored; whole guide 98/98. The broad intermediate run
+was 643/649 and remains recorded as red. Every captured failure and resolution
+is attributed in round1/FAILURES.md and failures.json: all ours except missing
+WITNESS_UDID, environmental. No baseline exemption or green full-suite claim.
+Native Expo UI could not run on this Linux host; device/process and Expo type
+checks were exercised. Reference/whitespace audits and declaration build pass.
+
+Wasm is byte-identical to round 0: 2,040,999 B raw / 593,213 B GNU file-input
+gzip-9, unchanged 593,719 B cap, 506 B headroom; SHA-256
+001b4f9e47acead1dc202060f35e409c4ae31826d972e88965489b3e3cd8c436.
+Report: reports/20260928-lv-hook-retention/round1/REPORT.md. Only vendor/llp
+was initialized for orientation; no shared tool installation. Local co-authored
+commit only: no push, deployment or publication.

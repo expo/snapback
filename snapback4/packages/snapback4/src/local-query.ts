@@ -1,3 +1,4 @@
+import { readKey } from "./read-observation.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
@@ -34,6 +35,8 @@ class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
   coldRead?: ColdReadControl | undefined;
+  evidenceMinimum?(key: string, tables: Set<string>): number;
+  replicaBlocked?(key: string, tables: Set<string>): boolean;
   backend: BackendJson;
   ephemeralReads: EphemeralReads;
   partitionDenied: Refusal | null;
@@ -89,7 +92,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.016#2.2 — unknown branches keep the static reads of expanded helpers; native dependencies remain opaque.
   let possible = program && !program.native ? new Set(staticTables) : null;
   const loading: Result<R> = { read: { loading: true }, tables, nextExpiry: null };
-  const key = `${op.name}:${JSON.stringify(args)}`;
+  const key = readKey(op, args);
   const ephemeralTables = env.backend.schema.operations?.[op.name]?.ephemeralReads ?? program?.ephemeralReads ?? [];
   const ephemeral = ephemeralTables.length > 0;
   let remember = !ephemeral;
@@ -129,7 +132,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
-    if (ephemeral) return { result: loading, origin: "local" };
+    if (ephemeral || env.replicaBlocked?.(key, tables)) return { result: loading, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();
@@ -250,7 +253,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // @ref LLP 3000.016#2.2 — only an already server-answered cold watch may
     // bypass the busy VM. No held read, local composition or remembered fallback.
     if (env.coldRead) return held ? { result: loading, origin: "local" } : server();
-    if (ephemeral) return server();
+    if (ephemeral || env.replicaBlocked?.(key, tables)) return server();
     // Rule 2: run every query locally when possible, even `runs: server`.
     if (env.partitionCurrent && program?.native && !env.nativeReady && env.link === "online") {
       const installed = await env.installNative(env.signal); checkpoint();
@@ -281,6 +284,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (stopped) candidate = localCandidate();
       }
       const { result, origin } = candidate;
+      if (env.replicaBlocked?.(key, tables) && origin !== "server") return loading;
+      if (origin === "server" && !("denied" in result.read && result.seq === undefined) && (env.evidenceMinimum?.(key, tables) ?? 0) > (result.seq ?? 0)) return loading;
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
         return { ...loading, ephemeralStale: true };
       }
@@ -326,10 +331,12 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
         if (remember && "data" in result.read) {
           const accepted = env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
-          result.invalidated = accepted && (result.read.data === null || (Array.isArray(result.read.data) && result.read.data.length === 0));
+          result.invalidated = accepted;
+          if (!accepted) return loading;
         } else {
           const accepted = env.serverAnswers.delete(key, result.seq);
-          result.invalidated = accepted && "denied" in result.read;
+          result.invalidated = accepted && "denied" in result.read && result.read.denied.code !== "E_OFFLINE";
+          if (!accepted) return loading;
         }
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };

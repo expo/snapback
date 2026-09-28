@@ -1200,7 +1200,12 @@ New arguments, operation or client start a distinct read, never old-argument dat
 Every policy withdraws on invalidation evidence: changed read dependencies,
 unknown footprints, denial, expiry, schema/rule changes, sign-out/account or
 credential change, and store replacement/restore. The existing protocol names
-tables, so a harmless write to a dependency also conservatively invalidates.
+tables. Direct public-row lookups by immutable unique keys can retain through
+proved public inserts/updates; unrelated mutation footprints also preserve them.
+Every other changed dependency remains conservative. A pending sync cannot let
+a prediction or a new query resurrect pre-evidence replica data. Accepted
+one-shot and watch replacements reconcile all matching retention policies,
+including nonempty subsets; a transport failure does not become authority.
 This is not a claim of instantaneous remote revocation: offline clients can only
 process evidence they receive. Row deadlines still apply while offline.
 A new null or empty result replaces old rows; a facade cannot retain a different

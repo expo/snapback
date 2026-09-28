@@ -215,9 +215,9 @@ for (const keep of [undefined, false]) test(`wasm: resubscription delivers saved
   const seen = [];
   watch.subscribe(() => seen.push(owner.snapshot));
   assert.deepEqual(owner.deadlines, deadlines, "resubscription preserves the absolute deadlines");
-  assert.equal(owner.snapshot.data, "private A");
+  assert.equal(owner.snapshot.data, keep === false ? undefined : "private A");
   f.wall(4999); t.mock.timers.tick(99);
-  assert.equal(owner.snapshot.data, "private A");
+  assert.equal(owner.snapshot.data, keep === false ? undefined : "private A");
   f.wall(5000); t.mock.timers.tick(1);
   assert.deepEqual(owner.snapshot, { loading: true }, "timer delivery withdraws before any accessor");
   assert.ok(seen.some(read => read.loading), "the saved row timer notifies subscribers");

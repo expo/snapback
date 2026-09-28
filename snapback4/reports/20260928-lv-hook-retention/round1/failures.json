@@ -1,0 +1,420 @@
+[
+  {
+    "log": "affected-final.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "online: public rule witnesses do not qualify as harmless profile puts",
+      "process: public rule witnesses do not qualify as harmless profile puts",
+      "MQ reset wasm: retained history and independent held coverage",
+      "MQ prediction wasm: retained history and independent held coverage",
+      "MQ prediction process: retained history and independent held coverage",
+      "write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation"
+    ]
+  },
+  {
+    "log": "baseline-js.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "online watches retain their changes watermark; bare tokens clear on refusal",
+      "wasm: pending metadata survives repeated profile/vote updates and offline replay",
+      "wasm: no-op and nosync writes retire when the partition stream is empty",
+      "wasm: a write already sending when a snapshot starts is correlated after catch-up",
+      "wasm: a sync started before admission finishes before that write can be sent",
+      "wasm: sync before a delayed write reply does not apply an increment twice",
+      "wasm: sync before a lost write reply does not apply an increment twice",
+      "wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server",
+      "wasm: population growth cannot mint new IDs during prediction replay",
+      "wasm: retry without observers, online-only routing and denied-watch recovery",
+      "wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction",
+      "wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction",
+      "native: pending metadata survives repeated profile/vote updates and offline replay",
+      "native: no-op and nosync writes retire when the partition stream is empty",
+      "native: a write already sending when a snapshot starts is correlated after catch-up",
+      "native: another client sending after sync capture cannot publish an uncorrelated page",
+      "native: a sync started before admission finishes before that write can be sent",
+      "native: sync before a delayed write reply does not apply an increment twice",
+      "native: sync before a lost write reply does not apply an increment twice",
+      "native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server",
+      "native: population growth cannot mint new IDs during prediction replay",
+      "native: retry without observers, online-only routing and denied-watch recovery",
+      "native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction",
+      "native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction",
+      "close cancels online write callers without aborting committed delivery",
+      "device compatibility accepts the current core online and on an offline reopen",
+      "wasm: close waits for an applying acknowledgment and aborts sync",
+      "native: close waits for an applying acknowledgment and aborts sync",
+      "target/lv-baseline-check/snapback4/packages/snapback4/test/ordinary-history.test.mjs",
+      "target/lv-baseline-check/snapback4/packages/snapback4/test/read-through.test.mjs",
+      "MQ speculative events wasm: retained history and independent held coverage",
+      "MQ speculative events process: retained history and independent held coverage"
+    ]
+  },
+  {
+    "log": "browser-2.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+      "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation"
+    ]
+  },
+  {
+    "log": "browser-3.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation"
+    ]
+  },
+  {
+    "log": "browser-initial.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation",
+      "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation"
+    ]
+  },
+  {
+    "log": "compatibility-rerun.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "local observations skip idle polls and rerun after a committed page",
+      "wasm: pending metadata survives repeated profile/vote updates and offline replay",
+      "native: pending metadata survives repeated profile/vote updates and offline replay",
+      "loading server replies retain expiry retries and missing data cannot become ready undefined",
+      "wasm: retained nested rows follow source parents on reordered pages",
+      "wasm: retained nested rows follow source parents on shifted pages",
+      "wasm: composed tables sharing an ID keep independent retained rows",
+      "wasm: projections without id replace a retained copy using its source envelope",
+      "process: retained nested rows follow source parents on reordered pages",
+      "process: retained nested rows follow source parents on shifted pages",
+      "process: composed tables sharing an ID keep independent retained rows",
+      "process: projections without id replace a retained copy using its source envelope",
+      "wasm: an identityless object merges its identified child rows",
+      "wasm: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "process: an identityless object merges its identified child rows",
+      "process: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "wasm: an anonymous nested page appends only retained history after a partial rejoin",
+      "wasm: an in-place edit under an anonymous nested page replaces its retained copy",
+      "process: an anonymous nested page appends only retained history after a partial rejoin",
+      "process: an in-place edit under an anonymous nested page replaces its retained copy",
+      "MQ speculative events wasm: retained history and independent held coverage",
+      "MQ prediction wasm: retained history and independent held coverage",
+      "MQ speculative events process: retained history and independent held coverage",
+      "MQ prediction process: retained history and independent held coverage"
+    ]
+  },
+  {
+    "log": "delivery-rerun.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "every delivery await is explicitly classified"
+    ]
+  },
+  {
+    "log": "fences-2.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "Astra 4 online: asset refusal revokes existing grants and listeners; failures preserve grants",
+      "Astra 4 process: asset refusal revokes existing grants and listeners; failures preserve grants"
+    ]
+  },
+  {
+    "log": "fences-initial.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "Astra 1 process: revoked rows cannot reappear during pending sync after unrelated prediction",
+      "Astra 1 wasm: revoked rows cannot reappear during pending sync after unrelated prediction",
+      "Astra 2: keep:false authoritative null replaces every matching retained watch",
+      "Astra 3: newer nonempty one-shot subset removes private row from retained watch",
+      "Astra 4 online: asset refusal revokes existing grants and listeners; failures preserve grants",
+      "Astra 4 process: asset refusal revokes existing grants and listeners; failures preserve grants"
+    ]
+  },
+  {
+    "log": "fences-pre-rebuild.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "process: receipt after an unseen commit gap fences old authority"
+    ]
+  },
+  {
+    "log": "guide-final.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "familiar::every_moved_fact_has_its_why_or_details_home"
+    ]
+  },
+  {
+    "log": "idle-debug.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "local observations skip idle polls and rerun after a committed page"
+    ]
+  },
+  {
+    "log": "isolated-affected.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "online: public rule witnesses do not qualify as harmless profile puts",
+      "process: public rule witnesses do not qualify as harmless profile puts"
+    ]
+  },
+  {
+    "log": "model-browser.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "independent fence model seed 15"
+    ]
+  },
+  {
+    "log": "mutant-asset-next-cut.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Grok: every next-sequence asset revocation retires the previous grant"
+    ]
+  },
+  {
+    "log": "mutant-asset-refusal.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 4 online: asset refusal revokes existing grants and listeners; failures preserve grants"
+    ]
+  },
+  {
+    "log": "mutant-builder-local.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation"
+    ]
+  },
+  {
+    "log": "mutant-builder-online.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation"
+    ]
+  },
+  {
+    "log": "mutant-changes-call.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 1 process: revoked rows cannot reappear during pending sync after unrelated prediction",
+      "Astra 1 wasm: revoked rows cannot reappear during pending sync after unrelated prediction"
+    ]
+  },
+  {
+    "log": "mutant-cross-policy.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 2 online: keep:false authoritative null replaces every matching retained watch",
+      "Astra 2 process: keep:false authoritative null replaces every matching retained watch",
+      "Astra 2 wasm: keep:false authoritative null replaces every matching retained watch"
+    ]
+  },
+  {
+    "log": "mutant-replica-fence.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 1 process: revoked rows cannot reappear during pending sync after unrelated prediction",
+      "Astra 1 wasm: revoked rows cannot reappear during pending sync after unrelated prediction"
+    ]
+  },
+  {
+    "log": "mutant-subset-replacement.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Astra 3 online: newer nonempty one-shot subset removes private row from retained watch",
+      "Astra 3 process: newer nonempty one-shot subset removes private row from retained watch",
+      "Astra 3 wasm: newer nonempty one-shot subset removes private row from retained watch"
+    ]
+  },
+  {
+    "log": "mutant-unknown-cut-sync.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "an already requested sync cannot discharge a later unknown-cut replacement"
+    ]
+  },
+  {
+    "log": "mutant-withheld-cut.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "Grok: withheld reply cannot advance the retained body cut past a later changes revocation"
+    ]
+  },
+  {
+    "log": "mutations-final.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "counterfactual not killed by assertion: withheld-cut",
+      "counterfactual not killed by assertion: builder-online"
+    ]
+  },
+  {
+    "log": "native-expo.log.gz",
+    "classification": "environmental",
+    "expected_counterfactual": false,
+    "failures": [
+      "WITNESS_UDID must name your dedicated booted iOS simulator"
+    ]
+  },
+  {
+    "log": "order-2.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "wasm: an older read's refusal that lands after an accepted background reply does not erase it",
+      "wasm: a reply that names no store cut is ordered by when its read began",
+      "process: an older read's refusal that lands after an accepted background reply does not erase it",
+      "process: a reply that names no store cut is ordered by when its read began",
+      "a composed read's refusal at a later cut removes an older answer a later read remembered",
+      "a refusal is ordered by the cut its evaluation read, not the head taken before it",
+      "an expired device answer re-routed to the server takes a new place in the order"
+    ]
+  },
+  {
+    "log": "order-initial.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "wasm: an accepted background reply does not replace a newer answer another read remembered",
+      "wasm: an accepted background reply replaces an older read's answer that landed while it ran",
+      "wasm: an older read's refusal that lands after an accepted background reply does not erase it",
+      "wasm: a reply that names no store cut is ordered by when its read began",
+      "process: an accepted background reply does not replace a newer answer another read remembered",
+      "process: an accepted background reply replaces an older read's answer that landed while it ran",
+      "process: an older read's refusal that lands after an accepted background reply does not erase it",
+      "process: a reply that names no store cut is ordered by when its read began",
+      "a composed read's refusal removes no answer a later read remembered",
+      "an earlier read's answer at a higher cut, landing while a composed read is out, is remembered"
+    ]
+  },
+  {
+    "log": "remaining-qualified.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "MQ delete current wasm: retained history and independent held coverage",
+      "MQ reset wasm: retained history and independent held coverage",
+      "MQ prediction wasm: retained history and independent held coverage",
+      "MQ interrupted snapshot wasm: retained history and independent held coverage",
+      "MQ reset process: retained history and independent held coverage",
+      "MQ interrupted snapshot process: retained history and independent held coverage"
+    ]
+  },
+  {
+    "log": "retained-debug.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "MQ reset wasm: retained history and independent held coverage",
+      "MQ prediction wasm: retained history and independent held coverage",
+      "MQ interrupted snapshot wasm: retained history and independent held coverage"
+    ]
+  },
+  {
+    "log": "rule-witness-fixture.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "online: public rule witnesses do not qualify as harmless profile puts",
+      "process: public rule witnesses do not qualify as harmless profile puts"
+    ]
+  },
+  {
+    "log": "rust-http-final.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "serve::changes::column_tests::retention_needs_both_a_public_put_and_an_immutable_key_lookup"
+    ]
+  },
+  {
+    "log": "test-sh.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "serve::tests::ephemeral_tests::legacy_poll_reply_has_exact_base_shape",
+      "local observations skip idle polls and rerun after a committed page",
+      "a failed native replacement falls back without a stale local answer and is retried",
+      "online watches retain their changes watermark; bare tokens clear on refusal",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "online: durable-only change requests and answers retain the base wire bytes",
+      "wasm: durable-only change requests and answers retain the base wire bytes",
+      "initial backend installation rejects a query already in flight",
+      "expiry retry server pagination wasm",
+      "expiry retry server pagination watch wasm",
+      "expiry retry server pagination process",
+      "expiry retry server pagination watch process",
+      "process: receipt after an unseen commit gap fences old authority",
+      "online: public rule witnesses do not qualify as harmless profile puts",
+      "process: public rule witnesses do not qualify as harmless profile puts",
+      "an already requested sync cannot discharge a later unknown-cut replacement",
+      "wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active)",
+      "process keep=undefined: displayed expiry fences an older body while preserving newer memory (active)",
+      "wasm keep=true: displayed expiry fences an older body while preserving newer memory (active)",
+      "wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering)",
+      "process keep=true: displayed expiry fences an older body while preserving newer memory (active)",
+      "process keep=true: displayed expiry fences an older body while preserving newer memory (lingering)",
+      "wasm keep: an older displayed deadline preserves a newer unexpired remembered answer",
+      "process keep: an older displayed deadline preserves a newer unexpired remembered answer",
+      "wasm: keep=undefined never publishes an evaluation captured before a newer commit",
+      "process: keep=undefined never publishes an evaluation captured before a newer commit",
+      "wasm: keep=true never publishes an evaluation captured before a newer commit",
+      "process: keep=true never publishes an evaluation captured before a newer commit",
+      "wasm: comparative DM before acquisition, HTTP decorations, and unpredicted offline send",
+      "ready list reads survive account restoration, new chat acquisition and pending unread counts",
+      "wasm: retained nested rows follow source parents on reordered pages",
+      "wasm: retained nested rows follow source parents on shifted pages",
+      "wasm: composed tables sharing an ID keep independent retained rows",
+      "wasm: projections without id replace a retained copy using its source envelope",
+      "process: retained nested rows follow source parents on reordered pages",
+      "process: retained nested rows follow source parents on shifted pages",
+      "process: composed tables sharing an ID keep independent retained rows",
+      "process: projections without id replace a retained copy using its source envelope",
+      "wasm: an identityless object merges its identified child rows",
+      "wasm: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "process: an identityless object merges its identified child rows",
+      "process: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "wasm: an anonymous nested page appends only retained history after a partial rejoin",
+      "wasm: an in-place edit under an anonymous nested page replaces its retained copy",
+      "process: an anonymous nested page appends only retained history after a partial rejoin",
+      "process: an in-place edit under an anonymous nested page replaces its retained copy",
+      "wasm: an unheld parent falls back without losing retained rows",
+      "process: an unheld parent falls back without losing retained rows",
+      "R5 history wasm: retained history and independent held coverage",
+      "R5 history process: retained history and independent held coverage",
+      "wasm: resubscription delivers saved row expiry without an accessor, keep=false",
+      "remembered wakeup retains data until its own server deadline (null, early=false)",
+      "remembered wakeup retains data until its own server deadline (null, early=true)",
+      "remembered wakeup retains data until its own server deadline (300, early=false)",
+      "remembered wakeup retains data until its own server deadline (600, early=false)",
+      "finding 2: delayed horizon answer cannot escape its incarnation",
+      "write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation"
+    ]
+  }
+]

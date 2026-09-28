@@ -184,8 +184,9 @@ export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
 
 /** Omitted: retain during plain revalidation without a timeout, with revalidating.
- * False: withdraw immediately. True: retain without the time cap and linger 30 s
- * after unmount. Failed reads, expiry, refusals and resets withdraw for all three.
+ * False: withdraw immediately. True: additionally linger 30 s
+ * after unmount. Expiry, authoritative refusals and resets withdraw for all three.
+ * Failed plain refreshes retain for the default and true policies.
  * @ref LLP 3000.029#3 — each policy owns a separate live watch. */
 export interface ObserveOptions { readonly keep?: boolean }
 

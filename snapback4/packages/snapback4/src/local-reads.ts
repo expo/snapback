@@ -1,5 +1,5 @@
 import type { Query } from "./contract.ts";
-import { ReadObservation } from "./read-observation.ts";
+import { ReadObservation, readKey } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
 
@@ -16,6 +16,7 @@ export function predictedTables(predicted: readonly string[]): Set<string> {
 }
 
 export interface LocalWatch extends ReadObservation<unknown> {
+  stablePuts?: string[];
   op: Query<unknown, unknown>;
   args: unknown;
   key: string;
@@ -146,25 +147,63 @@ export class RememberedAnswers {
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
+  private appliedCut = 0;
+  private reportedCut = 0;
+  evidenceSerial = 0;
+  private readonly unknownKeys = new Map<string, number>();
+  private readonly tableCuts = new Map<string, number>();
+  private readonly keyCuts = new Map<string, number>();
+  // @ref LLP 3000.029#7 — new evaluations are fenced until published apply.
+  fence(tables: readonly string[] | undefined, cut: number): void {
+    for (const table of tables ?? ["*"]) this.tableCuts.set(table, Math.max(cut, this.tableCuts.get(table) ?? 0));
+  }
+  replacement(key: string, cut?: number): void {
+    if (cut === undefined) this.unknownKeys.set(key, ++this.evidenceSerial); else this.unknownKeys.delete(key);
+    const previous = this.keyCuts.get(key) ?? 0;
+    this.keyCuts.set(key, Math.max(cut ?? Infinity, Number.isFinite(previous) ? previous : 0));
+  }
+  minimum(key: string, tables: Set<string>): number {
+    return Math.max(this.keyCuts.get(key) === Infinity || (this.keyCuts.get(key) ?? 0) <= this.appliedCut ? 0 : this.keyCuts.get(key) ?? 0, this.tableCuts.get("*") ?? 0,
+      ...[...this.tableCuts].filter(([table]) => !tables.size || tables.has(table)).map(([, cut]) => cut));
+  }
+  blocked(key: string, tables: Set<string>): boolean { return this.keyCuts.get(key) === Infinity || this.minimum(key, tables) > this.appliedCut; }
+  applied(cut: number, complete = false, requestSerial = this.evidenceSerial): void {
+    this.appliedCut = Math.max(this.appliedCut, cut);
+    this.reportedCut = Math.max(this.reportedCut, cut);
+    for (const slots of [this.tableCuts, this.keyCuts]) for (const [key, minimum] of slots)
+      if (minimum <= this.appliedCut || (complete && minimum === Infinity && (this.unknownKeys.get(key) ?? Infinity) <= requestSerial)) { slots.delete(key); this.unknownKeys.delete(key); }
+  }
+
+
+  // A receipt covers its own commit only. A gap is an unknown footprint.
+  receipt(watches: Iterable<LocalWatch>, json: Record<string, unknown>): boolean {
+    const cut = Number(json.seq);
+    if (!Number.isSafeInteger(cut) || cut <= this.reportedCut) return false;
+    const touched = cut === this.reportedCut + 1 && Array.isArray(json.tables) ? json.tables as string[] : undefined;
+    const stable = Array.isArray(json.nonRevoking) ? json.nonRevoking as string[] : [];
+    this.changed([...watches].filter(w => !w.serverOnly || w.serverSeq === undefined || w.serverSeq < cut), touched, cut, stable);
+    return true;
+  }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
   expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
-    if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
+    if (serverDue) this.serverAnswers.expire(readKey(watch.op, watch.args), serverNow);
   }
 
   // @ref LLP 3000.029#4 — committed input changes withdraw before callbacks.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], nonRevoking: readonly string[] = []): void {
     if (!["apply", "admit", "settle"].includes(operation)) { this.clear(watches); return; }
-    this.revision++;
-    this.changed(watches, touched);
+    this.changed(watches, touched, undefined, nonRevoking);
   }
 
-  changed(watches: Iterable<LocalWatch>, touched?: readonly string[]): void {
+  changed(watches: Iterable<LocalWatch>, touched?: readonly string[], cut?: number, nonRevoking: readonly string[] = []): void {
+    this.revision++;
+    if (cut !== undefined) { this.fence(touched, cut); this.reportedCut = Math.max(this.reportedCut, cut); }
     this.serverAnswers.clear();
     for (const watch of watches) {
       if ("denied" in watch.snapshot && watch.snapshot.denied.code === "E_INPUT") continue;
       const invalid = touched === undefined || (touched.length > 0 &&
-        (watch.tables.size === 0 || touched.some(table => watch.tables.has(table))));
+        (watch.tables.size === 0 || touched.some(table => watch.tables.has(table) && (!nonRevoking.includes(table) || !watch.stablePuts?.includes(table)))));
       if (invalid) {
         watch.reset({ loading: true });
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
@@ -176,6 +215,7 @@ export class LocalReads {
   clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
+    this.tableCuts.clear(); this.keyCuts.clear(); this.unknownKeys.clear(); this.appliedCut = 0; this.reportedCut = 0;
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
       if (reset || !watch.retain) {
