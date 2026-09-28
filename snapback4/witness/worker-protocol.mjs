@@ -54,13 +54,14 @@ serveWorker(globalThis);
 `);
 writeFileSync(join(dir, 'entry.js'), `
 import { WebWorkerHost } from '${sdk}/web-worker-host.js';
+import { WebWorkerSuspend } from '${sdk}/web-worker-suspend.js';
 import { AdmissionJournal } from '${sdk}/web-journal.js';
 import { indexedDbPersistence } from '${sdk}/web.js';
 const backend = ${JSON.stringify(schema)};
 const persist = indexedDbPersistence();
 const ok = reply => { if (reply.denied) throw new Error(JSON.stringify(reply)); return reply.ok; };
 const records = () => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:'));
-let host, journal, worker, hit, signal, workerStarts = 0;
+let host, journal, suspension, worker, hit, signal, workerStarts = 0;
 const events = [
   { table: 'conversations', id: 'c1', title: 'General', creatorId: 'dev:alice' },
   { table: 'memberships', id: 'm1', conversationId: 'c1', principal: 'dev:alice', role: 'admin', joinedAt: 1 },
@@ -79,6 +80,7 @@ async function open(name, fault = true, kept = false) {
   }) : new WebWorkerHost(claim);
   const saved = await host.open(kept ? null : backend);
   journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id)); journal.load(saved);
+  suspension = new WebWorkerSuspend(host, journal);
   window.nameOfStore = claim.name;
   if (!kept) await call({ op: 'observe_store', page: { snapshot: false, generation: 1, events: [], watermark: 0, more: false, store_id: 'worker-store', requested_watermark: 0 } });
   return claim.name;
@@ -118,6 +120,26 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  prepareExit: () => suspension.prepare(),
+  dispatchExit() {
+    let sent = false, captured = false;
+    suspension.dispatch((entries, begin) => {
+      if (!begin()) return;
+      captured = records().some(key => key.endsWith('exit:' + entries[0].id));
+      sent = true;
+      void fetch('/keepalive-proof', { method: 'POST', body: entries[0].id, keepalive: true });
+    });
+    return { sent, captured };
+  },
+  pagehideExit() {
+    let sent = false, captured = false;
+    const stop = suspension.onSuspend((entries, begin) => {
+      if (!begin()) return;
+      captured = records().some(key => key.endsWith('exit:' + entries[0].id)); sent = true;
+      void fetch('/keepalive-proof', { method: 'POST', body: entries[0].id, keepalive: true });
+    });
+    dispatchEvent(new PageTransitionEvent('pagehide')); stop(); return { sent, captured };
+  },
   control: () => host.control.read(), pending: id => host.control.capture(id), admitted: id => host.control.admitted(id),
   async acquire() { await call(first); await call(second); await call(terminal); },
   arm(point, crash = false) { hit = new Promise(r => signal = r); worker.postMessage({ test: 'arm', point, crash }); },
@@ -404,6 +426,43 @@ try {
     assert.equal(result.authority.epoch, '7'); assert.equal(result.authority.source, 'original-authority');
     assert.deepEqual(result.queued, []);
     return result;
+  });
+  await run('prepared pagehide keeps synchronous exit custody and the durable begin-send fence', async page => {
+    const result = await page.evaluate(async () => {
+      await w.open('prepared'); await w.acquire(); await w.admit(w.capture('prepared-head'));
+      const capture = await w.call({ op: 'sync_state' }); await w.prepareExit();
+      const prepared = w.control(); const sent = w.pagehideExit();
+      const duplicate = w.dispatchExit();
+      const stale = await w.call({ op: 'observe_store', page: { snapshot: false, generation: 1,
+        store_id: 'worker-store', watermark: 6, requested_watermark: 5, events: [], more: false, send_revision: capture.send_revision } }).then(() => 'accepted', error => String(error));
+      return { capture, prepared, sent, duplicate, stale };
+    });
+    assert.ok(result.prepared.send_revision > result.capture.send_revision);
+    assert.deepEqual(result.sent, { sent: true, captured: true });
+    assert.equal(result.duplicate.sent, false);
+    assert.match(result.stale, /mutation send overlapped/);
+    return result;
+  });
+  await run('a later queued call synchronously cancels prepared suspension permission', async page => {
+    const result = await page.evaluate(async () => {
+      await w.open('prepared-stale'); await w.acquire(); await w.admit(w.capture('head'));
+      await w.prepareExit(); w.arm('before-invoke');
+      const capture = w.call({ op: 'sync_state' }).catch(e => String(e));
+      const immediate = w.dispatchExit(); await w.hit(); const busy = w.dispatchExit();
+      await w.terminate(); await capture;
+      return { immediate, busy, crashed: w.dispatchExit() };
+    });
+    assert.equal(result.immediate.sent, false); assert.equal(result.busy.sent, false); assert.equal(result.crashed.sent, false);
+    return result;
+  });
+  await run('failed synchronous exit capture prevents a prepared keepalive', async page => {
+    const result = await page.evaluate(async () => {
+      await w.open('prepared-storage'); await w.acquire(); await w.admit(w.capture('head'));
+      await w.prepareExit(); const set = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) { if (key.includes('exit:')) throw Error('exit quota'); return set.call(this, key, value); };
+      try { return w.dispatchExit(); } finally { Storage.prototype.setItem = set; }
+    });
+    assert.equal(result.sent, false); return result;
   });
   await run('exit journal replay increments the send fence after interruption', async page => {
     const result = await page.evaluate(async () => {

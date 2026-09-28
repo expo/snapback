@@ -19,6 +19,8 @@ export interface WorkerTransaction {
 // complete call. No injected Persistence functions cross postMessage.
 export class WebWorkerHost {
   readonly control = new PageDeviceControl();
+  private activity = 0;
+  get revision(): number { return this.activity; }
   private worker: Worker | undefined;
   private lease: string | undefined;
   private attached = false;
@@ -96,6 +98,7 @@ export class WebWorkerHost {
    * rejects, even if its commit happened before a lost reply. The next call
    * first restores durable state under the same page claim. */
   transaction<T>(work: (transaction: WorkerTransaction) => Promise<T>): Promise<T> {
+    this.activity++;
     if (this.closing || !this.opened) return Promise.reject(new Error("the device is closed or has not opened"));
     const result = this.chain.then(async () => {
       try { if (!this.worker) { await this.stopping; await this.start(null); } }
@@ -151,6 +154,7 @@ export class WebWorkerHost {
   }
 
   private stop(): Promise<void> {
+    this.activity++;
     this.control.discard();
     if (this.stopping) return this.stopping;
     const worker = this.worker, lease = this.lease, attached = this.attached;
