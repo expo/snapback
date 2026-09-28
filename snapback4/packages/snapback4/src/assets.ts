@@ -8,14 +8,7 @@ import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
 
-function offline(error: unknown): Refusal {
-  const failure = error as { message?: string; cause?: { code?: string; message?: string } } | undefined;
-  const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.message ?? String(error);
-  return { code: "E_OFFLINE", family: "link", message: `the asset transfer failed: ${cause}; check the connection and server logs before retrying`, retryable: true };
-}
-
-// @ref LLP 3000#http-overload-diagnostics — an HTTP answer is not an unreachable host.
-const invalidResponse = (status: number): Refusal => ({ code: "E_HTTP_RESPONSE", family: "link", message: `the server answered HTTP ${status} without a valid asset response; the upload outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true });
+import { refusal, overloaded, invalidResponse, transportRefusal as offline, retryAfter, jitter } from "./http-response.ts";
 
 // @ref LLP 3000.011.005.000#8 — React Native Blobs use the public FileReader fallback
 export function blobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
@@ -79,9 +72,9 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
       let json: { asset?: Asset; denied?: Refusal } | null;
       try { json = await response.json(); }
-      catch { return { ok: false, why: invalidResponse(response.status) }; }
+      catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }
       if (response.ok && json?.asset) return { ok: true, asset: json.asset };
-      const why = json?.denied ?? invalidResponse(response.status);
+      const why = refusal(json?.denied) ?? invalidResponse(response.status, "upload");
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.
       if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };
@@ -98,13 +91,6 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
   }
 }
 
-function retryAfter(value: string | null): number {
-  if (!value) return 0;
-  const seconds = /^\d+(?:\.\d+)?$/.test(value.trim()) ? Number(value) : NaN;
-  const delay = Number.isNaN(seconds) ? Date.parse(value) - Date.now() : seconds * 1000;
-  return Number.isNaN(delay) ? 0 : Math.max(0, delay);
-}
-
 /** Where the bytes are and what to send to get them: for hosts whose image
  * and video views take a URI with headers (React Native). */
 export function assetSource(base: string, headers: Record<string, string>, id: string): { uri: string; headers: Record<string, string> } {
@@ -116,10 +102,20 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
   const source = assetSource(base, headers, id);
   let release: (() => void) | undefined;
   try {
-    const response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
-    if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { denied?: Refusal } | null;
-      return { denied: json?.denied ?? { code: response.status === 410 ? "E_ASSET_VIEWED" : "E_ASSET_UNKNOWN", family: "asset", message: response.status === 410 ? "this photo was for one view, and it was viewed" : "no asset is served under that id to this viewer" } };
+    let response: Response;
+    let waited = 0;
+    for (let attempt = 0; ; attempt++) {
+      response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
+      if (response.ok) break;
+      const json = await response.json().catch(() => null) as { denied?: unknown } | null;
+      const why = refusal(json?.denied) ?? invalidResponse(response.status, "download");
+      // An admission refusal proves the once-view response never started.
+      // A reset, including during blob consumption, exits without retrying.
+      const delay = Math.max(jitter(250 * 2 ** attempt), retryAfter(response.headers.get("retry-after")));
+      if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return { denied: why };
+      await new Promise(resolve => setTimeout(resolve, delay));
+      waited += delay;
+      if (signal?.aborted) return { denied: why };
     }
     const blob = await response.blob();
     release = ownBlob(blob);

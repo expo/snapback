@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setImmediate as tick } from 'node:timers/promises';
 import { census, instrument, packageRoot, awaitBoundary } from './delivery-fault-instrument.mjs';
-import { recipe, required, absorbs } from './delivery-fault-recipes.mjs';
+import { recipe, fixtureIndex, required, absorbs } from './delivery-fault-recipes.mjs';
 import { fixture, until, ok, original } from './delivery-fault-fixture.mjs';
 const directory = mkdtempSync(join(packageRoot, '.rg-matrix-'));
 instrument(directory);
@@ -41,13 +41,13 @@ const op = { kind: 'mutation', name: 'send' };
 test('every delivery await is explicitly classified',()=>{
   if(process.env.RG_MATRIX_CONTROL) return;
   assert.deepEqual(awaitBoundary(), JSON.parse(readFileSync(new URL('./delivery-await-boundary.json',import.meta.url),'utf8')), 'new or changed await needs delivery reachability classification, including outside existing helper scopes');
-  assert.deepEqual(sites.map((s,index)=>({index,id:s.id,recipe:recipe(index),classification:required.has(index)?'required':'optional',absorbs:absorbs.has(index)})),classified,'new or changed awaited delivery site needs a classification and fault recipe');
+  assert.deepEqual(sites.map((s,index)=>({index,id:s.id,recipe:recipe(index),classification:required.has(fixtureIndex(index))?'required':'optional',absorbs:absorbs.has(fixtureIndex(index))})),classified,'new or changed awaited delivery site needs a classification and fault recipe');
 });
 for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [process.env.RG_MATRIX_MODE] : ['transient', 'persistent'])) {
   test(`${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
-    const index = sites.indexOf(site), scenario = recipe(index);
-    direct = [11,18,26,27,35,42,50,72].includes(index);
+    const index = fixtureIndex(sites.indexOf(site)), scenario = recipe(sites.indexOf(site));
+    direct = [11,18,26,27,35,42,50,72,156].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};

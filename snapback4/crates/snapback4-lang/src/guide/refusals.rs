@@ -15,8 +15,8 @@ retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` or named unique refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
-asset, action, route, prediction, generation, store; the client adds link (the server is
-unreachable) and client (the client itself refused, as after `close()`).
+asset, action, route, prediction, generation, store; HTTP admission adds limit.
+The client adds link (a transport or HTTP response failure) and client (the client itself refused, as after `close()`).
 Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 
@@ -47,13 +47,18 @@ process's inherited file-descriptor soft/hard limits. E_HTTP_LIMIT warns below
 is lower, raise the shell/container/service NOFILE limit first. Doctor's shell
 may differ from a running server's launcher; dev reports its own limits.
 E_HTTP_LISTENER names an OS accept failure, including descriptor exhaustion.
-E_RATE_LIMIT at http names connection saturation; await pending writes or
-reduce concurrent clients. Limits are reported, never automatically raised.
-E_HTTP_RESPONSE means an asset request received HTTP with an invalid response
+E_RATE_LIMIT at http names connection saturation; at workers it names a full
+request pool. Await pending writes or reduce concurrent clients. Cumulative
+operator summaries count suppressed refusals and failed wire delivery. Limits are reported, never automatically raised.
+E_HTTP_RESPONSE means a request received HTTP with an invalid response
 envelope; its status is in the message. An upload's outcome is unknown, so
 inspect server/proxy logs before retrying. E_OFFLINE applies when no HTTP
-response was received. An undeliverable overload response can still look like
-a transport failure; the server's coded log distinguishes it.
+response could be consumed. It retains the host's transport cause when supplied;
+otherwise it reports an unspecified transport failure. A received E_RATE_LIMIT
+keeps the link online and effect workers retrying. Reads and same-ID mutations
+back off with jitter; uploads and downloads retry only explicit admission
+refusals. An undeliverable overload response can still look like a transport
+failure; operator counters distinguish the admission layers.
 
 `snapback4 why <CODE>` prints its explanation and diagnostic details,
 followed by the full-card command. Every registered code has a dedicated

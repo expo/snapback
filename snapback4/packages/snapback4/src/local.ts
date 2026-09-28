@@ -1,3 +1,4 @@
+import { readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseOverload } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
@@ -46,19 +47,8 @@ import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
-import {
-  defaultSessionStore,
-  forgetSession,
-  guest,
-  keepSession,
-  logout,
-  logoutAll as revokeAllSessions,
-  refreshSession as rotateSession,
-  restoreSession,
-  type Session,
-  type SessionStore,
-  type SignIn,
-} from "./auth.ts";
+import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
+  refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
 import type { LocalOptions, LocalClient } from "./local-device.ts";
 // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
@@ -351,7 +341,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     finally { active.delete(work); deliver(); }
   }
-  const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+  let transportFailure: Refusal | undefined;
+  const offline = (): Refusal => transportFailure ?? transportRefusal();
   const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
   setLink = (next: Link) => {
     if (closed || (sessionDead && next !== "signed-out")) return;
@@ -538,16 +529,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
       const { response, json } = reply;
       const why = (json.denied ?? json.why) as Refusal | undefined;
+      if (why?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
       if (path.startsWith("/m/") && why?.retryable && !closed && !sessionDead && request.revision === credentialRevision) {
         await holds.record((body as { id: string }).id, why.code);
+        retryAfterMs = retryAfter(response.headers.get("retry-after")); retryOverload = why.code === "E_RATE_LIMIT";
       }
       // I12: committed writes outlive their caller; reads require the live view.
       if (closed && !path.startsWith("/m/") && !path.startsWith("/a/")) return { ok: false };
-      if (response.status >= 500) { if (!quiet) setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
       await refusedSession(denied, request.revision);
       if (link !== "online") setLink("online");
+      if (denied && typeof json.store_id !== "string") return { ok: true, json, obsoleteAuth };
       if (control) {
         const status = coldReplyStatus(control, json);
         const now = core[deviceControl]?.();
@@ -560,6 +553,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return { ok: true, json, obsoleteAuth };
     } catch (error) {
       if (error instanceof SearchBound) throw error;
+      transportFailure = transportRefusal(error);
       if (!quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
       return { ok: false };
     }
@@ -620,10 +614,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           catchingUp = !snapshotRequest && (snapshot_catchup ?? catchingUp);
           publicationOutstanding ||= watermark > capturedWatermark;
           const request = requestCredentials();
-          const response = await fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) });
-          if (response.status >= 500) { setLink("offline"); return false; }
-          page = (await response.json()) as SyncPage;
-          if (!response.ok && !page.denied) { setLink("offline"); return false; }
+          const { response, json } = await readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && request.revision === credentialRevision, aborter.signal);
+          if ((json.denied as Refusal | undefined)?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = json.denied as Refusal; setLink("offline"); return false; }
+          page = json as SyncPage;
           page.send_revision = send_revision;
           page.pending_through = pending_through;
           page.pending_complete = pending_complete;
@@ -633,7 +626,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           page.captured_restore_images_at = restore_images_at;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
-        } catch {
+        } catch (error) {
+          transportFailure = transportRefusal(error);
           setLink("offline");
           return false;
         }
@@ -807,8 +801,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
         identityChecked = true;
         setLink("online");
-      } else if (response.status !== 200 || json.ok !== true) setLink("offline");
-    } catch { setLink("offline"); }
+      } else if ((json.denied as Refusal | undefined)?.code !== "E_RATE_LIMIT" && (response.status !== 200 || json.ok !== true)) setLink("offline");
+    } catch (error) { transportFailure = transportRefusal(error); setLink("offline"); }
   }
   const changes = changeFeed(doFetch, base, aborter.signal, () => setLink("offline"), () => { if (!closed && !sessionDead && link === "offline") void network(probe); });
   async function waitForChange(): Promise<boolean> {
@@ -826,6 +820,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!capture) return false;
       const { response, json } = await changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal);
       if (!ephemeralReads.current(eph)) return false;
+      if (await pauseOverload(response, json.denied, aborter.signal)) return false;
       if (!response.ok || json.denied) {
         await refusedSession(json.denied, request.revision);
         if (json.denied?.code === "E_AUTH") return false;
@@ -846,7 +841,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
       }
       return changed;
-    } catch {
+    } catch (error) {
+      transportFailure = transportRefusal(error);
       if (closed || !ephemeralReads.current(eph)) return false;
       setLink("offline");
       await new Promise((r) => setTimeout(r, 1000));
@@ -1059,6 +1055,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
+  let retryAfterMs = 0, retryOverload = false;
   let flushing: Promise<void> | null = null;
   let exitDone: Promise<void> | undefined;
   let ordinarySending: string | undefined;
@@ -1086,7 +1083,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   function retryFlush() {
     if (closed || sessionDead || retry || partitionDenied?.code === "E_STORE_RESTORE") return;
-    retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+    retry = setTimeout(() => { retry = undefined; void flush(); }, Math.max(retryOverload ? jitter(retryMs) : retryMs, retryAfterMs));
+    retryAfterMs = 0; retryOverload = false;
     (retry as { unref?: () => void }).unref?.();
     retryMs = Math.min(5000, retryMs * 2);
   }
@@ -1278,7 +1276,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (refreshing) await refreshing;
       const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
-      if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
+      if (link !== "online") return { ok: false as const, why: offline() };
       const request = requestCredentials();
       const sameSession = () => !refreshing && request.headers.authorization === headers.authorization;
       const uploaded = await waitForCaller(uploadAsset(base, request.headers, doFetch, bytes,

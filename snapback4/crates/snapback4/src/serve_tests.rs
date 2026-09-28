@@ -507,7 +507,9 @@ fn full_poll_admission_preserves_short_request_progress() {
         .set_read_timeout(Some(Duration::from_secs(1)))
         .unwrap();
     extra.write_all(b"GET /changes?wait=25 HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\n\r\n").unwrap();
-    assert_closed(&mut extra);
+    let mut refusal = String::new(); extra.read_to_string(&mut refusal).unwrap();
+    assert_eq!(status(&refusal), 503);
+    assert_eq!(body(&refusal)["denied"]["retryable"], true);
     assert_eq!(host.admission.waiters.load(Ordering::Acquire), WAIT_WORKERS);
     let reply = body(&host.request("POST", "/seed", "x-snapback-persona: alice\r\n",
         r#"[{"table":"items","row":{"id":"wake","n":1,"photo":null}}]"#));
@@ -758,20 +760,6 @@ fn quick_limits() -> tiny_http::ConnectionLimits {
         max_header_bytes: 1024,
     }
 }
-fn assert_closed(stream: &mut TcpStream) {
-    let mut bytes = [0; 1];
-    match stream.read(&mut bytes) {
-        Ok(0) => {}
-        Err(error)
-            if matches!(
-                error.kind(),
-                io::ErrorKind::ConnectionReset
-                    | io::ErrorKind::ConnectionAborted
-                    | io::ErrorKind::BrokenPipe
-            ) => {}
-        result => panic!("expected the overloaded or expired socket to close: {result:?}"),
-    }
-}
 
 #[test]
 fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
@@ -788,6 +776,9 @@ fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
     third.read_to_string(&mut response).unwrap();
     assert_eq!(status(&response), 503, "{response}");
     assert_eq!(body(&response)["denied"]["code"], "E_RATE_LIMIT");
+    assert_eq!(body(&response)["denied"]["retryable"], true);
+    assert_ne!(body(&response)["denied"]["family"], "auth");
+    wait_until(|| server.admission_refusals().http_written == 1);
     assert!(body(&response)["denied"]["message"].as_str().unwrap().contains("connections"));
     assert!(response.to_ascii_lowercase().contains("retry-after: 1"));
     assert_eq!(server.num_connections(), 2);
@@ -1441,3 +1432,5 @@ fn a_presence_answer_asks_its_client_to_refresh() {
     let plain = body(&host.request("POST", "/q/plain", alice, "{}"));
     assert!(plain.get("refresh").is_none(), "{plain}");
 }
+
+#[path = "../tests/serve_overload/mod.rs"] mod overload_tests;

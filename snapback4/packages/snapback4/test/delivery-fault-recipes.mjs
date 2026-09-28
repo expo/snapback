@@ -9,7 +9,7 @@ export const groups = {
   reset: [20,21],
   adoption: [22,23,24,25,123,124,125],
   probe: [4,32,33,34,35,36,122],
-  follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138],
+  follow: [37,38,39,40,41,42,43,44,45,46,47,135,136,137,138,156],
   replay: [69,70,71,72,73],
   recovery: [60,85,86],
   acknowledgement: [81,96],
@@ -24,7 +24,17 @@ export const groups = {
   clock: [134],
   auth: [11,18,26,27],
 };
-export function recipe(index) {
+// Keep the existing fixture cases attached to their semantic await after the
+// shared HTTP decoder moved body I/O. The census still pins every exact ID;
+// new sites have no default classification. Case 156 is the new overload pause.
+export function fixtureIndex(index) {
+  if (index >= 17 && index <= 40) return index + 1;
+  // The shared JSON await is required: it also reads mutation receipts, where
+  // failure must retain the same ID and wait for recovery before the FIFO tail.
+  return ({41:156,115:12,116:115,154:116,155:117,156:154,157:155})[index] ?? index;
+}
+export function recipe(ordinal) {
+  const index = fixtureIndex(ordinal);
   const matches = Object.entries(groups).filter(([,ids])=>ids.includes(index));
   if (matches.length !== 1) throw Error(`unclassified or ambiguous awaited site ${index}`);
   return matches[0][0];

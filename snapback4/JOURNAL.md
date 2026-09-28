@@ -74968,3 +74968,68 @@ Report and evidence: reports/20260928-ex-social-example/round5/REPORT.md;
 LLP 3000.028 §8 and Revised record adoption. Native Expo/Hermes lifecycle
 qualification remains outstanding. No shared installation, push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU round 1: overload survives reporting failure
+
+First fetched and merged origin/main into sb4-intent/fu-fresh-replay-uploads:
+9563912e3 includes ddf317b13; resolved only an append-only journal conflict by
+keeping both entries. Read the round-0 prompt/report/entry and full Astra review;
+checked Grok before starting and reread its completed NOT READY review before
+finishing. Applied llp-orient under the Snapback 4 fence.
+
+Fixed all eight requested findings and Grok's second admission layer. The
+connection cap and all seven request-worker pools return the same best-effort,
+nonblocking 503 without a rejection queue/thread or body drain. Refusals use
+family limit, remain retryable, expose Retry-After through public-only CORS,
+and contain no identity, counts or data. Saturating counters include every
+refusal, failed write and TLS close; bounded summaries run off the accept
+thread. One bounded diagnostic writer absorbs stalled/broken output. Audited
+request/accept/engine prints, including native device acquisition diagnostics;
+the dev-refusal evidence writer keeps its existing persistence/backpressure
+coupling with fallible I/O. No caps, authority checks or admitted leases changed.
+
+Workers and route verification keep retrying overload. Online/local requests
+and sync preserve structured refusals and transport causes, with neutral
+no-cause wording. Safe reads and same-ID overload retries back off with jitter;
+ordinary storage recovery keeps its previous timing. Malformed 5xx background
+refreshes retain the existing answer/link. Upload/download envelopes validate
+required fields; invalid replies are E_HTTP_RESPONSE with the status. Explicit
+admission alone permits asset retry; ambiguous resets never resend uploads or
+once-view downloads. LLP 3000 and guide cards record these decisions.
+
+Regression witnesses include closed/full stderr with production panic=abort,
+32 held mutation workers plus unfinished uploads, all worker pools, TLS/failed
+write counters, worker continuation, real online/wasm clients, real Chromium
+CORS and four upload attempts. Negative controls restore the old binary/SDK,
+remove counters, restore silent pool abort, or flip retryable false; each
+relevant assertion fails. Native-device stderr faults fail before the print
+repair and pass afterward. The old replay's individual resets remain
+unattributable between connection/worker admission; no new full Clique replay
+or unconditional-delivery claim is made.
+
+Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1344 s`, categories
+cargo test and client tests. Rust 4,278 pass / 18 fail / 33 ignored; client
+shards 4,279 pass / 168 fail / 10 skipped; models 79/79; fixtures 9/9. All 186
+failed names are classified in round1/FAILURES.md: 170 ours, repaired with
+focused checks; 16 baseline search null-as-array failures reproduced on an
+isolated 9563912e3 source extraction; zero environmental. Our regressions were
+the dev-refusal evidence coupling, watcher diagnostic formatting, delivery
+await recipes, ordinary retry timing, malformed-5xx refresh handling and
+incomplete test refusal envelopes. The full-run red is retained; no second
+full run or all-green full-suite claim. Earlier fixture/setup failures and
+expected negative controls have a separate ledger.
+
+Final affected client selection passes 481 tests, including the 317-case
+await fault matrix; HTTP scope 135 pass / 3 existing ignores; whole guide
+98/98; dev-refusal tests 12/12; watcher parity 1/1; counter test 1/1; stderr
+server tests 2/2 in debug and production. Final packaged-wasm overload/upload/
+Chromium selection passes 54/54. Build/typecheck and reference validation pass.
+
+Wasm is 2,040,545 B raw / 593,008 B GNU file-input gzip-9, unchanged sizes and
+593,719 B budget (711 B headroom). Final SHA-256
+f6e97419cd2dd84e358add161caafcc7e2948953cee507b7d25927b487d4f409;
+its sole difference from the full-run artifact is a source-line word (105 to
+108) after the native-only diagnostic branch. Rust 1.97.0, wasm-bindgen 0.2.127,
+no wasm-opt. No shared tool installation, comparative-packet edits, push or
+publication. Report: reports/20260928-fu-fresh-replay-uploads/round1/REPORT.md.
+The local commit carries Co-Authored-By: Codex <noreply@openai.com>.

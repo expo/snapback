@@ -71,7 +71,7 @@ for (const body of ['ready', 'unavailable', 'denied']) test(`direct queries dete
   const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async url => {
     assert.ok(url.includes('/q/'), 'a direct reader needs no head request');
     if (++requests === 1) return Response.json(ready('A', 100));
-    return Response.json({ store_id: 'B', seq: 1, ...(body === 'ready' ? ready('B', 1) : body === 'unavailable' ? { loading: true, data: null, complete: false } : { denied: { code: 'PRIVATE', message: 'refused' } }) });
+    return Response.json({ store_id: 'B', seq: 1, ...(body === 'ready' ? ready('B', 1) : body === 'unavailable' ? { loading: true, data: null, complete: false } : { denied: { code: 'PRIVATE', family: 'rule', message: 'refused' } }) });
   } });
   t.after(() => client.close());
   assert.deepEqual((await client.query(q, {})).data, ['private']);
@@ -150,7 +150,7 @@ test('a buffered refusal head below an observed write is refetched before public
   const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
     if (url.includes('/m/')) return Response.json({ state: 'sent', store_id: 'A', seq: 2, head: 2 });
     if (++reads === 1) return Response.json(ready('A', 1, []));
-    if (reads === 2) { await refused.promise; return Response.json({ store_id: 'A', head: 1, denied: { code: 'PRIVATE', message: 'membership required' } }); }
+    if (reads === 2) { await refused.promise; return Response.json({ store_id: 'A', head: 1, denied: { code: 'PRIVATE', family: 'rule', message: 'membership required' } }); }
     return Response.json(ready('A', 2, ['now authorized']));
   } });
   t.after(async () => { refused.resolve(); await client.close(); });

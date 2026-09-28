@@ -190,7 +190,9 @@ table photos:
   }));
   const png = Buffer.alloc(2081);
   Buffer.from("89504e470d0a1a0a0000000d494844520000000100000001", "hex").copy(png);
-  const result = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
+  let attempts = 0;
+  const result = await uploadAsset(url, { "x-snapback-persona": "alice" }, (...args) => { attempts++; return defaultFetch(...args); }, png);
+  assert.equal(attempts, 4, "the actual server refusal must be retryable");
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);

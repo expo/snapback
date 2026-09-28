@@ -445,8 +445,12 @@ asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue.
 The host admits 128 HTTP connections. Excess connections receive HTTP 503
-E_RATE_LIMIT before request admission; the SDK retries explicit upload
-admission refusals with bounded backoff. Wait for pending writes to settle or
+E_RATE_LIMIT before request admission; full request worker pools also refuse.
+The SDK retries explicit retryable admission refusals at most four times within
+10 seconds of backoff, respecting Retry-After. Downloads add jitter. A lost
+upload or once-view reply is never automatically retried; its outcome is unknown.
+The public refusal is CORS-readable; a rejected preflight remains a transport
+failure. Malformed error envelopes report E_HTTP_RESPONSE with the HTTP status. Wait for pending writes to settle or
 reduce concurrent clients. Replaying with zero write wait and counting pending
 receipts as settled can flood this cap. `--fresh --replay` keeps the same caps.
 Malformed asset replies report E_HTTP_RESPONSE with the HTTP status; inspect

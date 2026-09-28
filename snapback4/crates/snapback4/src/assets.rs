@@ -45,7 +45,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         Ok(asset) => respond(request, 200, json!({ "asset": { "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration } })),
         Err(error) => {
             let refusal = error.refusal();
-            eprintln!("{} at POST /assets: {}", refusal.code, refusal.message);
+            snapback4_core::diagnostic!("{} at POST /assets: {}", refusal.code, refusal.message);
             respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) }))
         }
     }
@@ -127,7 +127,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     let delivered = request.respond_checked_with_completion(response, |result| crate::serve::latency::finished(result.is_err()));
     if grant.once && delivered.is_ok() {
         if let Err(error) = lock(&shared.engine).record_asset_view(&principal, id, shared.now()) {
-            eprintln!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
+            snapback4_core::diagnostic!("snapback4: one-view asset {id} was delivered to {principal}, but its view could not be recorded: {error}");
         }
     }
 }

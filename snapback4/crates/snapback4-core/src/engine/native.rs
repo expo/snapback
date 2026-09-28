@@ -400,7 +400,8 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
         let called = run.call(&mut store, (ptr, len));
         if std::env::var_os("SNAPBACK4_FUEL_PROBE").is_some() {
             // For tuning the ceiling: what a chunk spent, and how long it took.
-            eprintln!("snapback4: native {job}: {} fuel in {:?}", FUEL_PER_CHUNK.saturating_sub(store.get_fuel().unwrap_or(0)), started.elapsed());
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::diagnostic!("snapback4: native {job}: {} fuel in {:?}", FUEL_PER_CHUNK.saturating_sub(store.get_fuel().unwrap_or(0)), started.elapsed());
         }
         if let Some(failed) = store.data_mut().failed.take() {
             return Err(failed);

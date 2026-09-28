@@ -44,8 +44,8 @@
     "sha256": "917d4fe36203d763eb6c32b4b98caa7faed4872ff6ce78904ae318e60eb1569b"
   },
   "assets.ts": {
-    "count": 9,
-    "sha256": "476eb4e5ec5f3130326335cd0f5488a0342149ee113fdaa2003c95e9e7ed11f9"
+    "count": 10,
+    "sha256": "519063f1f627020515ba84e1b23b1cc078150770b65a2171a3d1c2c248d89b3a"
   },
   "auth.ts": {
     "count": 11,
@@ -64,8 +64,8 @@
     "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
   },
   "client.ts": {
-    "count": 56,
-    "sha256": "d2e0a6c69c75b2f0e1400027619645f363b227eb0a434b351dcadcb1fa97ee54"
+    "count": 58,
+    "sha256": "f591583658c7a526ff99cbc3843637be50977f09344775e5e12361d662332d68"
   },
   "clock.ts": {
     "count": 7,
@@ -110,6 +110,10 @@
   "ephemeral.ts": {
     "count": 4,
     "sha256": "e2183c442e2a7e46be4688813fed2c683b70a30d55fd22c250ee6093a806c957"
+  },
+  "http-response.ts": {
+    "count": 6,
+    "sha256": "61a4e049122d5fc2e8483535730bc0eedd1be6f73a61bdc5a418efae0ad7fbc2"
   },
   "identity-principal.ts": {
     "count": 0,
@@ -189,7 +193,7 @@
   },
   "local.ts": {
     "count": 158,
-    "sha256": "3ac4a047f0923d1c0f2f9cc0d757867e9163c892877e43df7b09c2f97a3d7fc0"
+    "sha256": "1dc7d1f5691406463437754eb89ad7c999170a53625a4e44748b30de6e91f84c"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -257,7 +261,7 @@
   },
   "request-wait.ts": {
     "count": 3,
-    "sha256": "85050f68f2da43991e8e1c18dd599b4bc6f1859feac4758a40818112918d34f9"
+    "sha256": "e8ee81d8a824e116caf3c2946d2cc8ec401fead84839bd651b9a742a9cc63d39"
   },
   "residency.ts": {
     "count": 1,
@@ -380,8 +384,8 @@
     "sha256": "22ee8531c1b3f8ec2c3c359155a8031e5aa2ac0d7c931be0f322c7736905ec9f"
   },
   "worker.ts": {
-    "count": 34,
-    "sha256": "0f25f42a29ab2adf25bcb4c8e702fc32d0c051ac425df6fc06f449beaa1b2a3e"
+    "count": 36,
+    "sha256": "1fb6b36f47926dbdfc90da5df65ce752ee84257e5407a60404cfe1fc44599c3b"
   },
   "writes.ts": {
     "count": 10,

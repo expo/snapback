@@ -1,3 +1,4 @@
+import { overloaded } from "./http-response.ts";
 // A worker: the process that performs what a backend `emit`s. The engine
 // keeps every effect durably in the commit that emitted it; a worker
 // holding a service token (`snapback4 token --service <name>`) claims
@@ -143,7 +144,7 @@ export function runWorker(options: WorkerOptions): Worker {
   const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
   const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
   const authenticationEnded = (why?: Refusal) => {
-    if (why?.family !== "auth" || stop.signal.aborted) return;
+    if (why?.family !== "auth" || overloaded(why) || stop.signal.aborted) return;
     stop.abort();
     try { options.onAuthFailure?.(); } catch (error) { report(error); }
   };
@@ -151,6 +152,7 @@ export function runWorker(options: WorkerOptions): Worker {
     const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(lease ? { "x-snapback-action-lease": lease } : {}), ...(effectLease ? { "x-snapback-effect-lease": effectLease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
     const reply = await response.json() as { denied?: Refusal };
     authenticationEnded(reply.denied);
+    if (overloaded(reply.denied) && !path.endsWith("/claim") && !path.endsWith("/claim-set")) await pause();
     return reply;
   };
   const settle = async (effect: Effect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
@@ -234,7 +236,7 @@ export function runWorker(options: WorkerOptions): Worker {
       }
       if (reply.denied) {
         report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
-        if (reply.denied.family === "auth") { stop.abort(); return; }
+        if (reply.denied.family === "auth" && !overloaded(reply.denied)) { stop.abort(); return; }
         await pause();
         continue;
       }
@@ -300,10 +302,11 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
   const post = async (path: string, body: unknown, effectLease?: string): Promise<unknown> => {
     const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(effectLease ? { "x-snapback-effect-lease": effectLease } : {}) }, body: JSON.stringify(body), signal: stop.signal });
     const reply = await response.json() as { denied?: Refusal };
-    if (reply.denied?.family === "auth" && !stop.signal.aborted) {
+    if (reply.denied?.family === "auth" && !overloaded(reply.denied) && !stop.signal.aborted) {
       stop.abort(reply.denied);
       try { options.onAuthFailure?.(); } catch (error) { report(error); }
     }
+    if (overloaded(reply.denied) && !path.endsWith("/claim")) await pause();
     return reply;
   };
   const settle = async (effect: GeneratedEffect, outcome: { result: unknown } | { error: string; retry: boolean }) => {
@@ -350,7 +353,7 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
         const error = new Error(`${reply.denied.code}: ${reply.denied.message}`);
         if (reply.denied.code === "E_EFFECT_GENERATION") terminal(error);
         report(error);
-        if (reply.denied.family === "auth") return;
+        if (reply.denied.family === "auth" && !overloaded(reply.denied)) return;
         await pause(); continue;
       }
       if (reply.worker) principal = reply.worker;

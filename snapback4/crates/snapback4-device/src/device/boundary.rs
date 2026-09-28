@@ -90,6 +90,9 @@ impl Boundaries {
         else {
             let report = format!("ignored acquisition boundary for {}.{}: group is not acquiring or boundary is invalid", marker.table, marker.index);
             tx.set_meta(REPORT, &report)?;
+            #[cfg(not(target_arch = "wasm32"))]
+            snapback4_core::diagnostic!("{report}");
+            #[cfg(target_arch = "wasm32")]
             eprintln!("{report}");
         }
         Ok(())

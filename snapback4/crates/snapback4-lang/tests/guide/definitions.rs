@@ -210,7 +210,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_OFFLINE", "Offline it returns its last server answer, held in memory for this client's lifetime, with fresh: false and since. Without one it refuses E_OFFLINE (family link, retryable)."),
     ("E_HTTP_LIMIT", "E_HTTP_LIMIT warns below 1024"),
     ("E_HTTP_LISTENER", "E_HTTP_LISTENER names an OS accept failure, including descriptor exhaustion"),
-    ("E_HTTP_RESPONSE", "E_HTTP_RESPONSE means an asset request received HTTP with an invalid response envelope"),
+    ("E_HTTP_RESPONSE", "E_HTTP_RESPONSE means a request received HTTP with an invalid response envelope"),
     ("E_OIDC_BINDING", "E_OIDC_BINDING means begin did not receive a 43-character base64url SHA-256 binding hash."),
     ("E_OIDC_CALLBACK", "E_OIDC_CALLBACK means the provider returned an error, required callback values are missing, or state, browser binding or transaction admission did not match."),
     ("E_OIDC_CONFIG", "E_OIDC_CONFIG means a fixed issuer, redirect URL, client secret-name, scope, transaction TTL or session setting is invalid."),

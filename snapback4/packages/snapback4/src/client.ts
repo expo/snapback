@@ -1,3 +1,4 @@
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseOverload } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -346,7 +347,8 @@ export function createClient(options: ClientOptions): Client {
     for (const listener of viewerListeners) listener(next);
   };
 
-  const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+  let transportFailure: Refusal | undefined;
+  const offline = (): Refusal => transportFailure ?? transportRefusal();
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
@@ -525,8 +527,10 @@ export function createClient(options: ClientOptions): Client {
       }
       // A synchronous dispatch subscriber can end or rotate this session.
       if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
-      const json = (await response.json()) as Record<string, unknown>;
+      const send = () => doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
+      const { response, json } = path.startsWith("/q/")
+        ? await readWithAdmissionRetry(send, () => !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)), eph?.signal ?? aborter.signal)
+        : await send().then(async response => ({ response, json: await readResponse(response) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
       if (eph && !ephemeralReads.current(eph)) return { ok: false };
@@ -536,11 +540,13 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
-      if (response.status >= 500) {
-        const why = (json.why ?? json.denied) as Refusal | undefined;
-        const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
-        if (entry && why?.retryable) await hold(entry, why.code);
-        if (!quiet) setLink("offline"); return { ok: false };
+      const why = (json.why ?? json.denied) as Refusal | undefined;
+      if (why?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
+      const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
+      if (entry && why?.retryable) {
+        await hold(entry, why.code);
+        retryAfterMs = retryAfter(response.headers.get("retry-after"));
+        retryOverload = why.code === "E_RATE_LIMIT";
       }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
@@ -552,7 +558,8 @@ export function createClient(options: ClientOptions): Client {
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json, revision };
-    } catch {
+    } catch (error) {
+      transportFailure = transportRefusal(error);
       if (credentials && !quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
       return { ok: false };
     }
@@ -764,6 +771,7 @@ export function createClient(options: ClientOptions): Client {
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
+        if (await pauseOverload(response, json.denied, aborter.signal)) continue;
         if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
@@ -787,7 +795,8 @@ export function createClient(options: ClientOptions): Client {
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
-      } catch {
+      } catch (error) {
+        transportFailure = transportRefusal(error);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
         if (credentials) setLink("offline");
@@ -836,6 +845,7 @@ export function createClient(options: ClientOptions): Client {
   let flushing: Promise<void> | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
+  let retryAfterMs = 0, retryOverload = false;
   function flush(): Promise<void> {
     if (flushing) return flushing;
     if (retry) { clearTimeout(retry); retry = undefined; }
@@ -849,7 +859,8 @@ export function createClient(options: ClientOptions): Client {
           finally { sending = null; }
           if (!sent) {
             if (closed || storeRefusal || !credentials) return;
-            retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+            retry = setTimeout(() => { retry = undefined; void flush(); }, Math.max(retryOverload ? jitter(retryMs) : retryMs, retryAfterMs));
+            retryAfterMs = 0; retryOverload = false;
             (retry as { unref?: () => void }).unref?.();
             retryMs = Math.min(retryMs * 2, 5000);
             return;

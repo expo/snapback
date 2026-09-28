@@ -113,182 +113,182 @@
   },
   {
     "index": 16,
-    "id": "local.ts:syncRound:fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) })#1",
+    "id": "local.ts:syncRound:readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && request.revision === credentialRevision, aborter.signal)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
     "index": 17,
-    "id": "local.ts:syncRound:response.json()#1",
-    "recipe": "ordinary",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 18,
     "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#1",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 19,
+    "index": 18,
     "id": "local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 20,
+    "index": 19,
     "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1",
     "recipe": "reset",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 21,
+    "index": 20,
     "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1",
     "recipe": "reset",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 22,
+    "index": 21,
     "id": "local.ts:syncRound:loadBackend(doFetch, base, request.headers, aborter.signal)#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 23,
+    "index": 22,
     "id": "local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 24,
+    "index": 23,
     "id": "local.ts:syncRound:refreshAcquired(true)#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 25,
+    "index": 24,
     "id": "local.ts:syncRound:installNative(aborter.signal)#1",
     "recipe": "adoption",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 26,
+    "index": 25,
     "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 27,
+    "index": 26,
     "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#2",
     "recipe": "auth",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 28,
+    "index": 27,
     "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 29,
+    "index": 28,
     "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 30,
+    "index": 29,
     "id": "local.ts:syncRound:refreshAcquired()#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 31,
+    "index": 30,
     "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 32,
+    "index": 31,
     "id": "local.ts:probe:captureStore()#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 33,
+    "index": 32,
     "id": "local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 34,
+    "index": 33,
     "id": "local.ts:probe:response.json()#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 35,
+    "index": 34,
     "id": "local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 36,
+    "index": 35,
     "id": "local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1",
     "recipe": "probe",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 37,
+    "index": 36,
     "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": true
   },
   {
-    "index": 38,
+    "index": 37,
     "id": "local.ts:waitForChange:probe()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 39,
+    "index": 38,
     "id": "local.ts:waitForChange:probe()#2",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 40,
+    "index": 39,
     "id": "local.ts:waitForChange:captureStore()#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
   },
   {
-    "index": 41,
+    "index": 40,
     "id": "local.ts:waitForChange:changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, eph.signal)#1",
+    "recipe": "follow",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 41,
+    "id": "local.ts:waitForChange:pauseOverload(response, json.denied, aborter.signal)#1",
     "recipe": "follow",
     "classification": "optional",
     "absorbs": false
@@ -806,21 +806,21 @@
   },
   {
     "index": 115,
-    "id": "request-wait.ts:postForCaller:doFetch(`${base}${path}`, { method: \"POST\", headers, body: JSON.stringify(body), ...(path.startsWith(\"/q/\") ? { signal: stopped } : {}) })#1",
+    "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted, stopped, decode)#1",
+    "recipe": "query",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 116,
+    "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 116,
-    "id": "request-wait.ts:postForCaller:decode(response)#1",
-    "recipe": "queryDecode",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
     "index": 117,
-    "id": "request-wait.ts:postForCaller:response.json()#1",
+    "id": "request-wait.ts:postForCaller:readResponse(response, decode)#1",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
@@ -1079,13 +1079,27 @@
   },
   {
     "index": 154,
+    "id": "http-response.ts:readResponse:decode(response)#1",
+    "recipe": "queryDecode",
+    "classification": "optional",
+    "absorbs": false
+  },
+  {
+    "index": 155,
+    "id": "http-response.ts:readResponse:response.json()#1",
+    "recipe": "ordinary",
+    "classification": "required",
+    "absorbs": false
+  },
+  {
+    "index": 156,
     "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
     "recipe": "ordinary",
     "classification": "required",
     "absorbs": false
   },
   {
-    "index": 155,
+    "index": 157,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
     "classification": "optional",

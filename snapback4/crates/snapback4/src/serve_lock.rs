@@ -116,7 +116,7 @@ fn recover<T>(result: LockResult<T>, clear: impl FnOnce()) -> T {
     match result {
         Ok(guard) => guard,
         Err(poisoned) => {
-            eprintln!("snapback4: recovered a mutex after a request panicked");
+            snapback4_core::diagnostic!("snapback4: recovered a mutex after a request panicked");
             clear();
             poisoned.into_inner()
         }

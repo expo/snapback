@@ -1,0 +1,32 @@
+{
+  "summary": "== 2 failure(s) in 1344 s",
+  "exit": 1,
+  "invocations": 1,
+  "categories": [
+    "cargo test",
+    "client tests"
+  ],
+  "rust": {
+    "pass": 4278,
+    "fail": 18,
+    "ignored": 33
+  },
+  "client": {
+    "tests": 4457,
+    "pass": 4279,
+    "fail": 168,
+    "skipped": 10
+  },
+  "models": {
+    "pass": 79,
+    "fail": 0
+  },
+  "fixtures": {
+    "pass": 9,
+    "fail": 0
+  },
+  "failures": {
+    "baseline": 16,
+    "ours": 170
+  }
+}
