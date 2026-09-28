@@ -1,0 +1,17 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- null\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:296:55\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    },
+    {
+      "name": "obsolete A proof retires only its provisional refusal after B restart and validation retry",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ undefined\n- null\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:296:55\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:284:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/witness/worker-protocol.mjs:293:47"
+    }
+  ],
+  "pageErrors": [],
+  "failures": 2
+}

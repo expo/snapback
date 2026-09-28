@@ -1,0 +1,154 @@
+{
+  "date": "2026-09-28",
+  "base": "6f7253beaa078501ee1cbda40779f78040bb9e32",
+  "originMain": "a745b110f2187004abb1cec8380b33b6d1396108",
+  "checks": [
+    {
+      "name": "web-and-clock",
+      "command": "node --test packages/snapback4/test/web-*.test.mjs packages/snapback4/test/server-clock-wire.test.mjs",
+      "exit": 0,
+      "summary": [
+        "\u2139 failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1",
+        "\u2139 tests 198",
+        "\u2139 pass 198",
+        "\u2139 fail 0",
+        "\u2139 skipped 0",
+        "\u2139 duration_ms 135663.65907"
+      ]
+    },
+    {
+      "name": "sync-and-restore",
+      "command": "node --test packages/snapback4/test/sync-scale.test.mjs packages/snapback4/test/repair-b*.test.mjs packages/snapback4/test/sync-generation.test.mjs packages/snapback4/test/store-reset*.test.mjs",
+      "exit": 0,
+      "summary": [
+        "\u2139 tests 159",
+        "\u2139 pass 158",
+        "\u2139 fail 0",
+        "\u2139 skipped 1",
+        "\u2139 duration_ms 18105.240575"
+      ]
+    },
+    {
+      "name": "worker-watch",
+      "command": "node witness/worker-watch.mjs target/lane-ss-round9/worker-watch.json",
+      "exit": 0,
+      "summary": []
+    },
+    {
+      "name": "navigation-default",
+      "command": "node witness/navigation-immediate.mjs",
+      "exit": 0,
+      "summary": [
+        "web-navigation-immediate: 10 passed; 0 failed"
+      ]
+    },
+    {
+      "name": "navigation-worker",
+      "command": "SS_WORKER=1 node witness/navigation-immediate.mjs",
+      "exit": 0,
+      "summary": [
+        "web-navigation-immediate: 10 passed; 0 failed"
+      ]
+    },
+    {
+      "name": "idb-default",
+      "command": "node witness/idb.mjs",
+      "exit": 1,
+      "summary": [],
+      "classification": "baseline",
+      "failures": [
+        "durability.adoptionRejected",
+        "durability.adoptionUnlocked"
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "idb-worker",
+      "command": "SS_WORKER=1 node witness/idb.mjs",
+      "exit": 1,
+      "summary": [],
+      "classification": "baseline",
+      "failures": [
+        "durability.adoptionRejected",
+        "durability.adoptionUnlocked"
+      ],
+      "pageErrors": []
+    },
+    {
+      "name": "install",
+      "exit": 0
+    },
+    {
+      "name": "build",
+      "exit": 0
+    },
+    {
+      "name": "typecheck",
+      "exit": 0
+    },
+    {
+      "name": "worker-protocol",
+      "exit": 0,
+      "passed": 48,
+      "failed": 0,
+      "pageErrors": []
+    },
+    {
+      "name": "whole-guide",
+      "exit": 0,
+      "passed": 92
+    },
+    {
+      "name": "ref-check",
+      "exit": 0,
+      "summary": "ref-check: ok \u2014 522 LLP docs, 9758 refs in 27892 files, 0 errors, 0 unchecked"
+    }
+  ],
+  "workerWatch": {
+    "passed": 5,
+    "errors": []
+  },
+  "beforeFix": {
+    "exit": 1,
+    "failures": [
+      "failed close releases app after restore idb failure",
+      "failed close releases app after restore observation failure"
+    ]
+  },
+  "mutations": [
+    {
+      "name": "adoption-clears-restore-refusal",
+      "exit": 1,
+      "failures": [
+        {
+          "name": "generation-changing adoption completion preserves restore refusal",
+          "ok": false,
+          "error": "AssertionError [ERR_ASSERTION]: asynchronous completion cannot reauthorize action dispatch\n+ actual - expected\n\n+ undefined\n- 'E_STORE_RESTORE'\n\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:343:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:315:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs:335:52"
+        }
+      ],
+      "pageErrors": [],
+      "command": [
+        "node",
+        "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/witness.mjs",
+        "/home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round9/mutants/adoption-clears-restore-refusal/result.json"
+      ]
+    }
+  ],
+  "wasm": {
+    "bytes": 2019815,
+    "gzip9FileBytes": 585384,
+    "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+    "budget": 586193,
+    "rebuilt": false,
+    "deltaRaw": 0,
+    "deltaGzip": 0
+  },
+  "fullSuite": {
+    "runThisRound": false,
+    "historicalRound": 8,
+    "historicalSummary": "== 1 failure(s) in 1422 s",
+    "historicalFailedPhase": "client tests"
+  },
+  "unresolvedOwnFailures": [],
+  "environmentalFailures": []
+}

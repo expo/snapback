@@ -1,0 +1,1371 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "new offline device refuses before Worker startup and releases its claim",
+      "ok": true,
+      "ms": 423.30792199999985,
+      "detail": {
+        "error": {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "this device has never synced: the server must be reachable once to open"
+          }
+        },
+        "before": 0,
+        "starts": 1,
+        "stores": [
+          "fresh-preflight"
+        ]
+      }
+    },
+    {
+      "name": "packaged entry and wasm URL; full offline shell and VM reopen",
+      "ok": true,
+      "ms": 886.967304,
+      "detail": {
+        "acquired": true,
+        "offlineShell": true,
+        "wasmFetchesOnReopen": 0
+      }
+    },
+    {
+      "name": "durable control snapshot stays conservative during a blocked publication",
+      "ok": true,
+      "ms": 875.7322469999999,
+      "detail": {
+        "before": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 5,
+          "restore_watermark": 5,
+          "restore_images_at": 5,
+          "send_revision": 1,
+          "acquisition": 4,
+          "queuedRevision": 5,
+          "issuedFloor": 0,
+          "predictions": []
+        },
+        "during": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 5,
+          "restore_watermark": 5,
+          "restore_images_at": 5,
+          "send_revision": 1,
+          "acquisition": 4,
+          "queuedRevision": 5,
+          "issuedFloor": 0,
+          "predictions": []
+        },
+        "pending": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 5,
+          "restore_watermark": 5,
+          "restore_images_at": 5,
+          "send_revision": 1,
+          "acquisition": 4,
+          "queuedRevision": 6,
+          "issuedFloor": 0,
+          "predictions": null
+        },
+        "discarded": null,
+        "restored": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 0,
+          "restore_watermark": 5,
+          "restore_images_at": 5,
+          "send_revision": 1,
+          "acquisition": 1,
+          "queuedRevision": 9,
+          "issuedFloor": 0,
+          "predictions": null
+        },
+        "stillPending": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 0,
+          "restore_watermark": 5,
+          "restore_images_at": 5,
+          "send_revision": 1,
+          "acquisition": 1,
+          "queuedRevision": 9,
+          "issuedFloor": 0,
+          "predictions": null
+        }
+      }
+    },
+    {
+      "name": "Worker accepts supplied bytes, Response promises and compiled wasm modules",
+      "ok": true,
+      "ms": 1356.5390969999999,
+      "detail": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "name": "public Worker option reopens offline through the bundled entry",
+      "ok": true,
+      "ms": 942.4249219999992,
+      "detail": {
+        "state": {
+          "ok": {
+            "acquired": true,
+            "adoption_capture": {
+              "device:acquired-generation": "1",
+              "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+              "device:backend-required": null,
+              "device:deferred:cursor": null,
+              "device:deferred:identity": null,
+              "device:deferred:images_at": null,
+              "device:generation": "1",
+              "device:native:digest": null,
+              "device:restore-refused": null,
+              "device:send_revision": "2",
+              "device:snapshot:images_at": null,
+              "device:snapshot:owner": null,
+              "device:snapshot:through": null,
+              "device:store_id": "worker-store",
+              "device:watermark": "5"
+            },
+            "backend_required": false,
+            "generation": 1,
+            "outbox_status": true,
+            "pending_bound": 1,
+            "pending_complete": true,
+            "pending_ids": [
+              "kept-write"
+            ],
+            "pending_through": 1,
+            "receipt_outcomes": true,
+            "restore_images_at": 0,
+            "restore_watermark": 5,
+            "send_revision": 2,
+            "snapshot_catchup": false,
+            "store_id": "worker-store",
+            "transfer_store_id": "worker-store",
+            "transfer_watermark": 5,
+            "watermark": 5
+          }
+        },
+        "queued": {
+          "ok": [
+            {
+              "args": {
+                "body": "kept-write",
+                "conversationId": "c1"
+              },
+              "dispatch": "",
+              "id": "kept-write",
+              "new_ids": [
+                "kept-write"
+              ],
+              "now": 20,
+              "observed_seq": null,
+              "op": "send",
+              "predictable": true,
+              "predicted": [
+                "messages/kept-write",
+                "messageCounts/[{\"Id\":\"c1\"}]"
+              ],
+              "sent_seq": null,
+              "seq": 1,
+              "viewer": "dev:alice",
+              "store_id": "worker-store"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "navigation from busy Worker to default waits for strict persistence",
+      "ok": true,
+      "ms": 1357.540919,
+      "detail": {
+        "state": {
+          "ok": {
+            "acquired": false,
+            "adoption_capture": {
+              "device:acquired-generation": null,
+              "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+              "device:backend-required": null,
+              "device:deferred:cursor": null,
+              "device:deferred:identity": null,
+              "device:deferred:images_at": null,
+              "device:generation": "1",
+              "device:native:digest": null,
+              "device:restore-refused": null,
+              "device:send_revision": "1",
+              "device:snapshot:images_at": "5",
+              "device:snapshot:owner": "2",
+              "device:snapshot:through": "5",
+              "device:store_id": "worker-store",
+              "device:watermark": "0"
+            },
+            "backend_required": false,
+            "generation": 1,
+            "outbox_status": true,
+            "pending_bound": 0,
+            "pending_complete": true,
+            "pending_ids": [],
+            "pending_through": 0,
+            "receipt_outcomes": true,
+            "restore_images_at": 5,
+            "restore_watermark": 5,
+            "send_revision": 1,
+            "snapshot_catchup": false,
+            "store_id": "worker-store",
+            "transfer_store_id": "worker-store",
+            "transfer_watermark": 0,
+            "watermark": 0
+          }
+        },
+        "queued": {
+          "ok": [
+            {
+              "args": {
+                "body": "default-write",
+                "conversationId": "c1"
+              },
+              "id": "default-write",
+              "new_ids": [
+                "default-write"
+              ],
+              "now": 20,
+              "observed_seq": null,
+              "op": "send",
+              "predictable": true,
+              "predicted": [
+                "messages/default-write",
+                "messageCounts/[{\"Id\":\"c1\"}]"
+              ],
+              "sent_seq": null,
+              "seq": 1,
+              "viewer": "dev:alice",
+              "store_id": "worker-store"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "an uncommitted call cannot return or hitchhike on a later commit",
+      "ok": true,
+      "ms": 845.4737140000007,
+      "detail": {
+        "outcome": "Error: a Worker transaction must commit before returning its result",
+        "value": null
+      }
+    },
+    {
+      "name": "a Worker crash between RPCs invalidates the whole private call",
+      "ok": true,
+      "ms": 828.6451749999997,
+      "detail": {
+        "outcome": "Error: the Worker transaction has ended",
+        "value": null
+      }
+    },
+    {
+      "name": "termination: admission before-invoke",
+      "ok": true,
+      "ms": 898.670744,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "before-invoke"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "termination: admission after-invoke",
+      "ok": true,
+      "ms": 839.6118299999998,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "after-invoke"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "termination: admission before-commit",
+      "ok": true,
+      "ms": 882.7628949999998,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "before-commit"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "termination: admission during-commit",
+      "ok": true,
+      "ms": 908.3622880000003,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "during-commit",
+          "strict": "strict"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "termination: admission after-commit",
+      "ok": true,
+      "ms": 898.9713860000011,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "after-commit"
+        },
+        "interrupted": {
+          "rows": 5,
+          "staged": 0,
+          "queued": [
+            "original"
+          ],
+          "markers": [
+            "original"
+          ]
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "crash: admission before-invoke",
+      "ok": true,
+      "ms": 882.7433569999994,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "before-invoke"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "crash: admission after-invoke",
+      "ok": true,
+      "ms": 880.0600360000008,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "after-invoke"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "crash: admission before-commit",
+      "ok": true,
+      "ms": 827.133980999999,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "before-commit"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "crash: admission during-commit",
+      "ok": true,
+      "ms": 903.8010340000001,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "during-commit",
+          "strict": "strict"
+        },
+        "interrupted": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "crash: admission after-commit",
+      "ok": true,
+      "ms": 874.2368400000014,
+      "detail": {
+        "claimed": true,
+        "outcome": "Error: the device Worker stopped",
+        "hit": {
+          "test": "hit",
+          "point": "after-commit"
+        },
+        "interrupted": {
+          "rows": 5,
+          "staged": 0,
+          "queued": [
+            "original"
+          ],
+          "markers": [
+            "original"
+          ]
+        },
+        "queued": [
+          {
+            "id": "original",
+            "seq": 1,
+            "now": 100,
+            "new_ids": [
+              "original"
+            ]
+          },
+          {
+            "id": "second",
+            "seq": 2,
+            "now": 100,
+            "new_ids": [
+              "second"
+            ]
+          }
+        ],
+        "saved": {
+          "rows": 6,
+          "staged": 0,
+          "queued": [
+            "original",
+            "second"
+          ],
+          "markers": [
+            "original",
+            "second"
+          ]
+        }
+      }
+    },
+    {
+      "name": "termination: staging during-commit, atomic rows and reopen",
+      "ok": true,
+      "ms": 851.4611179999993,
+      "detail": {
+        "outcome": "Error: the device Worker stopped",
+        "saved": {
+          "rows": 0,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "state": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "worker-store",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 0,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": "worker-store",
+          "transfer_watermark": 0,
+          "watermark": 0
+        },
+        "final": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "termination: staging after-commit, atomic rows and reopen",
+      "ok": true,
+      "ms": 849.529985000001,
+      "detail": {
+        "outcome": "Error: the device Worker stopped",
+        "saved": {
+          "rows": 0,
+          "staged": 2,
+          "queued": [],
+          "markers": []
+        },
+        "state": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "worker-store",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": "5",
+            "device:snapshot:owner": "1",
+            "device:snapshot:through": "5",
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 5,
+          "restore_watermark": 5,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": "worker-store",
+          "transfer_watermark": 0,
+          "watermark": 0
+        },
+        "final": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "termination: terminal during-commit, atomic rows and reopen",
+      "ok": true,
+      "ms": 888.9359289999993,
+      "detail": {
+        "outcome": "Error: the device Worker stopped",
+        "saved": {
+          "rows": 0,
+          "staged": 3,
+          "queued": [],
+          "markers": []
+        },
+        "state": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "worker-store",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": "5",
+            "device:snapshot:owner": "1",
+            "device:snapshot:through": "5",
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 5,
+          "restore_watermark": 5,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": "worker-store",
+          "transfer_watermark": 0,
+          "watermark": 0
+        },
+        "final": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "termination: terminal after-commit, atomic rows and reopen",
+      "ok": true,
+      "ms": 836.0378759999985,
+      "detail": {
+        "outcome": "Error: the device Worker stopped",
+        "saved": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        },
+        "state": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "worker-store",
+            "device:watermark": "5"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 5,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "transfer_watermark": 5,
+          "watermark": 5
+        },
+        "final": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "navigation during staged save; journal capture survives before transfer",
+      "ok": true,
+      "ms": 926.3731719999996,
+      "detail": {
+        "saved": {
+          "rows": 0,
+          "staged": 2,
+          "queued": [
+            "navigation-intent"
+          ],
+          "markers": [
+            "navigation-intent"
+          ]
+        },
+        "queued": [
+          "navigation-intent"
+        ],
+        "final": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [
+            "navigation-intent"
+          ],
+          "markers": [
+            "navigation-intent"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cross-tab claim stays held through termination and durable recovery",
+      "ok": true,
+      "ms": 1363.4099109999988,
+      "detail": {
+        "alternate": "shared:tab-lj95dmgb",
+        "releasedOnlyAfterClose": true
+      }
+    },
+    {
+      "name": "fallible cleanup cannot replay a retired admission",
+      "ok": true,
+      "ms": 850.8510559999995,
+      "detail": {
+        "queued": 0,
+        "kept": true,
+        "saved": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": [
+            "cleanup-intent"
+          ]
+        }
+      }
+    },
+    {
+      "name": "a failed termination barrier cannot release the page claim later",
+      "ok": true,
+      "ms": 420.03690300000017,
+      "detail": {
+        "stopped": "Error: controlled termination barrier failure",
+        "closed": "Error: controlled termination barrier failure",
+        "stillClaimed": true
+      }
+    },
+    {
+      "name": "close after termination restores durable state before releasing custody",
+      "ok": true,
+      "ms": 866.341891,
+      "detail": {
+        "held": true,
+        "restored": true,
+        "released": true,
+        "saved": {
+          "rows": 0,
+          "staged": 2,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "admission captures synchronously while terminal publication is outstanding",
+      "ok": true,
+      "ms": 831.1124659999987,
+      "detail": {
+        "captured": {
+          "id": "busy-intent",
+          "seq": 29,
+          "op": "send",
+          "args": {
+            "conversationId": "c1",
+            "body": "busy-intent"
+          },
+          "viewer": "dev:alice",
+          "now": 20,
+          "new_ids": [
+            "busy-intent"
+          ],
+          "predictable": true,
+          "predicted": []
+        },
+        "saved": {
+          "rows": 0,
+          "staged": 3,
+          "queued": [],
+          "markers": []
+        },
+        "queued": [
+          "busy-intent"
+        ]
+      }
+    },
+    {
+      "name": "first cold acquisition cannot journal without a published store identity",
+      "ok": true,
+      "ms": 411.13138699999763,
+      "detail": {
+        "refused": true,
+        "records": 0
+      }
+    },
+    {
+      "name": "captured authority survives transfer; logout prevents recovery admission",
+      "ok": true,
+      "ms": 874.9040319999986,
+      "detail": {
+        "authority": {
+          "key": "session",
+          "epoch": "7",
+          "principal": "dev:alice",
+          "source": "original-authority"
+        },
+        "queued": [],
+        "saved": {
+          "rows": 3,
+          "staged": 0,
+          "queued": [],
+          "markers": []
+        }
+      }
+    },
+    {
+      "name": "Worker adapter adopts only closed orphan outboxes and shares terminal receipts",
+      "ok": true,
+      "ms": 1725.3687500000015,
+      "detail": {
+        "admitted": {
+          "ok": {
+            "args": {
+              "body": "orphan-write",
+              "conversationId": "c1"
+            },
+            "id": "orphan-write",
+            "new_ids": [
+              "orphan-write"
+            ],
+            "now": 20,
+            "observed_seq": null,
+            "op": "send",
+            "predictable": true,
+            "predicted": [
+              "messages/orphan-write",
+              "messageCounts/[{\"Id\":\"c1\"}]"
+            ],
+            "sent_seq": null,
+            "seq": 1,
+            "viewer": "dev:alice"
+          }
+        },
+        "live": {
+          "ok": []
+        },
+        "queued": {
+          "ok": [
+            {
+              "args": {
+                "body": "orphan-write",
+                "conversationId": "c1"
+              },
+              "dispatch": "",
+              "id": "orphan-write",
+              "new_ids": [
+                "orphan-write"
+              ],
+              "now": 20,
+              "observed_seq": null,
+              "op": "send",
+              "predictable": false,
+              "predicted": [],
+              "sent_seq": null,
+              "seq": 1,
+              "viewer": "dev:alice",
+              "store_id": "worker-store"
+            }
+          ]
+        },
+        "receipts": {
+          "ok": "[{\"state\":\"sent\",\"id\":\"orphan-receipt\",\"seq\":3,\"replayed\":true}]"
+        },
+        "stores": []
+      }
+    },
+    {
+      "name": "Worker conditional collection tests page authority at the actual IDB commit",
+      "ok": true,
+      "ms": 1265.9978520000004,
+      "detail": {
+        "before": {
+          "ok": {
+            "blocked": false,
+            "more": false,
+            "value": "{\"bindings\":[],\"cursors\":{},\"groups\":{},\"retired\":{},\"serial\":0}"
+          }
+        },
+        "stale": {
+          "ok": true
+        },
+        "after": {
+          "ok": {
+            "blocked": false,
+            "more": false,
+            "value": "{\"bindings\":[],\"cursors\":{},\"groups\":{},\"retired\":{},\"serial\":0}"
+          }
+        },
+        "kept": {
+          "ok": true
+        },
+        "reopened": {
+          "ok": {
+            "blocked": false,
+            "more": false,
+            "value": "{\"bindings\":[],\"cursors\":{},\"groups\":{},\"retired\":{},\"serial\":456}"
+          }
+        },
+        "checks": 2
+      }
+    },
+    {
+      "name": "prepared pagehide keeps synchronous exit custody and the durable begin-send fence",
+      "ok": true,
+      "ms": 484.5564720000002,
+      "detail": {
+        "capture": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "bd1755baa4547c3b30f603e05d69ddbeeae06ae524ac32fbaf01f357a634b361",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "worker-store",
+            "device:watermark": "5"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 1,
+          "pending_complete": true,
+          "pending_ids": [
+            "prepared-head"
+          ],
+          "pending_through": 1,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 5,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "transfer_watermark": 5,
+          "watermark": 5
+        },
+        "prepared": {
+          "store_id": "worker-store",
+          "transfer_store_id": "worker-store",
+          "generation": 1,
+          "acquired": true,
+          "backend_required": false,
+          "watermark": 5,
+          "transfer_watermark": 5,
+          "restore_watermark": 5,
+          "restore_images_at": 0,
+          "send_revision": 2,
+          "acquisition": 3,
+          "queuedRevision": 11,
+          "issuedFloor": 20,
+          "predictions": [
+            "messages",
+            "messageCounts"
+          ]
+        },
+        "sent": {
+          "sent": true,
+          "captured": true
+        },
+        "duplicate": {
+          "sent": false,
+          "captured": false
+        },
+        "stale": "Error: {\"denied\":{\"code\":\"E_GENERATION\",\"family\":\"generation\",\"message\":\"E_GENERATION: a mutation send overlapped the sync response; retry sync\"}}"
+      }
+    },
+    {
+      "name": "a later queued call synchronously cancels prepared suspension permission",
+      "ok": true,
+      "ms": 442.6156699999992,
+      "detail": {
+        "immediate": {
+          "sent": false,
+          "captured": false
+        },
+        "busy": {
+          "sent": false,
+          "captured": false
+        },
+        "crashed": {
+          "sent": false,
+          "captured": false
+        }
+      }
+    },
+    {
+      "name": "failed synchronous exit capture prevents a prepared keepalive",
+      "ok": true,
+      "ms": 483.0443749999977,
+      "detail": {
+        "sent": false,
+        "captured": false
+      }
+    },
+    {
+      "name": "exit journal replay increments the send fence after interruption",
+      "ok": true,
+      "ms": 841.1319829999993,
+      "detail": {
+        "before": 1,
+        "after": 2,
+        "again": 2
+      }
+    }
+  ],
+  "pageErrors": [],
+  "failures": 0
+}

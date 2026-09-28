@@ -121,6 +121,13 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
             } else if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
                 diagnostics.push(super::columns::refusal(&site, issue.message));
             } else if issue.path.ends_with(".sync") {
+                if let Some(name) = issue.path.strip_prefix("tables.").and_then(|path| path.strip_suffix(".sync"))
+                    && let Some(maintain) = catalog.maintains.get(name)
+                    && let Some(context) = super::audience_diagnostics::public_conflict(&schema, maintain,
+                        maintain.read.as_ref().map_or(&maintain.site, |read| &read.site), "E_SYNC") {
+                    diagnostics.push(context);
+                    continue;
+                }
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };
                 diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, rewrite).guide("sync"));
             } else {

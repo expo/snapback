@@ -211,7 +211,7 @@ query history(id: messages):
     // and the `online only` opt-out; the builder's removal stays clean.
     let source = at_line("table likes:\n  postId: id\n  public 'likes'\n", 70, "maintain likeCounts: count likes by postId\n  read <- allow\n  sync public last 2000 by byId");
     let bad = bind("social.q", &source);
-    assert_eq!(texts(&bad), ["social.q:72:3 — E_QUARRY_SYNTAX: a maintain inherits its source's sync; `online only` opts out\n  rewrite: remove this sync line to inherit, or replace it with `online only`\n  guide: residency"]);
+    assert_eq!(texts(&bad), ["social.q:72:3 — E_QUARRY_SYNTAX: view likeCounts cannot declare a separate sync audience; it inherits from likes\n  rewrite: remove this sync line to inherit, or replace it with `online only`\n  guide: maintains"]);
     clean("social.q", &source.replace("  sync public last 2000 by byId\n", ""));
 }
 

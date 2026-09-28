@@ -2,6 +2,41 @@
 use super::*;
 
 impl Binder<'_> {
+    /// Names callers, not a proof that an arbitrary job's other work is legal.
+    pub(super) fn helper_job_callers(&self, helper: &str) -> Vec<String> {
+        fn calls(body: &mut [S]) -> Vec<String> {
+            let mut names = Vec::new();
+            super::super::intent_walk::statements(body, &mut |expr| {
+                if let A::Call { name, .. } = expr { names.push(name.clone()); }
+            });
+            names
+        }
+        let mut callers = Vec::new();
+        for doc in &self.catalog.documents {
+            for job in doc.programs.iter().filter(|p| p.kind == ProgramKind::Job) {
+                let mut pending = calls(&mut job.body.clone());
+                pending.extend(calls(&mut job.prelude.clone()));
+                let mut seen = std::collections::BTreeSet::new();
+                while let Some(name) = pending.pop() {
+                    if name == helper {
+                        let module = std::path::Path::new(&doc.file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
+                        callers.push(super::super::operation_name(module, &job.name));
+                        break;
+                    }
+                    if !seen.insert(name.clone()) { continue; }
+                    if let Some(function) = self.catalog.functions.get(&name) {
+                        let mut body = match &function.body {
+                            ast::FunctionBody::Block(body) => body.clone(),
+                            ast::FunctionBody::Expression(value) => vec![S::Return { value: value.clone(), site: value.site().clone() }],
+                        };
+                        pending.extend(calls(&mut body));
+                    }
+                }
+            }
+        }
+        callers
+    }
+
     pub(super) fn index_mismatch(&self, info: &TableInfo, read: &ReadExpr, mode: ReadMode, keys: &[(Option<String>, Expr, Ty)], index: &ast::IndexDecl) -> Diagnostic {
         let expected = index.columns.iter().map(|col| format!("{col}: {}", self.key_ty(info, index, col).name())).collect::<Vec<_>>().join(", ");
         let supplied = read.keys.iter().zip(keys).map(|(part, (_, _, ty))| {

@@ -1,0 +1,105 @@
+{
+  "mergeBase": "1366c700c",
+  "mainMerged": "a745b110f2187004abb1cec8380b33b6d1396108",
+  "fullSuite": {
+    "invocations": 1,
+    "command": "SNAPBACK4_RUST_TEST_PROCESSES=8 bash scripts/test.sh",
+    "exit": 1,
+    "exactSummary": "== 1 failure(s) in 1422 s",
+    "rust": {
+      "passed": 4162,
+      "failed": 0,
+      "ignored": 30
+    },
+    "clients": {
+      "passed": 3925,
+      "failed": 1,
+      "skipped": 10
+    },
+    "models": {
+      "passed": 79,
+      "failed": 0
+    },
+    "fixtures": {
+      "passed": 9,
+      "failed": 0
+    },
+    "failures": [
+      {
+        "phase": "client tests",
+        "test": "wasm: adoption replaces mounted ephemeral interests, including removal",
+        "file": "packages/snapback4/test/ephemeral-adoption.test.mjs:92",
+        "classification": "baseline timing failure; environmental scheduling plausible but unconfirmed",
+        "assertion": "performance.now() - began <= 500",
+        "wholeTestDurationMs": 2466.604486,
+        "failedIntervalMs": null,
+        "baselineControlsPassed": 3,
+        "currentControlsPassed": 3
+      }
+    ]
+  },
+  "affected": {
+    "webAndClock": {
+      "passed": 198,
+      "failed": 0
+    },
+    "syncRepairGenerationReset": {
+      "passed": 158,
+      "failed": 0,
+      "skipped": 1
+    },
+    "workerControls": {
+      "passed": 24,
+      "failed": 0
+    },
+    "workerProtocol": {
+      "passed": 44,
+      "failed": 0,
+      "pageErrors": 0
+    },
+    "workerWatch": {
+      "passed": 5,
+      "failed": 0,
+      "pageErrors": 0
+    },
+    "navigationDefault": {
+      "passed": 10,
+      "failed": 0
+    },
+    "navigationWorker": {
+      "passed": 10,
+      "failed": 0
+    },
+    "guide": {
+      "passed": 92,
+      "failed": 0
+    },
+    "idbBothModes": {
+      "exit": 1,
+      "failures": [
+        "durability.adoptionRejected",
+        "durability.adoptionUnlocked"
+      ],
+      "classification": "baseline eager orphan recovery expectation",
+      "pageErrors": 0
+    }
+  },
+  "mutationsKilled": 5,
+  "wasm": {
+    "rawBytes": 2019815,
+    "gzipBytes": 585384,
+    "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+    "deltaRawBytes": 0,
+    "deltaGzipBytes": 0,
+    "budget": 586193,
+    "headroom": 809
+  },
+  "noPush": true,
+  "noPublish": true,
+  "noToolInstall": true,
+  "refCheck": {
+    "command": "./ref-check --verbose",
+    "exit": 0,
+    "summary": "ref-check: ok \u2014 522 LLP docs, 9758 refs in 27883 files, 0 errors, 0 unchecked"
+  }
+}

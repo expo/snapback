@@ -1,0 +1,425 @@
+{
+  "results": [
+    {
+      "case": "503",
+      "detail": {
+        "preserved": true,
+        "sent": "sent",
+        "acquired": false,
+        "held": true,
+        "queries": 5
+      }
+    },
+    {
+      "case": "expiry",
+      "detail": {
+        "preserved": true,
+        "sent": "sent",
+        "acquired": false,
+        "held": true,
+        "queries": 7
+      }
+    },
+    {
+      "case": "synchronous pending prediction blocks dispatch before Worker transfer",
+      "detail": {
+        "unknown": true,
+        "before": 7,
+        "after": 7,
+        "acquired": false,
+        "captured": true
+      }
+    },
+    {
+      "case": "100 -> 90 -> 101 restore proof fences a blocked Worker and offline reopen",
+      "detail": {
+        "capture": {
+          "store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 100,
+          "restore_watermark": 100,
+          "restore_images_at": 100,
+          "send_revision": 4,
+          "acquisition": 2,
+          "queuedRevision": 27,
+          "issuedFloor": 1790575141103,
+          "predictions": []
+        },
+        "pendingBefore": true,
+        "admission": {
+          "state": "failed",
+          "id": "01M3K9GTJQ1SG4VAWE9Z688GF9",
+          "why": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "delayedRead": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "upload": {
+          "ok": false,
+          "why": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "action": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3K9GTPH0X6XJQ9PRPC5W0H9"
+        },
+        "immediate": {
+          "read": {
+            "denied": {
+              "code": "E_STORE_RESTORE",
+              "family": "store",
+              "guide": "sync",
+              "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+            }
+          },
+          "control": {
+            "store_id": "977052b62debdd12375786b41b79b0ad",
+            "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+            "generation": 1,
+            "acquired": false,
+            "backend_required": false,
+            "restore_refusal": {
+              "code": "E_STORE_RESTORE",
+              "family": "store",
+              "guide": "sync",
+              "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+            },
+            "watermark": 0,
+            "transfer_watermark": 100,
+            "restore_watermark": 100,
+            "restore_images_at": 100,
+            "send_revision": 4,
+            "acquisition": 2,
+            "queuedRevision": 29,
+            "issuedFloor": 1790575141103,
+            "predictions": null
+          },
+          "held": true,
+          "observerHeld": false,
+          "acquired": false
+        },
+        "after": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "read": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "write": {
+          "state": "failed",
+          "id": "01M3K9GTPH0X6XJQ9PRPC5W0H8",
+          "why": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "stopped": true,
+        "heads": [
+          100,
+          100,
+          100,
+          100,
+          100,
+          100,
+          90,
+          101
+        ],
+        "sends": 0,
+        "durable": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "ce8308f62eb0d2515ae7900bf8ebacce457ecd05783ed9b5f353120b1ee2836f",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": "1",
+            "device:send_revision": "4",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "977052b62debdd12375786b41b79b0ad",
+            "device:watermark": "101"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 1,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_refusal": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "restore_watermark": 101,
+          "send_revision": 4,
+          "snapshot_catchup": false,
+          "store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_watermark": 101,
+          "watermark": 101
+        },
+        "offline": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        }
+      }
+    },
+    {
+      "case": "in-flight sync observation cannot clear a newer restore refusal",
+      "detail": {
+        "capture": {
+          "store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+          "generation": 1,
+          "acquired": false,
+          "backend_required": false,
+          "watermark": 0,
+          "transfer_watermark": 100,
+          "restore_watermark": 100,
+          "restore_images_at": 100,
+          "send_revision": 1,
+          "acquisition": 2,
+          "queuedRevision": 19,
+          "issuedFloor": 0,
+          "predictions": []
+        },
+        "pendingBefore": true,
+        "admission": {
+          "state": "pending",
+          "id": "01M3K9GWSY5ESQEV6MK89PK6RF",
+          "reason": "queued without a row: not acquired yet"
+        },
+        "delayedRead": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "upload": {
+          "ok": false,
+          "why": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "action": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3K9GWXR6TR9FW0JFBMHV2N5"
+        },
+        "afterObserver": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "id": "01M3K9GX903PVG57JJCYA17DM8"
+        },
+        "immediate": {
+          "read": {
+            "denied": {
+              "code": "E_STORE_RESTORE",
+              "family": "store",
+              "guide": "sync",
+              "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+            }
+          },
+          "control": {
+            "store_id": "977052b62debdd12375786b41b79b0ad",
+            "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+            "generation": 1,
+            "acquired": false,
+            "backend_required": false,
+            "restore_refusal": {
+              "code": "E_STORE_RESTORE",
+              "family": "store",
+              "guide": "sync",
+              "message": "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+            },
+            "watermark": 0,
+            "transfer_watermark": 100,
+            "restore_watermark": 100,
+            "restore_images_at": 100,
+            "send_revision": 1,
+            "acquisition": 2,
+            "queuedRevision": 27,
+            "issuedFloor": 1790575145791,
+            "predictions": []
+          },
+          "held": false,
+          "observerHeld": true,
+          "acquired": false
+        },
+        "after": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "read": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "write": {
+          "state": "failed",
+          "id": "01M3K9GWXR6TR9FW0JFBMHV2N4",
+          "why": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        },
+        "stopped": true,
+        "heads": [
+          100,
+          100,
+          100,
+          100,
+          90,
+          101
+        ],
+        "sends": 0,
+        "durable": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "ce8308f62eb0d2515ae7900bf8ebacce457ecd05783ed9b5f353120b1ee2836f",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": "1",
+            "device:send_revision": "1",
+            "device:snapshot:images_at": "100",
+            "device:snapshot:owner": "2",
+            "device:snapshot:through": "100",
+            "device:store_id": "977052b62debdd12375786b41b79b0ad",
+            "device:watermark": "0"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 100,
+          "restore_refusal": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          },
+          "restore_watermark": 100,
+          "send_revision": 1,
+          "snapshot_catchup": true,
+          "store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_store_id": "977052b62debdd12375786b41b79b0ad",
+          "transfer_watermark": 100,
+          "watermark": 0
+        },
+        "offline": {
+          "denied": {
+            "code": "E_STORE_RESTORE",
+            "family": "store",
+            "guide": "sync",
+            "message": "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"
+          }
+        }
+      }
+    }
+  ],
+  "resumed": {
+    "admitted": {
+      "ok": {
+        "args": {
+          "body": "busy-admission",
+          "conversationId": "c000"
+        },
+        "id": "busy-admission",
+        "new_ids": [
+          "busy-admission-row"
+        ],
+        "now": 1790575141103,
+        "observed_seq": null,
+        "op": "send",
+        "predictable": true,
+        "predicted": [
+          "messages/busy-admission-row",
+          "messageCounts/[{\"Id\":\"c000\"}]"
+        ],
+        "sent_seq": null,
+        "seq": 1,
+        "viewer": "dev:bob"
+      }
+    },
+    "acquired": true
+  },
+  "errors": []
+}

@@ -550,6 +550,7 @@ impl Binder<'_> {
         self.caller_loops += loops;
         let returns = std::mem::take(&mut self.returns);
         self.depth += 1;
+        self.call_chain.push((function.name.clone(), site.clone()));
         // @ref LLP 3000.007#5.2 — helpers expand in the caller's placement; a return exits only this expansion.
         let result = match &function.body {
             ast::FunctionBody::Expression(value) => self.value_of(value, out),
@@ -572,6 +573,7 @@ impl Binder<'_> {
             self.pure_functions.insert(function.name.clone(), pure_calls::statements(&out[start..]) && pure_calls::expression(value));
         }
         self.depth -= 1;
+        self.call_chain.pop();
         self.returns = returns;
         self.loops = loops;
         self.caller_loops -= loops;
