@@ -1,0 +1,95 @@
+{
+  "10pct": {
+    "allSixMetersIdentical": true,
+    "warm": {
+      "chat.searchMessages": {
+        "beforeCache": {
+          "hits": 4388,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 4383,
+          "misses": 0
+        },
+        "beforeSqlSteps": 11897,
+        "afterSqlSteps": 11878,
+        "savedStatements": 1
+      },
+      "insights.summary": {
+        "beforeCache": {
+          "hits": 295,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 230,
+          "misses": 0
+        },
+        "beforeSqlSteps": 975,
+        "afterSqlSteps": 728,
+        "savedStatements": 13
+      }
+    }
+  },
+  "50pct": {
+    "allSixMetersIdentical": true,
+    "warm": {
+      "chat.searchMessages": {
+        "beforeCache": {
+          "hits": 5195,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 5189,
+          "misses": 0
+        },
+        "beforeSqlSteps": 11897,
+        "afterSqlSteps": 11878,
+        "savedStatements": 1
+      },
+      "insights.summary": {
+        "beforeCache": {
+          "hits": 363,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 291,
+          "misses": 0
+        },
+        "beforeSqlSteps": 996,
+        "afterSqlSteps": 768,
+        "savedStatements": 12
+      }
+    }
+  },
+  "full": {
+    "allSixMetersIdentical": true,
+    "warm": {
+      "chat.searchMessages": {
+        "beforeCache": {
+          "hits": 5195,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 5189,
+          "misses": 0
+        },
+        "beforeSqlSteps": 11897,
+        "afterSqlSteps": 11878,
+        "savedStatements": 1
+      },
+      "insights.summary": {
+        "beforeCache": {
+          "hits": 363,
+          "misses": 0
+        },
+        "afterCache": {
+          "hits": 291,
+          "misses": 0
+        },
+        "beforeSqlSteps": 996,
+        "afterSqlSteps": 768,
+        "savedStatements": 12
+      }
+    }
+  }
+}

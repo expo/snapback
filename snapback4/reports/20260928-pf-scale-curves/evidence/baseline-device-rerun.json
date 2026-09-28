@@ -1,0 +1,82 @@
+[
+  {
+    "test": "search_global::forms::memory::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::memory::cases::w13e_grouped_cut_continues_through_9000_memberships",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::sqlite::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::memory::cases::w13e_dense_500",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::sqlite::cases::w13e_grouped_cut_continues_through_9000_memberships",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::sqlite::cases::w13e_dense_500",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::memory::cases::w13f_dense_500",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::memory::cases::w13e_newest_measures_complete_page_and_opening_envelope",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::memory::cases::w13e_dense_1000",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::sqlite::cases::w13e_dense_1000",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::sqlite::cases::w13f_dense_500",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::memory::cases::w13f_clique_every_row_hits_in_1000_lanes",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::memory::cases::w13f_dense_1000",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::sqlite::cases::w13f_clique_every_row_hits_in_1000_lanes",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  },
+  {
+    "test": "search_global::lazy::sqlite::cases::w13f_dense_1000",
+    "exit": 101,
+    "classification": "baseline: runtime and target source unchanged from main"
+  }
+]

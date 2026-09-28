@@ -1,0 +1,17 @@
+{
+  "fullSuiteBefore": "== 1 failure(s) in 2159 s",
+  "fullSuiteAfter": "== 1 failure(s) in 1335 s",
+  "failedStage": "cargo test",
+  "baselineFailedTests": 16,
+  "introducedFailedTests": 0,
+  "environmentalFailedTests": 0,
+  "guidePassed": 98,
+  "scaleCurveTestsPassed": 2,
+  "clientPassed": 4366,
+  "clientSkipped": 10,
+  "modelsPassed": 79,
+  "wasmRaw": 2040545,
+  "wasmGzip": 593008,
+  "wasmGzipBudget": 593719,
+  "wasmDelta": 0
+}
