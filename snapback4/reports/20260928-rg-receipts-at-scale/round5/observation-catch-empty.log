@@ -1,0 +1,37 @@
+TAP version 13
+# Subtest: the observation catch schedules the only retry that can publish an earlier success
+not ok 1 - the observation catch schedules the only retry that can publish an earlier success
+  ---
+  duration_ms: 422.289819
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round5-controls/observation-catch-empty/test/store-reset-review.test.mjs:501:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    the observation catch must arm its retry before delivering the refusal
+    + actual - expected
+
+    + []
+    - [
+    -   250
+    - ]
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 250
+  actual:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round5-controls/observation-catch-empty/test/store-reset-review.test.mjs:533:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4509.027409

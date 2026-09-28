@@ -1,0 +1,571 @@
+TAP version 13
+# Subtest: online app reopens after replacement; replacement accepts session: true
+ok 1 - online app reopens after replacement; replacement accepts session: true
+  ---
+  duration_ms: 41.008458
+  type: 'test'
+  ...
+# Subtest: online app reopens after replacement; replacement accepts session: false
+ok 2 - online app reopens after replacement; replacement accepts session: false
+  ---
+  duration_ms: 17.999825
+  type: 'test'
+  ...
+# Subtest: logout cancels replacement verification without restoring the old account
+ok 3 - logout cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 7.153495
+  type: 'test'
+  ...
+# Subtest: close cancels replacement verification without restoring the old account
+ok 4 - close cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 6.453595
+  type: 'test'
+  ...
+# Subtest: login cancels replacement verification without restoring the old account
+ok 5 - login cancels replacement verification without restoring the old account
+  ---
+  duration_ms: 7.940594
+  type: 'test'
+  ...
+# Subtest: replacement waits for durable retirement of admitted writes; persistence fails: false
+ok 6 - replacement waits for durable retirement of admitted writes; persistence fails: false
+  ---
+  duration_ms: 39.805335
+  type: 'test'
+  ...
+# Subtest: replacement waits for durable retirement of admitted writes; persistence fails: true
+ok 7 - replacement waits for durable retirement of admitted writes; persistence fails: true
+  ---
+  duration_ms: 32.089848
+  type: 'test'
+  ...
+# Subtest: replacement pins retired receipt ids at the history limit (0 older unknown failures)
+ok 8 - replacement pins retired receipt ids at the history limit (0 older unknown failures)
+  ---
+  duration_ms: 17.220046
+  type: 'test'
+  ...
+# Subtest: replacement pins retired receipt ids at the history limit (8 older unknown failures)
+ok 9 - replacement pins retired receipt ids at the history limit (8 older unknown failures)
+  ---
+  duration_ms: 16.10875
+  type: 'test'
+  ...
+# Subtest: two devices converge through the partition stream
+ok 10 - two devices converge through the partition stream
+  ---
+  duration_ms: 5651.244692
+  type: 'test'
+  ...
+# Subtest: queued writes flush in the order they were submitted
+ok 11 - queued writes flush in the order they were submitted
+  ---
+  duration_ms: 5096.977507
+  type: 'test'
+  ...
+# Subtest: a device restores its session on its own
+ok 12 - a device restores its session on its own
+  ---
+  duration_ms: 503.959969
+  type: 'test'
+  ...
+# Subtest: sign-out revokes a server-committed rotation whose reply arrives after local completion
+ok 13 - sign-out revokes a server-committed rotation whose reply arrives after local completion
+  ---
+  duration_ms: 175.349648
+  type: 'test'
+  ...
+# Subtest: an upload is placed once and served by the home row's read rule
+ok 14 - an upload is placed once and served by the home row's read rule
+  ---
+  duration_ms: 454.482003
+  type: 'test'
+  ...
+# Subtest: R2 item 1: changes with a foreign identity returns before its production wait
+ok 15 - R2 item 1: changes with a foreign identity returns before its production wait
+  ---
+  duration_ms: 243.744933
+  type: 'test'
+  ...
+# foreign identity wait=25: 3 ms
+# Subtest: R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+ok 16 - R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+  ---
+  duration_ms: 4769.154985
+  type: 'test'
+  ...
+# wasm: same-store restart syncs=0
+# wasm: wait=25, replacement=2148 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+ok 17 - R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+  ---
+  duration_ms: 4358.018005
+  type: 'test'
+  ...
+# process: same-store restart syncs=0
+# process: wait=20, replacement=2167 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 4: wasm replacement while a snapshot after request is in flight
+ok 18 - R2 item 4: wasm replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 145.221391
+  type: 'test'
+  ...
+# wasm: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 4: process replacement while a snapshot after request is in flight
+ok 19 - R2 item 4: process replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 206.337313
+  type: 'test'
+  ...
+# process: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 3: restoring the same store at a lower head halts reads and retries
+ok 20 - R2 item 3: restoring the same store at a lower head halts reads and retries
+  ---
+  duration_ms: 1372.176087
+  type: 'test'
+  ...
+# restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+# restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+# Subtest: R3 finding 5: server idle poll after populated maintain adoption stays healthy
+ok 21 - R3 finding 5: server idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 446.396292
+  type: 'test'
+  ...
+# maintain: acquired=4, idle notice=4
+# Subtest: R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+ok 22 - R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 488.864047
+  type: 'test'
+  ...
+# wasm: acquired=4, idle notice=4, restore=none
+# Subtest: R3 finding 5: process idle poll after populated maintain adoption stays healthy
+ok 23 - R3 finding 5: process idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 560.201965
+  type: 'test'
+  ...
+# process: acquired=4, idle notice=4, restore=none
+# Subtest: R4: wasm a same-identity head below acquisition halts as a restore
+ok 24 - R4: wasm a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2078.352453
+  type: 'test'
+  ...
+# wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R4: process a same-identity head below acquisition halts as a restore
+ok 25 - R4: process a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2132.310475
+  type: 'test'
+  ...
+# process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+ok 26 - R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+  ---
+  duration_ms: 1470.883166
+  type: 'test'
+  ...
+# commits=1,2; replay=1; acquired=2; idle head=2
+# Subtest: the legacy refusal constant matches the published 0.2.32 capture
+ok 27 - the legacy refusal constant matches the published 0.2.32 capture
+  ---
+  duration_ms: 1.534641
+  type: 'test'
+  ...
+# Subtest: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 28 - wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 596.9799
+  type: 'test'
+  ...
+# Subtest: process: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 29 - process: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 232.867637
+  type: 'test'
+  ...
+# Subtest: legacy fallback returns the distinct successful retry and latches only its origin and transport
+ok 30 - legacy fallback returns the distinct successful retry and latches only its origin and transport
+  ---
+  duration_ms: 3.656862
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on same E_INPUT
+ok 31 - legacy fallback does not latch on same E_INPUT
+  ---
+  duration_ms: 1.03998
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on throw
+ok 32 - legacy fallback does not latch on throw
+  ---
+  duration_ms: 1.579377
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 503
+ok 33 - legacy fallback does not latch on 503
+  ---
+  duration_ms: 0.755803
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 429
+ok 34 - legacy fallback does not latch on 429
+  ---
+  duration_ms: 0.555273
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 401
+ok 35 - legacy fallback does not latch on 401
+  ---
+  duration_ms: 0.53344
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 408
+ok 36 - legacy fallback does not latch on 408
+  ---
+  duration_ms: 0.566479
+  type: 'test'
+  ...
+# Subtest: legacy fallback captures each overlapping attempt and waits for successful retry before latching
+ok 37 - legacy fallback captures each overlapping attempt and waits for successful retry before latching
+  ---
+  duration_ms: 3.320268
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores other refusals and never retries an attempt without generation
+ok 38 - legacy fallback ignores other refusals and never retries an attempt without generation
+  ---
+  duration_ms: 2.028161
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+ok 39 - legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+  ---
+  duration_ms: 135.121118
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+ok 40 - legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.543213
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+ok 41 - legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.810725
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+ok 42 - legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.992808
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+ok 43 - legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.797236
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+ok 44 - legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.7204
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+ok 45 - legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.685988
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+ok 46 - legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.704126
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+ok 47 - legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.806769
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+ok 48 - legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.669673
+  type: 'test'
+  ...
+# Subtest: new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract
+ok 49 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+  ---
+  duration_ms: 0.097156
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from deferred stream
+ok 50 - wasm: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 120.375553
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from staged snapshot
+ok 51 - wasm: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 109.737644
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from deferred stream
+ok 52 - process: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 174.210871
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from staged snapshot
+ok 53 - process: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 176.94562
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide deferred stream evidence identically
+ok 54 - wasm: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 248.394975
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide deferred stream evidence identically
+ok 55 - wasm: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 263.865848
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves deferred stream evidence until a headed retry
+ok 56 - wasm: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 206.378855
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 57 - wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 255.888559
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 58 - wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 251.968822
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 59 - wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 208.500467
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide deferred stream evidence identically
+ok 60 - process: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 389.192254
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide deferred stream evidence identically
+ok 61 - process: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 397.87539
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves deferred stream evidence until a headed retry
+ok 62 - process: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 343.949607
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 63 - process: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 411.562169
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 64 - process: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 418.864837
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 65 - process: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 278.323773
+  type: 'test'
+  ...
+# Subtest: wasm: invalid early heads are retryable and never reach observation or adoption
+ok 66 - wasm: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 99.192095
+  type: 'test'
+  ...
+# Subtest: process: invalid early heads are retryable and never reach observation or adoption
+ok 67 - process: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 163.217069
+  type: 'test'
+  ...
+# Subtest: online mutation: rejected fetch after dispatch is pending; close=false
+ok 68 - online mutation: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 134.185256
+  type: 'test'
+  ...
+# Subtest: online mutation: rejected body after dispatch is pending; close=false
+ok 69 - online mutation: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 157.078627
+  type: 'test'
+  ...
+# Subtest: online mutation: rejected fetch after dispatch is pending; close=true
+ok 70 - online mutation: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 266.030123
+  type: 'test'
+  ...
+# Subtest: online mutation: rejected body after dispatch is pending; close=true
+ok 71 - online mutation: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 507.781568
+  type: 'test'
+  ...
+# Subtest: online action: rejected fetch after dispatch is pending; close=false
+ok 72 - online action: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 52.908688
+  type: 'test'
+  ...
+# Subtest: online action: rejected body after dispatch is pending; close=false
+ok 73 - online action: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 56.133534
+  type: 'test'
+  ...
+# Subtest: online action: rejected fetch after dispatch is pending; close=true
+ok 74 - online action: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 54.247376
+  type: 'test'
+  ...
+# Subtest: online action: rejected body after dispatch is pending; close=true
+ok 75 - online action: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 51.34258
+  type: 'test'
+  ...
+# Subtest: wasm mutation: rejected fetch after dispatch is pending; close=false
+ok 76 - wasm mutation: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 5506.136743
+  type: 'test'
+  ...
+# Subtest: wasm mutation: rejected body after dispatch is pending; close=false
+ok 77 - wasm mutation: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 4099.350831
+  type: 'test'
+  ...
+# Subtest: wasm mutation: rejected fetch after dispatch is pending; close=true
+ok 78 - wasm mutation: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 92.932561
+  type: 'test'
+  ...
+# Subtest: wasm mutation: rejected body after dispatch is pending; close=true
+ok 79 - wasm mutation: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 1088.358499
+  type: 'test'
+  ...
+# Subtest: wasm action: rejected fetch after dispatch is pending; close=false
+ok 80 - wasm action: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 104.948045
+  type: 'test'
+  ...
+# Subtest: wasm action: rejected body after dispatch is pending; close=false
+ok 81 - wasm action: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 101.046555
+  type: 'test'
+  ...
+# Subtest: wasm action: rejected fetch after dispatch is pending; close=true
+ok 82 - wasm action: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 101.445614
+  type: 'test'
+  ...
+# Subtest: wasm action: rejected body after dispatch is pending; close=true
+ok 83 - wasm action: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 86.152857
+  type: 'test'
+  ...
+# Subtest: native mutation: rejected fetch after dispatch is pending; close=false
+ok 84 - native mutation: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 5171.372871
+  type: 'test'
+  ...
+# Subtest: native mutation: rejected body after dispatch is pending; close=false
+ok 85 - native mutation: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 5206.538081
+  type: 'test'
+  ...
+# Subtest: native mutation: rejected fetch after dispatch is pending; close=true
+ok 86 - native mutation: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 1160.771017
+  type: 'test'
+  ...
+# Subtest: native mutation: rejected body after dispatch is pending; close=true
+ok 87 - native mutation: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 1160.820402
+  type: 'test'
+  ...
+# Subtest: native action: rejected fetch after dispatch is pending; close=false
+ok 88 - native action: rejected fetch after dispatch is pending; close=false
+  ---
+  duration_ms: 1154.0552
+  type: 'test'
+  ...
+# Subtest: native action: rejected body after dispatch is pending; close=false
+ok 89 - native action: rejected body after dispatch is pending; close=false
+  ---
+  duration_ms: 1158.478752
+  type: 'test'
+  ...
+# Subtest: native action: rejected fetch after dispatch is pending; close=true
+ok 90 - native action: rejected fetch after dispatch is pending; close=true
+  ---
+  duration_ms: 1166.294789
+  type: 'test'
+  ...
+# Subtest: native action: rejected body after dispatch is pending; close=true
+ok 91 - native action: rejected body after dispatch is pending; close=true
+  ---
+  duration_ms: 1160.348035
+  type: 'test'
+  ...
+1..91
+# tests 91
+# suites 0
+# pass 90
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 31083.287581

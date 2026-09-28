@@ -73056,3 +73056,61 @@ no wasm input changed. No new latency or calibration-store measurement.
 LLP 3000.019 §3.3 and the writes card record the fix. Report, complete audit,
 commands, controls and all failures: reports/20260928-rg-receipts-at-scale/round4/REPORT.md.
 Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 5: housekeeping failures cannot gate the outbox
+
+First fetched and merged origin/main e0568c2ec7 without conflicts, retaining
+both sides in 58b3b2d07 (the merge message adds the requested co-author).
+Read rounds 0–4's prompts, reports and RG entries and Grok's full round-3
+review. Scoped llp-orient again used the initialized sibling lane-i skill
+read-only. No installation, push or publication.
+
+Grok's repeated-media-failure reproduction fails the merged round-4 code:
+a first sent outcome leaves the queued tail unposted. A failed reconciliation
+at flush entry now keeps its flag, schedules the existing retry and falls
+through to the FIFO loop. The regression proves the tail posts, terminal
+outcomes emit once, eight 5-second retry advances do not repost or spin,
+backoff doubles from 250 ms to 5 seconds, and successful repair clears the
+flag and stops retrying. Round 4's notification ownership is unchanged.
+
+The observation catch now has an independent retry oracle. The new test
+fails its queue read and the post-loop sync, keeps /changes held, and requires
+the catch's 250 ms timer to publish the earlier success. At 249 ms nothing
+publishes; the tail's durable refusal already reached caller and event once.
+Emptying only the catch fails that test. No production change was needed there.
+
+The housekeeping audit found two more gates. Committed admission followed by
+media failure could report a local E_STORE and omit its normal flush. Repeated
+host rejection after committed keep_write could keep retrying an already-saved
+receipt and strand the queued tail. Both now preserve the device's non-denied
+committed reply. Admission schedules outstanding reconciliation; keep_write
+has no media work and proceeds to ordinary settlement. Missing commits and
+denied replies still fail, and actual receipt-save failures retain custody.
+Both reproductions fail without their respective fix. LLP 3000.019 §3.3 and
+the round report record the per-path audit, including mandatory authority and
+persistence barriers, pruning, delivery debt, observation, clock and meters.
+local.ts stays at 1,500 lines; no wire, store, wasm ABI or resource limit changes.
+
+Final qualification passes 640 client tests: audit 58, clock/pending 141,
+receipts/delivery 212, settlement/reconnect/generation 90, media 72,
+HTTP transport 12 and browser admission 55. Rust passes 135: whole guide 93
+and receipts/delivery 42. The legacy-server and macOS-only client skips and
+one opt-in Rust measurement remain explicit. All affected client groups were
+rerun after the receipt-save fix. Builds, typecheck, references and whitespace
+pass. Five round-4 controls plus six round-5 controls are killed, including
+the required restored throw and empty catch. Historical round-4 evidence is
+preserved; this round's rerun is archived separately.
+
+Expected pre-fix/mutation failures and the corrected fixture/setup failures
+are ours: the first media timer assertion also counted /changes watchdog
+recovery, and an initial report-directory prefix prevented build-log creation.
+The report records these and the interrupted diagnostic attempt. No baseline
+or environmental check failure. Did not run scripts/test.sh; the supervisor
+owns the next landing suite. No new scale or calibration-store measurement.
+
+Wasm remeasured unchanged: 2,019,815 B raw / 585,381 B gzip, SHA-256
+2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0,
+812 B below the unchanged 586,193 B cap. This round has no Rust implementation
+delta and does not rebuild wasm. Report, full audit, commands, controls and
+all failures: reports/20260928-rg-receipts-at-scale/round5/REPORT.md.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

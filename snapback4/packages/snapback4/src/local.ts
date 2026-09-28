@@ -171,7 +171,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     read: async () => (await call({ op: "meta", key: "write-history" })).ok as string | null,
     lookup: async () => (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null,
     save: async value => {
-      const reply = await call({ op: "keep_write", value });
+      const reply = await terminalDeviceCall(committed => call({ op: "keep_write", value }, undefined, committed), () => {});
       if (reply.denied) throw new Error(`${reply.denied.code}: ${reply.denied.message}`);
     },
   });
@@ -1054,7 +1054,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
   function queued() { return readQueued(call, mutationIds, history, settling); }
-  let reconcileNeeded = false;
+  let reconcileNeeded = false; // @ref LLP 3000.019#3.3 — failed housekeeping retries without gating dispatch.
   const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
     committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -1094,7 +1094,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
     await exitDone;
     if (closed || !sendingAllowed) return;
-    if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch (error) { reconcileNeeded = true; throw error; } }
+    if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch { reconcileNeeded = true; retryFlush(); } }
     for await (const entry of receiptBatch(queued, history)) {
       await exitDone;
       if (closed) return;
@@ -1239,7 +1239,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
         try {
           // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
-          const admitted = await call(request);
+          const admitted = await receiptCall(request); // Committed admission survives media/host housekeeping failure.
           if (admitted.denied) {
             settled.delete(id);
             const failed = { state: "failed" as const, id, why: admitted.denied };

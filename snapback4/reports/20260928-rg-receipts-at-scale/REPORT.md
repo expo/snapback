@@ -1,5 +1,24 @@
 # Lane RG — receipts at scale
 
+## Round 5 — 2026-09-28
+
+Merged main e0568c2ec7 without conflicts. Repeated media failure now schedules
+bounded retry and continues through the outbox. New independent coverage pins
+the observation catch's retry. The housekeeping audit also reproduced and fixed
+post-commit admission and receipt-save failures that could prevent dispatch.
+Round 4's notification ownership remains unchanged.
+
+Final checks: **640 client and 135 Rust tests pass**, including the **58-test
+audit** and **93-test whole guide**. Two client skips and one opt-in Rust
+measurement remain explicit. All five round-4 and six round-5 mutation controls
+are killed. Expected regression/mutation failures and corrected fixture/setup
+failures are ours; no baseline or environmental check failure.
+
+Wasm is unchanged: **2,019,815 B raw / 585,381 B gzip**, **812 B** under budget.
+[Round-5 report, full housekeeping audit and failure record](round5/REPORT.md) ·
+[final test counts](round5/test-summary.json) · [controls](round5/controls.json).
+Did not run scripts/test.sh. No tools installed, push or publication.
+
 ## Round 4 — 2026-09-28
 
 Merged origin/main in 412c9191c, retaining both lanes. Terminal emission

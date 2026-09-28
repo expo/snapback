@@ -92,7 +92,7 @@ async function fixture(t, count = 1) {
   }
   t.after(async () => { queryGate?.resolve(); localGate?.resolve(); mutationGate?.resolve(); syncGate?.resolve(); for (const c of clients) await c.close(); });
   await open();
-  return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
+  return { get client() { return client; }, get core() { return core; }, get changesWaiting() { return !!changes; }, open, persist, reads, sends, syncRequests,
     unavailable(value) { queryUnavailable = value; },
     refuseSecond() { refuseSecond = true; },
     beforeSend(callback) { beforeSend = callback; },
@@ -368,6 +368,184 @@ test("an early flush exit syncs an earlier success when another owner retires th
   assert.equal(f.sends.length, 1, "the retired tail was never posted");
   await f.client.close();
   await second;
+});
+
+test("repeating media failure cannot gate an already queued send and retries stay bounded", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired && f.changesWaiting);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], op = { kind: "mutation", name: "send" }, sending = f.holdMutation();
+  f.client.onWrite(write => notices.push(write));
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  let secondResult;
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" }).then(write => secondResult = write);
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  // Both admissions finished before the fault; the tail is outside the flush snapshot.
+  for (let i = 0; i < 30; i++) await tick();
+  let broken = true, checks = 0;
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () {
+    checks++;
+    if (broken) throw Error("persistent media housekeeping failure");
+    return reconcile.call(this);
+  });
+  const delays = [], timeout = globalThis.setTimeout;
+  t.mock.method(globalThis, "setTimeout", (fn, ms, ...args) => {
+    delays.push(ms); return timeout(fn, ms, ...args);
+  });
+  sending.resolve();
+  assert.equal((await first).state, "sent");
+  for (let i = 0; i < 50; i++) await tick();
+  assert.equal(f.sends.length, 1);
+  assert.deepEqual(delays, [250]);
+  const initialChecks = checks;
+  t.mock.timers.tick(249);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(checks, initialChecks, "no reconciliation before the retry deadline");
+  t.mock.timers.tick(1);
+  for (let i = 0; i < 100; i++) await tick();
+  assert.equal(f.sends.length, 2, "persistent media failure must not stop the queued tail from posting");
+  assert.equal(secondResult?.state, "sent", "terminal completion survives repeated media failures too");
+  await second;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const before = checks, timers = delays.length;
+    t.mock.timers.tick(5000);
+    for (let i = 0; i < 100; i++) await tick();
+    assert.ok(checks > before && checks <= before + 3, "one bounded reconciliation/sync attempt per timer");
+    assert.equal(delays.length, timers + 1, "one retry timer, no immediate flush loop");
+    assert.equal(delays.at(-1), Math.min(5000, 250 * 2 ** attempt), "failed housekeeping retains exponential backoff");
+  }
+  assert.equal(delays.at(-1), 5000, "backoff reaches its existing ceiling");
+  assert.ok(delays.every(ms => ms >= 250 && ms <= 5000));
+  assert.deepEqual(notices.map(write => write.state), ["sent", "sent"]);
+  assert.equal(f.sends.length, 2, "housekeeping retries never repost either success");
+  const ids = f.sends.map(write => write.id);
+  ok(await f.core.call({ op: "apply", page: { snapshot: false, store_id: "A", events: [], watermark: 11,
+    more: false, acknowledged: Object.fromEntries(ids.map(id => [id, 11])), sent: Object.fromEntries(ids.map(id => [id, 11])) } }));
+  broken = false;
+  const beforeRepair = checks, timers = delays.length;
+  t.mock.timers.tick(5000);
+  for (let i = 0; i < 100; i++) await tick();
+  assert.equal(checks, beforeRepair + 1, "the pending housekeeping is repaired once");
+  assert.equal(delays.length, timers, "a successful reconcile stops retrying");
+  const repaired = checks;
+  t.mock.timers.tick(10000);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(checks, repaired);
+  let checksAtBegin;
+  f.beforeSend(() => { checksAtBegin = checks; });
+  assert.equal((await f.client.mutate(op, { conversationId: "c1", body: "after repair" })).state, "sent");
+  assert.equal(checksAtBegin, repaired + 1, "only admission reconciles; the flush flag was cleared");
+  assert.equal(notices.length, 3);
+});
+
+test("a committed admission still sends when media housekeeping keeps failing", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired && f.changesWaiting);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let failures = 0, outcome;
+  t.mock.method(MediaCache.prototype, "reconcile", () => { failures++; throw Error("persistent admission media failure"); });
+  const notices = [];
+  f.client.onWrite(write => notices.push(write));
+  const pending = f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "admitted" }).then(write => outcome = write);
+  await until(() => outcome);
+  assert.ok(failures > 0);
+  assert.equal(outcome.state, "sent", "a committed admission must not become a local E_STORE refusal");
+  await pending;
+  assert.equal(f.sends.length, 1);
+  assert.deepEqual(notices.map(write => write.state), ["sent"]);
+  assert.equal((await f.client.write(outcome.id)).state, "sent");
+  for (let i = 0; i < 3; i++) {
+    t.mock.timers.tick(5000);
+    for (let j = 0; j < 50; j++) await tick();
+  }
+  assert.equal(f.sends.length, 1);
+  assert.equal(notices.length, 1);
+});
+
+test("repeating post-commit receipt-save failure cannot gate an already queued send", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired && f.changesWaiting);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], op = { kind: "mutation", name: "send" }, sending = f.holdMutation();
+  f.client.onWrite(write => notices.push(write));
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  let secondResult;
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" }).then(write => secondResult = write);
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  let failures = 0;
+  f.afterCall((request, reply) => {
+    if (request.op === "keep_write" && !reply.denied) { failures++; throw Error("host failed after durable receipt save"); }
+  });
+  sending.resolve();
+  assert.equal((await first).state, "sent");
+  for (let i = 0; i < 50; i++) await tick();
+  for (let attempt = 0; attempt < 8; attempt++) {
+    t.mock.timers.tick(5000);
+    for (let i = 0; i < 50; i++) await tick();
+  }
+  assert.ok(failures >= 2, "the host fails repeatedly after the real device commits");
+  assert.equal(f.sends.length, 2, "durable receipt-save housekeeping must not strand the queued tail");
+  assert.equal(secondResult?.state, "sent");
+  await second;
+  assert.deepEqual(notices.map(write => write.state), ["sent", "sent"]);
+  const saved = JSON.parse(ok(await f.core.call({ op: "meta", key: "write-history" })));
+  for (const { id } of f.sends) {
+    assert.equal(saved.find(write => write.id === id)?.state, "sent");
+    assert.equal((await f.client.write(id)).state, "sent");
+  }
+});
+
+test("the observation catch schedules the only retry that can publish an earlier success", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired && f.changesWaiting);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  f.refuseSecond();
+  const sending = f.holdMutation(), notices = [], op = { kind: "mutation", name: "send" };
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  const tail = ok(await f.core.call({ op: "queued" }))[1].id;
+  let failRead = false, failures = 0, scheduledAtDelivery;
+  f.onCommit(request => { if (request.op === "settle" && request.id === tail) failRead = true; });
+  f.beforeCall(request => {
+    if (request.op === "queued" && failRead) {
+      failRead = false; failures++;
+      throw Error("observation queue read failed");
+    }
+  });
+  const delays = [], timeout = globalThis.setTimeout;
+  t.mock.method(globalThis, "setTimeout", (fn, ms, ...args) => { delays.push(ms); return timeout(fn, ms, ...args); });
+  f.client.onWrite(write => {
+    notices.push(write);
+    if (write.id === tail) {
+      scheduledAtDelivery = [...delays];
+      f.offline(true); // The post-loop sync fails; it cannot publish or schedule its own flush.
+    }
+  });
+  sending.resolve();
+  assert.deepEqual((await Promise.all([first, second])).map(write => write.state), ["sent", "failed"]);
+  for (let i = 0; i < 50; i++) await tick();
+  assert.equal(failures, 1);
+  assert.deepEqual(scheduledAtDelivery, [250], "the observation catch must arm its retry before delivering the refusal");
+  assert.deepEqual(delays, [250], "no alternate retry source after the failed post-loop sync");
+  assert.equal(f.client.link(), "offline");
+  const published = async () => ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data?.some(row => row.body === "committed first");
+  assert.equal(await published(), false);
+  f.offline(false); // Restores the transport only; /changes is still held.
+  const syncs = f.stats().syncStarts;
+  t.mock.timers.tick(249);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(f.stats().syncStarts, syncs);
+  assert.equal(await published(), false);
+  t.mock.timers.tick(1);
+  await until(published);
+  assert.deepEqual(notices.map(write => write.state), ["sent", "failed"]);
+  assert.equal((await f.client.write(tail)).state, "failed");
+  assert.equal(f.sends.length, 2);
 });
 
 // Faults after durable settlement must not change a caller or subscriber's outcome.
