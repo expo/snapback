@@ -101,6 +101,15 @@ impl Parser {
         }
         let held = kind == ProgramKind::Query && self.maybe("held");
         let predicts = kind == ProgramKind::Mutation && self.maybe("predicts");
+        // A clause may continue the header on the body's indentation level.
+        let continued = self.at_kind(Kind::Newline) && self.peek_at(1).kind == Kind::Indent && self.peek_at(2).value == "reports";
+        if continued { self.newline()?; self.take_kind(Kind::Indent)?; }
+        let delivery = if self.at("reports") { Some(self.parse_delivery()?) } else { None };
+        if delivery.is_some() && !self.at(":") {
+            return Err(Diagnostic::new(&self.peek().site, "E_DELIVERY_CLAUSE",
+                "a mutation header has one delivery clause, followed by its body colon",
+                "keep one reports delivery of messages by .conversation, .ordinal: clause").guide("receipts"));
+        }
         self.take(":")?;
         if self.at("native") {
             // `job name(): native` — the body is the app's Rust (LLP 3000.005).
@@ -109,12 +118,12 @@ impl Parser {
             if kind == ProgramKind::Mutation {
                 return Err(Diagnostic::new(&native.site, "E_NATIVE", format!("only a job or a query can be native; a mutation runs in the interpreter so a device can predict it and the server can replay it"), format!("job {name}(): native  -- or: query {name}(): native")).guide("native"));
             }
-            return Ok(ProgramDecl { held, predicts, server: false, kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
+            return Ok(ProgramDecl { delivery, held, predicts, server: false, kind, name, args, prelude: Vec::new(), body: Vec::new(), native: true, site: kind_token.site });
         }
         let server = kind == ProgramKind::Mutation && self.maybe("server");
         self.newline()?;
         let before_body = self.diagnostics.len();
-        let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks(&args)? } else { (Vec::new(), self.parse_block()?) };
+        let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks(&args)? } else { (Vec::new(), if continued { self.parse_block_contents()? } else { self.parse_block()? }) };
         if body.is_empty() {
             // @ref LLP 3000.007#20.19 — default `check` hides a recovery diagnostic only
             // when an earlier error in the same operation's own body already explains it.
@@ -125,7 +134,26 @@ impl Parser {
             }
             return Err(diagnostic);
         }
-        Ok(ProgramDecl { held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
+        Ok(ProgramDecl { delivery, held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
+    }
+
+    fn parse_delivery(&mut self) -> Fallible<DeliveryDecl> {
+        let site = self.take("reports")?.site;
+        let parsed = (|| {
+            self.take("delivery")?;
+            self.take("of")?;
+            let table = self.word()?.value;
+            self.take("by")?;
+            self.take(".")?;
+            let group = self.word()?.value;
+            self.take(",")?;
+            self.take(".")?;
+            let position = self.word()?.value;
+            Ok(DeliveryDecl { table, group, position, site: site.clone() })
+        })();
+        parsed.map_err(|_: Diagnostic| Diagnostic::new(&site, "E_DELIVERY_CLAUSE",
+            "a delivery clause names one table and its group and position columns",
+            "mutation delivered(conversation: conversations, from: int, through: int) reports delivery of messages by .conversation, .ordinal:").guide("receipts"))
     }
 
     pub(super) fn parse_chunks(&mut self, args: &[ArgDecl]) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {

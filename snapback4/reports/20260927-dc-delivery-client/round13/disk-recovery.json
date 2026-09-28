@@ -1,0 +1,127 @@
+{
+  "evidence_checked_and_regenerated": [
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/approval-new.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 6645
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/approval-new2.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 6154
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/approval.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 115967
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/build.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 201
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/build2.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 201
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/delivery-browser.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 88090
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-final.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 6801
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-5-append.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 882
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-5-revert.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 879
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-6-append.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 882
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-6-revert.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 901
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-7-append.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 882
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-mutant-7-revert.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 902
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide-restored.log.gz",
+      "prior_gzip_matches_source": false,
+      "source_bytes": 6536
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/guide.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 6663
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/install.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 96
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/mutant-background.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 2211
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/mutant-early.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 40941
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/mutant-query.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 1903
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/react.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 18646
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/ref-check.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 80
+    },
+    {
+      "file": "snapback4/reports/20260927-dc-delivery-client/round13/storage.log.gz",
+      "prior_gzip_matches_source": true,
+      "source_bytes": 632
+    }
+  ],
+  "wasm_unchanged": {
+    "raw": 2019815,
+    "gzip": 585193,
+    "sha256": "fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1"
+  },
+  "text_checks": {
+    "ROUND13.md": "complete preflight section and pending final-result line; no truncation",
+    "mutate.mjs": "node --check passed",
+    "guide-mutations.py": "ast.parse passed",
+    "LLP3000.025": "byte-identical to HEAD after mutation restore",
+    "verification.json": "parse passed, recovery status added",
+    "guide-mutations.json": "six intentional failures, all logs complete"
+  }
+}

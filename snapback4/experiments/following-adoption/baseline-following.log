@@ -1,0 +1,36 @@
+   Compiling snapback4-lang v0.4.4 (/home/ccheever/sb4-intent/lane-fa/snapback4/crates/snapback4-lang)
+    Finished `release` profile [optimized] target(s) in 1.79s
+     Running tests/timeline_background.rs (target/release/deps/timeline_background-a6297cb2659c1cff)
+
+running 17 tests
+test authored_follower_index_name_cannot_replace_the_engine_index ... ok
+test admission_order_distinguishes_event_and_edge_inside_one_transaction ... ok
+test originals_filter_reposts_and_source_authority ... ok
+test equal_times_order_by_event_id_and_removal_fills_the_page ... ok
+test follow_preview_unfollow_removal_and_refollow_are_immediate ... ok
+test overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect ... ok
+test trusted_restore_preserves_the_admission_order_floor ... ok
+MEASURE 256 x 100000-byte edges: chunk refused before allocation; E_BOUND: HeapBytes reached 17074804 against the ceiling 16777216 at timeline/follows/$timeline:feed:followers
+test delivery_charges_large_edge_payloads_before_materializing_them ... ok
+test a_full_chunk_of_skipped_edges_keeps_the_delivery_cursor_live ... ok
+MEASURE read follows=5:61 follows=500:61
+test read_cost_is_independent_of_follow_count ... ok
+test last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone ... ok
+MEASURE write followers=5:4 followers=900:4; recovery chunks=254 copies=901 elapsed_ms=583
+test constant_writer_cost_and_crash_resumption_to_900_followers ... ok
+test stale_meter_cut_has_a_continuation_and_never_claims_complete ... ok
+test application_edge_id_reuse_cannot_reuse_an_engine_epoch ... ok
+MEASURE history window=1000 preview=50 unfollow_writes=259 stale_after_unfollow=744; refollow leaves 1000 copies in new epoch
+test history_window_epochs_and_pending_completeness ... ok
+test followers_on_both_sides_of_a_saved_cursor_receive_identical_history ... ok
+test late_follow_history_is_independent_of_delivery_drain_order ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.88s
+
+     Running tests/timeline_epoch_counterexample.rs (target/release/deps/timeline_epoch_counterexample-3ac6352fadaa864c)
+
+running 1 test
+REGRESSION pending_events_before_follow=1100 backfill_window=1000 reader_copies_after_drain=1000
+test late_follow_can_receive_only_the_history_window_from_pending_deliveries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s

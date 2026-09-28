@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 use snapback4_core::{Value, value::object};
 
-pub const LINE: &str = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation";
+pub const LINE: &str = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits";
 
 pub fn source(case: &str) -> String {
     let source = r#"table members:

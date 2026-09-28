@@ -33,6 +33,8 @@ pub(crate) mod setup;
 /// A bound operation: the IR plus the types the client sees.
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
+    /// Source statement ownership stays beside flat IR, like diagnostic sites.
+    pub(crate) statement_ends: Vec<usize>,
     pub view_types: BTreeMap<String, Ty>,
     pub(crate) filters: BTreeMap<String, String>,
     /// Whole-domain consumers for diagnostics only; absent from IR/wire.
@@ -161,10 +163,11 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
+        let mut statement_ends = Vec::new();
         let mut failed = false;
         let count = decl.body.len();
         let arguments = binder.scopes.clone();
@@ -216,6 +219,8 @@ impl<'a> Binder<'a> {
                     failed = true;
                 }
             }
+            // @ref LLP 3000.025#3-proposed-rule — include payload and helper setup in the enclosing source statement.
+            statement_ends.push(body.len());
         }
         if failed {
             binder.append_errors(diagnostics);
@@ -243,7 +248,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {

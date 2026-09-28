@@ -2,10 +2,10 @@
 // @ref LLP 3000.021#3.4 — retaining the parent keeps the pinned screen after leave.
 pub(super) const CARD: &str = r##"# Receipts: sent, delivered, read
 
-Each member's client records what it fetched and how far it has shown it, as
-ordinals, on its own membership row and in runs beside it. One helper turns them
-into every message's receipt, `sent`, `delivered` or `read`, rendered beside
-the history page.
+The SDK reports received messages as ordinals and runs, while the screen
+reports views, to derive `sent`, `delivered` and `read` receipts. For expiring
+messages or engine-assigned ordinals, start with `guide sequences`, then use
+the run merge below.
 
 ```quarry
 table conversations:
@@ -88,6 +88,9 @@ query history(conversation: conversations, c: cursor ?):
 query messageReceipts(conversation: conversations, c: cursor ?):
   return messages where .conversation = conversation last 20 by .ordinal after c { id, receipt: receipt(.) }
 
+query receiptMember(conversation: conversations):
+  return members[conversation, viewer]
+
 query progress(conversation: conversations, c: cursor ?):
   me = members[conversation, viewer] ! else NOT_MEMBER
   delivered = max(me.deliveredOrdinal, me.joinedOrdinal)
@@ -118,7 +121,8 @@ mutation leave(conversation: conversations):
   delete members[me]
   return null
 
-mutation delivered(conversation: conversations, from: int, through: int):
+mutation delivered(conversation: conversations, from: int, through: int)
+  reports delivery of messages by .conversation, .ordinal:
   me = members[conversation, viewer] ! else NOT_MEMBER
   chat = conversations[conversation] ! else NOT_FOUND
   require 0 < from and from <= through else NOT_A_RUN
@@ -135,7 +139,8 @@ mutation delivered(conversation: conversations, from: int, through: int):
     delete runs[run]
   if low <= prefix + 1:
     update members[me] { deliveredOrdinal: high }
-  else if count(runs where .conversation = conversation and .principal = viewer) < 64:
+  else:
+    require count(runs where .conversation = conversation and .principal = viewer) < 64 else RUNS_FULL
     insert runs { conversation, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   return null
 
@@ -189,6 +194,8 @@ search over every chat held on a device. An ordinary history can ask the
 server before acquisition or past its horizon; a left group's retained page
 stays local.
 
+This card's contiguous message-only intervals assume no deletion or expiry.
+
 Every message takes the conversation's next ordinal, and a member records the
 last ordinal when they join. So commit order, not the clock, decides a
 message's recipients: the members other than its sender who joined before it.
@@ -198,130 +205,127 @@ sent. A message records how many recipients it had. Once all of them leave, the
 requirement is met; a message sent to nobody stays `sent`. So a receipt only
 ever moves forward.
 
+`reports delivery of messages by .conversation, .ordinal` binds this mutation
+to the SDK's delivery reporter. **Success is coverage:** every position in the
+inclusive run is recorded for the caller. Refuse with a code when it cannot be
+recorded. `RUNS_FULL` refuses a disjoint 65th run; merged runs free their slots
+before the count. A covered run keeps a replayable receipt but advances no
+sequence and wakes no reader. Replaying its write id returns that success.
+
+`E_DELIVERY_CLAUSE` requires exactly a reference to the group table and two
+`int` arguments, immutable group and position columns, their unique key, and
+one reporter per tracked table. The compiler checks those facts, not the body.
+Never reuse a deleted position. A membership without a join floor must refuse
+positions before the join. Membership and allocation remain server decisions. An ephemeral mutation
+cannot keep a durable replay receipt; use durable tables.
+
 A member's row claims every message through `deliveredOrdinal`, and each of
-their `runs` one unbroken run above a gap. The client reports every unbroken
-run of settled messages it holds with `delivered(from, through)`: the pages it
-has walked and the page `progress` returns ahead of the delivered prefix. The
-mutation merges a run with every run it meets, and folds it into the prefix
+their `runs` one unbroken run above a gap. The SDK reports debt collected from
+publications and accepted answer manifests with `delivered(from, through)`.
+`progress` remains a catch-up read; its returned message images also qualify
+for a manifest. The mutation merges a run with every run it meets, and folds it into the prefix
 when it reaches it. So whatever a client fetched is delivered once its report
 is recorded, however many gaps lie between, and a receipt never claims a
 message the client did not fetch, nor moves back.
 
-Three things keep every fetched message moving:
+The SDK reports delivered positions for the signed-in client, even with no
+conversation mounted. The local client collects confirmed, held, unexpired
+published rows and persists debt with them; both clients collect the server's
+query manifest, including nested message images. Scalars, counts, copied
+ordinals and predicted rows report nothing. A position that never reached
+the client stays `sent`. Positions outside JavaScript's safe-integer range
+also stay `sent`. Composed answers omit their manifest when retained local
+rows replace server rows.
 
-- **Catching up.** `progress` answers with the member's row, their stored runs
-  and the next 100 ordinals ahead of the prefix, counted from the join,
-  newest first within that interval. Then the next interval as the prefix
-  moves, until the client is caught up. Ordinals are contiguous: this card
-  never deletes messages. An interval below the acquired window needs the server.
-  It never needs the page's cursor.
-- **Owing.** For the life of the signed-in client, a remount included, the
-  hook keeps what it has fetched, merged into disjoint runs, for this viewer
-  and conversation, until the server's own rows cover it, even before
-  `progress` first answers; a predicted row covers nothing. It sends a run
-  when the run is new or grows, and again only when those rows move, even
-  after a page is gone; a report the client could not keep (`E_ADMISSION`)
-  goes again with the next answer. When the lowest run it holds lies above
-  the prefix, it walks older pages it holds, offline too.
-- **Waiting.** A member keeps at most 64 runs. One more is not recorded, and
-  its report still succeeds; the hook owes it until a merge or catching up
-  frees room. A reload forgets what is owed: what the pages and the page ahead
-  still hold is reported again, and the rest waits for catching up, which
-  needs the server.
+Through `createApp` / `guardClient`, a query manifest is accepted only when
+the facade publishes its shared authority-approved answer or `query()` returns
+it after approval. Peer facades collect the same answer once; refused,
+superseded or expired answers report nothing. Without a facade, acceptance
+remains the raw watch publication or query return after its final fences.
+Collection persistence never delays the answer and rechecks its fences on
+every attempt. Ordinary device publication still persists debt with its rows.
 
-`seen` records the newest message on screen, online or offline. The hook owes
-a view as it owes a run, until the member's row shows it; a view the client
-could not keep goes again with the next answer, even once the conversation is
-hidden or its screen remounted. A reload forgets it, and the next view records
-it again. A message is `read` for a recipient once it is delivered and `seen`
-reaches it. Every watermark is the member's own report, bounded by the last
-message. Each message's receipt costs one scan of at most 50 member rows and a
-run lookup for each member not yet past it; `check --cost` prints the
-certificate.
+Every report sends its binding's fingerprint; the server checks it under the
+writer before executing the mutation. Unrelated generation changes preserve
+unchanged bindings.
 
-Run the hook for a conversation in the background (`visible: false`) as well as
-on screen, so `delivered` follows fetching. Both mutations predict and queue
-offline, and a covered report writes nothing. A predicted row carries
-`pending: true` and its ordinal is not yet the server's, so it is never
-acknowledged:
+`E_DELIVERY_BINDING` means a report's binding changed or was removed. The SDK
+drops that binding's debt and collects under the current fingerprint; it
+does not retry the old report.
+
+For explicit catch-up, `progress` answers with the member's row, their stored
+runs and the next 100 ordinals ahead of the prefix, counted from the join,
+newest first within that interval. The next interval follows as the prefix
+moves. An interval below the acquired window needs the server; it never needs
+the page's cursor. The SDK keeps fetched positions merged into disjoint runs
+until a report succeeds. A member keeps at most 64 stored runs: one more
+refuses `RUNS_FULL` until a merge or catching up frees room.
+
+
+Reports call `delivered` directly, outside the ordered outbox. Success means
+the whole run is covered. `RUNS_FULL` parks a disjoint run while other runs
+continue; publication, a later success, reconnect, start and a slow timer can
+wake it. A wake retries one parked run, at least 30 seconds after its last
+attempt, behind new debt; the slow timer runs every ten minutes. Uncertain
+requests reuse their persisted id. More than 64 permanent holes can keep a
+run unrecorded. The local client persists debt and uncertain attempt ids across
+restart; the online client keeps its queue in memory. The SDK merges exact
+positions into owed runs and retires them on committed success. Leaving drops the group's
+debt. A new membership's join floor covers positions before its join.
+
+Use `onDeliveryRefused` on `createClient`, `createLocalClient` or `createApp`
+to observe range refusals or an unexpected application refusal. The callback
+receives `{ table, mutation, args, group, from, through, why }`. A range
+refusal is remembered so repeated manifests cannot recreate that interval.
+`E_BOUND` is an ordinary non-retryable refusal: it calls the callback once and
+parks until the next start, which retries with a new id. Eviction and
+recollection cannot resend it within the session. The expired backlog normally
+clears before then; an already committed report becomes a no-op.
+`RUNS_FULL`, membership loss and transport retries do not call the callback.
+
+`progress` stays available for explicit catch-up. Its `ahead` rows count as
+deliveries, so mounting it continuously acquires the next page whenever the
+prefix advances. The ordinary screen below reads its member separately.
+
+`seen` remains an application decision: it records messages actually on
+screen. Its small retry debt survives a remount for this signed-in client.
+A reload forgets that view debt and the next view records it again. A message
+is `read` only when both delivery and `seen` reach it. Each receipt reads at
+most 50 members and one run lookup per member below the position.
 
 ```ts
 import { useEffect, useMemo } from "react";
 import { useClient, usePage, useQuery, useViewer } from "snapback4/react";
 import { api } from "./snapback/generated/api";
-// Runs and ordinals, merged into disjoint unbroken runs, lowest first.
-function runsOf(runs: [number, number][], ordinals: number[]) {
-  const all = [...runs, ...ordinals.map((n): [number, number] => [n, n])].sort((a, b) => a[0] - b[0]);
-  const merged: [number, number][] = [];
-  for (const [from, through] of all) {
-    const last = merged[merged.length - 1];
-    if (last && from <= last[1] + 1) last[1] = Math.max(last[1], through); else merged.push([from, through]);
-  }
-  return merged;
-}
-// What the hook owes, for the life of the signed-in client, per viewer and conversation:
-// a remount keeps it, and a replaced client or another viewer starts afresh.
-type Debt = { owed: Map<string, { run: [number, number]; tried: string | null }>; viewed: { through: number; sent: number } };
-const debts = new WeakMap<object, Map<string, Debt>>();
-function debtOf(client: object, viewer: string | null, conversation: string): Debt {
-  const scopes = debts.get(client) ?? new Map<string, Debt>();
-  debts.set(client, scopes);
-  const scope = JSON.stringify([viewer, conversation]);
-  const debt = scopes.get(scope) ?? { owed: new Map(), viewed: { through: 0, sent: 0 } };
-  scopes.set(scope, debt);
-  return debt;
+type Viewed = { through: number; sent: number };
+const views = new WeakMap<object, Map<string, Viewed>>();
+function viewOf(client: object, viewer: string | null, conversation: string): Viewed {
+  const scopes = views.get(client) ?? new Map<string, Viewed>();
+  views.set(client, scopes);
+  const key = JSON.stringify([viewer, conversation]);
+  const viewed = scopes.get(key) ?? { through: 0, sent: 0 };
+  scopes.set(key, viewed);
+  return viewed;
 }
 function useReceipts(conversation: string, visible: boolean) {
   const client = useClient();
   const viewer = useViewer();
   const page = usePage(api.history, { conversation });
-  const progress = useQuery(api.progress, { conversation });
-  const mine = "data" in progress ? progress.data : null;
-  const member = mine ? mine.member : null;
-  // What it holds (the pages walked, the page ahead) it owes until the server's own rows
-  // cover it, remembered even before progress loads; a view is owed the same way.
-  const { owed, viewed } = useMemo(() => debtOf(client, viewer, conversation), [client, viewer, conversation]);
-  const held = [...page.items, ...(mine ? mine.ahead : [])].filter(m => !m.pending).map(m => m.ordinal);
-  const prefix = member && !member.pending ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
-  const stored = mine ? mine.runs.filter(r => !r.pending).map((r): [number, number] => [r.fromOrdinal, r.throughOrdinal]) : [];
-  const coverage = mine && JSON.stringify([prefix, stored]);
-  const holding = JSON.stringify(runsOf([], held));
-  useEffect(() => {
-    const entries = new Map(owed);
-    owed.clear();
-    for (const run of runsOf([...entries.values()].map(entry => entry.run), held)) owed.set(run.join("-"), entries.get(run.join("-")) ?? { run, tried: null });
-    if (coverage === null) return;
-    // Send a run when it is new, and again only when the server's coverage has moved.
-    for (const [name, entry] of owed) {
-      const from = prefix === null ? entry.run[0] : Math.max(entry.run[0], prefix + 1), through = entry.run[1];
-      if (from > through || stored.some(([low, high]) => low <= from && through <= high)) { owed.delete(name); continue; }
-      if (entry.tried === coverage) continue;
-      entry.tried = coverage;
-      void client.mutate(api.delivered, { conversation, from, through }).then(write => {
-        // Nothing was kept (storage unavailable): owe it again, and send it with the next answer.
-        if (write.state === "failed" && write.why.code === "E_ADMISSION" && entry.tried === coverage) entry.tried = null;
-      });
-    }
-  }, [client, conversation, owed, holding, coverage, progress]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Walk older pages while the lowest run held lies above the prefix.
-  const floor = member ? Math.max(member.deliveredOrdinal, member.joinedOrdinal) : null;
-  const lowest = runsOf([], held)[0];
-  const short = floor !== null && lowest !== undefined && lowest[0] > floor + 1;
-  useEffect(() => { if (short && page.hasMore) page.loadMore(); }, [short, page.hasMore, page.items.length, page.loadMore]);
+  const membership = useQuery(api.receiptMember, { conversation });
+  const member = "data" in membership ? membership.data : null;
+  const viewed = useMemo(() => viewOf(client, viewer, conversation), [client, viewer, conversation]);
   const settled = page.items.filter(m => !m.pending).map(m => m.ordinal);
   const newest = settled.length ? Math.max(...settled) : 0;
-  const shown = member ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
+  const shown = member && !member.pending ? Math.max(member.seenOrdinal, member.joinedOrdinal) : null;
   useEffect(() => {
-    // A view needs no watermark first: seen only moves forward.
     if (visible && newest > viewed.through) viewed.through = newest;
-    // Sent once; one the client could not keep goes again when the hook next runs.
     const through = viewed.through;
     if (through === 0 || (shown !== null && through <= shown) || viewed.sent === through) return;
     viewed.sent = through;
     void client.mutate(api.seen, { conversation, through }).then(write => {
       if (write.state === "failed" && write.why.code === "E_ADMISSION" && viewed.sent === through) viewed.sent = 0;
     });
-  }, [client, conversation, viewed, visible, shown, newest, progress]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [client, conversation, viewed, visible, shown, newest, membership]);
   return page;
 }
 ```

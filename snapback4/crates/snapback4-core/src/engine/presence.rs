@@ -103,6 +103,8 @@ impl Runner<'_> {
     }
 
     pub(super) fn bind_effect_value(&mut self, name: &str, value: Value) -> Result<(), RuntimeError> {
+        #[cfg(feature = "sqlite")]
+        self.bind_delivery(name);
         let deps = self.value_presence()?;
         self.env.insert(name.into(), value);
         if deps.is_empty() { self.effect_presence.variables.remove(name); }

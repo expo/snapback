@@ -7,7 +7,9 @@ publish = false
 description = "Snapback 4 core: the value model, schema, IR, SQLite store, rules, the runtime meter, the interpreter, and the partition log (LLP 3000 §5 week 2)."
 
 [features]
-default = ["sqlite", "native"]
+default = ["sqlite", "native", "server-search"]
+# Compact one-read membership opening belongs to server reads, not device wasm.
+server-search = []
 # The wasm host (LLP 3000.005): the app's module run over any `Rows` — a
 # native read on a device, or on the server.
 wasm-host = ["dep:wasmi"]

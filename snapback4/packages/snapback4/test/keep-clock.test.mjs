@@ -95,10 +95,10 @@ async function fixture(t, tier, refresh) {
     answerDeadline: value => { answerDeadline = value; }, offline: async () => { offline = true; await client.sync(); } };
 }
 
-for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) for (const exact of [false, true]) {
-  test(`${tier} keep: pre-expiry HTTP body cannot restore memory (${lingering ? "lingering" : "active"}, ${exact ? "exact deadline" : "rollback"})`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const lingering of keep === true ? [false, true] : [false]) for (const exact of [false, true]) {
+  test(`${tier} keep=${keep}: pre-expiry HTTP body cannot restore memory (${lingering ? "lingering" : "active"}, ${exact ? "exact deadline" : "rollback"})`, async t => {
     const f = await fixture(t, tier, exact ? undefined : 25), op = { kind: "query", name: "remote" };
-    const watch = f.client.observe(op, {}, { keep: true });
+    const watch = f.client.observe(op, {}, { keep });
     await until(() => watch.getSnapshot().data === true);
     if (lingering) watch.close();
     f.holdBody();
@@ -108,7 +108,7 @@ for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) f
     f.clock.sample(f.serverDeadline + (exact ? 0 : 1), f.wall, f.wall, "server:1");
     await until(() => watch.getSnapshot().loading, "expiry withdrew the remembered answer");
     const snapshots = [];
-    const joined = lingering ? f.client.observe(op, {}, { keep: true }) : watch;
+    const joined = lingering ? f.client.observe(op, {}, { keep }) : watch;
     joined.subscribe(() => snapshots.push(joined.getSnapshot()));
     if (!exact) f.clock.sample(f.wall, f.wall, f.wall, "server:2");
     const reads = f.queries();
@@ -128,8 +128,8 @@ for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) f
   });
 }
 
-for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) {
-  test(`${tier} keep: displayed expiry fences an older body while preserving newer memory (${lingering ? "lingering" : "active"})`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const lingering of keep === true ? [false, true] : [false]) {
+  test(`${tier} keep=${keep}: displayed expiry fences an older body while preserving newer memory (${lingering ? "lingering" : "active"})`, async t => {
     const { url, dir } = await server(t, undefined, `use personas alice
 table rows:
   body: text
@@ -173,7 +173,7 @@ mutation put(body: text, expiresAt: time):
       }) });
     t.after(async () => { gate.resolve(); await client.close(); });
     await client.sync();
-    const op = { kind: "query", name: "remote" }, watch = client.observe(op, {}, { keep: true });
+    const op = { kind: "query", name: "remote" }, watch = client.observe(op, {}, { keep });
     await until(() => watch.getSnapshot().data?.body === "A");
     await put("B", deadline + 3_600_000);
     assert.equal((await client.query(op, {})).data?.body, "B", "B replaces memory without replacing displayed A");
@@ -188,7 +188,7 @@ mutation put(body: text, expiresAt: time):
     clock.sample(deadline, wall, wall, "server:2");
     assert.deepEqual(watch.getSnapshot(), { loading: true }, "displayed A withdraws at its own deadline");
     clock.sample(wall, wall, wall, "server:3");
-    const joined = lingering ? client.observe(op, {}, { keep: true }) : watch, snapshots = [];
+    const joined = lingering ? client.observe(op, {}, { keep }) : watch, snapshots = [];
     joined.subscribe(() => snapshots.push(joined.getSnapshot()));
     gate.resolve();
     await until(() => failed > 0 && snapshots.some(read => read.data), "expired fetch finishes and recovery publishes");
@@ -198,12 +198,12 @@ mutation put(body: text, expiresAt: time):
   });
 }
 
-for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-clock correction expires active and lingering answers; rollback cannot resurrect them`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "process"]) test(`${tier} keep=${keep}: split-clock correction expires active and lingering answers; rollback cannot resurrect them`, async t => {
   const f = await fixture(t, tier), op = { kind: "query", name: "remote" };
-  const active = f.client.observe(op, {}, { keep: true }), idle = f.client.observe({ ...op, name: "idle" }, {}, { keep: true });
+  const active = f.client.observe(op, {}, { keep }), idle = f.client.observe({ ...op, name: "idle" }, {}, { keep });
   await until(() => active.getSnapshot().data === true && idle.getSnapshot().data === true);
-  const initial = idle.getSnapshot(); idle.close(); f.hold();
-  assert.equal(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep: true }), initial, "render peek sees the same lingering watch on every tier");
+  const initial = idle.getSnapshot(); if (keep === true) idle.close(); f.hold();
+  assert.equal(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep }), initial, "render peek sees the same lingering watch on every tier");
   assert.equal(initial.fresh, true, "server answer is fresh even though issued time is past its server deadline");
   assert.ok(f.clock.deviceDelay(f.serverDeadline) === 0 && f.clock.serverDelay(f.serverDeadline) === 3_600_000);
   f.clock.sample(f.serverDeadline, f.wall, f.wall, "server:1");
@@ -211,10 +211,10 @@ for (const tier of ["online", "wasm", "process"]) test(`${tier} keep: split-cloc
   for (let i = 0; i < 100 && !(active.getSnapshot().loading && idle.getSnapshot().loading); i++) await delay(5);
   assert.deepEqual(active.getSnapshot(), { loading: true }, "correction must re-arm the displayed answer's timer");
   assert.deepEqual(idle.getSnapshot(), { loading: true }, "a lingering watch keeps that same clock subscription");
-  assert.deepEqual(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep: true }), { loading: true });
+  assert.deepEqual(peekObservation(f.client, { ...op, name: "idle" }, {}, { keep }), { loading: true });
   f.clock.sample(f.wall, f.wall, f.wall, "server:2");
   assert.ok(f.client.now() > f.clock.estimatedServerNow(), "server rollback does not lower issued device time");
-  const remount = f.client.observe({ ...op, name: "idle" }, {}, { keep: true });
+  const remount = f.client.observe({ ...op, name: "idle" }, {}, { keep });
   assert.deepEqual(remount.getSnapshot(), { loading: true }, "an expired answer cannot return after rollback");
   await delay(10);
   assert.deepEqual(remount.getSnapshot(), { loading: true });

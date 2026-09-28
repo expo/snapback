@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { evaluateLocal } from "../dist/local-query.js";
 import { RememberedAnswers } from "../dist/local-reads.js";
 import { createLocalClient } from "../dist/local.js";
+import { ReadObservation } from "../dist/read-observation.js";
+import { episodeDeadline } from "../dist/read-episode.js";
 
 const op = { kind: "query", name: "read" }, input = { c: "original-cursor" };
 const prediction = { id: "own", predictable: true, observed_seq: null, predicted: ["posts/own", "feedFeed/own"] };
@@ -834,3 +836,47 @@ for (const retry of [false, true]) for (const localDue of [false, true]) for (co
     if (watch) assert.equal(watch.dirty, localDue || retry);
   });
 }
+
+for (const retainedRows of [false, true]) test(`composed delivery omits coordinates from replaced server rows (rows=${retainedRows})`, async () => {
+  const f = routing(); f.entries = [];
+  f.outcome = retainedRows
+    ? { data: [{id:'local'}], unknown: true, complete: false, tables:['posts'], retainedRows:[{source:['posts','local'],retained:true,fields:{}}] }
+    : { data: {history:['local'],online:[]}, unknown:true, complete:false, tables:['posts'], components:{history:{retained:true},online:{unknown:true}} };
+  f.env.post = async () => ({ok:true,obsoleteAuth:false,json:{data:retainedRows?[{id:'server'}]:{history:['server'],online:['current']}, complete:true,
+    delivery:[{table:'posts',mutation:'delivered',fingerprint:'f',args:['g','a','b'],rows:[['c',41]]}],rowProvenance:[{source:['posts','server'],fields:{}}]}});
+  let accepted=0;f.env.acceptDelivery=async()=>{accepted++;};
+  const result=await evaluateLocal(f.env,op,input,0,0);
+  assert.ok('data' in result.read);assert.equal(result.delivery,undefined);assert.equal(accepted,0);
+  if(!retainedRows)assert.deepEqual(result.read.data.history,['local']);
+});
+
+// @ref LLP 3000.023#6 — successful server transport does not finish a composed evaluation.
+for (const keep of [undefined, true]) test(`retaining fallback keeps A while the second local composition read waits: keep=${keep}`, async t => {
+  let now = 1000; t.mock.method(Date, "now", () => now);
+  const f = routing(); f.entries = [];
+  const gate = Promise.withResolvers(), entered = Promise.withResolvers();
+  const watch = new ReadObservation(keep), publications = [];
+  watch.publish({ data: "A", complete: true, cut: null, fresh: true, since: 500 });
+  watch.reload();
+  const deadline = episodeDeadline(watch.read(null));
+  let calls = 0;
+  f.env.notify = () => publications.push(watch.read(null));
+  f.env.call = async () => {
+    if (++calls === 2) { entered.resolve(); await gate.promise; }
+    return { ok: { data: { left: ["local"], right: [] }, unknown: true, complete: false, tables: ["posts"],
+      components: { left: { retained: true, complete: true }, right: { unknown: true } } } };
+  };
+  f.env.post = async () => ({ ok: true, obsoleteAuth: false, json: { data: { left: [], right: ["server"] }, complete: true } });
+  const work = evaluateLocal(f.env, op, input, 0, 0, watch);
+  await entered.promise;
+  now = 1999;
+  assert.deepEqual(watch.read(null), { data: "A", complete: true, cut: null, fresh: true, since: 500, revalidating: true });
+  assert.equal(episodeDeadline(watch.snapshot), deadline);
+  assert.ok(publications.every(read => read.data === "A"));
+  gate.resolve();
+  const result = await work;
+  watch.publish(result.read);
+  assert.deepEqual(watch.read(null).data, { left: ["local"], right: ["server"] });
+  assert.equal(watch.read(null).revalidating, undefined);
+  watch.retire();
+});

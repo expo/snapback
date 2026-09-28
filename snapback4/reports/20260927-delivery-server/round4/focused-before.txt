@@ -1,0 +1,123 @@
+   Compiling version_check v0.9.5
+   Compiling proc-macro2 v1.0.107
+   Compiling typenum v1.20.1
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling libm v0.2.16
+   Compiling find-msvc-tools v0.1.12
+   Compiling subtle v2.6.1
+   Compiling shlex v2.0.1
+   Compiling vcpkg v0.2.15
+   Compiling cc v1.4.5
+   Compiling serde_core v1.0.229
+   Compiling pkg-config v0.3.34
+   Compiling generic-array v0.14.7
+   Compiling wasmi_ir v2.0.0
+   Compiling zmij v1.0.23
+   Compiling bitflags v2.13.2
+   Compiling libc v0.2.189
+   Compiling syn v3.0.5
+   Compiling foldhash v0.2.0
+   Compiling wasmparser v0.228.0
+   Compiling hashbrown v0.17.1
+   Compiling wasmi_core v2.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling cpufeatures v0.2.17
+   Compiling rand_core v0.6.4
+   Compiling serde v1.0.229
+   Compiling libsqlite3-sys v0.38.2
+   Compiling getrandom v0.3.4
+   Compiling cfg-if v1.0.4
+   Compiling base64ct v1.8.3
+   Compiling wasmi v2.0.0
+   Compiling thiserror v2.0.20
+   Compiling tinyvec_macros v0.1.1
+   Compiling serde_json v1.0.151
+   Compiling password-hash v0.5.0
+   Compiling tinyvec v1.13.2
+   Compiling hashlink v0.12.2
+   Compiling blake2 v0.10.6
+   Compiling thiserror-impl v2.0.20
+   Compiling serde_derive v1.0.229
+   Compiling fallible-iterator v0.3.0
+   Compiling spin v0.9.9
+   Compiling wasmi_collections v2.0.0
+   Compiling memchr v2.8.3
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling smallvec v1.16.1
+   Compiling itoa v1.0.18
+   Compiling argon2 v0.5.3
+   Compiling unicode-normalization v0.1.25
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 08s
+     Running tests/delivery.rs (target/debug/deps/delivery-6a32e657053e2c1b)
+
+running 16 tests
+test exact_output_reservation_admits_a_fitting_binding_and_row ... ok
+test colliding_ids_do_not_turn_foreign_fields_into_own_images ... ok
+test manifest_tracks_only_qualifying_surviving_images ... ok
+test many_bindings_exhaust_metadata_work_before_further_source_stamping ... ok
+test map_backed_authorized_source_images_are_tracked_too ... ok
+test owner_field_origin_survives_optional_access_and_successive_aliases ... ok
+test per_source_lookup_exhausts_steps_after_the_index_fits ... ok
+test report_noop_keeps_receipt_at_head_and_replays_before_body_lookup ... ok
+test reopening_an_installed_reporter_preserves_its_manifest ... ok
+test partial_preserves_rows_so_far_and_bounds_stamping_heap ... ok
+test row_and_effect_reports_still_commit_but_empty_reports_do_not ... ok
+test two_bindings_have_separate_rows_and_self_describing_names ... ok
+test step_heap_and_read_cuts_remain_the_answers_own ... ok
+test supplemental_overflow_never_changes_answer_or_its_meter ... ok
+test unsafe_positions_are_not_reported_and_safe_endpoints_are_exact ... ok
+test unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests/delivery_clause.rs (target/debug/deps/delivery_clause-7e33a295c6403c23)
+
+running 5 tests
+test binding_decoder_rejects_incomplete_or_duplicate_fields ... ok
+test ephemeral_mutations_cannot_promise_durable_replay ... ok
+test fingerprint_names_every_component_and_is_independent_of_wire_order ... ok
+test clause_binds_argument_names_and_survives_schema_serialization ... ok
+test every_clause_check_has_a_located_diagnostic_and_concrete_rewrite ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-9e3be983f4097eb6)
+
+running 3 tests
+test cursorless_page_stamps_its_exact_bound_without_lookahead ... FAILED
+test compact_membership_search_reports_only_authorized_emitted_images ... FAILED
+test admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay ... ok
+
+failures:
+
+---- cursorless_page_stamps_its_exact_bound_without_lookahead stdout ----
+
+thread 'cursorless_page_stamps_its_exact_bound_without_lookahead' (2555558) panicked at crates/snapback4-lang/tests/delivery_integration.rs:110:9:
+assertion `left == right` failed
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- compact_membership_search_reports_only_authorized_emitted_images stdout ----
+
+thread 'compact_membership_search_reports_only_authorized_emitted_images' (2555557) panicked at crates/snapback4-lang/tests/delivery_integration.rs:80:9:
+assertion `left == right` failed
+  left: Array [Array [String("r2"), Number(2)], Array [String("r1"), Number(2)]]
+ right: Array [Array [String("r1"), Number(2)], Array [String("r2"), Number(2)]]
+
+
+failures:
+    compact_membership_search_reports_only_authorized_emitted_images
+    cursorless_page_stamps_its_exact_bound_without_lookahead
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery_integration`

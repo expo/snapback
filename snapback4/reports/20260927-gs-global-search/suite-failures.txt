@@ -1,0 +1,31 @@
+✖ failing tests:
+
+test at packages/snapback4/test/retained-history.test.mjs:119:749
+✖ MQ local branch wasm: retained history and independent held coverage (491.13236ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 1790504489418
+  - 1790500889276
+          ^
+  
+      at interceptDevice (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/test/retained-history.test.mjs:336:16)
+      at Object.call (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/test/retained-history.test.mjs:293:608)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Object.call (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/dist/local.js:367:33)
+      at async local (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/dist/local-query.js:86:24)
+      at async publish (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/dist/local-query.js:283:39)
+      at async evaluateLocal (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/dist/local-query.js:327:24)
+      at async file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/dist/local.js:1088:36 {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1790504489418,
+    expected: 1790500889276,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retained-history.test.mjs:119:749
+✖ MQ local branch watch wasm: retained history and independent held coverage (60114.6523ms)
+  'test timed out after 60000ms'
+-- FAIL: client tests (205 s)

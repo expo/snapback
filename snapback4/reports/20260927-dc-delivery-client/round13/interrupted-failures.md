@@ -1,0 +1,158 @@
+# Interrupted full-suite failures
+
+The disk-full attempt has no exact final summary or trustworthy aggregate. This lists every failure name recoverable from its truncated Rust/client logs. Five write-only guard fixture failures were separately reproduced after disk recovery and fixed. All other recorded failures occurred during ENOSPC/StorageFull and are rechecked in the recovery suite. An incomplete line is retained verbatim instead of inventing its missing outcome.
+
+## Rust: environmental
+
+- `dev_default_adoption_and_check_share_the_successor_refusal`
+- `development_banner_and_release_auth_boundary`
+- `killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children`
+- `memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill`
+- `off_thread_panic_and_watcher_return_have_one_line_reasons`
+- `service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved`
+- `sqlite_permissions_preserve_database_and_wal_locks`
+- `sqlite_replay_survives_counter_split_and_an_offline_cli_backfill`
+- `startup_refusals_name_the_unserved_generation`
+- `w10r1b_dev_reports_the_same_cascades_as_check`
+- `watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill`
+- Workspace doctest compilation: `snapback4-device` (preceding diagnostic lost when disk filled).
+
+## Clients: ours, corrected
+
+- mutate: a facade fence preserves a dispatched outcome and refuses later calls
+- act: a facade fence preserves a dispatched outcome and refuses later calls
+- upload: a facade fence preserves a dispatched outcome and refuses later calls
+- refreshSession: a facade fence preserves a dispatched outcome and refuses later calls
+- write: a facade fence preserves a dispatched outcome and refuses later calls
+
+## Clients: environmental disk-full attempt
+
+- W5R1x wasm: durable receipts evict beyond 256 without growing metadata
+- W5R1x wasm: replacement stays unacquired until the new catch-up completes
+- W5R1x wasm: a restore halt keeps acquisition false across retries and reopen
+- W5R1x process: a restore halt keeps acquisition false across retries and reopen
+- process: schema alone is not acquisition; queued guarded writes survive offline reopen
+- W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns
+- W5R2a wasm: a sent queued id emits once beyond 256 other emissions
+- W5R1x process: replacement stays unacquired until the new catch-up completes
+- W5R1x process: durable receipts evict beyond 256 without growing metadata
+- W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts
+- W5R1x wasm: opener returns an offline unacquired client on network loss
+- wasm: a genuinely empty partition at sequence zero is acquired durably
+- sequence by wasm: provisional require refusal queues for the server
+- W5R1x process: opener returns an offline unacquired client on network loss
+- wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+- process: a genuinely empty partition at sequence zero is acquired durably
+- W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts
+- sequence by wasm: provisional sequence key refusal queues for the server
+- W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns
+- sequence by wasm: provisional upsert index refusal queues for the server
+- W5R2a: two native owners recover 600 completions without stale pending memory
+- wasm: apply withdraws an owner-only answer despite having no rule probes
+- wasm: admit withdraws an owner-only answer despite having no rule probes
+- wasm: remount withdraws an owner-only answer despite having no rule probes
+- process: apply withdraws an owner-only answer despite having no rule probes
+- process: admit withdraws an owner-only answer despite having no rule probes
+- process: remount withdraws an owner-only answer despite having no rule probes
+- online: remount after owner transfer cannot restore an answer with no rule-probe dependencies
+- sequence by wasm: short circuit preserves prediction metadata and authority
+- W5 confirmation N3: another owner's durable receipt still notifies this client once
+- sequence by process: two offline Write results remain pending until settled
+- sequence by wasm: provisional named constraint refusal queues for the server
+- sequence by wasm: provisional empty index refusal queues for the server
+- sequence by wasm: point preserves prediction metadata and authority
+- W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts
+- sequence by wasm: provisional rule refusal queues for the server
+- sequence by wasm: provisional postcondition refusal queues for the server
+- sequence by wasm: provisional cap group refusal queues for the server
+- sequence by wasm: cap independent preserves prediction metadata and authority
+- sequence by wasm: page preserves prediction metadata and authority
+- wasm: apply revocation, keep=undefined, held
+- wasm: admit revocation, keep=undefined, held
+- wasm: transfer revocation, keep=undefined, held
+- wasm: remount revocation, keep=undefined, held
+- wasm: apply revocation, keep=undefined, throw
+- wasm: admit revocation, keep=undefined, throw
+- wasm: transfer revocation, keep=undefined, throw
+- wasm: apply revocation, keep=undefined, unavailable
+- wasm: admit revocation, keep=undefined, unavailable
+- wasm: transfer revocation, keep=undefined, unavailable
+- wasm: apply revocation, keep=undefined, retryExhausted
+- wasm: admit revocation, keep=undefined, retryExhausted
+- wasm: transfer revocation, keep=undefined, retryExhausted
+- wasm: apply revocation, keep=false, held
+- wasm: admit revocation, keep=false, held
+- wasm: transfer revocation, keep=false, held
+- wasm: remount revocation, keep=false, held
+- process: apply revocation, keep=undefined, held
+- process: admit revocation, keep=undefined, held
+- process: transfer revocation, keep=undefined, held
+- process: remount revocation, keep=undefined, held
+- process: apply revocation, keep=undefined, throw
+- process: admit revocation, keep=undefined, throw
+- process: transfer revocation, keep=undefined, throw
+- process: apply revocation, keep=undefined, unavailable
+- process: admit revocation, keep=undefined, unavailable
+- process: transfer revocation, keep=undefined, unavailable
+- process: apply revocation, keep=undefined, retryExhausted
+- process: admit revocation, keep=undefined, retryExhausted
+- process: transfer revocation, keep=undefined, retryExhausted
+- process: apply revocation, keep=false, held
+- process: admit revocation, keep=false, held
+- process: transfer revocation, keep=false, held
+- process: remount revocation, keep=false, held
+- online: revoked data, keep=undefined, held
+- online: revoked data, keep=undefined, retryExhausted
+- online: revoked data, keep=undefined, unavailable
+- online: revoked data, keep=undefined, throw
+- online: revoked data, keep=false, held
+- online: revoked data, keep=false, retryExhausted
+- online: revoked data, keep=false, unavailable
+- online: revoked data, keep=false, throw
+- a held global acknowledgement preserves retirement of a login minted after its dispatch
+- a held global acknowledgement preserves retirement of a login minted after its dispatch across a cleanup retry
+- online: a dormant tab cannot globally revoke a later login of the same principal
+- local: a dormant tab cannot globally revoke a later login of the same principal
+- global selection uses the principal's journal watermark for legacy session bytes
+- another principal's watermark and legacy counter cannot block a same-scope rotated bearer
+- online: global logout follows another tab's persisted rotation and revokes external siblings
+- online: global logout follows another tab's held rotation and revokes external siblings
+- local: global logout follows another tab's persisted rotation and revokes external siblings
+- local: global logout follows another tab's held rotation and revokes external siblings
+- global logout never selects another principal's stored bearer
+- a pending global fence survives replacement before a late rotation returns
+- a completed global fence survives replacement before a late rotation returns
+- refusal tombstones an unpersisted rotation's consumed predecessor
+- online: global logout keeps the public view until its fence commits, then fences captured handles
+- local: global logout keeps the public view until its fence commits, then fences captured handles
+- rollback publishes a new facade and never revives captured handles
+- refusal of an unpersisted successor preserves an unrelated replacement
+- local wasm: mutation-sent held across app.close keeps its outcome unknown
+- local wasm: mutation-failed held across app.close keeps its outcome unknown
+- local wasm: action-done held across app.close keeps its outcome unknown
+- local wasm: action-failed held across app.close keeps its outcome unknown
+- local wasm: query held across app.close keeps its outcome unknown
+- local native: mutation-sent held across app.close keeps its outcome unknown
+- local native: mutation-failed held across app.close keeps its outcome unknown
+- local native: action-done held across app.close keeps its outcome unknown
+- local native: action-failed held across app.close keeps its outcome
+- dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+- raw HTTP settlement validates declared results terminally and never reclaims them
+- parked action operator disposition records known provider acceptance without resuming original work
+- dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+- cancellation and admitting-session revocation abort an in-flight context before later writes
+- serve uses the same generated contract and declared environment across a supervised restart
+- process: snapshot and catch-up publish readiness together; later failures preserve acquired rows
+- W5c process: online reopen reports acquisition and a missing-row reason, then predicts
+- W5R2a process: a sent queued id emits once beyond 256 other emissions
+- sequence by wasm: two offline Write results remain pending until settled
+- check validates generated handler returns, arguments and declared secrets without executing the entry
+- scheduled generated action runs under its declared service seat
+- actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+- sequence by wasm: provisional constraint refusal queues for the server
+- sequence by wasm: provisional old refusal queues for the server
+- sequence by wasm: provisional postcondition index refusal queues for the server
+- sequence by wasm: unique independent preserves prediction metadata and authority
+- a held committed mutation returns pending at logout and replays once with its original id
+- known online commit survives failed receipt saves and same-id restart recovery
+- known online refusal survives failed receipt saves and same-id restart recovery

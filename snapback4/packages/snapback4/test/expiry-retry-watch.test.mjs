@@ -9,6 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { ServerClock } from "../dist/clock.js";
+import { answerIdentity } from "../dist/read-observation.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -166,10 +167,12 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       wall = deadline;
       await reached.promise; // Timer fired; the device reobservation is held.
       assert.equal(calls, 2);
-      assert.equal(live.getSnapshot(), before, "local wakeup must leave the remembered snapshot intact during a slow rerun");
-      assert.equal(publications.length, 1, "a local wakeup must neither reset nor notify");
+      // @ref LLP 3000.023#3.5 — re-read start retains the answer and marks the existing episode.
+      assert.deepEqual(live.getSnapshot(), { ...before, revalidating: true }, "local wakeup preserves the remembered value, freshness and age");
+      assert.equal(answerIdentity(live.getSnapshot()), answerIdentity(before));
+      assert.equal(publications.length, 2, "the revalidating mark notifies without a loading reset");
       localGate.release();
-      await until(() => publications.length === 2, "timer reobservation did not publish");
+      await until(() => publications.length === 3 && !live.getSnapshot().revalidating, "timer reobservation did not publish its replacement");
       assert.ok(publications.every(read => read.data === true && read.fresh === false));
       assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
       return;

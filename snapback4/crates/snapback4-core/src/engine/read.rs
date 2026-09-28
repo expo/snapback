@@ -20,6 +20,9 @@ use crate::rows::word_heap;
 use super::authorized_scan::AUTHORIZATION_WALK_LIMIT;
 #[path = "word_merge.rs"]
 mod word_merge;
+#[cfg(feature = "server-search")]
+#[path = "membership_search.rs"]
+mod membership_search;
 #[path = "view_merge.rs"]
 mod view_merge;
 #[path = "witness.rs"]
@@ -89,6 +92,8 @@ struct WordRead {
     metered: bool,
     retained: bool,
     expiry: super::expiry::Pending,
+    #[cfg(feature = "server-search")]
+    selected: Option<Vec<String>>,
     fields: Vec<String>,
     terms: Vec<String>,
 }
@@ -354,8 +359,7 @@ impl<'r> Runner<'r> {
 
     /// Admit one scope, then discover its words. Both a scoped page and a
     /// uniform matching merge use exactly this validation and charge order.
-    fn discover_words(&mut self, scan: &Scan) -> Result<Option<(Vec<String>, Vec<Value>, WordRead)>, RuntimeError> {
-        const MAX_WORD_LANES: usize = 32;
+    fn prepare_words(&mut self, scan: &Scan, bounds_validated: bool) -> Result<Option<(Vec<Value>, String, WordRead)>, RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let Some((position, fields)) = index.word_component() else {
@@ -388,7 +392,7 @@ impl<'r> Runner<'r> {
         } else { crate::words::terms(&text) };
         // Validate every scan input before denial or empty word discovery can
         // return. Generated lanes retain the same bounds and cursor scope.
-        self.word_bounds(scan, table, index, None, visibility.uniform)?;
+        if !bounds_validated { self.word_bounds(scan, table, index, None, visibility.uniform)?; }
         self.take(&scan.take)?;
         if visibility.uniform {
             self.word_note_table(&scan.table)?;
@@ -440,11 +444,22 @@ impl<'r> Runner<'r> {
             admitted = allowed && visibility.uniform;
             }
         }
+        let first = terms.remove(0);
+        Ok(Some((scope, first, WordRead { #[cfg(feature = "server-search")] selected: None, admitted, metered: admitted && visibility.uniform, retained, expiry: prefix_expiry, fields, terms })))
+    }
+
+    fn discover_words(&mut self, scan: &Scan) -> Result<Option<(Vec<String>, Vec<Value>, WordRead)>, RuntimeError> {
+        const MAX_WORD_LANES: usize = 32;
+        let Some((scope, first, word)) = self.prepare_words(scan, false)? else { return Ok(None) };
+        let table = &self.schema.tables[&scan.table];
+        let index = &table.indexes[&scan.index];
+        let position = index.word_component().unwrap().0;
+        let admitted = word.admitted;
+        let metered_words = word.metered;
         // The words the first term is a prefix of, one seek per word: the
         // seek lands on the word's first entry, the next seek starts past
         // its last. Each costs one index entry on the meter.
         // @ref LLP 3000.007#20.24 — L14.2: a uniform scope's word expansion is bounded by the meter, not by 32.
-        let metered_words = admitted && visibility.uniform;
         let mut words: Vec<String> = if metered_words { Vec::new() } else {
             self.authorized_scan(&[
                 (MeterKind::IndexEntries, (MAX_WORD_LANES + 1) as u64),
@@ -452,7 +467,7 @@ impl<'r> Runner<'r> {
             ], |runner, allowance| {
                 let mut words = Vec::new();
                 let mut walk_remaining = AUTHORIZATION_WALK_LIMIT;
-                let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
+                let mut bounds = Bounds { word: Some(first.clone()), ..Bounds::default() };
                 while walk_remaining > 0 {
                     let found = runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
                     let Some((_, key)) = found.first() else { break };
@@ -472,8 +487,8 @@ impl<'r> Runner<'r> {
                 Ok(words)
             })?
         };
-        if metered_words { self.meter.heap(word_heap::text(&terms[0]))?; }
-        let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
+        if metered_words { self.meter.heap(word_heap::text(&first))?; }
+        let mut bounds = Bounds { word: Some(first.clone()), ..Bounds::default() };
         while metered_words {
             if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
@@ -501,8 +516,7 @@ impl<'r> Runner<'r> {
         if words.is_empty() {
             return Ok(None);
         }
-        terms.remove(0); // Move the remaining terms once; every word lane shares them.
-        Ok(Some((words, scope, WordRead { admitted, metered: metered_words, retained, expiry: prefix_expiry, fields, terms })))
+        Ok(Some((words, scope, word)))
     }
 
     // The non-uniform traversal retains its eager order and disclosure contract.
@@ -884,6 +898,13 @@ impl<'r> Runner<'r> {
         let private_payload = table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
+        #[cfg(feature = "server-search")]
+        let prepaid_head = !self.device && matches!(aggregate.as_deref(), Some(super::extrema::Aggregate::Keys { .. } | super::extrema::Aggregate::Head { .. }));
+        // @ref LLP 3000.027#2 — a declared cursorless query needs no overflow row;
+        // cursor positions, ordered merges, lane discovery and horizons still do.
+        let stop_at_bound = !aborting && !scan.opaque_cursor && scan.merge_site.is_none() && word.is_none()
+            && !self.discovering_values && !self.view_scan_active && !(self.device && horizon.is_some())
+            && !transient && !job_page && scan.take != Bound::Meter;
         if metered_payload || transient { self.meter.heap(DisclosedBounds(&bounds).heap())?; }
         let mut cursor = bounds.clone();
         // One retained cursor/key allowance, outside the transient row scope.
@@ -896,18 +917,29 @@ impl<'r> Runner<'r> {
         let mut consumed = 0;
 
         'outer: loop {
+            if stop_at_bound && visible.len() == take { break; }
+            let batch = if stop_at_bound { batch.min(take - visible.len()) } else { batch };
             if transient {
                 if let Some(mark) = row_heap.take() { self.meter.release_row_heap(mark, row_bytes); }
                 row_bytes = 0;
                 if !self.read_charge(MeterKind::Steps, 1)? { break; }
                 row_heap = Some(self.meter.mark());
             }
+            // @ref LLP 3000.024#3 — the compact membership consumer reserves capacity for
+            // the next examined candidate before accessing it; exhaustion probes
+            // inside that reservation charge only a row that was actually found.
+            #[cfg(feature = "server-search")]
+            if prepaid_head && !private_page && !self.meter.room(MeterKind::Examined, 1) {
+                self.read_charge(MeterKind::Examined, 1)?;
+                capped = true;
+                break;
+            }
             let fetch_heap = self.meter.used.heap_bytes;
             // No adaptive lookahead, even for non-uniform rules. A later chunk
             // establishes exhaustion; every new candidate must first fit.
             let fetched = if private_page {
                 self.authorized_candidate(scan, &prefix, &cursor, dir, &mut walk_remaining)?
-            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true))? };
+            } else { self.scan_authorized(&scan.table, &scan.index, &prefix, &cursor, dir, batch, metered_payload || transient || job_page || private_payload, uniform_verdict == Some(true), #[cfg(feature = "server-search")] word.and_then(|word|word.selected.as_deref()))? };
             if private_page && (metered_payload || transient || job_page || private_payload) {
                 self.meter.heap(word_heap::slots::<(Option<super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(fetched.len()))?;
                 for (row, key) in &fetched {
@@ -967,8 +999,12 @@ impl<'r> Runner<'r> {
                 // first word still has to carry the rest.
                 let unmatched = if let Some(word) = word.filter(|word| !word.terms.is_empty()) {
                     let texts = word.fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok()));
+                    let scratch = self.meter.mark();
                     let tokens = if metered_payload { word_heap::tokenize(&mut self.meter, texts)? } else { crate::words::row_tokens(texts) };
-                    !crate::words::row_matches(&tokens, &word.terms)
+                    let unmatched = !crate::words::row_matches(&tokens, &word.terms);
+                    drop(tokens);
+                    if transient { self.meter.release_heap(scratch); }
+                    unmatched
                 } else { false };
                 if unmatched {
                     continue;
@@ -1016,7 +1052,9 @@ impl<'r> Runner<'r> {
                     if let Some(filter) = &scan.filter {
                         // @ref LLP 3000.014#5 — completed predicate answers belong to the page even when they reject this candidate.
                         let filter_expiry = self.next_expiry.scope();
-                        if metered_payload { self.meter.heap(word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()))?; }
+                        let filter_slot = if metered_payload { word_heap::text("$filter") + word_heap::insertion::<String, Value>(self.env.len()) } else { 0 };
+                        self.meter.heap(filter_slot)?;
+                        let filter_mark = self.meter.mark();
                         let prior = self.env.insert("$filter".into(), row.clone());
                         // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
                         let page_depth = self.page_depth;
@@ -1026,6 +1064,7 @@ impl<'r> Runner<'r> {
                         self.filter_depth -= 1;
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
+                        if transient { self.meter.release_row_heap(filter_mark, filter_slot); }
                         if metered_payload { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
                         if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
@@ -1084,7 +1123,7 @@ impl<'r> Runner<'r> {
                     }
                     self.next_expiry.inherit(pending);
                     row_expiry.emit();
-                    if (scan.existence || job_page) && visible.len() == take { break 'outer; }
+                    if (scan.existence || job_page || stop_at_bound) && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 }
             }
@@ -1117,9 +1156,7 @@ impl<'r> Runner<'r> {
             }
         }
         self.note_value_source_page(has_more);
-        if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
-            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
-        }
+        // @ref LLP 3000.027#1 — reaching the declared top-N bound completes a cursorless answer.
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
             // @ref LLP 3000.007#5.6 — a full page positions after its last result; a cut may pass filter rejects, never rule-hidden keys.
@@ -1210,9 +1247,16 @@ impl<'r> Runner<'r> {
 
     /// Merge ordered lanes into a page. Seekable uniform lanes use a heap
     /// of heads. Other lanes retain their page scan and stable union sort.
-    pub(super) fn merge(&mut self, merge: &Merge) -> Result<Vec<Value>, RuntimeError> {
+    pub(super) fn merge(&mut self, merge: &Merge, charge: impl FnOnce(&mut Self, &[Value]) -> Result<(), RuntimeError>) -> Result<Vec<Value>, RuntimeError> {
         let expiry = self.next_expiry.scope();
+        #[cfg(feature = "server-search")]
+        if !self.device && crate::search_plan::eligible(self.schema, merge) {
+            let rows = self.merge_memberships(merge, charge)?;
+            expiry.emit();
+            return Ok(rows);
+        }
         let rows = self.merge_with_words(merge, None)?;
+        charge(self, &rows)?;
         expiry.emit();
         Ok(rows)
     }
@@ -1308,9 +1352,6 @@ impl<'r> Runner<'r> {
         let has_more = candidates.len() > take;
         self.note_value_source_page(has_more);
         candidates.truncate(take);
-        if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
-            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
-        }
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
@@ -1351,6 +1392,7 @@ impl<'r> Runner<'r> {
         Ok(Box::new(unique.into_iter()))
     }
 
+    // @ref LLP 3000.027#2 — discovery must still establish every required lane.
     pub(super) fn note_value_source_page(&mut self, has_more: bool) {
         if self.discovering_values && has_more {
             self.value_source_incomplete = true;

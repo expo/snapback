@@ -378,6 +378,7 @@ completion changes. Await `client.sync()` when `client.link() === "online"`
 only for an operation that needs offline prediction immediately. A sync
 interrupted by link loss or a refused partition can return without acquisition,
 so `acquired` remains the authority.
+`await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
 Network fetch failures resolve `sync()` normally and set `link()` to `"offline"`;
 the public method resolves without a value. A transient network failure must
 not block opening. An opener's catch should close and rethrow only an unexpected
@@ -821,7 +822,7 @@ search. If both limits cut, `"meter"` wins.
 Device reads and uniform server reads keep precise reasons.
 Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
 `null` means "not disclosed here", not "not cut"; it also covers a horizon,
-missing coverage or a page without continuation. For `complete: false` with
+missing coverage. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut` (`"meter"`,
 `"words"` or null, with `"meter"` winning); `serve` never returns that meter.
@@ -858,7 +859,10 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-Without `keep`, online observations withdraw stale answers. All observations discard responses older than observed commits in the same store.
+By default, observations retain an answer during a re-read for at most one second
+after processing the invalidation, marked `revalidating: true`. Use `keep: false`
+for immediate withdrawal. All observations discard responses older than observed
+commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
 (`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
 queued and in-flight writes without retry; whether those writes executed is unknown.
@@ -896,23 +900,23 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion leaves `loading` (or the opted-in kept answer) until the next invalidation, and closing the last
-observation owner cancels its retries.
-Without `keep`, a local observation may keep its previous answer with `fresh: false` and `since`
-only during an unavailable device read's server fallback, ending at fetch
-settlement or any local commit, reset, adoption, generation, account change or close.
+exhaustion withdraws to `loading` for every retention policy until the next
+invalidation, and closing the last observation owner cancels its retries.
+A local server fallback joins the displayed answer's existing revalidation
+episode. Successful transport does not withdraw it while device composition
+continues; only the whole evaluation's outcome, the episode cap, or a hard
+withdrawal ends retention.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
-`complete` says this is everything the query can answer: false when the
-meter cut the page, when a scan's read rule is not decided by its prefix
-(`guide bounds`), when a page declared without a cursor had more rows than
-it holds (declare `c: cursor ?` and page with `after c`; `check` notes
-it), or when a local read passes the horizon. `fresh` says the device has
-everything the server had at the last sync (`since` is the last sync's
+`complete` means the query answered its declared request within known coverage and execution limits.
+Filling `first N` or `last N` is complete, including a composed preview.
+A cursorless page has no `next`; a cursor page may be complete with `next`.
+Meter cuts, a read rule not decided by the scan's prefix (`guide bounds`),
+and a local read past its horizon still make the answer incomplete.
+`fresh` says the device has everything the server had at the last sync (`since` is the last sync's
 time when it does not, and absent when the device has never finished
 one); `next` is the cursor for the next page (pass it as the query's
-`cursor ?` argument); a page with a cursor and more rows is `complete:
-true` with `next`. A row this device wrote and the server has not yet
+`cursor ?` argument). A row this device wrote and the server has not yet
 confirmed carries `pending: true`. A write is `pending` while unsettled, including
 a return at custody, a down link, an expired wait, or when the
 client closes before its response arrives. It is `sent` with the server's
@@ -1158,45 +1162,116 @@ client refetches at that deadline and needs a connection to evaluate it.
 supplies the query's cursor argument itself, which must be named `c`
 (`c: cursor ?`).
 
-For screens that must not unmount on a transient reload, explicitly opt in:
+Live reads keep the displayed answer during a re-read by default:
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-function useKeptThread(conversationId: string) {
-  const inbox = useQuery(api.inbox, {}, { keep: true });
-  const thread = usePage(api.thread, { conversationId }, { keep: true });
+function useThread(conversationId: string) {
+  const inbox = useQuery(api.inbox, {});
+  const thread = usePage(api.thread, { conversationId });
   return { inbox, thread };
 }
 ```
 
-On the local client (wasm or process device) and the online client, `keep`
-keeps the last published answer while a re-read is loading, marked
-`fresh: false` with its `since`. A new answer or refusal replaces it.
-**A kept answer may still show rows a revocation withdrew until the re-read
-lands.** Use this option only when that display trade-off fits the screen.
-It does not confer read or write authority. Without `keep`, behavior is unchanged;
-`usePage` still keeps loaded pages while an additional page loads.
+<!-- @ref LLP 3000.023#3.1 — one revalidation episode follows the displayed answer through the facade. -->
+On the local client (wasm or process device) and the online client, an
+invalidation marks the displayed answer `revalidating: true`, preserving its
+`fresh` and `since`. It remains until the replacement, an unsuccessful re-read,
+or **one second of host time after the client processes the invalidation**.
+The time a change takes to reach the client precedes that bound. Further
+invalidations and the facade's authority check never renew the same answer's
+episode. The deadline withdraws to `loading` but lets the in-flight read still
+publish. Snapshots and render peeks check it even before a delayed timer runs;
+a suspended page runs no code. A successful replacement clears `revalidating`.
+A failed presence sample is the separate exception described above.
 
-The same option is available on `client.observe(op, args, { keep: true })`.
-With `keep: true`, a watch lingers for 30 seconds after its last subscriber
-leaves. It stays the live observation it was, with its subscription, expiry
-timers, and place in every reset, invalidation, ephemeral adoption and schema
-installation. A new opted-in subscriber with the same operation, arguments,
-viewer and store incarnation joins that watch and sees its current snapshot,
-with the `fresh` and `since` that snapshot has. After 30 seconds without a
-subscriber, the watch closes. React remounts see that answer in their first
-committed render, including when the lingering answer became stale during a re-read.
-The app facade reuses a live answer it already authorized across freshness changes.
-When the source replaces that answer, the facade withdraws it synchronously; the
-replacement waits for its authority check. Sign-out, credential or viewer changes, store
-replacement or adoption, and client `close` end a lingering watch at once.
-`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
-schema installation reset lingering observations just as they reset active
-ones, before notifying subscribers. There is no separate store of retired
-answers. A lingering local watch re-runs on commits; both clients keep the
-watch's normal reads, timers and change-feed interest running for those 30
-seconds. This costs observation memory and background work while unmounted.
+| `keep` | During a re-read | After the last subscriber leaves |
+| --- | --- | --- |
+| omitted | Retains for at most one second | Closes |
+| `false` | Withdraws immediately | Closes |
+| `true` | Retains without the one-second cap | Lingers 30 seconds |
+
+The three options own separate watches, even for identical operations and
+arguments. Pass them to `client.observe`, `useQuery` or `usePage`.
+**Retention can show a revoked row during the re-read.** For actions, check
+`isReady(read) && !read.revalidating`. Use `keep: false` for an export, copy or
+playback that must withdraw as soon as the client processes the change.
+`fresh` still describes server confirmation: a completed offline answer may
+have `fresh: false` without being `revalidating`. Retention grants no authority.
+
+`keep: true` keeps the same live observation for 30 seconds after its last
+subscriber leaves, with normal reads, timers and change-feed interest. A new
+subscriber with that option, operation, arguments, viewer and store joins it
+and sees its current snapshot in the first committed render. This costs
+observation memory and background work while unmounted. A subscriber joining
+an already-active default watch also sees its current answer immediately.
+
+App facades share one approval per raw watch. A peer's successful authority
+check moves every live facade of that watch to the approved replacement.
+Every retaining watch keeps the previous approved answer, marked `revalidating`, while the replacement
+waits for its authority check. It inherits the same episode deadline by value
+and tracks the held answer's own device and server deadlines through clock
+corrections. A local reobservation wakeup does not expire remembered server
+data. Every source withdrawal clears the shared approval and remount peeks
+immediately, including failure, link loss, and a replacement's earlier expiry.
+Opening remounts register for the watch before its raw owner or first approval exists and
+receive notifications for approval, withdrawal and each distinct denial. An
+opening keeps its last raw-owner association if that owner retires while its
+check waits, so an opening refusal still reaches the attached slot exactly once.
+This also applies when the opening first joined through a peer's notification.
+While a raw owner is present, opening getters and notifications apply its current
+loading or denial before returning or delivering, just as sourced getters do.
+A live facade stays attached after a transient authority error, so a peer's later
+approval reaches it too. Expiry and follower registrations release on rejection;
+notification ownership ends only on close or a facade fence.
+A refusal from the facade's current refresh invalidates authority checks already
+in flight across all facades of that watch; a superseded refresh's result is ignored.
+Only a check started after the refusal can recover it. Adopting an
+already-delivered denial does not fence those new checks. A refusal completing
+after its facade closes still clears the shared approval for live peers of its
+associated raw owner. A closed opening cannot revoke a later owner it never joined. Opening
+facades adopt a denial already delivered while they waited, without notifying
+again. A denial unchanged since opening does not count as that delivery, even if
+another refusal was normalized back to it; the opening refusal still fences
+older checks. An older authority completion cannot publish a newer unchecked answer.
+Grouped withdrawals change every affected raw snapshot and shared approval before
+delivering read or link callbacks, including callbacks from lingering remounts.
+Facade snapshots honor their source's loading or denial even before their own
+subscription callback runs, including with `keep: false`; new data still needs
+authority. For all three policies, a closed facade keeps consulting its detached
+raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
+deadlines hold, it returns the source's current copy of that identity, including
+its revalidating mark. It preserves the earliest episode it observed, whether
+before or after close, even if a later copy omits the deadline. After that it returns one stable `loading` snapshot, or its denial, even
+when the replacement has identical data. A closed facade has no listeners and
+never notifies. Loading captured at close is already latched, without another
+getter call. Once its loading snapshot latches, a later source denial does
+not replace it; an explicit facade fence still revokes the entire handle.
+Closing a standalone `keep: false` facade removes its raw owner
+and cancels its subscriptions and timers. Shared approval and raw subscription delivery
+announce the same withdrawal only once, including an authority refusal during
+replacement or opening.
+An episode expiring during a grouped commit notifies after every affected watch
+has reloaded, so callbacks also see peers' revalidation marks.
+
+For all three options, a failed whole re-read, expired candidate, refusal,
+expiry, sign-out, credential or viewer change, store replacement or adoption,
+`clear_rows`, `settle_exit`, ephemeral incarnation change, first schema
+installation, or client close withdraws the answer immediately. A successful
+server fallback keeps retaining while device composition finishes within the
+episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
+Closing the client cancels row deadlines before publishing its stable denial. A
+closed local observation still checks its saved deadlines; resubscribing rearms
+those same absolute row deadlines before its re-read. Observed server expiry also
+fences remembered answers, so clock rollback cannot recover the expired body,
+while preserving newer answers whose server deadlines have not arrived.
+
+`usePage` preserves valid earlier pages while a later page loads or withdraws.
+Its combined read carries `revalidating` while any displayed page has that mark,
+and checks page deadlines before returning a cached result. A first-page
+withdrawal clears the displayed items; a later-page withdrawal removes that
+suffix. A changed cursor replaces its old suffix.
 
 `usePage` returns `items: []` while page one is loading: that is not an empty
 answer. Keep effects out of rows and the header/composer above this boundary.
@@ -1833,7 +1908,7 @@ step.
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
   card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
-  assets, client, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
+  assets, client, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services,
   presence, receipts, ephemeral, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words
   resolve too: `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → from-sql, `push` → effects.
   An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
@@ -2261,3 +2336,71 @@ the effects above), an identity provider beyond guests, passwords,
 services and the sessions a service mints, presence beyond the server's
 own polls. If the package cannot express something, the diagnostic names
 the term; record the gap and move on.
+
+
+### Automatic delivery reports
+
+A mutation declaring `reports delivery of messages by .conversation, .ordinal`
+lets the SDK report exactly the positions delivered to this client. Local
+clients persist debt with published confirmed rows and accepted fallback
+manifests. Online clients collect accepted query manifests in memory, including
+nested images. A composed answer omits the manifest when it replaces server
+rows with retained local rows. Query manifests pass the same restore floor as
+reports. Through `createApp` / `guardClient`, acceptance occurs only when the
+facade publishes the shared authority-approved answer or returns it from
+`query()` after approval. Its manifest follows the answer's identity, so peer
+facades collect it once; refused, superseded or expired answers collect nothing.
+Without a facade, acceptance remains the raw watch publication or query return,
+synchronously at its final fences. Collection persistence never delays or rejects the answer;
+every CAS attempt rechecks those fences, including at the host's commit point.
+An answer overtaken before that write stays accepted, but collects nothing.
+Unsupported conditional persistence also omits the collection; those rows stay
+`sent`. No mounted conversation or application delivery hook is needed.
+Keep calling `seen` for messages the person actually views. A continuously
+mounted `progress` query acquires its returned message rows, so use it only
+when that catch-up is intended.
+
+Reports bypass the ordered outbox and dispatch only when its local network
+chain is idle. Four groups may report concurrently, one call per binding and
+group, with a 15-second deadline. A retained uncertain attempt keeps its id across
+local restarts. Committed success covers its exact run; `RUNS_FULL` parks it
+and allows other intervals to proceed. New publications, success, reconnect,
+start and a slow timer wake parked runs, at most once per 30 seconds each.
+Startup waits only for debt present at startup. Later activation pages wait
+for capacity without evicting debt, retaining outbox priority even during live
+traffic. A failed page resumes its durable cursor with bounded backoff.
+
+`E_BOUND` is an ordinary non-retryable refusal in either the `why` or
+`denied` envelope, including a denial without a head. The interval parks until
+the next start and calls `onDeliveryRefused` once. Reconnect, timer wakes,
+eviction and recollection do not resend it within the session; clean intervals
+in the same group can still report. The next start retries with a new id.
+An expired unswept backlog normally clears before then; if an oversized reply
+hid a committed report, reporting that coverage again is a no-op. Retries are
+bounded by app starts. Start-only suppression applies to every ordinary
+non-retryable refusal, is scoped to fingerprint and group, and clears on start
+or store reset; it creates no terminal refused entry.
+
+Pass `onDeliveryRefused` to `createClient`, `createLocalClient` or `createApp`
+for application refusals. It receives
+`{ table, mutation, args, group, from, through, why }`; `why` is the ordinary
+coded refusal. `NOT_A_RUN` and `PAST_LAST_MESSAGE` enter a remembered refused
+set; other non-retryable application refusals park until restart.
+`RUNS_FULL`, membership loss, auth pauses and transport retries do not emit
+this callback. Reports do not appear in `onWrite` or `pendingWrites()`.
+
+Local debt survives closing or sign-out for the same viewer. Online sign-out
+waits at most one second for reports already in flight; remaining memory debt
+is lost. Leaving drops a group's debt. Store replacement or detected restore
+clears delivery metadata and fences outstanding callbacks; recover using a
+fresh device store. Debt never crosses viewers or binding incarnations.
+Each report sends `delivery: { fingerprint }` from its compiled binding or
+manifest. `E_DELIVERY_BINDING` drops that binding's state; an unrelated backend
+generation preserves unchanged fingerprints. Positions outside JavaScript's
+safe-integer range are never collected.
+
+Each binding/group keeps at most 256 owed intervals, 256 reported intervals
+and 64 refused intervals. There are at most 4,096 local or 1,024 online active
+groups. Eviction drops owed positions, which stay `sent`, but retains refused
+intervals. A saturated refused set stops that group's collection and dispatch
+until a leave/rejoin or a new device store.

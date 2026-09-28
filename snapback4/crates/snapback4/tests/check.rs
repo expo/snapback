@@ -203,7 +203,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             assert_eq!(text.matches("Full card: snapback4 guide reads").count(), excerpts, "{text}");
             if verbose {
                 assert!(text.contains(&format!("  why: snapback4 why N_NO_CURSOR\n\n{explanation}\n")), "{text}");
-                assert!(explanation.contains("Read.cut") && explanation.contains("Read.meter"), "the unvisited reads card must reach the builder: {explanation}");
+                assert!(explanation.contains("cannot continue") && explanation.contains("Meter cuts"), "the unvisited reads card must reach the builder: {explanation}");
                 assert!(explanation.len() + 1 <= 4096);
             }
             println!("W10a check: notes={count}, inline sections={excerpts}, excerpt bytes={}", if excerpts == 0 { 0 } else { explanation.len() + 1 });
@@ -416,7 +416,7 @@ fn w9b_why_prints_a_codes_card_paragraph() {
     for (code, card, paragraph) in [
         ("E_QUARRY_TYPE", "types", "E_QUARRY_TYPE means the expression's type does not fit its position."),
         ("N_MAINTAIN_SYNCED", "residency", "N_MAINTAIN_SYNCED names public inherited aggregates and group audiences"),
-        ("N_NO_CURSOR", "reads", "`complete: false` with no `next` (N_NO_CURSOR)"),
+        ("N_NO_CURSOR", "reads", "N_NO_CURSOR: a returned page cannot continue"),
     ] {
         let output = p.run(&["why", code]);
         assert!(output.status.success(), "{output:?}");
@@ -1017,7 +1017,7 @@ fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
 fn w9a_check_states_held_source_coverage_only_without_horizons() {
     let p = Project::new();
     let source = "table messages:\n  body: text <=100\n  public 'messages'\n  sync\ntable labels:\n  body: text <=100\n  public 'labels'\n  sync\nquery heldRows(c: cursor ?) held:\n  a = messages after c first 20 by byId\n  b = labels after c first 20 by byId\n  return { a, b }\nquery ordinary(c: cursor ?):\n  return messages after c first 20 by byId\n";
-    let positive = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization, limits and continuation";
+    let positive = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits";
     for horizon in [false, true] {
         p.source(&if horizon { source.replacen("  sync\n", "  sync last 20 by byId\n", 1) } else { source.into() });
         for args in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
@@ -1059,7 +1059,7 @@ fn w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap() {
     assert!(checked.status.success());
     let text = String::from_utf8(checked.stdout).unwrap();
     println!("{text}");
-    assert!(text.contains("N_NO_CURSOR") && text.contains("still needs continuation"), "{text}");
+    assert!(text.contains("N_NO_CURSOR") && text.contains("if the screen pages"), "{text}");
     assert!(!text.contains("or declare `cap"), "{text}");
     p.source(&SOURCE.replace("query all():", "query all(c: cursor ?):").replace("messages[] first", "messages[] after c first"));
     assert!(!String::from_utf8_lossy(&p.run(&["check"]).stdout).contains("N_NO_CURSOR"));
@@ -1436,4 +1436,41 @@ fn row_view_check_matches_engine_chunk_size_and_commit_count() {
     assert_eq!(commits,POPULATION.div_ceil(RECOUNT_CHUNK));
     assert_eq!(e.seq().unwrap()-start,commits as u64);
     assert_eq!(e.changes(start,100).unwrap().len(),commits);
+}
+
+#[test]
+fn er_expiry_cost_names_backlog_attempt_and_atomic_refusal() {
+    let p = Project::new();
+    let schema = "table messages:\n  owner: principal\n  expiresAt: time ?\n  read <- .owner = viewer\n  expire at .expiresAt\n  sync to .owner\n";
+    for read in ["messages where .owner = viewer first 1 by .id", "exists messages where .owner = viewer", "count(messages where .owner = viewer)"] {
+        p.source(&format!("{schema}mutation inspect(): server\n  return {read}\n"));
+        let output=p.run(&["check","--cost"]);
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text=String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("expired messages rows not yet swept"),"{text}");
+        assert!(text.contains("examined ceiling 8192"),"{text}");
+        assert!(text.contains("scan attempt also costs one examined unit"),"{text}");
+        assert!(text.contains("E_BOUND, with no write"),"{text}");
+        assert!(!text.contains("a pass over the first"),"{text}");
+        assert!(text.contains("scale: examined ceiling 8192; E_BOUND, with no write, if exceeded"), "{text}");
+        if read.starts_with("count(") {
+            assert!(!text.contains("sort/group/sum/count consume this page"), "{text}");
+            assert!(text.contains("no partial total"), "{text}");
+        }
+    }
+}
+
+#[test]
+fn fixture_test_reports_cursorless_top_n_complete() {
+    let p = Project::new();
+    let source = "use personas alice\ntable posts:\n  at: time\n  public 'posts'\nquery top():\n  return posts last 10 by .at\n";
+    p.source(source);
+    fs::create_dir(p.0.join("fixture")).unwrap();
+    let rows = (0..1000).map(|n| format!("{{\"id\":\"p{n:04}\",\"at\":{n}}}\n")).collect::<String>();
+    fs::write(p.0.join("fixture/posts.jsonl"), rows).unwrap();
+    let output = p.run(&["test", "--fixture", "fixture"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8_lossy(&output.stdout);
+    let measured = text.lines().find(|line| line.contains("top (alice)")).expect(&text);
+    assert!(measured.contains("complete in") && !measured.contains("capped"), "{text}");
 }

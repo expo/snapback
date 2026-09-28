@@ -76,7 +76,7 @@ fn feeds_card_states_background_contract_and_keeps_recipe_refusals() {
         ("E_RECIPE_RETIRED", vec!["view following: activity", "the engine chooses delivery bounds"]),
         ("E_TIMELINE_FILTER", vec!["view activity", "posts where .parentId = null and not .removed"]),
         ("E_TIMELINE_READ", vec!["following last 20 by .at after c"]),
-        ("E_TIMELINE_ACTIVATE", vec!["query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", "Original event ids are post ids", "no repost identity slots or edge-admission history"]),
+        ("E_TIMELINE_ACTIVATE", vec!["query home(c: cursor ?): return activity where .actor = viewer or exists follows[viewer, .actor] last 20 by .at after c", "Original event ids are post ids", "--allow-feed-adoption", "5,000,000 copies"]),
         ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
         ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
     ] {
@@ -434,8 +434,8 @@ fn receipts_card_ticks_follow_the_recipient_set() {
     for (k, n) in (342..=468).step_by(2).enumerate() { deliver(&mut engine, 6_700 + k as i64, n, n); }
     assert_eq!(stored(&progress(&mut engine, "bob", 6_800, "win")).len(), 64);
     let full = engine.mutate("delivered", None, at("bob", 6_810, &run(win(), 472, 472))).unwrap();
-    sent(&full);
-    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run waits, unrecorded, without a refusal");
+    assert_eq!(failed(&full), "RUNS_FULL", "success must mean the interval was recorded");
+    assert_eq!((full.events, states(&every(&mut engine), 472, 472)), (0, ["sent"].into()), "a sixty-fifth run refuses and stays unrecorded");
     deliver(&mut engine, 6_820, 343, 345);
     assert_eq!(stored(&progress(&mut engine, "bob", 6_825, "win")).len(), 62, "a merge frees room");
     deliver(&mut engine, 6_830, 472, 472);
@@ -1120,6 +1120,8 @@ fn every_alias_targets_a_keyword_and_nearest_uses_aliases() {
         assert!(!KEYWORDS.contains(&word), "alias shadows keyword {word}");
         assert!(KEYWORDS.contains(&target), "{word} targets unknown card {target}");
         assert_eq!(card(word), card(target));
+        assert_eq!(card(&word.to_ascii_uppercase()), card(target), "case-insensitive alias {word}");
+        assert_eq!(card(&target.to_ascii_uppercase()), card(target), "case-insensitive card {target}");
     }
     assert_eq!(guide::nearest("pagintion")[0], "reads");
     assert_eq!(guide::nearest("redict")[0], "prediction");

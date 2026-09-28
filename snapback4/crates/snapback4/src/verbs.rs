@@ -42,7 +42,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -168,7 +168,7 @@ pub fn check(options: &Options) -> i32 {
     }
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store")) {
-        Ok(problems) => bound.diagnostics.extend(problems),
+        Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
     if !bound.diagnostics.is_empty() {
@@ -223,7 +223,7 @@ pub fn check(options: &Options) -> i32 {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         for line in &sequences { println!("  {line}"); }
         for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
@@ -238,7 +238,12 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&bound.notes, options.flags.contains_key("verbose")) { println!("{}", present(&report)); }
         }
     }
-    if !options.json { println!("{scale_summary}"); }
+    if !options.json {
+        println!("{scale_summary}");
+        for search in certificates.iter().flat_map(|certificate| &certificate.search) {
+            println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
+        }
+    }
     if details && !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{}", present(&summary)); }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", present(&residency::facts(&bound))); }
     if !details && options.flags.contains_key("residency") && !options.json {
@@ -275,7 +280,13 @@ pub fn check(options: &Options) -> i32 {
 fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String {
     let certificate = bound.programs.iter().find(|p| p.program.name == program.name).map_or_else(
         || crate::scale::analyze(&bound.schema, program), |p| crate::scale::analyze_bound(&bound.schema, p));
-    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {}", certificate.line())];
+    // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — a domain count completes or aborts; growth explains reaching the ceiling.
+    let expiring_mutation = program.kind == ProgramKind::Mutation && ir::scans(program).iter().any(|scan| bound.schema.table(&scan.table).is_some_and(|table| table.is_expiring()));
+    let scale = certificate.line();
+    let scale = if expiring_mutation {
+        format!("scale: examined ceiling {}; E_BOUND, with no write, if exceeded; {}", certificate.bounds.meters.examined, scale.strip_prefix("scale: ").unwrap_or(&scale))
+    } else { scale };
+    let mut lines = vec![format!("  {} {}:", program.kind.word(), program.name), format!("    {scale}")];
     for aggregate in &certificate.aggregates { lines.push(format!("    {aggregate}")); }
     for growth in &certificate.growth_sites {
         let rewrite = if growth.rewrite.is_empty() { String::new() } else { format!("; rewrite: {}", growth.rewrite) };
@@ -331,7 +342,9 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             lines.push(format!("      {selection}"));
         }
         if let Some(scan) = scan {
-            lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" } else { "      sort/group/sum/count consume this page, not the whole population" }.into());
+            lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" }
+                else if scan.take == ir::Bound::Meter && bound.schema.table(&scan.table).is_some_and(|table| table.is_expiring()) { "      domain aggregate: complete the domain or refuse; no partial total" }
+                else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {
                 let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
                 lines.push(format!("      filter over ≤ examined ceiling ({ceiling})"));
@@ -340,6 +353,11 @@ fn cost_report(bound: &Bound, program: &ir::Program, canonical: bool) -> String 
             }
         }
         if site.kind == "scan" && program.kind == ProgramKind::Mutation && bound.schema.operations.get(&program.name).is_some_and(|fact| fact.predicts.as_deref() == Some("never")) {
+            // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — expiry prices backlog, never just the requested output rows.
+            if bound.schema.table(&site.table).is_some_and(|table| table.is_expiring()) {
+                lines.push(format!("    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling {}; the scan attempt also costs one examined unit.", snapback4_core::Ceilings::default().examined));
+                continue;
+            }
             // @ref LLP 3000.007#5.9 — a never-predicting mutation's pass over a uniformly authorized page, priced as one.
             let prefix = scan.map(|scan| scan.prefix.iter().map(|key| match key {
                 ir::IndexKeyExpr::Scalar(value) | ir::IndexKeyExpr::WordPrefix(value) => crate::scale::expression(value),
@@ -514,7 +532,7 @@ pub fn run(options: &Options) -> i32 {
                 0
             }
             Err(refusal) => {
-                println!("{}", if options.json { json!({ "denied": refusal }).to_string() } else { format!("denied {refusal}") });
+                println!("{}", if options.json { json!({ "denied": refusal, "complete": false }).to_string() } else { format!("denied {refusal}") });
                 1
             }
         }
@@ -628,7 +646,7 @@ fn human(bytes: u64) -> String {
 
 #[cfg(test)]
 #[path = "../tests/doctor/mod.rs"]
-mod doctor_tests;
+pub(crate) mod doctor_tests;
 
 fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<String, u64>, rusqlite::Result<(i64, Option<i64>)>), snapback4_core::RuntimeError> {
     // Counts (including replay suppression) and grace deadlines describe one snapshot.
@@ -813,6 +831,10 @@ pub fn why(options: &Options) -> i32 {
         eprintln!("usage: snapback4 why <E_CODE | operation | table | id> [--release dir] [--values]");
         return 2;
     };
+    if subject == "reports" {
+        println!("{}", snapback4_lang::guide::card("receipts").expect("receipts card"));
+        return 0;
+    }
     if let Some(explanation) = snapback4_lang::guide::explain_code(subject) {
         // @ref LLP 3000.007#20.1 — follow the current diagnostic's card when one code spans several recipes.
         let contextual = std::env::current_dir().ok().and_then(|dir| Project::locate(&dir)).and_then(|project| project.compile().ok()).and_then(|bound| {

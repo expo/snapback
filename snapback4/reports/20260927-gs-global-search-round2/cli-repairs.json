@@ -1,0 +1,97 @@
+[
+  {
+    "source": "unscoped-first",
+    "code": "N_SEARCH_UNSCOPED",
+    "rewrite": "return posts matching needle after position first 7 by .sent, .id where .sender = viewer and .tombstone = false and (exists roster[.roomId, viewer])",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": [
+      "N_SEARCH_WORDS",
+      "N_SEARCH_OPEN"
+    ]
+  },
+  {
+    "source": "unscoped-first",
+    "code": "N_SEARCH_WORDS",
+    "rewrite": "return posts matching needle after position first 7 by .sent, .id where .sender = viewer and .tombstone = false and (exists roster[.roomId, viewer])",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": [
+      "N_SEARCH_WORDS",
+      "N_SEARCH_OPEN"
+    ]
+  },
+  {
+    "source": "unscoped-last",
+    "code": "N_SEARCH_UNSCOPED",
+    "rewrite": "return posts matching needle after position last 7 by .sent, .id where .sender = viewer and .tombstone = false and (exists roster[.roomId, viewer])",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": [
+      "N_SEARCH_WORDS",
+      "N_SEARCH_OPEN"
+    ]
+  },
+  {
+    "source": "unscoped-last",
+    "code": "N_SEARCH_WORDS",
+    "rewrite": "return posts matching needle after position last 7 by .sent, .id where .sender = viewer and .tombstone = false and (exists roster[.roomId, viewer])",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": [
+      "N_SEARCH_WORDS",
+      "N_SEARCH_OPEN"
+    ]
+  },
+  {
+    "source": "compact",
+    "code": "N_SEARCH_WORDS",
+    "rewrite": "return roster[principal = viewer] after position first 7 by .roomId, .id where exists (posts[roomId = .roomId, sender = viewer, tombstone = false] matching needle by .sent, .id) { roomId, hits: posts[roomId = .roomId, sender = viewer, tombstone = false] matching needle last 3 by .sent, .id }",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": []
+  },
+  {
+    "source": "compact",
+    "code": "N_SEARCH_OPEN",
+    "rewrite": "return roster[principal = viewer] after position first 7 by .roomId, .id where exists (posts[roomId = .roomId, sender = viewer, tombstone = false] matching needle by .sent, .id) { roomId, hits: posts[roomId = .roomId, sender = viewer, tombstone = false] matching needle last 3 by .sent, .id }",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": []
+  },
+  {
+    "source": "decorated",
+    "code": "N_SEARCH_WORDS",
+    "rewrite": "return roster[principal = viewer] after position first 7 by .roomId, .id where exists (posts[roomId = .roomId, tombstone = false] matching needle by .sent, .id) { roomId, hits: posts[roomId = .roomId, tombstone = false] matching needle last 3 by .sent, .id }",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": []
+  },
+  {
+    "source": "decorated",
+    "code": "N_SEARCH_OPEN",
+    "rewrite": "return roster[principal = viewer] after position first 7 by .roomId, .id where exists (posts[roomId = .roomId, tombstone = false] matching needle by .sent, .id) { roomId, hits: posts[roomId = .roomId, tombstone = false] matching needle last 3 by .sent, .id }",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": []
+  },
+  {
+    "source": "decorated",
+    "code": "N_SEARCH_SHAPE",
+    "rewrite": "return posts matching needle after position last 7 by .sent, .id where .tombstone = false and exists roster[principal = viewer, roomId = .roomId]",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": [
+      "N_SEARCH_WORDS",
+      "N_SEARCH_OPEN"
+    ]
+  },
+  {
+    "source": "bounded",
+    "code": "N_SEARCH_WORDS",
+    "rewrite": "return roster[principal = viewer] after position first 7 by .roomId, .id where exists (posts[roomId = .roomId] matching needle by .sent, .id) { roomId, hits: posts[roomId = .roomId] matching needle last 3 by .sent, .id }",
+    "check_ok": true,
+    "compiler_notes": [],
+    "remaining_independent_search_advice": []
+  }
+]

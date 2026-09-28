@@ -1,0 +1,94 @@
+{
+  "round": 1,
+  "merge_commit": "59b217892f62904f3ab73825755e7eb51331456f",
+  "merged_main": "d9c89a971913ca995a1e5a6d436a85dc8a5d11d6",
+  "full_suite_runs": 1,
+  "full_suite_exit": 0,
+  "full_suite_summary": "== 0 failure(s) in 1697 s",
+  "full_suite_failures": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "affected": {
+    "server_doctor_units": {
+      "passed": 182,
+      "ignored": 4
+    },
+    "latency_doctor_recipe": {
+      "passed": 10
+    },
+    "read_measurement": {
+      "ignored": 2
+    },
+    "whole_guide": {
+      "passed": 89
+    }
+  },
+  "full_suite": {
+    "rust": {
+      "passed": 4070,
+      "ignored": 29,
+      "binaries": 253,
+      "executions": 966,
+      "seconds": 974
+    },
+    "doctests": {
+      "passed": 17
+    },
+    "client_main": {
+      "passed": 3655,
+      "skipped": 10
+    },
+    "client_shards": {
+      "passed": 56
+    },
+    "client_models": {
+      "passed": 79
+    },
+    "fixture_wrappers": {
+      "passed": 9
+    }
+  },
+  "source_manifest": "source-before.json.gz",
+  "unchanged_tested_input_files": 1412,
+  "tools": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0",
+    "wasm-bindgen": "0.2.127",
+    "wasm_opt": false,
+    "build_jobs": 8,
+    "test_processes": 8,
+    "test_threads": 8,
+    "fd_limit": 65536,
+    "dev_test_debug": 0,
+    "cargo_incremental": 0,
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "tools_installed": []
+  },
+  "wasm": {
+    "raw": 1979732,
+    "gzip": 572616,
+    "budget": 572841,
+    "sha256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+    "before_after_identical": true
+  },
+  "development_failures": {
+    "ours_fixed": [
+      "E0308 in the initial acquisition mutation harness; corrected before the six successful negative controls",
+      "First staged whitespace check flagged three Markdown hard-break spaces in the copied review; trimmed in the readable copy."
+    ],
+    "expected_mutations": "mutations.json",
+    "baseline": [],
+    "environmental": []
+  },
+  "post_suite_whitespace_only": {
+    "crates/snapback4/tests/latency/duration.rs": {
+      "before_sha256": "d33c60fb9f6c49125743c81f8b2a8f02e18df9ff4f2b8e879a404d5209e9b5db",
+      "after_sha256": "9a626bbefe16dabd438a1ac35d4c64cc9b1179356411045570857b9a1a227264",
+      "change": "Indent one assertion by four spaces to align with its loop; no semantic change."
+    }
+  },
+  "reference_audit": "ref-check: ok \u2014 521 LLP docs, 9709 refs in 27507 files, 0 errors, 0 unchecked"
+}

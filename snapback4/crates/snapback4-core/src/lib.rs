@@ -28,6 +28,8 @@ pub mod maintain;
 pub mod partition;
 pub mod rows;
 pub mod schema;
+#[cfg(feature = "server-search")]
+pub mod search_plan;
 #[cfg(feature = "sqlite")]
 pub mod store;
 pub mod successor;

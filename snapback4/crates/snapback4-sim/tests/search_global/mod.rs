@@ -9,6 +9,7 @@ fn query(engine: &mut Engine, name: &str, cursor: Option<String>, term: &str) ->
 }
 
 const DECODED_STORE: bool = true;
+const COMPACT_MEMBERSHIPS: bool = true;
 mod forms;
 
 #[test]

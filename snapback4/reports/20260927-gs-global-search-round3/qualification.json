@@ -1,0 +1,230 @@
+{
+  "date": "2026-09-27T12:48:43.763423+00:00",
+  "merge_commit": "3588816da",
+  "full_suite_commit": "140463e43024421d7cac704563970cc98e638b1b",
+  "final_implementation_commit": "67931c9d89fa6af5119109239885601be67b300d",
+  "full_suite": {
+    "runs": 1,
+    "exit": 0,
+    "summary": "== 0 failure(s) in 1434 s",
+    "failures": [],
+    "rust": {
+      "passed": 3984,
+      "failed": 0,
+      "ignored": 24,
+      "binaries": 246,
+      "executions": 959
+    },
+    "client_main": {
+      "passed": 2644,
+      "failed": 0,
+      "skipped": 10
+    },
+    "client_shards_passed": 56,
+    "client_models_passed": 78
+  },
+  "full_suite_wasm": {
+    "raw_bytes": 1983447,
+    "gzip_bytes": 572688,
+    "sha256": "56117e3f8b71d416f4f1434be7331e7af30d70aa73eabe3b8c2001bd4ae47d0e",
+    "source_commit": "140463e43024421d7cac704563970cc98e638b1b"
+  },
+  "post_suite_scope": "One emitted-row materialization precharge and its allocation regression; complete affected suites rerun, full suite not repeated.",
+  "wasm": {
+    "raw_bytes": 1983447,
+    "gzip_bytes": 572688,
+    "unchanged_budget_bytes": 572841,
+    "headroom_bytes": 153,
+    "sha256": "dea4612052a43f422f6a9c62a73ed2b77b9fc5bb853368be84bd2d401a9a1891"
+  },
+  "logs": {
+    "install": {
+      "path": "target/lane-gs-round3/install.log",
+      "sha256": "7b936c05cf40ae1235e193cc84e443aa019fd4354e3ebfaf12cde2852d938cb5",
+      "summaries": []
+    },
+    "runtime-final": {
+      "path": "target/lane-gs-round3/runtime-final.log",
+      "sha256": "fd22176acef0372d53c6d6181769ec869eb545e41eaca3563a81efbcec7cabd8",
+      "summaries": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s"
+      ]
+    },
+    "certificate-final": {
+      "path": "target/lane-gs-round3/certificate-final.log",
+      "sha256": "8011e06b9836cbaed189376040303d818f1b16e40563d4fe48a64d134e0f3b40",
+      "summaries": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.02s"
+      ]
+    },
+    "shared-server": {
+      "path": "target/lane-gs-round3/shared-server.log",
+      "sha256": "c0f554996a4e20c6a916d16721ad7a5b36e2ea59346e1a0508ea6ee16c7a1bba",
+      "summaries": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 65.62s"
+      ]
+    },
+    "shared-device": {
+      "path": "target/lane-gs-round3/shared-device.log",
+      "sha256": "5fab1d35ce70808bebba5a7dafd272c0d7cad74e34ecace48d78f710806854d2",
+      "summaries": [
+        "test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 159.35s"
+      ]
+    },
+    "device-census": {
+      "path": "target/lane-gs-round3/device-census.log",
+      "sha256": "beea45c7879a1739178e7ccd94f956f6a59c494e688c594414eb1c17fd1d505d",
+      "summaries": [
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.72s"
+      ]
+    },
+    "merge": {
+      "path": "target/lane-gs-round3/merge.log",
+      "sha256": "39463487c398c65d10a313bbeeb44ff6c17e5a8a8ac5b66bb56e7eab46bc8c77",
+      "summaries": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s"
+      ]
+    },
+    "guide": {
+      "path": "target/lane-gs-round3/guide.log",
+      "sha256": "f83ee5465aa8e65a96f375f524913c30b49d9cc4c7cd26583d513c069057e986",
+      "summaries": [
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.65s"
+      ]
+    },
+    "wasm": {
+      "path": "target/lane-gs-round3/wasm.log",
+      "sha256": "55292ab025879547b855f686b01e93824984ee7ead3c68037492ff32c6054255",
+      "summaries": [
+        "wasm 1983447 B raw, 572688 B gzip (budget 572841: ok)"
+      ]
+    },
+    "runtime-restored": {
+      "path": "target/lane-gs-round3/runtime-restored.log",
+      "sha256": "be2f936d5b6cd59cc9384dd76c510e288dd84d0d1e95a7cd0f1138f14e8e9716",
+      "summaries": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s"
+      ]
+    },
+    "certificate-restored": {
+      "path": "target/lane-gs-round3/certificate-restored.log",
+      "sha256": "e9d44030e26715492664479873b796943fa625bb04318ee912001c7cddd0b3d5",
+      "summaries": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.03s"
+      ]
+    },
+    "suite": {
+      "path": "target/lane-gs-round3/suite.log",
+      "sha256": "3707e77c013d06f82d1616cac25087adc815a44cc816f4b3e4662ad058355d68",
+      "summaries": [
+        "wasm 1983447 B raw, 572688 B gzip (budget 572841: ok)",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "== 0 failure(s) in 1434 s"
+      ]
+    },
+    "materialization-before": {
+      "path": "target/lane-gs-round3/materialization-before.log",
+      "sha256": "0dcbe38646819d01cd1814ef4d1f2de98dca9eb4c6b45395c9229d00b7786e5a",
+      "summaries": [
+        "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 148 filtered out; finished in 0.00s"
+      ]
+    },
+    "core-final": {
+      "path": "target/lane-gs-round3/core-final.log",
+      "sha256": "a44c0cffcf53eadffe3c3280ec3624c1c14b17a8fbdab0256806233c801cebf8",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 148 filtered out; finished in 0.21s",
+        "test result: ok. 148 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.37s"
+      ]
+    },
+    "runtime-final-admission": {
+      "path": "target/lane-gs-round3/runtime-final-admission.log",
+      "sha256": "b7685cdab714a47e855c40eb6cab288c21b7ac9d3633f7139c432a9dd07aa3ce",
+      "summaries": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s"
+      ]
+    },
+    "certificate-final-admission": {
+      "path": "target/lane-gs-round3/certificate-final-admission.log",
+      "sha256": "fd8969f9c86b512ab139e4ac63a2eff409039a0008ca0fbbb4e263ddcd3715a0",
+      "summaries": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.02s"
+      ]
+    },
+    "shared-server-final": {
+      "path": "target/lane-gs-round3/shared-server-final.log",
+      "sha256": "75b20668853fa92465a5c166cc6817a26fcb6bcc85948193b81f1e99c87d4246",
+      "summaries": [
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 63.62s"
+      ]
+    },
+    "shared-device-final": {
+      "path": "target/lane-gs-round3/shared-device-final.log",
+      "sha256": "daa2b43f7a9d3fc85a56ae28135ab8733ee6eedec347e2bd57c882f5f08753a5",
+      "summaries": [
+        "test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 183.65s"
+      ]
+    },
+    "device-census-final": {
+      "path": "target/lane-gs-round3/device-census-final.log",
+      "sha256": "e1e8d680a18b2e0dcd64465c331cade0fb1b4204988d047cec800adaa96ad335",
+      "summaries": [
+        "test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.86s"
+      ]
+    },
+    "merge-final": {
+      "path": "target/lane-gs-round3/merge-final.log",
+      "sha256": "653d0a2d993dd8ba602ca39f8eafb0269b30554e1b528e8f24d597c5523ce450",
+      "summaries": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s"
+      ]
+    },
+    "guide-final": {
+      "path": "target/lane-gs-round3/guide-final.log",
+      "sha256": "9a0228edb76a868e3fe2cb2dd5537087d718cdf580d4af34a12c1d3f358b941f",
+      "summaries": [
+        "test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s"
+      ]
+    },
+    "wasm-final": {
+      "path": "target/lane-gs-round3/wasm-final.log",
+      "sha256": "55292ab025879547b855f686b01e93824984ee7ead3c68037492ff32c6054255",
+      "summaries": [
+        "wasm 1983447 B raw, 572688 B gzip (budget 572841: ok)"
+      ]
+    },
+    "docs-budget-final": {
+      "path": "target/lane-gs-round3/docs-budget-final.log",
+      "sha256": "fb87089e89d52d7474dc961e7dbde40cdc1381ff21edddb28a9d1906844b579f",
+      "summaries": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 85 filtered out; finished in 0.00s"
+      ]
+    },
+    "ref-check-final": {
+      "path": "target/lane-gs-round3/ref-check-final.log",
+      "sha256": "b1f0503c7d0c63ca362ffd9ae738843a7306893b26acfa9e5c66ea40bd0a5f3c",
+      "summaries": [
+        "ref-check: ok \u2014 518 LLP docs, 9639 refs in 27314 files, 0 errors, 0 unchecked"
+      ]
+    }
+  },
+  "source_sha256": {
+    "llp/3000.024-global-search-beyond-one-read.rfc.md": "2f1eecad6a60355b9fd4b42e5b4cb6e17f2d96d30e6d757edae213ffc65965e1",
+    "snapback4/crates/snapback4-core/src/engine/authorized_point.rs": "2157beb0cf2032f4d6c0c89fadf6ef4bd5538ff991783d9d65e4156e1ae6765f",
+    "snapback4/crates/snapback4-core/src/engine/membership_search.rs": "42316236dd7c905f66aef3b297423c4384c551aeb8baaa2af917c66da3fb2ae6",
+    "snapback4/crates/snapback4-core/src/engine/row_views.rs": "77e8bb397e229f650a95ebb33b14196299c3121f6d23578758a2f025c7f61553",
+    "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "b94d1ab7fc12bc1ce49c38640ff50949c4eae1f2d84e2bfd88a39d750d90cec9",
+    "snapback4/crates/snapback4-core/src/engine/word_heap.rs": "1eed43d17e1d4f0f3e3beb7ccc7bbec4afee9dd62d662c8ee146a69f5ae4cdea",
+    "snapback4/crates/snapback4-core/src/engine/word_heap/tests.rs": "4914eda532e344fc38dc0e031ad69988514b4e48c58144c92579cc59b7cd1076",
+    "snapback4/crates/snapback4-core/src/search_plan.rs": "c67d57f46ee1f8524dc0bc01811753440da25c862bf4844598a6e215ac71ee4c",
+    "snapback4/crates/snapback4-core/src/search_plan/print.rs": "2a3d35ffd167e9787fce0a407bc33f8952e1cdc59e0f14e669144d018cb75515",
+    "snapback4/crates/snapback4-lang/src/guide/search_all.md": "d7eeaf745ba6263805a8979e159f501b69d272d297aca48f3c8013c9abacc256",
+    "snapback4/crates/snapback4-sim/tests/membership_search.rs": "dd2c70b44b6ed5af45fd8048d1ef52ff24b20f62718a2537e76e37be6618ea82",
+    "snapback4/crates/snapback4/src/scale/search_tests.rs": "e275cae3bf34ec8eb185d61fae1691ade99fcc9235e95f125412dc74dfda8752"
+  }
+}

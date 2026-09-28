@@ -4,17 +4,23 @@ import { browserAdmission, failedAdmission } from "./admission.ts";
 import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./contract.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
-import { peekObservation, registerObservationPeek } from "./observe-watch.ts";
+import { observationKey, peekObservation, registerObservationPeek } from "./observe-watch.ts";
 import { answerIdentity } from "./read-observation.ts";
+import { deferReadNotifications } from "./read-notifications.ts";
+import { episodeDeadline } from "./read-episode.ts";
+import { ReadApprovals, type ApprovedAnswer } from "./read-approval.ts";
 import { residencyError } from "./residency.ts";
+import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
 
 /** I4 guards shared epochs; I8 separately revokes each exposed facade forever.
  * The raw client may retain private rotation/logout custody after this fence.
  * I12 preserves dispatched outcomes: a fence cannot turn a commit into failure. */
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
+  guardDelivery(raw);
   let active = true;
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
+  const kept = new ReadApprovals();
   const cleanups = new Set<() => void>(), invalidations = new Set<() => void>();
   const notify = (listener: () => void) => { try { listener(); } catch (error) { console.error("snapback4 client listener:", error); } };
   const refusal = async (): Promise<Refusal | undefined> => {
@@ -66,52 +72,141 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const denied = await refusal();
       if (denied) return { denied };
       const read = await raw.query(op, args);
-      return valid() ? read : { denied: why() };
+      const after = await refusal();
+      if (after) return { denied: after };
+      return approveDelivery(read) ? read : { loading: true };
     },
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
-      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false, opening = true;
+      let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
       let refused: Read<R> | undefined;
+      let held: ApprovedAnswer | undefined, refreshVersion = 0;
+      let closedDeadline: number | undefined;
+      const key = observationKey(op, args, options);
+      let announced: Read<unknown> | undefined;
       const denied = (): Read<R> => refused ??= { denied: why() };
       const listeners = new Set<() => void>();
-      const emit = () => { for (const listener of listeners) notify(listener); };
-      const detach = () => { stop?.(); source?.close(); source = undefined; stop = undefined; };
+      const emit = () => {
+        const next = getSnapshot();
+        if (announced === next) return;
+        announced = next;
+        for (const listener of listeners) notify(listener);
+      };
+      const attach = (answer: ApprovedAnswer | undefined) => {
+        held = answer;
+      };
+      let associated = peekObservation(raw, op, args, options);
+      const initial = associated;
+      if (initial) attach(kept.get(initial, key));
+      // Notification ownership precedes even the creation of the raw watch.
+      const unlisten = kept.listen(key, () => {
+        const current = source?.getSnapshot() ?? peekObservation(raw, op, args, options);
+        if (current) {
+          associated = current; attach(kept.get(current, key));
+        }
+        // emit's getter normalizes source withdrawals before any delivery.
+        emit();
+      });
+      const reject = (read: Read<R>) => {
+        snapshot = read;
+        // @ref LLP 3000.023#3.6 — an opening refusal still addresses its shared slot after raw retirement.
+        const current = source?.getSnapshot() ?? (closed ? undefined : peekObservation(raw, op, args, options)) ?? associated;
+        if (current) { approved.delete(answerIdentity(current)); kept.reject(current, read); }
+      };
+      // @ref LLP 3000.023#3.4 — detached facades still consult the raw handle's deadline latch.
+      const detach = () => { unlisten(); stop?.(); source?.close(); stop = undefined; };
       cleanups.add(detach); invalidations.add(emit);
       const refresh = async () => {
+        const version = ++refreshVersion;
         // @ref LLP 3000.019#3.3 — withdrawal cannot wait for storage; only data publication needs authority.
         const read = source?.getSnapshot();
+        if (read) attach(kept.get(read, key));
         if (!closed && read && ("loading" in read || "denied" in read)) {
           snapshot = valid() ? read : denied();
-          emit();
+          if (held) reject(snapshot);
+          // Shared approval delivery may already have announced this exact withdrawal.
+          if (announced !== snapshot) emit();
           return;
         }
         if (!closed && read && "data" in snapshot) {
-          // The source now owns the replacement's deadline. Retire the superseded
-          // answer before storage can wait past its deadline; staleness keeps identity.
-          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read : loading) : denied();
-          emit();
+          // @ref LLP 3000.023#3.6 — every retaining watch spans authority under the same episode and row deadlines.
+          snapshot = valid() ? (answerIdentity(read) === answerIdentity(snapshot) ? read
+            : options?.keep !== false ? (kept.peek(read) as Read<R> | undefined) ?? loading : loading) : denied();
         }
+        emit();
+        const slot = held, generation = slot?.generation;
         const refused = await refusal();
-        if (closed) return;
+        // A refusal revokes the shared slot even if this subscriber has closed.
+        if (refused) {
+          if (version !== refreshVersion) return;
+          reject({ denied: refused }); if (!closed) emit(); return;
+        }
+        // @ref LLP 3000.023#3.6 — no pre-withdrawal authority completion can restore the shared answer.
+        if (closed || version !== refreshVersion || slot?.generation !== generation) return;
         snapshot = !refused && valid() && source ? source.getSnapshot() : { denied: refused ?? why() };
-        if ("data" in snapshot) approved.add(answerIdentity(snapshot));
+        if ("denied" in snapshot) reject(snapshot);
+        if ("data" in snapshot) {
+          approved.add(answerIdentity(snapshot));
+          attach(kept.approve(snapshot));
+        }
         emit();
       };
+      const openingSlot = held, openingGeneration = held?.generation, openingSnapshot = held?.snapshot;
       void refusal().then(refused => {
+        if (refused) {
+          const shared = held?.read();
+          // A shared refusal already delivered during opening is this failure's
+          // visible result; a newly started check can still report a new denial.
+          // Normalization can restore the opening snapshot after generation moves.
+          // Generations count per raw owner: a replacement owner's slot is new evidence at any generation.
+          reject((held !== openingSlot || held?.generation !== openingGeneration) && shared !== openingSnapshot && shared && "denied" in shared
+            ? shared as Read<R> : { denied: refused });
+          if (!closed) emit();
+          return;
+        }
         if (closed) return;
-        opening = false;
-        if (refused) { snapshot = { denied: refused }; emit(); return; }
         if (valid()) {
           source = raw.observe(op, args, options);
           stop = source.subscribe(() => { void refresh().catch(() => {}); });
         }
         return refresh();
-      }).catch(() => { snapshot = denied(); emit(); });
+      }).catch(() => { reject(denied()); emit(); });
+      const getSnapshot = (): Read<R> => {
+        if (!valid()) return denied();
+        // @ref LLP 3000.023#3.6 — source withdrawals pass through before this facade's subscription callback, for every policy.
+        const read = source?.getSnapshot() ?? (closed || held ? peekObservation(raw, op, args, options) : undefined);
+        // @ref LLP 3000.023#3.4 — closed facades keep only their final identity, under its original deadlines.
+        if (closed) {
+          if ("denied" in snapshot) return snapshot;
+          if ("loading" in snapshot) return snapshot;
+          if (read && "denied" in read) return snapshot = read;
+          const deadline = episodeDeadline(snapshot);
+          if (deadline !== undefined) closedDeadline = Math.min(closedDeadline ?? Infinity, deadline);
+          if (!read || !("data" in read) || !("data" in snapshot)
+            || answerIdentity(read) !== answerIdentity(snapshot)
+            || (closedDeadline !== undefined && Date.now() >= closedDeadline)) snapshot = loading;
+          else snapshot = read;
+          return snapshot;
+        }
+        if (read && ("loading" in read || "denied" in read)) {
+          snapshot = read;
+          if (held && held.snapshot !== read) kept.reject(read, read);
+          return read;
+        }
+        return held ? held.read() as Read<R> : snapshot;
+      };
+      announced = getSnapshot();
       return {
-        getSnapshot: () => valid() ? (opening ? peekObservation(client, op, args, options) ?? loading : snapshot) : denied(),
-        subscribe(listener) { listeners.add(listener); return () => { listeners.delete(listener); }; },
-        close() { closed = true; detach(); cleanups.delete(detach); invalidations.delete(emit); listeners.clear(); },
+        getSnapshot,
+        subscribe(listener) { if (!closed) listeners.add(listener); return () => { listeners.delete(listener); }; },
+        close() {
+          if (closed) return;
+          listeners.clear();
+          snapshot = getSnapshot(); closedDeadline = episodeDeadline(snapshot); closed = true;
+          detach(); attach(undefined);
+          cleanups.delete(detach); invalidations.delete(emit);
+        },
       };
     },
     mutate: routeMutations((op, args) => {
@@ -178,11 +273,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
   };
   guardAcquisition(client, raw, valid);
-  // Reuse the live answer this facade authorized, including freshness-only copies.
-  // A new answer still waits for authority; the weak identity retains no answer.
+  // @ref LLP 3000.019#3.3 — remount sees the held approved answer while its replacement awaits authority.
   registerObservationPeek(client, (op, args, options) => {
     if (!valid()) return undefined;
     const read = peekObservation(raw, op, args, options);
+    if (read && options?.keep !== false) {
+      const held = kept.peek(read);
+      if (held) return held;
+    }
     return read && (!("data" in read) || approved.has(answerIdentity(read))) ? read : undefined;
   });
   // LocalClient's existing runtime helper also crosses the data boundary.
@@ -191,9 +289,10 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   return { client, fence() {
     if (!active) return () => {};
     active = false;
+    const deliver = deferReadNotifications(() => kept.close());
     for (const cleanup of cleanups) cleanup();
     cleanups.clear();
     // The app publishes its new view before notifying retired subscriptions.
-    return () => { for (const listener of invalidations) notify(listener); invalidations.clear(); };
+    return () => { deliver(); for (const listener of invalidations) notify(listener); invalidations.clear(); };
   } };
 }

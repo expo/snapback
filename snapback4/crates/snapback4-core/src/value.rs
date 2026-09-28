@@ -33,13 +33,13 @@ pub enum Value {
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
 #[derive(Clone, Debug, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>);
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>, bool, Option<std::sync::Arc<SourceIdentity>>, #[cfg(feature = "sqlite")] bool);
 impl PartialEq for ObjectFields {
     fn eq(&self, other: &Self) -> bool { self.0 == other.0 && self.1 == other.1 }
 }
 impl From<BTreeMap<String, Value>> for ObjectFields {
     fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value), false, None)
+        Self(std::sync::Arc::new(value), false, None, #[cfg(feature = "sqlite")] false)
     }
 }
 impl FromIterator<(String, Value)> for ObjectFields {
@@ -208,7 +208,11 @@ impl Value {
         match self {
             Self::String(s) | Self::Id(s) => s.len() as u64,
             Self::Bytes(bytes) => bytes.len() as u64,
-            Self::Array(values) => values.len() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Self::clone_heap).sum::<u64>(),
+            Self::Array(values) => {
+                let mut bytes = values.len() as u64 * std::mem::size_of::<Value>() as u64;
+                for value in values { bytes += value.clone_heap(); }
+                bytes
+            },
             _ => 0,
         }
     }
@@ -226,14 +230,14 @@ impl Value {
             Value::String(s) | Value::Id(s) => s.capacity() as u64,
             Value::Bytes(b) => b.capacity() as u64,
             Value::Array(a) => {
-                a.capacity() as u64 * std::mem::size_of::<Value>() as u64
-                    + a.iter().map(Value::retained_heap).sum::<u64>()
+                let mut bytes = a.capacity() as u64 * std::mem::size_of::<Value>() as u64;
+                for value in a { bytes += value.retained_heap(); }
+                bytes
             }
             Value::Row(m) | Value::Map(m) => {
-                40 + m
-                    .iter()
-                    .map(|(k, v)| 80 + k.capacity() as u64 + v.retained_heap())
-                    .sum::<u64>()
+                let mut bytes = 40;
+                for (key, value) in m.iter() { bytes += 80 + key.capacity() as u64 + value.retained_heap(); }
+                bytes
             }
             _ => 0,
         }
@@ -435,7 +439,43 @@ fn scalar_copy(value: &Value) -> u64 {
     match value {
         Value::String(s) | Value::Id(s) => h::text(s),
         Value::Bytes(b) => h::allocation(b.len()),
-        Value::Array(a) => h::slots::<Value>(a.len()) + a.iter().map(scalar_copy).sum::<u64>(),
+        Value::Array(a) => {
+            let mut bytes = h::slots::<Value>(a.len());
+            for value in a { bytes += scalar_copy(value); }
+            bytes
+        },
         _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod pricing_tests {
+    use super::*;
+
+    #[test]
+    fn owned_nested_lists_price_recursive_copies_and_retained_capacity() {
+        let mut text=String::with_capacity(128);text.push_str("nested!");
+        let mut bytes=Vec::with_capacity(64);bytes.extend_from_slice(&[1,2,3]);
+        let mut inner=Vec::with_capacity(7);inner.push(Value::String(text));inner.push(Value::Bytes(bytes));
+        let mut outer=Vec::with_capacity(5);outer.push(Value::Array(inner));outer.push(Value::Id("id".into()));
+        let value=Value::Array(outer);
+        let slot=std::mem::size_of::<Value>() as u64;
+        assert_eq!(value.clone_heap(),4*slot+7+3+2);
+        assert_eq!(value.retained_heap(),12*slot+128+64+2);
+        let word=std::mem::size_of::<usize>() as u64;
+        assert_eq!(scalar_copy(&value),4*slot+3*word);
+    }
+
+    #[test]
+    fn spare_capacity_strings_price_tight_copies_and_full_retention() {
+        for len in [0,3,100] {
+            for id in [false,true] {
+                let mut text=String::with_capacity(256);text.extend(std::iter::repeat_n('x',len));
+                let value=if id {Value::Id(text)} else {Value::String(text)};
+                assert_eq!(value.retained_heap(),256);
+                assert_eq!(value.clone_heap(),len as u64);
+                assert_eq!(scalar_copy(&value),if len==0 {0}else{len.max(std::mem::size_of::<usize>()) as u64});
+            }
+        }
     }
 }

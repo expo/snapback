@@ -109,6 +109,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     };
     if same_identity && head.is_some_and(|head| head < floor) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
+        delivery::clear_current(tx)?;
     }
     // A halt belongs to the incarnation, even when rows are cleared, a
     // backend is adopted, identity is omitted, or its head later refills.
@@ -129,6 +130,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         || (!page.snapshot_catchup && page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     if reset {
+        delivery::clear_current(tx)?;
         // Replacement retires receipts of the old incarnation, including its
         // private transfer. A legacy rewind can retire only published effects.
         let private = deferred::cursor(tx)?.is_some() || tx.meta(SNAPSHOT_OWNER)?.is_some();

@@ -39,6 +39,9 @@ pub(super) struct Plan {
     pub returns: BTreeMap<String, ReturnedPage>,
     pub shapes: BTreeMap<String, Shape>,
     pub collectors: BTreeMap<String, String>,
+    // Static compact sites and their execution counts; no IR/payload copies.
+    #[cfg(feature = "server-search")]
+    pub compact: BTreeMap<String, Option<usize>>,
     #[cfg(feature = "postgres")]
     pub prefetch: prefetch::Plan,
 }
@@ -66,7 +69,12 @@ pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_e
         let flow = collectors::returned_collectors(program);
         collectors.retain(|path, _| flow.returned.contains(path) || !flow.visited.contains(path));
     }
-    Plan { returns, collectors, shapes, #[cfg(feature = "postgres")] prefetch }
+    Plan { returns, collectors, shapes,
+        #[cfg(feature = "server-search")]
+        compact: crate::search_plan::merges(&program.body).into_iter()
+            .filter(|merge| crate::search_plan::eligible(schema, merge))
+            .map(|merge| (merge.site.clone(), None)).collect(),
+        #[cfg(feature = "postgres")] prefetch }
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.
@@ -94,6 +102,15 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
         }
     }
     sites
+}
+
+/// Cursorless pages returned as the whole answer, rather than a bounded field.
+// @ref LLP 3000.027#3 — composed previews state their whole intent and need no continuation advice.
+pub fn uncontinued_page_sites(program: &Program) -> BTreeSet<String> {
+    if program.kind != ProgramKind::Query { return BTreeSet::new(); }
+    returned_origins(program, true, &mut BTreeMap::new()).into_values().filter_map(|origin| {
+        if let Origin::Page(site, None) = origin { Some(site) } else { None }
+    }).collect()
 }
 
 fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {

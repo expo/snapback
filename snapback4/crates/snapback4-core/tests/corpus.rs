@@ -471,13 +471,13 @@ fn legacy_asset_ids(kind: &snapback4_core::schema::ColumnType, value: &mut Value
 }
 
 /// Snapback 2's `fresh` means the receipt authorizes local execution, not
-/// that a bounded page contains every remaining row. The card's `complete`
-/// is false when an outer page hit its limit without a returned cursor owner.
+/// that a bounded page contains every remaining row. A cursorless top-N is
+/// complete at its bound; declared cursors still need a returned owner.
 /// A nested preview and a merge's lane-discovery bound do not truncate the outer page. The
 /// recorded trace is the oracle; no actual result changes the expectation.
 fn expected_card_state(expected: &Expected, program: &Program) -> LocalState {
     // @ref LLP 3000.007#19.2 — the golden limit of an unowned auxiliary page is incomplete even when the returned page has a cursor.
-    let owners = snapback4_core::engine::returned_page_sites(program);
+    let owners = if expected.next.is_some() { snapback4_core::engine::returned_page_sites(program) } else { BTreeSet::new() };
     if expected.local_state == LocalState::Fresh && outer_page_limit(&program.body, expected, &owners) {
         LocalState::Partial
     } else {
@@ -511,7 +511,8 @@ fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected, owne
 }
 
 fn scan_limit(scan: &snapback4_core::ir::Scan, expected: &Expected, owned: bool, owners: &BTreeSet<String>) -> bool {
-    ((!scan.opaque_cursor || !owned) && expected.range_stops.get(&scan.site).is_some_and(|stops| stops.iter().any(|stop| stop == "limit")))
+    // @ref LLP 3000.027#1 — a cursorless limit is the answer, not lost coverage.
+    ((scan.opaque_cursor && !owned) && expected.range_stops.get(&scan.site).is_some_and(|stops| stops.iter().any(|stop| stop == "limit")))
         || scan.prefix.iter().filter_map(|key| key.scalar()).any(|value| expression_page_limit(value, expected, owners))
         || [scan.after.as_deref(), scan.before.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected, owners))
         || scan.range.as_ref().is_some_and(|range| [range.gt.as_deref(), range.gte.as_deref(), range.lt.as_deref(), range.lte.as_deref()].into_iter().flatten().any(|value| expression_page_limit(value, expected, owners)))
@@ -679,7 +680,7 @@ mod adapter {
     }
 
     #[test]
-    fn receipt_freshness_does_not_claim_an_unpaginated_limit_is_complete() {
+    fn cursorless_limit_is_complete_and_cursored_ownership_still_applies() {
         let mut c = case();
         c.expected.range_stops.insert("page".into(), vec!["limit".into()]);
         c.program["body"] = json!([{ "Return": { "Scan": {
@@ -687,10 +688,16 @@ mod adapter {
             "order": "Asc", "take": { "Literal": 2 }, "provenance": "Const"
         } } }]);
         let program: Program = serde_json::from_value(c.program.clone()).unwrap();
-        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Partial);
-        c.program["body"][0]["Return"]["Scan"]["opaque_cursor"] = json!(true);
-        let program: Program = serde_json::from_value(c.program).unwrap();
         assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
+        c.program["body"][0]["Return"]["Scan"]["opaque_cursor"] = json!(true);
+        c.expected.next = Some("owned-position".into());
+        let program: Program = serde_json::from_value(c.program.clone()).unwrap();
+        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
+        let scan = c.program["body"][0]["Return"].clone();
+        c.program["body"] = json!([{ "Let": { "name": "unused", "value": scan } }, { "Return": { "Literal": { "Int": 0 } } }]);
+        let program: Program = serde_json::from_value(c.program).unwrap();
+        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Partial);
+
     }
 
     #[test]
@@ -711,7 +718,7 @@ mod adapter {
         let program: Program = serde_json::from_value(c.program.clone()).unwrap();
         assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
         c.expected.range_stops.insert("outer".into(), vec!["limit".into()]);
-        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Partial);
+        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
         c.expected.range_stops.insert("outer".into(), vec!["exhausted".into()]);
         c.program["body"] = json!([{ "Return": { "Merge": {
             "site": "merged", "lanes": [{ "scan": outer, "source": scan, "binding": "row" }]
@@ -719,7 +726,7 @@ mod adapter {
         let program: Program = serde_json::from_value(c.program).unwrap();
         assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
         c.expected.range_stops.insert("outer".into(), vec!["limit".into()]);
-        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Partial);
+        assert_eq!(expected_card_state(&c.expected, &program), LocalState::Fresh);
     }
 
     #[test]

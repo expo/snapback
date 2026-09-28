@@ -1,0 +1,162 @@
+[
+  {
+    "name": "refill-refusal",
+    "source": "crates/snapback4-core/src/engine/membership_search.rs",
+    "original_sha256": "dac24139f2b83324050075f242605227ac76f593b9abc187ea1567fc21da1a15",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "compact_refill_heap_failure",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.3,
+    "log": "target/lane-gs-round4/control-refill-refusal.log",
+    "sha256": "f1a23bfd7f2574cce9b3aff3eaeb479dd1dd6f86d9aa41db334919d015c45579",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.01s"
+    ]
+  },
+  {
+    "name": "binding-refusal",
+    "source": "crates/snapback4-core/src/engine/runner.rs",
+    "original_sha256": "3139d50f5a8c76e7089a5d084148b05074ab496edb8652117f47601536683f5c",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "stored_megabyte_payload",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.22,
+    "log": "target/lane-gs-round4/control-binding-refusal.log",
+    "sha256": "afb42b820653f137cbb860ac627e623b5f3930fc8a785af799e589487bc7c464",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.03s"
+    ]
+  },
+  {
+    "name": "default-double-charge",
+    "source": "crates/snapback4-core/src/engine/authorized_point.rs",
+    "original_sha256": "1c1d49248b3e4c47e24d25a2e52792864a27da602159708323b4814469cb4d7d",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "adopted_default_prepay",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.32,
+    "log": "target/lane-gs-round4/control-default-double-charge.log",
+    "sha256": "aac2835339509668b40a2d11d3479b6599c638a690da1f21fcb03116b541292b",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.04s"
+    ]
+  },
+  {
+    "name": "public-materialization",
+    "source": "crates/snapback4-core/src/engine/witness.rs",
+    "original_sha256": "7ac42cb0ec82276d96c813316b76fac9754e7d95fce2c0ef9072a5d0a4fdba43",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "public_lookup_prepays",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 40.11,
+    "log": "target/lane-gs-round4/control-public-materialization.log",
+    "sha256": "067803bfb2b54f0f2a57c436d8c242889a86ca924f088901170e3776a306cac8",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 149 filtered out; finished in 0.00s"
+    ]
+  },
+  {
+    "name": "public-reservation",
+    "source": "crates/snapback4-core/src/engine/authorized_scan.rs",
+    "original_sha256": "c4d00351e054a648fb7fd893a3bb0efc6806fc8702d162e2be067b1e175176fe",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "public_witness_default",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.25,
+    "log": "target/lane-gs-round4/control-public-reservation.log",
+    "sha256": "14b0a588dae02f667e1ad7dc8f2e92697b070de60b6174eb856f88a97e1df9df",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.05s"
+    ]
+  },
+  {
+    "name": "carriage-return",
+    "source": "crates/snapback4-core/src/search_plan/print.rs",
+    "original_sha256": "400dae0e121582e29e6dbbc7525ff463b9399875c4c2487d5d4ab7b5327e9c10",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "carriage_return_search",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.43,
+    "log": "target/lane-gs-round4/control-carriage-return.log",
+    "sha256": "25acf13ae6a67e41740d6b1942e91513e11837ac9c45938ba9b5a181eb9803b4",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.01s"
+    ]
+  },
+  {
+    "name": "calendar-offset",
+    "source": "crates/snapback4-core/src/search_plan/print.rs",
+    "original_sha256": "400dae0e121582e29e6dbbc7525ff463b9399875c4c2487d5d4ab7b5327e9c10",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "membership_search",
+      "calendar_repair_executes",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "seconds": 32.62,
+    "log": "target/lane-gs-round4/control-calendar-offset.log",
+    "sha256": "7d077516dc6ae3d8ff1fe13abc9858e7087e677dee3631f0ee2f977d85ceb5a1",
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.02s"
+    ]
+  }
+]

@@ -83,7 +83,7 @@ fn install_metadata<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn install_rows<T: DeviceTx>(tx: &T, schema: &Schema, gate: bool, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
+fn install_rows<T: DeviceTx>(tx: &T, schema: &Schema, gate: bool, touched: &mut BTreeSet<String>, candidates: &mut delivery::Candidates) -> Result<(), RuntimeError> {
     let effects = rows(tx)?;
     if effects.is_empty() { return Ok(()); }
     let mut boundaries = boundary::Boundaries::load(tx, false)?;
@@ -105,6 +105,7 @@ fn install_rows<T: DeviceTx>(tx: &T, schema: &Schema, gate: bool, touched: &mut 
                     continue;
                 }
                 tx.put(&name, table, &row, old.as_ref())?;
+                candidates.put(schema, &name, &id);
             }
             None => if let Some(old) = old { tx.delete(&name, table, &old)?; },
         }
@@ -117,13 +118,13 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     tx.savepoint("deferred")?;
     predictions::restore(tx, schema)?;
     install_metadata(tx)?;
-    install_rows(tx, schema, false, &mut BTreeSet::new())?;
+    install_rows(tx, schema, false, &mut BTreeSet::new(), &mut delivery::Candidates::default())?;
     let mut inherited = BTreeMap::new();
     for (name, id, effect) in rows(tx)? {
         inherited.insert((name, id), RecordedRow { present: effect.image.is_some(), changed: false, admission: effect.admission });
     }
     let recording = Recording::new(tx, inherited, metadata(tx)?.into_iter().collect());
-    events_recording(&recording, schema, generation, page, &mut BTreeSet::new(), Some(&recording.rows))?;
+    events_recording(&recording, schema, generation, page, &mut BTreeSet::new(), Some(&recording.rows), &mut delivery::Candidates::default())?;
     let mut row_delta = Vec::new();
     for ((name, id), row) in recording.rows.borrow().iter().filter(|(_, row)| row.changed) {
         row_delta.push((format!("{ROWS}{}", encoded(&(name, id))?), encoded(&RowEffect {
@@ -137,6 +138,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     let meta_delta = recording.meta.borrow().iter().map(|(key, value)|
         Ok((format!("{META}{key}"), encoded(value)?))).collect::<Result<Vec<_>, RuntimeError>>()?;
     tx.rollback_to("deferred")?;
+    delivery::stage_left(tx, schema, page, false)?;
     for (key, value) in row_delta.into_iter().chain(meta_delta) { tx.set_meta(&key, &value)?; }
     let mut acks: BTreeMap<String, u64> = tx.meta(ACKS)?.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
     acks.extend(page.acknowledged.clone());
@@ -147,9 +149,10 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     tx.set_meta(CURSOR, &encoded(&page.watermark)?)
 }
 
-pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeSet<String>) -> Result<BTreeMap<String, u64>, RuntimeError> {
+pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeSet<String>, candidates: &mut delivery::Candidates) -> Result<BTreeMap<String, u64>, RuntimeError> {
     install_metadata(tx)?;
-    install_rows(tx, schema, true, touched)?;
+    install_rows(tx, schema, true, touched, candidates)?;
+    delivery::install_left(tx, candidates, false)?;
     // Include non-row-only changes in watch invalidation.
     let bundle = tx.meta(ACKS)?;
     if bundle.is_some() { touched.extend(schema.tables.keys().cloned()); }
@@ -188,13 +191,13 @@ fn upgrade_admission(tx: &dyn crate::store::StreamTx, name: &str, table: &Table,
     Ok(())
 }
 
-pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
-    events_recording(tx, schema, generation, page, touched, None)
+pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, candidates: &mut delivery::Candidates) -> Result<(), RuntimeError> {
+    events_recording(tx, schema, generation, page, touched, None, candidates)
 }
 
 // The real and recording transactions share one applicator; borrowing a trait
 // object avoids cloning the entire cold event path for each store wrapper.
-fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>) -> Result<(), RuntimeError> {
+fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<&RecordedRows>, candidates: &mut delivery::Candidates) -> Result<(), RuntimeError> {
     if expiry_clock::advance(tx, expiry_clock::KEY, page.now)? {
         touched.extend(schema.tables.iter().filter(|(_, table)| table.is_expiring()).map(|(name, _)| name.clone()));
     }
@@ -231,6 +234,7 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
                 if !boundaries.accept(tx, &event.table, table, &row, old.is_some())? { continue; }
                 if let Some(old) = &old { media::forget(tx, &event.table, table, old)?; }
                 tx.put(&event.table, table, &row, old.as_ref())?;
+                candidates.put(schema, &event.table, &event.id);
                 upgrade_admission(tx, &event.table, table, &row, &mut boundaries, admissions)?;
                 media::remember(tx, &event.table, table, &row, generation)?;
             }
@@ -242,6 +246,7 @@ fn events_recording(tx: &dyn crate::store::StreamTx, schema: &Schema, generation
             }
             "scope" => {
                 let group = scope_group(table, event)?;
+                candidates.leave(schema, &event.table, &group)?;
                 leave(tx, schema, &event.table, &group)?;
                 boundaries.scope(tx, &event.table, table, &group)?;
             }

@@ -1,0 +1,9 @@
+{"mutation": "table-origin", "test": "colliding_ids_do_not_turn_foreign_fields_into_own_images", "exit": 101, "killed": true}
+{"mutation": "optional-origin", "test": "owner_field_origin_survives_optional_access_and_successive_aliases", "exit": 101, "killed": true}
+{"mutation": "envelope-overcharge", "test": "exact_output_reservation_admits_a_fitting_binding_and_row", "exit": 101, "killed": true}
+{"mutation": "lost-second-binding", "test": "colliding_ids_do_not_turn_foreign_fields_into_own_images", "exit": 0, "killed": false}
+Traceback (most recent call last):
+  File "/tmp/ds-mutations.py", line 25, in <module>
+    if not killed: raise RuntimeError(f'mutation survived or did not compile: {label}')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: mutation survived or did not compile: lost-second-binding

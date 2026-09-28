@@ -1,0 +1,46 @@
+consumer ok: query complete+fresh, online write sent, offline write pending
+== npm publish snapback4-darwin-arm64-0.4.6.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.6
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 457B package.json
+npm notice 13.5MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.6
+npm notice filename: snapback4-darwin-arm64-0.4.6.tgz
+npm notice package size: 6.6 MB
+npm notice unpacked size: 13.5 MB
+npm notice shasum: 09525132dcd78a4bd189538a2d5ffaaef726193e
+npm notice integrity: sha512-k9xEm/Hx0gox8[...]6Yw1uAzrJ/nGg==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm error code E409
+npm error 409 Conflict - PUT https://registry.npmjs.org/snapback4-darwin-arm64 - Cannot publish over previously staged version "0.4.6".
+npm error A complete log of this run can be found in: /Users/ccheever/.npm/_logs/2026-09-27T23_07_24_747Z-debug-0.log
+node:internal/errors:985
+  const err = new Error(message);
+              ^
+
+Error: Command failed: npm publish /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-snapshot-UswoAH/snapback4-darwin-arm64-0.4.6.tgz --access public
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at execFileSync (node:child_process:961:15)
+    at run (file:///Users/ccheever/projects/snapback-pub-046/snapback4/scripts/publication-artifacts.mjs:13:46)
+    at converge (file:///Users/ccheever/projects/snapback-pub-046/snapback4/scripts/publication-registry.mjs:46:3)
+    at file:///Users/ccheever/projects/snapback-pub-046/snapback4/scripts/publish.mjs:113:31
+    at withPublicationSnapshot (file:///Users/ccheever/projects/snapback-pub-046/snapback4/scripts/publication-registry.mjs:18:12)
+    at file:///Users/ccheever/projects/snapback-pub-046/snapback4/scripts/publish.mjs:108:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25) {
+  status: 1,
+  signal: null,
+  output: [ null, '', null ],
+  pid: 27342,
+  stdout: '',
+  stderr: null
+}
+
+Node.js v24.18.0

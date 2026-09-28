@@ -20,7 +20,7 @@ const parked = signal => new Promise((_, reject) => {
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
 });
 
-for (const tier of ["wasm", "process", "online"]) test(`${tier} keep: ephemeral incarnation retires lingering snapshots before active callbacks`, async t => {
+for (const keep of [undefined, true]) for (const tier of ["wasm", "process", "online"]) test(`${tier} keep=${keep}: ephemeral incarnation retires lingering snapshots before active callbacks`, async t => {
   const { url, dir } = await ephemeralServer(t);
   const gate = Promise.withResolvers();
   let incarnation = "A", holding = false, remount, resetSnapshot, idleSnapshot;
@@ -38,15 +38,15 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier} keep: ephemeral 
   const client = tier === "online" ? createClient(options) : await createLocalClient(options);
   t.after(async () => { holding = false; gate.resolve(); await client.close(); });
   if (client.sync) await client.sync();
-  const active = client.observe(api.typingIn, { room: "active" }, { keep: true });
-  const idle = client.observe(api.typingIn, { room: "idle" }, { keep: true });
+  const active = client.observe(api.typingIn, { room: "active" }, { keep });
+  const idle = client.observe(api.typingIn, { room: "idle" }, { keep });
   await until(() => active.getSnapshot().data?.[0]?.principal === "A" && idle.getSnapshot().data?.[0]?.principal === "A");
-  idle.close();
+  if (keep === true) idle.close();
   active.subscribe(() => {
     if (!holding || remount) return;
     resetSnapshot = active.getSnapshot();
     // This runs inside the incarnation adoption, before any replacement read.
-    remount = client.observe(api.typingIn, { room: "idle" }, { keep: true });
+    remount = client.observe(api.typingIn, { room: "idle" }, { keep });
     idleSnapshot = remount.getSnapshot();
   });
   incarnation = "B"; holding = true;
@@ -58,7 +58,7 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier} keep: ephemeral 
   await until(() => active.getSnapshot().data?.[0]?.principal === "B" && remount.getSnapshot().data?.[0]?.principal === "B");
 });
 
-for (const tier of ["wasm", "process"]) test(`${tier} keep: a local read started before refreshSession never publishes its payload`, async t => {
+for (const keep of [undefined, false, true]) for (const tier of ["wasm", "process"]) test(`${tier} keep=${keep}: a local read started before refreshSession never publishes its payload`, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-keep-credential-"));
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir });
   const old = Promise.withResolvers(), auth = Promise.withResolvers(), delivered = Promise.withResolvers();
@@ -90,7 +90,7 @@ for (const tier of ["wasm", "process"]) test(`${tier} keep: a local read started
   } });
   t.after(async () => { old.resolve(); auth.resolve(); await client.close(); rmSync(dir, { recursive: true, force: true }); });
   await client.sync();
-  const watch = client.observe({ kind: "query", name: "marker" }, {}, { keep: true }), values = [];
+  const watch = client.observe({ kind: "query", name: "marker" }, {}, { keep }), values = [];
   watch.subscribe(() => values.push(watch.getSnapshot()));
   await until(() => captured);
   const refreshing = client.refreshSession();
@@ -102,7 +102,7 @@ for (const tier of ["wasm", "process"]) test(`${tier} keep: a local read started
   assert.ok(values.every(read => read.data !== "obsolete"));
 });
 
-for (const keep of [false, true]) test(`online ${keep ? "keep" : "default"}: token-only first query discovers viewer and reaches an answer`, async t => {
+for (const keep of [undefined, false, true]) test(`online ${keep ? "keep" : "default"}: token-only first query discovers viewer and reaches an answer`, async t => {
   let reads = 0;
   const client = createClient({ url: "http://keep-token.test", token: "token", fetch: async (input, init) => {
     const path = new URL(input).pathname;
@@ -114,10 +114,10 @@ for (const keep of [false, true]) test(`online ${keep ? "keep" : "default"}: tok
   const watch = client.observe({ kind: "query", name: "secret" }, {}, { keep });
   await until(() => watch.getSnapshot().data === "answer", "viewer discovery retries the fenced response");
   assert.equal(client.viewer(), "alice"); assert.equal(client.link(), "online");
-  assert.equal(reads, keep ? 2 : 1);
+  assert.equal(reads, 2, "viewer discovery fences every option");
 });
 
-test("online keep: live viewer discovery resets active and lingering answers and retries in-flight observations", async t => {
+for (const keep of [undefined, false, true]) test(`online keep=${keep}: live viewer discovery resets active and idle answers and retries in-flight observations`, async t => {
   let viewer = "alice", holding = false, reads = 0, remount, resetSnapshot;
   const gate = Promise.withResolvers(), polls = [];
   const client = createClient({ url: "http://keep-viewer.test", token: "token", fetch: async (input, init) => {
@@ -132,14 +132,14 @@ test("online keep: live viewer discovery resets active and lingering answers and
   } });
   t.after(async () => { gate.resolve(); await client.close(); });
   const op = name => ({ kind: "query", name });
-  const active = client.observe(op("active"), {}, { keep: true });
+  const active = client.observe(op("active"), {}, { keep });
   await until(() => active.getSnapshot().data === "alice");
-  const idle = client.observe(op("idle"), {}, { keep: true });
-  await until(() => idle.getSnapshot().data === "alice"); idle.close();
+  const idle = client.observe(op("idle"), {}, { keep });
+  await until(() => idle.getSnapshot().data === "alice"); if (keep === true) idle.close();
   active.subscribe(() => {
     if (!holding || remount) return;
     resetSnapshot = active.getSnapshot();
-    remount = client.observe(op("idle"), {}, { keep: true });
+    remount = client.observe(op("idle"), {}, { keep });
   });
   viewer = "bob"; holding = true;
   const before = reads;
@@ -159,7 +159,7 @@ test("signed-out observations settle without a reset retry loop", () => {
     import { createClient } from ${JSON.stringify(new URL("../dist/client.js", import.meta.url).href)};
     const client = createClient({ url: "http://signed-out.test", fetch: async () => { throw Error("no request expected"); } });
     const stops = [];
-    for (const keep of [false, true]) {
+    for (const keep of [undefined, false, true]) {
       const watch = client.observe({ kind: "query", name: "secret" }, {}, { keep });
       assert.equal(watch.getSnapshot().denied?.code, "E_AUTH");
       stops.push(watch.subscribe(() => assert.equal(watch.getSnapshot().denied?.code, "E_AUTH")));

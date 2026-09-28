@@ -112,6 +112,10 @@ pub struct Shared {
     #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
+    pub reader_open: WorkHook,
+    #[cfg(test)]
+    pub changes_refresh: WorkHook,
+    #[cfg(test)]
     pub mutation_wait: WorkHook,
 }
 
@@ -315,6 +319,8 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         #[cfg(test)] effect_wait: Mutex::new(None),
         #[cfg(test)] poll_wait: Mutex::new(None),
         #[cfg(test)] query_wait: Mutex::new(None),
+        #[cfg(test)] reader_open: Mutex::new(None),
+        #[cfg(test)] changes_refresh: Mutex::new(None),
         #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
@@ -371,7 +377,7 @@ fn serve_requests(
         }
         if worker.is_finished() { return Err("worker thread stopped".into()); }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
-            dispatch(request, shared.clone(), admission.clone());
+            dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
         }
     }
 }
@@ -380,40 +386,44 @@ const REQUEST_WORKERS: usize = 32;
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
 const MUTATION_WORKERS: usize = 32;
+// @ref LLP 3000.026#4-atomic-launch-adoption — sync may wait for atomic launch;
+// reserve its capacity separately even if launch begins after dispatch.
+const SYNC_WORKERS: usize = 32;
 const WAIT_WORKERS: usize = 32;
 const ROUTE_WORKERS: usize = 16;
 const REGISTRY_WORKERS: usize = 4;
 const VERIFIER_WORKERS: usize = 4;
 
 #[derive(Default)]
-struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
+struct RequestAdmission { short: AtomicUsize, mutations: AtomicUsize, syncs: AtomicUsize, waiters: AtomicUsize, routes: AtomicUsize, registries: AtomicUsize, verifiers: AtomicUsize }
 
 #[derive(Clone, Copy)]
-enum RequestClass { Short, Mutation, Wait, Route, Registry, Verifier }
+enum RequestClass { Short, Mutation, Sync, Wait, Route, Registry, Verifier }
 struct RequestPermit { admission: Arc<RequestAdmission>, class: RequestClass }
 impl Drop for RequestPermit {
     fn drop(&mut self) { self.admission.counter(self.class).fetch_sub(1, Ordering::AcqRel); }
 }
 impl RequestAdmission {
     fn counter(&self, class: RequestClass) -> &AtomicUsize {
-        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
+        match class { RequestClass::Short => &self.short, RequestClass::Mutation => &self.mutations, RequestClass::Sync => &self.syncs, RequestClass::Wait => &self.waiters, RequestClass::Route => &self.routes, RequestClass::Registry => &self.registries, RequestClass::Verifier => &self.verifiers }
     }
     fn acquire(self: &Arc<Self>, class: RequestClass) -> Option<RequestPermit> {
-        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
+        let limit = match class { RequestClass::Short => REQUEST_WORKERS, RequestClass::Mutation => MUTATION_WORKERS, RequestClass::Sync => SYNC_WORKERS, RequestClass::Wait => WAIT_WORKERS, RequestClass::Route => ROUTE_WORKERS, RequestClass::Registry => REGISTRY_WORKERS, RequestClass::Verifier => VERIFIER_WORKERS };
         self.counter(class).fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| (n < limit).then_some(n + 1)).ok()?;
         Some(RequestPermit { admission: self.clone(), class })
     }
 }
 
-fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>) {
+fn dispatch(request: Request, shared: Arc<Shared>, admission: Arc<RequestAdmission>, loopback_listener: bool) {
     // @ref LLP 3000.019#3.7 — admission failures count; worker timing includes the listener wait.
-    let sample = latency::Sample::new(&request, &shared.latency);
+    let sample = latency::Sample::with_headers(&request, &shared.latency, shared.personas && loopback_listener && dev_request(&request, &shared).is_ok());
     let path = request.url().split('?').next().unwrap_or("");
     // Route waits cannot occupy the polls needed to verify or execute them.
     let class = if request.method() == &Method::Post && routes::declared(shared.as_ref(), request.url()).is_some() { RequestClass::Route }
         else if request.method() == &Method::Post && path == "/routes/verify/claim" { RequestClass::Verifier }
         else if request.method() == &Method::Post && path == "/actions/claim-set" { RequestClass::Registry }
         else if is_waiter(request.method(), path) { RequestClass::Wait }
+        else if request.method() == &Method::Post && path == "/sync" { RequestClass::Sync }
         // @ref LLP 3000.019#3.6 — only writer-independent handlers share the read reservation.
         // Default to the writer budget, so adding a writer door cannot silently
         // consume read slots. Authentication uses the same detached-read policy.
@@ -578,6 +588,9 @@ pub(crate) fn cors(request: &Request) -> Vec<Header> {
     if let Ok(Some(origin)) = single_header(request, "origin") && origin_authority(origin).is_some() {
         headers.push(Header::from_bytes("Access-Control-Allow-Origin", origin).unwrap());
     }
+    if latency::headers_enabled() {
+        headers.push(Header::from_bytes("Access-Control-Expose-Headers", "Server-Timing").unwrap());
+    }
     headers
 }
 
@@ -656,6 +669,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
     if allow_origin {
         for header in cors(&request) { response.add_header(header); }
     }
+    if let Some(header) = latency::header() { response.add_header(header); }
     if status >= 400 && request.method() == &Method::Post {
         let _ = request.respond_and_close_with_completion(response, |result| latency::finished(result.is_err() || refused));
         return;
@@ -687,7 +701,7 @@ fn respond_with_sync(request: Request, status: u16, body: impl latency::Reply, a
 /// next response on a persistent connection.
 pub(crate) fn respond_empty(request: Request, status: u16) {
     let mut response = Response::empty(status);
-    for header in cors(&request).into_iter().filter(|header| !header.field.equiv("Content-Type")) {
+    for header in cors(&request).into_iter().chain(latency::header()).filter(|header| !header.field.equiv("Content-Type")) {
         response.add_header(header);
     }
     let _ = request.respond(response);
@@ -748,7 +762,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
                 let result = snapback4_core::identity::resolve_read_only(reader.store(), &token, shared.now(), identity.as_deref());
-                lock(&shared.readers).put(&epoch, reader);
+                lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
             Err(_) if shared.memory_store() => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
@@ -816,7 +830,7 @@ fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusa
 
 // @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
 fn mutation_error_status(refusal: &Refusal) -> u16 {
-    if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
+    if refusal.retryable { 503 } else if matches!(refusal.code.as_str(), "E_ID_REUSED" | "E_DELIVERY_BINDING") { 200 } else { 500 }
 }
 
 fn handle(mut request: Request, shared: &Shared) {
@@ -990,7 +1004,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     response.add_header(Header::from_bytes("Content-Type", "application/wasm").unwrap());
                     response.add_header(Header::from_bytes("ETag", format!("\"{}\"", module.digest)).unwrap());
                     response.add_header(Header::from_bytes("Cache-Control", "private, no-store").unwrap());
-                    for header in cors(&request) { response.add_header(header); }
+                    for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
                     let _ = request.respond(response);
                 }
                 None => respond_timed(request, shared, 404, json!({ "denied": refusal_json(&Refusal::new("E_NATIVE", "schema", "this backend has no native module")) })),
@@ -1001,7 +1015,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let mut response = Response::from_string(text);
             response.add_header(Header::from_bytes("Content-Type", "text/plain; charset=utf-8").unwrap());
             response.add_header(Header::from_bytes("Cache-Control", "no-store").unwrap());
-            for header in cors(&request) { response.add_header(header); }
+            for header in cors(&request).into_iter().chain(latency::header()) { response.add_header(header); }
             let _ = request.respond(response);
         }
         (Method::Post, path) if path.starts_with("/q/") || path.starts_with("/m/") => {
@@ -1023,33 +1037,48 @@ fn handle(mut request: Request, shared: &Shared) {
                     return;
                 }
             };
+            let delivery_fingerprint = if path.starts_with("/m/") {
+                match ephemeral::delivery_fingerprint(&payload) {
+                    Ok(value) => value,
+                    Err(why) => return operation_refusal(request, shared, 200, why),
+                }
+            } else { None };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
-            if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
+            let signature = if path.starts_with("/m/") {
+                let id = payload.get("id").and_then(Json::as_str);
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (replay, metadata) = {
+                let (replay, metadata, signature) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
                         drop(engine);
                         return respond_timed(request, shared, 401, json!({"denied":refusal_json(&refusal)}));
                     }
-                    // Adoption may have changed the operation after the early
-                    // route check. Classify again under the executing owner.
-                    if engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
+                    let replay = intent_store(&engine, &payload).and_then(|()| {
+                        let replay = id.map(|id| engine.replay_mutation(&principal, id, &op, &args_json)).transpose().map_err(|e| e.refusal())?.flatten();
+                        if replay.is_none() { engine.schema().check_delivery(&op, delivery_fingerprint.as_deref()).map_err(|e| e.refusal())?; }
+                        Ok(replay)
+                    });
+                    if matches!(replay, Ok(None)) && engine.schema().operations.get(&op).is_some_and(|f| f.ephemeral) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
-                    (replay, response_head(&mut engine))
+                    // @ref LLP 3000.022#5 — decoding uses the signature whose binding
+                    // passed preflight; adoption is rechecked by the executing writer.
+                    let signature = engine.program(&op).map(|p| (p.kind, p.args.clone()));
+                    (replay, response_head(&mut engine), signature)
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(id); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond_timed(request, shared, 200, reply); return; }
                     Err(why) => { respond_timed(request, shared, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
-            }
-            let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                .map(|p| (p.program.kind, p.program.args.clone()));
+                #[cfg(test)] test_work(&shared.mutation_wait);
+                signature
+            } else {
+                lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
+                    .map(|p| (p.program.kind, p.program.args.clone()))
+            };
             // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
@@ -1103,7 +1132,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
                         let (outcome, cut) = reader.query_at(&op, context);
-                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
+                        if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
                         (outcome, cut, metadata, reads_presence)
                     },
                     // Only memory stores lack detached readers by construction.
@@ -1123,6 +1152,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
+                            #[serde(skip_serializing_if = "Option::is_none")]
+                            delivery: &'a Option<snapback4_core::engine::delivery::Manifest>,
                             #[serde(skip_serializing_if = "Option::is_none")]
                             ephemeral: &'a Option<snapback4_core::schema::ephemeral::Version>,
                             complete: bool,
@@ -1150,7 +1181,9 @@ fn handle(mut request: Request, shared: &Shared) {
                             if let Some(line) = lock(&shared.read_cuts).line(&op, &viewer, &outcome, Instant::now()) { eprintln!("{line}"); }
                             let m = outcome.metered;
                             let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
-                            json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
+                            let mut meter = json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut });
+                            if let Some(delivery) = &outcome.delivery_meter { meter["delivery"] = json!(delivery); }
+                            meter
                         });
                         if outcome.unavailable {
                             let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
@@ -1160,11 +1193,11 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head });
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
@@ -1197,8 +1230,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
+                    context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
-                    if matches!(&outcome, Ok(outcome) if matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
+                    if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
                     (outcome, response_head(&mut engine))
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1351,7 +1385,7 @@ mod poison_tests {
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None),
+            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();

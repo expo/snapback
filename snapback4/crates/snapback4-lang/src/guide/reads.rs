@@ -1,8 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Reads
 
-Reads select authorized rows by id, predicate or search text.
-Add an order, page size and cursor to browse a population.
+Read authorized rows; use a cursor for paging.
 
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
@@ -27,7 +26,7 @@ Repeated `where` clauses combine with `and`, in written order.
 ## Limits
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.
-- A returned page needs continuation or a fitting group cap: N_NO_CURSOR.
+- Add a cursor if the screen pages: N_NO_CURSOR.
 - A rule depending on unpinned columns cannot certify completeness: N_NEVER_COMPLETE.
 - A nested read with ambiguous modifiers needs parentheses: E_QUARRY_MODIFIER_SCOPE.
 
@@ -42,6 +41,9 @@ chooses the index. `messages[messageId]` always reads one id. A full declared
 unique key also reads one row, using named columns when its arity is ambiguous.
 The rules run before any projection, count or order reaches the caller.
 
+`complete` means the query answered its declared request within known coverage and execution limits.
+Filling a declared page bound is complete.
+
 Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,
 on the server and either device store. An empty page with `cut: 'meter'`
 means partial: retry narrower, or continue if `next` exists; never "no matches".
@@ -50,7 +52,7 @@ term or use scoped search (guide search). If both limits cut, `meter` wins.
 Device reads and uniform server reads keep precise reasons.
 Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
 `null` means "not disclosed here", not "not cut"; it also covers a horizon,
-missing coverage or a page without continuation. For `complete: false` with
+missing coverage. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
 By default, online observations withdraw stale answers, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.

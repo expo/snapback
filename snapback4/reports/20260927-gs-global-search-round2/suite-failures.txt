@@ -1,0 +1,17 @@
+✖ failing tests:
+
+test at packages/snapback4/test/residency.test.mjs:122:1
+✖ server-class watches run locally first and recover remembered server data offline (9393.988324ms)
+  AssertionError [ERR_ASSERTION]: offline watch downgrades the remembered answer
+      at until (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/test/residency.test.mjs:74:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-gs/snapback4/packages/snapback4/test/residency.test.mjs:134:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+-- FAIL: client tests (197 s)

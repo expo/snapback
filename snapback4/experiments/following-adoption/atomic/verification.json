@@ -1,0 +1,90 @@
+{
+  "full_suite": {
+    "invocations": 1,
+    "summary": "== 2 failure(s) in 1212 s",
+    "exit": 1,
+    "sha256": "2d6e8e67d267d9d25b7037c0b588126220905703b1e97fa79042e10d2520f00b",
+    "rust": {
+      "passed": 3920,
+      "failed": 2,
+      "ignored": 28
+    },
+    "client_files": {
+      "tests": 2710,
+      "pass": 2699,
+      "fail": 1,
+      "skipped": 10
+    },
+    "client_models": {
+      "tests": 78,
+      "pass": 78,
+      "fail": 0,
+      "skipped": 0
+    },
+    "failures": [
+      {
+        "classification": "ours",
+        "test": "snapback4::init::orphan_and_invalid_recipe_options_keep_the_clear_retirement_refusal",
+        "reason": "Stale recipe refusal expectation still required empty sources.",
+        "resolution": "Expected message corrected; full affected target rerun passed."
+      },
+      {
+        "classification": "ours",
+        "test": "snapback4::init::retired_feed_installer_and_all_its_options_refuse_without_writes",
+        "reason": "Stale recipe refusal expectation still required empty sources.",
+        "resolution": "Expected message corrected; full affected target rerun passed."
+      },
+      {
+        "classification": "ours",
+        "test": "Retired Following installer and orphan options preserve fresh and existing directory trees",
+        "reason": "Stale recipe refusal expectation still required empty sources.",
+        "resolution": "Expected message corrected; full affected target rerun passed."
+      }
+    ],
+    "baseline_failures": 0,
+    "environmental_failures": 0
+  },
+  "device": {
+    "passed": 1321,
+    "failed": 0,
+    "ignored": 3
+  },
+  "guide": {
+    "passed": 86,
+    "failed": 0
+  },
+  "wasm_codec_census": {
+    "passed": 26,
+    "failed": 0
+  },
+  "wasm": {
+    "raw_bytes": 1981512,
+    "gzip_bytes": 572049,
+    "unchanged_budget": 572841,
+    "remaining_bytes": 792
+  },
+  "post_suite": {
+    "rust_init": {
+      "passed": 21,
+      "failed": 0
+    },
+    "deployment_adoption": {
+      "passed": 10,
+      "failed": 0
+    },
+    "atomic_launch": {
+      "passed": 7,
+      "failed": 0,
+      "ignored": 2
+    },
+    "whole_guide": {
+      "passed": 86,
+      "failed": 0
+    },
+    "javascript_init": {
+      "passed": 4,
+      "failed": 0
+    },
+    "changes": "Updated the two stale recipe-message expectation constants; clarified that --allow-feed-adoption cannot override the copy ceiling and asserted that diagnostic. No second full-suite invocation."
+  }
+}

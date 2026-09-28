@@ -65,14 +65,12 @@ column the scan does not pin) is never `complete`: the server cannot tell
 partition holds exactly what the viewer may read. `check` says so
 (`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
 (`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
-(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
-page omits the cursor note when its bound covers the group cap and that cap
-fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
-other metered work can also cut a read.
-For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
-and page with `after c`, or add `cap 50 by conversationId` to the table if
-that is the intended group limit. An unscoped plain page can use `cap 50`.
-The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
+(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).
+`complete` means the query answered its declared request within known coverage and execution limits.
+Filling `first N` or `last N` is complete, including a composed preview.
+A cursorless page cannot continue; declare `c: cursor ?` and use `after c`
+if the screen pages. Composed fields and pages covering a fitting group cap
+omit `N_NO_CURSOR`.
 
 ## Operations
 
@@ -115,27 +113,117 @@ cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
 the client read `loading`, as other query heap cuts do. A mutation rolls
 back on either cut.
 
-After a load, `snapback4 doctor --latency` shows every server operation's
-p50, p95, p99 and maximum total time, count and refusals, plus time from
-acceptance to its first engine acquisition. `doctor` summarizes the slowest
-few; `--json` gives milliseconds. Reset between phases with
-`snapback4 doctor --latency --reset` (dev only). Timings cover completed HTTP
-requests, including action waits and held change polls, since startup or reset;
-they describe the load you ran, not a latency guarantee. Requests that never
-acquire the engine have zero wait. Doctor finds persisted dev through its store
-address. For `dev --fresh` or `dev --memory`, pass `--url` with the loopback
-address dev printed at startup; the server must belong to the same project.
-`GET /dev/latency` also works on `serve` with a live service token; reset
-remains dev-only.
+### Measuring a growth curve
+
+Use the same backend, query arguments, principal, build and host at each corpus
+checkpoint. Keep warm-up policy and sample count fixed. Record corpus size,
+completeness/cuts, jobs/replay mode and concurrent writers separately. Reset
+before each checkpoint, run the probes, then read `doctor --latency --json`.
+Repeat the curve, including checkpoints in a different order when possible;
+keep every sample rather than selecting the fastest run.
+
+This runnable Node recipe uses three warm-ups then twenty sequential measured
+reads. Set the operation, arguments and persona for your app (or replace the
+persona header with your ordinary bearer token); use the loopback URL printed
+by `dev`. Save each checkpoint's two output files under distinct names.
 
 ```sh
-snapback4 doctor --latency --reset
-# Run your application's load, then inspect the new window:
-snapback4 doctor --latency --json
-# For a fresh or memory server, use its printed address on both commands:
-snapback4 doctor --latency --reset --url http://127.0.0.1:4400
-snapback4 doctor --latency --json --url http://127.0.0.1:4400
+# Growth curve checkpoint (run from the backend project, with dev running)
+export SB4_URL=${SB4_URL:-http://127.0.0.1:4400}
+export SB4_OP=${SB4_OP:-home}
+export SB4_ARGS=${SB4_ARGS:-'{}'}
+export SB4_PERSONA=${SB4_PERSONA:-alice}
+snapback4 doctor --latency --reset --url "$SB4_URL"
+node --input-type=module > checkpoint-probes.json <<'JS'
+import { loadavg, cpus, hostname, platform } from 'node:os';
+const samples = [];
+const host = () => ({ at: Date.now(), load: loadavg(), cpus: cpus().length });
+const before = host();
+for (let i = 0; i < 23; i++) {
+  const start = performance.now();
+  const response = await fetch(`${process.env.SB4_URL}/q/${process.env.SB4_OP}`, {
+    method: 'POST', headers: { 'content-type': 'application/json',
+      'x-snapback-persona': process.env.SB4_PERSONA },
+    body: JSON.stringify({ args: JSON.parse(process.env.SB4_ARGS) }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const reply = await response.json();
+  const client = performance.now() - start;
+  if (!response.ok || !('data' in reply) || reply.data === null)
+    throw Error(JSON.stringify(reply));
+  const header = response.headers.get('server-timing');
+  if (!header) throw Error('use loopback dev for Server-Timing');
+  const server = Object.fromEntries(header.split(',').map(metric => {
+    const [name, duration] = metric.trim().split(';dur=');
+    return [name, Number(duration)];
+  }));
+  samples.push({ warmup: i < 3, client, server, header,
+    complete: reply.complete, cut: reply.cut });
+}
+const p95 = values => values.sort((a, b) => a - b)[Math.ceil(values.length * .95) - 1];
+const measured = samples.filter(s => !s.warmup);
+const p95ms = Object.fromEntries(['client', 'total', 'wait', 'engine', 'cpu'].map(key => {
+  const values = measured.map(s => key === 'client' ? s.client : s.server[key]);
+  return [key, values.every(Number.isFinite) ? p95(values) : null];
+}));
+console.log(JSON.stringify({ hostname: hostname(), platform: platform(),
+  before, after: host(), p95ms, samples }, null, 2));
+JS
+snapback4 doctor --latency --json --url "$SB4_URL" > checkpoint-server.json
 ```
+
+Each response from a loopback-bound `dev` listener that passes the loopback
+peer/Host/Origin fence has `Server-Timing` durations in milliseconds:
+`total` is acceptance (after HTTP headers, before body buffering and worker
+admission) to response-header construction; `wait` sums reader checkouts and
+writer lock acquisition, including connection opening; `engine` is wall time
+owning a reader/writer for engine work, including authentication and head reads, excluding reader acquisition;
+`cpu`, when supported, is CPU consumed by this request thread since it started.
+Engine time includes descheduling and store I/O. CPU overlaps the other times;
+it is not another phase to add. Synchronous `/dev/clock/advance` maintenance
+counts in these timings; listener, background-thread and client CPU do not.
+Zero engine time can mean a request was refused before acquiring an engine.
+
+`doctor --latency` shows p50/p95/p99/max for total, wait, engine and CPU;
+`--json` gives these distributions and `n`, `refused`, `cpu_n` (available CPU
+samples). With no requests, text says `cpu n=0` and JSON has an empty CPU
+distribution (zero percentiles, `cpu_n: 0`). With requests but no CPU samples,
+text says `cpu unavailable` and JSON has `cpu: null`; the header omits `cpu`.
+Doctor's total ends after final
+response write/flush, unlike the header, which cannot measure future delivery.
+For streamed assets and heartbeat polls the header is only the work before
+streaming; doctor includes the stream/hold through its final flush. These are
+HTTP request times, not completion times of asynchronous actions/jobs. Requests
+aborted at admission have no response/header but still count as refused.
+
+Compare client and server p95s and the paired samples: high client time alone
+can be transport/client work; high server wall time with low CPU can be
+scheduling, lock or I/O wait; high acquisition wait identifies checkout/lock
+pressure. High CPU indicates request-thread work. Their differences alone do
+not prove which OS wait occurred. Compare host load with available CPUs and
+other processes; load average also includes uninterruptible I/O on Linux.
+The recipe records load before/after; sample it throughout longer runs too.
+
+The doctor histogram has up to 5% bucket error (maxima are exact), includes
+warm-ups in this recipe and all other requests in its window. Per-response
+samples preserve exact pairing, rounded to 0.001 ms. Twenty samples give a
+noisy p95: a few adjacent slow reads can decide it. A flat curve can fail a
+midpoint interpolation test because of noise; do not change the rule or call
+a single passing run proof. Timings describe this workload, not a guarantee,
+an asymptotic bound, or 1,000-conversation acquisition evidence.
+
+The header carries only durations, never counters, rows, arguments or principals.
+It is exposed to permitted loopback dev browser origins; `serve` does not add it.
+Phase and CPU timings reveal more than total response time (and doctor aggregates
+other principals’ requests); the headers are acceptable only on loopback-bound
+`dev`, where the developer already holds the store, and never appear on `serve`.
+This is not a claim of constant-time execution.
+Existing authorization and meter disclosure rules still apply.
+`doctor` summarizes the slowest few operations. Reset is dev-only; windows
+start at startup/reset and exclude old in-flight arrivals. Persisted dev is
+discovered through its store address; `--fresh`/`--memory` need the printed
+`--url` and matching project. `GET /dev/latency` on `serve` still requires a live
+service token; it cannot reset.
 
 ### The scale certificate
 
@@ -197,6 +285,14 @@ per pass across tables. This is a cadence, not a maximum age or size of the
 backlog: a burst of 2,001 expirations leaves at least one row after a pass,
 and downtime, slow maintenance or a failed sweep can leave older rows.
 Reads remain metered and expired rows remain invisible on every host.
+For an admitted server mutation (guide programs), pages, prefix `exists` and
+`count` include this work and the scan-attempt charge under the examined
+ceiling. Even `first 1` can refuse `E_BOUND` with no write; shrinking its
+page cannot remove the backlog. For delivery reports, `E_BOUND` is an ordinary
+non-retryable refusal: the SDK calls `onDeliveryRefused` once and parks the
+interval until the next start, which retries with a new id. There is no retry
+within the session. A committed report that runs again is a no-op report
+(`why E_BOUND`, `guide receipts`).
 An operation says `class: backlog` only when cleanup explains all of its
 variable work: constant once the sweep catches up, and bounded by the read
 meter while a backlog lasts, so the certificate keeps the meter allowance.

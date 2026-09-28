@@ -1,0 +1,6 @@
+{
+  "snapback4/crates/snapback4-core/src/engine/read.rs": true,
+  "snapback4/crates/snapback4-core/src/engine/membership_search.rs": true,
+  "snapback4/scripts/build-wasm.sh": true,
+  "snapback4/metrics/wasm-budget.json": true
+}

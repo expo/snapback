@@ -120,6 +120,41 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         Ok(p) => p,
         Err(e) => return failed(request, e),
     };
+    // A name may have been durable in a previous generation. Receipt custody
+    // precedes signature decoding, rate admission and ephemeral execution.
+    // @ref LLP 3000.022#6 — a stored success never executes a replacement body.
+    let fingerprint = match delivery_fingerprint(&payload) {
+        Ok(value) => value,
+        Err(why) => return failed(request, why),
+    };
+    {
+        let mut engine = lock(&shared.engine);
+        let preflight = mutation_authority(&request, shared, &engine, &principal)
+            .and_then(|()| intent_store(&engine, &payload))
+            .and_then(|()| {
+                let args = payload.get("args").cloned().unwrap_or(json!({}));
+                id.as_deref().map(|id| engine.replay_mutation(&principal, id, op, &args))
+                    .transpose().map(Option::flatten).map_err(|e| e.refusal())
+            });
+        match preflight {
+            Ok(Some(out)) => {
+                let (store_id, head) = match response_head(&mut engine) {
+                    Ok(value) => value,
+                    Err(why) => return respond_timed(request, shared, 503, json!({"denied":why})),
+                };
+                let mut reply = out.reply(id.as_deref());
+                reply["store_id"] = json!(store_id);
+                reply["head"] = json!(head);
+                return respond_timed(request, shared, 200, reply);
+            }
+            Err(why) => return failed(request, why),
+            Ok(None) => {
+                if let Err(error) = engine.schema().check_delivery(op, fingerprint.as_deref()) {
+                    return failed(request, error.refusal());
+                }
+            }
+        }
+    }
     // Bearer digests identify sessions without retaining secrets. Dev personas
     // have no session token and each principal is their development session.
     let key = crate::auth::bearer_token(&request)
@@ -182,11 +217,13 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
         }
-        lock(&shared.readers).take(&engine)
+        shared.take_reader(&engine)
     };
-    let context = Context::new(principal.clone(), args).at(shared.now());
+    let mut context = Context::new(principal.clone(), args).at(shared.now());
+    context.delivery_fingerprint = fingerprint;
     let result = match reader {
         Ok((epoch, mut reader)) => {
+            let _timing = latency::EngineSpan::new();
             let result = intent_store(&reader, &payload).and_then(|()| {
                 reader
                     .mutate_ephemeral(op, context)
@@ -228,4 +265,16 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
 
 pub(super) fn hub(engine: &Engine) -> Arc<Hub> {
     engine.ephemeral_hub()
+}
+
+/// Ordinary handwritten calls keep their spelling; SDK reports name the binding.
+pub(super) fn delivery_fingerprint(payload: &Json) -> Result<Option<String>, Refusal> {
+    let Some(delivery) = payload.get("delivery") else { return Ok(None) };
+    delivery.get("fingerprint").and_then(Json::as_str).filter(|s| !s.is_empty())
+        .map(|s| Some(s.to_owned())).ok_or_else(|| {
+            let mut why = Refusal::new("E_DELIVERY_BINDING", "schema", "delivery needs the fingerprint collected from its binding").guide("receipts");
+            why.site = Some("delivery.fingerprint".into());
+            why.rewrite = Some("send delivery: { fingerprint } from the manifest or compiled binding".into());
+            why
+        })
 }

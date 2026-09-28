@@ -31,9 +31,9 @@ fn w9r1a_temporary_audience_search_memory() { run(&mut Memory::new(), "temporary
 fn w9r1a_temporary_audience_search_sqlite() { run(&mut Sqlite::new("w9r1a-temporary"), "temporary", "searchHeld", false, 2, true); }
 
 #[test]
-fn w9r1a_truncated_held_page_memory() { run(&mut Memory::new(), "full", "firstHeld", false, 1, true); }
+fn w9r1a_truncated_held_page_memory() { run(&mut Memory::new(), "full", "firstHeld", true, 1, true); }
 #[test]
-fn w9r1a_truncated_held_page_sqlite() { run(&mut Sqlite::new("w9r1a-truncated"), "full", "firstHeld", false, 1, true); }
+fn w9r1a_truncated_held_page_sqlite() { run(&mut Sqlite::new("w9r1a-truncated"), "full", "firstHeld", true, 1, true); }
 
 fn clique<H: Host>(host: &mut H) {
     run(host, "full", "searchHeld", true, 2, true);

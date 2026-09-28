@@ -2,7 +2,7 @@
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
 Quarry defines tables, rules and backend operations; eligible programs run on devices too.
-Coming from SQL or Convex: `snapback4 guide from-sql` translates familiar idioms.
+`snapback4 guide from-sql` translates SQL and Convex idioms.
 
 ```quarry
 table notes:
@@ -18,10 +18,13 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`table` declares stored columns; every row also has an `id`.
-`read` and `insert` give the owner access; `sync` brings those rows to their device.
-`query` returns the newest page; pass its `next` back as `c`.
+`table` declares columns and an implicit `id`.
+`read` and `insert` authorize owners; `sync` brings their rows to the device.
+`query` pages newest first; pass `next` as `c`.
 `mutation` inserts atomically, using the default time.
+
+`reports delivery of messages by .conversation, .ordinal` enables SDK reporting
+(`guide receipts`).
 
 ## Limits
 
@@ -583,7 +586,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose, and the idiom
 
-Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral,
+Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal. Also see from-sql (aliases sql, convex, rosetta).

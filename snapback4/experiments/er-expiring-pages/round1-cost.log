@@ -1,0 +1,72 @@
+    Blocking waiting for file lock on build directory
+   Compiling chunked_transfer v1.5.0
+   Compiling log v0.4.34
+   Compiling httpdate v1.0.3
+   Compiling ascii v1.1.0
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-er/snapback4/vendor/tiny_http)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.4 (/home/ccheever/sb4-intent/lane-er/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 20.35s
+     Running tests/check.rs (target/debug/deps/check-1e590eb513b80f75)
+
+running 1 test
+ER_ROUND1_COST check: ok — 1 tables (1 synced), 1 operations, no problems, 1 note, 1.3 ms
+note: schema.q:1:1 — N_NO_HORIZON: table messages: `sync to .owner` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync to .owner last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+scale: 0 of 1 operations are constant; 1 constant once background cleanup catches up (inspect); 0 grow with data — `check --cost` gives the certificate
+1 mutations never predict: inspect (author marked this mutation : server) — snapback4 why <op>
+  mutation inspect:
+    scale: constant once background cleanup catches up; until then at most 8194 rows examined: expired messages rows not yet swept, skipped before 1 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+      programs.inspect.0: expired messages rows not yet swept, skipped before 1 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+    scan messages using index (owner, id), chosen by the planner first 1 — rule decided by the prefix: no probes
+      selected index (owner, id), chosen by the planner (owner = viewer); result: page; read: messages where .owner = viewer first 1 by .id
+      sort/group/sum/count consume this page, not the whole population
+    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling 8192; the scan attempt also costs one examined unit.
+
+ER_ROUND1_COST check: ok — 1 tables (1 synced), 1 operations, no problems, 1 note, 1.6 ms
+note: schema.q:1:1 — N_NO_HORIZON: table messages: `sync to .owner` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync to .owner last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+scale: 0 of 1 operations are constant; 1 constant once background cleanup catches up (inspect); 0 grow with data — `check --cost` gives the certificate
+1 mutations never predict: inspect (author marked this mutation : server) — snapback4 why <op>
+  mutation inspect:
+    scale: constant once background cleanup catches up; until then at most 8194 rows examined: expired messages rows not yet swept, skipped before 1 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+      programs.inspect.0: expired messages rows not yet swept, skipped before 1 live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+    scan messages using index (owner, id), chosen by the planner first 1 — rule decided by the prefix: no probes
+      selected index (owner, id), chosen by the planner (owner = viewer); result: exists; read: messages where .owner = viewer
+      exists: first match, no page overflow or cursor
+    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling 8192; the scan attempt also costs one examined unit.
+
+ER_ROUND1_COST check: ok — 1 tables (1 synced), 1 operations, no problems, 1 note, 1.4 ms
+note: schema.q:1:1 — N_NO_HORIZON: table messages: `sync to .owner` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync to .owner last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+scale: 0 of 1 operations are constant; 1 grow with data (inspect) — `check --cost` gives the certificate
+1 mutations never predict: inspect (author marked this mutation : server) — snapback4 why <op>
+  mutation inspect:
+    scale: grows with messages in the domain `messages where .owner = viewer`; also, until background cleanup catches up, expired messages rows not yet swept, skipped before the domain live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+      programs.inspect.0: messages in the domain `messages where .owner = viewer`; rewrite: cap the domain, page it, or add a maintained view for its aggregate
+      programs.inspect.0: expired messages rows not yet swept, skipped before the domain live rows match (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work)
+    scan messages using index (owner, id), chosen by the planner rows ≤ meter (8,192 examined) — rule decided by the prefix: no probes
+      selected index (owner, id), chosen by the planner (owner = viewer); result: page; read: messages where .owner = viewer
+      sort/group/sum/count consume this page, not the whole population
+    A mutation refuses E_BOUND, with no write, when the unswept prefix exceeds the examined ceiling 8192; the scan attempt also costs one examined unit.
+
+test er_expiry_cost_names_backlog_attempt_and_atomic_refusal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 71 filtered out; finished in 0.01s

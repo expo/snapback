@@ -24,7 +24,7 @@ import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 
-type Result<R> = { ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -179,12 +179,12 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
           : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
-        return { result: { read, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
+        return { result: { read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, retain: retain && !ephemeral }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, ...(retain ? {} : { retain: false }) }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
@@ -221,7 +221,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // with the current server page; routing and publication use Rules 1–5.
       return { origin: "composed", result: {
         read: { ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false },
-        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq,
+        tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential,
       } };
     }
     const coverage = Object.entries(second.outcome.components ?? {});
@@ -230,7 +230,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq } };
+    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
@@ -296,6 +296,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry, localWakeup: true }
           : { ...loading, retryExpired: !!watch && (origin === "server" || origin === "composed") };
       }
+      if (result.credential !== undefined && result.credential !== env.credentialRevision) return loading;
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server" || origin === "composed") {

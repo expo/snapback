@@ -896,7 +896,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "snapback4"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "chacha20poly1305",
  "hmac 0.12.1",
@@ -913,7 +913,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-core"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "argon2",
  "getrandom 0.3.4",
@@ -932,7 +932,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-device"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "js-sys",
  "rusqlite",
@@ -946,8 +946,9 @@ dependencies = [
 
 [[package]]
 name = "snapback4-lang"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
+ "rusqlite",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -957,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-native"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -965,7 +966,7 @@ dependencies = [
 
 [[package]]
 name = "snapback4-sim"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "serde_json",
  "snapback4-core",

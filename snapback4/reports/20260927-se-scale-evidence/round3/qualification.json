@@ -1,0 +1,99 @@
+{
+  "round": 3,
+  "starting_commit": "784f090b08ed9a5e431b04cc728cdb7f59159893",
+  "merged_main": "d9c89a971913ca995a1e5a6d436a85dc8a5d11d6",
+  "merge_result": "Already up to date.",
+  "astra_review_sha256": "3666d4cbdf1e8144070fafe3c7313140d13df9086d3fbeb86ab05b6b245d7f23",
+  "grok_at_start": "Progress prose only; no verdict. Did not wait.",
+  "full_suite_runs": 0,
+  "inherited_round1_full_suite_summary": "== 0 failure(s) in 1697 s",
+  "affected": {
+    "server_doctor_units": {
+      "passed": 185,
+      "ignored": 4
+    },
+    "latency_doctor_recipe": {
+      "passed": 12
+    },
+    "read_measurement": {
+      "ignored": 2
+    },
+    "whole_guide": {
+      "passed": 89
+    }
+  },
+  "expected_failures": {
+    "ours": [
+      "maintenance-before: two new regressions fail before fixes",
+      "mutation-background-wait",
+      "mutation-retry-open",
+      "mutation-production-listener"
+    ]
+  },
+  "unexpected_test_failures": {
+    "ours": [],
+    "baseline": [],
+    "environmental": []
+  },
+  "inspection_path_misses": {
+    "ours": [
+      "separate ROUND1/ROUND2 report files (sections are in REPORT.md)",
+      "guessed LLP 3000.019 filename",
+      "absent Cargo config and foundation glob paths"
+    ]
+  },
+  "wasm": {
+    "raw_bytes": 1979732,
+    "sha256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+    "gzip_bytes": 572616,
+    "budget_bytes": 572841,
+    "gzip_method": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm (build-wasm.sh)",
+    "before": {
+      "raw_bytes": 1979732,
+      "sha256": "dd7e63215ab75468af0039c2e7a495289d34078d6f23fd59b4ac15138ea5ba94",
+      "gzip_bytes": 572616
+    },
+    "byte_identical": true,
+    "rebuilt_in_round3": false
+  },
+  "tools_installed": [],
+  "toolchain": {
+    "node": "24.13.1",
+    "bun": "1.3.14",
+    "rust": "1.97.0",
+    "wasm_bindgen": "0.2.127"
+  },
+  "source_sha256": {
+    "snapback4/crates/snapback4/src/serve.rs": "de105d908803d67e944673fcf83c1d9e301d1cd152b2d86dbd05b12417a4339b",
+    "snapback4/crates/snapback4/src/serve_lock.rs": "19f9f1078ce79d48b5f8e3a26cc0ea99ea7e0920e68434976b04a4af21380c06",
+    "snapback4/crates/snapback4/src/serve_readers.rs": "b4782d198399a439e0ce967438c65a097cec345a3c0b251e3b289a817f3870e0",
+    "snapback4/crates/snapback4/src/serve_maintenance.rs": "a737b9b99b431b46f72bbaed9d307053ef50c4f74e0729e3f808996985d5db4d",
+    "snapback4/crates/snapback4/src/latency.rs": "d075c9b3bcb18c8521fea154920b72a3827b5cc342c89d7a1649a6813dde63a0",
+    "snapback4/crates/snapback4/tests/latency.rs": "7fd30e47e4f5bca7351ac680393be9f818c1d397963cf3bbc24ea947a4e676f8",
+    "snapback4/crates/snapback4/tests/latency/headers.rs": "c19598ca115cd61e1dfed9f4b8449d5f66d8ab44019c3dd1fa353d9d23b90504",
+    "snapback4/crates/snapback4-lang/src/guide/bounds.rs": "21d7f00265cd5e7902c81e647a94ab4ac3b7d861f4b77b43cbe86b1ce9a81ac4"
+  },
+  "commands": [
+    "cargo test -p snapback4 --bin snapback4 --test latency --test read_latency --no-fail-fast",
+    "cargo test -p snapback4-lang --test guide",
+    "node scripts/docs-budget.mjs",
+    "./ref-check --verbose"
+  ],
+  "affected_and_guide_environment": {
+    "CARGO_BUILD_JOBS": "8",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_INCREMENTAL": "0",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "RUST_TEST_THREADS": "8",
+    "fd_limit": 65536
+  },
+  "docs_budget": {
+    "readme_lines": 300,
+    "budget": 300,
+    "first_screen_test_passed": true,
+    "environment": "ambient Cargo defaults"
+  },
+  "reference_audit": "ref-check: ok \u2014 521 LLP docs, 9710 refs in 27511 files, 0 errors, 0 unchecked",
+  "whitespace_audit": "git diff --check passed"
+}

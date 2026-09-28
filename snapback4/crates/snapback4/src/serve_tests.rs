@@ -1,9 +1,9 @@
 #[path = "../tests/latency/serve.rs"]
 mod latency_tests;
+#[path = "../tests/serve_delivery/mod.rs"] mod delivery_tests;
 use super::*;
 use std::io::{Read, Write};
 use std::{net::{SocketAddr, TcpStream}, sync::mpsc, thread::{self, JoinHandle}};
-
 #[path = "../tests/serve_adoption/mod.rs"]
 mod adoption_tests;
 #[path = "../tests/serve_routes/mod.rs"]
@@ -37,9 +37,7 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
         assert_eq!(reply.get("meter").is_some(), dev, "production omits the field entirely");
     }
 }
-
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
-
 struct Host {
     server: Arc<Server>,
     shared: Arc<Shared>,
@@ -47,13 +45,15 @@ struct Host {
     worker: Option<JoinHandle<()>>,
     address: SocketAddr,
 }
-
 impl Host {
     fn new(dev: bool) -> Self {
         Self::with_store(dev, snapback4_core::Store::memory().unwrap(), SCHEMA)
     }
 
     fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
+        Self::with_store_on(dev, store, source, "127.0.0.1")
+    }
+    fn with_store_on(dev: bool, store: snapback4_core::Store, source: &str, bind: &str) -> Self {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::new(
@@ -95,12 +95,12 @@ impl Host {
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
             poll_wait: Mutex::new(None),
-            query_wait: Mutex::new(None),
+            query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
         let server = Arc::new(
-            Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
+            Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits::default())
                 .unwrap(),
         );
         let address = server.server_addr().to_ip().unwrap();
@@ -108,7 +108,7 @@ impl Host {
         let (s, e, a) = (server.clone(), shared.clone(), admission.clone());
         let worker = thread::spawn(move || {
             for request in s.incoming_requests() {
-                dispatch(request, e.clone(), a.clone());
+                dispatch(request, e.clone(), a.clone(), address.ip().is_loopback());
             }
         });
         Self {

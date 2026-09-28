@@ -30,7 +30,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]
                                       --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save; --fresh/--memory: a store in memory that dies with this process
-  deploy <dir> [--allow-destructive]  a release: the compiled backend into <dir>/releases/N, current → N
+  deploy <dir> [--allow-destructive] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
   rollback <dir>                   current → the previous release
   serve <dir> [--port N] [--bind IP] [--worker <path>]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract

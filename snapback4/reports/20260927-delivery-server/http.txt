@@ -1,0 +1,7 @@
+
+running 2 tests
+test serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in ... ok
+test serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 161 filtered out; finished in 0.43s
+

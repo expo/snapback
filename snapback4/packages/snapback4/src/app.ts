@@ -470,7 +470,7 @@ export function createApp(options: AppOptions): App {
         const local = await prepareClient(prepared, () => createLocalClient(prepared));
         raw = local.client; startClient = local.start;
       } else {
-        const prepared = { url, session, fetch: clock.wrap(scopedFetch), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
+        const prepared = { url, session, fetch: clock.wrap(scopedFetch), ...(options.onDeliveryRefused ? { onDeliveryRefused: options.onDeliveryRefused } : {}), onStoreChange: (why: Refusal) => { changedStore = why; recoverStore(); } };
         const online = await prepareClient(prepared, () => createClient(prepared));
         raw = online.client; startClient = online.start;
       }

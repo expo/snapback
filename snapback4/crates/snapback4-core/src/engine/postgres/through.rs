@@ -110,6 +110,8 @@ impl PostgresEngine {
         now: i64,
     ) -> Result<u64, RuntimeError> {
         schema.prepare_contribution_indexes();
+        // @ref LLP 3000.022#5 — adoption replaces tracked membership and any shared binding index.
+        schema.prepare_delivery_lookup();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
         let generation = self
@@ -169,6 +171,7 @@ impl PostgresEngine {
             Some(&self.schema),
             &schema.maintains.iter().collect::<Vec<_>>(),
             &parents,
+            None,
         )?;
         drop(runner);
         super::super::through_activation::validate_indexes(&tx, &schema)?;

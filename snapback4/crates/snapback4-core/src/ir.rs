@@ -630,9 +630,13 @@ pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
 }
 
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
+    body_read_structure(&program.body)
+}
+
+pub(crate) fn body_read_structure(body: &[Stmt]) -> (Vec<&Scan>, bool) {
     let mut out = Vec::new();
     let mut has_merge = false;
-    stmts_scans(&program.body, &mut out, &mut has_merge);
+    stmts_scans(body, &mut out, &mut has_merge);
     (out, has_merge)
 }
 

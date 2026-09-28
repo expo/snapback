@@ -64,7 +64,8 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
   const peer = createClient({ url, persona: 'alice' });
   t.after(async () => { release(); await observer.close(); await peer.close(); });
   if (observer.sync) await observer.sync();
-  const plain = observer.observe(api.typingIn, { room: 'r' });
+  const plain = observer.observe(api.typingIn, { room: 'r' }, { keep: false });
+  const bounded = observer.observe(api.typingIn, { room: 'r' });
   const kept = observer.observe(api.typingIn, { room: 'r' }, { keep: true });
   const member = observer.observe({ kind: 'query', name: 'memberRevision' }, {}, { keep: true });
   await until(() => plain.getSnapshot().data?.length === 0 && kept.getSnapshot().data?.length === 0
@@ -72,10 +73,11 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
   const stoppedAt = performance.now();
   assert.equal((await peer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
   // No renewal or stopTyping call: silence must expire after the declared 4 s life.
-  await until(() => hasPeer(plain.getSnapshot()) && hasPeer(kept.getSnapshot()), 'peer typing');
+  await until(() => hasPeer(plain.getSnapshot()) && hasPeer(kept.getSnapshot()) && hasPeer(bounded.getSnapshot()), 'peer typing');
   assert.ok(replies.some(reply => reply.tables.includes('members') && reply.tables.includes('typing')),
     'the server answer depends on the durable rule probe as well as typing');
-  const plainReads = [], keptReads = [];
+  const plainReads = [], keptReads = [], boundedReads = [];
+  bounded.subscribe(() => boundedReads.push(bounded.getSnapshot()));
   plain.subscribe(() => plainReads.push(plain.getSnapshot()));
   kept.subscribe(() => keptReads.push({ at: performance.now(), read: kept.getSnapshot() }));
   const burstAt = performance.now();
@@ -87,9 +89,11 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
     && hasPeer(plain.getSnapshot()) && kept.getSnapshot().fresh, 'burst delivered');
   assert.ok(keptReads.length > 0, 'commits actually re-read the kept watch');
   assert.ok(keptReads.every(({ read }) => hasPeer(read)), 'no publication hides typing during the burst');
-  assert.ok(keptReads.some(({ read }) => read.fresh === false), 'kept data is honestly stale during loading');
-  // The documented default withdraws answers across a potentially revoking commit.
-  assert.ok(plainReads.some(read => 'loading' in read), 'without keep, invalidation publishes loading');
+  assert.ok(keptReads.some(({ read }) => read.revalidating === true), 'kept data marks revalidation');
+  assert.ok(boundedReads.every(hasPeer), "ordinary ephemeral fallback honors default retention through the burst");
+  assert.ok(boundedReads.some(read => read.revalidating === true));
+  // Explicit false preserves immediate withdrawal.
+  assert.ok(plainReads.some(read => 'loading' in read), 'keep:false invalidation publishes loading');
   assert.ok(plainReads.some(hasPeer), 'the default watch then publishes the peer again');
   t.diagnostic(`burst: ${plainReads.filter(read => 'loading' in read).length} default loading publications; ${keptReads.length} kept publications, all visible`);
 

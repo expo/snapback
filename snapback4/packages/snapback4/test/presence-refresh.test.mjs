@@ -40,6 +40,33 @@ test("a presence answer re-runs in the background after its server's interval, n
   assert.ok(seen.length > 0 && seen.every(read => "data" in read), `the refresh published something other than an answer: ${JSON.stringify(seen)}`);
 });
 
+test("unguarded background refresh reports a newly accepted delivery coordinate with changes held", async t => {
+  const reports = [];
+  let queries = 0;
+  const client = createClient({ url: "http://presence-delivery.test", persona: "alice", fetch: async (url, init) => {
+    if (url.includes("/changes")) return blocked(init.signal);
+    if (url.includes("/m/delivered")) {
+      reports.push(JSON.parse(init.body));
+      return Response.json({ state: "sent", head: 1, seq: 1, store_id: "S" });
+    }
+    if (url.includes("/q/")) {
+      const first = ++queries === 1;
+      return Response.json({ ...data(first ? [] : [{ text: "new row" }], first ? 250 : 0), store_id: "S",
+        delivery: first ? [] : [{ table: "messages", mutation: "delivered", args: ["conversation", "from", "through"],
+          fingerprint: "fixture:messages", rows: [["c", 47]] }] });
+    }
+    return Response.json({ ok: true });
+  } });
+  const watch = client.observe(query, {});
+  t.after(async () => { watch.close(); await client.close(); });
+  await until(() => watch.getSnapshot().data?.length === 0, "initial answer is empty");
+  assert.deepEqual(reports, []);
+  await until(() => watch.getSnapshot().data?.length === 1, "background answer is accepted");
+  await until(() => reports.length === 1, "accepted background coordinate is reported");
+  assert.equal(queries, 2);
+  assert.deepEqual(reports.map(report => report.args), [{ conversation: "c", from: 47, through: 47 }]);
+});
+
 test("an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops", async t => {
   const plain = transport(() => data(1, 0));
   const quiet = plain.client.observe(query, {});
@@ -82,7 +109,7 @@ test("an invalidation during a background refresh withdraws at once, and the lat
     if (n === 2) { await held.promise; return data("v2", 300, 2); }
     return data("v3", 300, 2);
   }, async signal => (++polls === 1 ? (await invalidate.promise, Response.json({ seq: 2, tables: [], generation: 0 })) : blocked(signal)));
-  const mark = client.observe(query, { p: "dev:bob" });
+  const mark = client.observe(query, { p: "dev:bob" }, { keep: false });
   t.after(async () => { held.resolve(); mark.close(); await client.close(); });
   await until(() => mark.getSnapshot().data === "v1", "the first answer arrived");
   const seen = [];

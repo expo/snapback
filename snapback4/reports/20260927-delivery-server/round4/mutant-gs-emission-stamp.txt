@@ -1,0 +1,37 @@
+   Compiling snapback4-core v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-core)
+warning: variable does not need to be mutable
+   --> crates/snapback4-core/src/engine/membership_search.rs:107:17
+    |
+107 |             let mut row = super::super::recorded::public_image(table, self.sequence_read_result(&scan.table, row)?);
+    |                 ----^^^
+    |                 |
+    |                 help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-lang v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.5 (/home/ccheever/sb4-intent/lane-ds/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 13.19s
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-9e3be983f4097eb6)
+
+running 1 test
+test compact_membership_search_reports_only_authorized_emitted_images ... FAILED
+
+failures:
+
+---- compact_membership_search_reports_only_authorized_emitted_images stdout ----
+
+thread 'compact_membership_search_reports_only_authorized_emitted_images' (2567780) panicked at crates/snapback4-lang/tests/delivery_integration.rs:83:9:
+assertion `left == right` failed
+  left: Array []
+ right: Array [Array [String("r2"), Number(2)], Array [String("r1"), Number(2)]]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    compact_membership_search_reports_only_authorized_emitted_images
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test delivery_integration`

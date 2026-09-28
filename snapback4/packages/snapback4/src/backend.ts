@@ -36,6 +36,7 @@ export interface TableJson {
 }
 
 export interface SchemaJson {
+  delivery?: { fingerprint: string; table: string; group: string; position: string; mutation: string; args: [string, string, string] }[];
   tables: Record<string, TableJson>;
   maintains?: unknown[];
   timelines?: { name: string; posts: [string, ...string[]]; reposts: [string, ...string[]] }[];

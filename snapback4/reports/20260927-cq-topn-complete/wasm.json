@@ -1,0 +1,22 @@
+{
+  "baseline_commit": "8dfbf7daa",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "wasm_opt": "wasm-opt version 123 (version_123)",
+  "budget_gzip": 572841,
+  "baseline": {
+    "raw": 1981512,
+    "gzip": 572053,
+    "sha256": "5436a3d17dc29dbee2148bbad942ddea866526e48f9d159e96be5a6c18fe1969"
+  },
+  "candidate": {
+    "raw": 1981159,
+    "gzip": 572010,
+    "sha256": "096863b78bb38bcdc45be1757cd7fcc4eb797464c5493b1fccb6af8db6c3ff8a"
+  },
+  "delta": {
+    "raw": -353,
+    "gzip": -43
+  },
+  "headroom_gzip": 831
+}

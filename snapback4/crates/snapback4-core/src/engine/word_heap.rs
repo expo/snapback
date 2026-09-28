@@ -260,4 +260,4 @@ pub fn vec_growth<T>(n: usize) -> u64 {
 #[cfg(all(test, feature = "sqlite"))]
 #[allow(unsafe_code)] // Test-only allocator probes; production still forbids unsafe.
 #[path = "word_heap/tests.rs"]
-mod tests;
+pub(crate) mod tests;
