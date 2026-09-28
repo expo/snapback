@@ -1,0 +1,30 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "grade",
+  "pid": 45252,
+  "startedAt": "2026-09-28T03:38:14Z",
+  "startedEpoch": 1790566694,
+  "command": [
+    "/Users/ccheever/.local/bin/claude",
+    "-p",
+    "--dangerously-skip-permissions",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--model",
+    "claude-opus-5",
+    "--add-dir",
+    "/Users/ccheever/clique-sb4-20260927-astra-cal24/instrument"
+  ],
+  "model": "claude-opus-5",
+  "effort": "provider-default",
+  "prompt": "/Users/ccheever/clique-sb4-20260927-astra-cal24/prompts/astra-snapback4.grade.md",
+  "cwd": "/Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4",
+  "stdout": "/Users/ccheever/clique-sb4-20260927-astra-cal24/logs/astra-snapback4.grade.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260927-astra-cal24/logs/astra-snapback4.grade.stderr.log",
+  "packages": {
+    "snapback4": "0.4.6",
+    "snapback4-expo": "0.4.6"
+  },
+  "detached": false
+}

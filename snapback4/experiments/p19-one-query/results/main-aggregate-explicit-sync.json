@@ -1,0 +1,1 @@
+{"ok":false,"problems":[{"code":"E_QUARRY_SYNTAX","guide":"residency","mechanical":false,"message":"a maintain inherits its source's sync; `online only` opts out","rewrite":"remove this sync line to inherit, or replace it with `online only`","site":{"col":3,"file":"schema.q","line":94}}]}
