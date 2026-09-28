@@ -56,6 +56,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
   or new authority. The device keeps its original bare scan. Round 0 left ordered composition
   and combined accounting outside its independent subset; round 1 above admits
   that bounded SDK composition. Durable search sessions remain excluded.
+- **2026-09-28 — explicit owner-key coverage** (LLP 3000.028 §3.4, Lane OK commission). A public window may opt into a compiler-owned, horizon-free principal key partition to answer ordinary own-key existence offline. Taken off: the exclusion of narrower platform key distribution beside one public window. General union audiences, full own-row replication and per-query absence caches remain excluded. The projection uses existing metered maintains, adoption and whole-partition publication; existing windows do not expand.
 - **2026-09-26 — a live query keeps presence current** (LLP 3000.018). A 0.4.2 probe found an observed `connected[p]` reporting `fresh: true` while stale for over a minute, and a comparative builder polled around it. What it unblocks: online marks and presence-aware lists that stay current. Taken off: "a presence stream" as an exclusion for live queries; a presence API, last-seen storage and multi-server presence stay out. Under the author's standing authorization for reworks that make queries excellent (2026-09-25).
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.

@@ -1,0 +1,124 @@
+{
+  "adoptionMs": 58601.278571,
+  "keys": 1000000,
+  "lockHold": {
+    "n": 200,
+    "p50ms": 0.19384099999999999,
+    "p95ms": 0.280009
+  },
+  "mode": "keys",
+  "peakRss": "VmHWM:\t 3194744 kB",
+  "recipientPartitions": 2,
+  "replicas": [
+    {
+      "catchupPages": 1,
+      "createThroughPublicationMs": 91.763231,
+      "decodedRows": 2000,
+      "peakRss": "VmHWM:\t 3194744 kB",
+      "snapshotPages": 1,
+      "sqlite": {
+        "indexBytes": 534000,
+        "indexEntries": 8000,
+        "logBytes": 0,
+        "logEntries": 0,
+        "pageSize": 4096,
+        "pages": 472,
+        "rowBytes": 242000,
+        "rows": 2000
+      },
+      "viewer": "empty",
+      "wireBytes": 300918
+    },
+    {
+      "catchupPages": 1,
+      "createThroughPublicationMs": 47542.961554999994,
+      "decodedRows": 1002000,
+      "peakRss": "VmHWM:\t 3194744 kB",
+      "snapshotPages": 101,
+      "sqlite": {
+        "indexBytes": 234534000,
+        "indexEntries": 2008000,
+        "logBytes": 0,
+        "logEntries": 0,
+        "pageSize": 4096,
+        "pages": 281076,
+        "rowBytes": 148242000,
+        "rows": 1002000
+      },
+      "viewer": "prolific",
+      "wireBytes": 215357889
+    }
+  ],
+  "sampleMeters": [
+    {
+      "examined": 1,
+      "heap_bytes": 932,
+      "index_entries": 6,
+      "output_bytes": 124,
+      "rows_written": 2,
+      "rule_probes": 0,
+      "steps": 16
+    },
+    {
+      "examined": 2,
+      "heap_bytes": 20,
+      "index_entries": 6,
+      "output_bytes": 6,
+      "rows_written": 2,
+      "rule_probes": 0,
+      "steps": 9
+    }
+  ],
+  "serverAfter": {
+    "indexBytes": 504114000,
+    "indexEntries": 6036000,
+    "logBytes": 371131780,
+    "logEntries": 2012000,
+    "pageSize": 4096,
+    "pages": 359451,
+    "rowBytes": 270513780,
+    "rows": 2012000
+  },
+  "serverAfterWrites": {
+    "indexBytes": 504114000,
+    "indexEntries": 6036000,
+    "logBytes": 371178830,
+    "logEntries": 2012400,
+    "pageSize": 4096,
+    "pages": 359470,
+    "rowBytes": 270513780,
+    "rows": 2012000
+  },
+  "serverBefore": {
+    "indexBytes": 202260000,
+    "indexEntries": 3018000,
+    "logBytes": 154817780,
+    "logEntries": 1006000,
+    "pageSize": 4096,
+    "pages": 151471,
+    "rowBytes": 121613780,
+    "rows": 1006000
+  },
+  "serverBeforeWrites": {
+    "indexBytes": 504114000,
+    "indexEntries": 6036000,
+    "logBytes": 371131780,
+    "logEntries": 2012000,
+    "pageSize": 4096,
+    "pages": 359451,
+    "rowBytes": 270513780,
+    "rows": 2012000
+  },
+  "sourceBackfill": [
+    {
+      "ms": 30906.63614,
+      "name": "$ownKeys:likes",
+      "rows": 1006000
+    }
+  ],
+  "writeLatency": {
+    "n": 200,
+    "p50ms": 0.199899,
+    "p95ms": 0.290445
+  }
+}

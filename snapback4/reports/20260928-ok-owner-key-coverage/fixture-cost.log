@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 4m 57s
+     Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-672c367d62e6f105)
+
+running 1 test
+test fixture_costs has been running for over 60 seconds
+OWNER_KEY_FIXTURE {"adoptionMs":7.23332,"fixture":"calibration24","mode":"summaries","peakRss":"VmHWM:\t  126852 kB","replicas":[{"catchupPages":1,"createThroughPublicationMs":597.358482,"decodedRows":11020,"handle":"empty","peakRss":"VmHWM:\t   84448 kB","snapshotPages":2,"sqlite":{"indexBytes":5133018,"indexEntries":35064,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":4693,"rowBytes":3018529,"rows":11020},"viewer":"dev:okempty","wireBytes":3618677},{"catchupPages":1,"createThroughPublicationMs":1885.7519630000002,"decodedRows":15679,"handle":"u0500","peakRss":"VmHWM:\t   84608 kB","snapshotPages":2,"sqlite":{"indexBytes":9273213,"indexEntries":65242,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":7230,"rowBytes":4615484,"rows":15679},"viewer":"user:01M3JWHQ29XWRQC0CD8KZREKF9","wireBytes":5370455},{"catchupPages":1,"createThroughPublicationMs":50070.313442,"decodedRows":109892,"handle":"u0001","peakRss":"VmHWM:\t  126852 kB","snapshotPages":12,"sqlite":{"indexBytes":210613384,"indexEntries":1880846,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":93612,"rowBytes":42015449,"rows":109892},"viewer":"user:01M3JWGZXWH8T1EEK25PGJPD01","wireBytes":41533976}],"serverAfter":{"indexBytes":854498616,"indexEntries":5000283,"logBytes":697206680,"logEntries":1631297,"pageSize":4096,"pages":590381,"rowBytes":252229736,"rows":658421},"serverBefore":{"indexBytes":854498616,"indexEntries":5000283,"logBytes":697206680,"logEntries":1631297,"pageSize":4096,"pages":590381,"rowBytes":252229736,"rows":658421},"sourceBackfill":[]}
+OWNER_KEY_FIXTURE {"adoptionMs":1158.663931,"fixture":"calibration24","mode":"public","peakRss":"VmHWM:\t  126988 kB","replicas":[{"catchupPages":1,"createThroughPublicationMs":636.0134469999999,"decodedRows":9024,"handle":"empty","peakRss":"VmHWM:\t  126852 kB","snapshotPages":6,"sqlite":{"indexBytes":3202962,"indexEntries":31084,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":3077,"rowBytes":2611829,"rows":9024},"viewer":"dev:okempty","wireBytes":2733356},{"catchupPages":1,"createThroughPublicationMs":1720.996429,"decodedRows":13683,"handle":"u0500","peakRss":"VmHWM:\t  126852 kB","snapshotPages":7,"sqlite":{"indexBytes":7343157,"indexEntries":61262,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":5621,"rowBytes":4208784,"rows":13683},"viewer":"user:01M3JWHQ29XWRQC0CD8KZREKF9","wireBytes":4485411},{"catchupPages":1,"createThroughPublicationMs":52220.993604,"decodedRows":107896,"handle":"u0001","peakRss":"VmHWM:\t  126988 kB","snapshotPages":16,"sqlite":{"indexBytes":208683328,"indexEntries":1876866,"logBytes":0,"logEntries":0,"pageSize":4096,"pages":92235,"rowBytes":41608749,"rows":107896},"viewer":"user:01M3JWGZXWH8T1EEK25PGJPD01","wireBytes":40648589}],"serverAfter":{"indexBytes":851255328,"indexEntries":4983251,"logBytes":697206680,"logEntries":1631297,"pageSize":4096,"pages":590381,"rowBytes":250887064,"rows":652409},"serverBefore":{"indexBytes":854498616,"indexEntries":5000283,"logBytes":697206680,"logEntries":1631297,"pageSize":4096,"pages":590381,"rowBytes":252229736,"rows":658421},"sourceBackfill":[]}
+
+thread 'fixture_costs' (2993284) panicked at crates/snapback4-device/tests/own_keys_cost.rs:119:113:
+called `Result::unwrap()` on an `Err` value: Structural { code: "E_RECORDED_FIELD", message: "ownRows_likes.post.author is engine-recorded; omit it from the write payload (guide maintains)" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test fixture_costs ... FAILED
+
+failures:
+
+failures:
+    fixture_costs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 130.41s
+
+error: test failed, to rerun pass `-p snapback4-device --test own_keys_cost`

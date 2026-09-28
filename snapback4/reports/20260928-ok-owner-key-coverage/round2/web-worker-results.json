@@ -1,0 +1,48 @@
+[
+  {
+    "label": "web-device",
+    "command": [
+      "node",
+      "--test",
+      "--test-reporter=tap",
+      "--test-concurrency=1",
+      "packages/snapback4/test/device-diet.test.mjs",
+      "packages/snapback4/test/device-residency.test.mjs",
+      "packages/snapback4/test/own-keys.test.mjs",
+      "packages/snapback4/test/residency.test.mjs",
+      "packages/snapback4/test/server-clock-wire.test.mjs",
+      "packages/snapback4/test/session-security.test.mjs",
+      "packages/snapback4/test/web-admission-review.test.mjs",
+      "packages/snapback4/test/web-durability.test.mjs",
+      "packages/snapback4/test/web-navigation.test.mjs",
+      "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+      "packages/snapback4/test/web-review.test.mjs",
+      "packages/snapback4/test/web-session-authority.test.mjs",
+      "packages/snapback4/test/web-shell.test.mjs",
+      "packages/snapback4/test/web-start.test.mjs",
+      "packages/snapback4/test/web-worker-control.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 265.737
+  },
+  {
+    "label": "worker-protocol",
+    "command": [
+      "node",
+      "witness/worker-protocol.mjs",
+      "reports/20260928-ok-owner-key-coverage/round2/worker-protocol.json"
+    ],
+    "exit": 0,
+    "seconds": 48.71
+  },
+  {
+    "label": "worker-watch",
+    "command": [
+      "node",
+      "witness/worker-watch.mjs",
+      "reports/20260928-ok-owner-key-coverage/round2/worker-watch.json"
+    ],
+    "exit": 0,
+    "seconds": 7.684
+  }
+]

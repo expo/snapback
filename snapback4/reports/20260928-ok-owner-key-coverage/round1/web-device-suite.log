@@ -1,0 +1,270 @@
+✔ web trusts structural admission of its backend but still validates arguments and executed reads (12.106256ms)
+✔ wasm field-authority refusals carry the owner-specific repair and rules guide (8.149545ms)
+(node:4111869) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ web residency reconciles committed UTF-8 bytes through prediction, rollback, deletion and reopen (341.448765ms)
+✔ client residency works offline and fences a closed or retired client (1012.535982ms)
+✔ public client residency reads the native process store offline (1038.647641ms)
+✔ residency codes rejected device reads, preserves returned refusals, and rechecks closed/session state (1.244005ms)
+✔ app residency rechecks session custody even when the raw device read rejects (1.34789ms)
+✔ native: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3257.639952ms)
+ℹ {"tier":"native","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"bytes":186,"rows":1},"likes":{"bytes":226,"rows":2},"notes":{"bytes":116,"rows":1}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KF4G4J3MB4DEZTAX8MJKW6"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790581031175}}
+✔ web: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3572.733253ms)
+ℹ {"tier":"web","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"rows":1,"bytes":186},"likes":{"rows":2,"bytes":226},"notes":{"rows":1,"bytes":116}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KF4K9VJ009781XQ7V9M6M8"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790581034783}}
+✔ server-class watches run locally first and recover remembered server data offline (191.839837ms)
+✔ offline cold watches withhold placeholders, persisted local reads still work (1109.328574ms)
+✔ connected recovers a server false offline instead of the device presence assumption (174.017744ms)
+  alice notes: 2 rows, 106 bytes
+  bob notes: 2 rows, 106 bytes
+  alice counts: 1 rows, 63 bytes
+  bob counts: 1 rows, 63 bytes
+  alice permits: 0 rows, 0 bytes
+  bob permits: 0 rows, 0 bytes
+  alice total: 3 rows, 169 bytes
+  bob total: 3 rows, 169 bytes
+  total across personas: 6 rows, 338 bytes
+  maintain counts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED
+✔ clock advance expires presence on the server and a device (260.343046ms)
+ℹ presence device: advanced_ms=36000 before=1 after=0 wall_ms=9.27
+✔ presence effects residency is additive in check, why and generated artifacts (26.41985ms)
+✔ check sidecar, why and test residency print facts, changes and measured cold rows (53.763025ms)
+✔ dev compares residency with the served generation even when check advanced its sidecar (494.871118ms)
+✔ provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial (496.570696ms)
+✔ provenance native: wrapped presence recovers false, shaped rows without ids stay partial (74.844383ms)
+✔ rule 5: a real process device never recovers private memory after its permit expiry (3089.34788ms)
+✔ the default session store stays in memory and browser persistence is explicit (1.528351ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (26.157297ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (268.212752ms)
+✔ an online-only watch retries a stale-token refusal after rotation (15.674204ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (14.694455ms)
+✔ an authenticated change-feed refusal signs the online client out (8.873831ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (3.440727ms)
+(node:4113475) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1061.714426ms)
+  ✔ exit notification waits for a session turn queued after strict admission (569.82038ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (948.670456ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1788.079299ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2329.062646ms)
+  ✔ a hide during the startup probe waits for its accepted decision (881.322628ms)
+  ✔ a hide during the startup probe waits for its refused decision (920.410116ms)
+  ✔ a hide during the startup probe waits for its restore decision (1079.025143ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1612.702758ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2637.174962ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (821.204197ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (1063.85211ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1017.899522ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (960.860968ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (858.385848ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (765.582296ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (804.763845ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (956.55947ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (992.463306ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1018.22465ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1273.017707ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (987.48219ms)
+  ✔ a successful reconnect enables exit after startup 503s (970.398263ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5050.259128ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (4882.867466ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (4947.77775ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5079.545407ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1197.382648ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1040.62126ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (1093.324006ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1347.64123ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1220.262072ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1544.158068ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1365.405808ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (1168.48867ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (2270.728169ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (2367.44696ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (891.47086ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (8329.656458ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (2635.302237ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (5849.284826ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (6212.54809ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (7121.062767ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (11150.931313ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (10877.049536ms)
+  ✖ replacement after validation refuses the original orphan binding at the server (exit transport) (12099.550517ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (8036.873635ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6240.055645ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1604.337312ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1628.933479ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6213.803316ms)
+  ✔ same-epoch logout tombstone refuses live admission (621.282026ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (554.075742ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (512.790028ms)
+✖ web admission review: recovery and transport respect the session boundary (153204.215716ms)
+ℹ {"mode":"held-sync","id":"01M3KF50TSVMZGT0CNJDR30X3R","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3KF51N55SVCHNS9ZVPQ40S6","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3KF55QN76EN3HFH0B7ZF7C1","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"refused","originalId":"01M3KF56MCANVTTD0V9W250WSD","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"restore","originalId":"01M3KF57G0MD9KMB17JM322RAD","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"replacement","originalId":"01M3KF58KC53H935F0PP43DKTY","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3KF5A5CCX7TBVRHDWVE3VZ5","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3KF87JTK900KETEHBV2S5ZR","originalStore":"6dee5d9437a8db4f6fa27ec64a00be99","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+ℹ {"orphan":"01M3KF8WQYAKZ63VN7M8D0Q41B","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3KF92VJECCSNPJ0NN5R6YXH","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3KF98RKPG87EW4F293JVBNW","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3KF9AC6ZZA9FZKHCKAN2ZXY","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (455.94918ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (14.513344ms)
+✔ private snapshot pages survive disposal and failed publication without exposing a partial partition (10.394801ms)
+✔ recovery read failures block calls until durable state can be reopened (5.10357ms)
+✔ failed initial persistence frees the constructed Wasm device (1.687499ms)
+✔ successful calls keep incremental persistence without loading the store again (5.753834ms)
+✔ close drains accepted calls once and refuses later calls (3.363181ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (2.450433ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.948812ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (2.242792ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (2.645705ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (2.212336ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (3.508949ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (3.816832ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.469143ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1039 ms
+✔ stalled exit body recovers in order (not applied) (1947.438775ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1012 ms
+✔ stalled exit body recovers in order (already applied acknowledgement) (1124.513237ms)
+stalled exit close: 972 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1083.376878ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (1.004035ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1113.533881ms)
+✔ pagehide dispatch and retryable hold invalidate the pending-write list (1078.453458ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1086.977475ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1090.06341ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=false) (1090.421136ms)
+✔ first pagehide dispatch survives a stalled status save (cleanup blocked=true) (1090.724611ms)
+✔ a second exit before its status commit supersedes the first acknowledged exit and later hold (1088.001409ms)
+✔ first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available) (1096.484284ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available) (1087.259508ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws) (1085.691898ms)
+✔ first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1083.519262ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available) (1137.725481ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws) (1087.133399ms)
+✔ first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw) (1084.960843ms)
+✔ pagehide dispatch subscriber signOut prevents keepalive and POST (1080.688118ms)
+✔ pagehide dispatch subscriber close prevents keepalive and POST (1084.739941ms)
+✔ IndexedDB save resolves on transaction completion, not request success (1.723253ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1080.938794ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1084.704287ms)
+keepalive: 64141 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (1.847719ms)
+✔ exit ordering survives reversed server processing (1.530644ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (1.182853ms)
+✔ exit overlaps only the same ordinary in-flight head (1081.497571ms)
+✔ ordinary flush waits for the exit request before replaying its head (1086.648202ms)
+(node:22416) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web receipt upgrades preserve original binding and corrected shared custody
+  ✔ legacy binding survives adopted B on ordinary transport (2092.391074ms)
+  ✔ legacy binding survives adopted B on keepalive transport (1986.518202ms)
+  ✔ orphan replay correction survives adopter removal and the next recovery in its original position (1998.921653ms)
+  ✔ adoption corrects a shared replacement refusal to an orphan sent receipt (439.677681ms)
+  ✔ lookup lets a shared correction supersede only this reader's replacement refusal (1444.384731ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (replacement local history) (1461.019234ms)
+  ✔ a shared correction never hides this device's qualified or pending custody (absent local history) (1462.065623ms)
+  ✔ shared-only lookup recovers absent history and opener remembers those ids without settling them (1388.515329ms)
+  ✔ shared-only refusal cannot settle legacy custody before bound replay (2968.996204ms)
+  ✔ adoption during lookup recomputes legacy custody (absent local history) (1447.293201ms)
+  ✔ adoption during lookup recomputes legacy custody (replacement local history) (1632.225866ms)
+  ✔ lookup preserves local NOT_FOUND committed between history reads (1409.393583ms)
+  ✔ lookup preserves local sent committed between history reads (1468.404374ms)
+✔ web receipt upgrades preserve original binding and corrected shared custody (22310.372196ms)
+ℹ {"transport":"ordinary","original":"904bea759db6bbb4171db726e9db50e8","adopted":"afc62afeb7fb6421c809bc3879e5e523","auditA":0,"auditB":0}
+ℹ {"transport":"keepalive","original":"904bea759db6bbb4171db726e9db50e8","adopted":"ba65d6508c02b0ffdbe303aaef2fada5","auditA":0,"auditB":0}
+ℹ orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+ℹ shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+ℹ local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+ℹ qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+▶ web review: acquisition lifetimes and bounded persistence
+  ✔ delivery guard aborts the actual IndexedDB transaction before stale debt commits (9.982913ms)
+  ✔ IndexedDB commits in the passing guard turn before a queued fence change (6.158751ms)
+  ✔ same-store reacquisition reconciles progress with an already-true acquired flag (417.611916ms)
+  ✔ a compiled special table name produces numeric own-property counts (29.449762ms)
+  ✔ sign-out during a partial acquisition clears the raw client counts (43.699571ms)
+  ✔ one update stays bounded for 1,000 and 16,000 colliding rows (3980.628205ms)
+  ✔ entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together (85.080407ms)
+  ✔ an old unbounded bucket is split at load before later bounded updates (299.825998ms)
+✔ web review: acquisition lifetimes and bounded persistence (5844.180885ms)
+ℹ {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+ℹ {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+▶ browser session authority commits through IndexedDB before releasing the session lock
+  ✔ a peer logout commits before the next lock holder and refuses a click captured from a stale mirror (1199.487796ms)
+  ✔ a failed logout cannot commit after abort (976.820272ms)
+  ✔ a failed logout cannot commit after quota (952.757784ms)
+  ✔ a visible same-epoch tombstone refuses synchronously (492.21575ms)
+  ✔ principal replacement and login commit the epoch before unlocking and survive reopen (1087.116874ms)
+  ✔ custom mirror namespaces isolate accounts and a missing namespace fails closed (5.79744ms)
+  ✔ a legacy mirror without IDB authority requires sign-in (77.955627ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB absent) (589.674931ms)
+  ✔ legacy epoch 5 migrates before sign-in and mutation (IDB 9) (604.930397ms)
+  ✔ legacy epoch 10 migrates before sign-in and mutation (IDB 9) (588.646019ms)
+  ✔ a committed session reopens with actually full localStorage and no separate epoch key (1624.299505ms)
+  ✔ reopen repairs speculative session B from committed session A before capturing a mutation (1056.576007ms)
+  ✔ an aborted epoch migration preserves the legacy fence for the next open (566.05032ms)
+  ✔ a pre-IDB stamp cannot be promoted by a matching new login epoch (961.662832ms)
+  ✔ a device adapter dropping ownership refuses before journal recovery (902.856897ms)
+✔ browser session authority commits through IndexedDB before releasing the session lock (12683.578355ms)
+ℹ {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+ℹ {"fullStorageReopen":true,"filledCharacters":5241968,"mutationCode":"E_ADMISSION"}
+✔ web-shell vite: every exported file, every HTML, content hash and idempotence (48.72952ms)
+✔ web-shell expo: every exported file, every HTML, content hash and idempotence (15.262156ms)
+✔ web-shell update waits for activation and failed installation preserves active caches (9.143946ms)
+✔ web-shell CLI runs without a platform binary and rejects unsafe bases/symlinks (93.773987ms)
+✔ active shell keeps its HTML and unused lazy chunk together while a new build waits (11.809812ms)
+✔ cached navigation resolves exported directory and extensionless pages at / (11.771153ms)
+✔ cached navigation resolves exported directory and extensionless pages at /chat/ (7.357027ms)
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (990.424983ms)
+  ✔ restored identified device journals while its first sync is held (870.383885ms)
+  ✔ synchronous refusal: restoring (470.390536ms)
+  ✔ synchronous refusal: no-device (64.42711ms)
+  ✔ synchronous refusal: no-claim (418.87531ms)
+  ✔ synchronous refusal: ephemeral-device (355.684714ms)
+  ✔ synchronous refusal: storage-full (472.050765ms)
+  ✔ synchronous refusal: before-first-sync (458.070389ms)
+  ✔ repairing storage permits the refused id to be retried (505.924037ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (643.090726ms)
+  ✔ session-locked journal refuses stale authority: logout (706.923564ms)
+  ✔ session-locked journal refuses stale authority: principal (634.231507ms)
+  ✔ session-locked journal refuses stale authority: epoch (544.629002ms)
+  ✔ session-locked journal refuses stale authority: recovery (1292.492311ms)
+  ✔ a transient unlocked epoch observation refuses only that call (460.290007ms)
+  ✔ the bare online browser transport refuses without custody (1.812646ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (59.485322ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (111.651353ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (10161.344983ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 189
+ℹ suites 0
+ℹ pass 187
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 247624.421702
+
+✖ failing tests:
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ replacement after validation refuses the original orphan binding at the server (exit transport) (12099.550517ms)
+  page.waitForResponse: Timeout 5000ms exceeded while waiting for event "response"
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ok/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1114:29)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ok/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1096:39) {
+    name: 'TimeoutError'
+  }

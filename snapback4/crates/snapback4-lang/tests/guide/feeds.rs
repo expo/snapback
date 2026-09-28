@@ -24,6 +24,15 @@ fn builder_path_precedes_internals_and_older_spellings() {
     assert!(older.contains("maintain oldFeed: timeline"));
 }
 
+#[test]
+fn owner_key_sign_out_preserves_the_replica_without_lending_its_proof() {
+    let feeds = card("feeds").unwrap();
+    assert!(feeds.contains("Sign-out preserves the replica and the owner's proof"));
+    assert!(feeds.contains("same principal"));
+    assert!(feeds.contains("A different caller cannot use that partition's proof"));
+    assert!(!feeds.contains("Sign-out clears keys and coverage together"));
+}
+
 fn following_pages(e: &mut Engine, viewer: &str) -> (Vec<Value>, bool) {
     let mut cursor = Value::Null;
     let mut rows = Vec::new();

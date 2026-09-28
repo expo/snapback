@@ -1,0 +1,1241 @@
+{
+  "groups": {
+    "snapback4_device": {
+      "targets": 72,
+      "passed": 1373,
+      "failed": 0,
+      "ignored": 5
+    },
+    "snapback4_lang": {
+      "targets": 91,
+      "passed": 1065,
+      "failed": 0,
+      "ignored": 11
+    }
+  },
+  "targets": [
+    {
+      "crate": "snapback4_device",
+      "target": "lib",
+      "passed": 49,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "adoption.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "asset_lists.rs",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "background_durability.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "bounded_following.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "codec.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "column_activation.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "components.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "delivery.rs",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "device.rs",
+      "passed": 436,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "device_diet.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "diet_timing.rs",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "disclosure.rs",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "ephemeral.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "event_slots.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "event_slots_trace.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "expiring_counts.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "expiring_counts_probe.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "expiring_counts_upgrade.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "expiring_mutations.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "extrema.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "extremum_expressions.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "following_meters.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "following_model.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "following_view.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "helper_pages.rs",
+      "passed": 90,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "index_key_bound.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "intent_variants.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "intent_views.rs",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "mixed_keys.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "native.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "native_following.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "native_reads.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "natural_forms.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "own_keys.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "own_keys_cost.rs",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "prediction_write_set.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "query_unavailable.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "read_through.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "read_through_review.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "readauth.rs",
+      "passed": 81,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "recorded_coverage.rs",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b.rs",
+      "passed": 110,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b_boundaries.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b_counterexample.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b_legacy_r6.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b_round2_counterexample.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "repair_b_round3_counterexample.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "residency.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "retained_history.rs",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "review_parent_floor.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "row_keyed_views.rs",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "row_view_disclosure.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "row_view_expiry.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "schema_capabilities.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "schema_capabilities_legacy.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "sequence_by.rs",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "sequence_disclosure.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "server_clock.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "shape_overrides.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "spread_metadata.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "spread_pending_union.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "sync_windows.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "timeline.rs",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "topn_complete.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "unicode.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "unread_range.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "upload_receipts.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "w13g_probe.rs",
+      "passed": 142,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "write_authority.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "written_by.rs",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "lib",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "actions.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "aggregate_copies.rs",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 4
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "attribution_guide.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "audience_bounds.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "audience_bounds_runtime.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "bounded_following.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "builder_guidance.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "chat.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "clique_03.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "components.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "constraint_diagnostics.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "control_flow.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "cursor_advice.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "delivery.rs",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "delivery_clause.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "delivery_integration.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "delivery_replay_conversion.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "derived_maintains.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "effect_reads.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "ephemeral.rs",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "ephemeral_compat.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "ergonomics.rs",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "expiring_mutations.rs",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "extrema.rs",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "extremum_expressions.rs",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "familiar_guesses.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "familiar_predicates.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "familiar_repairs.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "familiar_source_repairs.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "familiar_verified_repairs.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "feed_forms.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_adoption_research.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_atomic_launch.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_view.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "frontend_regressions.rs",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "guide.rs",
+      "passed": 93,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "held_unknown.rs",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "helper_placement.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_aggregate_safety.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_delta10.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_followup.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_nulls.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_order.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_predicates.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_review.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_target.rs",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_variants.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "intent_variants_review.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "joined_shapes.rs",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "lane_domains.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "list_expressions.rs",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "list_reference_repair.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "list_widening.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "lookup_selection.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "lowering.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "maintained_columns.rs",
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "maintains.rs",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "mixed_keys.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "natural_forms.rs",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "own_keys.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "papercuts.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "prefix_reads.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "presence.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "printed_rewrites.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "pure_call_narrowing.rs",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "read_through.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "read_through_provenance.rs",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "read_through_review.rs",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "read_through_sync.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "read_through_transactions.rs",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "receipt_gaps.rs",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "recorded_round1.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "repairs.rs",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "residency_notes.rs",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "routes.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "row_keyed_views.rs",
+      "passed": 31,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "schedule_durations.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "search_guidance.rs",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "sequence_by.rs",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "server_opt_in.rs",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "shape_overrides.rs",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "sparse_filter.rs",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "spelling.rs",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "sync_windows.rs",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "time_indexes.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "timeline_background.rs",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "timeline_epoch_counterexample.rs",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "timeline_guide.rs",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "written_by.rs",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "doc-tests",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "doc-tests",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "ignored": [
+    {
+      "crate": "snapback4_device",
+      "target": "device.rs",
+      "test": "test presence::w15a_necessary_absence_server_fits_prediction_reservation_on_both_stores ... ignored, pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md"
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "diet_timing.rs",
+      "test": "test diet_hot_paths ... ignored"
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "expiring_counts.rs",
+      "test": "test sweep_lag_at_one_second_ticks ... ignored, wall-clock sweep lag measurement at the production one-second cadence"
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "own_keys_cost.rs",
+      "test": "test costs ... ignored, explicit million-key storage/adoption measurement"
+    },
+    {
+      "crate": "snapback4_device",
+      "target": "own_keys_cost.rs",
+      "test": "test fixture_costs ... ignored, explicit read-only builder-store copy comparison"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "aggregate_copies.rs",
+      "test": "test l26_a_constant_helper_called_in_a_read_loop_has_no_read_data ... ignored, L29: loops prefer silence"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "aggregate_copies.rs",
+      "test": "test l29_unconditional_reset_precision ... ignored, L29: loops prefer silence"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "aggregate_copies.rs",
+      "test": "test review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence ... ignored, F15: helper-mediated carried increments do not yet receive READ cardinality evidence"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "aggregate_copies.rs",
+      "test": "test survey_retained_calibration_schemas ... ignored, requires the retained calibration packets; set SNAPBACK4_CALIBRATION_PACKETS to their parent"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "audience_bounds_runtime.rs",
+      "test": "test copied_calibration_store_job_and_preview_match_independent_oracle ... ignored, full calibration store: DG_STORE must name a worktree-owned writable copy"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "delivery_replay_conversion.rs",
+      "test": "test measure_ephemeral_receipt_lookup_cost ... ignored, measurement: run explicitly with --ignored --nocapture"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "expiring_mutations.rs",
+      "test": "test backlog_measurements ... ignored, lane ER instrument, explicit only"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_adoption_research.rs",
+      "test": "test crash_child ... ignored, child of committed_checkpoint_survives_process_exit"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_adoption_research.rs",
+      "test": "test staged_replay_measurement ... ignored, research measurement: FA_SCALE=1 or 10, FA_DIR is an isolated output directory"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_atomic_launch.rs",
+      "test": "test calibration_atomic_launch_measurement ... ignored, release-profile measurement: FA_SCALE=1 or 10, FA_ATOMIC_DIR is a fresh directory"
+    },
+    {
+      "crate": "snapback4_lang",
+      "target": "following_atomic_launch.rs",
+      "test": "test crash_before_launch_commit ... ignored, process-death child"
+    }
+  ]
+}

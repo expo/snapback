@@ -4,3 +4,4 @@
 {"at":"2026-09-12T23:31:00.251Z","sha":"12b4cda94","tiers":{"online":{"raw":11172,"gzip":4024,"brotli":3548},"local-first":{"raw":58484,"gzip":16842,"brotli":14888}}}
 {"at":"2026-09-13T04:17:35.520Z","sha":"b777950bf","tiers":{"online":{"raw":11390,"gzip":4080,"brotli":3610},"local-first":{"raw":62765,"gzip":18062,"brotli":15938}}}
 {"at":"2026-09-13T08:41:26.408Z","sha":"a2057c939","tiers":{"online":{"raw":15553,"gzip":5293,"brotli":4702},"local-first":{"raw":41340,"gzip":12070,"brotli":10740}},"wasm":{"raw":1212047,"gzip":313763,"brotli":237636}}
+{"at":"2026-09-28T06:05:56.162Z","sha":"a745b110f","tiers":{"online":{"raw":95984,"gzip":27778,"brotli":24386},"local-first":{"raw":192359,"gzip":55072,"brotli":46769}},"wasm":{"raw":2017908,"gzip":587895,"brotli":443373}}

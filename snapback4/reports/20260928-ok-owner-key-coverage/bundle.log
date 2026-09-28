@@ -1,0 +1,1 @@
+{"at":"2026-09-28T06:05:56.162Z","sha":"a745b110f","tiers":{"online":{"raw":95984,"gzip":27778,"brotli":24386},"local-first":{"raw":192359,"gzip":55072,"brotli":46769}},"wasm":{"raw":2017908,"gzip":587895,"brotli":443373}}

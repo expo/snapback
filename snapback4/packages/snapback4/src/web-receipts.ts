@@ -61,4 +61,3 @@ export async function shareReceipts(persist: Persistence, name: string, text: st
     return true;
   } finally { await held.release(); }
 }
-

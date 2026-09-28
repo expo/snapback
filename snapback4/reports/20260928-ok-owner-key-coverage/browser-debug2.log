@@ -1,0 +1,20 @@
+runtime { id: 1, result: {} }
+debugger {
+  id: 2,
+  result: { debuggerId: '-8618395295811354547.-5414069514971930700' }
+}
+break {
+  id: 3,
+  result: {
+    breakpointId: '2:27:0:owner-browser\\.mjs$',
+    locations: [ [Object] ]
+  }
+}
+file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/.work/ok/inspect2.mjs:11
+if(!paused)throw Error('no breakpoint');
+                 ^
+
+Error: no breakpoint
+    at file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/.work/ok/inspect2.mjs:11:18
+
+Node.js v24.13.1

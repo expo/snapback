@@ -1,0 +1,11 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-ac90d473dc1f3bc2)
+
+running 5 tests
+test engine::timeline_authority::tests::guard_restores_previous_authority_after_success_and_error ... ok
+test engine::timeline_authority::write_tests::column_mirror_requires_timeline_authority_even_when_validation_is_bypassed ... ok
+test engine::timeline_authority::write_tests::upsert_needs_insert_and_update_grants_on_both_addressing_paths ... ok
+test engine::timeline_authority::write_tests::purge_gates_actual_writes_charges_deletes_and_never_refuses_reads ... ok
+test engine::timeline_authority::write_tests::raw_columns_reject_timeline_owned_parents_and_sources_and_admit_mapped_ones ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.20s

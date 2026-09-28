@@ -1,0 +1,46 @@
+[
+  {
+    "label": "wasm-build",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "exit": 0,
+    "seconds": 25.029
+  },
+  {
+    "label": "native-build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0,
+    "seconds": 456.59
+  },
+  {
+    "label": "package-build",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "exit": 0,
+    "seconds": 2.234
+  },
+  {
+    "label": "typecheck",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "typecheck"
+    ],
+    "exit": 0,
+    "seconds": 1.891
+  }
+]
