@@ -72910,3 +72910,58 @@ LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
 Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EQ round 2: inclusive legacy cursors preserve shape refusal
+
+First fetched origin and merged origin/main (80036b466), preserving both
+sides of the RFC revision-line and journal conflicts in merge c296e5f92.
+The final audit verifies every full parent-journal line remains in order and
+every complete RFC revision entry survives. Read both prior prompts, reports
+and EQ entries and Astra's full round-1 NOT READY review. Grok had no verdict
+at startup and was not awaited. The planner is unchanged in this round.
+
+A validated old cursor inside the newly pinned scope now records a normalized
+suffix descriptor and evaluated prefix alongside its converted position.
+Shape no-progress detection thus compares the same row as the scan. A first
+follow of an inclusive unfinished-shape cursor refuses E_SHAPE_EXCEEDS_METER
+immediately, without an extra empty meter-cut page. Existing validation and
+out-of-scope filter-reject continuation behavior are unchanged.
+
+Two saved tokens are engine-minted with the pre-EQ selected-index compiler
+path restored: one item, 9,000 details, default 8,192-row ceiling, first and
+last. Minting checks that the baseline follow already refuses. Both new
+regressions fail against round 1's runtime with Astra's exact extra-page
+behavior and pass with the fix. The existing continuation test also alters
+each prefix component in a fresh current-format token and requires E_INPUT.
+Astra's prefix-bypass mutation now fails that test; every temporary source
+mutation was restored before final qualification.
+
+Final checks: 14 EQ tests, all 92 guide tests, 68 core corpus/disclosure/meter/
+positional-decoder tests, 67 server continuation/shape tests, 134 device
+continuation/shape tests across memory and SQLite, and 11 device codec tests:
+386 passed, zero failed or ignored. Module filters leave unrelated tests
+unrun. Reference audit and staged whitespace checks pass. scripts/test.sh
+was not run, as instructed; round 1's historical exact summary remains
+`== 1 failure(s) in 1856 s`, `cargo test`, for the since-corrected lane-owned
+positional Scan decoder. No green complete-suite claim is substituted.
+
+All round-2 failures are ours and recorded in the report: the two deliberate
+pre-fix failures; the deliberate prefix-bypass mutation; an initial fixture
+context carrying undeclared k; two Cargo commands naming a module as a target;
+an intermediate wasm build 108 B over budget; corrected exploratory paths,
+merge revision parsing and a too-strict append-only merge audit. Concurrent
+merge conflicts were resolved with both sides intact. Final affected tests
+and builds pass; baseline/environmental test failures are zero. Existing
+native Expo qualification is still unrun, so full section 7.1 is not claimed.
+Round 1's paired history recordings remain historical evidence, not reruns.
+
+Official same-toolchain wasm: 2,020,770 B raw / 586,142 B gzip, +383/+9 B over
+the byte-identical merged round-1 baseline. Reusing the existing suffix
+constructor avoids the new typed-vector drain code. Unchanged budget
+586,193 B leaves 51 B headroom. Final SHA-256:
+8d88256858e583b936a5aa0bf1ee170aa94d252afe4d1369f16c0c460b55557b.
+No tool installation, shared-path change, budget/version/dependency change,
+push or publication. LLP 3000.028's Revised line and implementation notes,
+fixture provenance and reports/20260928-eq/round2/REPORT.md record the scope,
+commands, exact results, every failure and raw evidence hashes. The local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

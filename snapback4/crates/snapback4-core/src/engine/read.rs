@@ -580,7 +580,7 @@ impl<'r> Runner<'r> {
         }
         match after {
             None | Some(Value::Null) => {}
-            Some(Value::String(token)) if scan.opaque_cursor => {
+            Some(Value::String(mut token)) if scan.opaque_cursor => {
                 // A matching merge shares its validated cursor image; each bound
                 // pays only its own retained values, before cloning them.
                 let merged = scan.merge_site.is_some() || index.word_component().is_some();
@@ -617,6 +617,12 @@ impl<'r> Runner<'r> {
                         let compared = crate::key::encode(&position.values[..removed]).cmp(&crate::key::encode(&prefix[cursor_prefix..]));
                         if compared == std::cmp::Ordering::Equal {
                             position.values.drain(..removed);
+                            // Shape no-progress detection must compare the same
+                            // normalized position that the scan will resume.
+                            position.suffix = Self::cursor_suffix(table, index, scan.prefix.len());
+                            position.scope.as_mut().unwrap().prefix = prefix.to_vec();
+                            token = encode_cursor(self.schema, &position)
+                                .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                         } else {
                             // A baseline cut can stop on a filter reject. Before
                             // this scope starts from its beginning; past it uses

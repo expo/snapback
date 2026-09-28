@@ -78,6 +78,14 @@ fn baseline_minted_continuations_match_new_suffix_pages() {
                 assert_eq!(continued.data, expected.data, "{key}");
                 assert_eq!(continued.complete, expected.complete);
                 assert_eq!(continued.next, expected.next);
+                // Current descriptors must validate every normalized prefix
+                // component too, not only the legacy descriptor's original scope.
+                for component in 0..2 {
+                    let mut wrong = decode_cursor(&schema, new_token).unwrap();
+                    wrong.scope.as_mut().unwrap().prefix[component] = Value::Int(999);
+                    let token = encode_cursor(&schema, &wrong).unwrap();
+                    assert_eq!(e.query("page", ctx(Some(&token))).unwrap_err().code, "E_INPUT", "{key}/{component}");
+                }
                 let mut ids = vec![first.data.as_array().unwrap()[0].field("id").unwrap().clone()];
                 let mut next = Some(token.clone());
                 while let Some(token) = next {
@@ -129,4 +137,59 @@ fn baseline_minted_continuations_match_new_suffix_pages() {
     if mint {
         std::fs::write("tests/fixtures/selected-prefix-cursors.json", serde_json::to_string_pretty(&fixtures).unwrap() + "\n").unwrap();
     }
+}
+
+fn unfinished_shape(direction: &str, saved: &str) {
+    let mint = std::env::var_os("EQ_MINT_BASELINE").is_some();
+    let source = format!("table items:\n  lane: int\n  by byLane: lane, id\n  public 'items'\ntable details:\n  public 'details'\nquery feed(c: cursor ?):\n  return items where .lane = 0 {direction} 1 by byLane after c {{ id, n: count(details first 9000 by byId) }}\n");
+    let b = compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let scan = ir::scans(&b.programs[0].program).into_iter().find(|s| s.table == "items").unwrap();
+    assert_eq!(scan.prefix.len(), usize::from(!mint));
+    assert_eq!(scan.cursor_pins, u32::from(!mint));
+    let schema = b.schema.clone();
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed(std::iter::once(("items".into(), object([("id", Value::Id("a".into())), ("lane", Value::Int(0))])))
+        .chain((0..9000).map(|n| ("details".into(), object([("id", Value::Id(format!("d{n:05}")))]))))).unwrap();
+    let ctx = |token: Option<&str>| Context::new("alice", BTreeMap::from([
+        ("c".into(), token.map(|s| Value::String(s.into())).unwrap_or(Value::Null)),
+    ]));
+    let first = e.query("feed", ctx(None)).unwrap();
+    assert!(first.data.as_array().unwrap().is_empty());
+    assert_eq!((first.complete, first.cut), (false, Some(snapback4_core::engine::ReadCut::Meter)));
+    let current = first.next.expect("engine-minted inclusive retry of the unfinished item");
+    let token = if mint { current.clone() } else { serde_json::from_str::<String>(saved).unwrap() };
+    let old = decode_cursor(&schema, &token).unwrap();
+    assert!(old.inclusive);
+    assert!(old.scope.as_ref().unwrap().prefix.is_empty());
+    assert_eq!(old.values, [Value::Int(0), Value::Id("a".into())]);
+    assert_eq!(old.suffix.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["lane", "id"]);
+    if !mint {
+        let new = decode_cursor(&schema, &current).unwrap();
+        assert!(new.inclusive);
+        assert_eq!(new.scope.as_ref().unwrap().prefix, [Value::Int(0)]);
+        assert_eq!(new.values, [Value::Id("a".into())]);
+        assert_ne!(token, current, "different encodings of the same unfinished row");
+    }
+    // Both the old and normalized encodings must refuse on this first follow.
+    // Minting also checks the baseline compiler's refusal before saving a token.
+    for token in [&token, &current] {
+        let refusal = e.query("feed", ctx(Some(token))).unwrap_err();
+        assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER");
+        assert!(refusal.message.contains("8,192-row meter"), "{refusal}");
+        assert_eq!(refusal.guide.as_deref(), Some("reads"));
+    }
+    if mint {
+        std::fs::write(format!("tests/fixtures/selected-prefix-shape-{direction}.json"), serde_json::to_string(&token).unwrap() + "\n").unwrap();
+    }
+}
+
+#[test]
+fn baseline_minted_unfinished_shape_first_refuses_without_an_extra_retry() {
+    unfinished_shape("first", include_str!("fixtures/selected-prefix-shape-first.json"));
+}
+
+#[test]
+fn baseline_minted_unfinished_shape_last_refuses_without_an_extra_retry() {
+    unfinished_shape("last", include_str!("fixtures/selected-prefix-shape-last.json"));
 }

@@ -1,5 +1,9 @@
 # Lane EQ — selected-index equality coverage
 
+**Round 2:** see [the cursor correction report](round2/REPORT.md) for
+immediate no-progress refusal after legacy cursor conversion, current-format
+prefix rejection coverage and current affected-test/wasm qualification.
+
 **Round 1:** see [the correction report](round1/REPORT.md) for the conservative
 planner rule, baseline-cursor conversion, repeated witnesses and current
 qualification. Astra found four compatibility defects in round 0; its broad
