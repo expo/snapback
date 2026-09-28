@@ -74,6 +74,17 @@ impl Runner<'_> {
     }
 
     fn certify_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
+        // Receipt changes commonly leave only a few unread positions. Every
+        // member is authorized before these bounded, private probes.
+        let mut small = true;
+        for (_, member, total) in &mut *members {
+            match self.small_view_range(m, member)? {
+                Some(n) => *total = n,
+                None => { small = false; break; }
+            }
+        }
+        if small { return Ok(()); }
+        for (_, _, total) in &mut *members { *total = 0; }
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         let index = k.range_index(source.expiry_column().unwrap());

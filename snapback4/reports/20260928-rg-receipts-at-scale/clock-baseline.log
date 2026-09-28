@@ -1,0 +1,56 @@
+✖ receipt-driven reads share an unchanged durable clock and retry failed saves (82.593744ms)
+✔ clock chooses the minimum RTT in a recent bounded window, then forgets old samples (0.459989ms)
+✔ advance switches windows immediately; late pre-advance replies cannot rewind it (0.133911ms)
+✔ restart rejects every already-issued other-epoch response, including on a fork (15.380151ms)
+✔ streaming advances are provisional receipt stamps with no half-wait overshoot (0.347631ms)
+✔ now stays integer and monotonic when the offset shrinks or wall time rolls back (0.134782ms)
+✔ an offline cold start restores the estimate and admission floor beside device identity (0.334561ms)
+✔ a fork owns its own persistence and a new live sample wins over stored offset (0.194832ms)
+✔ malformed metadata and invalid samples cannot poison device time (0.163735ms)
+✔ recovered issued time wakes deadlines without changing the estimate or accepting invalid floors (0.691516ms)
+✔ stream final-body clock stamp supersedes pre-advance response headers (0.260821ms)
+✔ wall-clock rollback discards the old window and does not spin frozen deadlines (0.14711ms)
+✔ detaching drains its final save and never queues later response samples on a closed device (0.184256ms)
+✔ retained asset homes and expiry use the same estimated time as device reads (2.927738ms)
+✔ a 20s response cannot latch a midpoint error (stream arrives first) (0.242553ms)
+✔ a 20s response cannot latch a midpoint error (slow arrives first) (0.112128ms)
+✔ a lone slow receipt stamp advances both clocks across a fork and offline restart (0.211257ms)
+✔ the durable admission floor survives retirement of every queued entry (0.118157ms)
+✔ a short confirmation corrects a legacy round-two issued offset and notifies watches (0.190536ms)
+✔ 1000ms response obeys the short-RTT boundary before and after refinement (0.122534ms)
+✔ 1001ms response obeys the short-RTT boundary before and after refinement (0.048303ms)
+✔ 2000ms response obeys the short-RTT boundary before and after refinement (0.037977ms)
+✔ real changeFeed learns an advance from three buffered two-second polls (1.979837ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset 0) (0.158297ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000) (0.063274ms)
+✔ an offline legacy offset without issuedOffset preserves a valid thirty-day session (0.113851ms)
+✔ a non-admission last above wall time cannot pin an offline issued offset (0.107291ms)
+✔ newest equal-RTT measured sample wins even when the issued floor masks its correction (0.095533ms)
+✔ newest equal-RTT streaming sample wins even when the issued floor masks its correction (0.038017ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 28
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.367631
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock.test.mjs:15:1
+✖ receipt-driven reads share an unchanged durable clock and retry failed saves (82.593744ms)
+  AssertionError [ERR_ASSERTION]: message watches do not rewrite unchanged clock metadata
+
+  10001 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/server-clock.test.mjs:25:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 10001,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

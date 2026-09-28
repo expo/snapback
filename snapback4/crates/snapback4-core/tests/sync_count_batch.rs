@@ -4,7 +4,7 @@ use snapback4_core::{RuntimeError, Value, partition::{self, LogSpan, PartitionRo
 use std::{cell::Cell, collections::BTreeMap};
 
 #[derive(Default)]
-struct Counted { rows: MemoryRows, source_rows: Cell<usize>, log: Vec<LogEvent> }
+struct Counted { rows: MemoryRows, source_rows: Cell<usize>, source_heads: Cell<usize>, log: Vec<LogEvent> }
 impl Rows for Counted {
     fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.rows.get(t, id) }
     fn lookup(&self, t: &str, n: &str, i: &Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.rows.lookup(t, n, i, k) }
@@ -14,6 +14,10 @@ impl Rows for Counted {
         Ok(rows)
     }
     fn count_prefix(&self, t: &str, i: &str, p: &[Value], n: u64) -> Result<u64, RuntimeError> { self.rows.count_prefix(t, i, p, n) }
+    fn index_head(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        if t == "messages" { self.source_heads.set(self.source_heads.get() + 1); }
+        self.rows.index_head(t, i, p, b, d)
+    }
     fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, limit: usize, scope: &snapback4_core::engine::Authorization, meter: &mut snapback4_core::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         let rows = self.rows.scan_metered(t, i, p, b, d, limit, scope, meter)?;
         if t == "messages" { self.source_rows.set(self.source_rows.get() + rows.len()); }
@@ -65,16 +69,19 @@ fn cold_snapshot_and_repeated_live_puts_walk_one_basis_per_batch() {
         .map(|e| (e.id.clone(), e.data.clone().unwrap())).collect();
     assert_eq!(counts.len(), 50);
     assert!(tx.source_rows.get() <= 2004, "snapshot repeated its source basis: {}", tx.source_rows.get());
+    assert!(tx.source_heads.get() <= 65, "a large range abandons its probe before walking history");
     for (n, row) in counts.values().enumerate() {
         assert_eq!(row.field("value"), Ok(&Value::Int(1000 - n as i64 + i64::from(n != 0))));
         assert_eq!(row.field("recountPending"), Ok(&Value::Bool(false)));
     }
     tx.source_rows.set(0);
+    tx.source_heads.set(0);
     let stream = partition::stream(&tx, &b.schema, "reader", 1, 4000, 10).unwrap();
     assert_eq!(stream.events.len(), 250);
     assert!(!stream.more);
     assert_eq!(stream.watermark, 2);
     assert_eq!(tx.source_rows.get(), 1002, "repeated current puts must share their certification");
+    assert!(tx.source_heads.get() <= 65);
     for event in stream.events { assert_eq!(event.data.as_ref(), counts.get(&event.id)); }
     // A query point read uses scalar live certification, independently of the
     // snapshot and stream batch path (including each member's self-send rule).

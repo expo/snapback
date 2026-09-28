@@ -72200,3 +72200,54 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+
+## 2026-09-28 — RG: receipt convergence without history-sized send stalls
+
+Fetched and merged origin/main first (1972112a0, already current). Reproduced
+calibration #24's builder probe on independent copies of its complete replay
+store, using published 0.4.6 and starting main. The original database and WAL
+hashes remain unchanged. Send/settlement p95 was 15.596 s published and 9.275 s
+on main; visible bubbles already rendered in about 64 ms. Receipt delivery was
+two events (533/715 B), while repeated unread certification, duplicate clock
+saves, per-bubble pending-list subscriptions and the legacy guide's receipt
+writers amplified processing and delayed submission.
+
+Bounded authorized indexed suffix certification now decodes zero source rows
+at the head and one one-position-behind in the 50-member/10,000-message Rust
+regression. Small writer budgets retain their bounded recount. Pending hooks
+share observations, unchanged offsets share persistence, metadata-only head
+observations avoid media rescans, and admitted FIFO writes share settlement
+sync. Authorization, disclosure, public reservations, expiry, durable receipts,
+retryable-head order and delivery coverage remain enforced. LLP 3000.015 and
+3000.019 record the decisions. The guide explicitly migrates old manual debt,
+automatic history paging and background writers to `reports delivery`, keeping
+visible `seen`. The measured app migration is retained with the report.
+
+Final full-corpus p95: send/settlement 913 ms, visible render 59 ms, all 49 peers
+read 3.733 s; 19/20 sends below one second, maximum 1.020 s. Earlier 1.106,
+1.532 and 2.731 s misses are retained: they exposed remaining media and
+intermediate-sync work. The generated Chromium/IndexedDB witness under
+witness/receipts-scale.mjs seeds 50 members, 10,000 messages and 100
+conversations: send p95 383 ms, cold ready 963 ms, 1,377 saves / 163 metadata
+writes for 2,254 peer reports. The baseline control fails its work bound.
+Cold readiness on the full corpus remains 5.892 s (login/feed 4.453 s,
+navigation 1.220 s); follow-up: issues/20260928-rg-cold-web-acquisition.md.
+
+Affected checks pass: Rust row views 20, sync-count adapter 1, React 50,
+clock 52, whole guide 92, media/clock/replacement 129, local integration 46,
+and broader custody/ordering 193. New regression controls fail without their
+fixes. Client and witness typechecks pass. scripts/test.sh ran exactly once:
+`== 1 failure(s) in 1836 s` — cargo test contained two failures, both ours:
+sync_count_batch's adapter lacked index_head; guide migration text preceded
+its first example. Both were corrected and affected targets rerun green.
+No baseline or environmental failures in that invocation. Final media and
+shared-settlement changes have their affected checks after the full run;
+there is no claim of a green rerun of the complete suite.
+
+Wasm 2,019,815 B raw / 585,384 B gzip: size unchanged, 809 B below the unchanged
+586,193 B budget. Tools installed only in this worktree. Evidence, CPU and
+network profiles, controls, every suite failure and reproduction commands:
+[RG report](./reports/20260928-rg-receipts-at-scale/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

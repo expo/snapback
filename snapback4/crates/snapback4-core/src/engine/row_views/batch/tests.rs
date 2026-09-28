@@ -28,6 +28,50 @@ fn runner<'a>(rows: &'a MemoryRows, schema: &'a Schema, viewer: &str) -> Runner<
 }
 
 #[test]
+fn fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages() {
+    let schema = schema(false);
+    let rows = MemoryRows::new();
+    for n in 1..=10000 {
+        rows.put("messages", &schema.tables["messages"],
+            &message(&format!("message-{n}"), "busy", n, Value::Null), None).unwrap();
+    }
+    for peer in 0..50 {
+        let id = format!("member-{peer}");
+        rows.put("members", &schema.tables["members"],
+            &member(&id, "busy", &format!("principal-{peer}"), 10000), None).unwrap();
+        let mut r = runner(&rows, &schema, "reader");
+        let actual = r.live_aggregate_batch("unread", &[view(&id, true)]).unwrap();
+        assert_eq!(actual[0].as_ref().unwrap().field("value"), Ok(&Value::Int(0)));
+        assert_eq!(r.rebuilt_source_rows, 0, "receipt {peer} certifies an empty indexed suffix without decoding history");
+        drop(r);
+        rows.put("members", &schema.tables["members"],
+            &member(&id, "busy", &format!("principal-{peer}"), 9999), None).unwrap();
+        let mut r = runner(&rows, &schema, "reader");
+        let actual = r.live_aggregate_batch("unread", &[view(&id, true)]).unwrap();
+        assert_eq!(actual[0].as_ref().unwrap().field("value"), Ok(&Value::Int(1)));
+        assert_eq!(r.rebuilt_source_rows, 1, "one outstanding receipt decodes one position, not the history");
+    }
+}
+
+#[test]
+fn predicate_probe_preserves_a_small_writer_allowance() {
+    let schema = schema(false);
+    let rows = MemoryRows::new();
+    for n in 1..=100 {
+        rows.put("messages", &schema.tables["messages"],
+            &message(&format!("m{n}"), "busy", n, Value::Null), None).unwrap();
+    }
+    let member = member("reader", "busy", "reader", 0);
+    let mut r = Runner::new(&rows, &schema, Context::system().at(10),
+        Meter::new(Ceilings { examined: 48, ..Ceilings::default() }, Cut::Abort), 0);
+    assert_eq!(r.small_view_range(&schema.maintains[0], &member).unwrap(), None);
+    assert_eq!(r.meter.used.examined, 0, "a small writer reserves its bounded recount instead");
+    let (_, complete, cursor) = r.live_basis_scan(&schema.maintains[0], &member, None, 8).unwrap();
+    assert!(!complete && cursor.is_some(), "the ordinary chunk can continue in background");
+    assert!(r.meter.used.examined <= 48);
+}
+
+#[test]
 fn fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications() {
     let schema = schema(false);
     let rows = MemoryRows::new();

@@ -12,6 +12,33 @@ function store() {
   } };
 }
 
+test('receipt-driven reads share an unchanged durable clock and retry failed saves', async () => {
+  const clock = new ServerClock(() => 1000), core = store();
+  const call = core.call; let saves = 0, fail = false;
+  core.call = async request => {
+    if (request.op === 'set_meta') { saves++; if (fail) throw Error('disk unavailable'); }
+    return call(request);
+  };
+  await clock.attach(core);
+  const initial = saves;
+  await Promise.all(Array.from({ length: 10000 }, () => clock.persist()));
+  assert.equal(saves, initial, 'message watches do not rewrite unchanged clock metadata');
+  for (let peer = 1; peer < 50; peer++) {
+    clock.sample(1000 + peer, 1000, 1000, `receipt:${peer}`);
+    await Promise.all(Array.from({ length: 50 }, () => clock.persist()));
+  }
+  assert.equal(saves, initial + 49, 'one changed clock image per receipt, independent of readers');
+  fail = true;
+  clock.sample(2000, 1000, 1000, 'failed-save');
+  await assert.rejects(clock.persist(), /disk unavailable/);
+  fail = false;
+  await clock.persist();
+  assert.equal(JSON.parse(core.meta.get('server-clock')).offset, 1000, 'failure is not remembered as durable');
+  await clock.detach();
+  const next = store(); await clock.attach(next);
+  assert.ok(next.meta.has('server-clock'), 'a different device must persist its own clock');
+});
+
 test('clock chooses the minimum RTT in a recent bounded window, then forgets old samples', () => {
   let wall = 1000;
   const clock = new ServerClock(() => wall);
@@ -170,6 +197,7 @@ test('detaching drains its final save and never queues later response samples on
   let calls = 0;
   const original = core.call;
   core.call = async request => { calls++; await blocked; return original(request); };
+  clock.sample(2000, 1000, 1000, 'host:0');
   const closing = clock.detach();
   clock.sample(5000, 1000, 1000, 'host:1');
   release(); await closing;

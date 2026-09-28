@@ -1,0 +1,255 @@
+✔ local wasm: mutation-sent held across app.close keeps its outcome unknown (513.278335ms)
+✔ local wasm: mutation-failed held across app.close keeps its outcome unknown (76.397188ms)
+✔ local wasm: action-done held across app.close keeps its outcome unknown (53.134981ms)
+✔ local wasm: action-failed held across app.close keeps its outcome unknown (67.536978ms)
+✔ local wasm: query held across app.close keeps its outcome unknown (59.748854ms)
+✔ local native: mutation-sent held across app.close keeps its outcome unknown (1130.739676ms)
+✔ local native: mutation-failed held across app.close keeps its outcome unknown (1132.209039ms)
+✔ local native: action-done held across app.close keeps its outcome unknown (96.903003ms)
+✔ local native: action-failed held across app.close keeps its outcome unknown (84.102627ms)
+✔ local native: query held across app.close keeps its outcome unknown (94.581774ms)
+✔ local wasm: mutation-sent arriving during close cleanup remains known (79.996383ms)
+✔ local wasm: mutation-failed arriving during close cleanup remains known (80.614018ms)
+✔ local wasm: action-done arriving during close cleanup remains known (80.893937ms)
+✔ local wasm: action-failed arriving during close cleanup remains known (83.035448ms)
+✔ local native: mutation-sent arriving during close cleanup remains known (120.322786ms)
+✔ local native: mutation-failed arriving during close cleanup remains known (108.405593ms)
+✔ local native: action-done arriving during close cleanup remains known (120.162064ms)
+✔ local native: action-failed arriving during close cleanup remains known (116.589971ms)
+✔ wasm: known sent survives keep_write failure; close=false (1497.65777ms)
+✔ wasm: known sent survives keep_write failure; close=true (75.117479ms)
+✔ wasm: known failed survives keep_write failure; close=false (1065.933101ms)
+✔ wasm: known failed survives keep_write failure; close=true (1084.789874ms)
+✔ native: known sent survives keep_write failure; close=false (2123.786902ms)
+✔ native: known sent survives keep_write failure; close=true (1112.247248ms)
+✔ native: known failed survives keep_write failure; close=false (1132.114716ms)
+✔ native: known failed survives keep_write failure; close=true (1132.078221ms)
+✔ real local outbox keeps submission order ahead of delivery load (1438.27859ms)
+✔ wasm: local unsaved hold survives save throws until dispatch (797.710707ms)
+✔ wasm: local unsaved hold survives save throws until hold (70.003094ms)
+✔ wasm: local unsaved hold survives save throws until settlement (71.58872ms)
+✔ wasm: local unsaved hold survives save throws until signOut (61.408803ms)
+✔ wasm: local unsaved hold survives save throws until close (63.187969ms)
+✔ wasm: local unsaved hold survives save throws until adoption (81.809721ms)
+✔ wasm: local unsaved hold survives device refuses until dispatch (317.097331ms)
+✔ wasm: local unsaved hold survives device refuses until hold (60.211218ms)
+✔ wasm: local unsaved hold survives device refuses until settlement (57.339864ms)
+✔ wasm: local unsaved hold survives device refuses until signOut (56.366705ms)
+✔ wasm: local unsaved hold survives device refuses until close (59.856336ms)
+✔ wasm: local unsaved hold survives device refuses until adoption (83.934385ms)
+✔ online: dispatch subscriber signOut prevents the POST (39.349589ms)
+✔ online: dispatch subscriber close prevents the POST (36.260319ms)
+✔ wasm: dispatch subscriber signOut prevents the POST (63.44192ms)
+✔ wasm: dispatch subscriber close prevents the POST (64.896219ms)
+✔ process: dispatch subscriber signOut prevents the POST (94.827632ms)
+✔ process: dispatch subscriber close prevents the POST (90.758012ms)
+✔ online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (299.752062ms)
+✔ online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (297.450423ms)
+✔ app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (301.390758ms)
+✔ app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (298.480447ms)
+✔ wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (322.908781ms)
+✔ wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (324.739264ms)
+✔ process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (357.14731ms)
+✔ process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (359.806425ms)
+✔ online: custody waits and dropped connections preserve sent until settlement (786.91757ms)
+✔ app-online: custody waits and dropped connections preserve sent until settlement (796.01214ms)
+✔ wasm: custody waits and dropped connections preserve sent until settlement (831.627322ms)
+✔ process: custody waits and dropped connections preserve sent until settlement (878.378094ms)
+✔ app-online: reload preserves held head and queued tail, then settles the same ids once (100.503009ms)
+✔ app-online: reload preserves sent head and queued tail, then settles the same ids once (48.267746ms)
+✔ wasm: reload preserves held head and queued tail, then settles the same ids once (85.569295ms)
+✔ wasm: reload preserves sent head and queued tail, then settles the same ids once (80.086708ms)
+✔ process: reload preserves held head and queued tail, then settles the same ids once (180.673282ms)
+✔ process: reload preserves sent head and queued tail, then settles the same ids once (188.946822ms)
+✔ raw online queue is in memory; reopening never invents durable intent (32.805179ms)
+✔ online pending-list subscriber can admit a successor without redispatching the head (39.639303ms)
+✔ account facade fences both an outstanding list and its subscription (2.801048ms)
+✔ IndexedDB model: reset termination before-commit preserves one complete transaction (388.682115ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (14.10393ms)
+✔ R2 item 1: changes with a foreign identity returns before its production wait (214.577398ms)
+ℹ foreign identity wait=25: 2 ms
+✔ R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25) (4691.624408ms)
+ℹ wasm: same-store restart syncs=0
+ℹ wasm: wait=25, replacement=2178 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20) (4332.777691ms)
+ℹ process: same-store restart syncs=0
+ℹ process: wait=20, replacement=2180 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 4: wasm replacement while a snapshot after request is in flight (108.76381ms)
+ℹ wasm: A staged rows=2/5, B final rows=3, old rows=0
+✔ R2 item 4: process replacement while a snapshot after request is in flight (137.588814ms)
+ℹ process: A staged rows=2/5, B final rows=3, old rows=0
+✔ R2 item 3: restoring the same store at a lower head halts reads and retries (1351.229826ms)
+ℹ restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+ℹ restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+✔ R3 finding 5: server idle poll after populated maintain adoption stays healthy (440.034304ms)
+ℹ maintain: acquired=4, idle notice=4
+✔ R3 finding 5: wasm idle poll after populated maintain adoption stays healthy (469.540659ms)
+ℹ wasm: acquired=4, idle notice=4, restore=none
+✔ R3 finding 5: process idle poll after populated maintain adoption stays healthy (515.077552ms)
+ℹ process: acquired=4, idle notice=4, restore=none
+✔ R4: wasm a same-identity head below acquisition halts as a restore (2068.941136ms)
+ℹ wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R4: process a same-identity head below acquisition halts as a restore (2096.134033ms)
+ℹ process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R3 finding 5: concurrent commits and an older receipt retry keep the actual head (1452.578281ms)
+ℹ commits=1,2; replay=1; acquired=2; idle head=2
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (386.885182ms)
+✔ receipt head observations do not rescan retained media until publication or replacement (39.899243ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (17.650716ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (15.272982ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (13.653355ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (14.324821ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (11.763071ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (8.055454ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (1021.542597ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (1015.397836ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (1015.609123ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (1014.234322ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (1031.826079ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (1042.633177ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (12.868418ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (33.131188ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (15.720593ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (18.523574ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (13.851431ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (12.136761ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (5.855426ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (5.968456ms)
+✔ finding 2: a delayed device read is retried before returning (9.331807ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (5.941445ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (3.964142ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1005.875173ms)
+✔ replacement receipts use exit transport without replaying known writes (1006.608502ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (14.029788ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (5.792311ms)
+✔ wasm: persisted device reacquires after two backend replacements and preserves an unsent write (2588.599925ms)
+ℹ reset observed: A={"generation":1,"native":null,"watermark":3}, B={"generation":1,"native":null,"watermark":0}, local={"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true}}, queue=[{"args":{"body":"unsent"},"id":"01M3K65NZ58AZBTJVKG2PKMQ1Q","new_ids":["01M3K65NZ58AZBTJVKG2PKMQ1R"],"now":1790571632614,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice","store_id":"36205e89f653304f713dfe287ca64ba7"}], reply={"request":{"generation":1,"from":3,"limit":10000,"after":null,"stream":false,"pending":["01M3K65NZ58AZBTJVKG2PKMQ1Q"],"store_id":"8576a8223d847b6171a663109181dd6c"},"reply":{"acknowledged":{},"events":[],"generation":1,"images_at":1,"joined":{},"more":false,"now":1790571632657,"snapshot":false,"store_id":"36205e89f653304f713dfe287ca64ba7","watermark":1}}
+ℹ reacquired: B rows=2, C rows=2, pending POSTs=1, resets=2
+✔ sync store identity survives a server restart; a live client detects an equal-watermark replacement (2141.956775ms)
+ℹ server: identity length=32, restart IDs=1, replacement IDs=2, equal watermark=3
+✔ wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID (1124.005282ms)
+ℹ receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true
+✔ wasm: a replacement reloads backend programs even when the generation number repeats (1048.210457ms)
+(node:2421575) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1087.478504ms)
+  ✔ exit notification waits for a session turn queued after strict admission (592.36886ms)
+  ✔ navigation recovers its original outbox id before held-sync startup completes (919.424707ms)
+  ✔ navigation recovers its original outbox id before offline startup completes (1863.20522ms)
+  ✔ backend-required custody cannot exit offline and enables exit after validated adoption (2468.005873ms)
+  ✔ a hide during the startup probe waits for its accepted decision (949.107787ms)
+  ✔ a hide during the startup probe waits for its refused decision (904.513578ms)
+  ✔ a hide during the startup probe waits for its restore decision (1027.944691ms)
+  ✔ a hide during the startup probe waits for its replacement decision (1484.73444ms)
+  ✔ a hide during the startup probe waits for its observed-replacement decision (2598.132031ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (935.550947ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (988.38699ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (872.466113ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1017.114377ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (986.679431ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (927.323555ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (876.229483ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (893.862001ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (874.608383ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (944.919559ms)
+  ✔ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (1123.331871ms)
+  ✔ an accepted probe enables exit before ordinary replay resolves (967.434654ms)
+  ✔ a successful reconnect enables exit after startup 503s (1018.970578ms)
+  ✔ an empty-outbox open gates new clicks on its accepted probe (5026.278865ms)
+  ✔ an empty-outbox open gates new clicks on its refused probe (5055.342256ms)
+  ✔ an empty-outbox open gates new clicks on its restore probe (5000.016581ms)
+  ✔ an empty-outbox open gates new clicks on its replacement probe (5115.240141ms)
+  ✔ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1292.010784ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (1127.637994ms)
+  ✔ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (1210.838839ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1390.707114ms)
+  ✔ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (1360.619477ms)
+  ✔ receipt abort then retry persists sent before any replacement sync or POST (1603.78268ms)
+  ✔ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1354.775417ms)
+  ✔ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (1051.298913ms)
+  ✔ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1423.925372ms)
+  ✔ a legacy refused observation with no history remains pending until same-id replay (2476.684134ms)
+  ✔ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (545.53992ms)
+  ✔ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (7436.798047ms)
+  ✔ a pending changes rewind waits for an aborted successful receipt to become durable (2004.326752ms)
+  ✔ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (5475.893906ms)
+  ✔ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (5664.82925ms)
+  ✔ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (6605.407807ms)
+  ✔ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (6560.00328ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (ordinary transport) (6717.367522ms)
+  ✔ replacement after validation refuses the original orphan binding at the server (exit transport) (6714.067394ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (6128.499428ms)
+  ✔ a fresh orphan bound to A is retired before enqueue on B (exit transport) (6204.247991ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (1810.85946ms)
+  ✔ a recovered orphan bound to A is retired before enqueue on B (exit transport) (1775.061515ms)
+  ✔ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (6211.708321ms)
+  ✔ same-epoch logout tombstone refuses live admission (778.461821ms)
+  ✔ same-epoch logout tombstone refuses live admission even with retained session fields (632.143051ms)
+  ✔ a confirmed epoch mismatch fences existing observations while the change poll is held (556.258944ms)
+✔ web admission review: recovery and transport respect the session boundary (133451.214696ms)
+ℹ {"mode":"held-sync","id":"01M3K65RRN1EP69T9YRTSKFFVH","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"offline","id":"01M3K65SN1J7HKFYZ0GCDRZ09V","outboxBeforeSync":true,"keepalive":true}
+ℹ {"mode":"accepted","originalId":"01M3K65XW7DAT3AE6PNDXJSM3W","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"refused","originalId":"01M3K65YSMCATBZ6GVY5BR56VF","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"restore","originalId":"01M3K65ZPKA9G3GFR3GAEZSJPQ","sendsWhileProbeHeld":0,"originalAudit":4}
+ℹ {"mode":"replacement","originalId":"01M3K660PAEER2ZH6VPHQP40ZJ","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+ℹ {"mode":"observed-replacement","originalId":"01M3K6624PMSXHDFZX9HTV0ETH","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+ℹ {"afterValidation":true,"transport":"ordinary","id":"01M3K68MJ7JAQ2P2QPPDZPNXDP","originalStore":"87642a67d463ae1bd3c496f954e2aa34","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+ℹ {"afterValidation":true,"transport":"keepalive","id":"01M3K68V5DCPHPM027ZKPSMN8R","originalStore":"87642a67d463ae1bd3c496f954e2aa34","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+ℹ {"orphan":"01M3K691NPBDC9XAAW7WYWENM7","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3K697QKAKTXXBC16KP73Y2K","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3K69DS3XCKHM1NX48D5RD8A","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+ℹ {"orphan":"01M3K69FFXVFBQTSTPCYDYT8M0","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+✔ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (73.517011ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (5088.592642ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (42.502845ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (33.192671ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (297.84225ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (1113.844062ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (3.098664ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1527.270345ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1135.064788ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1076.590554ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1136.527791ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (1478.500655ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3K65YETT6AA4R84YY1GWS3X","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (1465.375674ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3K65ZWGN5V2X9NP3GFSASF3","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 A native: already-open owners equal input, offline (1127.397726ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners equal input, in-flight send (1159.459943ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, offline (1165.304893ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, in-flight send (1181.860588ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B native: evicted explicit row outcome reaches server replay (3218.230834ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3K665WGR258FE2JXM48GRE6","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B native: evicted changed guard outcome reaches server replay (3109.684699ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3K66915NBG8HK10SHV460TT","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals online: one caller ID is independent per principal (45.042081ms)
+ℹ tier=online principals=2 applications=2 posts=2
+✔ W6R1 principals memory: one caller ID is independent per principal (107.612504ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+✔ W6R1 principals native: one caller ID is independent per principal (181.912268ms)
+ℹ tier=native principals=2 applications=2 posts=2
+✔ W6R1 online closed: retrying a sent ID cannot emit a contradictory failure (2.758043ms)
+✔ W6R1 online signed-out: retrying a sent ID cannot emit a contradictory failure (2.788649ms)
+✔ server write ids bind raw arguments and operation names across independent clients (62.894379ms)
+ℹ tests 193
+ℹ suites 0
+ℹ pass 193
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134045.145167

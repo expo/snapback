@@ -1,0 +1,41 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 40.70s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 19 tests
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::range_tests::exhausted_provisional_rule_admission_keeps_a_covered_range_unknown ... ok
+test engine::row_views::range_tests::pending_value_never_decides_a_probe_and_abort_keeps_its_host_policy ... ok
+test engine::row_views::range_tests::a_nonuniform_source_stays_pending_even_if_a_synthetic_image_would_pass ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_sqlite ... ok
+test engine::row_views::tests::inherited::inherited_source_count_memory ... ok
+test engine::row_views::tests::inherited::inherited_member_witness_memory ... ok
+test engine::row_views::tests::inherited::inherited_source_count_sqlite ... ok
+test engine::row_views::tests::member_materialization_is_precharged_and_its_transient_peak_survives_release ... ok
+
+thread 'engine::row_views::tests::live_basis_walk_charges_only_live_inputs_on_its_internal_ledger' (1841226) panicked at crates/snapback4-core/src/engine/row_views/tests.rs:26:5:
+assertion `left == right` failed
+  left: 5
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::tests::live_basis_walk_charges_only_live_inputs_on_its_internal_ledger ... FAILED
+50 members / 1002 live rows: batch 28.106944ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+test engine::row_views::tests::live_basis_reservation_is_identical_for_pending_and_zero_expired_reads ... ok
+test engine::row_views::tests::private_expiry_chunks_keep_durable_cursor_edits_and_restart ... ok
+test engine::row_views::tests::exact_expiring_cursor_delete_survives_private_chunk_reopen_and_sweep ... ok
+
+failures:
+
+failures:
+    engine::row_views::tests::live_basis_walk_charges_only_live_inputs_on_its_internal_ledger
+
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 139 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

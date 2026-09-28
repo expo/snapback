@@ -26,7 +26,7 @@ async function fixture(t, count = 1) {
   const persist = memoryPersistence();
   let store = "A", generation = 1, marker = "A", offline = false, schemaFailures = 0, core, client, changes;
   let schema = original.schema;
-  let queryGate, localGate, mutationGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
+  let queryGate, localGate, mutationGate, syncGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [], syncRequests = [];
   let queryUnavailable = false;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
@@ -36,6 +36,7 @@ async function fixture(t, count = 1) {
     if (path === "/schema") { schemaCalls++; if (schemaFailures-- > 0) throw new TypeError("schema interrupted"); return Response.json({ ...backend(marker), schema, generation }); }
     if (path === "/sync") {
       syncStarts++;
+      if (syncGate) await syncGate.promise;
       const request = JSON.parse(init.body);
       syncRequests.push(request);
       return Response.json(request.from === 0 && !request.stream ? { ...snapshot(store, count), generation } : { snapshot: false, store_id: store, generation, events: [], watermark: 10, more: false });
@@ -73,7 +74,7 @@ async function fixture(t, count = 1) {
     } }; } }, fetch: (input, init) => fetcher(String(input).replace(`/${encodeURIComponent(t.name)}`, ""), init) });
     clients.push(client); return client;
   }
-  t.after(async () => { queryGate?.resolve(); localGate?.resolve(); mutationGate?.resolve(); for (const c of clients) await c.close(); });
+  t.after(async () => { queryGate?.resolve(); localGate?.resolve(); mutationGate?.resolve(); syncGate?.resolve(); for (const c of clients) await c.close(); });
   await open();
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
     unavailable(value) { queryUnavailable = value; },
@@ -88,10 +89,47 @@ async function fixture(t, count = 1) {
     failReadAfterReset(callback, op = "observe_store") { resetReadFailure = callback; failureOp = op; },
     stats() { return { queryStarts, localStarts, schemaCalls, mutationStarts, syncStarts }; },
     holdLocal() { return localGate = gate(); },
+    holdSync() { return syncGate = gate(); },
     holdQueries() { return queryGate = gate(); }, holdMutation() { return mutationGate = gate(); },
     async changed(seq = 10) { await until(() => changes); const c = changes; changes = null; c.resolve({ seq, store_id: store, generation: 1 }); await tick(); },
   };
 }
+
+test("a queued send follows a settled receipt without waiting for an intermediate sync", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  const sending = f.holdMutation();
+  const op = { kind: "mutation", name: "send" };
+  const receipt = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const message = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  const publishing = f.holdSync();
+  sending.resolve();
+  await until(() => f.sends.length === 2);
+  assert.deepEqual(f.sends.map(write => write.args.body), ["first", "second"], "FIFO order is preserved");
+  publishing.resolve();
+  assert.deepEqual((await Promise.all([receipt, message])).map(write => write.state), ["sent", "sent"]);
+});
+
+test("receipt head observations do not rescan retained media until publication or replacement", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  let observations = 0, checks = 0;
+  f.onCommit(request => { if (request.op === "observe_store") observations++; });
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () { checks++; return reconcile.call(this); });
+  for (let peer = 0; peer < 49; peer++) {
+    await f.changed();
+    await until(() => observations > peer);
+  }
+  assert.equal(checks, 0, "authenticated head observations change no media authority or rows");
+  await f.client.sync();
+  assert.ok(checks > 0, "publication still revalidates retained media");
+  checks = 0;
+  f.replace(); await f.client.sync();
+  assert.ok(checks > 0, "replacement still retires old media before acquisition");
+});
 
 test("R2 item 2: getSnapshot is cleared after validated reset and before backend adoption", async t => {
   const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {}), notices = [];

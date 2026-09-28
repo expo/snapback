@@ -36,7 +36,7 @@ import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
 import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
-import { MediaCache, assetRetention, type MediaStorage, type AssetRetention } from "./local-assets.ts";
+import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
@@ -344,7 +344,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       committed(result);
       deliver();
       if (!result.denied && ["apply", "settle", "withdraw", "dequeue"].includes(String(request.op))) deliveryQueue?.published();
-      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op))) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); deliver(); }
@@ -1043,7 +1043,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  // ----- the outbox -----
+  // @ref LLP 3000.019#3.3 — drain admitted FIFO writes before the shared settlement sync.
   async function queued(): Promise<Queued[]> {
     const answer = await call({ op: "queued" });
     if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
@@ -1103,7 +1103,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         emitWrite(receipt);
         // A published acknowledgement already includes this effect. Starting
         // another sync would withdraw freshness from a completed acquisition.
-        if (acquire && (entry.observed_seq == null || !caughtUp)) await syncOnce();
+        if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued()).every(e => successSequence(e) != null)) await syncOnce();
         continue;
       }
       let ownsSettlement = false;
@@ -1156,7 +1156,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
         if (!closed && !("persistencePending" in result)) {
-          if (outcome.state === "sent") { if (acquire) await syncOnce(); }
+          if (outcome.state === "sent") { if (acquire && (await queued()).every(e => successSequence(e) != null)) await syncOnce(); }
           else rerunTables(predictedTables(entry.predicted));
         }
         settle?.resolve(outcome);

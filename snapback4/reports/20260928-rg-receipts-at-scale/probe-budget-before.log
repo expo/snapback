@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 18.71s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 1 test
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... FAILED
+
+failures:
+
+---- engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance stdout ----
+
+thread 'engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance' (2279947) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:67:66:
+called `Result::unwrap()` on an `Err` value: Bound { kind: Examined, actual: 49, ceiling: 48, site: "" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

@@ -180,6 +180,14 @@ query messageReactions(message: messages):
 
 ```
 
+When migrating an older `useReceipts` recipe, remove its delivery debt,
+automatic history `loadMore()` and background `progress` polling writers
+when adding `reports delivery`. Keep the visible screen's `seen` report.
+Loading older messages is a reader action; receipt convergence must not
+acquire history or enqueue a receipt for every page before sending a message.
+The SDK reports only positions it actually publishes, including disjoint
+runs; it never fills a missing delivery gap by assuming it was received.
+
 Pin `conversationScreen` by id beside the bare, ordinary `history` page.
 Neither requires membership: table rules still protect every server read.
 Retention on both conversations and messages keeps the delivered screen on
