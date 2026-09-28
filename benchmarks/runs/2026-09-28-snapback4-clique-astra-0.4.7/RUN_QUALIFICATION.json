@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-28T09:10:54.788231+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.7",
+      "integrity": "sha512-4atmtTQ8DptAKsRFl/WG9qYNQ5kiUHTDdtk8fCbMZzXG7DPBjMWqOCHI09KneZoNXhVXPqoOKavy9HNdX60LYQ=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.7",
+      "integrity": "sha512-NEkAG995oF6ykxPtsZ7d22onfL9Ie4CnR5yj7U0xIRay7GjGRNEcoR4hIVE7rig0hApL5NcoVyI+JKGd2m/xDw=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.7",
+      "integrity": "sha512-bel88MAhmoapqiIjr01WlcFOA0mUT6d7a9ATDuhuw0OJle+5OCPzVuzWtZw63KzCOx6tGyY9FbCotTVdz/MGWw=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.7: delivery the SDK reports (LLP 3000.022: a durable SDK queue reports what the app was shown; guarded clients accept at facade approval); scale evidence (dev Server-Timing, doctor wait/CPU percentiles, the bounds card growth-curve recipe and aliases); explicit sync waits for a round begun after the call. Not yet: lane RG, LLP 3000.028 lanes, the Worker device, the social starter (0.4.8). Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal24",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-28T09:10:54.790291+00:00"
+  },
+  "load": "2:10  up 42 days, 20:04, 4 users, load averages: 73.66 43.06 23.40",
+  "node": "v24.18.0",
+  "host": "MacBookPro"
+}
