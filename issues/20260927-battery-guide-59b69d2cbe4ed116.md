@@ -10,12 +10,12 @@
 **Battery gate:** `guide`
 **Failure signature:** `sha256:59b69d2cbe4ed116618fb47ff4093fa18fc064b5dc9abe23268ad5a802dc1fd4`
 **First observed run:** `local.20260927T084919Z.3a1f8b55d22c`
-**Last observed run:** `local.20260927T175940Z.8112f4ef6400`
-**Last processed run:** `local.20260927T175940Z.8112f4ef6400`
+**Last observed run:** `local.20260928T042704Z.b8400c29128e`
+**Last processed run:** `local.20260928T042704Z.b8400c29128e`
 **Detected at revision:** `3a1f8b55d22cbe2f79c58b0eb19e452fd02569a5`
-**Last observed revision:** `8112f4ef640058132c1c58fc69f3fbfaa2143de5`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Last observed revision:** `b8400c29128e21b6367ba8d420296bedf108dff5`
+**Consecutive red runs:** `3`
+**Escalation:** `pending (3/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

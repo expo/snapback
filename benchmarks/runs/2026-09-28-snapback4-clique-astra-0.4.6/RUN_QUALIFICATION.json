@@ -1,0 +1,42 @@
+{
+  "at": "2026-09-27T23:14:59.231457+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.4.6",
+      "integrity": "sha512-CZugWFLOMWDumW6DLspRNWsJGSFZ8RCfwK/J6HGOr21r1gQT5Mt12M14J4fc9E8+qUS66da58QoF1nrFfm9Arg=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.4.6",
+      "integrity": "sha512-k9xEm/Hx0gox8aDZtMKCNeH8OLty81XMTuOnJrsscEN0AW9n09yQFe/gi+di/fDIQhZCBzHPH6Yw1uAzrJ/nGg=="
+    },
+    "snapback4-expo": {
+      "version": "0.4.6",
+      "integrity": "sha512-PiNQ3i1HM7CPek0x33GrWnKL6eeGz0voHb1p/fRU2Q6/kPVGUaeYHZXwq90k+ky5eL0LrO/AKiMfOWZ1aqbxPA=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "scope": "One comparable Astra medium continuous M1\u2013M6/M8 lane, independent Opus 5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; Hermes export required; installed native proof optional.",
+  "runPurpose": "0.4.6: what calibration #23 left (LLP 3000.025: expiring reads in a server mutation; LLP 3000.026: Following over a populated store; LLP 3000.027: a top-N answer is complete; LLP 3000.023: answers stay on screen through the facade's authority checks; LLP 3000.024: global search within one read; a busy group syncs promptly (batched unread certification); a service token minted while the server runs; with 0.4.5: lists of media offline, LLP 3000.021 histories as ordinary queries, idFrom). Frozen instrument, prompts, templates and scripts copied byte-for-byte from cal23",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": [],
+    "checkedAt": "2026-09-27T23:14:59.233638+00:00"
+  },
+  "load": "16:14  up 42 days, 10:08, 3 users, load averages: 8.65 10.19 10.04",
+  "node": "v24.18.0",
+  "host": "MacBookPro"
+}
