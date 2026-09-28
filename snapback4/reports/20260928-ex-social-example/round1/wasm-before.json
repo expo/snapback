@@ -1,0 +1,7 @@
+{
+  "raw": 2017908,
+  "gzip": 585100,
+  "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a",
+  "budget": 586193,
+  "comparison": "Merged origin/main Lane OK ROUND2 reported 2017908 / 585100; no EX wasm changes"
+}

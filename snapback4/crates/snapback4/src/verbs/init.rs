@@ -6,8 +6,14 @@ use serde_json::{Value, json};
 use std::{io::Write, path::Path};
 
 mod web;
+mod social;
 
 pub fn init(options: &Options) -> i32 {
+    let social = options.flags.get("template").is_some_and(|name| name == "social");
+    if options.flags.contains_key("template") && (!social || ["online", "expo", "web", "recipe"].iter().any(|flag| options.flags.contains_key(*flag))) {
+        eprintln!("usage: snapback4 new <dir> --template social");
+        return 2;
+    }
     // @ref LLP 3000.007.003#7 — new apps declare timelines; installed recipes retain their library support.
     let retired = ["prefix", "authors", "edges", "public-profiles", "public-posts", "public-follows", "public-reposts"];
     if options.flags.get("recipe").is_some_and(|name| name == "feeds")
@@ -21,9 +27,9 @@ pub fn init(options: &Options) -> i32 {
     }
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
-    let expo = options.flags.contains_key("expo");
+    let expo = social || options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
-    let mut files = if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let mut files = if social { social::files() } else if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
     // and place our setup instructions beside it, still without overwriting.

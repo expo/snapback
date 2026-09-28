@@ -700,3 +700,19 @@ fn w6r2_descending_page_keeps_horizon_rewrite() {
 fn w6r2_different_index_page_advice_preserves_prediction() {
     mutation_page_horizon_advice("archive last 20 by byTimeOther", "a horizon would cost these mutations their prediction: chat.copyArchive; keep `sync public`");
 }
+
+#[test]
+fn ephemeral_prediction_notes_never_teach_pending_writes() {
+    let source = "table hints:\n  owner: principal\n  unique owner\n  public 'hints'\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\n  ephemeral 4s\nmutation start():\n  upsert hints[owner = viewer] {}\nmutation stop():\n  delete hints[owner = viewer]\nmutation put():\n  insert hints { owner: viewer } if absent\n";
+    let b = clean(source);
+    for name in ["start", "stop", "put"] {
+        let lines = snapback4_lang::bind::residency::operation_lines(name, &b.schema.operations[name]);
+        assert!(lines.contains("fails offline and is not queued"), "{lines}");
+        assert!(!lines.contains("queues without a row") && !lines.contains("show its pending state"), "{lines}");
+    }
+    // Online-only durable storage still has durable write custody.
+    let durable = clean(&source.replace("ephemeral 4s", "online only"));
+    let lines = snapback4_lang::bind::residency::operation_lines("start", &durable.schema.operations["start"]);
+    assert!(lines.contains("queues until the server answers"), "{lines}");
+    assert!(!lines.contains("fails offline"), "{lines}");
+}

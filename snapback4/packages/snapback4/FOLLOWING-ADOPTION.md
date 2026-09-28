@@ -4,8 +4,17 @@ These adoption instructions apply only to an already installed Following module.
 The installer is retired in 0.3. Keep the installed module and its caps; there is
 no migration to a declared timeline over its populated event and edge tables.
 
-Call the following helpers inside the existing app mutations. With prefix
-`feed`, their signatures and responsibilities are:
+Check which helpers your installation already contains. A plain `feed` module
+has helpers such as `feedRegister` and `feedDeliver`; it does **not** provide
+`feedAppPublish` or the other `feedApp*` helpers. For that installation, use
+the [manual wiring below](#wire-into-an-app-with-posts-media-and-reposts).
+The package provides no app-bridge installer or helper definitions to add.
+
+## Installations that already contain the app bridge
+
+Only if your app already contains the separately generated app bridge, call
+the following helpers inside its existing mutations. With prefix `feed`,
+their signatures and responsibilities are:
 
 | Helper | App mutation responsibility and generated behavior |
 |---|---|
@@ -67,7 +76,8 @@ delivering another event would change identity and ordering.
 
 ## Wire into an app with posts, media and reposts
 
-For an existing `feed`-prefixed module, keep the app's own `posts`, `follows`
+For a module-only installation without the app bridge, use the manual wiring
+in this section; none of it calls `feedApp*` helpers. Keep the app's own `posts`, `follows`
 and `reposts`. Fold the corresponding statements below into its existing
 mutations; the example is `snapback/social.q` beside the installed module.
 Only `feedFollowing` remains client-callable in the prefixed recipe; the
@@ -87,10 +97,16 @@ belongs to that query.
 
 The app's `follow`/`unfollow` mutations are the one-mutation bridge: they
 change the app edge and call `feedAddFollow`/`feedDropFollow` atomically.
-Route all future follow changes through them, and backfill existing edges
+Pause app publishing, removals and follow changes throughout adoption. Use
+bounded calls and checkpoints in each row owner's mutation context, resolving
+cap or promotion refusals before advancing. Route all future follow changes
+through the app mutations, and backfill existing edges
 through the same helpers before switching Following to this query. Register
 existing authors first; backfill their existing post/repost reference events
-before those edges so follow backfill can find them. Respect the recipe's
+before those edges so follow backfill can find them. Preserve original event
+and attribution timestamps. Resume a checkpoint without redelivering live
+events, retry writes with their original write IDs, and never republish a
+removed card or reuse an event ID. Respect the recipe's
 installed backfill bound and caps. The unprefixed recipe keeps its standalone
 operations for a standalone reference-event model. A prefixed install exposes
 only the app's bridged mutations; `feedRegister()` belongs inside `saveProfile`.

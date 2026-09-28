@@ -1,0 +1,70 @@
+[
+  {
+    "path": "snapback4/crates/snapback4-lang/src/bind/residency.rs",
+    "lines": 551
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/native.rs",
+    "lines": 131
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/reads.rs",
+    "lines": 237
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/social.rs",
+    "lines": 76
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/guide/sync.rs",
+    "lines": 462
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide.rs",
+    "lines": 1500
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/guide/client.rs",
+    "lines": 30
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/own_keys.rs",
+    "lines": 105
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/tests/residency_notes.rs",
+    "lines": 718
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/main.rs",
+    "lines": 269
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social.rs",
+    "lines": 43
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social/Conversation.tsx",
+    "lines": 161
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social/intents.ts",
+    "lines": 64
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/verbs/init/social/useOnlineArm.ts",
+    "lines": 28
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/helpers/social-browser.mjs",
+    "lines": 196
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/social-browser.test.mjs",
+    "lines": 326
+  },
+  {
+    "path": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "lines": 150
+  }
+]

@@ -26,6 +26,7 @@ use std::process::ExitCode;
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
   init [dir] [--online|--expo|--web]  start a project
+  new <dir> --template social       Expo Router social starter (feed, chats, search, profile)
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   types                            compile and write snapback/generated/api.ts
   dev [--port N] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]
@@ -74,7 +75,11 @@ fn main() -> ExitCode {
             println!("snapback4 {}", env!("CARGO_PKG_VERSION"));
             0
         }
-        "init" => verbs::init(&options),
+        "new" if !options.flags.contains_key("template") => {
+            eprintln!("Choose a template: social\nusage: snapback4 new <dir> --template social\nFor schema-only setup use snapback4 init <dir>.");
+            2
+        }
+        "init" | "new" => verbs::init(&options),
         "deploy" => verbs::deploy(&options),
         "rollback" => verbs::rollback(&options),
         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),

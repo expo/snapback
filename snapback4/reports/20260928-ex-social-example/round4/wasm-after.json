@@ -1,0 +1,11 @@
+{
+  "raw_bytes": 2018847,
+  "gzip_bytes": 585970,
+  "sha256": "9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1",
+  "budget_bytes": 586193,
+  "headroom_bytes": 223,
+  "delta_raw_bytes": 0,
+  "delta_gzip_bytes": 0,
+  "same_sha256": true,
+  "method": "production scripts/build-wasm.sh run by scripts/test.sh; GNU gzip -9 file input"
+}

@@ -1,0 +1,23 @@
+{
+  "node_targets": [
+    "packages/snapback4/test/first-account.test.mjs",
+    "packages/snapback4/test/online-session.test.mjs",
+    "packages/snapback4/test/ordinary-history.test.mjs",
+    "packages/snapback4/test/react.test.mjs",
+    "packages/snapback4/test/readme-examples.test.mjs",
+    "packages/snapback4/test/social-starter.test.mjs",
+    "packages/snapback4/test/unread-range.test.mjs"
+  ],
+  "scripts": [
+    "scripts/docs-budget.mjs",
+    "reports/20260928-ex-social-example/round3/check-published-module.py --named-keys"
+  ],
+  "indirect_runtime": [
+    "crates/snapback4-lang/src/guide.rs",
+    "crates/snapback4-lang/src/guide/search.rs",
+    "crates/snapback4-lang/src/guide/social.rs",
+    "crates/snapback4/src/main.rs",
+    "crates/snapback4/src/verbs/init/social.rs"
+  ],
+  "notes": "Conservative superset includes unchanged cards when reached by shared loaders. Rust/Node targets and docs budget run in scripts/test.sh. Published-module evidence reruns separately."
+}

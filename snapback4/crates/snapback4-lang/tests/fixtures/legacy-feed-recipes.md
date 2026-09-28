@@ -454,7 +454,7 @@ restore a complete trusted persistence image.
 
 Installed recipes keep working. There is no migration from an installed recipe
 to the declaration in 0.3: activation needs empty event and edge tables.
-The [existing adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)
+The [existing adoption instructions](../../../../packages/snapback4/FOLLOWING-ADOPTION.md)
 still apply to those apps, including paused writes and dependency-ordered backfill.
 
 An installed recipe's `createPost` or `repost` predicts its ordinary fan-out

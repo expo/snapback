@@ -436,8 +436,8 @@ the raw token, and is not a global erasure claim. The test's `--as` and `--now`
 values are operator inputs, not authentication, provider, HTTP or restart
 evidence. Its successful frozen helper removed the raw-response journal;
 retained stdout and source hashes do not create a retrospective raw-response
-audit. The digest-pinned CLI source is `1e91bc7fe`; see
-`../../reports/20260917-invitation-policy.md` for commands, digests and limits.
+audit. These observations qualify only the policy and result projections
+described here; they do not qualify invitation delivery or a provider adapter.
 
 ### Optional invitation issuance source (B1d.3)
 
@@ -599,9 +599,9 @@ resume command. Reconcile externally before deliberately issuing new intent.
 
 ### Recording a supported parked-work disposition
 
-The executable fixture in `test/server-e2e.test.mjs` demonstrates one safe,
-application-owned workflow. Its provider is a labelled durable local test
-double, not evidence for a production provider adapter:
+This application-owned workflow reconciles parked work through provider
+evidence. The example responses below describe a durable local test double;
+a production provider adapter needs its own qualified evidence path:
 
 1. Run `snapback4 why operator-parked-action` without `--values`. Confirm the
    action and step are `parked`, record the unchanged attempt count, and take

@@ -1,0 +1,220 @@
+{
+  "affected-final.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (35215.9298ms)",
+    "ℹ tests 17",
+    "ℹ pass 15",
+    "ℹ fail 2",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (30442.623432ms)"
+  ],
+  "affected-green.log.gz": [
+    "ℹ tests 17",
+    "ℹ pass 17",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0"
+  ],
+  "affected.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (31183.684226ms)",
+    "ℹ tests 8",
+    "ℹ pass 7",
+    "ℹ fail 1",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (31183.684226ms)"
+  ],
+  "browser-diagnostic.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (10196.649207ms)",
+    "ℹ tests 10",
+    "ℹ pass 8",
+    "ℹ fail 2",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (5450.175345ms)"
+  ],
+  "browser-joined-session.log.gz": [
+    "ℹ tests 10",
+    "ℹ pass 10",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0"
+  ],
+  "browser-real-offline.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (35199.625057ms)",
+    "ℹ tests 10",
+    "ℹ pass 7",
+    "ℹ fail 3",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (377.489438ms)",
+    "✖ account reset clears draft and stops the prior typing owner (30050.926668ms)"
+  ],
+  "build-final-surface.log.gz": [],
+  "build-final.log.gz": [],
+  "build-qualified.log.gz": [],
+  "build-tested.log.gz": [],
+  "build.log.gz": [],
+  "docs-budget.log.gz": [
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.00s"
+  ],
+  "full-failure-controls.log.gz": [
+    "ℹ tests 2",
+    "ℹ pass 2",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0"
+  ],
+  "guide-and-notes-final.log.gz": [
+    "test familiar::every_moved_fact_has_its_why_or_details_home ... FAILED",
+    "test result: FAILED. 93 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s",
+    "test ephemeral_prediction_notes_never_teach_pending_writes ... FAILED",
+    "test result: FAILED. 40 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s"
+  ],
+  "guide-and-notes-qualified.log.gz": [
+    "test familiar::every_moved_fact_has_its_why_or_details_home ... FAILED",
+    "test result: FAILED. 93 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.57s",
+    "test ephemeral_prediction_notes_never_teach_pending_writes ... FAILED",
+    "test result: FAILED. 40 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s"
+  ],
+  "guide-and-notes.log.gz": [
+    "test client::published_text_needs_no_checkout_or_lane_reports ... FAILED",
+    "test result: FAILED. 93 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.54s"
+  ],
+  "guide-final-surface.log.gz": [
+    "test result: ok. 94 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s",
+    "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.21s"
+  ],
+  "guide-hygiene-final.log.gz": [
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.01s"
+  ],
+  "guide-notes-green.log.gz": [
+    "test result: ok. 94 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.49s",
+    "test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s"
+  ],
+  "guide-post-hygiene.log.gz": [
+    "test result: ok. 94 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s"
+  ],
+  "mutation-run.log.gz": [],
+  "own-keys-post-suite.log.gz": [
+    "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+  ],
+  "ref-check-final.log.gz": [],
+  "ref-check.log.gz": [],
+  "social-app-custody.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (4506.58029ms)",
+    "ℹ tests 13",
+    "ℹ pass 11",
+    "ℹ fail 2",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (379.028376ms)"
+  ],
+  "social-final.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (4339.478655ms)",
+    "ℹ tests 13",
+    "ℹ pass 11",
+    "ℹ fail 2",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (368.494663ms)"
+  ],
+  "social-initial.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (2587.620187ms)",
+    "ℹ tests 11",
+    "ℹ pass 8",
+    "ℹ fail 3",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ typing expires, drops on disconnect, needs a fresh keystroke and never queues (59.01864ms)",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (192.454545ms)"
+  ],
+  "social-qualified.log.gz": [
+    "✖ social recipes in React/browser: real online signals and media, controlled read interleavings (2767.365236ms)",
+    "ℹ tests 13",
+    "ℹ pass 10",
+    "ℹ fail 3",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ failing tests:",
+    "✖ typing expires, drops on disconnect, needs a fresh keystroke and never queues (81.995617ms)",
+    "✖ two offline sends keep independent failures and attachment arguments after another session leaves (200.389561ms)"
+  ],
+  "starter-check.log.gz": [],
+  "test-sh.log.gz": [
+    "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.00s",
+    "diagnostic_recipe_preserves_the_public_summary_and_offers_owner_key_existence --- FAILED",
+    "test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+    "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s",
+    "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+    "-- FAIL: cargo test (672 s)",
+    "ℹ tests 9",
+    "ℹ pass 9",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 3",
+    "ℹ pass 3",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 12",
+    "ℹ pass 12",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 12",
+    "ℹ pass 12",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 3",
+    "ℹ pass 3",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 3",
+    "ℹ pass 3",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 11",
+    "ℹ pass 11",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "ℹ tests 12",
+    "ℹ pass 12",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "✖ W6d native: two client POSTs with the caller id apply once after a lost reply (954.075195ms)",
+    "✖ online: kept typing survives member commits and expires during a held re-read (4421.133079ms)",
+    "ℹ tests 3895",
+    "ℹ pass 3883",
+    "ℹ fail 2",
+    "ℹ cancelled 0",
+    "ℹ skipped 10",
+    "✖ failing tests:",
+    "✖ W6d native: two client POSTs with the caller id apply once after a lost reply (954.075195ms)",
+    "✖ online: kept typing survives member commits and expires during a held re-read (4421.133079ms)",
+    "-- FAIL: client tests (472 s)",
+    "ℹ tests 79",
+    "ℹ pass 79",
+    "ℹ fail 0",
+    "ℹ cancelled 0",
+    "ℹ skipped 0",
+    "== 2 failure(s) in 1436 s"
+  ],
+  "wasm-build.log.gz": []
+}
