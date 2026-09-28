@@ -1,5 +1,26 @@
 # Lane RG — receipts at scale
 
+## Round 4 — 2026-09-28
+
+Merged origin/main in 412c9191c, retaining both lanes. Terminal emission
+markers now survive replacement, qualified-success retirement and older FIFO
+snapshots, with reference-counted ownership released in finally. Both Astra
+reproductions fail before the fix; the audit found and fixed a third snapshot
+race. The new pre-dispatch recovery test kills the surviving raw-call mutation.
+
+Final checks: **552 client tests**, including the **54-test audit** and
+**55-test browser admission suite**, plus **135 Rust tests** including the
+**93-test whole guide**, pass. One legacy-server client check is skipped and
+one opt-in Rust measurement ignored. Two initial guide failures were ours,
+corrected and verified by the whole-guide rerun. All expected failing controls
+and setup errors are classified in the report; no baseline or environmental
+check failure. Wasm is byte-identical: **2,019,815 B raw / 585,381 B gzip**,
+**812 B** under budget.
+
+[Round-4 report and exactly-once audit](round4/REPORT.md) ·
+[test counts](round4/test-summary.json) · [mutation controls](round4/controls.json).
+Did not run scripts/test.sh. No installs, push or publication.
+
 ## Round 3 — 2026-09-28
 
 Fetched and merged origin/main first (already up to date). Durable terminal

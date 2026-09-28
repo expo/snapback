@@ -1,0 +1,12 @@
+✔ review: reset delivery retains a prior emission across concurrent lookup (440.649599ms)
+✔ review: acknowledged success retirement retains prior emission across lookup (11.062986ms)
+✔ review: pre-dispatch receipt recovery survives post-commit host failure (7.809028ms)
+✔ review: pending subscriber triggers duplicate successful recovery without a host delay (10.156057ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 583.762867

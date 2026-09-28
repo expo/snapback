@@ -73002,3 +73002,57 @@ LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
 Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 4: emission ownership survives every retirement path
+
+First fetched and merged origin/main 80036b4664 in 412c9191c. Kept both journal
+sides, main's restore/Worker changes and RG's owner-aware queue reader; removed
+the automatic merge's duplicate reader. Read rounds 0–3 prompts/reports/RG
+entries and Astra's full round-3 NOT READY review. Grok had no verdict at
+startup, so did not wait. Scoped llp-orient used the existing sibling lane-i
+skill read-only. No installation, push or publication.
+
+Astra's held-observe_store and held-settle success races both reproduce two
+events, despite client.write(id) correctly returning sent. Replacement now
+protects its marker synchronously at retirement commit; qualified-success
+recovery protects before its first await. Notification protection counts
+independent overlapping owners and releases in finally. The exclusive
+ordinary/keepalive settlement set keeps its authority unchanged.
+
+The exactly-once audit found a third race: replacement can retire a success
+still waiting in an older FIFO snapshot. After a lookup discards its marker,
+that snapshot emits again. A new real-wasm regression fails the initial fix.
+The finite FIFO iterator now protects all snapshot ids through completion,
+early return or failure. Cleanup waits while the snapshot read determines
+its ids, then unrelated markers can be pruned. No additional receipt window,
+durable state or historical result retention. local.ts remains 1,500 lines.
+
+Copied all four tests from Astra's extra reproduction file. The pre-dispatch
+KNOWN refusal fault independently fails when only the first recoverReceipt
+uses raw call. Five isolated mutations fail six intended assertions, covering
+that wrapper, replacement protection, both overlapping-owner orders, old FIFO
+snapshots and delayed queue reads. Other new tests prove finally cleanup after
+failed reads, settlement, notification and early iterator return. Full audit
+names success, refusal, replacement, reset, reconnect, both recovery paths,
+keepalive, snapshots and concurrent lookups, with the existing close and
+receipt-window limits. It corrects round 3's incomplete marker-lifetime claim.
+
+Final qualification: 552 client tests pass (audit 54, clock/pending 141,
+receipts/delivery 212, settlement/reconnect/generation 90, browser admission 55),
+plus 135 Rust tests (whole guide 93 and receipts/delivery 42). One published
+0.2.32 compatibility check is explicitly skipped without its external binary;
+one opt-in Rust measurement is ignored. Client build/typecheck, native build,
+reference audit, whitespace and source lengths pass. Initial guide failures
+were ours: word target and stale writes-04 fact home; corrected the wording
+and existing fact fixture, then the whole guide passed. Pre-fix/mutation reds,
+merge conflicts and discovery/path setup errors are retained and classified
+as ours. No baseline or environmental qualification failure. Did not run
+scripts/test.sh; the supervisor owns the landing suite.
+
+Wasm remeasured unchanged: 2,019,815 B raw / 585,381 B gzip, SHA-256
+2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0,
+812 B under unchanged 586,193 B cap. Merged core/device changes are test-only;
+no wasm input changed. No new latency or calibration-store measurement.
+LLP 3000.019 §3.3 and the writes card record the fix. Report, complete audit,
+commands, controls and all failures: reports/20260928-rg-receipts-at-scale/round4/REPORT.md.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

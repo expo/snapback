@@ -36,7 +36,7 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, readQueued, recoverReceipt, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -213,6 +213,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
     unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity });
   const settled = new Map<string, { resolve: (write: Write) => void; response: ClosingResponse }>();
+  const completeWrite = (write: Exclude<Write, { state: "pending" }>) => {
+    settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
+  };
   const answers = new LocalReads();
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
@@ -330,11 +333,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // is read separately and must never be a prerequisite for invalidation.
       if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
         observeIncarnation(undefined, true, delivery);
-        // Retirement is durable even if host recovery or the next state read fails.
-        for (const [id, seq] of Object.entries((result.ok as { retired: Record<string, number> }).retired)) delivery.push(() => {
-          const receipt = { state: "sent", id, seq, replayed: true } as const;
-          settled.get(id)?.resolve(receipt); settled.delete(id); emitWrite(receipt);
-        });
+        delivery.push(...retiredReceipts(history, (result.ok as { retired: Record<string, number> }).retired, completeWrite));
       }
       if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
     };
@@ -1096,18 +1095,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     await exitDone;
     if (closed || !sendingAllowed) return;
     if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch (error) { reconcileNeeded = true; throw error; } }
-    for (const entry of await queued()) {
+    for await (const entry of receiptBatch(queued, history)) {
       await exitDone;
       if (closed) return;
       const success = successSequence(entry);
       if (success != null) {
-        const receipt = (await history.acknowledged(entry.id, success, true))!;
-        // A sent entry already persisted its receipt; re-reading must not refresh
-        // an evicted receipt. Emission is per client: another owner's durable
-        // receipt is this client's first completion; the emitted set prevents repeats.
-        if (entry.sent_seq == null) await settleReceipt(history, receiptCall, receipt);
-        settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
-        emitWrite(receipt);
+        await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite);
         // A published acknowledgement already includes this effect and stays fresh.
         if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued()).every(e => successSequence(e) != null)) await syncOnce();
         continue;
@@ -1452,8 +1445,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         return applied.ok === true;
       },
       publish: write => {
-        settled.get(write.id)?.resolve(write); settled.delete(write.id);
-        emitWrite(write);
+        completeWrite(write);
         for (const watch of watches.values()) void rerun(watch);
       },
     }), async (entry, why) => {

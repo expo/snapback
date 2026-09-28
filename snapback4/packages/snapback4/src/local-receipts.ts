@@ -18,6 +18,46 @@ export function successSequence(entry?: Queued): number | undefined {
   return seq != null && (entry?.sent_seq === seq || entry?.observed_seq === seq) ? seq : undefined;
 }
 
+// @ref LLP 3000.019#3.3 — a FIFO snapshot can outlive replacement retirement.
+// Pin the whole snapshot, including entries whose turn has not arrived. During
+// the read itself the ids are unknown, so defer cleanup until they are pinned.
+export async function* receiptBatch(queued: () => Promise<Queued[]>, history: WriteHistory): AsyncGenerator<Queued> {
+  const releaseRead = history.protectEmission();
+  const releases: (() => void)[] = [];
+  try {
+    let entries: Queued[];
+    try {
+      entries = await queued();
+      for (const entry of entries) releases.push(history.protectEmission(entry.id));
+    } finally { releaseRead(); }
+    yield* entries;
+  } finally { for (const release of releases) release(); }
+}
+
+// Protect before any awaited read/retirement, through notification. A sent entry
+// already saved its receipt; re-reading must not refresh an evicted receipt.
+// @ref LLP 3000.019#3.3 — concurrent lookups cannot discard an active delivery's marker.
+export async function deliverAcknowledgedReceipt(history: WriteHistory, call: Call, entry: Queued, seq: number, publish: (write: Terminal) => void): Promise<void> {
+  const release = history.protectEmission(entry.id);
+  try {
+    const receipt = (await history.acknowledged(entry.id, seq, true))!;
+    if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
+    publish(receipt);
+  } finally { release(); }
+}
+
+// Acquire synchronously at the retirement commit, before the host may yield to
+// a queue lookup. Replacement may overlap an ordinary or acknowledged delivery.
+export function retiredReceipts(history: WriteHistory, retired: Record<string, number>, publish: (write: Terminal) => void): (() => void)[] {
+  return Object.entries(retired).map(([id, seq]) => {
+    const release = history.protectEmission(id);
+    return () => {
+      try { publish({ state: "sent", id, seq, replayed: true }); }
+      finally { release(); }
+    };
+  });
+}
+
 // @ref LLP 3000.019#3.3 — terminal/retired tails cannot strand an earlier success.
 // Run outside the network chain, including before retry and after the FIFO loop.
 export async function syncSettledWrites(queued: () => Promise<Queued[]>, sync: () => Promise<unknown>, caughtUp: () => boolean, acquire: boolean, force = false): Promise<void> {

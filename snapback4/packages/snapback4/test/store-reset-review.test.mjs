@@ -6,6 +6,8 @@ import { setImmediate as tick } from "node:timers/promises";
 import { createLocalClient } from "../dist/local.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { MediaCache } from "../dist/local-assets.js";
+import { WriteHistory } from "../dist/writes.js";
+import { deliverAcknowledgedReceipt, receiptBatch, retiredReceipts } from "../dist/local-receipts.js";
 
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
@@ -112,6 +114,195 @@ async function fixture(t, count = 1) {
     async changed(seq = 10) { await until(() => changes); const c = changes; changes = null; c.resolve({ seq, store_id: store, generation: 1 }); await tick(); },
   };
 }
+
+test("review: reset delivery retains a prior emission across concurrent lookup", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  const notices = [];
+  f.client.onWrite(w => notices.push(w));
+  const write = await f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "sent" });
+  assert.equal(write.state, "sent");
+  for (let i=0;i<50;i++) await tick();
+  assert.equal(notices.filter(w => w.id === write.id).length,1);
+  assert.ok(ok(await f.core.call({op:"queued"})).some(e=>e.id===write.id));
+  const finishing = gate(); t.after(() => finishing.resolve());
+  let reset = false;
+  f.afterCall(async (req, reply) => {
+    if (req.op === "observe_store" && reply.ok?.reset) { reset = true; await finishing.promise; }
+  });
+  f.replace();
+  const sync = f.client.sync();
+  await until(() => reset);
+  assert.equal((await f.client.write(write.id)).state,"sent");
+  finishing.resolve();
+  await sync;
+  for (let i=0;i<30;i++) await tick();
+  assert.equal(notices.filter(w => w.id === write.id).length,1,"reset cannot emit an already-delivered success again");
+});
+
+test("review: acknowledged success retirement retains prior emission across lookup", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [];
+  f.client.onWrite(w => notices.push(w));
+  let failed = false;
+  f.beforeCall(req => {
+    if (req.op === "keep_write" && !failed) { failed=true;return {denied:{code:"E_STORE",family:"store",message:"save failed"}}; }
+  });
+  const write = await f.client.mutate({kind:"mutation",name:"send"},{conversationId:"c1",body:"sent"});
+  assert.equal(write.state,"sent");
+  for(let i=0;i<30;i++) await tick();
+  assert.equal(notices.filter(w=>w.id===write.id).length,1);
+  ok(await f.core.call({op:"apply",page:{snapshot:false,store_id:"A",events:[],watermark:11,more:false,acknowledged:{[write.id]:11},sent:{[write.id]:11}}}));
+  const entry=ok(await f.core.call({op:"queued"})).find(e=>e.id===write.id);
+  assert.equal(entry.sent_seq,null); assert.equal(entry.observed_seq,11);
+  const finishing=gate();t.after(()=>finishing.resolve());
+  let retired=false;
+  f.afterCall(async (req, reply)=>{
+    if(req.op==="settle" && req.id===write.id && !reply.denied){retired=true;await finishing.promise;}
+  });
+  t.mock.timers.tick(1000);
+  await until(()=>retired);
+  assert.equal((await f.client.write(write.id)).state,"sent");
+  finishing.resolve();
+  for(let i=0;i<100;i++)await tick();
+  assert.equal(notices.filter(w=>w.id===write.id).length,1,"known-success retirement cannot emit twice");
+});
+
+test("review: pre-dispatch receipt recovery survives post-commit host failure", async t => {
+  const f=await fixture(t); await until(()=>f.client.acquired);
+  t.mock.timers.enable({apis:["setTimeout"]});
+  const notices=[]; f.client.onWrite(w=>notices.push(w));
+  let failed=false;
+  f.afterCall(async(req,reply)=>{
+    if(req.op==="admit" && !reply.denied) {
+      ok(await f.core.call({op:"keep_write",value:JSON.stringify({state:"failed",id:req.entry.id,why:{code:"KNOWN",family:"application",message:"known refusal"}})}));
+    }
+    if(req.op==="settle" && !reply.denied && !failed){failed=true;throw Error("post-settle host failure");}
+  });
+  let outcome;
+  const pending=f.client.mutate({kind:"mutation",name:"send"},{conversationId:"c1",body:"known"}).then(w=>outcome=w);
+  await until(()=>failed); for(let i=0;i<30;i++)await tick();
+  assert.equal(outcome?.state,"failed");
+  assert.equal(notices.length,1); assert.equal(f.sends.length,0);
+  await pending;
+});
+test("review: pending subscriber triggers duplicate successful recovery without a host delay", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [];
+  f.client.onWrite(w => notices.push(w));
+  let failed = false;
+  f.beforeCall(req => {
+    if (req.op === "keep_write" && !failed) { failed=true;return {denied:{code:"E_STORE",family:"store",message:"save failed"}}; }
+  });
+  const write = await f.client.mutate({kind:"mutation",name:"send"},{conversationId:"c1",body:"sent"});
+  assert.equal(write.state,"sent");
+  for(let i=0;i<30;i++) await tick();
+  assert.equal(notices.filter(w=>w.id===write.id).length,1);
+  ok(await f.core.call({op:"apply",page:{snapshot:false,store_id:"A",events:[],watermark:11,more:false,acknowledged:{[write.id]:11},sent:{[write.id]:11}}}));
+  const entry=ok(await f.core.call({op:"queued"})).find(e=>e.id===write.id);
+  assert.equal(entry.sent_seq,null); assert.equal(entry.observed_seq,11);
+  const stop = f.client.onPendingWrites(() => { void f.client.write(write.id); }); t.after(stop);
+  t.mock.timers.tick(1000);
+  await until(async () => ok(await f.core.call({op:"queued"})).length === 0);
+  for(let i=0;i<100;i++)await tick();
+  assert.equal(notices.filter(w=>w.id===write.id).length,1,"known-success retirement cannot emit twice");
+});
+
+test("replacement cannot duplicate a success still in an older flush snapshot", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], op = { kind: "mutation", name: "send" };
+  f.client.onWrite(write => notices.push(write));
+  const first = await f.client.mutate(op, { conversationId: "c1", body: "first" });
+  const second = await f.client.mutate(op, { conversationId: "c1", body: "second" });
+  for (let i = 0; i < 50; i++) await tick();
+  const held = gate(); t.after(() => held.resolve());
+  let reading = false;
+  f.afterCall(async request => {
+    if (request.op === "meta" && request.key === "write-history" && !reading) {
+      reading = true; await held.promise;
+    }
+  });
+  const third = f.client.mutate(op, { conversationId: "c1", body: "third" });
+  await until(() => reading);
+  f.replace();
+  await f.client.sync();
+  assert.equal((await f.client.write(second.id)).state, "sent");
+  held.resolve();
+  await third;
+  for (let i = 0; i < 50; i++) await tick();
+  for (const write of [first, second]) assert.equal(notices.filter(notice => notice.id === write.id).length, 1);
+});
+
+test("a delayed queue snapshot protects emissions until its entries can own delivery", async () => {
+  const history = new WriteHistory(), read = gate();
+  history.firstEmission("queued"); history.firstEmission("unrelated");
+  const batch = receiptBatch(() => read.promise, history);
+  const next = batch.next();
+  history.retainEmissions([]); // Retirement and a second lookup overtake the held queue response.
+  assert.equal(history.firstEmission("queued"), false);
+  read.resolve([{ id: "queued" }]);
+  assert.equal((await next).value.id, "queued");
+  history.retainEmissions([]);
+  assert.equal(history.firstEmission("queued"), false);
+  assert.equal(history.firstEmission("unrelated"), true, "known snapshot ids do not pin unrelated emissions");
+  await batch.return();
+  history.retainEmissions([]);
+  assert.equal(history.firstEmission("queued"), true, "early flush return releases the snapshot");
+});
+
+test("a failed queue snapshot releases emission cleanup", async () => {
+  const history = new WriteHistory(); history.firstEmission("failed-read");
+  const batch = receiptBatch(async () => { throw Error("queue failed"); }, history);
+  await assert.rejects(batch.next(), /queue failed/);
+  history.retainEmissions([]);
+  assert.equal(history.firstEmission("failed-read"), true);
+});
+
+for (const order of ["replacement-first", "acknowledgement-first"]) test(`overlapping receipt notifications keep their emission marker: ${order}`, async () => {
+  const history = new WriteHistory({ async read() { return null; }, async save() {} });
+  const id = "overlap", retiring = gate(), finish = gate();
+  let notices = 0;
+  const publish = write => { if (history.firstEmission(write.id)) notices++; };
+  publish({ id });
+  const acknowledged = deliverAcknowledgedReceipt(history, async () => {
+    retiring.resolve(); await finish.promise; return {};
+  }, { id, sent_seq: null }, 11, publish);
+  await retiring.promise;
+  const [replacement] = retiredReceipts(history, { [id]: 11 }, publish);
+  if (order === "replacement-first") replacement();
+  else { finish.resolve(); await acknowledged; }
+  history.retainEmissions([]); // Queue retirement is visible while another owner still owes notification.
+  assert.equal(history.firstEmission(id), false, "one owner cannot release another owner's marker");
+  if (order === "replacement-first") { finish.resolve(); await acknowledged; }
+  else replacement();
+  assert.equal(notices, 1);
+  history.retainEmissions([]);
+  assert.equal(history.firstEmission(id), true, "completed delivery releases its marker for bounded cleanup");
+});
+
+for (const failure of ["settle", "publish", "replacement-publish"]) test(`receipt emission protection releases after ${failure} throws`, async () => {
+  const history = new WriteHistory({ async read() { return null; }, async save() {} });
+  const id = "failure";
+  history.firstEmission(id);
+  const publish = () => { throw Error("publish failed"); };
+  if (failure === "replacement-publish") {
+    const [notify] = retiredReceipts(history, { [id]: 11 }, publish);
+    assert.throws(notify, /publish failed/);
+  } else {
+    await assert.rejects(deliverAcknowledgedReceipt(history, async () => {
+      if (failure === "settle") throw Error("settle failed");
+      return {};
+    }, { id, sent_seq: null }, 11, publish), new RegExp(`${failure} failed`));
+  }
+  history.retainEmissions([]);
+  assert.equal(history.firstEmission(id), true, "finally releases the completed or failed owner");
+});
 
 test("a queued send follows a settled receipt without waiting for an intermediate sync", async t => {
   const f = await fixture(t);
