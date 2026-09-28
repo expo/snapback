@@ -42,6 +42,12 @@ change withdraws immediately. Table-level evidence is conservative: even a harml
 write to an input table can invalidate. `{ keep: false }` opts out of retention.
 Reset user-owned state on account/backend change.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
+For search, use one ordinary query per scope through `usePage`, as the social
+starter does. The replica client combines current server hits with retained
+device hits online and searches acquired holdings offline. Render `page.items`;
+the SDK accumulates generated source-row pages by identity. Show “Partial
+results” only for a ready `page.read.complete === false`, not for stale rows
+or a non-null continuation. Follow `page.hasMore` and `page.loadMore`.
 While this device holds a predictable pending write to a table a query reads, that query asks no server; a write with an unknown predicted footprint blocks every query. Writes to unrelated tables do not hold it.
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.

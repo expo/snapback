@@ -110,8 +110,8 @@ An online-only client cannot recover a departed member's retained rows.
 
 Render profiles, quotes and reactions from their own queries beside the page;
 `guide receipts` shows the separate receipt query. A decoration that loads or
-refuses must not take history with it. Use `held` only for a read the server
-cannot answer, such as a word search over every chat held on this device.
+refuses must not take history with it. Use ordinary search for current and retained hits in either link state
+(`guide search`).
 Ordinary history asks the server before acquisition or beyond its horizon,
 and keeps a left group's retained page local.
 

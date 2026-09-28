@@ -1,0 +1,191 @@
+{
+  "scores": {
+    "grok": {
+      "scorer": {
+        "family": "grok",
+        "model": "grok-4.6",
+        "basis": "own three lanes' narrative files"
+      },
+      "backends": {
+        "snapback4": {
+          "overall": {
+            "score": 78,
+            "note": "Quarry expressed receipts, expiry, membership, feeds, and digest as one schema; M1\u2013M8 suites passed. Choreography greened only through M2 (AuthGate/ChatRail loading). Scale matched 10% then --fresh upload died."
+          },
+          "setup_and_docs": {
+            "score": 84,
+            "note": "Published README walked password+profile+avatar; snapback4 init --expo and dumped guide cards. view public vs read <- allow misled (run-log README/guide). Expo 57 router pin is not in the Snapback README."
+          },
+          "data_modeling": {
+            "score": 90,
+            "note": "642-line schema.q compiled identity, view following/activity, receipts, expire, image once, jobs, and effects. Learning cost: view spelling and N_NEVER_COMPLETE on groupNamed (final-report gaps)."
+          },
+          "authorization": {
+            "score": 91,
+            "note": "insert/update <- viewer, read <- exists members, and sync to members mapped Clique membership. reports delivery plus retain delivered-history made Erin block aggregate ticks \u2014 engine exactness, not a missing rule."
+          },
+          "queries_and_live": {
+            "score": 78,
+            "note": "view following and generated useQuery greened M1\u2013M2 live. Compiler notes N_EPHEMERAL_SERVER (typing), N_SYNC_ORDER (search), N_NEVER_COMPLETE (groupNamed). ChatRail per-row useQuery overload later failed M3 choreo."
+          },
+          "writes_and_transactions": {
+            "score": 84,
+            "note": "Mutations use if absent, unique keys, server-now windows, and emit notify inside send. check marks likes/follows/reactions/typing online only, so those toggles cannot predict and need a local intent journal."
+          },
+          "offline_sync": {
+            "score": 80,
+            "note": "Engine sync, held search, waitSeconds: 0 custody, and pending rows are first-class (M6 suite). Online-only likes/follows/typing still forced pending glyphs plus src/intent-store rather than predicted mutations."
+          },
+          "media_assets": {
+            "score": 82,
+            "note": "Typed image/video, viewOncePhoto image once, and client.upload \u2014 no bucket. Suite denied the second view-once fetch. Scale --fresh then failed upload media/img-04.png: the server is unreachable."
+          },
+          "background_work": {
+            "score": 90,
+            "note": "effect notify plus server.mts JSONL is the M6 push seam; job digest and schedule dailyDigest every 2m is M8. Payload shape lives in the mutation, not a vendor worker."
+          },
+          "client_integration": {
+            "score": 64,
+            "note": "snapback4-expo generated api.ts, useQuery, and useAuth. Refetch {loading:true} unmounted EnsureProfile and Expo Slot (diary M3). Guide says keep the signed-in tree; the hooks still make returning null easy."
+          },
+          "diagnostics_dev_loop": {
+            "score": 84,
+            "note": "snapback4 check emitted typed API; HANDLE_TAKEN, N_NEVER_COMPLETE, E_QUERY_HELD, N_EPHEMERAL_SERVER made schema mistakes loud. M1 seed 16 actions in 290ms. Client-tree bugs stayed slow."
+          },
+          "scale_and_limits": {
+            "score": 46,
+            "note": "--fresh --replay matched the 10% prefix (settledPrefix=24777, fixture sha) then media upload was unreachable (run-log environment / snapback4 --fresh). Full 1008-user envelope unverified; ChatRail showed query occupancy."
+          },
+          "operations": {
+            "score": 78,
+            "note": "One binary snapback4 dev --port, no Docker; --fresh --replay isolates scale. Seed via the app mutate path. --fresh asset upload failed on 56402 and 56403. Accidental pkill was agent-error."
+          },
+          "verdict": "Snapback 4 is the brief\u2019s closest server language, undercut by generated-hook loading traps and a --fresh media hole at envelope scale.",
+          "would_use_again_for": "A membership-and-receipts messenger whose schema should be the spec, if the Expo tree stays mounted across useQuery refetches."
+        },
+        "convex": {
+          "overall": {
+            "score": 80,
+            "note": "M1\u2013M8 suite and web choreography all greened via reactive useQuery. bcrypt sessions, no outbox, queries that do not tick, and the 32k-document read limit were real workarounds; scale verification stayed PENDING."
+          },
+          "setup_and_docs": {
+            "score": 72,
+            "note": "CONVEX_AGENT_MODE=anonymous plus --local-cloud-port/--local-site-port bound 55501/55502 with no account. Those flags are hideHelp(), found in package source not the README. Password auth is not a Convex product."
+          },
+          "data_modeling": {
+            "score": 78,
+            "note": "TypeScript schema.ts (~260 lines) and indexes live in-repo; word-prefix search is a range on messageWords. Receipts, unread, and presence were aggregations in messages.ts (~925 lines), not primitives."
+          },
+          "authorization": {
+            "score": 60,
+            "note": "No session in the query layer: every verb threads token and requireSession (convex/auth.ts, search.ts). Membership and admin checks live in mutation bodies. bcrypt sessions table is brief-legal, not a product."
+          },
+          "queries_and_live": {
+            "score": 86,
+            "note": "Default reactive useQuery greened two-client profile, feeds, DMs, and M8 multi-device without channels. Queries do not re-run on wall-clock; typing/disappearing used client timers and a 190s TTL wait (diary M5)."
+          },
+          "writes_and_transactions": {
+            "score": 70,
+            "note": "Mutations plus clientId/mutationId idempotency. Optional validators reject null (accept undefined) so messages.send never ran and the UI idled (run-log agent-error / convex-defect). Scale is a single-threaded mutation firehose."
+          },
+          "offline_sync": {
+            "score": 54,
+            "note": "No outbox: src/offline.ts is localStorage. Essay: Convex HTTP mutations have no outbox. Web M6 flush-in-order and M8 dual-offline still greened after polling navigator.onLine."
+          },
+          "media_assets": {
+            "score": 78,
+            "note": "generateUploadUrl \u2192 POST \u2192 storage.getUrl is three calls and no bucket. View-once uses mediaMeta and metaForStorage refusing bytes. getUrl can return null; storage is not a CDN (essay)."
+          },
+          "background_work": {
+            "score": 88,
+            "note": "crons.interval digest-emit plus isReplayMode skip is first-class scheduled work with no connected client (essay vs pg_cron). Push seam is a pushLogs table plus a query."
+          },
+          "client_integration": {
+            "score": 74,
+            "note": "convex/react subscriptions moved Bob\u2019s screen without a protocol. Two processes/ports; Metro served dual sm-chatsettings-background-preview until expo start --clear (environment). Auth lifecycle and token args are hand-rolled."
+          },
+          "diagnostics_dev_loop": {
+            "score": 66,
+            "note": "Function hot-reload ~300ms. Null-optional mismatch left the UI idle with no mutation error. Copying config.json produced BadAdminKey. Scale collect() Many documents read named the 32k limit explicitly."
+          },
+          "scale_and_limits": {
+            "score": 40,
+            "note": "A second sqlite anonymous instance on 55503/55504 was cheap. runtime.counts collect() hit the 32k-document read limit at checkpoints (run-log convex-defect). Invariant verification remained PENDING."
+          },
+          "operations": {
+            "score": 70,
+            "note": "Fresh scale = directory + sqlite + generated admin key. Default anonymous-agent name blocks clone-by-copy. Seed uses mutation clientIds. No bulk import \u2014 honest for the brief, slow for 167k verbs."
+          },
+          "verdict": "Best live two-client runtime on this brief, with missing auth/offline/clock primitives and a hard 32k read limit at envelope scale.",
+          "would_use_again_for": "A two-browser messenger that must stay live, if you accept bcrypt sessions, a client outbox, and write-time counters."
+        },
+        "supabase": {
+          "overall": {
+            "score": 55,
+            "note": "Postgres constraints and hosted Auth/Storage were direct; live, offline, and scheduling were a BFF with polls. M3 choreography aborted (suite still passed); M4\u2013M8 blocked-by-M3; scale stopped before 10%."
+          },
+          "setup_and_docs": {
+            "score": 64,
+            "note": "Hosted Auth/Storage docs match the pitch. No local stack or CLI: DDL via pooled DATABASE_URL, Realtime publication ALTERed by SQL. email_confirm: true was required because the brief forbids outbound email."
+          },
+          "data_modeling": {
+            "score": 86,
+            "note": "UNIQUE handle, dm_pair, CHECKs, and now() in server/schema.mjs (~223 lines) expressed Clique invariants as SQL. Application identity still split from auth.users into clq916g_profiles (essay split brain)."
+          },
+          "authorization": {
+            "score": 56,
+            "note": "Lane skipped RLS for a service-role BFF because edit windows, digest, and push-on-no-device were more ceremony than store functions. createUser-before-handle-check surfaced as Database error creating new user."
+          },
+          "queries_and_live": {
+            "score": 52,
+            "note": "No live query used: 1s feeds, 700ms messages, 200ms typing table. Essay calls this the 60 shape. Choreography\u2019s 2s typing window missed on poll-plus-token race; postgres_changes/broadcast stayed unused."
+          },
+          "writes_and_transactions": {
+            "score": 76,
+            "note": "Store mutations, unique mutation_id, and window checks against now() are ordinary SQL. Register is two-phase (Auth user then profile) with leftover-user risk. Replay fits the same Node module the HTTP server imports."
+          },
+          "offline_sync": {
+            "score": 44,
+            "note": "No official cache or outbox in supabase-js 2.112.4; docs treat offline as Auth persistSession. Hand-rolled localStorage queue in src/lib/offline.ts. M6 web choreography never greened."
+          },
+          "media_assets": {
+            "score": 66,
+            "note": "Private clq916g_media bucket plus path on a row. View-once, tombstone, and expiry required authorizeMedia through the API with the service role \u2014 public URLs would keep serving deleted bytes (essay)."
+          },
+          "background_work": {
+            "score": 56,
+            "note": "Digest is an API-process interval, not pg_cron (no CLI on this host). Idempotent (user_id, period_start) is solid SQL. clq916g_push_log fires when no fresh device. Server-side, not a platform scheduler."
+          },
+          "client_integration": {
+            "score": 48,
+            "note": "supabase-js plus a homegrown HTTP API; no paved Expo template. Auth restore raced the first chat load (401). Typing and messages are polls, not subscriptions. Dual-React/kit failures were agent-error."
+          },
+          "diagnostics_dev_loop": {
+            "score": 62,
+            "note": "Unused $1 could not determine data type was a fast SQL fix (diary M2). Auth wrapped handle collision opaquely. Hosted EMAXCONNSESSION hit M8 insights under parallel suite+choreo (environment plus oversized pools)."
+          },
+          "scale_and_limits": {
+            "score": 30,
+            "note": "Fresh prefix clq916g_s_ starter settled 16+52+19; scale.log stopped before the 10% checkpoint (final-report). Session-mode pooler made connections a lock. Celebrity fan-out was never performance-probed."
+          },
+          "operations": {
+            "score": 46,
+            "note": "Prefix cleanup dropped 48 clq916g_ objects; Auth users are not prefix-namespaced and remained in the shared hosted project. No CLI, leftover Dave membership from retries, scarce pooler clients."
+          },
+          "verdict": "Strong SQL source of truth that still forced a custom API, polling, and a client outbox instead of acting as Clique\u2019s runtime.",
+          "would_use_again_for": "Unique DMs, follow-graph constraints, and digest keys in Postgres \u2014 not typing, live delivery, or offline replay."
+        }
+      },
+      "cross_backend_notes": [
+        "Live two-client behavior split the lanes: Convex useQuery greened M1\u2013M8 choreography, Snapback live views greened only through M2 before AuthGate/ChatRail loading, and Supabase substituted 200\u2013700ms polls for unused Realtime and missed the 2s typing window.",
+        "Snapback\u2019s 642-line Quarry file was the server (identity, view following, reports delivery, expire, image once, job digest); Convex and Supabase reimplemented receipts, unread, and expiry as TypeScript or store.mjs.",
+        "Auth was a product on Snapback (use identity password) and Supabase (email/password), and a bcrypt sessions table with a token argument on every Convex function.",
+        "Offline was Snapback\u2019s engine (held search, pending, custody) versus the same localStorage outbox on Convex and Supabase \u2014 only Convex\u2019s web M6/M8 offline segments greened.",
+        "None finished the 167k scale envelope: Snapback matched the 10% prefix then --fresh upload died, Convex collect() hit the 32k-document read limit, and Supabase stopped before 10% on the hosted pooler."
+      ]
+    }
+  },
+  "sources": {
+    "grok": "grok/raw.out"
+  }
+}

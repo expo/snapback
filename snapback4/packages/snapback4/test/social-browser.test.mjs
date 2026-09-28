@@ -10,7 +10,7 @@ import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { server, binary } from "./helpers/app-server.mjs";
 import { guest, signup, login } from "snapback4/auth";
 import { createClient } from "snapback4/client";
-import { harness, nativeViews, routerHarness, onlineClientHarness } from "./helpers/social-browser.mjs";
+import { harness, nativeViews, routerHarness, onlineClientHarness, searchHarness } from "./helpers/social-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
 test("social recipes in React/browser: real online signals and media, controlled read interleavings", { timeout: 90_000 }, async t => {
@@ -362,4 +362,113 @@ test("social recipes in React/browser: real online signals and media, controlled
   });
   await page.evaluate(() => window.finish());
   assert.deepEqual(errors, []);
+});
+
+// @ref LLP 3000.028#3.3 — ordinary search composes both domains; usePage owns accumulation.
+test("social search in React/browser uses current server and retained device pages", { timeout: 90_000 }, async t => {
+  const dir = mkdtempSync(join(root, ".social-search-"));
+  let vite, browser;
+  t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
+  for (const args of [["new", dir, "--template", "social"], ["check"]]) {
+    const run = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+  }
+  const { url } = await server(t, undefined, readFileSync(join(dir, "snapback/schema.q"), "utf8"));
+  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const { api } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+  const signed = await guest(url); assert.equal(signed.ok, true);
+  const { session } = signed, owner = session.principal;
+  const writer = createClient({ url, token: session.token });
+  t.after(() => writer.close());
+  const rows = [], matches = [];
+  for (const [conversation, count] of [["live-chat", 520], ["departed-chat", 25]]) {
+    rows.push({ table: "conversations", row: { id: conversation, title: conversation, creatorId: owner, lastOrdinal: count } });
+    rows.push({ table: "members", row: { id: conversation + "-member", conversation, principal: owner, joinedOrdinal: 0, deliveredOrdinal: count, seenOrdinal: 0 } });
+    for (let ordinal = 1; ordinal <= count; ordinal++) {
+      const matching = conversation === "departed-chat" || ordinal <= 20;
+      const id = conversation + "-" + ordinal;
+      const row = { id, conversation, sender: owner, ordinal, recipients: 0, text: `${matching ? "coffee" : "tea"} ${id}`, photo: null,
+        at: matching ? ordinal * 2 + (conversation === "departed-chat" ? 1 : 0) : 10_000 + ordinal };
+      rows.push({ table: "messages", row });
+      if (matching) matches.push(row);
+    }
+  }
+  const seeded = await fetch(url + "/seed", { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
+  assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+  const expected = matches.sort((a, b) => b.at - a.at || b.id.localeCompare(a.id));
+  writeFileSync(join(dir, "fixture.json"), JSON.stringify({ url, session }));
+  writeFileSync(join(dir, "harness.jsx"), searchHarness);
+  writeFileSync(join(dir, "native.jsx"), nativeViews);
+  writeFileSync(join(dir, "router.js"), 'export const router = { push() {} };');
+  writeFileSync(join(dir, "picker.js"), 'export async function launchImageLibraryAsync() { return { canceled: true }; }');
+  writeFileSync(join(dir, "device.wasm"), readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")));
+  writeFileSync(join(dir, "index.html"), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
+  const require = createRequire(join(root, "packages/snapback4/package.json"));
+  const { createServer } = await import(pathToFileURL(require.resolve("vite")).href);
+  vite = await createServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
+    resolve: { alias: [
+      { find: /^react$/, replacement: require.resolve("react") },
+      { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
+      { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
+      { find: "react-native", replacement: join(dir, "native.jsx") },
+      { find: "expo-router", replacement: join(dir, "router.js") },
+      { find: "expo-image-picker", replacement: join(dir, "picker.js") },
+      { find: "starter-search", replacement: join(dir, "src/Search.tsx") },
+      ...["react", "app", "auth", "contract", "web"].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === "react" ? "tsx" : "ts"}`) })),
+    ] }, esbuild: { jsx: "automatic" } });
+  await vite.listen();
+  const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
+  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+
+  for (const scenario of ["search spans a live and a departed conversation", "leave followed by a search", "pagination accumulates both domains with no duplicate"]) {
+    await t.test(scenario, async () => {
+      // Each scenario gets its own device, acquires while a member, then leaves.
+      // Reinsert the same membership for the next fresh device's acquisition.
+      if (scenario !== "search spans a live and a departed conversation") {
+        const rejoined = await fetch(url + "/seed", { method: "POST", body: JSON.stringify([rows.find(item => item.table === "members" && item.row.conversation === "departed-chat")]) }).then(r => r.json());
+        assert.equal(rejoined.seeded, 1, JSON.stringify(rejoined));
+      }
+      const context = await browser.newContext(), page = await context.newPage(), errors = [];
+      page.on("pageerror", error => errors.push(String(error)));
+      try {
+        await page.goto(vite.resolvedUrls.local[0]);
+        await page.waitForFunction(() => window.fixtureReady);
+        assert.equal((await page.evaluate(() => window.searchResidency())).tables.messages.rows, 525, "20 old live matches are outside the replica window");
+        if (scenario === "leave followed by a search") {
+          await page.evaluate(() => window.mountSearch());
+          await page.getByRole("textbox", { name: "Search messages" }).fill("cof");
+          await page.waitForFunction(expected => JSON.stringify([...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).map(node => node.textContent)) === JSON.stringify(expected), expected.slice(0, 20).map(row => row.text));
+          assert.equal(await page.getByText(/Partial results/).count(), 0, "a complete page with next is not partial");
+          assert.equal(await page.getByRole("button", { name: "More matches" }).isEnabled(), true);
+        }
+        const left = await writer.mutate(api.leave, { conversation: "departed-chat" });
+        assert.equal(left.state, "sent", JSON.stringify(left));
+        await page.evaluate(() => window.syncSearch());
+        if (scenario !== "leave followed by a search") await page.evaluate(() => window.mountSearch());
+        await page.getByRole("textbox", { name: "Search messages" }).fill("coffee");
+        const hits = page.getByRole("button", { name: /^coffee / });
+        await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === 20);
+        assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(row => row.text), "one page must include server-only current hits and acquired departed hits in order");
+        await page.getByText(/Partial results/).waitFor(); // Retained time-order coverage is incomplete.
+        if (scenario.startsWith("pagination")) {
+          for (const count of [40, 45]) {
+            await page.getByRole("button", { name: "More matches" }).click();
+            await page.waitForFunction(count => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === count, count);
+            const shown = await hits.allTextContents();
+            assert.deepEqual(shown, expected.slice(0, count).map(row => row.text));
+            assert.equal(new Set(shown).size, shown.length, "SDK accumulation never repeats an ID");
+          }
+          assert.equal(await page.getByRole("button", { name: "More matches" }).isDisabled(), true);
+          await page.getByText(/Partial results/).waitFor();
+          await page.getByRole("textbox", { name: "Search messages" }).fill("unmatched");
+          await page.waitForFunction(() => document.querySelectorAll("button").length === 1 && document.body.textContent.includes("Partial results"));
+          assert.equal(await hits.count(), 0, "changing the needle clears prior accumulated rows");
+        }
+        const calls = await page.evaluate(() => window.searchCalls);
+        assert.ok(calls.some(call => call.path === "/q/search"), "the generated ordinary operation reaches the server");
+        assert.ok(calls.every(call => call.path === "/q/search"), "no online/held operation selection");
+        assert.deepEqual(errors, []);
+      } finally { await page.evaluate(() => window.finishSearch?.()); await context.close(); }
+    });
+  }
 });

@@ -19,9 +19,10 @@ SDK delivery reporting, typing, ordinary images and once images together.
 History uses `where .conversation = conversation` on its explicit horizon
 index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
-unknown coverage stays loading. See `guide offline-interactions`. The current
-all-chat search labels current memberships online versus held history offline;
-per-chat search is one ordinary pinned operation. See `guide search` for cuts.
+unknown coverage stays loading. See `guide offline-interactions`. Search uses
+one ordinary query per scope, combining current server and retained device
+hits online. `usePage` accumulates by message ID; only `complete: false` shows
+“Partial results”. Conversation and time are immutable. See `guide search`.
 
 ## Typing on the online arm
 

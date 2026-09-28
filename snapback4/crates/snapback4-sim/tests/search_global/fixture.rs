@@ -7,8 +7,10 @@ pub fn source() -> &'static str {
     // @ref LLP 3000.021#3.1 — the guide now bounds acquisition; these controls intentionally compare full holdings with a separate ten-row horizon.
     static FULL_HISTORY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     FULL_HISTORY.get_or_init(|| {
-        let example = snapback4_lang::guide::card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1
-            .split_once("```quarry\n").unwrap().1.split_once("```").unwrap().0;
+        // The W13 scale witnesses pin the search card's example as of lane OS (aa4763bc5), before lane EX
+        // round 5 added `retain delivered-history` and `immutable at` to the card: retained history makes
+        // device pages legitimately incomplete, which is not what these complete-holdings controls measure.
+        let example = include_str!("w13-search-card.quarry");
         assert!(example.contains("sync to members[.roomId] last 200 by .at"));
         example.replace("sync to members[.roomId] last 200 by .at", "sync to members[.roomId]")
     }).as_str()

@@ -1158,7 +1158,19 @@ declare a lifetime: put `expire at .expiresAt` on its table. The online
 client refetches at that deadline and needs a connection to evaluate it.
 `usePage` follows `next` across pages; it
 supplies the query's cursor argument itself, which must be named `c`
-(`c: cursor ?`).
+(`c: cursor ?`). For generated source-row pages it accumulates by row identity,
+keeping the latest observed image at its first display position.
+
+The social starter uses one ordinary `search` across conversations and one
+pinned `searchChat`. A replica client combines current server hits and this
+device's certified retained hits online, then searches acquired holdings offline.
+An online-only client has only the current server domain. Declare conversation
+and order columns immutable; keyset continuation follows `(at, id)` and is not
+a snapshot. Refresh from page one for new matches before the cursor. Render
+`usePage`'s `items`, `hasMore` and `loadMore`; show “Partial results” only when
+its ready combined read has `complete: false`. Staleness and `next` alone do not
+mean partial. Missing retained coverage and cuts remain incomplete, even empty.
+See `snapback4 guide search` and `snapback4 new my-social --template social`.
 
 Live reads keep the displayed answer during a re-read by default:
 
