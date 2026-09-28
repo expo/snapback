@@ -1,0 +1,12 @@
+{
+  "browser": "Chromium",
+  "results": [
+    {
+      "name": "Worker emits durable prediction tables after admission acknowledgement",
+      "ok": false,
+      "error": "AssertionError [ERR_ASSERTION]: real runtime, no pending admission barrier\n    at file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/empty-worker-footprint/worker-protocol.mjs:324:12\n    at async run (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/empty-worker-footprint/worker-protocol.mjs:259:20)\n    at async file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round7/mutants/empty-worker-footprint/worker-protocol.mjs:315:3"
+    }
+  ],
+  "pageErrors": [],
+  "failures": 1
+}

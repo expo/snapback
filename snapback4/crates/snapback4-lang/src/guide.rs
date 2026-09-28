@@ -58,7 +58,7 @@ mod indexes;
 mod types;
 pub use discovery::{listing, nearest};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes", "maintains", "offline-interactions", "rules", "sync", "residency", "prediction", "evolution", "expire", "ephemeral", "assets", "client", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -149,6 +149,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "sequences" => include_str!("guide/sequences.md"),
         "indexes" => indexes::CARD,
         "maintains" => include_str!("guide/maintains.md"),
+        "offline-interactions" => include_str!("guide/offline_interactions.md"),
         "rules" => include_str!("guide/rules.md"),
         "sync" => sync::CARD,
         "residency" => r##"# Residency: facts at check, coverage on each call
@@ -219,7 +220,9 @@ dependency and handle queued writes and unavailable offline reads. See `guide pr
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
-that would stop predicting if the view goes online only. Repeats share one
+that would stop predicting if the view goes online only. Inherited sync has no
+horizon; `online only` also loses offline aggregate/absence coverage. See
+`guide maintains` and `guide offline-interactions` for the replica census. Repeats share one
 note with a line and source location for every view. Check prints these
 facts without pre-adoption counts: a new view has no stored rows yet. Run
 `test --residency --fixture dir --as alice` to measure cold rows and compact

@@ -12,13 +12,17 @@ import { admissionAuthorityHost, admissionAuthorityRefusal, type AdmissionAuthor
 // are adopted by the next device that opens the store.
 
 import type { Write } from "./contract.ts";
-import { WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { claimStore, claimWithWebLocks, lockManager } from "./web-ownership.ts";
+import { terminalReceipts, receiptHistory, lookupReceipts, shareReceipts } from "./web-receipts.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
 import type { Queued } from "./local-types.ts";
 import { successSequence } from "./local-receipts.ts";
 import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, journalStores, writeRefusal } from "./web-journal.ts";
-import init, { WebDevice } from "./wasm/snapback4_device.js";
+import { cachedWasm, wasmMemoryBytes, type WasmSource } from "./web-wasm.ts";
+import { WebDevice } from "./wasm/snapback4_device.js";
+import { openWorkerDevice } from "./web-worker-device.ts";
+import type { WorkerWasmSource } from "./web-worker-host.ts";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
  * outbox, `b` confirmed images, `s` staged snapshot), the key, the value;
@@ -56,9 +60,10 @@ export interface PersistenceClaim {
   release(): Promise<void>;
 }
 
-type WasmSource = URL | string | Response | BufferSource | WebAssembly.Module;
-
 export interface WebDeviceOptions {
+  /** Run the browser VM and default IndexedDB persistence in a dedicated
+   * Worker. Custom persistence remains available on the ordinary host. */
+  readonly worker?: boolean;
   /** The wasm: a URL, a Response, bytes or a compiled module. By default
    * `snapback4_device_bg.wasm` beside this module, which bundlers copy. */
   readonly wasm?: WasmSource | Promise<WasmSource>;
@@ -67,11 +72,25 @@ export interface WebDeviceOptions {
 }
 
 let ready: Promise<unknown> | null = null;
-let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | undefined;
 const ephemeral = new WeakSet<Persistence>();
 
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
+  if (options.worker) {
+    if (options.persist) throw new Error("webDevice: worker:true uses default IndexedDB; use webDevice({ persist }) for an injected persistence provider");
+    let supplied: Promise<WorkerWasmSource | undefined> | undefined;
+    return { async open(name, backend) {
+      supplied ??= Promise.resolve(options.wasm).then(async source => {
+        if (source instanceof URL) return source.toString();
+        if (source instanceof Response) {
+          if (!source.ok) throw new Error(`wasm: HTTP ${source.status}`);
+          return source.arrayBuffer();
+        }
+        return source;
+      });
+      return openWorkerDevice(name, backend, await supplied);
+    } };
+  }
   const persist = options.persist ?? indexedDbPersistence();
   if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {
@@ -316,7 +335,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 const current = (request as { [deliveryCommit]?: () => boolean })[deliveryCommit];
                 if (current && !current()) return { ok: true }; // Stale means no write, no retry.
                 if (request.op === "residency") {
-                  return { ok: residency.snapshot((runtime!.initialized as { memory: WebAssembly.Memory }).memory.buffer.byteLength) };
+                  return { ok: residency.snapshot(wasmMemoryBytes()) };
                 }
                 if (request.op === "settle_exit") {
                   const write = request.write as Extract<Write, { state: "failed" }>;
@@ -426,59 +445,6 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   };
 }
 
-// @ref LLP 3000.007#8 — a cold offline open owns its wasm bytes, keyed by SHA-256
-async function cachedWasm(source: WasmSource | Promise<WasmSource>, persist: Persistence): Promise<unknown> {
-  const resolved = await source;
-  if (resolved instanceof WebAssembly.Module) return initializeWasm(resolved, resolved);
-  const isUrl = typeof resolved === "string" || resolved instanceof URL;
-  const url = isUrl ? String(resolved) : null;
-  const name = "snapback4-wasm";
-  const saved = url ? await persist.load(name) : [];
-  const pointer = saved.find((c) => c.s === "url" && c.k === url)?.v;
-  const hex = pointer && saved.find((c) => c.s === "sha256" && c.k === pointer)?.v;
-  const digest = async (bytes: Uint8Array) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)), (b) => b.toString(16).padStart(2, "0")).join("");
-  if (hex) {
-    const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
-    if (pointer && await digest(bytes) === pointer) {
-      try { return await initializeWasm(bytes, pointer); } catch {
-        // A cache from an interrupted/older installer may be unusable even
-        // when its content hash matches. An online fetch can repair it.
-      }
-    }
-  }
-  const fetched = isUrl ? await fetch(resolved as string | URL) : resolved;
-  if (fetched instanceof Response && !fetched.ok) throw new Error(`wasm: HTTP ${fetched.status}`);
-  const bytes = fetched instanceof Response ? new Uint8Array(await fetched.arrayBuffer())
-    : ArrayBuffer.isView(fetched) ? new Uint8Array(fetched.buffer, fetched.byteOffset, fetched.byteLength) : new Uint8Array(fetched as ArrayBuffer);
-  const hash = await digest(bytes);
-  // Initialization must succeed before these bytes become the offline entry.
-  // The content and URL pointer are then installed in one atomic host save.
-  const initialized = await initializeWasm(bytes, hash);
-  await persist.save(name, [
-    { s: "sha256", k: hash, v: Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") },
-    ...(url ? [{ s: "url", k: url, v: hash }] : []),
-  ]);
-  return initialized;
-}
-
-async function initializeWasm(source: BufferSource | WebAssembly.Module, identity: string | WebAssembly.Module): Promise<unknown> {
-  // wasm-bindgen retains the initialized instance even if the later cache
-  // save fails. Its shortcut cannot validate another module's linking: only
-  // the exact initialized content may retry installation in this realm.
-  if (runtime) {
-    if (runtime.identity !== identity) throw new Error("wasm: a different runtime is already initialized; reload before installing different runtime bytes");
-    return runtime.initialized;
-  }
-  const module = source instanceof WebAssembly.Module ? source : await WebAssembly.compile(source);
-  const exports = new Map(WebAssembly.Module.exports(module).map(e => [e.name, e.kind]));
-  if (exports.get("memory") !== "memory" || ["webdevice_new", "webdevice_call", "webdevice_drain", "__wbg_webdevice_free"].some(name => exports.get(name) !== "function")) {
-    throw new Error("wasm: the module does not export the Snapback device runtime; use the wasm shipped with this package");
-  }
-  const initialized = await init({ module_or_path: module });
-  runtime = { identity, initialized };
-  return initialized;
-}
-
 function refusalText(error: unknown): string {
   const text = String((error as Error)?.message ?? error);
   try {
@@ -491,63 +457,6 @@ function refusalText(error: unknown): string {
 }
 
 // ----- one device per tab -----
-
-function lockManager(): LockManager | undefined {
-  return (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
-}
-
-/** Hold the store's lock for this tab; when another tab holds it, take a
- * tab-scoped store instead. Durable IndexedDB refuses when Web Locks cannot
- * establish exclusive ownership. */
-async function claimWithWebLocks(name: string, alternate: boolean): Promise<PersistenceClaim | null> {
-  const locks = lockManager();
-  if (!locks) throw new Error("webDevice: durable IndexedDB requires the Web Locks API for exclusive store ownership");
-  const held = await hold(locks, name);
-  if (held) return { name, release: held };
-  if (!alternate) return null;
-  const own = `${name}:tab-${Math.random().toString(36).slice(2, 10)}`;
-  const release = await hold(locks, own);
-  if (!release) throw new Error("webDevice: could not claim an exclusive tab-scoped device store");
-  return { name: own, release };
-}
-
-async function claimStore(persist: Persistence, name: string, alternate: boolean): Promise<PersistenceClaim | null> {
-  const claim = await persist.claim(name, alternate);
-  if (!claim) return null;
-  let problem: string | undefined;
-  if (typeof claim.name !== "string" || typeof claim.release !== "function") {
-    problem = "persistence returned an invalid exclusive claim";
-  } else if (!alternate && claim.name !== name) {
-    problem = `a non-alternate claim for ${name} must return that exact name`;
-  } else if (claim.name !== name && (!claim.name.startsWith(`${name}:tab-`) || claim.name.length === `${name}:tab-`.length)) {
-    problem = `an alternate claim for ${name} must use the ${name}:tab-* namespace`;
-  } else if (claim.name !== name && (typeof persist.others !== "function" || typeof persist.remove !== "function")) {
-    problem = "a persistence provider returning an alternate must implement others(prefix) and remove(name) for orphan adoption";
-  }
-  if (!problem) return claim;
-  if (typeof claim.release === "function") await claim.release();
-  throw new Error(`webDevice: ${problem}`);
-}
-
-/** Hold a lock until released; null when another holder has it. */
-function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) | null> {
-  return new Promise((resolve, reject) => {
-    let release!: () => void;
-    const done = new Promise<void>((r) => (release = r));
-    const requested = locks.request(name, { ifAvailable: true }, async (lock) => {
-      if (!lock) {
-        resolve(null);
-        return;
-      }
-      resolve(async () => {
-        release();
-        await requested;
-      });
-      await done;
-    });
-    void requested.catch(reject);
-  });
-}
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
@@ -643,65 +552,6 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     }
   }
   return retry;
-}
-
-type TerminalReceipt = Exclude<Write, { state: "pending" }>;
-
-function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
-  if (!text) return [];
-  // Only value-free terminal records cross tab boundaries, never outbox data.
-  return (JSON.parse(text) as Write[]).flatMap(write => write.state === "sent"
-    ? [{ state: "sent", id: write.id, seq: write.seq, replayed: true } as TerminalReceipt]
-    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } } as TerminalReceipt] : []);
-}
-
-async function receiptHistory(persist: Persistence, name: string): Promise<TerminalReceipt[]> {
-  const shared = `${name}:receipts`;
-  // Adoption requires enumeration too. Recheck existence on each lookup so a
-  // sibling's later adoption is visible, but a read never creates the window.
-  const exists = persist.has ? await persist.has(shared) : (await persist.others?.(shared))?.includes(shared);
-  if (!exists) return [];
-  const text = persist.read ? await persist.read(shared, "m", "client:write-history")
-    : (await persist.load(shared)).find(c => c.s === "m" && c.k === "client:write-history")?.v;
-  return terminalReceipts(text);
-}
-
-const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && write.why.code === "E_STORE_REPLACED";
-
-// @ref LLP 3000.013#6 — a caller's lookup applies adoption's correction rule.
-// A shared, verified outcome resolves this client's own unknown replacement
-// refusal; every other local outcome wins over shared history.
-function lookupReceipts(shared: TerminalReceipt[], local: TerminalReceipt[]): TerminalReceipt[] {
-  const merged = new Map(shared.map(write => [write.id, write]));
-  for (const write of local) {
-    const prior = merged.get(write.id);
-    if (prior && unknownOutcome(write) && !unknownOutcome(prior)) continue;
-    merged.set(write.id, write);
-  }
-  return [...merged.values()];
-}
-
-async function shareReceipts(persist: Persistence, name: string, text: string): Promise<boolean> {
-  const held = await claimStore(persist, `${name}:receipts`, false);
-  if (!held) return false;
-  try {
-    const kept = await receiptHistory(persist, name);
-    const positions = new Map(kept.map((write, index) => [write.id, index]));
-    for (const write of terminalReceipts(text)) {
-      const index = positions.get(write.id);
-      if (index === undefined) { positions.set(write.id, kept.length); kept.push(write); }
-      // @ref LLP 3000.013#6 — a verified outcome resolves replacement's unknown
-      // execution. The source device already validated the correction before
-      // persisting it; adoption must keep it before deleting that source.
-      else {
-        const prior = kept[index]!;
-        if (unknownOutcome(prior)) kept[index] = write;
-      }
-    }
-    // Corrections retain their position; authored outcomes remain immutable.
-    await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
-    return true;
-  } finally { await held.release(); }
 }
 
 // ----- persistence -----

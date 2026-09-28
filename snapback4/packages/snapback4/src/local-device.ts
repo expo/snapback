@@ -4,6 +4,8 @@ import type { BackendJson } from "./backend.ts";
 import type { PendingSend } from "./local-exit.ts";
 import type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { admissionCapture } from "./admission.ts";
+import { deviceControl, type DeviceControlSnapshot } from "./device-control.ts";
+import { deviceRestore, type RestoreFence } from "./device-restore.ts";
 import { admissionOwnership, type AdmissionAuthorityContext } from "./admission-authority.ts";
 
 // @ref LLP 3000.022#4 — supplementary manifests require a conditional host commit.
@@ -11,6 +13,9 @@ export const deliveryCommit = Symbol.for("snapback4.deliveryCommit");
 
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
+  [deviceControl]?: () => DeviceControlSnapshot | undefined;
+  /** Withdraw read/exit authority; report identity validation even after a retry. */
+  [deviceRestore]?: RestoreFence;
   /** Conditional collection CAS. Recheck current after host waits and at the
    * atomic persistence commit. A stale attempt succeeds without writing; a
    * CAS conflict returns { ok: false } for a freshly fenced retry. A host

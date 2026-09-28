@@ -1,0 +1,10 @@
+table ownLikes
+  residency: sync public (inherited from likes)
+  inherited from likes without a horizon; keep this audience for offline aggregate/absence coverage, or use online only and lose that coverage. Measure the replica census: snapback4 test --residency; guide maintains; guide offline-interactions
+  read   <- allow
+  insert <- deny
+  update <- deny
+  delete <- deny
+  sync public — a device holds these rows; everyone holds the same partition
+  unique byGroup: principal, post
+  unique byId: id

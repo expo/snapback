@@ -6,7 +6,7 @@ import { storeLock } from "./app-storage.ts";
 // No transport, result, or server settlement lives here.
 import type { Change } from "./web.ts";
 import type { Refusal } from "./contract.ts";
-import type { WebDevice } from "./wasm/snapback4_device.js";
+import { runJournal, runJournalAsync, type JournalPlan, type JournalInvoke, type JournalDevice } from "./web-journal-execution.ts";
 
 interface Entry {
   id: string;
@@ -29,7 +29,7 @@ const JOURNAL_BYTES = 256 * 1024;
 const JOURNAL_RECORDS = 32;
 const bytes = (text: string) => new TextEncoder().encode(text).byteLength;
 const prefix = (name: string) => `${PREFIX}${encodeURIComponent(name)}:`;
-const invoke = (device: WebDevice, request: Record<string, unknown>) => JSON.parse(device.call(JSON.stringify(request)));
+const invoke = (device: JournalDevice, request: Record<string, unknown>) => JSON.parse(device.call(JSON.stringify(request)));
 
 // @ref LLP 3000.013#6 — one rule for every handoff toward delivery. Unbound pre-journal outboxes
 // retain their legacy custody; a journaled intent never loses its binding.
@@ -101,7 +101,7 @@ export class AdmissionJournal {
   private stagedExits = new Map<string, string>();
   private storeId: string | undefined;
   private sequence = 0;
-  constructor(private readonly name: string, private readonly exclusive: boolean) {}
+  constructor(private readonly name: string, private readonly exclusive: boolean, private readonly captured?: (id: string) => void) {}
 
   // Keep the captured identity on the wire even if the endpoint changes after
   // local validation. Legacy outboxes use their kept device's identity.
@@ -162,10 +162,14 @@ export class AdmissionJournal {
     this.stagedExits.delete(`exit:${id}`);
   }
 
-  recoverExits(device: WebDevice): void {
+  recoverExits(device: JournalDevice): void { runJournal(this.exitRecovery(), request => invoke(device, request)); }
+
+  recoverExitsWith(call: JournalInvoke): Promise<void> { return runJournalAsync(this.exitRecovery(), call); }
+
+  private *exitRecovery(): JournalPlan<void> {
     const store = storage();
     if (!store || !this.exclusive) return;
-    const entries = new Set((invoke(device, { op: "queued" }).ok as Entry[]).map(e => e.id));
+    const entries = new Set(((yield { op: "queued" }).ok as Entry[]).map(e => e.id));
     for (const key of keys(store).filter(key => key.startsWith(`${prefix(this.name)}exit:`))) {
       const value = store.getItem(key);
       if (!value || bytes(value) > RECORD_BYTES) continue;
@@ -177,7 +181,7 @@ export class AdmissionJournal {
       // Recovery changes only the original outbox row. Never re-admit an id
       // after settlement, nor apply a marker to another backend's intent.
       if (entries.has(record.id) && record.storeId === this.boundStore(record.id)) {
-        const reply = invoke(device, { op: "begin_send", id: record.id });
+        const reply = yield { op: "begin_send", id: record.id };
         if (reply.denied) continue;
       }
       this.stagedExits.set(marker, value);
@@ -202,6 +206,7 @@ export class AdmissionJournal {
       const total = held.reduce((n, key) => n + bytes(key) + bytes(store.getItem(key) ?? ""), 0);
       if (held.length >= JOURNAL_RECORDS || total + bytes(key) + bytes(text) > JOURNAL_BYTES) return refuse("the admission journal is full (32 records or 256 KiB); wait for queued writes to commit before retrying");
       store.setItem(key, text);
+      this.captured?.(entry.id);
       return record;
     } catch (error) { if (!browserAdmission()) return; throw error instanceof AdmissionError ? error : new AdmissionError(`localStorage could not keep the mutation: ${String(error)}`); }
   }
@@ -242,31 +247,41 @@ export class AdmissionJournal {
   // Every journaled write keeps its original store binding until dequeued,
   // including a fresh click captured while a replacement probe was in flight.
   // An authenticated reset has already withdrawn predictions before this runs.
-  fence(device: WebDevice): void {
-    const state = invoke(device, { op: "sync_state", capture: false }).ok;
+  fence(device: JournalDevice): void { runJournal(this.fencing(), request => invoke(device, request)); }
+
+  fenceWith(call: JournalInvoke): Promise<void> { return runJournalAsync(this.fencing(), call); }
+
+  private *fencing(): JournalPlan<void> {
+    const state = (yield { op: "sync_state", capture: false }).ok;
     for (const [id, transfer] of this.transfers) if (journalStoreBinding(transfer.storeId, state?.store_id) === "retire") {
-      const reply = invoke(device, { op: "dequeue", id });
+      const reply = yield { op: "dequeue", id };
       if (reply.denied) throw new Error(JSON.stringify(reply));
     }
   }
 
-  binding(device: WebDevice, id: string): ReturnType<typeof journalStoreBinding> {
+  binding(device: JournalDevice, id: string): ReturnType<typeof journalStoreBinding> {
     const destination = invoke(device, { op: "sync_state", capture: false }).ok?.store_id;
     return journalStoreBinding(this.transfers.get(id)?.storeId, destination);
   }
 
-  async recover(device: WebDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
+  async recover(device: JournalDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
+    return this.recoverWith(request => Promise.resolve(invoke(device, request)), settle, live);
+  }
+
+  // The page keeps capture, authority locks and cleanup. Only these explicit
+  // requests cross a Worker boundary; records retain their original identity.
+  async recoverWith(call: JournalInvoke, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
     if (!this.exclusive) return;
-    this.recoverExits(device);
+    await this.recoverExitsWith(call);
     if (this.stagedExits.size) await settle([...this.stagedExits].map(([k, v]) => ({ s: "j", k, v })));
-    const state = invoke(device, { op: "sync_state", capture: false }).ok;
+    const state = (await call({ op: "sync_state", capture: false })).ok;
     if (!state?.store_id || state.restore_refusal || state.backend_required) return;
     for (const record of records(this.name, true)) {
       const id = record.entry.id;
       if (live.has(id)) continue;
       if (this.transfers.has(id)) { remove(record.key); continue; }
       // A transferred outbox receipt wins over any leftover journal copy.
-      const queued = invoke(device, { op: "queued" }).ok as Entry[];
+      const queued = (await call({ op: "queued" })).ok as Entry[];
       if (queued.some(e => e.id === id)) {
         await settle([this.transfer(record, false)]);
         continue;
@@ -285,7 +300,7 @@ export class AdmissionJournal {
       // local authored refusal cannot settle the intent. Replay admission keeps
       // a successful prediction, or rolls refusal back and lets the server decide.
       await this.authorize(record, async () => {
-        const reply = this.admit(device, { ...record.entry, replay_candidate: true }, record.storeId);
+        const reply = await this.admitWith(call, { ...record.entry, replay_candidate: true }, record.storeId);
         if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
         await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
       }, async () => { await settle(this.refused(record)); });
@@ -313,18 +328,27 @@ export class AdmissionJournal {
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
-  admit(device: WebDevice, entry: unknown, storeId?: string): Record<string, unknown> {
-    const binding = journalStoreBinding(storeId, invoke(device, { op: "sync_state", capture: false }).ok?.store_id);
+  admit(device: JournalDevice, entry: unknown, storeId?: string): Record<string, unknown> {
+    return runJournal(this.admission(entry, storeId), request => invoke(device, request));
+  }
+
+  admitWith(call: JournalInvoke, entry: unknown, storeId?: string): Promise<Record<string, unknown>> {
+    return runJournalAsync(this.admission(entry, storeId), call);
+  }
+
+  private *admission(entry: unknown, storeId?: string): JournalPlan<Record<string, unknown>> {
+    const state = yield { op: "sync_state", capture: false };
+    const binding = journalStoreBinding(storeId, state.ok?.store_id);
     if (binding !== "allow") return { denied: bindingRefusal(binding) };
-    const next = invoke(device, { op: "next_submission" });
+    const next = yield { op: "next_submission" };
     if (next.denied) return next;
-    const floor = invoke(device, { op: "meta", key: "server-clock-floor" });
+    const floor = yield { op: "meta", key: "server-clock-floor" };
     if (floor.denied) return floor;
     // Capture remains synchronous. Recovery ahead of this admission in the
     // device chain may have advanced time since capture, including after a crash.
     const issued = Number(floor.ok), requested = entry as Entry;
     const now = Number.isSafeInteger(issued) && issued >= 0 ? Math.max(requested.now, issued) : requested.now;
-    return invoke(device, { op: "admit", entry: { ...requested, now, seq: next.ok } });
+    return yield { op: "admit", entry: { ...requested, now, seq: next.ok } };
   }
 }
 

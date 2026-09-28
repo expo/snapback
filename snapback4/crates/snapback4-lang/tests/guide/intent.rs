@@ -73,7 +73,7 @@ fn published_digest_streams_past_the_old_limit_and_once_survives_reopen() {
     let conversation = &inbox.data.as_array().unwrap()[0];
     assert_eq!(conversation.field("conversationId").unwrap(), &id("chat"));
     assert!(conversation.field("unread").is_err(), "unread totals cannot withhold the inbox");
-    let totals = engine.query("unreadTotals", Context::new("alice", period()).at(100)).unwrap();
+    let totals = engine.query("unreadPreview", Context::new("alice", period()).at(100)).unwrap();
     assert!(totals.complete);
     assert_eq!(totals.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(125));
     let snapshot = engine.snapshot_acquisition_page_at("alice", None, 1000, 100).unwrap();
@@ -91,9 +91,9 @@ fn published_digest_streams_past_the_old_limit_and_once_survives_reopen() {
     let local_inbox = device.query("inbox", "alice", &json!({}), 100).unwrap();
     assert!(local_inbox.complete && !local_inbox.unavailable, "{local_inbox:?}");
     assert_eq!(local_inbox.data, inbox.data);
-    let local_totals = device.query("unreadTotals", "alice", &json!({"periodStart":0, "periodEnd":100}), 100).unwrap();
+    let local_totals = device.query("unreadPreview", "alice", &json!({"periodStart":0, "periodEnd":100}), 100).unwrap();
     assert!(local_totals.unavailable, "horizon totals withhold only the decoration: {local_totals:?}");
-    println!("guide inbox: device complete=true, rows=1; separate unreadTotals unavailable=true; server unread=125");
+    println!("guide inbox: device complete=true, rows=1; separate unreadPreview unavailable=true; server unread=125");
     let run = engine.run_job("digest", period(), 100).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
     let effects = engine.effects(None, 10).unwrap();

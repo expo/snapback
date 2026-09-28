@@ -19,9 +19,23 @@ const pairBytes = (key: string, value: string) => utf8Size(JSON.stringify([key, 
 
 /** Runs in the caller's strict readwrite transaction. No ordinary update
  * reads, parses or rewrites another bucket or an overflow row. */
-export function writeBucket(store: IDBObjectStore, key: string, saved: Bucket | undefined, delta: Change[]): void {
+export function writeBucket(store: IDBObjectStore, key: string, saved: Bucket | undefined, delta: Change[], cleared = false): void {
   const s = key.slice(0, 1);
   const rows = new Map<string, string>(saved ? JSON.parse(saved.v!) : []);
+  // Publication deletes staged images. No insertion means no capacity test:
+  // do not re-encode every removed image just to subtract its escaped size.
+  if (saved && delta.every(change => change.v === null)) {
+    let dirty = false;
+    for (const change of delta) {
+      if (rows.delete(change.k)) dirty = true;
+      else if (saved.spill && !cleared) store.delete([s, change.k]);
+    }
+    if (dirty) {
+      if (rows.size || saved.spill) store.put({ ...saved, v: JSON.stringify([...rows]) });
+      else store.delete(["$bucket", key]);
+    }
+    return;
+  }
   // The saved JSON is already the exact bounded representation. Measure it
   // once; only changed pairs need escaping/encoding again.
   let bytes = saved ? utf8Size(saved.v!) : 2;
@@ -34,7 +48,7 @@ export function writeBucket(store: IDBObjectStore, key: string, saved: Bucket | 
       rows.delete(change.k); dirty = true;
     }
     if (change.v === null) {
-      if (prior === undefined && spill) store.delete([s, change.k]);
+      if (prior === undefined && spill && !cleared) store.delete([s, change.k]);
       continue;
     }
     const size = pairBytes(change.k, change.v), nextBytes = bytes + size + (rows.size ? 1 : 0);

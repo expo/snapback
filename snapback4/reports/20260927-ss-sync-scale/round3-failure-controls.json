@@ -1,0 +1,165 @@
+{
+  "classification": "baseline scheduling failure",
+  "caveat": "The full-suite trace does not identify the exact schedule. Ten ordinary isolated runs on each binary passed; the controlled pre-revocation response reproduces the same assertion on both.",
+  "unchangedFiles": {
+    "packages/snapback4/test/asset-lists.test.mjs": {
+      "unchangedFromMain": true,
+      "sha256": "99c4684a2a3d3aba765e4b9278f71b2d286936bc23eeca2cc121b781d82b7b5b"
+    },
+    "packages/snapback4/src/local.ts": {
+      "unchangedFromMain": true,
+      "sha256": "676d209f0cae08a89ef25977591c17b3db32025447e18c82d20a7b2d97329581"
+    },
+    "packages/snapback4/src/native.ts": {
+      "unchangedFromMain": true,
+      "sha256": "eae50dad769013534373fecc8d57d974a8d86b6b881523384cb332c9053ac08b"
+    }
+  },
+  "binaries": {
+    "before": {
+      "path": "target/release/snapback4",
+      "sha256": "2eaf9e18a1a4ed31a987718e84c663a4668b8dd8c80b48ffa1886a65aba624c4"
+    },
+    "after": {
+      "path": "target/debug/snapback4",
+      "sha256": "d05ffca06008e21254621d0671a0a1883c84ccfabbebbd9a5bb310a7ea8abf8f"
+    }
+  },
+  "ordinaryReplays": {
+    "before": [
+      {
+        "sample": 1,
+        "exit": 0,
+        "logSha256": "52823fd626499dced5370de1c757a47cadfc649e7379b6d90583a4075e080df7"
+      },
+      {
+        "sample": 2,
+        "exit": 0,
+        "logSha256": "e5049f5bb10f1721fe192465c0703aec873c96b6786da8514df9657c3e03e128"
+      },
+      {
+        "sample": 3,
+        "exit": 0,
+        "logSha256": "c30a9695e393b9d0484301b1fa2625603edc5f973ed26d21401faf65548cbf55"
+      },
+      {
+        "sample": 4,
+        "exit": 0,
+        "logSha256": "b109f9a15ab6309c29c1ccda49c5e37a5f3b7aa998e8e9228f3c3791d4a7a6da"
+      },
+      {
+        "sample": 5,
+        "exit": 0,
+        "logSha256": "ed519fe788aaeca269862aff2ea6960eef24e17f98d4daec25d32493af21abd1"
+      },
+      {
+        "sample": 6,
+        "exit": 0,
+        "logSha256": "4f69f66e8adfb66695d8ba7d43132f8595a1a5c3c0c790d592e35b2917ebe330"
+      },
+      {
+        "sample": 7,
+        "exit": 0,
+        "logSha256": "a143c1200dad1f25fb1279e2bf03c7925ac8f061eb407522e166b95c686eca16"
+      },
+      {
+        "sample": 8,
+        "exit": 0,
+        "logSha256": "825f61adb466ab6bd65fdcd26cdb51343e15dc250a0e0dd455cf47a790f126c8"
+      },
+      {
+        "sample": 9,
+        "exit": 0,
+        "logSha256": "6788e82b2899f070ceb9f27fbddcce4790a39ff35a5087e769578f39fd45ad08"
+      },
+      {
+        "sample": 10,
+        "exit": 0,
+        "logSha256": "15b1296b8ea4095f38733a2098da15e59b9cd92b69aa40660a6e5004c963f46b"
+      }
+    ],
+    "after": [
+      {
+        "sample": 1,
+        "exit": 0,
+        "logSha256": "4e510cb765abc6db0f12d166fa3495dffb7d4ab9fe42e938149357b1c8bc3b9c"
+      },
+      {
+        "sample": 2,
+        "exit": 0,
+        "logSha256": "918649cb818a9a1c5ccbdcf47ac710f533ac64d5ed00ce606c6d74a9c5f72c86"
+      },
+      {
+        "sample": 3,
+        "exit": 0,
+        "logSha256": "11637f3d299d55314dc4afb2d5fa8b49382a3cbae98ce699a8986ceb45c68706"
+      },
+      {
+        "sample": 4,
+        "exit": 0,
+        "logSha256": "16e59b8f1a39fdaa1f6f4c7915e634803b0d65d7ab41bcaf441b00fa4dd28e8f"
+      },
+      {
+        "sample": 5,
+        "exit": 0,
+        "logSha256": "4cb84dc70d519e4a7f1ff587091b5a3fe7977b373825f7b6bad44fc50e63623a"
+      },
+      {
+        "sample": 6,
+        "exit": 0,
+        "logSha256": "03c4f968133bf8cb680055bc2e6e2118d88f799e7756d63061f4a4651726a3b3"
+      },
+      {
+        "sample": 7,
+        "exit": 0,
+        "logSha256": "1fc9d5498955230139323cbc96bbaf7ba849224b144ed76fadfeb95762cf74c0"
+      },
+      {
+        "sample": 8,
+        "exit": 0,
+        "logSha256": "e319a8d2e8813a52b7631a1be23e98868d750b159cfffddf323af06579a9533d"
+      },
+      {
+        "sample": 9,
+        "exit": 0,
+        "logSha256": "8ca0afd561d6c37c64f6a663c04da1e5c6f6a8a31edcdcdc9dacfadee2060ebb"
+      },
+      {
+        "sample": 10,
+        "exit": 0,
+        "logSha256": "42364575b391af857a165902eb5cfd674dd2e584c7706244fa0d3df5f969384b"
+      }
+    ]
+  },
+  "controlledReplays": {
+    "before": {
+      "exit": 1,
+      "log": "(node:3514770) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n\u2716 native: legacy bare id cannot retain bytes after real home revoke (1194.187047ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 0\n\u2139 fail 1\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1299.518779\n\n\u2716 failing tests:\n\ntest at target/lane-ss-round3/media-control/asset-lists.test.mjs:186:3\n\u2716 native: legacy bare id cannot retain bytes after real home revoke (1194.187047ms)\n  AssertionError [ERR_ASSERTION]: real home is gone\n      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round3/media-control/asset-lists.test.mjs:257:36)\n      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n      at async Test.run (node:internal/test_runner/test:1110:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n"
+    },
+    "after": {
+      "exit": 1,
+      "log": "(node:3514863) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n\u2716 native: legacy bare id cannot retain bytes after real home revoke (1236.301545ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 0\n\u2139 fail 1\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 1337.212464\n\n\u2716 failing tests:\n\ntest at target/lane-ss-round3/media-control/asset-lists.test.mjs:186:3\n\u2716 native: legacy bare id cannot retain bytes after real home revoke (1236.301545ms)\n  AssertionError [ERR_ASSERTION]: real home is gone\n      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ss/snapback4/target/lane-ss-round3/media-control/asset-lists.test.mjs:257:36)\n      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n      at async Test.run (node:internal/test_runner/test:1110:7)\n      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {\n    generatedMessage: false,\n    code: 'ERR_ASSERTION',\n    actual: false,\n    expected: true,\n    operator: '==',\n    diff: 'simple'\n  }\n"
+    }
+  },
+  "timeline": {
+    "base": "09e55ad98",
+    "paths": [
+      {
+        "path": "snapback4/crates/snapback4-core/src/engine/timeline/activation.rs",
+        "identicalToMergedMain": true,
+        "sha256": "60dfd6a2c596fbd6772c90897cd62b9f551eaac9b009ade00db05411be8c9a12"
+      },
+      {
+        "path": "snapback4/crates/snapback4/tests/timeline/lifecycle.rs",
+        "identicalToMergedMain": true,
+        "sha256": "2ce8d605dd4dc66ed5de8307b85df58db6fc43ae50c4ef25094851d4333d6d8f"
+      },
+      {
+        "path": "snapback4/crates/snapback4/tests/timeline_adoption.rs",
+        "identicalToMergedMain": true,
+        "sha256": "4af4af02f75cd3b51855628a3cc8956f590c05fcfd50ef5b0ced20a2d9867ce9"
+      }
+    ],
+    "evidence": "The two unchanged tests require planned view; merged-main activation diagnostic literals no longer contain that phrase."
+  }
+}

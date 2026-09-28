@@ -643,7 +643,7 @@ impl Parser {
                     return Err(unsupported(&effect.site, "readable on a maintain", "read <- rule  -- a maintain has one rule; the engine delivers it to its source's audience"));
                 }
                 if effect.value == "sync" {
-                    return Err(syntax_with(&effect.site, "a maintain inherits its source's sync; `online only` opts out", "remove this sync line to inherit, or replace it with `online only`").guide("residency"));
+                    return Err(crate::bind::audience_diagnostics::sync_syntax(&name, &source, &effect.site));
                 }
                 if effect.value != "read" {
                     let rewrite = if effect.value == "public" { "read <- allow  -- maintain has no public property" } else { "read <- rule" };

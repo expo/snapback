@@ -65,6 +65,14 @@ rule always wins. Residency is unchanged: sync is inherited only when all
 source audience columns survive as bare keys, without the source horizon;
 otherwise the aggregate stays server-only. `online only` opts out.
 
+E_SYNC on a public inherited view names the source, the missing horizon and
+the conflicting explicit read. An owner-only read does not make public sync
+private. E_QUARRY_SYNTAX refuses a separate sync line on any view. On this public inherited view, remove that
+line, then keep the public read (or omit it) for the public offline summary,
+or use `online only` and lose offline aggregate/absence coverage. Never narrow
+the public source to make the view private. `guide offline-interactions` is
+the example and replica census; N_MAINTAIN_SYNCED links it too.
+
 E_MAINTAIN_READ_EXPIRE means an aggregate over an expiring source has a read
 rule that uses fields its group keys do not determine. This includes a source
 with an effective deadline inherited through `read through`. Use `read <- deny`

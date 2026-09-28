@@ -9,6 +9,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquery all():\n  return messages[] first 10 by byId\n";
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
+#[path = "check/audience_bounds.rs"] mod audience_bounds;
+
 #[test]
 fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
     let project = Project::new();
@@ -475,7 +477,7 @@ fn w9b_new_maintains_share_one_note_without_pre_adoption_counts() {
     let note = &notes[0];
     let message = note["message"].as_str().unwrap();
     println!("{}\n  rewrite: {}\n  guide: {}", message, note["rewrite"].as_str().unwrap(), note["guide"].as_str().unwrap());
-    assert_eq!(message, "2 synced maintains:\n  maintain likeCounts: sync public inherited from likes; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only` (site schema.q:10:1)\n  maintain ownerCounts: sync public inherited from likes; one value row per owner reaches every device; no currently eligible mutation reads it (site schema.q:24:1)");
+    assert_eq!(message, "2 synced maintains:\n  maintain likeCounts: sync public inherited from likes, no horizon; one value row per postId reaches every device; createPost, like, repost would stop predicting if likeCounts goes `online only` (site schema.q:10:1)\n  maintain ownerCounts: sync public inherited from likes, no horizon; one value row per owner reaches every device; no currently eligible mutation reads it (site schema.q:24:1)");
     assert!(note["rewrite"].as_str().unwrap().contains("snapback4 test --residency"));
     assert_eq!(engine.store().count("likeCounts").unwrap(), 0, "check must not adopt the proposed maintains");
 }

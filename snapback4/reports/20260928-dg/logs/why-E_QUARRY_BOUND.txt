@@ -1,0 +1,28 @@
+E_QUARRY_BOUND: a collected population needs a fitting schema cap or an explicit page. Return t where .owner = viewer first 20 by .at after c; declare c: cursor ?. For a total, use count(t where .owner = viewer); for a job, use for row in t:. A mutation loop still needs its whole-group admission proof. guide bounds.
+
+# Bounds and the meter
+
+E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
+schema cap covers the group, its cap exceeds the examined ceiling, or a
+meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
+on the table if that is the intended group limit, then read `t where .group = group`, or
+page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
+names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
+its page size. Descending reads keep `last N`.
+
+A helper's viewer-query callers inherit query bounds and viewer authority.
+The refusal stays at the failed loop and names the caller chain. Pinning a
+principal in a membership loop does not decide a conversation-based read rule.
+`first 50` is a partial preview, not an equivalent complete digest: use a
+separately named paged per-chat preview with `c: cursor ?` and follow its
+cursor, or keep the complete scheduled job under its system chunk meter.
+Inner recipient work must fit one chunk even when the outer sweep adapts;
+an oversized recipient parks rather than committing a partial digest.
+A helper never grants system authority to a query. See `guide jobs`.
+
+A boundless domain read uses the schema cap in ascending order, even in
+nested shapes and mutation loops. A cap above the examined ceiling requires
+explicit pagination for a returned page. `first N` remains an ordinary page;
+`last N` remains the descending spelling.
+
+Full card: snapback4 guide bounds

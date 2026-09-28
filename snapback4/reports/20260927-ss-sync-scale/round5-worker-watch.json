@@ -1,0 +1,61 @@
+{
+  "results": [
+    {
+      "case": "503",
+      "detail": {
+        "preserved": true,
+        "sent": "sent",
+        "acquired": false,
+        "held": true,
+        "queries": 5
+      }
+    },
+    {
+      "case": "expiry",
+      "detail": {
+        "preserved": true,
+        "sent": "sent",
+        "acquired": false,
+        "held": true,
+        "queries": 7
+      }
+    },
+    {
+      "case": "synchronous pending prediction blocks dispatch before Worker transfer",
+      "detail": {
+        "unknown": true,
+        "before": 7,
+        "after": 7,
+        "acquired": false,
+        "captured": true
+      }
+    }
+  ],
+  "resumed": {
+    "admitted": {
+      "ok": {
+        "args": {
+          "body": "busy-admission",
+          "conversationId": "c000"
+        },
+        "id": "busy-admission",
+        "new_ids": [
+          "busy-admission-row"
+        ],
+        "now": 1790565284968,
+        "observed_seq": null,
+        "op": "send",
+        "predictable": true,
+        "predicted": [
+          "messages/busy-admission-row",
+          "messageCounts/[{\"Id\":\"c000\"}]"
+        ],
+        "sent_seq": null,
+        "seq": 1,
+        "viewer": "dev:bob"
+      }
+    },
+    "acquired": true
+  },
+  "errors": []
+}
