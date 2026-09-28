@@ -1,0 +1,144 @@
+  typing: ephemeral 3s: server memory, never on a device
+  setTyping: ephemeral, renews
+    Server: upsert insert queues without a row: typing is online only (site schema.q:273:3); this write queues until the server answers; show its pending state
+    Server: write typing by byId: online only (site schema.q:273:3 (upsert typing))
+      rewrite: sync typing to its read-rule audience, or read a compact synced projection
+    Held: rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon (site schema.q:221:3 (typing update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28))
+    Held: rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon (site schema.q:220:3 (typing insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28))
+  stopTyping: ephemeral
+    Server: write target typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only (site schema.q:275:3 (delete typing))
+      rewrite: sync typing to its read-rule audience, or read a compact synced projection
+    Server: write typing by byId: online only (site schema.q:275:3 (delete typing))
+      rewrite: sync typing to its read-rule audience, or read a compact synced projection
+check: ok — 30 tables (18 synced), 65 operations, no problems, 22 notes, 26.3 ms
+note: schema.q:316:155 — N_SEEK: a `where` on the next index column is a seek; write it in the key
+  rewrite: messages[conversation = conversation, ordinal > prefix] after c first 100 by byOrdinal
+  guide: reads
+  why: snapback4 why N_SEEK
+
+note: schema.q:276:1 — N_EPHEMERAL_SERVER: typingIn runs on the server because it reads an ephemeral table
+  rewrite: split the ephemeral read into its own query and render it next to the device-held one
+  guide: ephemeral
+  why: snapback4 why N_EPHEMERAL_SERVER
+
+note: schema.q:282:1 — N_NO_CURSOR: query groupNamed returns a page of 1 conversations rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in groupNamed and append `after c` to this conversations page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+note: schema.q:282:1 — N_NEVER_COMPLETE: query groupNamed: the page over conversations[..] by read or declaration on conversations (kind, title, id) at schema.q:283:10 is never `complete` — the read rule `exists members[.id, viewer]` reads .id, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: pin .id with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+  why: snapback4 why N_NEVER_COMPLETE
+
+note: schema.q:485:1 — N_NO_CURSOR: query trending returns a page of 10 posts rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in trending and append `after c` to this posts page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+note: schema.q:92:1 — N_MAINTAIN_SYNCED: 2 synced maintains.
+  rewrite: keep inherited sync for local readers, or add `online only` to opt out; measure cold rows with `snapback4 test --residency`
+  guide: residency
+  why: snapback4 why N_MAINTAIN_SYNCED
+
+note: schema.q:224:1 — N_MAINTAIN_DELTA: maintain unread may disclose the delta of a hidden messages row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: conversation, ordinal, sender, tombstone
+  rewrite: treat the view as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+  why: snapback4 why N_MAINTAIN_DELTA
+
+note: schema.q:48:3 — N_MAINTAINED_COLUMN_STREAM: posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change
+  rewrite: use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use a view with online only
+  guide: maintains
+  why: snapback4 why N_MAINTAINED_COLUMN_STREAM
+
+note: schema.q:27:10 — N_SYNC_ORDER: query people `profiles matching q first 20 by .handle after c` reads profiles by .handle, .id, oldest first (index [handle]); its sync window is last 1200 by .id, newest first (index byId [id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:99:10 — N_SYNC_ORDER: query global `activity last 20 by .at after c` reads posts by .at, .id, newest first (index [parent, removed, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:101:10 — N_SYNC_ORDER: query userPosts `posts where .author = owner and .parent = null last 20 by .at after c` reads posts by .at, .id, newest first (index [author, parent, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:105:10 — N_SYNC_ORDER: query replies `posts where .parent = parent first 20 by .at after c` reads posts by .at, .id, oldest first (index [parent, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:316:102 — N_SYNC_ORDER: query progress `messages[conversation = conversation]` reads messages by .ordinal, .id, oldest first (index byOrdinal [conversation, ordinal]); its sync window is last 500 by .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:429:10 — N_SYNC_ORDER: query searchIn `messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, tombstone, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:433:10 — N_SYNC_ORDER: query searchNewest `messages matching q where exists members[.conversation, viewer] and not .tombstone last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, tombstone, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:435:187 — N_SYNC_ORDER: query searchGrouped `messages[conversation = .conversation] matching q where not .tombstone last 3 by .at` reads messages by .at, .id, newest first (index [conversation, tombstone, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:452:10 — N_SYNC_ORDER: query auditMessages `messages[conversation = conversation]` reads messages by .ordinal, .id, oldest first (index byHistory [conversation, ordinal, id]); its sync window is last 500 by .ordinal, .id, newest first (index byHistory [conversation, ordinal, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: use `messages[conversation = conversation] after c last 200 by byHistory`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:454:10 — N_SYNC_ORDER: query auditPosts `posts first 200 by .id after c` reads posts by .id, oldest first (index byId [id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: declare `by bySyncWindow: at, id` on posts; set its sync horizon to `last 1000 by bySyncWindow`; use `posts[] after c last 200 by bySyncWindow`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:456:10 — N_SYNC_ORDER: query auditLikes `likes first 200 by .id after c` reads likes by .id, oldest first (index byId [id]); its sync window is last 2000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: declare `by bySyncWindow: at, id` on likes; set its sync horizon to `last 2000 by bySyncWindow`; use `likes[] after c last 200 by bySyncWindow`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:458:10 — N_SYNC_ORDER: query auditReposts `reposts first 200 by .id after c` reads reposts by .id, oldest first (index byId [id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: declare `by bySyncWindow: at, id` on reposts; set its sync horizon to `last 1000 by bySyncWindow`; use `reposts[] after c last 200 by bySyncWindow`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:462:10 — N_SYNC_ORDER: query auditProfiles `profiles first 200 by .id after c` reads profiles by .id, oldest first (index byId [id]); its sync window is last 1200 by .id, newest first (index byId [id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: use `profiles[] after c last 200 by byId`, newest first; audience equalities stay in bracket keys and all other predicates keep their meaning. Restart pagination after changing the order
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:486:10 — N_SYNC_ORDER: query trending `posts where .parent = null and not .removed and .at >= now - 1d and .at <= now last 10 by .likeCount, .at` reads posts by .likeCount, .at, .id, newest first (index [parent, removed, hour(at), likeCount, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+scale: 41 of 65 operations are constant; 8 constant once background cleanup catches up (home, history, progress, seen, messageReactions, react, historyHeld, auditMessages); 16 grow with data (people, send, typingIn, groupNamed, unreadFor, messageReceipts, delivered, sendMedia, searchIn, searchHeld, searchNewest, searchGrouped, searchInHeld, apiHistory, trending, digest); 1 job(s) assessed per chunk — `check --cost` gives the certificate
+  N_SEARCH_WORDS at programs.people.0: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return profiles matching q after c first 20 by .handle, .id where (public) (guide search)
+  N_SEARCH_WORDS at programs.searchHeld.0: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return messages matching q after c last 20 by .at, .id where .tombstone = false and (exists members[.conversation, viewer]) (guide search)
+  N_SEARCH_WORDS at programs.searchNewest.2: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation, tombstone = false] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation, tombstone = false] matching q last 3 by .at, .id } (guide search)
+  N_SEARCH_OPEN at programs.searchNewest.0: every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation, tombstone = false] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation, tombstone = false] matching q last 3 by .at, .id } (guide search)
+5 mutations never predict: send (connected[member.principal] decides a fallible or variable-cost arm (read at schema.q:441:50)), sendMedia (connected[member.principal] decides a fallible or variable-cost arm (read at schema.q:441:50)), setFollow (writes online-only table follows), setTyping (writes online-only table typing), stopTyping (writes online-only table typing); 6 mutations have insert arms that never predict: publish (posts has horizon last 1000 by index (at, id), chosen by the planner (at, id)), saveProfile (profiles has horizon last 1200 by byId (id)), setFollow (follows is online only), setLike (likes has horizon last 2000 by index (at, id), chosen by the planner (at, id)), setRepost (reposts has horizon last 1000 by index (at, id), chosen by the planner (at, id)), setTyping (typing is online only); 11 mutations eligible, but these reads queue without a row past a horizon: addMember (profiles[principal = principal] (schema.q:250:18)), createDM (profiles[principal = other] (schema.q:229:18)), createGroup (profiles[principal = other] (schema.q:241:18)), deleteMessage (messages by byId (schema.q:398:3), messages[message] (schema.q:395:7)), editMessage (messages by byId (schema.q:393:3), messages[message] (schema.q:387:7)), placeAvatar (profiles by index (principal), chosen by the planner (schema.q:31:3)), publish (insert posts (schema.q:117:10), posts[parent] (schema.q:116:20)), react (delete reactions (schema.q:366:5), insert reactions (schema.q:372:7), messages by byId (schema.q:370:7), messages[message] (schema.q:362:7), reactions[message, viewer] (schema.q:368:13)), seen (messages[conversation = conversation, ordinal = through] (schema.q:342:12)), setLike (delete likes (schema.q:130:5), insert likes (schema.q:128:5), posts[post] (schema.q:126:18)), setRepost (delete reposts (schema.q:136:5), insert reposts (schema.q:134:5), posts by byId (insert reposts: posts/byId), posts[post] (schema.q:132:18), reposts by byId (delete reposts: reposts/byId)) — snapback4 why <op>
+  view unread: key messages.conversation = members.conversation; one value per members row; source fanout <= 50; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256
+    device range: .ordinal > member.seenOrdinal; index $view:conversation:ordinal; horizon 500 by byHistory; greatest encoded lower bound; strict wins equal values; null is weakest; whole group when every range operand is null; Whole keeps the live-basis scan
+  historyHeld: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan messages by byHistory: sync to members[.conversation] last 500 by byHistory; selected byHistory (conversation = conversation); result: page; explicit by (site schema.q:400:10 (messages[conversation = conversation])); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+  searchHeld: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan messages by index (tombstone, words(text), at), chosen by the planner: sync to members[.conversation] last 500 by byHistory; when q present: selected index (tombstone, words(text), at), chosen by the planner (tombstone = false); result: page; read: messages matching q where not .tombstone last 20 by .at after c; when q absent: selected index (tombstone, at), chosen by the planner (tombstone = false); result: page; read: messages matching q where not .tombstone last 20 by .at after c (site schema.q:431:10 (messages where not .tombstone matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Horizon: scan messages by index (tombstone, at), chosen by the planner: sync to members[.conversation] last 500 by byHistory; when q present: selected index (tombstone, words(text), at), chosen by the planner (tombstone = false); result: page; read: messages matching q where not .tombstone last 20 by .at after c; when q absent: selected index (tombstone, at), chosen by the planner (tombstone = false); result: page; read: messages matching q where not .tombstone last 20 by .at after c (site schema.q:431:10 (messages where not .tombstone matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+  searchInHeld: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan messages by index (conversation, tombstone, words(text), at), chosen by the planner: sync to members[.conversation] last 500 by byHistory; when q present: selected index (conversation, tombstone, words(text), at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c; when q absent: selected index (conversation, tombstone, at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c (site schema.q:437:10 (messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Horizon: scan messages by index (conversation, tombstone, at), chosen by the planner: sync to members[.conversation] last 500 by byHistory; when q present: selected index (conversation, tombstone, words(text), at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c; when q absent: selected index (conversation, tombstone, at), chosen by the planner (conversation = conversation, tombstone = false); result: page; read: messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c (site schema.q:437:10 (messages where .conversation = conversation and not .tombstone matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon

@@ -1,0 +1,1307 @@
+TAP version 13
+# Subtest: wasm: known sent survives keep_write failure; close=false
+ok 1 - wasm: known sent survives keep_write failure; close=false
+  ---
+  duration_ms: 1558.607798
+  type: 'test'
+  ...
+# Subtest: wasm: known sent survives keep_write failure; close=true
+ok 2 - wasm: known sent survives keep_write failure; close=true
+  ---
+  duration_ms: 1114.657336
+  type: 'test'
+  ...
+# Subtest: wasm: known failed survives keep_write failure; close=false
+ok 3 - wasm: known failed survives keep_write failure; close=false
+  ---
+  duration_ms: 1114.687662
+  type: 'test'
+  ...
+# Subtest: wasm: known failed survives keep_write failure; close=true
+ok 4 - wasm: known failed survives keep_write failure; close=true
+  ---
+  duration_ms: 1101.333933
+  type: 'test'
+  ...
+# Subtest: native: known sent survives keep_write failure; close=false
+ok 5 - native: known sent survives keep_write failure; close=false
+  ---
+  duration_ms: 2181.901234
+  type: 'test'
+  ...
+# Subtest: native: known sent survives keep_write failure; close=true
+ok 6 - native: known sent survives keep_write failure; close=true
+  ---
+  duration_ms: 1161.482745
+  type: 'test'
+  ...
+# Subtest: native: known failed survives keep_write failure; close=false
+ok 7 - native: known failed survives keep_write failure; close=false
+  ---
+  duration_ms: 1177.008651
+  type: 'test'
+  ...
+# Subtest: native: known failed survives keep_write failure; close=true
+ok 8 - native: known failed survives keep_write failure; close=true
+  ---
+  duration_ms: 1175.541392
+  type: 'test'
+  ...
+# Subtest: known online commit survives failed receipt saves and same-id restart recovery
+ok 9 - known online commit survives failed receipt saves and same-id restart recovery
+  ---
+  duration_ms: 105.184438
+  type: 'test'
+  ...
+# Subtest: known online refusal survives failed receipt saves and same-id restart recovery
+ok 10 - known online refusal survives failed receipt saves and same-id restart recovery
+  ---
+  duration_ms: 62.015791
+  type: 'test'
+  ...
+# Subtest: activation waits for startup witnessing and for persisted debt to finish flushing
+ok 11 - activation waits for startup witnessing and for persisted debt to finish flushing
+  ---
+  duration_ms: 84.61394
+  type: 'test'
+  ...
+# Subtest: activation retries a failed page from the persisted cursor with bounded backoff until done
+ok 12 - activation retries a failed page from the persisted cursor with bounded backoff until done
+  ---
+  duration_ms: 1052.432271
+  type: 'test'
+  ...
+# Subtest: activation completes while a live group is replenished before every report settles
+ok 13 - activation completes while a live group is replenished before every report settles
+  ---
+  duration_ms: 27.840327
+  type: 'test'
+  ...
+# Subtest: createApp online: false authority refusal never collects delivery
+ok 14 - createApp online: false authority refusal never collects delivery
+  ---
+  duration_ms: 742.484311
+  type: 'test'
+  ...
+# Subtest: createApp online: throw authority refusal never collects delivery
+ok 15 - createApp online: throw authority refusal never collects delivery
+  ---
+  duration_ms: 707.941405
+  type: 'test'
+  ...
+# Subtest: createApp online: superseded answer never reports; approved successor reports exactly once
+ok 16 - createApp online: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 882.546446
+  type: 'test'
+  ...
+# Subtest: createApp online: episode expiry before approval never collects
+ok 17 - createApp online: episode expiry before approval never collects
+  ---
+  duration_ms: 1430.636429
+  type: 'test'
+  ...
+# Subtest: createApp online: row expiry before approval never collects
+ok 18 - createApp online: row expiry before approval never collects
+  ---
+  duration_ms: 927.873708
+  type: 'test'
+  ...
+# Subtest: createApp online: peer approval shares one collection of the exact manifest
+ok 19 - createApp online: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 962.864545
+  type: 'test'
+  ...
+# Subtest: createApp online: temporary session-store failure at raw publication cannot report unseen 41
+ok 20 - createApp online: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 380.50057
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can approve the same answer after storage recovers
+ok 21 - createApp online: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 1270.649173
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can refuse the same answer after storage recovers
+ok 22 - createApp online: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 1049.736952
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final approve check before accepting delivery
+ok 23 - createApp online: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 632.854769
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final false check before accepting delivery
+ok 24 - createApp online: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 698.889065
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final throw check before accepting delivery
+ok 25 - createApp online: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 699.727782
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final expired check before accepting delivery
+ok 26 - createApp online: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 915.819027
+  type: 'test'
+  ...
+# Subtest: createApp online: background-only delivery waits for facade approval with changes held
+ok 27 - createApp online: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 871.639225
+  type: 'test'
+  ...
+# Subtest: createApp local: false authority refusal never collects delivery
+ok 28 - createApp local: false authority refusal never collects delivery
+  ---
+  duration_ms: 1131.810643
+  type: 'test'
+  ...
+# Subtest: createApp local: throw authority refusal never collects delivery
+ok 29 - createApp local: throw authority refusal never collects delivery
+  ---
+  duration_ms: 747.792269
+  type: 'test'
+  ...
+# Subtest: createApp local: superseded answer never reports; approved successor reports exactly once
+ok 30 - createApp local: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 917.443614
+  type: 'test'
+  ...
+# Subtest: createApp local: episode expiry before approval never collects
+ok 31 - createApp local: episode expiry before approval never collects
+  ---
+  duration_ms: 1468.648066
+  type: 'test'
+  ...
+# Subtest: createApp local: row expiry before approval never collects
+ok 32 - createApp local: row expiry before approval never collects
+  ---
+  duration_ms: 962.559119
+  type: 'test'
+  ...
+# Subtest: createApp local: peer approval shares one collection of the exact manifest
+ok 33 - createApp local: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 1005.65804
+  type: 'test'
+  ...
+# Subtest: createApp local: temporary session-store failure at raw publication cannot report unseen 41
+ok 34 - createApp local: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 404.019329
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can approve the same answer after storage recovers
+ok 35 - createApp local: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 1304.930278
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can refuse the same answer after storage recovers
+ok 36 - createApp local: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 1070.72679
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final approve check before accepting delivery
+ok 37 - createApp local: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 658.955219
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final false check before accepting delivery
+ok 38 - createApp local: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 725.519299
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final throw check before accepting delivery
+ok 39 - createApp local: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 713.44639
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final expired check before accepting delivery
+ok 40 - createApp local: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 937.388805
+  type: 'test'
+  ...
+# Subtest: createApp local: background-only delivery waits for facade approval with changes held
+ok 41 - createApp local: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 902.75262
+  type: 'test'
+  ...
+# Subtest: createApp local: superseding an approved answer fences its delayed collection commit
+ok 42 - createApp local: superseding an approved answer fences its delayed collection commit
+  ---
+  duration_ms: 906.397724
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks authority without unaccepting the answer
+ok 43 - every losing collection CAS rechecks authority without unaccepting the answer
+  ---
+  duration_ms: 2.671165
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks credential without unaccepting the answer
+ok 44 - every losing collection CAS rechecks credential without unaccepting the answer
+  ---
+  duration_ms: 0.449955
+  type: 'test'
+  ...
+# Subtest: every losing collection CAS rechecks incarnation without unaccepting the answer
+ok 45 - every losing collection CAS rechecks incarnation without unaccepting the answer
+  ---
+  duration_ms: 0.485648
+  type: 'test'
+  ...
+# Subtest: a device Left publication wins the acceptance CAS and the retry never recreates its debt
+ok 46 - a device Left publication wins the acceptance CAS and the retry never recreates its debt
+  ---
+  duration_ms: 436.15879
+  type: 'test'
+  ...
+# Subtest: an answer rejected at its final fence neither publishes nor starts collection
+ok 47 - an answer rejected at its final fence neither publishes nor starts collection
+  ---
+  duration_ms: 0.215153
+  type: 'test'
+  ...
+# Subtest: a host without conditional commit under-reports an accepted manifest
+ok 48 - a host without conditional commit under-reports an accepted manifest
+  ---
+  duration_ms: 0.75406
+  type: 'test'
+  ...
+# Subtest: online home-screen manifest sends exact positions without an application mutate
+ok 49 - online home-screen manifest sends exact positions without an application mutate
+  ---
+  duration_ms: 274.115702
+  type: 'test'
+  ...
+# Subtest: online calls judge out-of-order heads against their own dispatch floors
+ok 50 - online calls judge out-of-order heads against their own dispatch floors
+  ---
+  duration_ms: 11.863555
+  type: 'test'
+  ...
+# Subtest: local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+ok 51 - local acceptance persists before dispatch, waits for witness and idle outbox, and fences restore
+  ---
+  duration_ms: 287.819286
+  type: 'test'
+  ...
+# Subtest: online sign-out clears the viewer immediately while giving an active report its bounded drain
+ok 52 - online sign-out clears the viewer immediately while giving an active report its bounded drain
+  ---
+  duration_ms: 273.404967
+  type: 'test'
+  ...
+# Subtest: an unrelated generation preserves an online range refusal
+ok 53 - an unrelated generation preserves an online range refusal
+  ---
+  duration_ms: 580.834031
+  type: 'test'
+  ...
+# Subtest: online query below the publication floor accepts no manifest
+ok 54 - online query below the publication floor accepts no manifest
+  ---
+  duration_ms: 479.441929
+  type: 'test'
+  ...
+# Subtest: online E_OFFLINE reaches the existing probe and reconnects the same attempt
+ok 55 - online E_OFFLINE reaches the existing probe and reconnects the same attempt
+  ---
+  duration_ms: 513.634519
+  type: 'test'
+  ...
+# Subtest: online one-shot acceptance belongs to its final returned answer
+ok 56 - online one-shot acceptance belongs to its final returned answer
+  ---
+  duration_ms: 1.036154
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND why once until the next start
+ok 57 - online adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 3.21503
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND denied once until the next start
+ok 58 - online adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 2.095362
+  type: 'test'
+  ...
+# Subtest: online adapter parks E_BOUND headless once until the next start
+ok 59 - online adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 2.298996
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND why once until the next start
+ok 60 - local adapter parks E_BOUND why once until the next start
+  ---
+  duration_ms: 8.332612
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND denied once until the next start
+ok 61 - local adapter parks E_BOUND denied once until the next start
+  ---
+  duration_ms: 5.383281
+  type: 'test'
+  ...
+# Subtest: local adapter parks E_BOUND headless once until the next start
+ok 62 - local adapter parks E_BOUND headless once until the next start
+  ---
+  duration_ms: 4.222821
+  type: 'test'
+  ...
+# Subtest: killed wasm host retains publication debt and the uncertain attempt id
+ok 63 - killed wasm host retains publication debt and the uncertain attempt id
+  ---
+  duration_ms: 1020.808453
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: online
+ok 64 - integrated delivery binding, manifest, report and no-op replay: online
+  ---
+  duration_ms: 396.713156
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: local-fallback
+ok 65 - integrated delivery binding, manifest, report and no-op replay: local-fallback
+  ---
+  duration_ms: 816.138871
+  type: 'test'
+  ...
+# Subtest: integrated delivery binding, manifest, report and no-op replay: local-publication
+ok 66 - integrated delivery binding, manifest, report and no-op replay: local-publication
+  ---
+  duration_ms: 152.329656
+  type: 'test'
+  ...
+# Subtest: real local outbox keeps submission order ahead of delivery load
+ok 67 - real local outbox keeps submission order ahead of delivery load
+  ---
+  duration_ms: 1480.767303
+  type: 'test'
+  ...
+# Subtest: real local fallback accepts before supplementary debt becomes durable
+ok 68 - real local fallback accepts before supplementary debt becomes durable
+  ---
+  duration_ms: 513.836632
+  type: 'test'
+  ...
+# Subtest: a delayed local save never delays query acceptance
+ok 69 - a delayed local save never delays query acceptance
+  ---
+  duration_ms: 85.479558
+  type: 'test'
+  ...
+# Subtest: a failed manifest save leaves the successful local fallback answer intact
+ok 70 - a failed manifest save leaves the successful local fallback answer intact
+  ---
+  duration_ms: 116.09888
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when commit changes before acceptance
+ok 71 - local fallback rejects its manifest when commit changes before acceptance
+  ---
+  duration_ms: 125.675097
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when credential changes before acceptance
+ok 72 - local fallback rejects its manifest when credential changes before acceptance
+  ---
+  duration_ms: 128.211088
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when expiry changes before acceptance
+ok 73 - local fallback rejects its manifest when expiry changes before acceptance
+  ---
+  duration_ms: 233.019362
+  type: 'test'
+  ...
+# Subtest: a query below its local restore floor creates no delivery debt
+ok 74 - a query below its local restore floor creates no delivery debt
+  ---
+  duration_ms: 92.354874
+  type: 'test'
+  ...
+# Subtest: a watch publishes before a delayed save, and expiry cannot resurrect that answer
+ok 75 - a watch publishes before a delayed save, and expiry cannot resurrect that answer
+  ---
+  duration_ms: 306.950878
+  type: 'test'
+  ...
+# Subtest: local E_OFFLINE reconnects through the existing link path and retains its attempt id
+ok 76 - local E_OFFLINE reconnects through the existing link path and retains its attempt id
+  ---
+  duration_ms: 2098.651009
+  type: 'test'
+  ...
+# Subtest: a credential change during save withdraws an already accepted watch without republishing it
+ok 77 - a credential change during save withdraws an already accepted watch without republishing it
+  ---
+  duration_ms: 105.262125
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after credential
+ok 78 - a held collection write after query acceptance omits debt after credential
+  ---
+  duration_ms: 130.514551
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after expiry
+ok 79 - a held collection write after query acceptance omits debt after expiry
+  ---
+  duration_ms: 333.941411
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after commit
+ok 80 - a held collection write after query acceptance omits debt after commit
+  ---
+  duration_ms: 126.479463
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after credential
+ok 81 - a host save held after its CAS check writes nothing after credential
+  ---
+  duration_ms: 132.276863
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after expiry
+ok 82 - a host save held after its CAS check writes nothing after expiry
+  ---
+  duration_ms: 1324.933614
+  type: 'test'
+  ...
+# Subtest: why: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 83 - why: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 10.941844
+  type: 'test'
+  ...
+# Subtest: why: next start sends the refused report with a new id and succeeds
+ok 84 - why: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 1.284245
+  type: 'test'
+  ...
+# Subtest: why: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 85 - why: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 1.658966
+  type: 'test'
+  ...
+# Subtest: why: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 86 - why: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 130.214032
+  type: 'test'
+  ...
+# Subtest: why: multi-position refusal survives group eviction with adjacent clean coverage
+ok 87 - why: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 1.156995
+  type: 'test'
+  ...
+# Subtest: why: reset(false) preserves refusal suppression until start
+ok 88 - why: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 0.890305
+  type: 'test'
+  ...
+# Subtest: why: interval eviction and recollection cannot resend before start
+ok 89 - why: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 101.525243
+  type: 'test'
+  ...
+# Subtest: why: group eviction and recollection cannot resend before start
+ok 90 - why: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 1.542021
+  type: 'test'
+  ...
+# Subtest: denied: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 91 - denied: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 0.654681
+  type: 'test'
+  ...
+# Subtest: denied: next start sends the refused report with a new id and succeeds
+ok 92 - denied: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 0.55332
+  type: 'test'
+  ...
+# Subtest: denied: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 93 - denied: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 0.705027
+  type: 'test'
+  ...
+# Subtest: denied: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 94 - denied: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 94.502535
+  type: 'test'
+  ...
+# Subtest: denied: multi-position refusal survives group eviction with adjacent clean coverage
+ok 95 - denied: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 1.569563
+  type: 'test'
+  ...
+# Subtest: denied: reset(false) preserves refusal suppression until start
+ok 96 - denied: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 0.707992
+  type: 'test'
+  ...
+# Subtest: denied: interval eviction and recollection cannot resend before start
+ok 97 - denied: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 104.264419
+  type: 'test'
+  ...
+# Subtest: denied: group eviction and recollection cannot resend before start
+ok 98 - denied: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 0.649223
+  type: 'test'
+  ...
+# Subtest: headless: E_BOUND parks until start and calls onDeliveryRefused exactly once
+ok 99 - headless: E_BOUND parks until start and calls onDeliveryRefused exactly once
+  ---
+  duration_ms: 0.533059
+  type: 'test'
+  ...
+# Subtest: headless: next start sends the refused report with a new id and succeeds
+ok 100 - headless: next start sends the refused report with a new id and succeeds
+  ---
+  duration_ms: 0.446821
+  type: 'test'
+  ...
+# Subtest: headless: no E_BOUND retry during the session on time, reconnect, publication or recollection
+ok 101 - headless: no E_BOUND retry during the session on time, reconnect, publication or recollection
+  ---
+  duration_ms: 0.861621
+  type: 'test'
+  ...
+# Subtest: headless: multi-position refusal survives interval eviction with adjacent clean coverage
+ok 102 - headless: multi-position refusal survives interval eviction with adjacent clean coverage
+  ---
+  duration_ms: 94.736545
+  type: 'test'
+  ...
+# Subtest: headless: multi-position refusal survives group eviction with adjacent clean coverage
+ok 103 - headless: multi-position refusal survives group eviction with adjacent clean coverage
+  ---
+  duration_ms: 0.702113
+  type: 'test'
+  ...
+# Subtest: headless: reset(false) preserves refusal suppression until start
+ok 104 - headless: reset(false) preserves refusal suppression until start
+  ---
+  duration_ms: 0.727771
+  type: 'test'
+  ...
+# Subtest: headless: interval eviction and recollection cannot resend before start
+ok 105 - headless: interval eviction and recollection cannot resend before start
+  ---
+  duration_ms: 96.08062
+  type: 'test'
+  ...
+# Subtest: headless: group eviction and recollection cannot resend before start
+ok 106 - headless: group eviction and recollection cannot resend before start
+  ---
+  duration_ms: 0.803335
+  type: 'test'
+  ...
+# Subtest: ordinary E_INPUT refusal has the same eviction and next-start behavior
+ok 107 - ordinary E_INPUT refusal has the same eviction and next-start behavior
+  ---
+  duration_ms: 0.590555
+  type: 'test'
+  ...
+# Subtest: wasm publication eviction and recollection preserve the start-only refusal
+ok 108 - wasm publication eviction and recollection preserve the start-only refusal
+  ---
+  duration_ms: 736.097466
+  type: 'test'
+  ...
+# Subtest: a retried refusal CAS notifies once after commit
+ok 109 - a retried refusal CAS notifies once after commit
+  ---
+  duration_ms: 0.746499
+  type: 'test'
+  ...
+# Subtest: start-only suppression is scoped by fingerprint, group and store
+ok 110 - start-only suppression is scoped by fingerprint, group and store
+  ---
+  duration_ms: 0.781071
+  type: 'test'
+  ...
+# Subtest: E_STORE_RESTORE takes precedence over a report's original refusal
+ok 111 - E_STORE_RESTORE takes precedence over a report's original refusal
+  ---
+  duration_ms: 0.474962
+  type: 'test'
+  ...
+# Subtest: E_STORE_REPLACED takes precedence over a report's original refusal
+ok 112 - E_STORE_REPLACED takes precedence over a report's original refusal
+  ---
+  duration_ms: 0.710775
+  type: 'test'
+  ...
+# Subtest: wasm publication and delivery meta persist atomically, including a failed save
+ok 113 - wasm publication and delivery meta persist atomically, including a failed save
+  ---
+  duration_ms: 435.871179
+  type: 'test'
+  ...
+# Subtest: wasm activation excludes predictions and withdrawal persists only restored ids
+ok 114 - wasm activation excludes predictions and withdrawal persists only restored ids
+  ---
+  duration_ms: 9.854693
+  type: 'test'
+  ...
+# Subtest: client manifest-only binding keeps its fallback debt through device adoption (older binding: false)
+ok 115 - client manifest-only binding keeps its fallback debt through device adoption (older binding: false)
+  ---
+  duration_ms: 10.360502
+  type: 'test'
+  ...
+# Subtest: client manifest-only binding keeps its fallback debt through device adoption (older binding: true)
+ok 116 - client manifest-only binding keeps its fallback debt through device adoption (older binding: true)
+  ---
+  duration_ms: 7.858942
+  type: 'test'
+  ...
+# Subtest: a failed wasm activation save retries the device cursor without skipping its page
+ok 117 - a failed wasm activation save retries the device cursor without skipping its page
+  ---
+  duration_ms: 38.445936
+  type: 'test'
+  ...
+# Subtest: a JSON-normalizing adapter cannot strip the conditional host commit guard
+ok 118 - a JSON-normalizing adapter cannot strip the conditional host commit guard
+  ---
+  duration_ms: 3.668349
+  type: 'test'
+  ...
+# Subtest: local activation resumes a real blocked wasm page after reports free capacity and collects the rest
+ok 119 - local activation resumes a real blocked wasm page after reports free capacity and collects the rest
+  ---
+  duration_ms: 1358.018854
+  type: 'test'
+  ...
+# Subtest: memory conditional commit stays in the passing fence turn when its next microtask invalidates it
+ok 120 - memory conditional commit stays in the passing fence turn when its next microtask invalidates it
+  ---
+  duration_ms: 0.252449
+  type: 'test'
+  ...
+# Subtest: maximal exact runs, binding identity and named arguments
+ok 121 - maximal exact runs, binding identity and named arguments
+  ---
+  duration_ms: 12.465728
+  type: 'test'
+  ...
+# Subtest: why: RUNS_FULL
+ok 122 - why: RUNS_FULL
+  ---
+  duration_ms: 0.95376
+  type: 'test'
+  ...
+# Subtest: why: NOT_MEMBER
+ok 123 - why: NOT_MEMBER
+  ---
+  duration_ms: 0.724395
+  type: 'test'
+  ...
+# Subtest: why: NOT_FOUND
+ok 124 - why: NOT_FOUND
+  ---
+  duration_ms: 0.662153
+  type: 'test'
+  ...
+# Subtest: why: NOT_A_RUN
+ok 125 - why: NOT_A_RUN
+  ---
+  duration_ms: 2.105347
+  type: 'test'
+  ...
+# Subtest: why: PAST_LAST_MESSAGE
+ok 126 - why: PAST_LAST_MESSAGE
+  ---
+  duration_ms: 0.569904
+  type: 'test'
+  ...
+# Subtest: why: E_INPUT
+ok 127 - why: E_INPUT
+  ---
+  duration_ms: 0.654551
+  type: 'test'
+  ...
+# Subtest: why: E_OP
+ok 128 - why: E_OP
+  ---
+  duration_ms: 0.515333
+  type: 'test'
+  ...
+# Subtest: why: NEW_CODE
+ok 129 - why: NEW_CODE
+  ---
+  duration_ms: 0.525768
+  type: 'test'
+  ...
+# Subtest: why: E_AUTH
+ok 130 - why: E_AUTH
+  ---
+  duration_ms: 0.523885
+  type: 'test'
+  ...
+# Subtest: why: E_OFFLINE
+ok 131 - why: E_OFFLINE
+  ---
+  duration_ms: 0.654892
+  type: 'test'
+  ...
+# Subtest: denied: RUNS_FULL
+ok 132 - denied: RUNS_FULL
+  ---
+  duration_ms: 0.571837
+  type: 'test'
+  ...
+# Subtest: denied: NOT_MEMBER
+ok 133 - denied: NOT_MEMBER
+  ---
+  duration_ms: 0.448052
+  type: 'test'
+  ...
+# Subtest: denied: NOT_FOUND
+ok 134 - denied: NOT_FOUND
+  ---
+  duration_ms: 0.435994
+  type: 'test'
+  ...
+# Subtest: denied: NOT_A_RUN
+ok 135 - denied: NOT_A_RUN
+  ---
+  duration_ms: 1.312057
+  type: 'test'
+  ...
+# Subtest: denied: PAST_LAST_MESSAGE
+ok 136 - denied: PAST_LAST_MESSAGE
+  ---
+  duration_ms: 0.400911
+  type: 'test'
+  ...
+# Subtest: denied: E_INPUT
+ok 137 - denied: E_INPUT
+  ---
+  duration_ms: 0.365367
+  type: 'test'
+  ...
+# Subtest: denied: E_OP
+ok 138 - denied: E_OP
+  ---
+  duration_ms: 0.325969
+  type: 'test'
+  ...
+# Subtest: denied: NEW_CODE
+ok 139 - denied: NEW_CODE
+  ---
+  duration_ms: 0.328122
+  type: 'test'
+  ...
+# Subtest: denied: E_AUTH
+ok 140 - denied: E_AUTH
+  ---
+  duration_ms: 0.342583
+  type: 'test'
+  ...
+# Subtest: denied: E_OFFLINE
+ok 141 - denied: E_OFFLINE
+  ---
+  duration_ms: 0.337465
+  type: 'test'
+  ...
+# Subtest: RUNS_FULL continues; coalesced wakes retry one after 30 seconds
+ok 142 - RUNS_FULL continues; coalesced wakes retry one after 30 seconds
+  ---
+  duration_ms: 1.316263
+  type: 'test'
+  ...
+# Subtest: four slots, one per group, longest waiter precedes busy group
+ok 143 - four slots, one per group, longest waiter precedes busy group
+  ---
+  duration_ms: 1.568612
+  type: 'test'
+  ...
+# Subtest: uncertain retry id persists across restart; recorded conflict uses a new id
+ok 144 - uncertain retry id persists across restart; recorded conflict uses a new id
+  ---
+  duration_ms: 0.872648
+  type: 'test'
+  ...
+# Subtest: missing head is uncertain; obsolete auth retries same id; current auth pauses
+ok 145 - missing head is uncertain; obsolete auth retries same id; current auth pauses
+  ---
+  duration_ms: 0.784276
+  type: 'test'
+  ...
+# Subtest: refused manifests and eviction cannot recreate debt; saturation survives restart
+ok 146 - refused manifests and eviction cannot recreate debt; saturation survives restart
+  ---
+  duration_ms: 0.979308
+  type: 'test'
+  ...
+# Subtest: stale group callback releases slot and cannot erase rejoin
+ok 147 - stale group callback releases slot and cannot erase rejoin
+  ---
+  duration_ms: 0.661833
+  type: 'test'
+  ...
+# Subtest: online membership refusal preserves post-dispatch collections
+ok 148 - online membership refusal preserves post-dispatch collections
+  ---
+  duration_ms: 0.832208
+  type: 'test'
+  ...
+# Subtest: generation and viewer fences reject callbacks
+ok 149 - generation and viewer fences reject callbacks
+  ---
+  duration_ms: 0.744616
+  type: 'test'
+  ...
+# Subtest: deadline frees slot with same attempt id
+ok 150 - deadline frees slot with same attempt id
+  ---
+  duration_ms: 1.883153
+  type: 'test'
+  ...
+# Subtest: offline spends no retries; outbox dispatch gate sends nothing
+ok 151 - offline spends no retries; outbox dispatch gate sends nothing
+  ---
+  duration_ms: 0.644086
+  type: 'test'
+  ...
+# Subtest: eight uncertain retries park until reconnect and preserve each exhausted id
+ok 152 - eight uncertain retries park until reconnect and preserve each exhausted id
+  ---
+  duration_ms: 3.690913
+  type: 'test'
+  ...
+# Subtest: the slow timer wakes a RUNS_FULL run while home remains mounted
+ok 153 - the slow timer wakes a RUNS_FULL run while home remains mounted
+  ---
+  duration_ms: 0.754942
+  type: 'test'
+  ...
+# Subtest: new owed work in any group precedes a parked retry
+ok 154 - new owed work in any group precedes a parked retry
+  ---
+  duration_ms: 0.616294
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned NOT_A_RUN callback effects
+ok 155 - CAS retry discards abandoned NOT_A_RUN callback effects
+  ---
+  duration_ms: 0.64763
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned E_AUTH callback effects
+ok 156 - CAS retry discards abandoned E_AUTH callback effects
+  ---
+  duration_ms: 0.465488
+  type: 'test'
+  ...
+# Subtest: CAS retry discards abandoned E_OFFLINE callback effects
+ok 157 - CAS retry discards abandoned E_OFFLINE callback effects
+  ---
+  duration_ms: 0.518868
+  type: 'test'
+  ...
+# Subtest: an outcome splitting a collected interval still enforces the debt cap
+ok 158 - an outcome splitting a collected interval still enforces the debt cap
+  ---
+  duration_ms: 2.429232
+  type: 'test'
+  ...
+# Subtest: evicting lowest debt also fences its persisted uncertain attempt
+ok 159 - evicting lowest debt also fences its persisted uncertain attempt
+  ---
+  duration_ms: 1.155892
+  type: 'test'
+  ...
+# Subtest: a pre-transport serial gate race spends no retry and keeps its persisted id
+ok 160 - a pre-transport serial gate race spends no retry and keeps its persisted id
+  ---
+  duration_ms: 0.644776
+  type: 'test'
+  ...
+# Subtest: a lost recorded membership refusal keeps its original collection boundary on retry
+ok 161 - a lost recorded membership refusal keeps its original collection boundary on retry
+  ---
+  duration_ms: 0.733129
+  type: 'test'
+  ...
+# Subtest: positions 41 and 43 never report unfetched 42
+ok 162 - positions 41 and 43 never report unfetched 42
+  ---
+  duration_ms: 0.543475
+  type: 'test'
+  ...
+# Subtest: binding fingerprints travel on reports and reconcile only changed bindings
+ok 163 - binding fingerprints travel on reports and reconcile only changed bindings
+  ---
+  duration_ms: 1.11394
+  type: 'test'
+  ...
+# Subtest: why: E_DELIVERY_BINDING drops the entire binding only
+ok 164 - why: E_DELIVERY_BINDING drops the entire binding only
+  ---
+  duration_ms: 0.809854
+  type: 'test'
+  ...
+# Subtest: denied: E_DELIVERY_BINDING drops the entire binding only
+ok 165 - denied: E_DELIVERY_BINDING drops the entire binding only
+  ---
+  duration_ms: 0.670115
+  type: 'test'
+  ...
+# Subtest: identical fingerprints keep refused and saturated evicted state
+ok 166 - identical fingerprints keep refused and saturated evicted state
+  ---
+  duration_ms: 0.39378
+  type: 'test'
+  ...
+# Subtest: an exhausted attempt retains its collection boundary while another interval runs: fresh reply held
+ok 167 - an exhausted attempt retains its collection boundary while another interval runs: fresh reply held
+  ---
+  duration_ms: 2.744034
+  type: 'test'
+  ...
+# Subtest: an exhausted attempt retains its collection boundary while another interval runs: fresh reply arrived
+ok 168 - an exhausted attempt retains its collection boundary while another interval runs: fresh reply arrived
+  ---
+  duration_ms: 1.312758
+  type: 'test'
+  ...
+# Subtest: manifests omit unsafe coordinates rather than rounding an unfetched position
+ok 169 - manifests omit unsafe coordinates rather than rounding an unfetched position
+  ---
+  duration_ms: 0.434121
+  type: 'test'
+  ...
+# Subtest: the completed startup barrier cannot reopen when bounded reported history ages out
+ok 170 - the completed startup barrier cannot reopen when bounded reported history ages out
+  ---
+  duration_ms: 0.751026
+  type: 'test'
+  ...
+# Subtest: startup waits for a ready persisted retry behind a post-start lower interval
+ok 171 - startup waits for a ready persisted retry behind a post-start lower interval
+  ---
+  duration_ms: 1.059408
+  type: 'test'
+  ...
+# Subtest: startup waits for a ready persisted start behind a post-start lower interval
+ok 172 - startup waits for a ready persisted start behind a post-start lower interval
+  ---
+  duration_ms: 0.869473
+  type: 'test'
+  ...
+# Subtest: startup stops waiting for its retry when this session exhausts it again
+ok 173 - startup stops waiting for its retry when this session exhausts it again
+  ---
+  duration_ms: 1.553429
+  type: 'test'
+  ...
+# Subtest: answers without delivery manifests leave the dormant queue without timers
+ok 174 - answers without delivery manifests leave the dormant queue without timers
+  ---
+  duration_ms: 0.374742
+  type: 'test'
+  ...
+# Subtest: retired refusal state is removed and restored only for its fingerprint
+ok 175 - retired refusal state is removed and restored only for its fingerprint
+  ---
+  duration_ms: 0.167802
+  type: 'test'
+  ...
+# Subtest: an older membership retry cannot resurrect reported coverage
+ok 176 - an older membership retry cannot resurrect reported coverage
+  ---
+  duration_ms: 3.835079
+  type: 'test'
+  ...
+# Subtest: an older membership retry cannot resurrect refused coverage
+ok 177 - an older membership retry cannot resurrect refused coverage
+  ---
+  duration_ms: 1.112618
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on reconnect
+ok 178 - a due full park cannot replace a held attempt on reconnect
+  ---
+  duration_ms: 0.696704
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on start
+ok 179 - a due full park cannot replace a held attempt on start
+  ---
+  duration_ms: 0.413169
+  type: 'test'
+  ...
+# Subtest: a due full park cannot replace a held attempt on timer
+ok 180 - a due full park cannot replace a held attempt on timer
+  ---
+  duration_ms: 0.442633
+  type: 'test'
+  ...
+# (node:1233487) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: sequence-only acknowledgement with no history stays unknown
+ok 181 - sequence-only acknowledgement with no history stays unknown
+  ---
+  duration_ms: 1.25379
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+ok 182 - authored refusal NOT_ADMIN wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.18646
+  type: 'test'
+  ...
+# Subtest: authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+ok 183 - authored refusal NOT_FOUND wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.115603
+  type: 'test'
+  ...
+# Subtest: authored refusal CONFLICT wins over a success-qualified acknowledgement
+ok 184 - authored refusal CONFLICT wins over a success-qualified acknowledgement
+  ---
+  duration_ms: 0.125649
+  type: 'test'
+  ...
+# Subtest: an aborted replay receipt retains its original-store proof for persistence retry
+ok 185 - an aborted replay receipt retains its original-store proof for persistence retry
+  ---
+  duration_ms: 0.644746
+  type: 'test'
+  ...
+# Subtest: memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 186 - memory: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3483.274978
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"empty","id":"01M3KNGTEE0QQNPE2HH00P0HAB","replayed":true,"audit":0}
+# Subtest: memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 187 - memory: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3118.32984
+  type: 'test'
+  ...
+# {"tier":"memory","field":"observed_seq","prior":"replacement","id":"01M3KNGXFNH9SZHYDX2GANCC5E","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 188 - memory: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3117.209111
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"empty","id":"01M3KNH0H71C2RB7N5QNFFVXYA","replayed":true,"audit":0}
+# Subtest: memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 189 - memory: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3108.553114
+  type: 'test'
+  ...
+# {"tier":"memory","field":"sent_seq","prior":"replacement","id":"01M3KNH3JKK2GZ479C9PB1KNB1","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 190 - memory: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3107.919465
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"empty","id":"01M3KNH6KJXX96XZRQ1SHMC0V0","replayed":true,"audit":0}
+# Subtest: memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 191 - memory: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3119.916711
+  type: 'test'
+  ...
+# {"tier":"memory","field":"old-page","prior":"replacement","id":"01M3KNH9MVV88NJF62Q6HMEKDM","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+ok 192 - sqlite: legacy observed_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4188.764887
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"empty","id":"01M3KNHCQHDND5G73RZ6X7AYCY","replayed":true,"audit":0}
+# Subtest: sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+ok 193 - sqlite: legacy observed_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4199.954002
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"observed_seq","prior":"replacement","id":"01M3KNHGTMW0HZPSEBEB97E0PN","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+ok 194 - sqlite: legacy sent_seq with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4210.380144
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"empty","id":"01M3KNHMXVATPVYCYXTTMMF2HX","replayed":true,"audit":0}
+# Subtest: sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+ok 195 - sqlite: legacy sent_seq with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 3178.986861
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"sent_seq","prior":"replacement","id":"01M3KNHS12HP4VJN08V0N6B0DF","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+ok 196 - sqlite: legacy old-page with empty history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4207.351336
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"empty","id":"01M3KNHW4NE022889RBJHZVXEP","replayed":true,"audit":0}
+# Subtest: sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+ok 197 - sqlite: legacy old-page with replacement history replays NOT_ADMIN without executing
+  ---
+  duration_ms: 4177.427336
+  type: 'test'
+  ...
+# {"tier":"sqlite","field":"old-page","prior":"replacement","id":"01M3KNJ07YA59MFVKP22KBFDW2","replayed":true,"audit":0}
+# Subtest: oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+ok 198 - oversized historical timeline commit recovers by snapshot with pending writes on both hosts
+  ---
+  duration_ms: 79320.301771
+  type: 'test'
+  ...
+# {"historicalCommitMinimumBytes":18427320,"serverFollowing":[{"actorId":"dev:author","at":1790587804705,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1790587802837,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1790587735641,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"originalCommitBytes":151257,"originalCommitEvents":1024,"largestUpdateBytes":18337,"ceiling":16777216,"sameGeneration":true,"devices":[{"host":"wasm-memory","generation":1,"recoveredNotes":1020,"heldSubmissions":1,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"","id":"01M3KNGVMMCFSS2T3W8SDNRHRB","new_ids":[],"now":1790587727510,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"5aa63297a87b4aba412866d09e7ad086"}],"pendingAfter":[{"args":{"postId":"pending-wasm-memory"},"dispatch":"E_BUSY","id":"01M3KNGVMMCFSS2T3W8SDNRHRB","new_ids":[],"now":1790587727510,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-wasm-memory","feedPosts/pending-wasm-memory","feedFeed/ded6e45e53234c72165f4f69bfcd4e7a4a9e514cb905f902ca4fe7be88e9e756"],"sent_seq":null,"seq":1,"viewer":"dev:author","store_id":"5aa63297a87b4aba412866d09e7ad086"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1790587804705,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1790587802837,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1790587735641,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020},{"host":"native-sqlite","generation":1,"recoveredNotes":1020,"heldSubmissions":3,"before":1,"after":1023,"following":1,"pendingBefore":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"","id":"01M3KNGZMKE2Y1C8BW3S49WP1Y","new_ids":[],"now":1790587731603,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"pendingAfter":[{"args":{"postId":"pending-native-sqlite"},"dispatch":"E_BUSY","id":"01M3KNGZMKE2Y1C8BW3S49WP1Y","new_ids":[],"now":1790587731603,"observed_seq":null,"op":"post","predictable":true,"predicted":["posts/pending-native-sqlite","feedPosts/pending-native-sqlite","feedFeed/ce0441d8b82298cbdc22a55f48be6a3e038bfa306ccdcd08b7b828db86d22737"],"sent_seq":null,"seq":1,"viewer":"dev:author"}],"restartLimit":1,"restartFrom":0,"restartSnapshot":true,"finalFollowing":[{"actorId":"dev:author","at":1790587804705,"authorId":"dev:author","id":"pending-wasm-memory","postId":"pending-wasm-memory","repost":false},{"actorId":"dev:author","at":1790587802837,"authorId":"dev:author","id":"pending-native-sqlite","postId":"pending-native-sqlite","repost":false},{"actorId":"dev:author","at":1790587735641,"authorId":"dev:author","id":"original","postId":"original","repost":false}],"settledNotes":1020}],"settledFollowing":3}
+# (node:1233714) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web receipt upgrades preserve original binding and corrected shared custody
+    # Subtest: legacy binding survives adopted B on ordinary transport
+    ok 1 - legacy binding survives adopted B on ordinary transport
+      ---
+      duration_ms: 1979.781736
+      type: 'test'
+      ...
+    # Subtest: legacy binding survives adopted B on keepalive transport
+    ok 2 - legacy binding survives adopted B on keepalive transport
+      ---
+      duration_ms: 2057.819046
+      type: 'test'
+      ...
+    # Subtest: orphan replay correction survives adopter removal and the next recovery in its original position
+    ok 3 - orphan replay correction survives adopter removal and the next recovery in its original position
+      ---
+      duration_ms: 2048.291113
+      type: 'test'
+      ...
+    # Subtest: adoption corrects a shared replacement refusal to an orphan sent receipt
+    ok 4 - adoption corrects a shared replacement refusal to an orphan sent receipt
+      ---
+      duration_ms: 407.941709
+      type: 'test'
+      ...
+    # Subtest: lookup lets a shared correction supersede only this reader's replacement refusal
+    ok 5 - lookup lets a shared correction supersede only this reader's replacement refusal
+      ---
+      duration_ms: 1388.523647
+      type: 'test'
+      ...
+    # Subtest: a shared correction never hides this device's qualified or pending custody (replacement local history)
+    ok 6 - a shared correction never hides this device's qualified or pending custody (replacement local history)
+      ---
+      duration_ms: 1411.846983
+      type: 'test'
+      ...
+    # Subtest: a shared correction never hides this device's qualified or pending custody (absent local history)
+    ok 7 - a shared correction never hides this device's qualified or pending custody (absent local history)
+      ---
+      duration_ms: 1486.267
+      type: 'test'
+      ...
+    # Subtest: shared-only lookup recovers absent history and opener remembers those ids without settling them
+    ok 8 - shared-only lookup recovers absent history and opener remembers those ids without settling them
+      ---
+      duration_ms: 1430.166877
+      type: 'test'
+      ...
+    # Subtest: shared-only refusal cannot settle legacy custody before bound replay
+    ok 9 - shared-only refusal cannot settle legacy custody before bound replay
+      ---
+      duration_ms: 2915.282232
+      type: 'test'
+      ...
+    # Subtest: adoption during lookup recomputes legacy custody (absent local history)
+    ok 10 - adoption during lookup recomputes legacy custody (absent local history)
+      ---
+      duration_ms: 1479.139195
+      type: 'test'
+      ...
+    # Subtest: adoption during lookup recomputes legacy custody (replacement local history)
+    ok 11 - adoption during lookup recomputes legacy custody (replacement local history)
+      ---
+      duration_ms: 1514.847558
+      type: 'test'
+      ...
+    # Subtest: lookup preserves local NOT_FOUND committed between history reads
+    ok 12 - lookup preserves local NOT_FOUND committed between history reads
+      ---
+      duration_ms: 1454.276352
+      type: 'test'
+      ...
+    # Subtest: lookup preserves local sent committed between history reads
+    ok 13 - lookup preserves local sent committed between history reads
+      ---
+      duration_ms: 1425.841434
+      type: 'test'
+      ...
+    1..13
+ok 199 - web receipt upgrades preserve original binding and corrected shared custody
+  ---
+  duration_ms: 21878.425973
+  type: 'test'
+  ...
+# {"transport":"ordinary","original":"c5b2cbf52f56f252f1ae6586a7b4cf78","adopted":"3269cfd2a9ad757b884e0a377c33c029","auditA":0,"auditB":0}
+# {"transport":"keepalive","original":"c5b2cbf52f56f252f1ae6586a7b4cf78","adopted":"c132f174174c10987c860496640e2aca","auditA":0,"auditB":0}
+# orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+# shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+# local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+# qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+# qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+1..199
+# tests 212
+# suites 0
+# pass 212
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 89508.682257

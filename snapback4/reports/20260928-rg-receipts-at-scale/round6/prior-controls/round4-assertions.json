@@ -1,0 +1,7 @@
+{
+  "pre-dispatch-raw-call": true,
+  "replacement-unprotected": true,
+  "overlap-single-owner": true,
+  "no-batch-protection": true,
+  "no-read-protection": true
+}

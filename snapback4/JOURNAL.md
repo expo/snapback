@@ -72584,6 +72584,220 @@ notes, the sync guide and the report record this scope and qualification gap.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-28 — RG: receipt convergence without history-sized send stalls
+
+Fetched and merged origin/main first (1972112a0, already current). Reproduced
+calibration #24's builder probe on independent copies of its complete replay
+store, using published 0.4.6 and starting main. The original database and WAL
+hashes remain unchanged. Send/settlement p95 was 15.596 s published and 9.275 s
+on main; visible bubbles already rendered in about 64 ms. Receipt delivery was
+two events (533/715 B), while repeated unread certification, duplicate clock
+saves, per-bubble pending-list subscriptions and the legacy guide's receipt
+writers amplified processing and delayed submission.
+
+Bounded authorized indexed suffix certification now decodes zero source rows
+at the head and one one-position-behind in the 50-member/10,000-message Rust
+regression. Small writer budgets retain their bounded recount. Pending hooks
+share observations, unchanged offsets share persistence, metadata-only head
+observations avoid media rescans, and admitted FIFO writes share settlement
+sync. Authorization, disclosure, public reservations, expiry, durable receipts,
+retryable-head order and delivery coverage remain enforced. LLP 3000.015 and
+3000.019 record the decisions. The guide explicitly migrates old manual debt,
+automatic history paging and background writers to `reports delivery`, keeping
+visible `seen`. The measured app migration is retained with the report.
+
+Final full-corpus p95: send/settlement 913 ms, visible render 59 ms, all 49 peers
+read 3.733 s; 19/20 sends below one second, maximum 1.020 s. Earlier 1.106,
+1.532 and 2.731 s misses are retained: they exposed remaining media and
+intermediate-sync work. The generated Chromium/IndexedDB witness under
+witness/receipts-scale.mjs seeds 50 members, 10,000 messages and 100
+conversations: send p95 383 ms, cold ready 963 ms, 1,377 saves / 163 metadata
+writes for 2,254 peer reports. The baseline control fails its work bound.
+Cold readiness on the full corpus remains 5.892 s (login/feed 4.453 s,
+navigation 1.220 s); follow-up: issues/20260928-rg-cold-web-acquisition.md.
+
+Affected checks pass: Rust row views 20, sync-count adapter 1, React 50,
+clock 52, whole guide 92, media/clock/replacement 129, local integration 46,
+and broader custody/ordering 193. New regression controls fail without their
+fixes. Client and witness typechecks pass. scripts/test.sh ran exactly once:
+`== 1 failure(s) in 1836 s` — cargo test contained two failures, both ours:
+sync_count_batch's adapter lacked index_head; guide migration text preceded
+its first example. Both were corrected and affected targets rerun green.
+No baseline or environmental failures in that invocation. Final media and
+shared-settlement changes have their affected checks after the full run;
+there is no claim of a green rerun of the complete suite.
+
+Wasm 2,019,815 B raw / 585,384 B gzip: size unchanged, 809 B below the unchanged
+586,193 B budget. Tools installed only in this worktree. Evidence, CPU and
+network profiles, controls, every suite failure and reproduction commands:
+[RG report](./reports/20260928-rg-receipts-at-scale/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
+
+## 2026-09-28 — RG round 1: charged probe fallback and complete migration
+
+Fetched and merged origin/main (0a5596c2c) first, producing 284cc8135 without
+conflicts. Read the round-0 prompt, report, journal and Astra review. Grok had
+no verdict at start; its later completed review was incorporated during the
+affected checks. Scoped llp-orient used the initialized sibling lane-i skill;
+the context pack records LLP 3000.015, 3000.019 and 3000.022 constraints.
+
+The abandoned 65-position predicate probe remains charged, and its actual
+examined work now reduces the fallback recount allowance while preserving
+publication headroom. The 1,000-message fixture commits at allowances 210,
+240, 256, 300 and 500, and for seven/eight members under the default 8,192
+allowance. Pending recounts finish privately at 999. Independent 63/64/65
+candidate cases include rejected prefixes followed by a live row and bound
+both probes and decodes. Baseline refusals and the clipped-loop mutant fail.
+
+Grok's successful-first-write/refused-tail case also reproduced: the first
+commit remained absent locally without a /changes wake. A terminal tail now
+syncs earlier unobserved successes before settlement; successful FIFO pairs
+still avoid an intermediate sync. Cost output describes both predicate-index
+certification and the shared expiry walk. The receipts card plainly says the
+history-walking hook does not scale to a large group and shows the migration.
+The retained original screenshot establishes the examined-8,192 refusal;
+the original log and JSON establish only its timeout.
+
+Two full builder repetitions use separate copies of the original store. The
+first retained round-0 migration misses the one-second target at 1.146 s
+send/settlement p95. Its profile exposed 244 remaining progress evaluations.
+Completing the copied app's member-only read migration removes that history
+acquisition path. The final run has zero progress evaluations: send/settlement
+p95 704 ms, visible-render p95 73 ms, receipt convergence p95 3.414 s, all 20
+measured sends below one second (maximum 925 ms). Cold ready is 7.698 s,
+including 5.769 s login/feed and 1.691 s navigation. Both runs and host-load
+traces remain retained; load and app form changed, so their individual latency
+contributions are not isolated. Original database/WAL hashes remain unchanged.
+
+Final affected checks pass: 254 Rust and 478 client tests, including the whole
+93-test guide, clock, settlement, receipts and delivery. One opt-in Rust
+measurement is ignored. The standalone 30-test refused-tail rerun overlaps
+those totals. Build/typecheck, app check/export and root reference audit pass.
+Every expected failing control, fixture/invocation and evidence-formatting
+failure, and the first probe miss is classified as ours in the report; no baseline or environmental check
+failure. Did not run scripts/test.sh: the supervisor owns the landing suite.
+
+Wasm 2,019,815 B raw / 585,381 B gzip, raw unchanged and gzip 3 B smaller than
+round 0, 812 B below the unchanged 586,193 B budget. The code section is
+byte-identical; only data differs. No tool installed, no budget or capability
+added. Report, full migration patch, profiles, controls and commands:
+[round-1 report](./reports/20260928-rg-receipts-at-scale/round1/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
+
+## 2026-09-28 — RG round 2: observe every settled tail and pin unread predicates
+
+Fetched and merged origin/main (a745b110f) first, producing b972d869b without
+conflicts. Read both previous prompts, reports and journal entries and the full
+Grok review. Scoped llp-orient used the existing sibling lane-i skill read-only.
+
+Round 1 already fixed the ordinary refused tail and cost sentence. This round
+checks for unobserved successes before each retry exit and after the FIFO loop,
+including a tail another owner retired. Persistence-failure retry scheduling
+moves outside the serialized network callback, after that observation check.
+Successful pairs still POST in FIFO order without intermediate sync. The
+refused-tail test holds sync and requires local publication before the batch
+finishes; a second test freezes retry time and retires the tail before begin_send.
+Both fail when unobserved-success sync is disabled and pass with it.
+
+The Rust truth-table oracle counts Alice=2, Bob=4 over a small range containing
+read/join boundaries, self-sends, tombstones, unswept expiry, another group and
+live rows. Removing matches yields 6 instead of 2. The generated Chromium
+witness now reads unread: seeded mixed counts, a sender's zero and a peer's
+one/zero around seen. The same production mutant fails at 6 instead of 1.
+Final witness: all 72 count assertions pass; cold 1.015 s, send/settlement p95
+380 ms, render p95 253 ms, all-peer convergence p95 847 ms, 1,191 saves and
+132 metadata writes for 2,254 reports. It overlapped the single generated
+device disclosure test; the report retains that condition and the earlier
+successful 368 ms run, with no causal timing comparison or arbitrary-load claim.
+
+Correction to this journal's round-1 entry: the pre-migration log and JSON
+establish only a 30-second send/settlement miss, not an E_BOUND refusal.
+The screenshot attribution to that logged run is withdrawn. Both reports and
+the prior context pack carry the correction; this journal remains append-only.
+The cost test verifies small predicate-index candidates can include expired
+rows, larger ranges retain the shared expiry walk, and the fixed public
+examined/step reservation remains unchanged.
+
+Final checks: 255 Rust tests, including the entire 93-test guide, and 479 client
+tests pass; one opt-in Rust measurement is ignored. The 31-test standalone
+outbox rerun overlaps those counts. Debug/production/client builds, typecheck,
+reference audit and whitespace checks pass. All expected failing mutants and
+the first witness's incorrect row-shaped assertion are classified as ours;
+no baseline or environmental test failure. The witness assertion was corrected
+to the scalar keyed count. No scripts/test.sh run; the supervisor owns landing.
+
+Wasm remeasured, byte-identical to round 1: 2,019,815 B raw / 585,381 B gzip,
+812 B under the unchanged 586,193 B budget. No installs, push or publication.
+Report, exact commands, controls, measurements and failure classifications:
+[round-2 report](./reports/20260928-rg-receipts-at-scale/round2/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 3: terminal delivery survives observation failure
+
+Fetched and merged origin/main first: already up to date at 86fd998e8, with
+origin/main a745b110f. Read the prior prompts, reports and journal entries and
+Astra's full round-1/2 review. Grok had no verdict at start; did not wait.
+Scoped llp-orient used the existing sibling lane-i skill read-only.
+
+A durable refusal now resolves and emits even when its following queued read
+fails; sync retries independently. The regression injects one E_STORE after
+the second refusal's commit, holds changes/sync and freezes retry time. Its
+caller, event and durable lookup agree before recovery. The final-loop test
+retires the tail only at the network callback's queue lookup, after the prior
+eligibility check; deleting only the trailing sync fails publication, with no
+tail begin_send and no retry wake. Successful FIFO pairs retain shared sync.
+
+The delivery-await audit found further post-commit host/media failure paths
+in recovered receipts, keepalive refusals and replacement retirement. The
+committed-reply boundary now preserves those terminal outcomes; housekeeping
+retries separately. Replacement notifications travel with committed
+invalidation before later reset reads. All eight audit faults fail round-2
+code and pass the fix. The full audit names the remaining paths and explains
+why their custody survives. local.ts remains exactly 1,500 lines.
+
+The single scripts/test.sh run reports exactly:
+
+    == 1 failure(s) in 4162 s
+       client tests
+
+Six failing leaves are ours, plus their web-admission parent: SQLite/web
+maintained-column tests assumed immediate publication of a Repair B deferred
+page; wasm/native 256-ID tests assumed intermediate sync acknowledged the
+tail; unread-cost text still required the phrase removed in round 1; and a
+receipt-save retry emitted NOT_ADMIN twice. Isolated old-main-client controls
+attribute the first four to shared FIFO sync, while preserving all actual
+outcomes. Fixtures now cover eligible publication and private deferred pages,
+and automatic replay plus explicit-sync tail recovery. The cost assertion
+pins the corrected probe, shared walk and public reservation.
+
+The duplicate was a production defect: a post-retirement observation discarded
+the prior emission marker before the recovery delivered again. Active
+settlement now retains that marker and owns receipt recovery. Both browser
+response orderings fail before the fix and pass afterward; a small deterministic
+outbox regression reproduces two events without it. The single full run stays
+red in the record; all other stages, including 79 model tests, passed. It had
+3,910 ordinary client passes, 7 failures including the parent and 10 explicit
+skips. No baseline or environmental test failure is claimed.
+
+Final affected checks pass: 243 Rust and 596 client tests, including the whole
+93-test guide, final 42-test outbox file and 55 browser admission tests. One
+opt-in Rust measurement is ignored and one macOS-only media check is skipped.
+The final build/typecheck and affected client groups were rerun after the
+emission-marker fix. Controls, failed fixture iterations, initial build errors
+and the validation-driver error are retained and classified as ours. Editing
+the command file while its bash driver was open caused a stray pathname and
+syntax error after the full suite had finished; it did not repeat the suite.
+The subsequent affected checks used a fresh invocation and rebuilt client.
+
+Wasm is byte-identical to round 2: 2,019,815 B raw / 585,381 B gzip, 812 B below
+the unchanged 586,193 B budget. No new latency claim or calibration-store run.
+No tools installed, push or publication. Report, complete audit, commands,
+controls, all failure dispositions and exact suite record:
+[round-3 report](./reports/20260928-rg-receipts-at-scale/round3/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
 ## 2026-09-28 — Lane DG: inherited audiences and helper query bounds
 
 First fetched and merged origin/main: already up to date at a745b110f.
@@ -73317,6 +73531,117 @@ path/log reads and the nonmatching Revised-line patch are recorded too.
 Acceptance matrix and complete failure ledger: reports/20260928-os-ordinary-search/
 REPORT.md and round4/; ROUND3.md preserves the preceding report. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-28 — RG round 4: emission ownership survives every retirement path
+
+First fetched and merged origin/main 80036b4664 in 412c9191c. Kept both journal
+sides, main's restore/Worker changes and RG's owner-aware queue reader; removed
+the automatic merge's duplicate reader. Read rounds 0–3 prompts/reports/RG
+entries and Astra's full round-3 NOT READY review. Grok had no verdict at
+startup, so did not wait. Scoped llp-orient used the existing sibling lane-i
+skill read-only. No installation, push or publication.
+
+Astra's held-observe_store and held-settle success races both reproduce two
+events, despite client.write(id) correctly returning sent. Replacement now
+protects its marker synchronously at retirement commit; qualified-success
+recovery protects before its first await. Notification protection counts
+independent overlapping owners and releases in finally. The exclusive
+ordinary/keepalive settlement set keeps its authority unchanged.
+
+The exactly-once audit found a third race: replacement can retire a success
+still waiting in an older FIFO snapshot. After a lookup discards its marker,
+that snapshot emits again. A new real-wasm regression fails the initial fix.
+The finite FIFO iterator now protects all snapshot ids through completion,
+early return or failure. Cleanup waits while the snapshot read determines
+its ids, then unrelated markers can be pruned. No additional receipt window,
+durable state or historical result retention. local.ts remains 1,500 lines.
+
+Copied all four tests from Astra's extra reproduction file. The pre-dispatch
+KNOWN refusal fault independently fails when only the first recoverReceipt
+uses raw call. Five isolated mutations fail six intended assertions, covering
+that wrapper, replacement protection, both overlapping-owner orders, old FIFO
+snapshots and delayed queue reads. Other new tests prove finally cleanup after
+failed reads, settlement, notification and early iterator return. Full audit
+names success, refusal, replacement, reset, reconnect, both recovery paths,
+keepalive, snapshots and concurrent lookups, with the existing close and
+receipt-window limits. It corrects round 3's incomplete marker-lifetime claim.
+
+Final qualification: 552 client tests pass (audit 54, clock/pending 141,
+receipts/delivery 212, settlement/reconnect/generation 90, browser admission 55),
+plus 135 Rust tests (whole guide 93 and receipts/delivery 42). One published
+0.2.32 compatibility check is explicitly skipped without its external binary;
+one opt-in Rust measurement is ignored. Client build/typecheck, native build,
+reference audit, whitespace and source lengths pass. Initial guide failures
+were ours: word target and stale writes-04 fact home; corrected the wording
+and existing fact fixture, then the whole guide passed. Pre-fix/mutation reds,
+merge conflicts and discovery/path setup errors are retained and classified
+as ours. No baseline or environmental qualification failure. Did not run
+scripts/test.sh; the supervisor owns the landing suite.
+
+Wasm remeasured unchanged: 2,019,815 B raw / 585,381 B gzip, SHA-256
+2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0,
+812 B under unchanged 586,193 B cap. Merged core/device changes are test-only;
+no wasm input changed. No new latency or calibration-store measurement.
+LLP 3000.019 §3.3 and the writes card record the fix. Report, complete audit,
+commands, controls and all failures: reports/20260928-rg-receipts-at-scale/round4/REPORT.md.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 5: housekeeping failures cannot gate the outbox
+
+First fetched and merged origin/main e0568c2ec7 without conflicts, retaining
+both sides in 58b3b2d07 (the merge message adds the requested co-author).
+Read rounds 0–4's prompts, reports and RG entries and Grok's full round-3
+review. Scoped llp-orient again used the initialized sibling lane-i skill
+read-only. No installation, push or publication.
+
+Grok's repeated-media-failure reproduction fails the merged round-4 code:
+a first sent outcome leaves the queued tail unposted. A failed reconciliation
+at flush entry now keeps its flag, schedules the existing retry and falls
+through to the FIFO loop. The regression proves the tail posts, terminal
+outcomes emit once, eight 5-second retry advances do not repost or spin,
+backoff doubles from 250 ms to 5 seconds, and successful repair clears the
+flag and stops retrying. Round 4's notification ownership is unchanged.
+
+The observation catch now has an independent retry oracle. The new test
+fails its queue read and the post-loop sync, keeps /changes held, and requires
+the catch's 250 ms timer to publish the earlier success. At 249 ms nothing
+publishes; the tail's durable refusal already reached caller and event once.
+Emptying only the catch fails that test. No production change was needed there.
+
+The housekeeping audit found two more gates. Committed admission followed by
+media failure could report a local E_STORE and omit its normal flush. Repeated
+host rejection after committed keep_write could keep retrying an already-saved
+receipt and strand the queued tail. Both now preserve the device's non-denied
+committed reply. Admission schedules outstanding reconciliation; keep_write
+has no media work and proceeds to ordinary settlement. Missing commits and
+denied replies still fail, and actual receipt-save failures retain custody.
+Both reproductions fail without their respective fix. LLP 3000.019 §3.3 and
+the round report record the per-path audit, including mandatory authority and
+persistence barriers, pruning, delivery debt, observation, clock and meters.
+local.ts stays at 1,500 lines; no wire, store, wasm ABI or resource limit changes.
+
+Final qualification passes 640 client tests: audit 58, clock/pending 141,
+receipts/delivery 212, settlement/reconnect/generation 90, media 72,
+HTTP transport 12 and browser admission 55. Rust passes 135: whole guide 93
+and receipts/delivery 42. The legacy-server and macOS-only client skips and
+one opt-in Rust measurement remain explicit. All affected client groups were
+rerun after the receipt-save fix. Builds, typecheck, references and whitespace
+pass. Five round-4 controls plus six round-5 controls are killed, including
+the required restored throw and empty catch. Historical round-4 evidence is
+preserved; this round's rerun is archived separately.
+
+Expected pre-fix/mutation failures and the corrected fixture/setup failures
+are ours: the first media timer assertion also counted /changes watchdog
+recovery, and an initial report-directory prefix prevented build-log creation.
+The report records these and the interrupted diagnostic attempt. No baseline
+or environmental check failure. Did not run scripts/test.sh; the supervisor
+owns the next landing suite. No new scale or calibration-store measurement.
+
+Wasm remeasured unchanged: 2,019,815 B raw / 585,381 B gzip, SHA-256
+2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0,
+812 B below the unchanged 586,193 B cap. This round has no Rust implementation
+delta and does not rebuild wasm. Report, full audit, commands, controls and
+all failures: reports/20260928-rg-receipts-at-scale/round5/REPORT.md.
+Local commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-28 — Lane OK round 2: integrate DG diagnostics and SS Worker device
 
 Fetched and merged origin/main 80036b466 into ad9e1c76c. The three expected
@@ -73630,3 +73955,111 @@ The supervisor owns the budget raise. No tool install, shared-path change,
 push or publication. Reports, acceptance matrix, LLP notes and the resolved
 issues/closed/20260928-snapback4-live-search-traversal.md carry the evidence.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-28 — RG round 6: delivery await matrix and proven-success recovery
+
+Read rounds 0–5 prompts, reports and RG journal records, the Snapback 4 fence
+and governing LLPs, and Astra's full NOT READY review. Grok was incomplete at
+start and finished READY during this round; read it fully and checked again
+before completion. Merged origin/main ea7ecc896 into this lane in 87c918ebf;
+only JOURNAL conflicted, and both parents' append sequences were retained.
+
+Copied Astra's persistent observation-read reproduction, which failed with one
+POST instead of two, then caught that read alone, scheduled retry and treated
+sync eligibility as false. The matrix found the adjacent proven-success receipt
+recovery could also stop the FIFO. It now retries that recovery while continuing
+the iterator. Unknown head custody remains required. No broad sync catch, new
+state, second receipt window or server/device change; local.ts stays 1,500 lines.
+LLP 3000.019 §3.3 records both boundaries and the required-custody distinction.
+
+The AST census classifies 140 awaited sites (including the FIFO iterator):
+92 optional and 48 required, each with transient and persistent injection.
+Every fixture begins with one successful unobserved head and two admitted tails;
+branch recipes cover receipt recovery/settlement, reset/adoption, reconnect,
+exit, media pruning, native fallback, hold metadata and clock persistence.
+All 280 cases reach their site, inject a fault, check FIFO/one terminal event,
+caller/lookup agreement, recovery and bounded retries. The source-wide await
+seal also catches new helper/module awaits pending reachability classification.
+Non-rejecting timer/exit waits use upstream failure rather than an impossible
+rejection. Host internals remain behind DeviceCore.call; no claim of exhaustive
+fault injection into every IndexedDB/native transaction or authentication teardown.
+
+The complete affected qualification passes: 60 audit, 281 matrix/census,
+141 clock/pending/React, 212 receipts/delivery, 90 settlement, 72 media,
+12 transport and 55 web-admission tests; 94 whole-guide and 42 Rust
+receipt/delivery tests. Total 1,059 passes, no unmutated failures. Three existing
+named skips/ignores remain: legacy server binary, macOS media and opt-in Rust
+throughput benchmark. Build/typecheck, native/wasm build, reference/whitespace
+and append-only checks pass. scripts/test.sh was not run; supervisor owns the
+landing suite. No new performance claim or d-01 mechanism change.
+
+All 38 mutation controls die: 27 this round plus the 11 prior controls. Includes
+final-loop sync deletion, optional-site guard removals, new-await classification,
+Grok's recovered event shape and settling-marker pruning. Prior round-4 exit-1
+results additionally require assertion failures; historical report bytes are
+restored after controls run. Exactly-once protections and no-intermediate-sync
+checks remain intact.
+
+Every failure is reported in reports/20260928-rg-receipts-at-scale/round6/REPORT.md
+and its development ledger: the two lane defects, expected mutation failures,
+fixture/instrumentation mistakes and command setup mistakes are ours. Baseline
+and environmental test failures: none. The fixture's invalid shrinking watermark,
+masked guard mutations and initially missed await branch were corrected; failed
+logs remain. Existing unmutated skips are not counted as passes.
+
+Rebuilt merged-tree wasm is 2,018,847 B raw / 585,968 B GNU file-input gzip-9,
+225 B below the unchanged 586,193 B cap; SHA-256
+3fcccccdd4cefc2d4a6d441acfb8211bb6bcb94149c5ea030ced1ed717db7f52.
+Against round 5: raw -968 B, gzip +587 B from merged Rust inputs; this round
+changes no wasm input. No tool install, version/budget increase, push or
+publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane FL: deterministic retry and typing-expiry fixtures
+
+First fetched origin and merged origin/main: already up to date at ea7ecc896.
+Reproduced both reported baseline failures before fixing fixtures. The lost
+reply's exact 100 ms delayed throw allows one POST plus sync receipt recovery;
+the typing trace withdraws exactly at its advertised server deadline, and a
+delayed burst assertion incorrectly counts that valid expiry as flicker.
+
+The retry fixture now gates sync dispatch and delivery until the second POST
+reply, preserving identical inputs, exact replay, one row and reopen checks.
+New web/native tests queue sync behind a held lost reply and prove one POST,
+one terminal event, replayed sent receipt and durable reopen. The delay stays
+in every retry/recovery run. Typing owns both client clocks, completes a real
+replacement, then holds three live bodies across the member burst. All 21
+member commits are delivered. It checks visibility at original deadline - 1,
+withdrawal at the deadline, actual server expiry at that original deadline,
+and no resurrection on release. One setTyping, no renewal; ephemeral 4s is
+unchanged. A 4.5 s real pause passes on online, wasm and process clients.
+
+Sibling fixes: the immediate/queued replay gate starts before first dispatch;
+media expiry crosses an explicit deadline after upload/view; mock renewal,
+online 100 ms expiry and local 80 ms expiry use controlled clocks. Product
+source, timing, contracts, dependencies, versions and budgets are unchanged.
+
+Final affected qualification: each of five changed files passes 50 complete
+loaded runs at suite concurrency 95, eight invocations alongside 32 recorded
+CPU burners: 8,050 passing cases, no failures/cancellations/skips. The final
+typing source has its own complete 50-run batch; mixed intermediate typing
+batches are recorded but not counted as final qualification. Whole guide:
+93 passed. Root reference audit and whitespace checks pass. Native/wasm/client
+builds pass; wasm 2,018,847 B raw / 585,970 B gzip, unchanged 586,193 B cap.
+
+Ran the client phase once with its normal shards and serial model files:
+3,961 passed, two module-load failures, ten existing skips, no cancellations.
+Both failures were our fresh-tree setup omission: missing event-slots traces
+normally generated by test.sh's Rust phase. Ran only the documented producer
+(two Rust tests pass), then the two affected client files (48 pass). The
+original full-run red is retained, not replaced by a green whole-suite claim.
+All 79 serial model tests pass, including both 5,000-sequence session arms.
+
+Every failure is in reports/20260928-fl-client-flakes/REPORT.md: two deliberate
+baseline reproductions; seven failed intermediate fixture/control executions
+(episode clock, sender monotonic clock, buffered heartbeat watchdog); the two
+setup failures above; and corrected command/read path errors. No additional
+baseline content failure or unresolved affected red. Both tickets are closed
+in issues/closed/. Report, sibling census, commands, digests and compressed
+raw evidence accompany this entry. No shared-path tool installation, push or
+publication. scripts/test.sh was not run; the supervisor owns the landing
+suite. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

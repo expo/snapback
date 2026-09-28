@@ -1,0 +1,54 @@
+TAP version 13
+# Subtest: overlapping receipt notifications keep their emission marker: replacement-first
+not ok 1 - overlapping receipt notifications keep their emission marker: replacement-first
+  ---
+  duration_ms: 2.055221
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/overlap-single-owner/test/store-reset-review.test.mjs:267:69'
+  failureType: 'testCodeFailure'
+  error: |-
+    one owner cannot release another owner's marker
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/overlap-single-owner/test/store-reset-review.test.mjs:281:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: acknowledgement-first
+not ok 2 - overlapping receipt notifications keep their emission marker: acknowledgement-first
+  ---
+  duration_ms: 0.234362
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/overlap-single-owner/test/store-reset-review.test.mjs:267:69'
+  failureType: 'testCodeFailure'
+  error: |-
+    one owner cannot release another owner's marker
+
+    true !== false
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/overlap-single-owner/test/store-reset-review.test.mjs:281:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 104.723579

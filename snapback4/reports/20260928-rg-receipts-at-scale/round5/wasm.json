@@ -1,0 +1,9 @@
+{
+  "artifact": "packages/snapback4/dist/wasm/snapback4_device_bg.wasm",
+  "raw": 2019815,
+  "gzip": 585381,
+  "sha256": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0",
+  "method": "remeasured existing built artifact; GNU gzip -9 -c file input; no wasm rebuild in round 5",
+  "budget": 586193,
+  "headroom": 812
+}

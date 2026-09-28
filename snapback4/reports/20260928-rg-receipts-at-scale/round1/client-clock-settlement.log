@@ -1,0 +1,249 @@
+✔ wasm: local unsaved hold survives save throws until dispatch (730.699206ms)
+✔ wasm: local unsaved hold survives save throws until hold (72.523688ms)
+✔ wasm: local unsaved hold survives save throws until settlement (62.975097ms)
+✔ wasm: local unsaved hold survives save throws until signOut (63.89149ms)
+✔ wasm: local unsaved hold survives save throws until close (59.17306ms)
+✔ wasm: local unsaved hold survives save throws until adoption (79.54332ms)
+✔ wasm: local unsaved hold survives device refuses until dispatch (314.448437ms)
+✔ wasm: local unsaved hold survives device refuses until hold (72.251781ms)
+✔ wasm: local unsaved hold survives device refuses until settlement (64.475136ms)
+✔ wasm: local unsaved hold survives device refuses until signOut (69.526877ms)
+✔ wasm: local unsaved hold survives device refuses until close (61.473267ms)
+✔ wasm: local unsaved hold survives device refuses until adoption (85.650834ms)
+✔ online: dispatch subscriber signOut prevents the POST (40.387924ms)
+✔ online: dispatch subscriber close prevents the POST (35.384464ms)
+✔ wasm: dispatch subscriber signOut prevents the POST (56.629857ms)
+✔ wasm: dispatch subscriber close prevents the POST (51.904444ms)
+✔ process: dispatch subscriber signOut prevents the POST (108.494031ms)
+✔ process: dispatch subscriber close prevents the POST (94.506968ms)
+✔ online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (300.818078ms)
+✔ online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (300.30579ms)
+✔ app-online HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (310.66777ms)
+✔ app-online HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (303.328881ms)
+✔ wasm HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (316.67926ms)
+✔ wasm HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (327.893498ms)
+✔ process HTTP 409: pending list keeps FIFO, args, prediction names, held state and terminal notifications (359.148764ms)
+✔ process HTTP 503: pending list keeps FIFO, args, prediction names, held state and terminal notifications (357.869377ms)
+✔ online: custody waits and dropped connections preserve sent until settlement (790.841918ms)
+✔ app-online: custody waits and dropped connections preserve sent until settlement (793.95213ms)
+✔ wasm: custody waits and dropped connections preserve sent until settlement (837.025208ms)
+✔ process: custody waits and dropped connections preserve sent until settlement (874.659475ms)
+✔ app-online: reload preserves held head and queued tail, then settles the same ids once (94.006948ms)
+✔ app-online: reload preserves sent head and queued tail, then settles the same ids once (51.080109ms)
+✔ wasm: reload preserves held head and queued tail, then settles the same ids once (91.232159ms)
+✔ wasm: reload preserves sent head and queued tail, then settles the same ids once (82.973501ms)
+✔ process: reload preserves held head and queued tail, then settles the same ids once (164.427975ms)
+✔ process: reload preserves sent head and queued tail, then settles the same ids once (169.412767ms)
+✔ raw online queue is in memory; reopening never invents durable intent (32.792509ms)
+✔ online pending-list subscriber can admit a successor without redispatching the head (32.228484ms)
+✔ account facade fences both an outstanding list and its subscription (1.90128ms)
+✔ journal storage listener belongs to the last shared owner (1.732126ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (11.479906ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (4.439274ms)
+  ✔ the receipts card retains seen retries and scope without delivery reporting (5.469778ms)
+  ✔ the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation (9.139018ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (13.915166ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (39.554615ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (21.23685ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (292.805218ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (4.624852ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (4.105072ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (6.212701ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (4.244521ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (8.191517ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (5.519042ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (6.268265ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (5.386784ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (4.248738ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (65.098921ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (53.748859ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (9.662863ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (3.298373ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (5.097951ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (8.317337ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (8.899038ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (15.488935ms)
+  ✔ useQuery lingering remount has data in its first committed render (11.157393ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (6.620232ms)
+  ✔ usePage lingering remount has data in its first committed render (10.570774ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (8.050536ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (24.591097ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (23.896326ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (36.134409ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (32.19218ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (5.576398ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (8.344597ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (25.29343ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (17.197356ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (9.657986ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (399.072422ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (4.002629ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (5.449758ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (6.320033ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.487538ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (7.438138ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (27.043814ms)
+7:35:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+7:35:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+7:35:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (327.986778ms)
+7:35:41 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (249.056688ms)
+7:35:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+7:35:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+7:35:42 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (234.729564ms)
+✔ React hooks and reference-app lifetimes (3010.19688ms)
+✔ deferred journal admission advances an idle client immediately after backend adoption (373.068046ms)
+✔ a returned admission timestamp raises the clock even without host notifications (1005.765026ms)
+✔ reload at a held orphan commit cannot replay a waiting journal before its floor (7.102986ms)
+✔ rejected save at a held orphan commit cannot replay a waiting journal before its floor (4.997781ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (36.33583ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (25.556804ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (8.569865ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.468831ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (7.920772ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.516313ms)
+✔ composition publishes at both deadlines, device first (2.389592ms)
+✔ composition publishes at both deadlines, server first (2.049192ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.192057ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.777105ms)
+✔ freshness is clamped at publication after wall time rolls back (1.468681ms)
+✔ useNow catches deadline between render and effect installation (32.755094ms)
+✔ useNow catches correction between render and effect installation (4.69049ms)
+✔ useNow catches correction-before-deadline between render and effect installation (4.139704ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.437763ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.685697ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.209293ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (4.052694ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.775431ms)
+✔ receipt-driven reads share an unchanged durable clock and retry failed saves (18.805356ms)
+✔ clock chooses the minimum RTT in a recent bounded window, then forgets old samples (0.309974ms)
+✔ advance switches windows immediately; late pre-advance replies cannot rewind it (0.137075ms)
+✔ restart rejects every already-issued other-epoch response, including on a fork (16.331558ms)
+✔ streaming advances are provisional receipt stamps with no half-wait overshoot (0.351817ms)
+✔ now stays integer and monotonic when the offset shrinks or wall time rolls back (0.130566ms)
+✔ an offline cold start restores the estimate and admission floor beside device identity (0.249274ms)
+✔ a fork owns its own persistence and a new live sample wins over stored offset (0.191988ms)
+✔ malformed metadata and invalid samples cannot poison device time (0.178147ms)
+✔ recovered issued time wakes deadlines without changing the estimate or accepting invalid floors (0.698587ms)
+✔ stream final-body clock stamp supersedes pre-advance response headers (0.295984ms)
+✔ wall-clock rollback discards the old window and does not spin frozen deadlines (0.149785ms)
+✔ detaching drains its final save and never queues later response samples on a closed device (0.229754ms)
+✔ retained asset homes and expiry use the same estimated time as device reads (4.030852ms)
+✔ a 20s response cannot latch a midpoint error (stream arrives first) (0.222994ms)
+✔ a 20s response cannot latch a midpoint error (slow arrives first) (0.112799ms)
+✔ a lone slow receipt stamp advances both clocks across a fork and offline restart (0.222063ms)
+✔ the durable admission floor survives retirement of every queued entry (0.105068ms)
+✔ a short confirmation corrects a legacy round-two issued offset and notifies watches (0.152489ms)
+✔ 1000ms response obeys the short-RTT boundary before and after refinement (0.098888ms)
+✔ 1001ms response obeys the short-RTT boundary before and after refinement (0.041022ms)
+✔ 2000ms response obeys the short-RTT boundary before and after refinement (0.032629ms)
+✔ real changeFeed learns an advance from three buffered two-second polls (1.792457ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset 0) (0.14659ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000) (0.07309ms)
+✔ an offline legacy offset without issuedOffset preserves a valid thirty-day session (0.124106ms)
+✔ a non-admission last above wall time cannot pin an offline issued offset (0.103164ms)
+✔ newest equal-RTT measured sample wins even when the issued floor masks its correction (0.101321ms)
+✔ newest equal-RTT streaming sample wins even when the issued floor masks its correction (0.039809ms)
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (398.668366ms)
+✔ receipt head observations do not rescan retained media until publication or replacement (39.475487ms)
+✔ R2 item 2: getSnapshot is cleared after validated reset and before backend adoption (17.108272ms)
+✔ FF1: committed reset invalidates watches and acquisition before a denied sync_state read (14.421164ms)
+✔ FF1 boundary: observe_store invalidates before fallible media reconciliation (13.213334ms)
+✔ FF1 boundary: adopt invalidates before fallible media reconciliation (14.328085ms)
+✔ FF1 adoption audit: committed generation invalidates before a thrown sync_state read (11.817241ms)
+✔ FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up (7.987532ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with healthy recovery (1021.775192ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with media recovery (1015.790733ms)
+✔ HH1/II1: snapshot publication preserves watch invalidation with host recovery (1016.182731ms)
+✔ HH1/II1: stream publication preserves watch invalidation with healthy recovery (1026.558953ms)
+✔ HH1/II1: stream publication preserves watch invalidation with media recovery (1031.117895ms)
+✔ HH1/II1: stream publication preserves watch invalidation with host recovery (1035.813864ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (5.903718ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (13.823659ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (10.1081ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (17.78131ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (11.664413ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (11.835629ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (5.818011ms)
+✔ legacy clock-less predictable orphan imports without local rows and survives replay (5.982576ms)
+✔ finding 2: a delayed device read is retried before returning (9.422482ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (5.676759ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (4.032815ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1006.603062ms)
+✔ replacement receipts use exit transport without replaying known writes (1005.803804ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (14.335136ms)
+✔ generation discovery clears retained answers even when backend adoption cannot start (6.254224ms)
+ℹ tests 170
+ℹ suites 0
+ℹ pass 170
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9520.260739

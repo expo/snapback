@@ -1,0 +1,506 @@
+{
+  "pass": true,
+  "coldWebReadyMs": 5397.452766,
+  "browserActor": "u0500",
+  "accountConversations": 100,
+  "roster": 50,
+  "initialHistory": 10000,
+  "k": 20,
+  "warmups": 3,
+  "samples": [
+    {
+      "sendRenderMs": 17761.195034999997,
+      "readConvergenceMs": 25581.691766999997
+    },
+    {
+      "sendRenderMs": 13001.397855999996,
+      "readConvergenceMs": 20682.912909000006
+    },
+    {
+      "sendRenderMs": 13731.710879999999,
+      "readConvergenceMs": 23131.39902099999
+    },
+    {
+      "sendRenderMs": 8829.728503999999,
+      "readConvergenceMs": 18299.21329199997
+    },
+    {
+      "sendRenderMs": 8065.6384140000155,
+      "readConvergenceMs": 17403.29973
+    },
+    {
+      "sendRenderMs": 8205.78815800001,
+      "readConvergenceMs": 17400.334850999992
+    },
+    {
+      "sendRenderMs": 8397.533488999994,
+      "readConvergenceMs": 17393.66782199999
+    },
+    {
+      "sendRenderMs": 8682.221312999987,
+      "readConvergenceMs": 18050.20583099997
+    },
+    {
+      "sendRenderMs": 8593.241340999957,
+      "readConvergenceMs": 17351.82131499995
+    },
+    {
+      "sendRenderMs": 3418.3427449999726,
+      "readConvergenceMs": 10795.911197000009
+    },
+    {
+      "sendRenderMs": 2805.1520149999997,
+      "readConvergenceMs": 11304.527161000005
+    },
+    {
+      "sendRenderMs": 3045.820085000014,
+      "readConvergenceMs": 11162.858653999981
+    },
+    {
+      "sendRenderMs": 3106.6479979999713,
+      "readConvergenceMs": 12420.135337999964
+    },
+    {
+      "sendRenderMs": 8602.839431,
+      "readConvergenceMs": 17176.46458900004
+    },
+    {
+      "sendRenderMs": 3294.4123019999824,
+      "readConvergenceMs": 10837.401584999985
+    },
+    {
+      "sendRenderMs": 5245.078289000026,
+      "readConvergenceMs": 13914.494903000013
+    },
+    {
+      "sendRenderMs": 15595.705047999974,
+      "readConvergenceMs": 25079.891391000012
+    },
+    {
+      "sendRenderMs": 7966.994884999993,
+      "readConvergenceMs": 13531.957078000007
+    },
+    {
+      "sendRenderMs": 2298.6859669999685,
+      "readConvergenceMs": 10482.460921999998
+    },
+    {
+      "sendRenderMs": 9341.638218000007,
+      "readConvergenceMs": 17515.952174999984
+    }
+  ],
+  "sendRenderP95Ms": 15595.705047999974,
+  "readConvergenceP95Ms": 25079.891391000012,
+  "note": "Actual production web client on isolated full-corpus copy; 49 authenticated API peers read each new message before acknowledging. Original verified fixture remains unchanged.",
+  "domMs": [
+    87.0867959999996,
+    96.30731599999854,
+    81.14301899999555,
+    62.246197999993456,
+    62.42097000000649,
+    154.71101500000805,
+    45.90012999999453,
+    45.98369600001024,
+    60.465709999989485,
+    57.534886999987066,
+    45.96529799999553,
+    61.37611499999184,
+    57.68648500001291,
+    64.50257000001147,
+    57.49428699997952,
+    59.49209099996369,
+    57.63363599998411,
+    44.06291699997382,
+    57.65918400004739,
+    58.63026900001569,
+    61.544656999991275,
+    61.81006599997636,
+    61.13630499999272
+  ],
+  "domP95Ms": 64.50257000001147,
+  "warmupSamples": [
+    {
+      "index": 0,
+      "sendRenderMs": 840.1534649999994,
+      "readConvergenceMs": 20226.248469
+    },
+    {
+      "index": 1,
+      "sendRenderMs": 26688.356963999995,
+      "readConvergenceMs": 56416.49914
+    },
+    {
+      "index": 2,
+      "sendRenderMs": 22417.610709,
+      "readConvergenceMs": 33861.149326
+    }
+  ],
+  "routes": {
+    "/auth/login": {
+      "roundTrip": {
+        "n": 1,
+        "sumMs": 26.247,
+        "p50Ms": 26.247,
+        "p95Ms": 26.247,
+        "maxMs": 26.247
+      },
+      "bytes": 153,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/schema": {
+      "roundTrip": {
+        "n": 3,
+        "sumMs": 63.354,
+        "p50Ms": 20.022,
+        "p95Ms": 24.575,
+        "maxMs": 24.575
+      },
+      "bytes": 1072515,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/q/home": {
+      "roundTrip": {},
+      "bytes": 0,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/sync": {
+      "roundTrip": {
+        "n": 162,
+        "sumMs": 58009.251,
+        "p50Ms": 153.417,
+        "p95Ms": 892.591,
+        "maxMs": 1142.674
+      },
+      "bytes": 6700843,
+      "rowsByTable": {
+        "conversations": 123,
+        "followingEdges": 500,
+        "followingFeed": 1000,
+        "followingWork": 63,
+        "likes": 2000,
+        "members": 1425,
+        "messages": 523,
+        "ownLikes": 5008,
+        "ownReposts": 1004,
+        "posts": 1000,
+        "profiles": 1008,
+        "reactions": 2000,
+        "reposts": 1000,
+        "unread": 2566,
+        "runs": 2207
+      },
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/changes": {
+      "roundTrip": {
+        "n": 1743,
+        "sumMs": 51191.45,
+        "p50Ms": 21.1,
+        "p95Ms": 92.777,
+        "maxMs": 194.421
+      },
+      "bytes": 316187,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/m/send": {
+      "roundTrip": {
+        "n": 23,
+        "sumMs": 218.375,
+        "p50Ms": 9.65,
+        "p95Ms": 10.656,
+        "maxMs": 11.059
+      },
+      "bytes": 3703,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    }
+  },
+  "receiptOnlyPages": {
+    "n": 64,
+    "bytes": 385197,
+    "rows": 1652,
+    "examples": [
+      {
+        "at": 12941.366155,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567319856.354,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.198,
+          "responseStart": 919.259,
+          "responseEnd": 920.349
+        },
+        "bytes": 27774,
+        "events": 106,
+        "tables": {
+          "members": 36,
+          "unread": 36,
+          "runs": 34
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 17606.6488,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567325408.3728,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.17,
+          "responseStart": 27.454,
+          "responseEnd": 28.28
+        },
+        "bytes": 523,
+        "events": 1,
+        "tables": {
+          "runs": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 19023.711478,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567326705.058,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.184,
+          "responseStart": 148.234,
+          "responseEnd": 149.598
+        },
+        "bytes": 798,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 22044.541958,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567329508.553,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.128,
+          "responseStart": 365.704,
+          "responseEnd": 367.931
+        },
+        "bytes": 799,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      }
+    ]
+  },
+  "browser": {
+    "calls": {},
+    "wasm": {},
+    "idb": {
+      "readonly:": {
+        "n": 530284,
+        "sumMs": 193910.199,
+        "p50Ms": 0.3,
+        "p95Ms": 0.6,
+        "maxMs": 481.9,
+        "wait": {
+          "n": 530284,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "readwrite:": {
+        "n": 47278,
+        "sumMs": 34953.6,
+        "p50Ms": 0.4,
+        "p95Ms": 0.8,
+        "maxMs": 529.5,
+        "wait": {
+          "n": 47278,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 52715
+      }
+    },
+    "saves": {},
+    "mutations": 25729,
+    "longTasks": [
+      {
+        "at": 220.7000002861023,
+        "ms": 462
+      },
+      {
+        "at": 851.3000001907349,
+        "ms": 302
+      },
+      {
+        "at": 328250.30000019073,
+        "ms": 51
+      },
+      {
+        "at": 355939.90000009537,
+        "ms": 51
+      },
+      {
+        "at": 392977.5,
+        "ms": 57
+      },
+      {
+        "at": 410514.90000009537,
+        "ms": 65
+      }
+    ],
+    "networkChain": {},
+    "networkQueue": {},
+    "sendAdmissionToPostMs": []
+  },
+  "cpuProfile": {
+    "sampledMs": {
+      "(program)": 70449.60500000509,
+      "JavaScript": 105783.40200001854,
+      "(idle)": 201431.93599994743,
+      "(garbage collector)": 10346.171999999835,
+      "wasm": 53270.313000007816
+    },
+    "coldSampledMs": {
+      "(program)": 866.0380000000025,
+      "JavaScript": 1531.046999999995,
+      "(idle)": 2022.4189999999935,
+      "(garbage collector)": 319.8810000000001,
+      "wasm": 657.0350000000016
+    },
+    "topSelfMs": [
+      [
+        "(idle)",
+        201431.93599994743
+      ],
+      [
+        "(program)",
+        70449.60500000509
+      ],
+      [
+        "open",
+        19974.375999999516
+      ],
+      [
+        "<anonymous>",
+        10927.707999999833
+      ],
+      [
+        "(garbage collector)",
+        10346.171999999835
+      ],
+      [
+        "transaction",
+        8237.266000000054
+      ],
+      [
+        "get",
+        7380.043000000028
+      ],
+      [
+        "request",
+        3986.190999999996
+      ],
+      [
+        "setItem",
+        3768.601000000004
+      ],
+      [
+        "wasm-function[35]",
+        3648.5220000000268
+      ],
+      [
+        "h",
+        3347.05100000002
+      ],
+      [
+        "e",
+        2856.1910000000044
+      ],
+      [
+        "wasm-function[2059]",
+        2407.031999999983
+      ],
+      [
+        "n",
+        2181.9829999999847
+      ],
+      [
+        "c",
+        2100.252999999992
+      ],
+      [
+        "r",
+        1992.780999999987
+      ],
+      [
+        "t",
+        1932.3549999999886
+      ],
+      [
+        "settledIds",
+        1919.84699999999
+      ]
+    ],
+    "note": "Exclusive sampled stack leaves; cold window approximately first coldWebReadyMs after profiler start, including navigation."
+  },
+  "oneSecondTargetPass": false
+}

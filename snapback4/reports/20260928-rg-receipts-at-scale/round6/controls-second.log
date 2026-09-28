@@ -1,0 +1,11 @@
+known-receipt-save-guard 1 True
+sync-transport-guard 1 True
+sync-backend-guard 1 True
+native-discovery-guard 1 True
+native-install-guard 1 True
+legacy-json-guard 1 True
+exit-rejection-guard 1 True
+media-serial-guard 1 True
+network-serial-guard 1 True
+flush-retry-guard 1 True
+unclassified-await 1 True

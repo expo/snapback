@@ -1,0 +1,19 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+error[E0433]: cannot find `ViewChunk` in `crate`
+   --> crates/snapback4-core/src/engine/row_views/batch/tests.rs:145:97
+    |
+145 |     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, crate::ViewChunk::Private)); }
+    |                                                                                                 ^^^^^^^^^ could not find `ViewChunk` in the crate root
+    |
+help: consider importing this enum through its public re-export
+    |
+  1 + use crate::engine::ViewChunk;
+    |
+help: if you import `ViewChunk`, refer to it directly
+    |
+145 -     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, crate::ViewChunk::Private)); }
+145 +     while let Some(chunk) = engine.run_view_chunk(10).unwrap() { assert!(matches!(chunk, ViewChunk::Private)); }
+    |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `snapback4-core` (lib test) due to 1 previous error

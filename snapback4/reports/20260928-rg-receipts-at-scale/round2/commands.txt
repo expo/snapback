@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# From snapback4/. No scripts/test.sh, installs, push or publication.
+set -u
+export CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+ulimit -n 65536
+out=reports/20260928-rg-receipts-at-scale/round2
+run() {
+  local name="$1"
+  shift
+  "$@" > "$out/$name.log" 2>&1
+  local result=$?
+  printf '%s %s\n' "$name" "$result" | tee -a "$out/check-exits.txt"
+}
+if [ "${1:-all}" != client ]; then
+run rust-row-views cargo test -p snapback4-core --lib engine::row_views -- --nocapture
+run rust-row-integration cargo test -p snapback4-core --test row_view_accounting --test row_view_witness --test row_view_legacy --test row_view_disclosure --test sync_count_batch --test stream_receipts --no-fail-fast
+run rust-device cargo test -p snapback4-device --test unread_range --test row_view_expiry --test row_view_disclosure --test delivery --no-fail-fast
+run rust-guide-delivery cargo test -p snapback4-lang --test guide --test receipt_gaps --test delivery --test delivery_clause --test delivery_integration --test delivery_replay_conversion --no-fail-fast
+run debug-build cargo build -p snapback4
+run rust-cost cargo test -p snapback4 --test scale_row_ranges
+fi
+if [ "${1:-all}" != rust ]; then
+run client-typecheck bun run --cwd packages/snapback4 typecheck
+run client-clock-outbox node --test --test-concurrency=4 packages/snapback4/test/react.test.mjs packages/snapback4/test/server-clock.test.mjs packages/snapback4/test/server-clock-recovery.test.mjs packages/snapback4/test/server-clock-regressions.test.mjs packages/snapback4/test/store-reset-review.test.mjs packages/snapback4/test/pending-writes.test.mjs
+run client-receipts-delivery node --test --test-concurrency=4 packages/snapback4/test/*receipt*.test.mjs packages/snapback4/test/delivery*.test.mjs packages/snapback4/test/timeline-delivery.test.mjs
+run clock-extra node --test --test-concurrency=2 packages/snapback4/test/server-clock-live.test.mjs packages/snapback4/test/server-clock-wire.test.mjs packages/snapback4/test/server-clock-browser.test.mjs packages/snapback4/test/keep-clock.test.mjs
+run settlement node --test --test-concurrency=4 packages/snapback4/test/local-e2e.test.mjs packages/snapback4/test/app-store-replacement.test.mjs packages/snapback4/test/transport-outcomes.test.mjs
+fi

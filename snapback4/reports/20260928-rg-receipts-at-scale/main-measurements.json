@@ -1,0 +1,1378 @@
+{
+  "pass": true,
+  "coldWebReadyMs": 5317.590496,
+  "browserActor": "u0500",
+  "accountConversations": 100,
+  "roster": 50,
+  "initialHistory": 10000,
+  "k": 20,
+  "warmups": 3,
+  "samples": [
+    {
+      "sendRenderMs": 1146.8952040000004,
+      "readConvergenceMs": 4349.22121399999
+    },
+    {
+      "sendRenderMs": 731.0783979999978,
+      "readConvergenceMs": 12483.407158999995
+    },
+    {
+      "sendRenderMs": 15741.892538999993,
+      "readConvergenceMs": 24914.294983
+    },
+    {
+      "sendRenderMs": 8537.240378000002,
+      "readConvergenceMs": 13032.421394000005
+    },
+    {
+      "sendRenderMs": 594.8398979999911,
+      "readConvergenceMs": 7403.226930000004
+    },
+    {
+      "sendRenderMs": 8418.874454000004,
+      "readConvergenceMs": 17278.93692800001
+    },
+    {
+      "sendRenderMs": 8498.43826699999,
+      "readConvergenceMs": 17065.80554
+    },
+    {
+      "sendRenderMs": 8831.442753999989,
+      "readConvergenceMs": 18149.739927999995
+    },
+    {
+      "sendRenderMs": 8644.157741000003,
+      "readConvergenceMs": 12399.054845000006
+    },
+    {
+      "sendRenderMs": 600.5532400000084,
+      "readConvergenceMs": 8119.095939999999
+    },
+    {
+      "sendRenderMs": 8392.254283999995,
+      "readConvergenceMs": 12563.049595999997
+    },
+    {
+      "sendRenderMs": 602.9529570000013,
+      "readConvergenceMs": 8883.192104000016
+    },
+    {
+      "sendRenderMs": 7888.120148999995,
+      "readConvergenceMs": 18202.651717
+    },
+    {
+      "sendRenderMs": 8632.225563000015,
+      "readConvergenceMs": 12762.190613999992
+    },
+    {
+      "sendRenderMs": 571.7294619999884,
+      "readConvergenceMs": 8782.819387999974
+    },
+    {
+      "sendRenderMs": 8425.71166099998,
+      "readConvergenceMs": 12202.279895999993
+    },
+    {
+      "sendRenderMs": 614.1393229999812,
+      "readConvergenceMs": 9229.824278999993
+    },
+    {
+      "sendRenderMs": 9274.988335999951,
+      "readConvergenceMs": 13499.403361000004
+    },
+    {
+      "sendRenderMs": 624.5539809999755,
+      "readConvergenceMs": 9132.76092999999
+    },
+    {
+      "sendRenderMs": 8573.955888000026,
+      "readConvergenceMs": 17749.319076000014
+    }
+  ],
+  "sendRenderP95Ms": 9274.988335999951,
+  "readConvergenceP95Ms": 18202.651717,
+  "note": "Actual production web client on isolated full-corpus copy; 49 authenticated API peers read each new message before acknowledging. Original verified fixture remains unchanged.",
+  "domMs": [
+    102.24073799999951,
+    62.04472699999678,
+    45.44942499999888,
+    62.0152620000008,
+    92.31379099999322,
+    62.02560799999628,
+    63.17920700000832,
+    45.74266499999794,
+    58.8291479999898,
+    45.09708700000192,
+    45.201353999989806,
+    63.054380000015954,
+    44.76748300000327,
+    59.0386920000019,
+    45.9358840000059,
+    60.961953999998514,
+    57.74086700001499,
+    44.51752799999667,
+    61.743075000005774,
+    57.26172899996163,
+    61.81224899995141,
+    62.17116599995643,
+    62.04338500002632
+  ],
+  "domP95Ms": 63.17920700000832,
+  "warmupSamples": [
+    {
+      "index": 0,
+      "sendRenderMs": 1469.2675319999998,
+      "readConvergenceMs": 16368.119441
+    },
+    {
+      "index": 1,
+      "sendRenderMs": 13220.828946999998,
+      "readConvergenceMs": 21047.628118999997
+    },
+    {
+      "index": 2,
+      "sendRenderMs": 13272.638137000002,
+      "readConvergenceMs": 24383.09386
+    }
+  ],
+  "routes": {
+    "/auth/login": {
+      "roundTrip": {
+        "n": 1,
+        "sumMs": 25.185,
+        "p50Ms": 25.185,
+        "p95Ms": 25.185,
+        "maxMs": 25.185
+      },
+      "bytes": 153,
+      "rowsByTable": {},
+      "total": {
+        "n": 1,
+        "sumMs": 22.168,
+        "p50Ms": 22.168,
+        "p95Ms": 22.168,
+        "maxMs": 22.168
+      },
+      "wait": {
+        "n": 1,
+        "sumMs": 0.839,
+        "p50Ms": 0.839,
+        "p95Ms": 0.839,
+        "maxMs": 0.839
+      },
+      "engine": {
+        "n": 1,
+        "sumMs": 0.353,
+        "p50Ms": 0.353,
+        "p95Ms": 0.353,
+        "maxMs": 0.353
+      },
+      "cpu": {
+        "n": 1,
+        "sumMs": 21.224,
+        "p50Ms": 21.224,
+        "p95Ms": 21.224,
+        "maxMs": 21.224
+      }
+    },
+    "/schema": {
+      "roundTrip": {
+        "n": 3,
+        "sumMs": 38.395,
+        "p50Ms": 11.767,
+        "p95Ms": 18.458,
+        "maxMs": 18.458
+      },
+      "bytes": 1072515,
+      "rowsByTable": {},
+      "total": {
+        "n": 3,
+        "sumMs": 27.615,
+        "p50Ms": 7.463,
+        "p95Ms": 15.526,
+        "maxMs": 15.526
+      },
+      "wait": {
+        "n": 3,
+        "sumMs": 0.003,
+        "p50Ms": 0.001,
+        "p95Ms": 0.001,
+        "maxMs": 0.001
+      },
+      "engine": {
+        "n": 3,
+        "sumMs": 0.629,
+        "p50Ms": 0.206,
+        "p95Ms": 0.268,
+        "maxMs": 0.268
+      },
+      "cpu": {
+        "n": 3,
+        "sumMs": 27.14,
+        "p50Ms": 7.278,
+        "p95Ms": 15.388,
+        "maxMs": 15.388
+      }
+    },
+    "/q/home": {
+      "roundTrip": {},
+      "bytes": 0,
+      "rowsByTable": {},
+      "total": {},
+      "wait": {},
+      "engine": {},
+      "cpu": {}
+    },
+    "/sync": {
+      "roundTrip": {
+        "n": 127,
+        "sumMs": 14627.092,
+        "p50Ms": 112.691,
+        "p95Ms": 295.237,
+        "maxMs": 356.969
+      },
+      "bytes": 7146449,
+      "rowsByTable": {
+        "conversations": 123,
+        "followingEdges": 500,
+        "followingFeed": 1985,
+        "followingWork": 65,
+        "likes": 2000,
+        "members": 1408,
+        "messages": 523,
+        "ownLikes": 5008,
+        "ownReposts": 1004,
+        "posts": 1000,
+        "profiles": 1008,
+        "reactions": 2000,
+        "reposts": 1000,
+        "unread": 2456,
+        "runs": 2207
+      },
+      "total": {
+        "n": 127,
+        "sumMs": 14339.592,
+        "p50Ms": 110.63,
+        "p95Ms": 292.318,
+        "maxMs": 348.423
+      },
+      "wait": {
+        "n": 127,
+        "sumMs": 3.986,
+        "p50Ms": 0.001,
+        "p95Ms": 0.002,
+        "maxMs": 0.921
+      },
+      "engine": {
+        "n": 127,
+        "sumMs": 14280.867,
+        "p50Ms": 110.385,
+        "p95Ms": 291.901,
+        "maxMs": 340.694
+      },
+      "cpu": {
+        "n": 127,
+        "sumMs": 14312.148,
+        "p50Ms": 110.414,
+        "p95Ms": 291.467,
+        "maxMs": 347.964
+      }
+    },
+    "/changes": {
+      "roundTrip": {
+        "n": 2257,
+        "sumMs": 29832.457,
+        "p50Ms": 11.391,
+        "p95Ms": 31.87,
+        "maxMs": 160.706
+      },
+      "bytes": 421547,
+      "rowsByTable": {},
+      "total": {
+        "n": 2257,
+        "sumMs": 24706.477,
+        "p50Ms": 9.298,
+        "p95Ms": 29.481,
+        "maxMs": 157.622
+      },
+      "wait": {
+        "n": 2257,
+        "sumMs": 23010.017,
+        "p50Ms": 8.743,
+        "p95Ms": 27.931,
+        "maxMs": 131.719
+      },
+      "engine": {
+        "n": 2257,
+        "sumMs": 1344.238,
+        "p50Ms": 0.45,
+        "p95Ms": 1.277,
+        "maxMs": 25.762
+      },
+      "cpu": {
+        "n": 2257,
+        "sumMs": 3374.932,
+        "p50Ms": 1.369,
+        "p95Ms": 2.972,
+        "maxMs": 46.628
+      }
+    },
+    "/m/send": {
+      "roundTrip": {
+        "n": 23,
+        "sumMs": 192.974,
+        "p50Ms": 8.642,
+        "p95Ms": 10.011,
+        "maxMs": 12.107
+      },
+      "bytes": 3703,
+      "rowsByTable": {},
+      "total": {
+        "n": 23,
+        "sumMs": 133.745,
+        "p50Ms": 5.705,
+        "p95Ms": 7.971,
+        "maxMs": 9.217
+      },
+      "wait": {
+        "n": 23,
+        "sumMs": 12.328,
+        "p50Ms": 0.0,
+        "p95Ms": 2.433,
+        "maxMs": 4.572
+      },
+      "engine": {
+        "n": 23,
+        "sumMs": 115.906,
+        "p50Ms": 5.126,
+        "p95Ms": 5.964,
+        "maxMs": 6.315
+      },
+      "cpu": {
+        "n": 23,
+        "sumMs": 108.418,
+        "p50Ms": 4.591,
+        "p95Ms": 5.464,
+        "maxMs": 5.614
+      }
+    }
+  },
+  "receiptOnlyPages": {
+    "n": 48,
+    "bytes": 309287,
+    "rows": 1335,
+    "examples": [
+      {
+        "at": 11034.421683,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567543699.7122,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.167,
+          "responseStart": 229.859,
+          "responseEnd": 231.004
+        },
+        "server": "total;dur=229.347, wait;dur=0.002, engine;dur=228.894, cpu;dur=228.870",
+        "bytes": 25612,
+        "events": 98,
+        "tables": {
+          "members": 33,
+          "unread": 33,
+          "runs": 32
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 21034.377663,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567553814.566,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.216,
+          "responseStart": 112.047,
+          "responseEnd": 113.107
+        },
+        "server": "total;dur=111.429, wait;dur=0.002, engine;dur=111.031, cpu;dur=111.191",
+        "bytes": 798,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 23650.094019,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567556429.959,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.205,
+          "responseStart": 112.749,
+          "responseEnd": 114.934
+        },
+        "server": "total;dur=112.126, wait;dur=0.001, engine;dur=111.912, cpu;dur=111.975",
+        "bytes": 799,
+        "events": 2,
+        "tables": {
+          "members": 1,
+          "unread": 1
+        },
+        "more": false,
+        "snapshot": false
+      },
+      {
+        "at": 39888.99244,
+        "path": "/sync",
+        "status": 200,
+        "timing": {
+          "startTime": 1790567572586.273,
+          "domainLookupStart": -1,
+          "domainLookupEnd": -1,
+          "connectStart": -1,
+          "secureConnectionStart": -1,
+          "connectEnd": -1,
+          "requestStart": 0.18,
+          "responseStart": 194.863,
+          "responseEnd": 197.738
+        },
+        "server": "total;dur=194.291, wait;dur=0.002, engine;dur=193.909, cpu;dur=194.053",
+        "bytes": 21866,
+        "events": 100,
+        "tables": {
+          "runs": 50,
+          "members": 25,
+          "unread": 25
+        },
+        "more": false,
+        "snapshot": false
+      }
+    ]
+  },
+  "browser": {
+    "calls": {
+      "sync_state:": {
+        "n": 929,
+        "sumMs": 1591.9,
+        "p50Ms": 0.9,
+        "p95Ms": 5.4,
+        "maxMs": 340.8,
+        "wait": {
+          "n": 929,
+          "sumMs": 1063.2,
+          "p50Ms": 0.7,
+          "p95Ms": 5.3,
+          "maxMs": 69.8
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "state:": {
+        "n": 128,
+        "sumMs": 77.5,
+        "p50Ms": 0.6,
+        "p95Ms": 1.2,
+        "maxMs": 1.5,
+        "wait": {
+          "n": 128,
+          "sumMs": 72.8,
+          "p50Ms": 0.6,
+          "p95Ms": 1.1,
+          "maxMs": 1.5
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "meta:": {
+        "n": 42158,
+        "sumMs": 7004.4,
+        "p50Ms": 0.1,
+        "p95Ms": 0.8,
+        "maxMs": 138.3,
+        "wait": {
+          "n": 42158,
+          "sumMs": 4306.2,
+          "p50Ms": 0,
+          "p95Ms": 0.7,
+          "maxMs": 138.2
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "queued:": {
+        "n": 42957,
+        "sumMs": 10201.1,
+        "p50Ms": 0.1,
+        "p95Ms": 0.5,
+        "maxMs": 330.4,
+        "wait": {
+          "n": 42957,
+          "sumMs": 4435.1,
+          "p50Ms": 0,
+          "p95Ms": 0.3,
+          "maxMs": 325.5
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "set_meta:": {
+        "n": 33473,
+        "sumMs": 55792.1,
+        "p50Ms": 0.9,
+        "p95Ms": 3.1,
+        "maxMs": 517.6,
+        "wait": {
+          "n": 33473,
+          "sumMs": 27205.5,
+          "p50Ms": 0.2,
+          "p95Ms": 2,
+          "maxMs": 516.8
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "next_submission:": {
+        "n": 1,
+        "sumMs": 0,
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0,
+        "wait": {
+          "n": 1,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:inbox": {
+        "n": 914,
+        "sumMs": 2478.8,
+        "p50Ms": 2.5,
+        "p95Ms": 4.6,
+        "maxMs": 7.3,
+        "wait": {
+          "n": 914,
+          "sumMs": 77.0,
+          "p50Ms": 0,
+          "p95Ms": 0.4,
+          "maxMs": 2.7
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:progress": {
+        "n": 428,
+        "sumMs": 503.6,
+        "p50Ms": 0.4,
+        "p95Ms": 3.1,
+        "maxMs": 8.3,
+        "wait": {
+          "n": 428,
+          "sumMs": 11.0,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 5.5
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:history": {
+        "n": 2262,
+        "sumMs": 1904.2,
+        "p50Ms": 0.8,
+        "p95Ms": 1,
+        "maxMs": 2.5,
+        "wait": {
+          "n": 2262,
+          "sumMs": 60.5,
+          "p50Ms": 0,
+          "p95Ms": 0.2,
+          "maxMs": 1.1
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:conversationScreen": {
+        "n": 524,
+        "sumMs": 134.2,
+        "p50Ms": 0.2,
+        "p95Ms": 0.5,
+        "maxMs": 3.7,
+        "wait": {
+          "n": 524,
+          "sumMs": 19.2,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 2.6
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:messageReceipts": {
+        "n": 785,
+        "sumMs": 15077.6,
+        "p50Ms": 16.3,
+        "p95Ms": 34,
+        "maxMs": 180.6,
+        "wait": {
+          "n": 785,
+          "sumMs": 152.0,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 137.9
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:myProfile": {
+        "n": 422,
+        "sumMs": 95.5,
+        "p50Ms": 0.2,
+        "p95Ms": 0.4,
+        "maxMs": 1.7,
+        "wait": {
+          "n": 422,
+          "sumMs": 9.6,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 1.6
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "observe_store:": {
+        "n": 677,
+        "sumMs": 2063.9,
+        "p50Ms": 0.9,
+        "p95Ms": 12.7,
+        "maxMs": 122.7,
+        "wait": {
+          "n": 677,
+          "sumMs": 1141.0,
+          "p50Ms": 0,
+          "p95Ms": 8.8,
+          "maxMs": 116.8
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "admit:": {
+        "n": 116,
+        "sumMs": 2230.3,
+        "p50Ms": 18,
+        "p95Ms": 33.7,
+        "maxMs": 49.6,
+        "wait": {
+          "n": 116,
+          "sumMs": 1024.7,
+          "p50Ms": 6,
+          "p95Ms": 26.2,
+          "maxMs": 30
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:messageReactions": {
+        "n": 15189,
+        "sumMs": 4271.1,
+        "p50Ms": 0.2,
+        "p95Ms": 0.4,
+        "maxMs": 516.8,
+        "wait": {
+          "n": 15189,
+          "sumMs": 840.3,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 508.9
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:profileByPrincipal": {
+        "n": 12418,
+        "sumMs": 3270.8,
+        "p50Ms": 0.2,
+        "p95Ms": 0.3,
+        "maxMs": 340.4,
+        "wait": {
+          "n": 12418,
+          "sumMs": 871.8,
+          "p50Ms": 0,
+          "p95Ms": 0.1,
+          "maxMs": 339.6
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "apply:": {
+        "n": 124,
+        "sumMs": 10988.0,
+        "p50Ms": 7.4,
+        "p95Ms": 355.7,
+        "maxMs": 621.9,
+        "wait": {
+          "n": 124,
+          "sumMs": 6.2,
+          "p50Ms": 0,
+          "p95Ms": 0.5,
+          "maxMs": 1.2
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "begin_send:": {
+        "n": 113,
+        "sumMs": 205.2,
+        "p50Ms": 1.7,
+        "p95Ms": 3.7,
+        "maxMs": 4.5,
+        "wait": {
+          "n": 113,
+          "sumMs": 97.4,
+          "p50Ms": 0.7,
+          "p95Ms": 1.7,
+          "maxMs": 3.3
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "keep_write:": {
+        "n": 153,
+        "sumMs": 384.7,
+        "p50Ms": 1.5,
+        "p95Ms": 10.8,
+        "maxMs": 17.1,
+        "wait": {
+          "n": 153,
+          "sumMs": 95.7,
+          "p50Ms": 0,
+          "p95Ms": 5,
+          "maxMs": 10
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "settle:": {
+        "n": 113,
+        "sumMs": 453.7,
+        "p50Ms": 2.7,
+        "p95Ms": 9.2,
+        "maxMs": 12.7,
+        "wait": {
+          "n": 113,
+          "sumMs": 58.5,
+          "p50Ms": 0,
+          "p95Ms": 2,
+          "maxMs": 3.2
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "asset_home:": {
+        "n": 43357,
+        "sumMs": 28864.0,
+        "p50Ms": 0.3,
+        "p95Ms": 1.4,
+        "maxMs": 258.4,
+        "wait": {
+          "n": 43357,
+          "sumMs": 18364.1,
+          "p50Ms": 0,
+          "p95Ms": 1.1,
+          "maxMs": 257.4
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      }
+    },
+    "wasm": {
+      "sync_state:": {
+        "n": 2364,
+        "sumMs": 210.1,
+        "p50Ms": 0.1,
+        "p95Ms": 0.2,
+        "maxMs": 0.3,
+        "wait": {
+          "n": 2364,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "queued:": {
+        "n": 43619,
+        "sumMs": 3869.0,
+        "p50Ms": 0.1,
+        "p95Ms": 0.2,
+        "maxMs": 0.6,
+        "wait": {
+          "n": 43619,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "state:": {
+        "n": 128,
+        "sumMs": 1.4,
+        "p50Ms": 0,
+        "p95Ms": 0.1,
+        "maxMs": 0.1,
+        "wait": {
+          "n": 128,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "meta:": {
+        "n": 42274,
+        "sumMs": 1674.2,
+        "p50Ms": 0,
+        "p95Ms": 0.1,
+        "maxMs": 0.3,
+        "wait": {
+          "n": 42274,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "set_meta:": {
+        "n": 33473,
+        "sumMs": 331.6,
+        "p50Ms": 0,
+        "p95Ms": 0.1,
+        "maxMs": 0.5,
+        "wait": {
+          "n": 33473,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "next_submission:": {
+        "n": 117,
+        "sumMs": 1.0,
+        "p50Ms": 0,
+        "p95Ms": 0.1,
+        "maxMs": 0.1,
+        "wait": {
+          "n": 117,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:inbox": {
+        "n": 914,
+        "sumMs": 2346.6,
+        "p50Ms": 2.4,
+        "p95Ms": 4.4,
+        "maxMs": 7.2,
+        "wait": {
+          "n": 914,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:progress": {
+        "n": 428,
+        "sumMs": 474.6,
+        "p50Ms": 0.3,
+        "p95Ms": 2.9,
+        "maxMs": 7,
+        "wait": {
+          "n": 428,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:history": {
+        "n": 2262,
+        "sumMs": 1753.0,
+        "p50Ms": 0.8,
+        "p95Ms": 0.9,
+        "maxMs": 2.4,
+        "wait": {
+          "n": 2262,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:conversationScreen": {
+        "n": 524,
+        "sumMs": 101.7,
+        "p50Ms": 0.2,
+        "p95Ms": 0.4,
+        "maxMs": 0.7,
+        "wait": {
+          "n": 524,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:messageReceipts": {
+        "n": 785,
+        "sumMs": 14889.1,
+        "p50Ms": 16.3,
+        "p95Ms": 33.9,
+        "maxMs": 54.6,
+        "wait": {
+          "n": 785,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:myProfile": {
+        "n": 422,
+        "sumMs": 76.1,
+        "p50Ms": 0.2,
+        "p95Ms": 0.3,
+        "maxMs": 0.4,
+        "wait": {
+          "n": 422,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "observe_store:": {
+        "n": 677,
+        "sumMs": 79.3,
+        "p50Ms": 0.1,
+        "p95Ms": 0.3,
+        "maxMs": 1.7,
+        "wait": {
+          "n": 677,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "admit:": {
+        "n": 116,
+        "sumMs": 37.5,
+        "p50Ms": 0.2,
+        "p95Ms": 0.7,
+        "maxMs": 5,
+        "wait": {
+          "n": 116,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:messageReactions": {
+        "n": 15189,
+        "sumMs": 3079.0,
+        "p50Ms": 0.2,
+        "p95Ms": 0.3,
+        "maxMs": 1.6,
+        "wait": {
+          "n": 15189,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "query:profileByPrincipal": {
+        "n": 12418,
+        "sumMs": 2110.1,
+        "p50Ms": 0.2,
+        "p95Ms": 0.3,
+        "maxMs": 0.7,
+        "wait": {
+          "n": 12418,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "apply:": {
+        "n": 124,
+        "sumMs": 154.4,
+        "p50Ms": 0.7,
+        "p95Ms": 3.6,
+        "maxMs": 11.4,
+        "wait": {
+          "n": 124,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "begin_send:": {
+        "n": 113,
+        "sumMs": 3.4,
+        "p50Ms": 0,
+        "p95Ms": 0.1,
+        "maxMs": 0.3,
+        "wait": {
+          "n": 113,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "keep_write:": {
+        "n": 153,
+        "sumMs": 30.1,
+        "p50Ms": 0.2,
+        "p95Ms": 0.4,
+        "maxMs": 0.5,
+        "wait": {
+          "n": 153,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "settle:": {
+        "n": 113,
+        "sumMs": 42.7,
+        "p50Ms": 0.1,
+        "p95Ms": 1.1,
+        "maxMs": 1.3,
+        "wait": {
+          "n": 113,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "asset_home:": {
+        "n": 43357,
+        "sumMs": 9890.6,
+        "p50Ms": 0.2,
+        "p95Ms": 0.4,
+        "maxMs": 1.3,
+        "wait": {
+          "n": 43357,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      }
+    },
+    "idb": {
+      "readonly:": {
+        "n": 381027,
+        "sumMs": 140782.5,
+        "p50Ms": 0.2,
+        "p95Ms": 0.6,
+        "maxMs": 375,
+        "wait": {
+          "n": 381027,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 0
+      },
+      "readwrite:": {
+        "n": 34662,
+        "sumMs": 28938.2,
+        "p50Ms": 0.4,
+        "p95Ms": 0.8,
+        "maxMs": 603.9,
+        "wait": {
+          "n": 34662,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 0,
+        "bytes": 0,
+        "puts": 40061
+      }
+    },
+    "saves": {
+      "save:": {
+        "n": 34662,
+        "sumMs": 40102.1,
+        "p50Ms": 0.6,
+        "p95Ms": 1.3,
+        "maxMs": 605.3,
+        "wait": {
+          "n": 34662,
+          "sumMs": 0,
+          "p50Ms": 0,
+          "p95Ms": 0,
+          "maxMs": 0
+        },
+        "rows": 5833,
+        "bytes": 10737338,
+        "puts": 0
+      }
+    },
+    "mutations": 16754,
+    "longTasks": [
+      {
+        "at": 227.59999990463257,
+        "ms": 379
+      },
+      {
+        "at": 764.5999999046326,
+        "ms": 322
+      },
+      {
+        "at": 248839.89999961853,
+        "ms": 51
+      },
+      {
+        "at": 254796.39999961853,
+        "ms": 51
+      },
+      {
+        "at": 269727.89999961853,
+        "ms": 54
+      },
+      {
+        "at": 276079.09999990463,
+        "ms": 53
+      },
+      {
+        "at": 292146.09999990463,
+        "ms": 55
+      },
+      {
+        "at": 298869.5,
+        "ms": 54
+      },
+      {
+        "at": 314253.7999997139,
+        "ms": 55
+      }
+    ],
+    "networkChain": {},
+    "networkQueue": {},
+    "sendAdmissionToPostMs": []
+  },
+  "cpuProfile": {
+    "sampledMs": {
+      "(program)": 53983.308000002195,
+      "(idle)": 143000.25200000516,
+      "JavaScript": 77292.88600000984,
+      "(garbage collector)": 6114.262000000117,
+      "wasm": 40795.62800000223
+    },
+    "coldSampledMs": {
+      "(program)": 726.3050000000007,
+      "(idle)": 2272.833999999985,
+      "JavaScript": 1392.6699999999964,
+      "(garbage collector)": 236.0409999999999,
+      "wasm": 689.2600000000019
+    },
+    "topSelfMs": [
+      [
+        "(idle)",
+        143000.25200000516
+      ],
+      [
+        "(program)",
+        53983.308000002195
+      ],
+      [
+        "open",
+        20071.668999999256
+      ],
+      [
+        "<anonymous>",
+        7608.2500000000755
+      ],
+      [
+        "(garbage collector)",
+        6114.262000000117
+      ],
+      [
+        "transaction",
+        5824.131000000039
+      ],
+      [
+        "get",
+        5079.23000000003
+      ],
+      [
+        "wasm-function[38]",
+        2695.195000000001
+      ],
+      [
+        "request",
+        2627.322999999999
+      ],
+      [
+        "setItem",
+        2422.9879999999966
+      ],
+      [
+        "wasm-function[2088]",
+        2007.2549999999742
+      ],
+      [
+        "h",
+        1789.995999999986
+      ],
+      [
+        "e",
+        1727.4699999999855
+      ],
+      [
+        "wasm-function[5117]",
+        1596.1139999999846
+      ],
+      [
+        "c",
+        1422.9429999999995
+      ],
+      [
+        "r",
+        1384.9419999999946
+      ],
+      [
+        "n",
+        1359.6779999999944
+      ],
+      [
+        "wasm-function[334]",
+        1226.4409999999932
+      ]
+    ],
+    "note": "Exclusive sampled stack leaves; cold window approximately first coldWebReadyMs after profiler start, including navigation."
+  },
+  "oneSecondTargetPass": false
+}

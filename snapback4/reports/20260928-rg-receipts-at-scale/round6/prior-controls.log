@@ -1,0 +1,11 @@
+pre-dispatch-raw-call 1
+replacement-unprotected 1
+overlap-single-owner 1
+no-batch-protection 1
+no-read-protection 1
+media-gate-throws 1 True
+observation-catch-empty 1 True
+admission-raw-call 1 True
+receipt-save-raw-call 1 True
+media-flag-not-cleared 1 True
+media-backoff-reset 1 True

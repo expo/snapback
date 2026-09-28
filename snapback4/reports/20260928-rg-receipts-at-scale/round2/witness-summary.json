@@ -1,0 +1,599 @@
+{
+  "fixture": {
+    "members": 50,
+    "busyMessages": 10000,
+    "conversations": 100
+  },
+  "unreadChecks": [
+    {
+      "phase": "seeded mixed range",
+      "member": "quiet99-p0",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "seeded mixed range",
+      "member": "quiet99-p1",
+      "expected": 2,
+      "actual": 2
+    },
+    {
+      "phase": "Chromium seeded range",
+      "member": "quiet99-p0",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 0 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 0 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 0 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 1 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 1 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 1 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 2 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 2 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 2 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 3 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 3 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 3 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 4 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 4 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 4 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 5 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 5 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 5 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 6 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 6 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 6 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 7 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 7 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 7 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 8 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 8 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 8 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 9 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 9 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 9 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 10 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 10 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 10 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 11 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 11 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 11 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 12 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 12 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 12 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 13 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 13 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 13 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 14 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 14 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 14 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 15 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 15 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 15 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 16 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 16 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 16 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 17 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 17 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 17 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 18 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 18 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 18 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 19 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 19 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 19 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 20 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 20 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 20 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 21 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 21 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 21 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 22 self-send",
+      "member": "busy-p0",
+      "expected": 0,
+      "actual": 0
+    },
+    {
+      "phase": "sample 22 before seen",
+      "member": "busy-p1",
+      "expected": 1,
+      "actual": 1
+    },
+    {
+      "phase": "sample 22 after seen",
+      "member": "busy-p1",
+      "expected": 0,
+      "actual": 0
+    }
+  ],
+  "warmups": 3,
+  "samples": [
+    {
+      "i": 0,
+      "domMs": 172.98859399999856,
+      "sendRenderMs": 297.6543439999987,
+      "readConvergenceMs": 654.2572329999985
+    },
+    {
+      "i": 1,
+      "domMs": 158.8047370000004,
+      "sendRenderMs": 287.3881309999997,
+      "readConvergenceMs": 675.5095490000003
+    },
+    {
+      "i": 2,
+      "domMs": 130.5093820000002,
+      "sendRenderMs": 242.31106399999953,
+      "readConvergenceMs": 589.5263279999999
+    },
+    {
+      "i": 3,
+      "domMs": 166.76646399999845,
+      "sendRenderMs": 169.4781699999985,
+      "readConvergenceMs": 582.5401119999988
+    },
+    {
+      "i": 4,
+      "domMs": 136.92873699999836,
+      "sendRenderMs": 258.8385649999982,
+      "readConvergenceMs": 668.0955319999994
+    },
+    {
+      "i": 5,
+      "domMs": 151.86268800000107,
+      "sendRenderMs": 262.77280299999984,
+      "readConvergenceMs": 712.4190890000009
+    },
+    {
+      "i": 6,
+      "domMs": 146.970272999999,
+      "sendRenderMs": 253.5071709999993,
+      "readConvergenceMs": 650.5569039999991
+    },
+    {
+      "i": 7,
+      "domMs": 169.2586510000001,
+      "sendRenderMs": 294.8350559999999,
+      "readConvergenceMs": 774.7385080000004
+    },
+    {
+      "i": 8,
+      "domMs": 176.23550199999954,
+      "sendRenderMs": 297.19327200000043,
+      "readConvergenceMs": 721.379653
+    },
+    {
+      "i": 9,
+      "domMs": 173.6160540000019,
+      "sendRenderMs": 283.0472320000008,
+      "readConvergenceMs": 645.3014430000003
+    },
+    {
+      "i": 10,
+      "domMs": 239.97375900000043,
+      "sendRenderMs": 241.86301100000128,
+      "readConvergenceMs": 721.8824660000028
+    },
+    {
+      "i": 11,
+      "domMs": 229.44697599999927,
+      "sendRenderMs": 232.16598199999862,
+      "readConvergenceMs": 679.5798390000018
+    },
+    {
+      "i": 12,
+      "domMs": 252.63957899999878,
+      "sendRenderMs": 254.3446350000013,
+      "readConvergenceMs": 724.6646570000012
+    },
+    {
+      "i": 13,
+      "domMs": 121.31888099999924,
+      "sendRenderMs": 344.51074700000026,
+      "readConvergenceMs": 806.5100930000008
+    },
+    {
+      "i": 14,
+      "domMs": 270.8791769999989,
+      "sendRenderMs": 380.3233340000006,
+      "readConvergenceMs": 838.499867999999
+    },
+    {
+      "i": 15,
+      "domMs": 161.11729399999967,
+      "sendRenderMs": 276.4028490000019,
+      "readConvergenceMs": 786.5936110000002
+    },
+    {
+      "i": 16,
+      "domMs": 243.09241300000213,
+      "sendRenderMs": 355.9628580000026,
+      "readConvergenceMs": 801.9068700000025
+    },
+    {
+      "i": 17,
+      "domMs": 175.11702399999922,
+      "sendRenderMs": 301.03766499999983,
+      "readConvergenceMs": 745.791623000001
+    },
+    {
+      "i": 18,
+      "domMs": 251.21728599999915,
+      "sendRenderMs": 360.851537999999,
+      "readConvergenceMs": 814.5360560000008
+    },
+    {
+      "i": 19,
+      "domMs": 180.20906800000012,
+      "sendRenderMs": 316.86805000000095,
+      "readConvergenceMs": 776.8238610000008
+    },
+    {
+      "i": 20,
+      "domMs": 136.37561699999787,
+      "sendRenderMs": 381.03818500000125,
+      "readConvergenceMs": 859.7459209999979
+    },
+    {
+      "i": 21,
+      "domMs": 245.49547600000005,
+      "sendRenderMs": 248.1061809999992,
+      "readConvergenceMs": 846.7677210000002
+    },
+    {
+      "i": 22,
+      "domMs": 252.79966799999966,
+      "sendRenderMs": 358.46116299999994,
+      "readConvergenceMs": 839.9066529999982
+    }
+  ],
+  "pass": true,
+  "cold": {
+    "loginMs": 30.59999990463257,
+    "openMs": 806.5999999046326,
+    "acquireMs": 129.19999980926514
+  },
+  "coldWebReadyMs": 1015.0079430000005,
+  "domP95Ms": 252.79966799999966,
+  "sendRenderP95Ms": 380.3233340000006,
+  "readConvergenceP95Ms": 846.7677210000002,
+  "work": {
+    "saves": 1191,
+    "metadataWrites": 132,
+    "receipts": 2254,
+    "saveLimit": 9116,
+    "metadataLimit": 4608
+  }
+}

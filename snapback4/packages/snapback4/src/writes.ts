@@ -123,6 +123,7 @@ export class WriteHistory {
   private revalidated = new Map<string, string>();
   private terminal = new Set<string>();
   private emitted = new Set<string>();
+  private delivering = new Map<string | undefined, number>();
   constructor(private storage?: Storage) {}
 
   remember<T extends Write>(write: T): T {
@@ -217,8 +218,24 @@ export class WriteHistory {
     return (saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined) ?? own;
   }
 
+  // @ref LLP 3000.019#3.3 — retirement and notification can overlap other owners.
+  // With no id, defer cleanup while a queue read establishes its snapshot's ids.
+  protectEmission(id?: string): () => void {
+    this.delivering.set(id, (this.delivering.get(id) ?? 0) + 1);
+    let held = true;
+    return () => {
+      if (!held) return;
+      held = false;
+      const remaining = this.delivering.get(id)! - 1;
+      if (remaining) this.delivering.set(id, remaining);
+      else this.delivering.delete(id);
+    };
+  }
+
   retainEmissions(queued: Iterable<string>): void {
+    if (this.delivering.has(undefined)) return;
     const retained = new Set(queued);
+    for (const id of this.delivering.keys()) if (id !== undefined) retained.add(id);
     for (const id of this.values.keys()) retained.add(id);
     for (const id of this.unpersisted.keys()) retained.add(id);
     for (const id of this.emitted) if (!retained.has(id)) this.emitted.delete(id);

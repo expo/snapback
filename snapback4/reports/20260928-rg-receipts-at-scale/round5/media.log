@@ -1,0 +1,450 @@
+TAP version 13
+# Subtest: an invalid store_id receipt cannot erase another confirmed entry
+ok 1 - an invalid store_id receipt cannot erase another confirmed entry
+  ---
+  duration_ms: 19.835126
+  type: 'test'
+  ...
+# Subtest: an invalid table receipt cannot erase another confirmed entry
+ok 2 - an invalid table receipt cannot erase another confirmed entry
+  ---
+  duration_ms: 2.625936
+  type: 'test'
+  ...
+# Subtest: an invalid row receipt cannot erase another confirmed entry
+ok 3 - an invalid row receipt cannot erase another confirmed entry
+  ---
+  duration_ms: 2.525927
+  type: 'test'
+  ...
+# Subtest: an invalid column receipt cannot erase another confirmed entry
+ok 4 - an invalid column receipt cannot erase another confirmed entry
+  ---
+  duration_ms: 2.179137
+  type: 'test'
+  ...
+# Subtest: an invalid missing receipt cannot erase another confirmed entry
+ok 5 - an invalid missing receipt cannot erase another confirmed entry
+  ---
+  duration_ms: 2.319087
+  type: 'test'
+  ...
+# Subtest: an invalid receipt for the confirmed entry's own cell retires it
+ok 6 - an invalid receipt for the confirmed entry's own cell retires it
+  ---
+  duration_ms: 2.335051
+  type: 'test'
+  ...
+# Subtest: native image/png bytes survive a fresh cache opener; response ownership ends after copying
+ok 7 - native image/png bytes survive a fresh cache opener; response ownership ends after copying
+  ---
+  duration_ms: 4.619496
+  type: 'test'
+  ...
+# Subtest: native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying
+ok 8 - native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying
+  ---
+  duration_ms: 2.134691
+  type: 'test'
+  ...
+# Subtest: once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 9 - once responses with valid receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 2.218586
+  type: 'test'
+  ...
+# Subtest: once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 10 - once responses with absent receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 1.957835
+  type: 'test'
+  ...
+# Subtest: once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 11 - once responses with malformed receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 1.873469
+  type: 'test'
+  ...
+# Subtest: once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 12 - once responses with incomplete receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 2.03449
+  type: 'test'
+  ...
+# Subtest: once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 13 - once responses with no table receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 2.025286
+  type: 'test'
+  ...
+# Subtest: once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 14 - once responses with no row receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 1.935672
+  type: 'test'
+  ...
+# Subtest: once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob
+ok 15 - once responses with no column receipts remove stale ordinary bytes without reading or storing the once Blob
+  ---
+  duration_ms: 1.885196
+  type: 'test'
+  ...
+# Subtest: once falls back to a transient data URI without a second fetch or durable bytes
+ok 16 - once falls back to a transient data URI without a second fetch or durable bytes
+  ---
+  duration_ms: 4.484162
+  type: 'test'
+  ...
+# Subtest: data URI fallback preserves supported media bytes and handles a missing object-URL function
+ok 17 - data URI fallback preserves supported media bytes and handles a missing object-URL function
+  ---
+  duration_ms: 0.706609
+  type: 'test'
+  ...
+# Subtest: data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies
+ok 18 - data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies
+  ---
+  duration_ms: 0.823314
+  type: 'test'
+  ...
+# Subtest: data URI fallback rejects trailing line terminators even when they fill the expected encoded length
+ok 19 - data URI fallback rejects trailing line terminators even when they fill the expected encoded length
+  ---
+  duration_ms: 0.465478
+  type: 'test'
+  ...
+# Subtest: a delayed transient conversion cannot publish an obsolete session's asset
+ok 20 - a delayed transient conversion cannot publish an obsolete session's asset
+  ---
+  duration_ms: 6.366955
+  type: 'test'
+  ...
+# Subtest: FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs
+ok 21 - FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs
+  ---
+  duration_ms: 0.984947
+  type: 'test'
+  ...
+# Subtest: modern Blob reads and browser URLs retain their behavior without FileReader
+ok 22 - modern Blob reads and browser URLs retain their behavior without FileReader
+  ---
+  duration_ms: 2.637044
+  type: 'test'
+  ...
+# Subtest: failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws
+ok 23 - failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws
+  ---
+  duration_ms: 0.290125
+  type: 'test'
+  ...
+# Subtest: upload keeps caller-owned Blobs open on both success and failure
+ok 24 - upload keeps caller-owned Blobs open on both success and failure
+  ---
+  duration_ms: 0.38038
+  type: 'test'
+  ...
+# Subtest: retention drops old inferred homes and refuses downloads without a valid home receipt
+ok 25 - retention drops old inferred homes and refuses downloads without a valid home receipt
+  ---
+  duration_ms: 4.099576
+  type: 'test'
+  ...
+# Subtest: retained receipt store binding is revalidated on read
+ok 26 - retained receipt store binding is revalidated on read
+  ---
+  duration_ms: 1.954911
+  type: 'test'
+  ...
+# Subtest: retained receipt store binding is revalidated on reconcile
+ok 27 - retained receipt store binding is revalidated on reconcile
+  ---
+  duration_ms: 2.096863
+  type: 'test'
+  ...
+# Subtest: retained receipt store binding is revalidated on reopen
+ok 28 - retained receipt store binding is revalidated on reopen
+  ---
+  duration_ms: 3.4148
+  type: 'test'
+  ...
+# Subtest: retained receipt store binding is revalidated on unbound reopen
+ok 29 - retained receipt store binding is revalidated on unbound reopen
+  ---
+  duration_ms: 1.954139
+  type: 'test'
+  ...
+# Subtest: a foreign once receipt checks the entry after serialized writes and never copies its body
+ok 30 - a foreign once receipt checks the entry after serialized writes and never copies its body
+  ---
+  duration_ms: 1.798195
+  type: 'test'
+  ...
+# (node:1251746) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: a follower GETs every placed element; reorder, drop and deletion keep one home
+ok 31 - a follower GETs every placed element; reorder, drop and deletion keep one home
+  ---
+  duration_ms: 141.880021
+  type: 'test'
+  ...
+# Subtest: native: synced list elements survive offline reopen and drop revokes only that element
+ok 32 - native: synced list elements survive offline reopen and drop revokes only that element
+  ---
+  duration_ms: 1200.028082
+  type: 'test'
+  ...
+# Subtest: wasm: synced list elements survive offline reopen and drop revokes only that element
+ok 33 - wasm: synced list elements survive offline reopen and drop revokes only that element
+  ---
+  duration_ms: 1534.601632
+  type: 'test'
+  ...
+# Subtest: reopening a legacy Alice list cannot publish Bob's upload or take his placement
+ok 34 - reopening a legacy Alice list cannot publish Bob's upload or take his placement
+  ---
+  duration_ms: 114.87076
+  type: 'test'
+  ...
+# Subtest: native: legacy bare id cannot retain bytes after real home revoke
+ok 35 - native: legacy bare id cannot retain bytes after real home revoke
+  ---
+  duration_ms: 1230.514185
+  type: 'test'
+  ...
+# Subtest: native: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke)
+ok 36 - native: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke)
+  ---
+  duration_ms: 1234.014132
+  type: 'test'
+  ...
+# Subtest: native: legacy bare id cannot retain bytes after real home clear
+ok 37 - native: legacy bare id cannot retain bytes after real home clear
+  ---
+  duration_ms: 1231.801225
+  type: 'test'
+  ...
+# Subtest: native: legacy bare id cannot retain bytes after real home delete
+ok 38 - native: legacy bare id cannot retain bytes after real home delete
+  ---
+  duration_ms: 1251.551474
+  type: 'test'
+  ...
+# Subtest: native: legacy copied facts cannot retain bytes after real home revoke
+ok 39 - native: legacy copied facts cannot retain bytes after real home revoke
+  ---
+  duration_ms: 1239.240007
+  type: 'test'
+  ...
+# Subtest: native: legacy copied facts cannot retain bytes after real home clear
+ok 40 - native: legacy copied facts cannot retain bytes after real home clear
+  ---
+  duration_ms: 1224.162893
+  type: 'test'
+  ...
+# Subtest: native: legacy copied facts cannot retain bytes after real home delete
+ok 41 - native: legacy copied facts cannot retain bytes after real home delete
+  ---
+  duration_ms: 1239.952225
+  type: 'test'
+  ...
+# Subtest: wasm: legacy bare id cannot retain bytes after real home revoke
+ok 42 - wasm: legacy bare id cannot retain bytes after real home revoke
+  ---
+  duration_ms: 1273.509003
+  type: 'test'
+  ...
+# Subtest: wasm: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke)
+ok 43 - wasm: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke)
+  ---
+  duration_ms: 1941.001656
+  type: 'test'
+  ...
+# Subtest: wasm: legacy bare id cannot retain bytes after real home clear
+ok 44 - wasm: legacy bare id cannot retain bytes after real home clear
+  ---
+  duration_ms: 1782.583871
+  type: 'test'
+  ...
+# Subtest: wasm: legacy bare id cannot retain bytes after real home delete
+ok 45 - wasm: legacy bare id cannot retain bytes after real home delete
+  ---
+  duration_ms: 1163.587242
+  type: 'test'
+  ...
+# Subtest: wasm: legacy copied facts cannot retain bytes after real home revoke
+ok 46 - wasm: legacy copied facts cannot retain bytes after real home revoke
+  ---
+  duration_ms: 1184.159443
+  type: 'test'
+  ...
+# Subtest: wasm: legacy copied facts cannot retain bytes after real home clear
+ok 47 - wasm: legacy copied facts cannot retain bytes after real home clear
+  ---
+  duration_ms: 1151.604798
+  type: 'test'
+  ...
+# Subtest: wasm: legacy copied facts cannot retain bytes after real home delete
+ok 48 - wasm: legacy copied facts cannot retain bytes after real home delete
+  ---
+  duration_ms: 1208.948005
+  type: 'test'
+  ...
+# Subtest: native: a download delayed across store replacement cannot retain legacy bytes, even after reopen
+ok 49 - native: a download delayed across store replacement cannot retain legacy bytes, even after reopen
+  ---
+  duration_ms: 1158.945393
+  type: 'test'
+  ...
+# Subtest: native: a download delayed across store replacement preserves the newer download, even after reopen
+ok 50 - native: a download delayed across store replacement preserves the newer download, even after reopen
+  ---
+  duration_ms: 2165.814689
+  type: 'test'
+  ...
+# Subtest: native: a once download delayed across store replacement preserves the newer download, even after reopen
+ok 51 - native: a once download delayed across store replacement preserves the newer download, even after reopen
+  ---
+  duration_ms: 2176.3678
+  type: 'test'
+  ...
+# Subtest: wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen
+ok 52 - wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen
+  ---
+  duration_ms: 1114.71809
+  type: 'test'
+  ...
+# Subtest: wasm: a download delayed across store replacement preserves the newer download, even after reopen
+ok 53 - wasm: a download delayed across store replacement preserves the newer download, even after reopen
+  ---
+  duration_ms: 2111.673603
+  type: 'test'
+  ...
+# Subtest: wasm: a once download delayed across store replacement preserves the newer download, even after reopen
+ok 54 - wasm: a once download delayed across store replacement preserves the newer download, even after reopen
+  ---
+  duration_ms: 2117.349693
+  type: 'test'
+  ...
+# Subtest: native: list cache retires on expiry and stays retired after offline reopen
+ok 55 - native: list cache retires on expiry and stays retired after offline reopen
+  ---
+  duration_ms: 180.653169
+  type: 'test'
+  ...
+# Subtest: native: list cache retires on generation and stays retired after offline reopen
+ok 56 - native: list cache retires on generation and stays retired after offline reopen
+  ---
+  duration_ms: 1185.315276
+  type: 'test'
+  ...
+# Subtest: wasm: list cache retires on expiry and stays retired after offline reopen
+ok 57 - wasm: list cache retires on expiry and stays retired after offline reopen
+  ---
+  duration_ms: 109.965697
+  type: 'test'
+  ...
+# Subtest: wasm: list cache retires on generation and stays retired after offline reopen
+ok 58 - wasm: list cache retires on generation and stays retired after offline reopen
+  ---
+  duration_ms: 1120.431265
+  type: 'test'
+  ...
+# Subtest: native: persisted old list media index reacquires unchanged rows once
+ok 59 - native: persisted old list media index reacquires unchanged rows once
+  ---
+  duration_ms: 3218.468585
+  type: 'test'
+  ...
+# Subtest: native: persisted old scalar media index reacquires unchanged rows once
+ok 60 - native: persisted old scalar media index reacquires unchanged rows once
+  ---
+  duration_ms: 3230.062277
+  type: 'test'
+  ...
+# Subtest: wasm: persisted old list media index reacquires unchanged rows once
+ok 61 - wasm: persisted old list media index reacquires unchanged rows once
+  ---
+  duration_ms: 3137.61879
+  type: 'test'
+  ...
+# Subtest: wasm: persisted old scalar media index reacquires unchanged rows once
+ok 62 - wasm: persisted old scalar media index reacquires unchanged rows once
+  ---
+  duration_ms: 3119.159386
+  type: 'test'
+  ...
+# Subtest: native: nested placed elements cross inner lists and survive an empty first list offline
+ok 63 - native: nested placed elements cross inner lists and survive an empty first list offline
+  ---
+  duration_ms: 2219.757302
+  type: 'test'
+  ...
+# Subtest: wasm: nested placed elements cross inner lists and survive an empty first list offline
+ok 64 - wasm: nested placed elements cross inner lists and survive an empty first list offline
+  ---
+  duration_ms: 2143.229423
+  type: 'test'
+  ...
+# Subtest: native: a legacy copy in refs cannot replace the same row's released photo home
+ok 65 - native: a legacy copy in refs cannot replace the same row's released photo home
+  ---
+  duration_ms: 1222.968917
+  type: 'test'
+  ...
+# Subtest: wasm: a legacy copy in refs cannot replace the same row's released photo home
+ok 66 - wasm: a legacy copy in refs cannot replace the same row's released photo home
+  ---
+  duration_ms: 1158.559526
+  type: 'test'
+  ...
+# Subtest: native: a paged upgrade restore halts follow and flush
+ok 67 - native: a paged upgrade restore halts follow and flush
+  ---
+  duration_ms: 1587.098889
+  type: 'test'
+  ...
+# Subtest: wasm: a paged upgrade restore halts follow and flush
+ok 68 - wasm: a paged upgrade restore halts follow and flush
+  ---
+  duration_ms: 1496.41568
+  type: 'test'
+  ...
+# Subtest: native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B publishes
+ok 69 - native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B publishes
+  ---
+  duration_ms: 1233.794006
+  type: 'test'
+  ...
+# Subtest: native: initial acquisition rejects an overtaken terminal snapshot continuation after B publishes
+ok 70 - native: initial acquisition rejects an overtaken terminal snapshot continuation after B publishes
+  ---
+  duration_ms: 1220.069541
+  type: 'test'
+  ...
+# Subtest: native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B stages
+ok 71 - native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B stages
+  ---
+  duration_ms: 1213.896676
+  type: 'test'
+  ...
+# Subtest: native: initial acquisition rejects an overtaken terminal snapshot continuation after B stages
+ok 72 - native: initial acquisition rejects an overtaken terminal snapshot continuation after B stages
+  ---
+  duration_ms: 1207.236282
+  type: 'test'
+  ...
+# Subtest: Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle
+ok 73 - Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle # SKIP requires macOS Foundation and AVFoundation
+  ---
+  duration_ms: 0.519258
+  type: 'test'
+  ...
+1..73
+# tests 73
+# suites 0
+# pass 72
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 62340.660023

@@ -1,0 +1,12 @@
+From repository root:
+  git fetch origin && git merge origin/main
+  bun run --cwd snapback4/packages/snapback4 build
+  node --test --test-name-pattern='review:' snapback4/packages/snapback4/test/store-reset-review.test.mjs
+  node --test --test-name-pattern='older flush snapshot' snapback4/packages/snapback4/test/store-reset-review.test.mjs
+  node --test --test-name-pattern='review:|overlapping receipt|receipt emission protection|older flush snapshot' snapback4/packages/snapback4/test/store-reset-review.test.mjs
+  CARGO_BUILD_JOBS=8 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --manifest-path snapback4/Cargo.toml -p snapback4-lang --test guide --no-fail-fast
+  ./ref-check --verbose
+  git diff --check
+  gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm
+From snapback4/ after client build:
+  python3 reports/20260928-rg-receipts-at-scale/round4/controls.py

@@ -1,0 +1,13 @@
+{
+  "crates/snapback4-core/src/engine/row_views/live.rs": "9654a637e32c3fe694242ca4fe4563f4c41ff52051c5ea9a5c98e232a8964742",
+  "crates/snapback4-core/src/engine/row_views/batch/tests.rs": "e1cd711a1e4639c7f37070f931c1e004f10637cf43d480c3758d8ac70c1fddc4",
+  "target/rg/round1-app/snapback/schema.q": "0c63b3b59ee1f2c0f509277b39e035895dccf0f75d021d7691773a9f9855cbf7",
+  "target/rg/round1-app/src/receipts.ts": "1de12eaced8e3d674ad7fae1003a40c270e8f9254a2a30e01e297c6bbcd0cadc",
+  "target/rg/round1-app/src/Chat.tsx": "ba2fe35383fe31057b0201f5236e2e9bc1d2954212eb61b24ac5baad09df0f04",
+  "packages/snapback4/src/local.ts": "8659a980de109ff5c09797c689ca47a36d588b9b3be5a73edebadae62f749f5f",
+  "packages/snapback4/test/store-reset-review.test.mjs": "7a2fa51e94c09632f9e16a115b00b720518203f276c6249671004e246991affc",
+  "crates/snapback4/src/scale.rs": "ab5ddf72c2e13eac0cd21928c2d628de35a535f6972a5e0898f47f1787a5b54b",
+  "crates/snapback4/tests/scale_row_ranges.rs": "0368551db6e1fc373652fde5ab23dc5224319aae4d57792ec5fc114593ac819e",
+  "crates/snapback4-lang/src/guide/maintains.md": "ebb172c8674bd1ca321674da272c50f0b7feafdfa8e2a5733db56f78394c74f4",
+  "crates/snapback4-lang/src/guide/receipts.rs": "d3455b75984503861d0911d701f5f593d0d754d36cf6ad5c5aaf8b986a3556eb"
+}

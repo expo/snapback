@@ -1,0 +1,32 @@
+✖ a durable refusal still completes when its observation queue read fails (332.449461ms)
+✖ the final flush sync publishes an earlier success when the tail retires before its queue lookup (5.611809ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 458.046958
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:183:1
+✖ a durable refusal still completes when its observation queue read fails (332.449461ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:184:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:219:1
+✖ the final flush sync publishes an earlier success when the tail retires before its queue lookup (5.611809ms)
+  ReferenceError: Cannot access 'queued' before initialization
+      at createLocalClient (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/dist/local.js:254:29)
+      at async open (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:69:14)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:92:3)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:220:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

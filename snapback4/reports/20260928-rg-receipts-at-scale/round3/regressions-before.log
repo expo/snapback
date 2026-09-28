@@ -1,0 +1,31 @@
+✖ a durable refusal still completes when its observation queue read fails (466.051655ms)
+✔ the final flush sync publishes an earlier success when the tail retires before its queue lookup (24.360773ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 618.868003
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:183:1
+✖ a durable refusal still completes when its observation queue read fails (466.051655ms)
+  AssertionError [ERR_ASSERTION]: terminal delivery cannot wait for observation recovery or a caller timeout
+  + actual - expected
+
+  + undefined
+  - 'failed'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:208:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

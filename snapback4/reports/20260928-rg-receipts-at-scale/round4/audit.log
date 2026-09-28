@@ -1,0 +1,334 @@
+TAP version 13
+# Subtest: review: reset delivery retains a prior emission across concurrent lookup
+ok 1 - review: reset delivery retains a prior emission across concurrent lookup
+  ---
+  duration_ms: 472.549339
+  type: 'test'
+  ...
+# Subtest: review: acknowledged success retirement retains prior emission across lookup
+ok 2 - review: acknowledged success retirement retains prior emission across lookup
+  ---
+  duration_ms: 10.687052
+  type: 'test'
+  ...
+# Subtest: review: pre-dispatch receipt recovery survives post-commit host failure
+ok 3 - review: pre-dispatch receipt recovery survives post-commit host failure
+  ---
+  duration_ms: 7.772893
+  type: 'test'
+  ...
+# Subtest: review: pending subscriber triggers duplicate successful recovery without a host delay
+ok 4 - review: pending subscriber triggers duplicate successful recovery without a host delay
+  ---
+  duration_ms: 9.931971
+  type: 'test'
+  ...
+# Subtest: replacement cannot duplicate a success still in an older flush snapshot
+ok 5 - replacement cannot duplicate a success still in an older flush snapshot
+  ---
+  duration_ms: 33.335659
+  type: 'test'
+  ...
+# Subtest: a delayed queue snapshot protects emissions until its entries can own delivery
+ok 6 - a delayed queue snapshot protects emissions until its entries can own delivery
+  ---
+  duration_ms: 0.171718
+  type: 'test'
+  ...
+# Subtest: a failed queue snapshot releases emission cleanup
+ok 7 - a failed queue snapshot releases emission cleanup
+  ---
+  duration_ms: 0.383795
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: replacement-first
+ok 8 - overlapping receipt notifications keep their emission marker: replacement-first
+  ---
+  duration_ms: 0.198538
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: acknowledgement-first
+ok 9 - overlapping receipt notifications keep their emission marker: acknowledgement-first
+  ---
+  duration_ms: 0.083485
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after settle throws
+ok 10 - receipt emission protection releases after settle throws
+  ---
+  duration_ms: 0.236885
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after publish throws
+ok 11 - receipt emission protection releases after publish throws
+  ---
+  duration_ms: 0.090606
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after replacement-publish throws
+ok 12 - receipt emission protection releases after replacement-publish throws
+  ---
+  duration_ms: 0.087792
+  type: 'test'
+  ...
+# Subtest: a queued send follows a settled receipt without waiting for an intermediate sync
+ok 13 - a queued send follows a settled receipt without waiting for an intermediate sync
+  ---
+  duration_ms: 12.813871
+  type: 'test'
+  ...
+# Subtest: a success followed by a terminal refusal syncs the committed write before the batch finishes
+ok 14 - a success followed by a terminal refusal syncs the committed write before the batch finishes
+  ---
+  duration_ms: 14.194972
+  type: 'test'
+  ...
+# Subtest: an early flush exit syncs an earlier success when another owner retires the tail
+ok 15 - an early flush exit syncs an earlier success when another owner retires the tail
+  ---
+  duration_ms: 9.7913
+  type: 'test'
+  ...
+# Subtest: a durable refusal still completes when its observation queue read fails
+ok 16 - a durable refusal still completes when its observation queue read fails
+  ---
+  duration_ms: 11.849896
+  type: 'test'
+  ...
+# Subtest: receipt-save retry preserves refusal notification deduplication through observation
+ok 17 - receipt-save retry preserves refusal notification deduplication through observation
+  ---
+  duration_ms: 10.888965
+  type: 'test'
+  ...
+# Subtest: the final flush sync publishes an earlier success when the tail retires before its queue lookup
+ok 18 - the final flush sync publishes an earlier success when the tail retires before its queue lookup
+  ---
+  duration_ms: 9.364329
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit media failure
+ok 19 - recovered refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 6.637842
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit host failure
+ok 20 - recovered refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 6.0494
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit state failure
+ok 21 - replacement retired-success delivery survives post-commit state failure
+  ---
+  duration_ms: 1005.318564
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit metadata failure
+ok 22 - replacement retired-success delivery survives post-commit metadata failure
+  ---
+  duration_ms: 1007.61694
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit media failure
+ok 23 - replacement retired-success delivery survives post-commit media failure
+  ---
+  duration_ms: 1006.454067
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit host failure
+ok 24 - replacement retired-success delivery survives post-commit host failure
+  ---
+  duration_ms: 1006.314887
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit media failure
+ok 25 - keepalive refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 1006.017512
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit host failure
+ok 26 - keepalive refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 1005.604933
+  type: 'test'
+  ...
+# Subtest: receipt head observations do not rescan retained media until publication or replacement
+ok 27 - receipt head observations do not rescan retained media until publication or replacement
+  ---
+  duration_ms: 31.689972
+  type: 'test'
+  ...
+# Subtest: R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+ok 28 - R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+  ---
+  duration_ms: 13.798588
+  type: 'test'
+  ...
+# Subtest: FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+ok 29 - FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+  ---
+  duration_ms: 13.437847
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: observe_store invalidates before fallible media reconciliation
+ok 30 - FF1 boundary: observe_store invalidates before fallible media reconciliation
+  ---
+  duration_ms: 12.138309
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: adopt invalidates before fallible media reconciliation
+ok 31 - FF1 boundary: adopt invalidates before fallible media reconciliation
+  ---
+  duration_ms: 13.5933
+  type: 'test'
+  ...
+# Subtest: FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+ok 32 - FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+  ---
+  duration_ms: 11.065139
+  type: 'test'
+  ...
+# Subtest: FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+ok 33 - FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+  ---
+  duration_ms: 8.251471
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+ok 34 - HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1023.575936
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with media recovery
+ok 35 - HH1/II1: snapshot publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1016.639547
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with host recovery
+ok 36 - HH1/II1: snapshot publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1069.786799
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with healthy recovery
+ok 37 - HH1/II1: stream publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1030.512195
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with media recovery
+ok 38 - HH1/II1: stream publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1028.182263
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with host recovery
+ok 39 - HH1/II1: stream publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1042.9678
+  type: 'test'
+  ...
+# Subtest: R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+ok 40 - R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+  ---
+  duration_ms: 12.468765
+  type: 'test'
+  ...
+# Subtest: finding 1: failed same-generation backend adoption survives retry and offline reopen
+ok 41 - finding 1: failed same-generation backend adoption survives retry and offline reopen
+  ---
+  duration_ms: 31.325556
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed server answer cannot escape its incarnation
+ok 42 - finding 2: delayed server answer cannot escape its incarnation
+  ---
+  duration_ms: 18.046687
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed horizon answer cannot escape its incarnation
+ok 43 - finding 2: delayed horizon answer cannot escape its incarnation
+  ---
+  duration_ms: 18.098836
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed watch answer cannot escape its incarnation
+ok 44 - finding 2: delayed watch answer cannot escape its incarnation
+  ---
+  duration_ms: 9.599242
+  type: 'test'
+  ...
+# Subtest: finding 2: changes observation drops freshness while a mutation holds the network queue
+ok 45 - finding 2: changes observation drops freshness while a mutation holds the network queue
+  ---
+  duration_ms: 10.766552
+  type: 'test'
+  ...
+# Subtest: finding 3: orphan import retires foreign receipts and disables unknown predictions
+ok 46 - finding 3: orphan import retires foreign receipts and disables unknown predictions
+  ---
+  duration_ms: 5.723501
+  type: 'test'
+  ...
+# Subtest: legacy clock-less predictable orphan imports without local rows and survives replay
+ok 47 - legacy clock-less predictable orphan imports without local rows and survives replay
+  ---
+  duration_ms: 5.806015
+  type: 'test'
+  ...
+# Subtest: finding 2: a delayed device read is retried before returning
+ok 48 - finding 2: a delayed device read is retried before returning
+  ---
+  duration_ms: 8.514255
+  type: 'test'
+  ...
+# Subtest: orphan provenance survives an unidentified destination and resolves on sync
+ok 49 - orphan provenance survives an unidentified destination and resolves on sync
+  ---
+  duration_ms: 5.365314
+  type: 'test'
+  ...
+# Subtest: same-store orphan adoption preserves receipts, order and row IDs without predictions
+ok 50 - same-store orphan adoption preserves receipts, order and row IDs without predictions
+  ---
+  duration_ms: 3.856252
+  type: 'test'
+  ...
+# Subtest: replacement receipts use ordinary transport without replaying known writes
+ok 51 - replacement receipts use ordinary transport without replaying known writes
+  ---
+  duration_ms: 1005.986365
+  type: 'test'
+  ...
+# Subtest: replacement receipts use exit transport without replaying known writes
+ok 52 - replacement receipts use exit transport without replaying known writes
+  ---
+  duration_ms: 1006.28368
+  type: 'test'
+  ...
+# Subtest: finding 2: a rerun started by replacement observation cannot publish the old partition
+ok 53 - finding 2: a rerun started by replacement observation cannot publish the old partition
+  ---
+  duration_ms: 14.222594
+  type: 'test'
+  ...
+# Subtest: generation discovery clears retained answers even when backend adoption cannot start
+ok 54 - generation discovery clears retained answers even when backend adoption cannot start
+  ---
+  duration_ms: 5.068009
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15256.16787

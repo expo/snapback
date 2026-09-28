@@ -7,6 +7,7 @@ import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { defaultFetch } from '../dist/node-fetch.js';
+import { ServerClock } from '../dist/clock.js';
 import { server, binary, until } from './helpers/app-server.mjs';
 import { device, api } from './helpers/ephemeral-server.mjs';
 
@@ -47,17 +48,43 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
     ['alice', 'bob'].map(person => ({ table: 'members', row: { id: person, room: 'r', principal: `dev:${person}`, revision: 0 } }))) });
   assert.equal((await seeded.json()).seeded, 2);
   const replies = [];
+  // The observer owns elapsed test time. HTTP and member commits may take
+  // arbitrarily long without spending the typing answer's remaining life.
+  // Keep the real server's nextExpiry; only clock samples are suppressed.
+  let now = Date.now();
+  const clock = new ServerClock(() => now);
   let holding = false, blocked = 0, release;
   const held = new Promise(resolve => { release = resolve; });
-  const fetch = async (input, init) => {
+  const fetch = clock.wrap(async (input, init) => {
     const response = await defaultFetch(input, init);
-    if (new URL(input).pathname !== '/q/typingIn') return response;
-    const json = await response.clone().json();
+    const headers = new Headers(response.headers);
+    headers.delete('x-snapback-time'); headers.delete('x-snapback-clock');
+    const path = new URL(input).pathname;
+    if (path === '/changes') {
+      // Preserve heartbeat bytes while removing the final clock sample.
+      // Buffering the whole poll would itself trip the silence watchdog.
+      const decoder = new TextDecoder(), encoder = new TextEncoder();
+      let text = '';
+      const body = response.body.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+          text += decoder.decode(chunk, { stream: true });
+          if (!text.trim()) { controller.enqueue(chunk); text = ''; }
+        },
+        flush(controller) {
+          const json = JSON.parse(text + decoder.decode());
+          delete json.serverNow; delete json.clockRevision;
+          controller.enqueue(encoder.encode(JSON.stringify(json)));
+        },
+      }));
+      return new Response(body, { status: response.status, headers });
+    }
+    if (path !== '/q/typingIn') return new Response(response.body, { status: response.status, headers });
+    const json = await response.json();
     replies.push(json);
     if (holding) { blocked++; await held; }
     else await delay(30); // Make the loading window observable without changing the server answer.
-    return response;
-  };
+    return Response.json(json, { status: response.status, headers });
+  });
   const observer = tier === 'online' ? createClient({ url, persona: 'bob', fetch })
     : await createLocalClient({ url, persona: 'bob', fetch,
       device: tier === 'wasm' ? device() : processDevice({ binary, dir: join(dir, 'device') }) });
@@ -70,23 +97,35 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
   const member = observer.observe({ kind: 'query', name: 'memberRevision' }, {}, { keep: true });
   await until(() => plain.getSnapshot().data?.length === 0 && kept.getSnapshot().data?.length === 0
     && member.getSnapshot().data?.revision === 0, 'initial reads');
-  const stoppedAt = performance.now();
   assert.equal((await peer.mutate(api.setTyping, { room: 'r' })).state, 'sent');
   // No renewal or stopTyping call: silence must expire after the declared 4 s life.
   await until(() => hasPeer(plain.getSnapshot()) && hasPeer(kept.getSnapshot()) && hasPeer(bounded.getSnapshot()), 'peer typing');
   assert.ok(replies.some(reply => reply.tables.includes('members') && reply.tables.includes('typing')),
     'the server answer depends on the durable rule probe as well as typing');
+  const deadline = replies.find(reply => reply.data?.length)?.nextExpiry;
+  assert.equal(typeof deadline, 'number');
+  now = deadline - 4000;
+  // Retention episodes use elapsed wall time separately from ServerClock.
+  // Own that clock too; HTTP workers and the peer keep their real clocks.
+  t.mock.method(Date, 'now', () => now);
   const plainReads = [], keptReads = [], boundedReads = [];
   bounded.subscribe(() => boundedReads.push(bounded.getSnapshot()));
   plain.subscribe(() => plainReads.push(plain.getSnapshot()));
-  kept.subscribe(() => keptReads.push({ at: performance.now(), read: kept.getSnapshot() }));
-  const burstAt = performance.now();
+  kept.subscribe(() => keptReads.push({ at: now, read: kept.getSnapshot() }));
   for (let revision = 1; revision <= 20; revision++) {
-    await delay(Math.max(0, burstAt + revision * 100 - performance.now()));
+    // First prove a completed re-read. Then hold all three replacement
+    // bodies across the remaining commits, including a slow/paused host.
+    // Twenty invalidations occupy 500 ms of the controlled four-second life,
+    // inside the default watch's separate one-second retention episode.
+    now += 25;
+    if (revision === 2) holding = true;
     assert.equal((await peer.mutate({ kind: 'mutation', name: 'touchMember' }, { revision })).state, 'sent');
+    await until(() => member.getSnapshot().data?.revision === revision && member.getSnapshot().fresh, 'member commit delivered');
+    if (revision === 1) await until(() => hasPeer(plain.getSnapshot()) && plain.getSnapshot().fresh
+      && kept.getSnapshot().fresh && !kept.getSnapshot().revalidating
+      && bounded.getSnapshot().fresh && !bounded.getSnapshot().revalidating, 'first replacement delivered');
+    if (revision === 2) await until(() => blocked === 3, 'all typing replies held before expiry');
   }
-  await until(() => member.getSnapshot().data?.revision === 20 && member.getSnapshot().fresh
-    && hasPeer(plain.getSnapshot()) && kept.getSnapshot().fresh, 'burst delivered');
   assert.ok(keptReads.length > 0, 'commits actually re-read the kept watch');
   assert.ok(keptReads.every(({ read }) => hasPeer(read)), 'no publication hides typing during the burst');
   assert.ok(keptReads.some(({ read }) => read.revalidating === true), 'kept data marks revalidation');
@@ -97,16 +136,36 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
   assert.ok(plainReads.some(hasPeer), 'the default watch then publishes the peer again');
   t.diagnostic(`burst: ${plainReads.filter(read => 'loading' in read).length} default loading publications; ${keptReads.length} kept publications, all visible`);
 
-  holding = true;
   assert.equal((await peer.mutate({ kind: 'mutation', name: 'touchMember' }, { revision: 21 })).state, 'sent');
-  await until(() => blocked >= 2, 'both typing replies held before expiry');
+  await until(() => member.getSnapshot().data?.revision === 21 && member.getSnapshot().fresh, 'held re-read commit delivered');
+  assert.ok(replies.filter(reply => reply.data?.length).every(reply => reply.nextExpiry === deadline),
+    'member commits do not renew the server typing deadline');
+  assert.ok(replies.slice(-3).every(reply => reply.nextExpiry === deadline && reply.data?.length === 1),
+    'the held bodies contain the live peer and its original server deadline');
+  now = deadline - 1;
   assert.ok(hasPeer(kept.getSnapshot()), 'keep spans the held replacement');
-  await until(() => !hasPeer(kept.getSnapshot()), 'kept expiry without a replacement reply');
-  const expiredAt = performance.now(), afterExpiry = keptReads.length;
-  assert.ok(expiredAt - stoppedAt <= 5000, `typing lasted ${expiredAt - stoppedAt} ms after the last call`);
+  now = deadline;
+  assert.equal(hasPeer(kept.getSnapshot()), false, 'kept expiry withdraws at the server deadline without a replacement reply');
+  const afterExpiry = keptReads.length;
+  assert.ok(keptReads.every(({ at, read }) => hasPeer(read) || at >= deadline), 'no publication withdraws before the deadline');
+  // Check the actual server at the ORIGINAL deadline too: member commits
+  // must not extend the life. Advance only any remaining time, not a new
+  // four seconds after the final member commit, which could mask a renewal.
+  const status = await defaultFetch(url + '/dev/status');
+  const serverNow = Number(status.headers.get('x-snapback-time'));
+  await status.arrayBuffer();
+  assert.ok(Number.isSafeInteger(serverNow) && serverNow > 0);
+  if (serverNow < deadline) {
+    const advanced = await defaultFetch(url + '/dev/clock/advance', { method: 'POST',
+      body: JSON.stringify({ duration: `${deadline - serverNow}ms` }) });
+    assert.equal(advanced.status, 200); await advanced.arrayBuffer();
+  }
+  const expired = await defaultFetch(url + '/q/typingIn', { method: 'POST',
+    headers: { 'x-snapback-persona': 'bob' }, body: JSON.stringify({ args: { room: 'r' } }) });
+  assert.deepEqual((await expired.json()).data, [], 'the server also expires typing at its original deadline');
   holding = false;
   release();
   await until(() => kept.getSnapshot().data?.length === 0 && kept.getSnapshot().fresh, 'empty answer after expiry');
   assert.ok(keptReads.slice(afterExpiry).every(({ read }) => !hasPeer(read)), 'late pre-expiry bodies never resurrect typing');
-  t.diagnostic(`expiry: ${(expiredAt - stoppedAt).toFixed(1)} ms after the last call, while replies were held`);
+  t.diagnostic(`expiry: server deadline ${deadline}, visible at ${deadline - 1}, withdrawn at ${deadline}; 21 member commits, no renewal`);
 });

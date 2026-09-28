@@ -1,0 +1,222 @@
+[
+  {
+    "index": 12,
+    "id": "local.ts:sendPost:witnessRestore(json.store_id, json.head ?? json.seq, capture)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 26,
+    "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
+    "mode": "persistent",
+    "injected": 12,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 37,
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
+    "mode": "persistent",
+    "injected": 8,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 38,
+    "id": "local.ts:waitForChange:probe()#1",
+    "mode": "persistent",
+    "injected": 8,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 39,
+    "id": "local.ts:waitForChange:probe()#2",
+    "mode": "persistent",
+    "injected": 7,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 42,
+    "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
+    "mode": "persistent",
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 44,
+    "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2",
+    "mode": "persistent",
+    "injected": 6,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 47,
+    "id": "local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 49,
+    "id": "local.ts:flushOnce:exitDone#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 50,
+    "id": "local.ts:flushOnce:media?.reconcile()#1",
+    "mode": "persistent",
+    "injected": 9,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 51,
+    "id": "local.ts:flushOnce:exitDone#2",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 56,
+    "id": "local.ts:flushOnce:exitDone#3",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 74,
+    "id": "local.ts:commit:history.read(write.id, true)#1",
+    "mode": "persistent",
+    "injected": 0,
+    "initialPosts": 2,
+    "postedUnderFault": 2,
+    "postedAfterRecovery": 2,
+    "reached": false,
+    "rejected": false
+  },
+  {
+    "index": 75,
+    "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+    "mode": "persistent",
+    "injected": 0,
+    "initialPosts": 2,
+    "postedUnderFault": 2,
+    "postedAfterRecovery": 2,
+    "reached": false,
+    "rejected": false
+  },
+  {
+    "index": 76,
+    "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+    "mode": "persistent",
+    "injected": 0,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": false,
+    "rejected": false
+  },
+  {
+    "index": 102,
+    "id": "local-exit.ts:exitTransport:response.json()#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": false
+  },
+  {
+    "index": 103,
+    "id": "local-exit.ts:exitTransport:held?.(entry, why)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 104,
+    "id": "local-exit.ts:exitTransport:refused?.(entry, why)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 105,
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 106,
+    "id": "local-exit-settlement.ts:exitRefusalSettlement:work#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

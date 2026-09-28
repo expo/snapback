@@ -1,0 +1,11 @@
+{
+  "pass": false,
+  "browserActor": "u0500",
+  "accountConversations": 100,
+  "coldWebReadyMs": 5929.636167000001,
+  "intendedSamples": 20,
+  "warmups": 3,
+  "completedMeasuredSamples": 0,
+  "error": "AssertionError [ERR_ASSERTION]: sent message settled within 30 seconds",
+  "samples": []
+}

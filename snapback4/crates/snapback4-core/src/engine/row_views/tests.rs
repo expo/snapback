@@ -1,7 +1,7 @@
 use super::*;
 use crate::{Context, Engine, Ceilings, Schema, Program, meter::{Meter, Cut}};
 #[test]
-fn live_basis_walk_charges_only_live_inputs_on_its_internal_ledger() {
+fn live_basis_walk_charges_bounded_candidates_on_its_internal_ledger() {
     let b = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").into())]);
     assert!(b.diagnostics.is_empty());
     // Also builds with --features postgres, where the compiler's core is a separate crate instance.
@@ -23,7 +23,7 @@ fn live_basis_walk_charges_only_live_inputs_on_its_internal_ledger() {
     let mut r = Runner::new(&tx, &schema, Context::system().at(10), Meter::new(Ceilings::default(),Cut::Abort), 0);
     let (n, complete, _) = r.live_basis_scan(m, &member, None, 8).unwrap();
     assert_eq!((n,complete), (2,true));
-    assert_eq!(r.meter.used.examined, 4);
+    assert_eq!(r.meter.used.examined, 11, "six range-head probes and five authorized candidates, including three expired rows");
     assert!(r.meter.used.steps > 0);
     for (kind, ceilings) in [
         (MeterKind::Examined, Ceilings { examined: 2, ..Default::default() }),

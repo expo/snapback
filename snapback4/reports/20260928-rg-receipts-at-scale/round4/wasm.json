@@ -1,0 +1,10 @@
+{
+  "raw": 2019815,
+  "gzip": 585381,
+  "sha256": "2e12e4657211129dfe80e58ff8ef88a23d52ad19885ed5d461c30a68d47e68a0",
+  "previous_round_raw": 2019815,
+  "previous_round_gzip": 585381,
+  "budget": 586193,
+  "headroom": 812,
+  "method": "gzip -9 -c file; remeasured, no wasm input changed this round"
+}

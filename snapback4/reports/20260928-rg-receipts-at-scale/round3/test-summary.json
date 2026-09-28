@@ -1,0 +1,207 @@
+{
+  "rust-row-views": {
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0,
+    "targets": [
+      [
+        24,
+        0,
+        0
+      ]
+    ]
+  },
+  "rust-row-integration": {
+    "passed": 31,
+    "failed": 0,
+    "ignored": 0,
+    "targets": [
+      [
+        6,
+        0,
+        0
+      ],
+      [
+        18,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0
+      ]
+    ]
+  },
+  "rust-device": {
+    "passed": 53,
+    "failed": 0,
+    "ignored": 0,
+    "targets": [
+      [
+        30,
+        0,
+        0
+      ],
+      [
+        6,
+        0,
+        0
+      ],
+      [
+        10,
+        0,
+        0
+      ],
+      [
+        7,
+        0,
+        0
+      ]
+    ]
+  },
+  "rust-guide-delivery": {
+    "passed": 135,
+    "failed": 0,
+    "ignored": 1,
+    "targets": [
+      [
+        16,
+        0,
+        0
+      ],
+      [
+        5,
+        0,
+        0
+      ],
+      [
+        3,
+        0,
+        0
+      ],
+      [
+        2,
+        0,
+        1
+      ],
+      [
+        93,
+        0,
+        0
+      ],
+      [
+        16,
+        0,
+        0
+      ]
+    ]
+  },
+  "client-clock-outbox": {
+    "tests": 182,
+    "pass": 182,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-receipts-delivery": {
+    "tests": 212,
+    "pass": 212,
+    "fail": 0,
+    "skipped": 0
+  },
+  "settlement": {
+    "tests": 38,
+    "pass": 38,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-media": {
+    "tests": 31,
+    "pass": 30,
+    "fail": 0,
+    "skipped": 1
+  },
+  "outbox-final2": {
+    "tests": 41,
+    "pass": 41,
+    "fail": 0,
+    "skipped": 0
+  },
+  "maintained-columns-fixed2": {
+    "tests": 4,
+    "pass": 4,
+    "fail": 0,
+    "skipped": 0
+  },
+  "transport-http-fixed2": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "skipped": 0
+  },
+  "unread-range-fixed": {
+    "tests": 62,
+    "pass": 62,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-clock-outbox-after-suite": {
+    "tests": 183,
+    "pass": 183,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-receipts-delivery-after-suite": {
+    "tests": 212,
+    "pass": 212,
+    "fail": 0,
+    "skipped": 0
+  },
+  "settlement-after-suite": {
+    "tests": 38,
+    "pass": 38,
+    "fail": 0,
+    "skipped": 0
+  },
+  "client-media-after-suite": {
+    "tests": 31,
+    "pass": 30,
+    "fail": 0,
+    "skipped": 1
+  },
+  "suite-corrections-after-suite": {
+    "tests": 78,
+    "pass": 78,
+    "fail": 0,
+    "skipped": 0
+  },
+  "web-admission-final": {
+    "tests": 55,
+    "pass": 55,
+    "fail": 0,
+    "skipped": 0
+  },
+  "final_affected_totals": {
+    "rust_pass": 243,
+    "rust_ignored": 1,
+    "client_pass": 596,
+    "client_skipped": 1,
+    "includes_whole_guide": 93,
+    "outbox_in_clock_group": 42
+  }
+}

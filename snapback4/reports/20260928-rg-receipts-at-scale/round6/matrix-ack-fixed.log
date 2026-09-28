@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: every delivery await is explicitly classified
+ok 1 - every delivery await is explicitly classified
+  ---
+  duration_ms: 1.836934
+  type: 'test'
+  ...
+# Subtest: 81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 2 - 81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 388.47661
+  type: 'test'
+  ...
+# Subtest: 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+not ok 3 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 27.183193
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:46:3'
+  failureType: 'testCodeFailure'
+  error: 'flush retry backoff remains bounded and does not reset during repeated failure'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:202:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 96 transient: writes.ts:187 acknowledged
+ok 4 - 96 transient: writes.ts:187 acknowledged
+  ---
+  duration_ms: 24.662634
+  type: 'test'
+  ...
+# Subtest: 96 persistent: writes.ts:187 acknowledged
+not ok 5 - 96 persistent: writes.ts:187 acknowledged
+  ---
+  duration_ms: 18.625264
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:46:3'
+  failureType: 'testCodeFailure'
+  error: 'flush retry backoff remains bounded and does not reset during repeated failure'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:202:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 3
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5572.286971

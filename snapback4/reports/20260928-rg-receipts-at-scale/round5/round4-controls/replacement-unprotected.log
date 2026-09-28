@@ -1,0 +1,32 @@
+TAP version 13
+# Subtest: review: reset delivery retains a prior emission across concurrent lookup
+not ok 1 - review: reset delivery retains a prior emission across concurrent lookup
+  ---
+  duration_ms: 446.015127
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/replacement-unprotected/test/store-reset-review.test.mjs:118:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reset cannot emit an already-delivered success again
+
+    2 !== 1
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/target/rg-round4-controls/replacement-unprotected/test/store-reset-review.test.mjs:140:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 555.085851

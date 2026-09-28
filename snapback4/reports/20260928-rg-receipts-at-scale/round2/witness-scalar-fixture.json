@@ -1,0 +1,26 @@
+{
+  "fixture": {
+    "members": 50,
+    "busyMessages": 10000,
+    "conversations": 100
+  },
+  "unreadChecks": [
+    {
+      "phase": "seeded mixed range",
+      "member": "quiet99-p0",
+      "expected": 1
+    }
+  ],
+  "warmups": 3,
+  "samples": [],
+  "pass": false,
+  "error": "AssertionError [ERR_ASSERTION]: exact unread for quiet99-p0 seeded mixed range\n\nundefined !== 1\n",
+  "browser": {
+    "calls": [],
+    "saves": [],
+    "renders": 0,
+    "sends": [],
+    "cold": {}
+  },
+  "network": []
+}

@@ -1,0 +1,45 @@
+✔ a queued send follows a settled receipt without waiting for an intermediate sync (412.662298ms)
+✖ a success followed by a terminal refusal syncs the committed write before the batch finishes (12.730266ms)
+✖ an early flush exit syncs an earlier success when another owner retires the tail (51.134264ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 588.451051
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-review.test.mjs:128:1
+✖ a success followed by a terminal refusal syncs the committed write before the batch finishes (12.730266ms)
+  AssertionError [ERR_ASSERTION]: batch completion waits for publication, with no sync between the POSTs
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:144:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/store-reset-review.test.mjs:151:1
+✖ an early flush exit syncs an earlier success when another owner retires the tail (51.134264ms)
+  AssertionError [ERR_ASSERTION]: barrier was not reached
+      at until (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:14:115)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:170:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

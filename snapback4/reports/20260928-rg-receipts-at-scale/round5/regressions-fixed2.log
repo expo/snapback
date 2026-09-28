@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: repeating media failure cannot gate an already queued send and retries stay bounded
+ok 1 - repeating media failure cannot gate an already queued send and retries stay bounded
+  ---
+  duration_ms: 475.178855
+  type: 'test'
+  ...
+# Subtest: a committed admission still sends when media housekeeping keeps failing
+ok 2 - a committed admission still sends when media housekeeping keeps failing
+  ---
+  duration_ms: 17.755326
+  type: 'test'
+  ...
+# Subtest: the observation catch schedules the only retry that can publish an earlier success
+ok 3 - the observation catch schedules the only retry that can publish an earlier success
+  ---
+  duration_ms: 17.974515
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4618.792114

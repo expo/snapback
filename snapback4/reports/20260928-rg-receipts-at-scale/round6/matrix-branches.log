@@ -1,0 +1,182 @@
+TAP version 13
+# Subtest: 8 persistent: local.ts:532 sendPost
+ok 1 - 8 persistent: local.ts:532 sendPost
+  ---
+  duration_ms: 411.449819
+  type: 'test'
+  ...
+# Subtest: 10 persistent: local.ts:540 sendPost
+ok 2 - 10 persistent: local.ts:540 sendPost
+  ---
+  duration_ms: 39.563379
+  type: 'test'
+  ...
+# Subtest: 11 persistent: local.ts:548 sendPost
+ok 3 - 11 persistent: local.ts:548 sendPost
+  ---
+  duration_ms: 42.995203
+  type: 'test'
+  ...
+# Subtest: 12 persistent: local.ts:558 sendPost
+not ok 4 - 12 persistent: local.ts:558 sendPost
+  ---
+  duration_ms: 33.759128
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:36:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:161:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 18 persistent: local.ts:648 syncRound
+ok 5 - 18 persistent: local.ts:648 syncRound
+  ---
+  duration_ms: 29.616458
+  type: 'test'
+  ...
+# Subtest: 26 persistent: local.ts:710 syncRound
+not ok 6 - 26 persistent: local.ts:710 syncRound
+  ---
+  duration_ms: 32.262424
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:36:3'
+  failureType: 'testCodeFailure'
+  error: "Cannot read properties of undefined (reading 'state')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:157:52)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page
+# Subtest: 27 persistent: local.ts:728 syncRound
+ok 7 - 27 persistent: local.ts:728 syncRound
+  ---
+  duration_ms: 137.138963
+  type: 'test'
+  ...
+# Subtest: 35 persistent: local.ts:801 probe
+ok 8 - 35 persistent: local.ts:801 probe
+  ---
+  duration_ms: 31.139621
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1097 flushOnce
+not ok 9 - 50 persistent: local.ts:1097 flushOnce
+  ---
+  duration_ms: 29.288335
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:36:3'
+  failureType: 'testCodeFailure'
+  error: 'the classified await must actually experience an injected fault'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:161:12)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: 60 persistent: local.ts:1127 flushOnce
+ok 10 - 60 persistent: local.ts:1127 flushOnce
+  ---
+  duration_ms: 30.602486
+  type: 'test'
+  ...
+# Subtest: 63 persistent: local.ts:1144 flushOnce
+ok 11 - 63 persistent: local.ts:1144 flushOnce
+  ---
+  duration_ms: 29.002918
+  type: 'test'
+  ...
+# Subtest: 64 persistent: local.ts:1148 flushOnce
+ok 12 - 64 persistent: local.ts:1148 flushOnce
+  ---
+  duration_ms: 29.988104
+  type: 'test'
+  ...
+# Subtest: 66 persistent: local.ts:1164 flushOnce
+ok 13 - 66 persistent: local.ts:1164 flushOnce
+  ---
+  duration_ms: 31.807633
+  type: 'test'
+  ...
+# Subtest: 67 persistent: local.ts:1165 flushOnce
+ok 14 - 67 persistent: local.ts:1165 flushOnce
+  ---
+  duration_ms: 28.124571
+  type: 'test'
+  ...
+# Subtest: 72 persistent: local.ts:1181 replayOnOpen
+ok 15 - 72 persistent: local.ts:1181 replayOnOpen
+  ---
+  duration_ms: 50.231041
+  type: 'test'
+  ...
+# Subtest: 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 16 - 81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 15.68308
+  type: 'test'
+  ...
+# Subtest: 85 persistent: local-receipts.ts:70 recoverReceipt
+ok 17 - 85 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 28.522618
+  type: 'test'
+  ...
+# Subtest: 86 persistent: local-receipts.ts:74 recoverReceipt
+ok 18 - 86 persistent: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 33.152208
+  type: 'test'
+  ...
+# Subtest: 96 persistent: writes.ts:187 acknowledged
+ok 19 - 96 persistent: writes.ts:187 acknowledged
+  ---
+  duration_ms: 14.149071
+  type: 'test'
+  ...
+# Subtest: 125 persistent: local-native.ts:28 installNativeAttempt
+ok 20 - 125 persistent: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 27.697862
+  type: 'test'
+  ...
+# Subtest: 126 persistent: local-native.ts:41 installNativeAttempt
+ok 21 - 126 persistent: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 27.890851
+  type: 'test'
+  ...
+# Subtest: 127 persistent: local-native.ts:43 installNativeAttempt
+ok 22 - 127 persistent: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 30.654413
+  type: 'test'
+  ...
+# Subtest: 128 persistent: local-native.ts:46 installNativeAttempt
+ok 23 - 128 persistent: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 28.502858
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 20
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6146.204906

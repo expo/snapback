@@ -10,7 +10,7 @@ export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
 import { Pages } from "./react-pages.ts";
-import { PendingWrites } from "./react-pending-writes.ts";
+import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
 
 const ClientContext = createContext<Client | null>(null);
@@ -237,7 +237,7 @@ export function usePendingWrite<A, R>(op: Mutation<A, R>, id?: string) {
 // @ref LLP 3000.019#3.3 — render queued intent without inventing a predicted row.
 export function usePendingWrites<A = unknown, R = unknown>(op?: Mutation<A, R>): readonly PendingWrite<A>[] {
   const client = useClient();
-  const source = useMemo(() => new PendingWrites(client, op?.name), [client, op?.name]);
+  const source = useMemo(() => pendingWritesSource(client, op?.name), [client, op?.name]);
   return useSyncExternalStore(source.subscribe, source.getSnapshot, source.getServerSnapshot) as readonly PendingWrite<A>[];
 }
 

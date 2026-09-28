@@ -1,0 +1,47 @@
+{
+  "summary": "== 1 failure(s) in 4162 s",
+  "exit_code": 1,
+  "failing_stages": [
+    "client tests"
+  ],
+  "ordinary_client": {
+    "tests": 3927,
+    "pass": 3910,
+    "fail": 7,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0
+  },
+  "failing_leaves": [
+    {
+      "name": "maintained columns: sqlite watches use server values across interrupted sync and reopen",
+      "classification": "ours"
+    },
+    {
+      "name": "maintained columns: web watches use server values across interrupted sync and reopen",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement",
+      "classification": "ours"
+    },
+    {
+      "name": "native: maximum pending ids (256), cursor batches and every terminal acknowledgement",
+      "classification": "ours"
+    },
+    {
+      "name": "unread range check names the chosen predicates, index and horizon",
+      "classification": "ours"
+    },
+    {
+      "name": "a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first",
+      "classification": "ours"
+    }
+  ],
+  "failing_parent": "web admission review: recovery and transport respect the session boundary",
+  "all_other_stages_passed": true
+}

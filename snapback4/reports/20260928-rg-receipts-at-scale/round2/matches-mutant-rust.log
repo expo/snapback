@@ -1,0 +1,22 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 42.21s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 1 test
+
+thread 'engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle' (3364789) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:151:9:
+assertion `left == right` failed: alice: exclude tombstones, self-sends, join floor, read floor, expiry and other groups
+  left: Some(6)
+ right: Some(2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::small_predicate_ranges_match_an_independent_unread_oracle
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 162 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

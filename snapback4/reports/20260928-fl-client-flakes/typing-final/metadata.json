@@ -1,0 +1,25 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-concurrency=95",
+    "packages/snapback4/test/ephemeral-keep.test.mjs"
+  ],
+  "files": [
+    "ephemeral-keep"
+  ],
+  "repetitions": 50,
+  "parallel_invocations": 8,
+  "concurrency": 95,
+  "burners": [],
+  "started": 1790591638.3957658,
+  "load": [
+    45.88818359375,
+    27.17333984375,
+    19.587890625
+  ],
+  "source_sha256": {
+    "ephemeral-keep": "d0efeae086389c58daa485229e9d598d7b72f30a5d508dd7a8a0003902cbf29a"
+  },
+  "concurrent_burner_evidence": "../repeated/metadata.json"
+}

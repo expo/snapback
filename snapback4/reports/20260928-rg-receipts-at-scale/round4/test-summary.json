@@ -1,0 +1,42 @@
+{
+  "audit": {
+    "tests": 54,
+    "pass": 54,
+    "fail": 0,
+    "skipped": 0
+  },
+  "clock-pending": {
+    "tests": 141,
+    "pass": 141,
+    "fail": 0,
+    "skipped": 0
+  },
+  "receipts-delivery": {
+    "tests": 212,
+    "pass": 212,
+    "fail": 0,
+    "skipped": 0
+  },
+  "settlement": {
+    "tests": 91,
+    "pass": 90,
+    "fail": 0,
+    "skipped": 1
+  },
+  "web-admission": {
+    "tests": 55,
+    "pass": 55,
+    "fail": 0,
+    "skipped": 0
+  },
+  "guide-final": {
+    "pass": 93,
+    "fail": 0,
+    "ignored": 0
+  },
+  "rust-receipts-delivery": {
+    "pass": 42,
+    "fail": 0,
+    "ignored": 1
+  }
+}

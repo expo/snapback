@@ -1,0 +1,26 @@
+✖ a queued send follows a settled receipt without waiting for an intermediate sync (496.180781ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 608.088796
+
+✖ failing tests:
+
+test at packages/snapback4/test/store-reset-review.test.mjs:98:1
+✖ a queued send follows a settled receipt without waiting for an intermediate sync (496.180781ms)
+  AssertionError [ERR_ASSERTION]: barrier was not reached
+      at until (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:14:115)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:109:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -1,0 +1,19 @@
+COLD WEB READY u0500 5929.636167000001
+DOM 0 95.23551399999997
+RECEIPT 0 1144.8086319999993 7127.981808
+DOM 1 63.42330600000059
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: sent message settled within 30 seconds
+    at file:///home/ccheever/sb4-intent/lane-rg/snapback4/target/rg/fixed/scripts/rg-probe.mjs:11:529 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: undefined,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

@@ -1,0 +1,79 @@
+✔ deferred journal admission advances an idle client immediately after backend adoption (379.001411ms)
+✔ a returned admission timestamp raises the clock even without host notifications (1007.569659ms)
+✔ reload at a held orphan commit cannot replay a waiting journal before its floor (6.918358ms)
+✔ rejected save at a held orphan commit cannot replay a waiting journal before its floor (4.945782ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (34.956189ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (23.723414ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (8.581762ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (8.239649ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.598095ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.453097ms)
+✔ composition publishes at both deadlines, device first (2.54206ms)
+✔ composition publishes at both deadlines, server first (1.797103ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.141181ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.771035ms)
+✔ freshness is clamped at publication after wall time rolls back (1.432497ms)
+✔ useNow catches deadline between render and effect installation (32.585035ms)
+✔ useNow catches correction between render and effect installation (4.322148ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.478733ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.207128ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.587049ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.194079ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (3.244883ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.638776ms)
+✔ receipt-driven reads share an unchanged durable clock and retry failed saves (18.691232ms)
+✔ clock chooses the minimum RTT in a recent bounded window, then forgets old samples (0.299119ms)
+✔ advance switches windows immediately; late pre-advance replies cannot rewind it (0.128172ms)
+✔ restart rejects every already-issued other-epoch response, including on a fork (16.339769ms)
+✔ streaming advances are provisional receipt stamps with no half-wait overshoot (0.360941ms)
+✔ now stays integer and monotonic when the offset shrinks or wall time rolls back (0.132168ms)
+✔ an offline cold start restores the estimate and admission floor beside device identity (0.255914ms)
+✔ a fork owns its own persistence and a new live sample wins over stored offset (0.199619ms)
+✔ malformed metadata and invalid samples cannot poison device time (0.172558ms)
+✔ recovered issued time wakes deadlines without changing the estimate or accepting invalid floors (0.670064ms)
+✔ stream final-body clock stamp supersedes pre-advance response headers (0.278567ms)
+✔ wall-clock rollback discards the old window and does not spin frozen deadlines (0.171167ms)
+✖ detaching drains its final save and never queues later response samples on a closed device (0.672517ms)
+✔ retained asset homes and expiry use the same estimated time as device reads (3.937281ms)
+✔ a 20s response cannot latch a midpoint error (stream arrives first) (0.238778ms)
+✔ a 20s response cannot latch a midpoint error (slow arrives first) (0.132799ms)
+✔ a lone slow receipt stamp advances both clocks across a fork and offline restart (0.18035ms)
+✔ the durable admission floor survives retirement of every queued entry (0.127712ms)
+✔ a short confirmation corrects a legacy round-two issued offset and notifies watches (0.156695ms)
+✔ 1000ms response obeys the short-RTT boundary before and after refinement (0.097957ms)
+✔ 1001ms response obeys the short-RTT boundary before and after refinement (0.040872ms)
+✔ 2000ms response obeys the short-RTT boundary before and after refinement (0.030987ms)
+✔ real changeFeed learns an advance from three buffered two-second polls (1.799336ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset 0) (0.16054ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000) (0.071798ms)
+✔ an offline legacy offset without issuedOffset preserves a valid thirty-day session (0.118488ms)
+✔ a non-admission last above wall time cannot pin an offline issued offset (0.101012ms)
+✔ newest equal-RTT measured sample wins even when the issued floor masks its correction (0.09377ms)
+✔ newest equal-RTT streaming sample wins even when the issued floor masks its correction (0.037586ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 51
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1501.755899
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock.test.mjs:192:1
+✖ detaching drains its final save and never queues later response samples on a closed device (0.672517ms)
+  AssertionError [ERR_ASSERTION]: only the already-captured final save reaches the device
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/server-clock.test.mjs:203:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

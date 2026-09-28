@@ -1,0 +1,38 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 18.94s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 10 tests
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 26.981661ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+
+thread 'engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets' (2622591) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:172:5:
+receipt updates must commit with a pending recount: [
+    "examined=240: Failed { why: Refusal { code: \"E_BOUND\", family: \"bound\", message: \"examined rows reached the ceiling 240\", detail: None, site: Some(\"mark:2\"), rewrite: Some(\"read a smaller page, or add an index whose prefix pins the rows this site needs\"), guide: Some(\"bounds\"), rule: None, retryable: false }, current: None }",
+    "examined=256: Failed { why: Refusal { code: \"E_BOUND\", family: \"bound\", message: \"examined rows reached the ceiling 256\", detail: None, site: Some(\"mark:2\"), rewrite: Some(\"read a smaller page, or add an index whose prefix pins the rows this site needs\"), guide: Some(\"bounds\"), rule: None, retryable: false }, current: None }",
+    "examined=300: Failed { why: Refusal { code: \"E_BOUND\", family: \"bound\", message: \"examined rows reached the ceiling 300\", detail: None, site: Some(\"mark:2\"), rewrite: Some(\"read a smaller page, or add an index whose prefix pins the rows this site needs\"), guide: Some(\"bounds\"), rule: None, retryable: false }, current: None }",
+    "examined=500: Failed { why: Refusal { code: \"E_BOUND\", family: \"bound\", message: \"examined rows reached the ceiling 500\", detail: None, site: Some(\"mark:2\"), rewrite: Some(\"read a smaller page, or add an index whose prefix pins the rows this site needs\"), guide: Some(\"bounds\"), rule: None, retryable: false }, current: None }",
+]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... FAILED
+
+thread 'engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget' (2622590) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:180:9:
+8 members: MutationOutcome { receipt_only: false, state: Failed { why: Refusal { code: "E_BOUND", family: "bound", message: "examined rows reached the ceiling 8192", detail: None, site: Some("markAll:16"), rewrite: Some("read a smaller page, or add an index whose prefix pins the rows this site needs"), guide: Some("bounds"), rule: None, retryable: false }, current: None }, metered: Metered { examined: 8176, index_entries: 80, rule_probes: 0, steps: 325184, heap_bytes: 5256, output_bytes: 10800, rows_written: 24 }, tables: [], events: 0, replayed: false }
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... FAILED
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget
+    engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 152 filtered out; finished in 0.36s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

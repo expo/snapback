@@ -1,0 +1,7 @@
+{
+  "client-seams": "ffc3377a905a459a3bdf92ec525bad885288ff4d86a99c540f6096bd07d53a32",
+  "client-lifecycle": "fcb6ac79ac4570ae65bbb4e1b1348b10c66938f531dad9ffa333bc819fa030b8",
+  "ephemeral-keep": "770dd6ac35b035ced9fb6c0d9917c6198575f59678c45c2f36fc9e3d7c70e37d",
+  "ephemeral-mock": "43e7e9f371153f68abe3502f60e40fca72650c338d57102aa56fa7eb5346b5ed",
+  "keep-observation": "b34ceda92943833fe8fa8167a0aafab7486a7531cfca0b7d8d7e73ae835bdd74"
+}

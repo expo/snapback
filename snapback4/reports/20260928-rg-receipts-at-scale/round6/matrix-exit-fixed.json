@@ -1,0 +1,35 @@
+[
+  {
+    "index": 74,
+    "id": "local.ts:commit:history.read(write.id, true)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 75,
+    "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  },
+  {
+    "index": 76,
+    "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+    "mode": "persistent",
+    "injected": 1,
+    "initialPosts": 3,
+    "postedUnderFault": 3,
+    "postedAfterRecovery": 3,
+    "reached": true,
+    "rejected": true
+  }
+]

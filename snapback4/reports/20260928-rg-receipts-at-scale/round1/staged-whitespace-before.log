@@ -1,0 +1,12 @@
+snapback4/reports/20260928-rg-receipts-at-scale/round1/cost-after.log:60: new blank line at EOF.
+snapback4/reports/20260928-rg-receipts-at-scale/round1/guide-final.log:102: new blank line at EOF.
+snapback4/reports/20260928-rg-receipts-at-scale/round1/review-astra.md:3: trailing whitespace.
++1. **Medium — probe work is not deducted from the fallback recount allowance.**
+snapback4/reports/20260928-rg-receipts-at-scale/round1/review-astra.md:14: trailing whitespace.
++2. **Low — the new certification tests miss the exact cutoff.**
+snapback4/reports/20260928-rg-receipts-at-scale/round1/rust-device.log:82: new blank line at EOF.
+snapback4/reports/20260928-rg-receipts-at-scale/round1/rust-guide-delivery.log:176: new blank line at EOF.
+snapback4/reports/20260928-rg-receipts-at-scale/round1/rust-row-integration.log:70: new blank line at EOF.
+snapback4/reports/20260928-rg-receipts-at-scale/round1/rust-row-views.log:33: new blank line at EOF.
+
+The second check also flagged the two echoed review lines above inside this log. Trailing whitespace was then normalized in the log itself.

@@ -1,0 +1,194 @@
+✖ recovered refusal delivery survives post-commit media failure (390.704222ms)
+✖ recovered refusal delivery survives post-commit host failure (10.381287ms)
+✖ replacement retired-success delivery survives post-commit state failure (1007.486752ms)
+✖ replacement retired-success delivery survives post-commit metadata failure (1008.664356ms)
+✖ replacement retired-success delivery survives post-commit media failure (1010.88821ms)
+✖ replacement retired-success delivery survives post-commit host failure (1007.853343ms)
+✖ keepalive refusal delivery survives post-commit media failure (1009.393281ms)
+✖ keepalive refusal delivery survives post-commit host failure (1008.139843ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6576.714423
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:252:42
+✖ recovered refusal delivery survives post-commit media failure (390.704222ms)
+  AssertionError [ERR_ASSERTION]: durable recovery delivers before retry time advances
+  + actual - expected
+
+  + undefined
+  - 'failed'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:278:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:252:42
+✖ recovered refusal delivery survives post-commit host failure (10.381287ms)
+  AssertionError [ERR_ASSERTION]: durable recovery delivers before retry time advances
+  + actual - expected
+
+  + undefined
+  - 'failed'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:278:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit state failure (1007.486752ms)
+  AssertionError [ERR_ASSERTION]: retirement notifies even when later reset bookkeeping fails
+  + actual - expected
+
+  + []
+  - [
+  -   [
+  -     'sent',
+  -     10
+  -   ]
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:316:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ [ 'sent', 10 ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit metadata failure (1008.664356ms)
+  AssertionError [ERR_ASSERTION]: retirement notifies even when later reset bookkeeping fails
+  + actual - expected
+
+  + []
+  - [
+  -   [
+  -     'sent',
+  -     10
+  -   ]
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:316:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ [ 'sent', 10 ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit media failure (1010.88821ms)
+  AssertionError [ERR_ASSERTION]: retirement notifies even when later reset bookkeeping fails
+  + actual - expected
+
+  + []
+  - [
+  -   [
+  -     'sent',
+  -     10
+  -   ]
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:316:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ [ 'sent', 10 ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:290:63
+✖ replacement retired-success delivery survives post-commit host failure (1007.853343ms)
+  AssertionError [ERR_ASSERTION]: retirement notifies even when later reset bookkeeping fails
+  + actual - expected
+
+  + []
+  - [
+  -   [
+  -     'sent',
+  -     10
+  -   ]
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:316:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ [ 'sent', 10 ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:323:42
+✖ keepalive refusal delivery survives post-commit media failure (1009.393281ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + []
+  - [
+  -   'E_STORE_REPLACED'
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:350:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'E_STORE_REPLACED' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/store-reset-review.test.mjs:323:42
+✖ keepalive refusal delivery survives post-commit host failure (1008.139843ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + []
+  - [
+  -   'E_STORE_REPLACED'
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rg/snapback4/packages/snapback4/test/store-reset-review.test.mjs:350:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'E_STORE_REPLACED' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
