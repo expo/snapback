@@ -1,0 +1,59 @@
+{
+  "sourceCommit": "3a8360db12be50a984b6da50d3634cc4f4cf2467",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "published": {
+    "node_modules/snapback4": {
+      "version": "0.4.6",
+      "resolved": "https://registry.npmjs.org/snapback4/-/snapback4-0.4.6.tgz",
+      "integrity": "sha512-CZugWFLOMWDumW6DLspRNWsJGSFZ8RCfwK/J6HGOr21r1gQT5Mt12M14J4fc9E8+qUS66da58QoF1nrFfm9Arg==",
+      "license": "MIT",
+      "dependencies": {
+        "openid-client": "6.8.8",
+        "undici": "8.8.0"
+      },
+      "bin": {
+        "snapback4": "bin/snapback4.js"
+      },
+      "optionalDependencies": {
+        "snapback4-darwin-arm64": "0.4.6",
+        "snapback4-linux-x64": "0.4.6"
+      },
+      "peerDependencies": {
+        "react": "^19.0.0"
+      },
+      "peerDependenciesMeta": {
+        "react": {
+          "optional": true
+        }
+      }
+    },
+    "node_modules/snapback4-linux-x64": {
+      "version": "0.4.6",
+      "resolved": "https://registry.npmjs.org/snapback4-linux-x64/-/snapback4-linux-x64-0.4.6.tgz",
+      "integrity": "sha512-j9NbVfLDeXSAXontWrnCVB2N6f2roWn3L76wvWL3OXgagAL/OItizPgNH2p9mbviglPhvTcmHBSNRI47cKMfJA==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ]
+    }
+  },
+  "mainBuild": "CARGO_BUILD_JOBS=8 CARGO_PROFILE_DEV_DEBUG=0 CARGO_INCREMENTAL=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build -p snapback4",
+  "mainClient": "tsc -p packages/snapback4/tsconfig.build.json; published wasm .d.ts used for generated-module declarations only; no wasm executed",
+  "exitCodes": {
+    "mainRustBuild": 0,
+    "initialTypeScriptBuild": 2,
+    "correctedTypeScriptBuild": 0,
+    "publishedProbe": 0,
+    "mainProbe": 0,
+    "publishedOwnerKeys": 0,
+    "mainOwnerKeys": 0,
+    "inputVerification": 0,
+    "observationVerification": 0,
+    "refCheck": 0
+  }
+}
