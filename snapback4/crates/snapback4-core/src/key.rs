@@ -29,7 +29,7 @@ pub fn encode(values: &[Value]) -> Vec<u8> {
     out
 }
 
-pub(crate) fn encode_one(value: &Value, out: &mut Vec<u8>) {
+fn encode_one(value: &Value, out: &mut Vec<u8>) {
     match value {
         Value::Null => out.push(T_NULL),
         Value::Bool(false) => out.push(T_FALSE),
@@ -44,7 +44,8 @@ pub(crate) fn encode_one(value: &Value, out: &mut Vec<u8>) {
             escape(text.as_bytes(), out);
         }
         Value::Id(id) => {
-            encode_id(id, out);
+            out.push(T_ID);
+            escape(id.as_bytes(), out);
         }
         Value::Bytes(bytes) => {
             out.push(T_BYTES);
@@ -55,12 +56,6 @@ pub(crate) fn encode_one(value: &Value, out: &mut Vec<u8>) {
             escape(crate::value::canonical_json(other).as_bytes(), out);
         }
     }
-}
-
-/// Append the mandatory row-id suffix without constructing an owned Value.
-pub(crate) fn encode_id(id: &str, out: &mut Vec<u8>) {
-    out.push(T_ID);
-    escape(id.as_bytes(), out);
 }
 
 /// `0x00` inside a body becomes `0x00 0xFF`; the body ends with `0x00 0x00`.
