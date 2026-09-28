@@ -1,7 +1,17 @@
 use super::*;
 use std::{fs, path::Path};
 
-const SOURCE: &str = "use personas alice\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery point(id: rows):\n  return rows[id]\n";
+const SOURCE: &str = "use personas alice\ntable rows:\n  owner: principal\n  read <- exists grants[parent = .id]\n  online only\ntable grants:\n  parent: rows\n  until: time\n  expire at .until\n  by byParent: parent\n  read <- deny\n  online only\nquery point(id: rows):\n  return rows[id]\n";
+fn exhaust_read_authority(host: &Host) {
+    let mut engine = lock(&host.shared.engine);
+    let bound = lock(&host.shared.bound);
+    let until = host.shared.now() + 3_600_000;
+    let mut rows = vec![("rows".into(), snapback4_core::wire::row_from_json(
+        &bound.schema.tables["rows"], &json!({"id":"hidden","owner":"bob"})).unwrap())];
+    rows.extend((0..8193).map(|n| ("grants".into(), snapback4_core::wire::row_from_json(
+        &bound.schema.tables["grants"], &json!({"id":format!("g{n}"),"parent":"hidden","until":until+n})).unwrap())));
+    engine.load(rows).unwrap();
+}
 fn latest(project: &Path, op: &str) -> Json {
     let end = Instant::now() + Duration::from_secs(10);
     loop {
@@ -16,12 +26,11 @@ fn latest(project: &Path, op: &str) -> Json {
 fn memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause() {
     let dir = ReaderTestDirectory::new();
     let host = Host::with_evidence(true, snapback4_core::Store::memory().unwrap(), SOURCE, "127.0.0.1", Some(&dir.0));
-    lock(&host.shared.engine).load(vec![("rows".into(), snapback4_core::wire::row_from_json(
-        &lock(&host.shared.bound).schema.tables["rows"], &json!({"id":"hidden","owner":"bob"})).unwrap())]).unwrap();
+    exhaust_read_authority(&host);
     let reply = body(&host.request("POST", "/q/point", "x-snapback-persona: alice\r\n", r#"{"args":{"id":"hidden"}}"#));
-    assert_eq!(reply["data"], Json::Null);
+    assert_eq!(reply["denied"]["code"], "E_RULE");
     let first = latest(&dir.0, "point");
-    assert_eq!(first["clause"], "read rule");
+    assert_eq!(first["clause"], "authorization allowance (read)");
     assert_eq!(first["site"], "schema.q:4:3");
     // Deliberately bypass every operation and collector. Only the shared JSON
     // response layer sees this injected E_RULE, just like a new transport door.
@@ -72,8 +81,7 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
     let dir = ReaderTestDirectory::new();
     let store = snapback4_core::Store::open(&dir.0.join("reader.db")).unwrap();
     let host = Host::with_evidence(true, store, SOURCE, "127.0.0.1", Some(&dir.0));
-    lock(&host.shared.engine).load(vec![("rows".into(), snapback4_core::wire::row_from_json(
-        &lock(&host.shared.bound).schema.tables["rows"], &json!({"id":"hidden","owner":"bob"})).unwrap())]).unwrap();
+    exhaust_read_authority(&host);
     let generation = lock(&host.shared.engine).generation();
     let shared = Arc::downgrade(&host.shared);
     *lock(&host.shared.query_wait) = Some(Arc::new(move || {
@@ -85,7 +93,7 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
         *lock(&shared.generation) = generation + 1;
     }));
     let reply = body(&host.request("POST", "/q/point", "x-snapback-persona: alice\r\n", r#"{"args":{"id":"hidden"}}"#));
-    assert!(reply["data"].is_null());
+    assert_eq!(reply["denied"]["code"], "E_RULE");
     let record = latest(&dir.0, "point");
     assert_eq!(record["site"], "schema.q:4:3");
     assert_eq!(record["generation"], generation);

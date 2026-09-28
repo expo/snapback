@@ -74021,3 +74021,44 @@ The final staged whitespace check caught two blank context lines in the raw
 retained diff artifact (ours, evidence formatting). Compressed the exact patch
 without changing its hash or content; the staged check then passes. This is
 recorded separately from the zero test failures. No tested source changed.
+
+## 2026-09-28 — Lane MP round 3: asset/job refusals and explicit visibility scope
+
+Read all prior lane prompts/reports/MP journal entries and Astra's full round-2
+NOT READY review. Main moved to ae265b730, and a read-only merge check found
+journal and LLP 3000.028 conflicts. Merged only then, in e0fc5732e. Both parent
+journals survive in order and all MP/EX revision notes remain; no product
+conflict needed manual resolution. Prior Grok findings remain addressed.
+
+Every dev refusal envelope now receives evidence, including an owner-only
+asset download's E_ASSET_UNKNOWN. Newly parked jobs submit operation, durable
+job ID, saved refusal code, wall-clock time and fallback through the same
+sequence/watermark/writer as requests, outside the engine guard. No job cause
+is guessed. Production collection, caller bytes and meters remain unchanged.
+
+Recorded the supervisor's scope ruling in LLP 3000.015 section 2.1: successful
+visibility filtering in sync and reads is not recorded. Why recent's scope
+statement names mutation/query/asset/job refusals and points visibility questions
+to why TABLE and guide rules. Every record names operation, request/job identity
+and Unix milliseconds; stderr now includes the time and job ID. An older refusal
+therefore describes its own request, not a later successful filtered sync.
+The explicitly unknown composed-empty fallback remains, with Astra's exact
+nested missing-row case. Published why/operations guidance matches the ruling.
+
+Affected host checks: 246 passed, 4 existing ignored. MP behavior: 18 passed,
+including identical trace-on/off refusal bytes and logical meters. Whole guide
+initially failed its newly merged published-path check for MP's locally generated
+evidence file (ours, an integration correction); adding that exact application
+output and a positive example gives 98 passed. Four repair-removal probes each
+fail their regression; exact source bytes restored, final process suite 12 passed.
+All observed failures are attributed in round3/VALIDATION.md. No environmental
+failure. Source caps and whitespace checks pass; reference audit in the report.
+Scripts/test.sh was not run; the supervisor owns the landing suite.
+
+Wasm is byte-identical to round 2: 2,019,925 B raw / 586,252 B gzip, delta zero,
+SHA-256 39dbc171e30ed10ac19152381cf3e7ae0908afaf0b01ae285c2341ce542480b5.
+The unchanged 586,193 B budget still fails by 59 B, inherited. No budget raise,
+tool installation, other-lane/shared-path change, push or publication.
+Commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Report: reports/20260928-mp-modeling-papercuts/round3/REPORT.md.

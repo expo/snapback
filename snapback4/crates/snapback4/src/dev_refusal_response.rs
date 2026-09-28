@@ -56,10 +56,11 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             code.is_none() || cause.terminal
         });
         let code = match code {
-            Some(code @ ("E_RULE" | "NOT_FOUND")) => code,
-            Some(_) => return None,
+            Some(code) => code,
             None if evidence.query && body.get("data").is_some() && body.get("loading") != Some(&Value::Bool(true)) => {
-                if cause.is_some() { "FILTERED_READ" }
+                // Visibility filtering is a successful read, not a refusal.
+                if cause.as_ref().is_some_and(|cause| !cause.terminal) { return None; }
+                if cause.is_some() { "EMPTY_READ" }
                 else if empty(&body["data"]) { "EMPTY_READ" }
                 else { return None; }
             }
@@ -81,8 +82,7 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         }
         // Published before sending: why refuses an old disk snapshot even when
         // the writer is blocked, this handoff drops, or responses finish out of order.
-        record["responseSequence"] = json!(evidence.recent.watermark.as_ref().map_or(0, |w| w.next()));
-        Some(Pending { recent: evidence.recent.clone(), record })
+        Some(Pending { recent: evidence.recent.clone(), record: evidence.recent.sequence(record) })
     })
 }
 fn empty(value: &Value) -> bool {
