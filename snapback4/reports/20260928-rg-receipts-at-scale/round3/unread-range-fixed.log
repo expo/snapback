@@ -1,0 +1,410 @@
+TAP version 13
+# Subtest: unread range wasm: covered-strict
+ok 1 - unread range wasm: covered-strict
+  ---
+  duration_ms: 101.134409
+  type: 'test'
+  ...
+# Subtest: unread range wasm: inclusive-floor-tie
+ok 2 - unread range wasm: inclusive-floor-tie
+  ---
+  duration_ms: 42.762868
+  type: 'test'
+  ...
+# Subtest: unread range wasm: strict-floor-tie
+ok 3 - unread range wasm: strict-floor-tie
+  ---
+  duration_ms: 46.414323
+  type: 'test'
+  ...
+# Subtest: unread range wasm: inclusive-above-floor
+ok 4 - unread range wasm: inclusive-above-floor
+  ---
+  duration_ms: 39.917171
+  type: 'test'
+  ...
+# Subtest: unread range wasm: reversed
+ok 5 - unread range wasm: reversed
+  ---
+  duration_ms: 41.368097
+  type: 'test'
+  ...
+# Subtest: unread range wasm: strongest-bound
+ok 6 - unread range wasm: strongest-bound
+  ---
+  duration_ms: 42.217931
+  type: 'test'
+  ...
+# Subtest: unread range wasm: strict-wins-equal-bound
+ok 7 - unread range wasm: strict-wins-equal-bound
+  ---
+  duration_ms: 38.256181
+  type: 'test'
+  ...
+# Subtest: unread range wasm: strict-wins-equal-bound-first
+ok 8 - unread range wasm: strict-wins-equal-bound-first
+  ---
+  duration_ms: 43.395997
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-bound
+ok 9 - unread range wasm: null-bound
+  ---
+  duration_ms: 37.642361
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-sibling-is-weakest
+ok 10 - unread range wasm: null-sibling-is-weakest
+  ---
+  duration_ms: 41.947275
+  type: 'test'
+  ...
+# Subtest: unread range wasm: upper-bound
+ok 11 - unread range wasm: upper-bound
+  ---
+  duration_ms: 39.025305
+  type: 'test'
+  ...
+# Subtest: unread range wasm: wrong-order
+ok 12 - unread range wasm: wrong-order
+  ---
+  duration_ms: 41.799844
+  type: 'test'
+  ...
+# Subtest: unread range wasm: composite-wrong-order
+ok 13 - unread range wasm: composite-wrong-order
+  ---
+  duration_ms: 42.228587
+  type: 'test'
+  ...
+# Subtest: unread range wasm: composite-leading-ordinal
+ok 14 - unread range wasm: composite-leading-ordinal
+  ---
+  duration_ms: 47.178839
+  type: 'test'
+  ...
+# Subtest: unread range wasm: public-parent-mismatch
+ok 15 - unread range wasm: public-parent-mismatch
+  ---
+  duration_ms: 46.579641
+  type: 'test'
+  ...
+# Subtest: unread range wasm: below-floor
+ok 16 - unread range wasm: below-floor
+  ---
+  duration_ms: 41.198733
+  type: 'test'
+  ...
+# Subtest: unread range wasm: empty-whole
+ok 17 - unread range wasm: empty-whole
+  ---
+  duration_ms: 37.4218
+  type: 'test'
+  ...
+# Subtest: unread range wasm: whole
+ok 18 - unread range wasm: whole
+  ---
+  duration_ms: 46.023487
+  type: 'test'
+  ...
+# Subtest: unread range wasm: missing-acquisition
+ok 19 - unread range wasm: missing-acquisition
+  ---
+  duration_ms: 45.621924
+  type: 'test'
+  ...
+# Subtest: unread range wasm: own-and-tombstone
+ok 20 - unread range wasm: own-and-tombstone
+  ---
+  duration_ms: 46.918128
+  type: 'test'
+  ...
+# Subtest: unread range wasm: offline-expiry
+ok 21 - unread range wasm: offline-expiry
+  ---
+  duration_ms: 53.189352
+  type: 'test'
+  ...
+# Subtest: unread range wasm: floor-expiry
+ok 22 - unread range wasm: floor-expiry
+  ---
+  duration_ms: 48.268833
+  type: 'test'
+  ...
+# Subtest: unread range wasm: floor-deletion
+ok 23 - unread range wasm: floor-deletion
+  ---
+  duration_ms: 48.810556
+  type: 'test'
+  ...
+# Subtest: unread range wasm: physical-deletion
+ok 24 - unread range wasm: physical-deletion
+  ---
+  duration_ms: 50.934731
+  type: 'test'
+  ...
+# Subtest: unread range wasm: backdated-delivery
+ok 25 - unread range wasm: backdated-delivery
+  ---
+  duration_ms: 46.336827
+  type: 'test'
+  ...
+# Subtest: unread range wasm: backward-watermark
+ok 26 - unread range wasm: backward-watermark
+  ---
+  duration_ms: 45.478189
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-covered
+ok 27 - unread range wasm: prediction-covered
+  ---
+  duration_ms: 48.327853
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-uncovered
+ok 28 - unread range wasm: prediction-uncovered
+  ---
+  duration_ms: 44.172191
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-empty
+ok 29 - unread range wasm: prediction-empty
+  ---
+  duration_ms: 44.465521
+  type: 'test'
+  ...
+# Subtest: unread range wasm: meter-cut
+ok 30 - unread range wasm: meter-cut
+  ---
+  duration_ms: 2765.209688
+  type: 'test'
+  ...
+# Subtest: unread range wasm: retained-rejoin
+ok 31 - unread range wasm: retained-rejoin
+  ---
+  duration_ms: 48.892448
+  type: 'test'
+  ...
+# Subtest: unread range wasm: short-range-large-window
+ok 32 - unread range wasm: short-range-large-window
+  ---
+  duration_ms: 3327.427474
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-whole-semantics
+ok 33 - unread range wasm: null-whole-semantics
+  ---
+  duration_ms: 43.014245
+  type: 'test'
+  ...
+# Subtest: unread range wasm: upper-whole-semantics
+ok 34 - unread range wasm: upper-whole-semantics
+  ---
+  duration_ms: 39.302149
+  type: 'test'
+  ...
+# Subtest: unread range wasm: sequence-empty-prediction
+ok 35 - unread range wasm: sequence-empty-prediction
+  ---
+  duration_ms: 42.770249
+  type: 'test'
+  ...
+# Subtest: unread range wasm: interrupted-acquisition
+ok 36 - unread range wasm: interrupted-acquisition
+  ---
+  duration_ms: 51.829382
+  type: 'test'
+  ...
+# Subtest: unread range wasm: provisional-empty-range-refusal
+ok 37 - unread range wasm: provisional-empty-range-refusal
+  ---
+  duration_ms: 47.622114
+  type: 'test'
+  ...
+# Subtest: unread range wasm: nonexpiring-pending-keeps-settled
+ok 38 - unread range wasm: nonexpiring-pending-keeps-settled
+  ---
+  duration_ms: 43.963177
+  type: 'test'
+  ...
+# Subtest: unread range wasm: source-authority-lost
+ok 39 - unread range wasm: source-authority-lost
+  ---
+  duration_ms: 39.88972
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-uncovered-empty
+ok 40 - unread range wasm: prediction-uncovered-empty
+  ---
+  duration_ms: 42.623269
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-no-other-column
+ok 41 - unread range wasm: null-no-other-column
+  ---
+  duration_ms: 36.585295
+  type: 'test'
+  ...
+# Subtest: unread range wasm: other-column-only
+ok 42 - unread range wasm: other-column-only
+  ---
+  duration_ms: 43.588226
+  type: 'test'
+  ...
+# Subtest: unread range wasm: public-whole
+ok 43 - unread range wasm: public-whole
+  ---
+  duration_ms: 42.083128
+  type: 'test'
+  ...
+# Subtest: unread range wasm: whole-expired-backlog
+ok 44 - unread range wasm: whole-expired-backlog
+  ---
+  duration_ms: 2077.378001
+  type: 'test'
+  ...
+# Subtest: unread range wasm: lower-bound-expiry
+ok 45 - unread range wasm: lower-bound-expiry
+  ---
+  duration_ms: 42.341976
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-1024
+ok 46 - unread range wasm: prediction-1024
+  ---
+  duration_ms: 305.961562
+  type: 'test'
+  ...
+# Subtest: unread range wasm: prediction-1025
+ok 47 - unread range wasm: prediction-1025
+  ---
+  duration_ms: 337.69277
+  type: 'test'
+  ...
+# Subtest: unread range wasm: provisional-nonempty-range-refusal
+ok 48 - unread range wasm: provisional-nonempty-range-refusal
+  ---
+  duration_ms: 46.959931
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-source-authority-lost
+ok 49 - unread range wasm: null-source-authority-lost
+  ---
+  duration_ms: 42.273294
+  type: 'test'
+  ...
+# Subtest: unread range wasm: strongest-bound-first
+ok 50 - unread range wasm: strongest-bound-first
+  ---
+  duration_ms: 46.856846
+  type: 'test'
+  ...
+# Subtest: unread range wasm: null-sibling-last
+ok 51 - unread range wasm: null-sibling-last
+  ---
+  duration_ms: 40.831932
+  type: 'test'
+  ...
+# Subtest: unread range wasm: sequence-short-range-large-window
+ok 52 - unread range wasm: sequence-short-range-large-window
+  ---
+  duration_ms: 4438.203501
+  type: 'test'
+  ...
+# Subtest: unread range wasm: provisional-residual-sequence-refusal
+ok 53 - unread range wasm: provisional-residual-sequence-refusal
+  ---
+  duration_ms: 1219.476687
+  type: 'test'
+  ...
+# Subtest: unread range wasm: provisional-member-sequence-refusal
+ok 54 - unread range wasm: provisional-member-sequence-refusal
+  ---
+  duration_ms: 59.089277
+  type: 'test'
+  ...
+#   query badge:
+#     scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#       programs.badge.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#     point unread.byGroup — one row, one rule check
+#   query badgeRows:
+#     scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#       programs.badgeRows.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#     scan unread.$intent:byPrincipal:0a27093f52d1419b first 100 — rule decided by the prefix: no probes
+#       selected $intent:byPrincipal:0a27093f52d1419b (principal = viewer); result: page; synthesized; explicit by; read: unread where .principal = viewer first 100
+#       sort/group/sum/count consume this page, not the whole population
+#   mutation mark:
+#     scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#       programs.mark.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#     write target members.byId — engine-private lookup; the update rule decides
+#     point unread.byGroup — one row, one rule check
+#     update members, fans out to .principal
+#   mutation depend:
+#     scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#       programs.depend.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#     point unread.byGroup — one row, one rule check
+#   mutation send:
+#     scale: constant — at most 8196 rows examined, 8197 probes, 0 lanes; per write: `unread`: at most 2 derived writes per source transition (old/new groups)
+#     no explicit reads
+#     insert messages, fans out to the members in members
+#   mutation countThenRefuse:
+#     scale: grows with Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#       programs.countThenRefuse.0: Server: certifies the member's whole live basis on the internal ledger. A range of at most 64 stored keys uses a necessary predicate index; candidates include unswept expired rows, excluded by expiry and the full predicate. Larger ranges keep the shared parent/expiry index walk (null expiry and expiry after now). Reads keep the public reservation, reserving one examined unit and one step; probes and walks consume the internal ledger, and certification does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: Whole keeps the live-basis scan. Otherwise scans rows with .ordinal > member.readUpTo (the greatest such bound when several apply), applying every other test. Exact when the member's source group is readable by its audience, the acquired boundary is this conversationId prefix's, the horizon's first free column is .ordinal, the encoded bound is at or above the full floor key, and the scan finishes. Otherwise the current held matches, pending and incomplete, and an online client takes the server's count when permitted. A scan cut by its allowance publishes its partial and does not ask. Unswept expired rows in the range cost device work. When every range operand is null: Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+#     point unread.byGroup — one row, one rule check
+# Subtest: unread range check names the chosen predicates, index and horizon
+ok 55 - unread range check names the chosen predicates, index and horizon
+  ---
+  duration_ms: 65.724576
+  type: 'test'
+  ...
+# Subtest: unread badge uses server fallback online and keeps its bound after cold offline reopen
+ok 56 - unread badge uses server fallback online and keeps its bound after cold offline reopen
+  ---
+  duration_ms: 1072.984069
+  type: 'test'
+  ...
+# Subtest: the guide Clique program certifies and expires on wasm after reopen
+ok 57 - the guide Clique program certifies and expires on wasm after reopen
+  ---
+  duration_ms: 995.093441
+  type: 'test'
+  ...
+# Subtest: unread fallback respects held
+ok 58 - unread fallback respects held
+  ---
+  duration_ms: 1044.020781
+  type: 'test'
+  ...
+# Subtest: unread fallback respects prediction
+ok 59 - unread fallback respects prediction
+  ---
+  duration_ms: 4063.947148
+  type: 'test'
+  ...
+# Subtest: several wasm badges share one request allowance
+ok 60 - several wasm badges share one request allowance
+  ---
+  duration_ms: 2939.45074
+  type: 'test'
+  ...
+# Subtest: check enumerates every range candidate and its fallback in text and JSON
+ok 61 - check enumerates every range candidate and its fallback in text and JSON
+  ---
+  duration_ms: 51.701259
+  type: 'test'
+  ...
+# Subtest: check omits the device range for a stored non-expiring count
+ok 62 - check omits the device range for a stored non-expiring count
+  ---
+  duration_ms: 49.668121
+  type: 'test'
+  ...
+1..62
+# tests 62
+# suites 0
+# pass 62
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 27046.848825

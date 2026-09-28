@@ -1,0 +1,4 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+src/local.ts(255,29): error TS2448: Block-scoped variable 'queued' used before its declaration.
+src/local.ts(255,29): error TS2454: Variable 'queued' is used before being assigned.
+src/local.ts(1445,24): error TS2339: Property 'ok' does not exist on type '{ denied?: Refusal; }'.

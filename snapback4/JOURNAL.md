@@ -72351,3 +72351,67 @@ Wasm remeasured, byte-identical to round 1: 2,019,815 B raw / 585,381 B gzip,
 Report, exact commands, controls, measurements and failure classifications:
 [round-2 report](./reports/20260928-rg-receipts-at-scale/round2/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — RG round 3: terminal delivery survives observation failure
+
+Fetched and merged origin/main first: already up to date at 86fd998e8, with
+origin/main a745b110f. Read the prior prompts, reports and journal entries and
+Astra's full round-1/2 review. Grok had no verdict at start; did not wait.
+Scoped llp-orient used the existing sibling lane-i skill read-only.
+
+A durable refusal now resolves and emits even when its following queued read
+fails; sync retries independently. The regression injects one E_STORE after
+the second refusal's commit, holds changes/sync and freezes retry time. Its
+caller, event and durable lookup agree before recovery. The final-loop test
+retires the tail only at the network callback's queue lookup, after the prior
+eligibility check; deleting only the trailing sync fails publication, with no
+tail begin_send and no retry wake. Successful FIFO pairs retain shared sync.
+
+The delivery-await audit found further post-commit host/media failure paths
+in recovered receipts, keepalive refusals and replacement retirement. The
+committed-reply boundary now preserves those terminal outcomes; housekeeping
+retries separately. Replacement notifications travel with committed
+invalidation before later reset reads. All eight audit faults fail round-2
+code and pass the fix. The full audit names the remaining paths and explains
+why their custody survives. local.ts remains exactly 1,500 lines.
+
+The single scripts/test.sh run reports exactly:
+
+    == 1 failure(s) in 4162 s
+       client tests
+
+Six failing leaves are ours, plus their web-admission parent: SQLite/web
+maintained-column tests assumed immediate publication of a Repair B deferred
+page; wasm/native 256-ID tests assumed intermediate sync acknowledged the
+tail; unread-cost text still required the phrase removed in round 1; and a
+receipt-save retry emitted NOT_ADMIN twice. Isolated old-main-client controls
+attribute the first four to shared FIFO sync, while preserving all actual
+outcomes. Fixtures now cover eligible publication and private deferred pages,
+and automatic replay plus explicit-sync tail recovery. The cost assertion
+pins the corrected probe, shared walk and public reservation.
+
+The duplicate was a production defect: a post-retirement observation discarded
+the prior emission marker before the recovery delivered again. Active
+settlement now retains that marker and owns receipt recovery. Both browser
+response orderings fail before the fix and pass afterward; a small deterministic
+outbox regression reproduces two events without it. The single full run stays
+red in the record; all other stages, including 79 model tests, passed. It had
+3,910 ordinary client passes, 7 failures including the parent and 10 explicit
+skips. No baseline or environmental test failure is claimed.
+
+Final affected checks pass: 243 Rust and 596 client tests, including the whole
+93-test guide, final 42-test outbox file and 55 browser admission tests. One
+opt-in Rust measurement is ignored and one macOS-only media check is skipped.
+The final build/typecheck and affected client groups were rerun after the
+emission-marker fix. Controls, failed fixture iterations, initial build errors
+and the validation-driver error are retained and classified as ours. Editing
+the command file while its bash driver was open caused a stray pathname and
+syntax error after the full suite had finished; it did not repeat the suite.
+The subsequent affected checks used a fresh invocation and rebuilt client.
+
+Wasm is byte-identical to round 2: 2,019,815 B raw / 585,381 B gzip, 812 B below
+the unchanged 586,193 B budget. No new latency claim or calibration-store run.
+No tools installed, push or publication. Report, complete audit, commands,
+controls, all failure dispositions and exact suite record:
+[round-3 report](./reports/20260928-rg-receipts-at-scale/round3/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

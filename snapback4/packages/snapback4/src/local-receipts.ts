@@ -1,5 +1,5 @@
 import type { Refusal, Write } from "./contract.ts";
-import type { WriteHistory } from "./writes.ts";
+import type { MutationIds, WriteHistory } from "./writes.ts";
 import type { Queued } from "./local-types.ts";
 
 type Terminal = Exclude<Write, { state: "pending" }>;
@@ -57,4 +57,29 @@ export async function lookupWrite(history: WriteHistory, queued: () => Promise<Q
   if (!entry || (receipt && receipt.state !== "pending")) return receipt;
   return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
     ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
+}
+
+// A host may fail after reporting a durable commit. Keep that result and retry
+// housekeeping independently; a removed refusal cannot be recovered by flushing.
+// @ref LLP 3000.013#6 — terminal delivery agrees with committed receipt custody.
+type Reply = { ok?: unknown; denied?: Refusal };
+export async function terminalDeviceCall(call: (committed: (reply: Reply) => void) => Promise<Reply>, retry: () => void): Promise<Reply> {
+  let durable: Reply | undefined;
+  try { return await call(reply => { durable = reply; }); }
+  catch (error) {
+    if (!durable || durable.denied) throw error;
+    retry();
+    return durable;
+  }
+}
+
+export async function readQueued(call: (request: Record<string, unknown>) => Promise<{ ok?: unknown; denied?: Refusal }>, ids: MutationIds, history: WriteHistory, settling: Iterable<string>): Promise<Queued[]> {
+  const answer = await call({ op: "queued" });
+  if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
+  const entries = (answer.ok as Queued[] | undefined) ?? [];
+  for (const entry of entries) ids.remember(entry.id, entry.op, entry.args);
+  // @ref LLP 3000.019#3.3 — observation may read after retirement but before this owner's delivery.
+  // Keep its prior emission marker until settlement releases ownership.
+  history.retainEmissions([...entries.map(entry => entry.id), ...settling]);
+  return entries;
 }

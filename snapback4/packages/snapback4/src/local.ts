@@ -34,7 +34,7 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, recoverReceipt, settleReceipt, successSequence, syncSettledWrites } from "./local-receipts.ts";
+import { lookupWrite, readQueued, recoverReceipt, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -315,7 +315,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
     return capture;
   }
-  async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
+  async function call(request: Record<string, unknown>, committedTables?: Set<string>, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     let observed = false;
     const delivery: (() => void)[] = [];
@@ -323,6 +323,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const committed = (result: { ok?: unknown; denied?: Refusal }) => {
       if (observed) return;
       observed = true;
+      terminalCommit?.(result);
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op));
@@ -333,7 +334,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
       // is read separately and must never be a prerequisite for invalidation.
-      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
+        observeIncarnation(undefined, true, delivery);
+        // Retirement is durable even if host recovery or the next state read fails.
+        for (const [id, seq] of Object.entries((result.ok as { retired: Record<string, number> }).retired)) delivery.push(() => {
+          const receipt = { state: "sent", id, seq, replayed: true } as const;
+          settled.get(id)?.resolve(receipt); settled.delete(id); emitWrite(receipt);
+        });
+      }
       if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
     };
     if (deliveryQueue?.enabled) request = { ...request, delivery_now: clock.issuedDeviceNow() };
@@ -669,11 +677,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             publishedStore = observedState?.store_id;
             storeIdentity = publishedStore ?? undefined;
             await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
-            for (const [id, sentSeq] of Object.entries(observation.retired)) {
-              const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
-              settled.get(id)?.resolve(receipt); settled.delete(id);
-              emitWrite(receipt);
-            }
             for (const watch of watches.values()) void rerun(watch);
           }
         }
@@ -1043,15 +1046,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  // @ref LLP 3000.019#3.3 — drain admitted FIFO writes before the shared settlement sync.
-  async function queued(): Promise<Queued[]> {
-    const answer = await call({ op: "queued" });
-    if (answer.denied) throw new Error(`${answer.denied.code}: ${answer.denied.message}`);
-    const entries = (answer.ok as Queued[] | undefined) ?? [];
-    for (const entry of entries) mutationIds.remember(entry.id, entry.op, entry.args);
-    history.retainEmissions(entries.map(entry => entry.id));
-    return entries;
-  }
+  function queued() { return readQueued(call, mutationIds, history, settling); }
+  let reconcileNeeded = false;
+  const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
+    committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
   let flushing: Promise<void> | null = null;
@@ -1089,6 +1087,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
     await exitDone;
     if (closed || !sendingAllowed) return;
+    if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch (error) { reconcileNeeded = true; throw error; } }
     for (const entry of await queued()) {
       await exitDone;
       if (closed) return;
@@ -1098,7 +1097,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         // A sent entry already persisted its receipt; re-reading must not refresh
         // an evicted receipt. Emission is per client: another owner's durable
         // receipt is this client's first completion; the emitted set prevents repeats.
-        if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
+        if (entry.sent_seq == null) await settleReceipt(history, receiptCall, receipt);
         settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
         emitWrite(receipt);
         // A published acknowledgement already includes this effect and stays fresh.
@@ -1112,19 +1111,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (closed || sessionDead) return { ok: false as const };
           const current = (await queued()).find(current => current.id === entry.id);
           if (!current) return { ok: true as const, retired: true as const };
-          const known = await recoverReceipt(history, call, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
-          if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
-          const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
-          if (!binding) return { ok: false as const };
           if (settling.has(entry.id)) return { ok: false as const };
           settling.add(entry.id);
           ownsSettlement = true;
+          const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null);
+          if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false };
+          const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity;
+          if (!binding) return { ok: false as const };
           try {
             const revision = credentialRevision;
             const started = await call({ op: "begin_send", id: entry.id });
             if (started.denied) return { ok: false as const };
             const receipt = (started.ok as { receipt?: Exclude<Write, { state: "pending" }>; qualified?: boolean } | undefined)?.receipt;
-            if (receipt) { const known = await recoverReceipt(history, call, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
+            if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === "sent" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; }
             if (closed || sessionDead || rotating || revision !== credentialRevision) return { ok: false as const };
             ordinarySending = entry.id;
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids, store_id: binding }, settled.get(entry.id)?.response);
@@ -1132,7 +1131,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
               const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined;
               if (!response.obsoleteAuth && !why?.retryable && (json.state === "sent" || why)) {
                 try {
-                  await settleReceipt(history, call, json.state === "sent"
+                  await settleReceipt(history, receiptCall, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
                     : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
                 } catch { return { ...response, persistencePending: true }; }
@@ -1156,7 +1155,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
         if (!closed && !("persistencePending" in result)) {
           if (outcome.state !== "sent") rerunTables(predictedTables(entry.predicted));
-          await syncUnobserved(outcome.state === "sent");
+          // Durable completion survives a failed observation check; retry sync separately.
+          try { await syncUnobserved(outcome.state === "sent"); } catch { retryFlush(); }
         }
         settle?.resolve(outcome);
         emitWrite(outcome);
@@ -1439,7 +1439,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       commit: async write => {
         const known = await history.read(write.id, true);
         if (known && known.state !== "pending") return false;
-        const applied = await call({ op: "settle_exit", write });
+        const applied = await receiptCall({ op: "settle_exit", write });
         if (applied.denied) throw new Error(applied.denied.message);
         return applied.ok === true;
       },

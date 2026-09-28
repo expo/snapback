@@ -28,7 +28,7 @@ async function fixture(t, count = 1) {
   let schema = original.schema;
   let queryGate, localGate, mutationGate, syncGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [], syncRequests = [];
-  let queryUnavailable = false, refuseSecond = false, beforeSend;
+  let queryUnavailable = false, refuseSecond = false, beforeSend, beforeCall, afterCall, exitRefusal;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
@@ -58,7 +58,7 @@ async function fixture(t, count = 1) {
       reads.push(captured);
       return Response.json(queryUnavailable ? { loading: true } : { data: captured, complete: true, tables: ["messages"] });
     }
-    if (path.startsWith("/m/")) { sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise;
+    if (path.startsWith("/m/")) { if (init.keepalive && exitRefusal) return Response.json({ state: "failed", why: exitRefusal }); sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise;
       if (refuseSecond && sends.length === 2) return Response.json({ state: "failed", why: { code: "SECOND_REFUSED", family: "application", message: "second write refused", retryable: false } });
       return Response.json({ state: "sent", seq: 11 }); }
     if (path === "/probe") return Response.json({ ok: true });
@@ -66,7 +66,9 @@ async function fixture(t, count = 1) {
   };
   async function open() {
     const opener = webDevice({ wasm, persist });
-    client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request) {
+    client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request, committedReply) {
+      const intercepted = await beforeCall?.(request);
+      if (intercepted) return intercepted;
       if (request.op === "begin_send" && beforeSend) {
         const reply = await beforeSend(request);
         if (reply) return reply;
@@ -77,9 +79,10 @@ async function fixture(t, count = 1) {
         return { denied: { code: "E_STORE", family: "store", message: "injected post-reset read failure" } };
       }
       if (request.op === "adopt") adopting?.();
-      const reply = await opened.call(request);
+      const reply = await opened.call(request, committedReply);
       if (!reply.denied) committed?.(request, reply.ok);
       if (request.op === failureOp && !reply.denied && (failureOp === "adopt" || reply.ok?.reset) && resetReadFailure) failNextResetRead = true;
+      await afterCall?.(request, reply);
       if (request.op === "query" && localGate) { localStarts++; await localGate.promise; }
       return reply;
     } }; } }, fetch: (input, init) => fetcher(String(input).replace(`/${encodeURIComponent(t.name)}`, ""), init) });
@@ -91,6 +94,8 @@ async function fixture(t, count = 1) {
     unavailable(value) { queryUnavailable = value; },
     refuseSecond() { refuseSecond = true; },
     beforeSend(callback) { beforeSend = callback; },
+    beforeCall(callback) { beforeCall = callback; }, afterCall(callback) { afterCall = callback; },
+    refuseExit(why) { exitRefusal = why; },
     replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
     widenBackend() {
       generation++; marker = "A2"; schema = structuredClone(schema);
@@ -172,6 +177,213 @@ test("an early flush exit syncs an earlier success when another owner retires th
   assert.equal(f.sends.length, 1, "the retired tail was never posted");
   await f.client.close();
   await second;
+});
+
+// Faults after durable settlement must not change a caller or subscriber's outcome.
+test("a durable refusal still completes when its observation queue read fails", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  f.refuseSecond();
+  const sending = f.holdMutation(), notices = [], op = { kind: "mutation", name: "send" };
+  f.client.onWrite(write => notices.push(write));
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  let secondResult;
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" }).then(write => secondResult = write);
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  const secondId = ok(await f.core.call({ op: "queued" }))[1].id;
+  let failRead = false, failures = 0;
+  f.onCommit(request => { if (request.op === "settle" && request.id === secondId) failRead = true; });
+  f.beforeCall(request => {
+    if (request.op === "queued" && failRead) {
+      failRead = false; failures++;
+      return { denied: { code: "E_STORE", family: "store", message: "transient queue read after durable refusal" } };
+    }
+  });
+  const publishing = f.holdSync();
+  sending.resolve();
+  await until(() => failures === 1);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(secondResult?.state, "failed", "terminal delivery cannot wait for observation recovery or a caller timeout");
+  assert.equal(secondResult.why.code, "SECOND_REFUSED");
+  assert.equal((await f.client.write(secondId)).state, "failed");
+  assert.equal(notices.filter(write => write.id === secondId).length, 1);
+  publishing.resolve();
+  t.mock.timers.tick(1000); // Separate retry publishes the earlier success.
+  await until(async () => ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data?.some(row => row.body === "committed first"));
+  assert.deepEqual((await Promise.all([first, second])).map(write => write.state), ["sent", "failed"]);
+  assert.equal(notices.filter(write => write.id === secondId).length, 1, "retry never emits the refusal twice");
+});
+
+test("receipt-save retry preserves refusal notification deduplication through observation", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  f.refuseSecond();
+  const sending = f.holdMutation(), notices = [], op = { kind: "mutation", name: "send" };
+  f.client.onWrite(write => notices.push(write));
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  let failures = 0;
+  f.beforeCall(request => {
+    if (request.op === "keep_write" && JSON.parse(request.value).state === "failed" && failures < 2) {
+      failures++;
+      return { denied: { code: "E_STORE", family: "store", message: "receipt save aborted" } };
+    }
+  });
+  sending.resolve();
+  const refused = await second;
+  assert.equal(refused.state, "failed");
+  assert.equal(notices.filter(write => write.id === refused.id).length, 1);
+  for (let i = 0; i < 30; i++) await tick();
+  t.mock.timers.tick(1000);
+  await until(async () => failures === 2 && !ok(await f.core.call({ op: "queued" })).some(entry => entry.id === refused.id));
+  await until(async () => ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data?.some(row => row.body === "committed first"));
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(notices.filter(write => write.id === refused.id).length, 1, "observation cannot forget an active settlement's prior notification");
+  assert.equal((await f.client.write(refused.id)).state, "failed");
+  assert.equal((await first).state, "sent");
+});
+
+test("the final flush sync publishes an earlier success when the tail retires before its queue lookup", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  f.refuseSecond(); // Publish the first commit; /changes remains held.
+  const sending = f.holdMutation(), op = { kind: "mutation", name: "send" };
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  const tail = ok(await f.core.call({ op: "queued" }))[1].id;
+  let delivered = false, rereading = false, checked = false, retired = false, tailBegins = 0;
+  f.client.onWrite(write => { if (write.id !== tail) delivered = true; });
+  f.beforeCall(async request => {
+    if (request.op === "begin_send" && request.id === tail) tailBegins++;
+    // In the next FIFO snapshot, the known-success branch re-reads history
+    // then checks sync eligibility. Leave the tail present through that check;
+    // retire it only at the following network callback's fresh queue lookup.
+    if (delivered && request.op === "meta" && request.key === "write-history") rereading = true;
+    if (request.op === "queued" && rereading && !retired) {
+      if (!checked) checked = true;
+      else { ok(await f.core.call({ op: "settle", id: tail })); retired = true; }
+    }
+  });
+  const publishing = f.holdSync(), syncs = f.stats().syncStarts;
+  sending.resolve();
+  await first;
+  await until(() => retired);
+  await until(() => f.stats().syncStarts > syncs);
+  assert.equal(tailBegins, 0, "retired → continue, never the denied begin_send early exit");
+  assert.equal(f.sends.length, 1);
+  publishing.resolve();
+  await until(async () => ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data?.some(row => row.body === "committed first"));
+  await f.client.close(); await second;
+});
+
+for (const failure of ["media", "host"]) test(`recovered refusal delivery survives post-commit ${failure} failure`, async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], why = { code: "RECOVERED_REFUSAL", family: "application", message: "known refusal" };
+  f.client.onWrite(write => notices.push(write));
+  f.beforeSend(async request => {
+    const receipt = { state: "failed", id: request.id, why };
+    ok(await f.core.call({ op: "keep_write", value: JSON.stringify(receipt) }));
+    return { ok: { receipt } };
+  });
+  let failed = false, armed = false, repairs = 0;
+  f.onCommit(request => { if (request.op === "settle") armed = true; });
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () {
+    if (armed) {
+      if (failure === "media" && !failed) { failed = true; throw Error("post-settle media failure"); }
+      repairs++;
+    }
+    return reconcile.call(this);
+  });
+  f.afterCall(request => { if (failure === "host" && request.op === "settle" && !failed) { failed = true; throw Error("post-settle host failure"); } });
+  let result;
+  const pending = f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "recover" }).then(write => result = write);
+  await until(() => failed);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal(result?.state, "failed", "durable recovery delivers before retry time advances");
+  assert.equal(result.why.code, why.code);
+  assert.equal((await f.client.write(result.id)).state, "failed");
+  assert.equal(notices.filter(write => write.id === result.id).length, 1);
+  assert.equal(f.sends.length, 0, "receipt recovery never reposts");
+  const before = repairs;
+  t.mock.timers.tick(1000);
+  await until(() => repairs > before);
+  assert.equal(notices.filter(write => write.id === result.id).length, 1);
+  await pending;
+});
+
+for (const failure of ["state", "metadata", "media", "host"]) test(`replacement retired-success delivery survives post-commit ${failure} failure`, async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  f.offline(true); await f.client.sync();
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [];
+  f.client.onWrite(write => notices.push(write));
+  const pending = await f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "acknowledged" });
+  assert.equal(pending.state, "pending");
+  ok(await f.core.call({ op: "apply", page: { snapshot: false, store_id: "A", events: [], watermark: 10, more: false, acknowledged: { [pending.id]: 10 }, sent: { [pending.id]: 10 } } }));
+  let armed = false, failed = false;
+  f.onCommit((request, result) => { if (request.op === "observe_store" && result.reset) armed = true; });
+  f.beforeCall(request => {
+    if (armed && !failed && ((failure === "state" && request.op === "sync_state") || (failure === "metadata" && request.op === "set_meta"))) {
+      failed = true; throw Error(`post-reset ${failure} failure`);
+    }
+  });
+  f.afterCall(request => { if (armed && failure === "host" && request.op === "observe_store" && !failed) { failed = true; throw Error("post-reset host failure"); } });
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () {
+    if (armed && failure === "media" && !failed) { failed = true; throw Error("post-reset media failure"); }
+    return reconcile.call(this);
+  });
+  f.replace(); f.offline(false);
+  await assert.rejects(f.client.sync(), /post-reset/);
+  assert.equal(failed, true);
+  assert.deepEqual(notices.filter(write => write.id === pending.id).map(write => [write.state, write.seq]), [["sent", 10]], "retirement notifies even when later reset bookkeeping fails");
+  assert.equal((await f.client.write(pending.id)).state, "sent");
+  assert.equal(f.client.acquired, false, "completion never blesses the replacement partition");
+  await f.client.sync();
+  assert.equal(notices.filter(write => write.id === pending.id).length, 1);
+});
+
+for (const failure of ["media", "host"]) test(`keepalive refusal delivery survives post-commit ${failure} failure`, async t => {
+  const window = new EventTarget(), document = new EventTarget(); document.visibilityState = "visible";
+  for (const [key, value] of Object.entries({ window, document })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
+  }
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  f.offline(true); await f.client.sync();
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const notices = [], why = { code: "E_STORE_REPLACED", family: "store", message: "store replaced", retryable: false };
+  f.client.onWrite(write => notices.push(write));
+  const pending = await f.client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body: "exit" });
+  f.refuseExit(why);
+  let armed = false, failed = false;
+  f.onCommit(request => { if (request.op === "settle_exit") armed = true; });
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () {
+    if (armed && failure === "media" && !failed) { failed = true; throw Error("post-exit media failure"); }
+    return reconcile.call(this);
+  });
+  f.afterCall(request => { if (failure === "host" && request.op === "settle_exit" && !failed) { failed = true; throw Error("post-exit host failure"); } });
+  window.dispatchEvent(new Event("pagehide"));
+  await until(() => failed);
+  for (let i = 0; i < 30; i++) await tick();
+  assert.equal((await f.client.write(pending.id)).state, "failed");
+  assert.deepEqual(notices.filter(write => write.id === pending.id).map(write => write.why.code), [why.code]);
+  assert.equal(ok(await f.core.call({ op: "queued" })).length, 0);
 });
 
 test("receipt head observations do not rescan retained media until publication or replacement", async t => {

@@ -1,0 +1,9 @@
+{
+  "llp/3000.019-what-the-builder-still-wrote.rfc.md": "d78074097b50db1e35c601aa5bfaa095c44f2d378dee217a1350342531e5a4f4",
+  "snapback4/packages/snapback4/src/local.ts": "348dbc15caa8f97b1a4f5100b7af8b351ba3c38bfa54a8d032f25515918229d1",
+  "snapback4/packages/snapback4/src/local-receipts.ts": "416b7ee0bf34b4df17dd8325cb1caceec700364406f3f6fd15ef7a2f71004642",
+  "snapback4/packages/snapback4/test/store-reset-review.test.mjs": "39f63b0cc74a61ce43c76aee7137ed5e7acfa381a259385cee060bb00814ea8d",
+  "snapback4/packages/snapback4/test/maintained-columns.test.mjs": "bb7de1f42499a5013db261712e0eb7ced80b0a26f1c54250a82342d08afe6dcc",
+  "snapback4/packages/snapback4/test/transport-http.test.mjs": "baf7415b5d8b07f9fe770592cf94cf188591f5687df378cf075276ea10a19ed1",
+  "snapback4/packages/snapback4/test/unread-range.test.mjs": "f3e57652157a51788b12b4c63c814a9d31a978f38b40faddfff43a3d3c729a18"
+}

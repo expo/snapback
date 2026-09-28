@@ -1,5 +1,29 @@
 # Lane RG — receipts at scale
 
+## Round 3 — 2026-09-28
+
+Fetched and merged origin/main first (already up to date). Durable terminal
+notifications now survive failed observation reads and post-commit host/media
+work. Added the independent final-loop-sync retirement regression and audited
+all terminal delivery awaits. Receipt repair also retains its notification
+marker until settlement finishes, preventing duplicate refusals.
+
+Final affected checks pass: **243 Rust and 596 client tests**, including the
+**93-test whole guide**, **42-test outbox file** and **55 browser admission
+tests**. Wasm is unchanged: **2,019,815 B raw / 585,381 B gzip**, **812 B**
+under the unchanged budget.
+
+The single full-suite summary is **`== 1 failure(s) in 4162 s`** (`client tests`).
+Six leaf failures, all ours: two maintained-column publication assumptions,
+two pending-ID recovery assumptions, one stale cost-text assertion and one
+duplicate refusal notification. The web-admission parent also fails. All were
+corrected and verified in affected reruns; the full run remains red in the
+record. All 79 model tests and every other stage passed.
+
+[Round-3 report, complete audit and every failure](round3/REPORT.md) ·
+[full-suite record](round3/full-suite.log) · [test counts](round3/test-summary.json).
+No tools installed, push or publication.
+
 ## Round 2 — 2026-09-28
 
 Merged `origin/main` (`a745b110f`) first, without conflicts. Unobserved successful
