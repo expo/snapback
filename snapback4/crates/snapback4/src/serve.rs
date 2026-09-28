@@ -258,6 +258,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         return Err(format!("{shown} problem{} in snapback/", if shown == 1 { "" } else { "s" }));
     }
     let dev = matches!(mode, Mode::Dev { .. });
+    eprintln!("snapback4 host: {}", crate::host_limits::describe());
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.
     let replay = matches!(mode, Mode::Dev { replay: true, .. });
     let hold_effects = matches!(mode, Mode::Dev { hold_effects: true, .. });
@@ -381,7 +382,7 @@ fn serve_requests(
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }
         if worker.is_finished() { return Err("worker thread stopped".into()); }
-        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(|error| format!("HTTP listener stopped: {error}"))? {
+        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(crate::host_limits::listener_error)? {
             dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
         }
     }

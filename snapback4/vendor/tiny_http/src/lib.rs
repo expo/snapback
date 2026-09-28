@@ -310,16 +310,24 @@ impl Server {
         thread::spawn(move || {
             // a tasks pool is used to dispatch the connections into threads
             let tasks_pool = limits.is_none().then(util::TaskPool::new);
+            let mut last_overload = None::<std::time::Instant>;
 
             log::debug!("Running accept thread");
             while !inside_close_trigger.load(Relaxed) {
                 let new_client = match server.accept() {
                     Ok((sock, _)) => {
                         // Refuse before any connection parser/thread exists. A
-                        // full host closes excess sockets rather than queuing work.
+                        // full host refuses excess sockets without queuing work.
                         let state = if let Some(limits) = &limits {
                             let Some(lease) = limits::ConnectionLease::acquire(&inside_connections, limits.max_connections) else {
-                                let _ = sock.shutdown(Shutdown::Both);
+                                if last_overload.is_none_or(|last| last.elapsed() >= Duration::from_secs(1)) {
+                                    eprintln!("E_RATE_LIMIT at http: all {} HTTP connections are occupied; wait for pending writes to settle or reduce concurrent clients; excess connections are refused before admission", limits.max_connections);
+                                    last_overload = Some(std::time::Instant::now());
+                                }
+                                // A TLS peer needs its handshake before HTTP; do
+                                // not send cleartext into an encrypted protocol.
+                                if ssl.is_none() { limits::refuse_connection(sock); }
+                                else { let _ = sock.shutdown(Shutdown::Both); }
                                 continue;
                             };
                             match limits::ConnectionState::new(&sock, limits.clone(), lease) {

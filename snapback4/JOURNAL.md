@@ -74854,3 +74854,61 @@ note, command/results and compressed evidence accompany this append.
 No scripts/test.sh, budget raise, install, push or publication. The full builder
 store/floor and native Expo evidence are not rerun. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane FU: fresh replay uploads and HTTP overload diagnostics
+
+Merged origin/main first (already current at f6ccc4a513). Reproduced only from
+worktree-local copies of the 0.4.7 Grok lane, its installed pins, program and
+instrument. The comparative packet and other lanes were not modified. Applied
+llp-orient; scoped constraints and evidence are in
+reports/20260928-fu-fresh-replay-uploads/REPORT.md.
+
+The published binary completes all 167,157 actions, both checkpoint hashes and
+2,015 uploads with --fresh --replay when the driver waits for writes (883.114 s).
+Exporting its intended zero-wait/admit-pending settings reproduces the failure
+after the same 10% prefix (43.222 s; img-01 rather than original img-04). Pending
+writes flood the 128-connection cap; old tiny_http closes excess sockets and the
+old SDK says unreachable. The server remains alive, answers HTTP 401 afterward,
+and exits 143 only on the harness's recorded SIGTERM. No asset-store, disk,
+panic or accept-loop failure. Peak 563 descriptors; Node raises its inherited
+1024 shell soft limit to 1,048,576 before spawning the server. Original server
+logs/environment were not retained, so exact historical scheduling is unknown.
+The adapter captures replay env during static import, before its launch script's
+assignments, and its fast mode counts pending actions as settled.
+
+Keep caps, worker counts, asset/WAL behavior and retry budgets. Excess connections
+now receive a nonblocking HTTP 503 E_RATE_LIMIT attempt without a parser or worker;
+log the cap and remedy at most once per second. Invalid upload envelopes report
+E_HTTP_RESPONSE with status and unknown outcome; actual transport failures retain
+their cause. Store errors log their code/cause. Dev/serve and doctor report caps
+and actual descriptor limits; E_HTTP_LIMIT below 1024 advises ulimit -n 1024 and
+hard-limit repair, never auto-raises. E_HTTP_LISTENER retains accept's OS error.
+Sustained unbounded fast replay can still lose a refusal as a reset: fixed-client
+comparison reports UND_ERR_SOCKET, while the server log identifies saturation.
+No promise of accepting that load or treating pending dependencies as settled.
+
+Smallest regression: cap two, hold two sockets, check the third refusal and idle
+lease cleanup. Real SDK regression saturates 128 sockets on fresh/replay and
+uploads successfully after release. Before-fix server regression and five SDK
+invalid-envelope controls fail as intended. Affected checks: 111 client cases,
+133 HTTP cases (three existing ignored), low-limit subprocess, all 98 guide cases.
+Whole scripts/test.sh invoked once: exit 0, zero failures in 1,336 s; Rust 4,274
+pass / 33 ignored, main client batch 4,369 pass / 10 skipped plus passing shards,
+79 client model cases. Builds, docs budget, release guard, typechecks and ref-check
+pass. Every failure is classified in the report: baseline/intentional overload
+and negative controls; ours, the initially missing guide pins (fixed); environmental,
+parallel HTTP tests exceeding shell NOFILE=1024 (same scope passes at 4096); ours,
+exploratory missing-path reads. No hidden failing qualification.
+
+Wasm unchanged: 2,040,545 B raw / 593,008 B GNU file-input gzip-9, 711 B below the
+unchanged 593,719 B cap. SHA-256
+17084d758fe1f2e5f9f86ea1f3c10e572ac46b441b7e2d1d3bd1dee9af200ac0.
+Rust 1.97.0 / wasm-bindgen 0.2.127, no wasm-opt. LLP 3000 and guide updates accompany
+the change. Raw server streams, exit status, receipts and failure captures are
+preserved compressed; copied lane is retained under ignored target/fu-work.
+Only local dependency/submodule setup; no shared tool installation. Local commit
+carries Co-Authored-By: Codex <noreply@openai.com>. No push or publication.
+
+Final artifact check also found kernel padding in raw /proc limit captures
+(ours, formatting only). Preserved them losslessly as gzip, recorded it in the
+report, and passed the staged whitespace check before the amended local commit.

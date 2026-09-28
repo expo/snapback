@@ -41,6 +41,20 @@ shows the declaration; code validation is the same as `require … else CODE`.
 
 ## Operations
 
+`dev` and `doctor` print the 128-connection and two-upload caps and the local
+process's inherited file-descriptor soft/hard limits. E_HTTP_LIMIT warns below
+1024: use `ulimit -n 1024` and restart dev before a scale run. If the hard limit
+is lower, raise the shell/container/service NOFILE limit first. Doctor's shell
+may differ from a running server's launcher; dev reports its own limits.
+E_HTTP_LISTENER names an OS accept failure, including descriptor exhaustion.
+E_RATE_LIMIT at http names connection saturation; await pending writes or
+reduce concurrent clients. Limits are reported, never automatically raised.
+E_HTTP_RESPONSE means an asset request received HTTP with an invalid response
+envelope; its status is in the message. An upload's outcome is unknown, so
+inspect server/proxy logs before retrying. E_OFFLINE applies when no HTTP
+response was received. An undeliverable overload response can still look like
+a transport failure; the server's coded log distinguishes it.
+
 `snapback4 why <CODE>` prints its explanation and diagnostic details,
 followed by the full-card command. Every registered code has a dedicated
 why page or a paragraph on its default card. Compiler proofs, planner choices,

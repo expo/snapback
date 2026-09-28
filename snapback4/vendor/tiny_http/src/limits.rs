@@ -8,6 +8,19 @@ use std::time::{Duration, Instant};
 
 use crate::connection::Connection;
 
+// @ref LLP 3000#http-overload-diagnostics — refuse before allocating a parser or thread.
+// A single nonblocking, fixed-size reply cannot park the accept loop behind a
+// peer that does not read. Failure to deliver it remains a transport failure.
+pub(crate) fn refuse_connection(mut socket: Connection) {
+    use std::io::Write;
+    const BODY: &str = r#"{"denied":{"code":"E_RATE_LIMIT","family":"auth","message":"all HTTP connections are occupied; wait for pending writes to settle or reduce concurrent clients before retrying","retryable":true,"guide":"assets"}}"#;
+    if socket.set_nonblocking(true).is_ok() {
+        let reply = format!("HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\nRetry-After: 1\r\nCache-Control: no-store\r\n\r\n{BODY}", BODY.len());
+        let _ = socket.write_all(reply.as_bytes());
+    }
+    let _ = socket.shutdown(Shutdown::Both);
+}
+
 #[derive(Clone, Debug)]
 pub struct ConnectionLimits {
     pub max_connections: usize,

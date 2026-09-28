@@ -1,0 +1,18 @@
+{
+  "version": "snapback.full-journey-scale-replay-receipt.v1",
+  "pass": false,
+  "actionLog": {
+    "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157
+  },
+  "settledPrefix": 0,
+  "failedActions": 1,
+  "checkpoints": [],
+  "error": "Error: upload media/img-05.png: the server is unreachable",
+  "startedAt": "2026-09-28T17:14:03.157Z",
+  "finishedAt": "2026-09-28T17:14:36.203Z",
+  "startedEpoch": 1790615643,
+  "finishedEpoch": 1790615676,
+  "backendPid": 2519175,
+  "url": "http://127.0.0.1:56514"
+}

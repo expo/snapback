@@ -1,0 +1,22 @@
+{
+  "base_commit": "f6ccc4a513b9e5023b340482c992b6234922da78",
+  "branch": "sb4-intent/fu-fresh-replay-uploads",
+  "host": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "shell_nofile": [
+    1024,
+    1048576
+  ],
+  "sources": {
+    ".fu-work/lane/node_modules/snapback4-linux-x64/snapback4": "b23b1dcbe1a5397993055d71417b3b23d91096f95f0e87d77de41a11770dacc0",
+    ".fu-work/lane/package-lock.json": "46981936897a8334e3a53cd00e7cae835a4e3c4953b8f81f0eb7e83ed4db15c5",
+    ".fu-work/lane/package.json": "f48a048699d7e7f72731182802ec68bc2910da07155ea54015f9627f607015e1",
+    ".fu-work/lane/snapback/schema.q": "683d749b0b25e25ab813ed642159c6b72a34498e9b87b1eaeb11f7b151e18415",
+    ".fu-work/lane/instrument/fixtures/scale.log": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    ".fu-work/lane/instrument/metering/r2-cell-driver.mjs": "1eb192f9eaef2c67cf727f29ec642d21618617c0f37c3fa72c89fe07421de458",
+    ".fu-work/lane/instrument/metering/scale-replay-evidence.mjs": "545d4c797c54259c4e9981ad7876c8560c1b3c485c52464257ec1bcd0b7954d9",
+    ".fu-work/lane/scripts/replay-adapter.mjs": "70dc7114d0b7a0349db0647a3bd8ccb36dd773c45118e3d3665ee3645eb931a0"
+  }
+}

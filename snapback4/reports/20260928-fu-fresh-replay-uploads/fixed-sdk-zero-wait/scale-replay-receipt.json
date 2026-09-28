@@ -1,0 +1,18 @@
+{
+  "version": "snapback.full-journey-scale-replay-receipt.v1",
+  "pass": false,
+  "actionLog": {
+    "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157
+  },
+  "settledPrefix": 0,
+  "failedActions": 1,
+  "checkpoints": [],
+  "error": "Error: upload media/img-02.png: the asset transfer failed: UND_ERR_SOCKET; check the connection and server logs before retrying",
+  "startedAt": "2026-09-28T17:15:58.485Z",
+  "finishedAt": "2026-09-28T17:16:26.210Z",
+  "startedEpoch": 1790615758,
+  "finishedEpoch": 1790615786,
+  "backendPid": 2541737,
+  "url": "http://127.0.0.1:56515"
+}

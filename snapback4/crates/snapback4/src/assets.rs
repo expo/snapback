@@ -45,6 +45,7 @@ pub fn upload(request: Request, body: Vec<u8>, shared: &Shared) {
         Ok(asset) => respond(request, 200, json!({ "asset": { "id": asset.id, "type": asset.content_type, "bytes": asset.bytes, "width": asset.width, "height": asset.height, "duration": asset.duration } })),
         Err(error) => {
             let refusal = error.refusal();
+            eprintln!("{} at POST /assets: {}", refusal.code, refusal.message);
             respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) }))
         }
     }

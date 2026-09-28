@@ -1,0 +1,90 @@
+[
+  {
+    "name": "evidence",
+    "pass": true,
+    "actions": 167157,
+    "error": null,
+    "peak_fds": 29,
+    "peak_socket_fds": 21,
+    "uploads": 2015,
+    "http_503_uploads": 0,
+    "exit": {
+      "pid": 2151788,
+      "beforeStop": null,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "probe": {
+        "status": 401,
+        "body": "{\"denied\":{\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development\"}}"
+      }
+    }
+  },
+  {
+    "name": "zero-wait",
+    "pass": false,
+    "actions": 24777,
+    "error": "Error: upload media/img-01.png: the server is unreachable",
+    "peak_fds": 563,
+    "peak_socket_fds": 541,
+    "uploads": 1028,
+    "http_503_uploads": 0,
+    "exit": {
+      "pid": 2191155,
+      "beforeStop": null,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "probe": {
+        "status": 401,
+        "body": "{\"denied\":{\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development\"}}"
+      }
+    }
+  },
+  {
+    "name": "fixed-zero-wait",
+    "pass": false,
+    "actions": 0,
+    "error": "Error: upload media/img-05.png: the server is unreachable",
+    "peak_fds": 545,
+    "peak_socket_fds": 535,
+    "uploads": 1025,
+    "http_503_uploads": 1,
+    "exit": {
+      "pid": 2519175,
+      "beforeStop": null,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "probe": {
+        "status": 401,
+        "body": "{\"denied\":{\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development\"}}"
+      }
+    }
+  },
+  {
+    "name": "fixed-sdk-zero-wait",
+    "pass": false,
+    "actions": 0,
+    "error": "Error: upload media/img-02.png: the asset transfer failed: UND_ERR_SOCKET; check the connection and server logs before retrying",
+    "peak_fds": 547,
+    "peak_socket_fds": 537,
+    "uploads": 1018,
+    "http_503_uploads": 0,
+    "exit": {
+      "pid": 2541737,
+      "beforeStop": null,
+      "exit": {
+        "code": 143,
+        "signal": null
+      },
+      "probe": {
+        "status": 401,
+        "body": "{\"denied\":{\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development\"}}"
+      }
+    }
+  }
+]

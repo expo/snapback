@@ -8,7 +8,14 @@ import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
 
-const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+function offline(error: unknown): Refusal {
+  const failure = error as { message?: string; cause?: { code?: string; message?: string } } | undefined;
+  const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.message ?? String(error);
+  return { code: "E_OFFLINE", family: "link", message: `the asset transfer failed: ${cause}; check the connection and server logs before retrying`, retryable: true };
+}
+
+// @ref LLP 3000#http-overload-diagnostics — an HTTP answer is not an unreachable host.
+const invalidResponse = (status: number): Refusal => ({ code: "E_HTTP_RESPONSE", family: "link", message: `the server answered HTTP ${status} without a valid asset response; the upload outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true });
 
 // @ref LLP 3000.011.005.000#8 — React Native Blobs use the public FileReader fallback
 export function blobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
@@ -70,9 +77,11 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
     let waited = 0;
     for (let attempt = 0; ; attempt++) {
       const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
-      const json = (await response.json()) as { asset?: Asset; denied?: Refusal };
-      if (json.asset) return { ok: true, asset: json.asset };
-      const why = json.denied ?? { code: "E_STORE", family: "store", message: "the server answered without an asset", retryable: true };
+      let json: { asset?: Asset; denied?: Refusal } | null;
+      try { json = await response.json(); }
+      catch { return { ok: false, why: invalidResponse(response.status) }; }
+      if (response.ok && json?.asset) return { ok: true, asset: json.asset };
+      const why = json?.denied ?? invalidResponse(response.status);
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.
       if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };
@@ -84,8 +93,8 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       waited += delay;
       if (!canRetry()) return { ok: false, why };
     }
-  } catch {
-    return { ok: false, why: offline() };
+  } catch (error) {
+    return { ok: false, why: offline(error) };
   }
 }
 
@@ -131,8 +140,8 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       revoked = true;
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }
     } };
-  } catch {
-    return { denied: offline() };
+  } catch (error) {
+    return { denied: offline(error) };
   } finally {
     release?.();
   }

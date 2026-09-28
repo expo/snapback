@@ -3,8 +3,15 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
+import { connect } from "node:net";
 import { runInNewContext } from "node:vm";
 import { uploadAsset } from "../dist/assets.js";
+import { defaultFetch } from "../dist/node-fetch.js";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
@@ -118,6 +125,80 @@ test("an upload with a lost reply is not retried because the bytes may have been
   let attempts = 0;
   const result = await uploadAsset("http://uploads.invalid", {}, async () => { attempts++; throw Error("lost response"); }, bytes);
   assert.equal(attempts, 1); assert.equal(result.why.code, "E_OFFLINE"); assert.deepEqual(delays, []);
+  assert.match(result.why.message, /lost response/);
+  assert.doesNotMatch(result.why.message, /unreachable/);
+});
+
+for (const [status, body] of [[503, "overloaded"], [413, "too large"], [200, "invalid json"], [200, "null"], [200, "{}"]]) {
+  test(`upload reports HTTP ${status} with an invalid envelope without calling it unreachable`, async () => {
+    let attempts = 0;
+    const result = await uploadAsset("http://uploads.invalid", {}, async () => {
+      attempts++;
+      return new Response(body, { status });
+    }, bytes);
+    assert.equal(attempts, 1, "an invalid reply does not prove the upload was refused");
+    assert.equal(result.ok, false);
+    assert.equal(result.why.code, "E_HTTP_RESPONSE");
+    assert.match(result.why.message, new RegExp(`HTTP ${status}`));
+    assert.doesNotMatch(result.why.message, /unreachable/);
+  });
+}
+
+test("upload preserves a server store refusal and its actual cause", async () => {
+  const why = { code: "E_STORE", family: "store", message: "cannot keep the upload: No space left on device (os error 28)", retryable: true };
+  const result = await uploadAsset("http://uploads.invalid", {}, async () => Response.json({ denied: why }, { status: 503 }), bytes);
+  assert.deepEqual(result, { ok: false, why });
+});
+
+test("fresh replay host reports connection overload to the real upload transport and recovers", { timeout: 20_000 }, async t => {
+  const dir = await mkdtemp(join(tmpdir(), "sb4-upload-overload-"));
+  await mkdir(join(dir, "snapback"));
+  await writeFile(join(dir, "snapback/schema.q"), `use personas alice
+table photos:
+  photo: image <=10000
+  read <- allow
+`);
+  const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url));
+  const child = spawn(binary, ["dev", "--fresh", "--replay", "--no-watch", "--port", "0"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(child, "exit");
+  let log = "";
+  child.stderr.on("data", bytes => { log += bytes; });
+  const sockets = [];
+  t.after(async () => {
+    for (const socket of sockets) socket.destroy();
+    child.kill("SIGTERM"); await exited;
+    await rm(dir, { recursive: true, force: true });
+  });
+  const url = await new Promise((resolve, reject) => {
+    let output = "";
+    const timeout = setTimeout(() => reject(Error(`server startup timeout: ${log}`)), 10_000);
+    child.stdout.on("data", bytes => {
+      output += bytes;
+      const match = output.match(/http:\/\/127\.0\.0\.1:\d+/);
+      if (match) { clearTimeout(timeout); resolve(match[0]); }
+    });
+    child.once("exit", () => { clearTimeout(timeout); reject(Error(`server exited: ${log}`)); });
+  });
+  const port = Number(new URL(url).port);
+  // The 128 slow-header sockets occupy only connection leases, not request
+  // workers, the engine or assets. No fixture rows or writes are needed.
+  await Promise.all(Array.from({ length: 128 }, async () => {
+    const socket = connect(port, "127.0.0.1");
+    socket.on("error", () => {});
+    sockets.push(socket);
+    await once(socket, "connect");
+  }));
+  const png = Buffer.alloc(2081);
+  Buffer.from("89504e470d0a1a0a0000000d494844520000000100000001", "hex").copy(png);
+  const result = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
+  assert.equal(result.ok, false, log);
+  assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
+  assert.match(result.why.message, /HTTP connections/);
+  assert.match(log, /E_RATE_LIMIT at http: all 128 HTTP connections/);
+  assert.equal(child.exitCode, null, "host remains alive");
+  for (const socket of sockets) socket.destroy();
+  const recovered = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
+  assert.equal(recovered.ok, true, JSON.stringify(recovered));
 });
 
 for (const [header, expected] of [["2", 2000], ["Thu, 24 Sep 2026 12:00:03 GMT", 3000], ["invalid", 250], ["Wed, 23 Sep 2026 12:00:00 GMT", 250]]) {

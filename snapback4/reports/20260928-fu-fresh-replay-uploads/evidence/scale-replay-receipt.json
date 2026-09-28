@@ -1,0 +1,29 @@
+{
+  "version": "snapback.full-journey-scale-replay-receipt.v1",
+  "pass": true,
+  "actionLog": {
+    "sha256": "sha256:b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+    "actionCount": 167157
+  },
+  "settledPrefix": 167157,
+  "failedActions": 0,
+  "checkpoints": [
+    {
+      "id": "10%",
+      "settledPrefix": 24777,
+      "prefixSha256": "sha256:f1f4abf9f2178b039c44db6b3acb17d4e0019faad81f8839339ad6b26467dbba"
+    },
+    {
+      "id": "50%",
+      "settledPrefix": 88057,
+      "prefixSha256": "sha256:f3ce58724cbd0570f909f95e7643b7f921408bc6750ad5eb6e6a80477d2fc41c"
+    }
+  ],
+  "error": null,
+  "startedAt": "2026-09-28T16:57:52.073Z",
+  "finishedAt": "2026-09-28T17:12:35.187Z",
+  "startedEpoch": 1790614672,
+  "finishedEpoch": 1790615555,
+  "backendPid": 2151788,
+  "url": "http://127.0.0.1:56512"
+}

@@ -784,7 +784,12 @@ fn connections_are_capped_before_slow_headers_and_idle_sockets_expire() {
     third
         .set_read_timeout(Some(Duration::from_secs(1)))
         .unwrap();
-    assert_closed(&mut third);
+    let mut response = String::new();
+    third.read_to_string(&mut response).unwrap();
+    assert_eq!(status(&response), 503, "{response}");
+    assert_eq!(body(&response)["denied"]["code"], "E_RATE_LIMIT");
+    assert!(body(&response)["denied"]["message"].as_str().unwrap().contains("connections"));
+    assert!(response.to_ascii_lowercase().contains("retry-after: 1"));
     assert_eq!(server.num_connections(), 2);
     wait_until(|| server.num_connections() == 0);
     drop((first, second));
