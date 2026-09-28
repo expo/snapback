@@ -101,3 +101,30 @@ fn scalar(value: &Expr) -> bool {
         _ => false,
     }
 }
+
+/// Narrow SDK merge descriptor for the builder's time/id ordered page.
+pub fn composition(schema: &Schema, program: &Program) -> Option<crate::schema::SearchComposition> {
+    plan(schema, program)?;
+    let [Stmt::Return(value)] = program.body.as_slice() else { return None };
+    let scan = page(value)?;
+    let IndexKeyExpr::WordPrefix(Expr::Variable(needle)) = scan.prefix.last()? else { return None };
+    let needle = if let Expr::Block { body, .. } = value {
+        let Stmt::Let { value: Expr::Variable(input), .. } = &body[0] else { return None };
+        input
+    } else { needle };
+    let Expr::Variable(cursor) = scan.after.as_deref()? else { return None };
+    let Bound::Literal(limit) = scan.take else { return None };
+    let table = schema.table(&scan.table)?;
+    if table.leave != crate::schema::LeavePolicy::DeliveredHistory { return None; }
+    let index = table.index(&scan.index)?;
+    let column = match &index.components[scan.prefix.len()..] {
+        [IndexComponent::Column(column)] => column,
+        [IndexComponent::Column(column), IndexComponent::Column(id)] if id == "id" => column,
+        _ => return None,
+    };
+    let kind = table.columns.get(column)?;
+    if !matches!(kind, crate::schema::ColumnType::Time | crate::schema::ColumnType::Int) { return None; }
+    Some(crate::schema::SearchComposition { table: scan.table.clone(), index: scan.index.clone(),
+        column: column.clone(), kind: kind.clone(), order: scan.order, limit: limit as u64,
+        needle: needle.clone(), cursor: cursor.clone(), variant: scan.variant })
+}

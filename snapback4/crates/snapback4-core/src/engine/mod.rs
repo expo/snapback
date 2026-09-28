@@ -136,6 +136,8 @@ pub enum LoadMode { Import, Restore }
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
 pub struct Context {
+    pub retained_search: bool,
+    pub read_spent: Option<crate::meter::Metered>,
     pub viewer: String,
     pub kind: String,
     pub args: BTreeMap<String, Value>,
@@ -161,7 +163,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -241,6 +243,9 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    /// Complete, authorized current audience of an inferred ordinary search.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_scopes: Option<Vec<String>>,
     #[cfg(feature = "sqlite")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivery: Option<delivery::Manifest>,
@@ -930,7 +935,7 @@ impl Engine {
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-                let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -950,7 +955,10 @@ impl Engine {
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = runner.delivery_manifest(&data);
-        let outcome = QueryOutcome { delivery, delivery_meter, ephemeral: version,
+        let outcome = QueryOutcome {
+            #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
+            #[cfg(not(feature = "server-search"))] search_scopes: None,
+            delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),

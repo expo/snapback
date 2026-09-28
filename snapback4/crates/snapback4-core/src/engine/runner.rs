@@ -144,6 +144,8 @@ pub struct Runner<'a> {
     pub(super) page_plan: super::pages::Plan,
     #[cfg(feature = "server-search")]
     pub(super) ordinary_search_cursor: Option<(String, String)>,
+    #[cfg(feature = "server-search")]
+    pub(super) search_scopes: Option<Vec<String>>,
     /// Read paths that actually stopped on a cap, including an inherited cap.
     pub(super) read_cuts: u64,
     pub(super) shape_positions: BTreeMap<String, super::shaping::ShapePosition>,
@@ -287,6 +289,8 @@ impl<'a> Runner<'a> {
             page_plan: super::pages::Plan::default(),
             #[cfg(feature = "server-search")]
             ordinary_search_cursor: None,
+            #[cfg(feature = "server-search")]
+            search_scopes: None,
             read_cuts: 0,
             shape_positions: BTreeMap::new(),
             shape_cursors: BTreeMap::new(),

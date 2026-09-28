@@ -15,13 +15,23 @@ membership predicates and query guards keep their meaning; other audiences,
 joins and native functions keep their existing evaluator. Empty needles still
 take the existing browse branch, whose coverage can remain incomplete.
 
-This is the current-scope server portion of ordinary search. The device keeps
-the original bare scan, including authorized retained images, but online fallback
-still replaces the whole result. Combining current server rows with departed
-device rows is not implemented. Keep the existing application selection for a
-mixed retained/current all-chat screen until the combined continuation and meter
-protocol is available. An incomplete empty answer means “Results may be incomplete,”
-never “No matches.”
+For the proved bare time-ordered page on a local client, the SDK merges current
+server rows with this device's certified departed images. Both use the same
+`(at, id)` order and the limit applies after deduplication. A page makes one
+server call; it never drains a cut to fill the limit. `next` advances each source
+only past consumed hits. Unconsumed hits are recomputed on the next requested
+page and charged again. The coordinator and device scan share the existing
+per-page device read allowance. There is no saved search session.
+
+A membership, device-state or link change restarts an incompatible continuation.
+A transition during delivery withdraws the candidate; the next observation uses
+the new state. Retained edits stay at their delivered image and expiry still
+removes them. Rejoined scopes use the current server lane. The server’s bounded audience proof prevents a stale departed image from being merged after an unsynced rejoin; that observation waits for sync. Missing acquired
+history and constituent cuts remain incomplete. An incomplete empty answer means
+“Results may be incomplete,” never “No matches.” An online client without a
+device searches only its current authorized domain; offline the same ordinary
+body searches authorized device holdings. Other ordered shapes keep their
+existing evaluator and routing.
 
 ```quarry
 table members:

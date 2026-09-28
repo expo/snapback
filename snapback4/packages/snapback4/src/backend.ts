@@ -3,7 +3,12 @@
 // a read (which tables an operation touches, which of them sync); the
 // device interprets the programs.
 
+export interface SearchComposition {
+  table: string; index: string; column: string; kind: "Time" | "Int";
+  order: "Asc" | "Desc"; limit: number; needle: string; cursor: string; variant: number[] | null;
+}
 export interface OperationFacts {
+  search?: SearchComposition;
   held?: boolean;
   runs?: "device" | "server";
   predicts?: "eligible" | "never";

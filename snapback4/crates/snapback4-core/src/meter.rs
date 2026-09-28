@@ -120,6 +120,21 @@ impl Meter {
             #[cfg(feature = "sqlite")] heap_once: 0 }
     }
 
+    /// Resume prepaid coordinator work on the same device read allowance.
+    pub fn resume(ceilings: Ceilings, used: Metered) -> Result<Self, RuntimeError> {
+        let mut meter = Self::new(ceilings, Cut::Cap);
+        meter.at("ordinary search coordinator");
+        for (kind, amount) in [(MeterKind::Examined, used.examined), (MeterKind::IndexEntries, used.index_entries),
+            (MeterKind::RuleProbes, used.rule_probes), (MeterKind::HeapBytes, used.heap_bytes),
+            (MeterKind::OutputBytes, used.output_bytes), (MeterKind::RowsWritten, used.rows_written)] {
+            if !meter.charge(kind, amount)? {
+                return Err(RuntimeError::Bound { kind, actual: amount, ceiling: ceilings.of(kind), site: meter.site.clone() });
+            }
+        }
+        meter.step(used.steps)?;
+        Ok(meter)
+    }
+
     pub fn at(&mut self, site: &str) {
         self.site = site.to_owned();
     }

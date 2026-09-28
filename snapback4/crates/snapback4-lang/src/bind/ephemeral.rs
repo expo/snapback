@@ -184,6 +184,7 @@ pub fn programs(
                 Diagnostic::new(&bound.site, "E_QUARRY_EPHEMERAL", message, fix).guide("ephemeral"),
             );
         }
+        fact.search = snapback4_core::search_plan::ordinary::composition(schema, &bound.program);
         schema.operations.insert(bound.program.name.clone(), fact);
     }
 }

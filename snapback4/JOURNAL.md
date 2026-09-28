@@ -72257,3 +72257,62 @@ have identical examined/index/probe/step/output receipts; exact heap/cursor
 receipts and non-benchmark samples are in the report. No tool installed, budget
 raised, push or publication. Report: reports/20260928-os-ordinary-search/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 1: SDK composition of live and departed search
+
+Fetched origin and merged origin/main first; already up to date on
+sb4-intent/os-ordinary-search at round-0 commit 5a94ba1f8. Read the binding prompt,
+round-0 report and entry, Snapback 4 fence and governing LLPs/guide; applied
+llp-orient read-only. No review findings were awaited and no other lane changed.
+
+Implemented LLP 3000.028 section 3.3's SDK coordinator for the proved single
+ordinary word page ordered by time/integer and ID. Device execution selects
+certified Left scopes, server execution retains its current audience, and the
+SDK merges under one limit with Rust-compatible ID ordering. One server call
+per requested combined page, including cuts and delivery races. Only consumed
+prefixes advance; fetched-but-unconsumed hits are recomputed and charged on a
+later request. No durable session, registry or saved response buffer.
+
+Budget source is the existing device Ceilings::default() read allowance.
+Retained-state inspection, arguments/cursors, device scan, coordinator decoding,
+comparisons/deduplication, output and final state check continue the same meter.
+An exhausted ledger refuses. The original server invocation keeps its own
+meter. Its already-authorized complete membership opening supplies bounded
+scope keys; disjointness with Left scopes fences unsynced rejoins. The initial
+whole-server-watermark fence was too broad under the builder's background
+commits and was replaced. Older devices explicitly refuse the internal call;
+a missing server proof withholds composition. Original guards and explicit
+membership queries remain unchanged.
+
+Both process and wasm traverse 10,014 unique u0500/coffee IDs in 501 mixed pages
+with exactly one server invocation per page. Twenty retained hits dominate the
+first page after twenty server hits are fetched; no server position advances.
+The original builder program's unguarded searchChat passes 50 current/departed,
+online/offline, below/exact/above-floor and rejoin reads. Guarded searchIn stays
+NOT_MEMBER. On a second builder copy, 245 added scopes with 32 word variants
+open within default limits and reach a real meter drain cut: two mixed requests
+make one invocation each and emit 20 then 7 rows. The simpler 4,077-live-scope
+fixture independently witnesses a real drain on the same coordinator.
+
+Final focused JavaScript: 22 passed, 0 failed, including native/wasm reset during
+delivery, reopen, membership and expiry races, retained edits, shared-ledger
+exhaustion, Unicode ties, and mounted React. The existing headless browser
+harness mounts the same useQuery across current online, departure, offline and
+rejoin, with honest incomplete rendering. Expo is not separately witnessed.
+Affected Rust: 10 ordinary-search, 24 membership-search and 11 search-merge
+passed. Whole guide: 92 passed, 0 failed. Required scripts/test.sh ran once;
+exact summary: "== 1 failure(s) in 1816 s". Only failed step: wasm build (ours).
+Every other suite step passes, including 3,864 client tests/10 skips and 79
+models. No baseline or environmental suite failure. The suite began before
+final proof/ledger changes; final affected checks qualify those changes.
+
+Final wasm: 2,044,274 B raw / 593,309 B gzip, +24,459 / +7,931 B over round 0.
+The unchanged 586,193 B gzip cap is exceeded by 7,116 B (ours). Added device
+bytes implement composition metadata, retained-only scanning, ledger resumption
+and bounded state inspection. The budget was not raised; this is a local lane
+commit for review with an explicit failed gate, not publication qualification.
+Every development failure and its classification is retained in the report.
+Original input hashes including SQLite/WAL remain unchanged. No tool installed,
+shared-path tool change, push or publication. Report and compressed evidence:
+reports/20260928-os-ordinary-search/REPORT.md and round1/. Round 0 remains in
+ROUND0.md. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

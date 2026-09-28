@@ -83,6 +83,8 @@ fn a_standalone_bare_program_provisions_its_scoped_index() {
     let b = bound(&source);
     let program = &b.programs.iter().find(|p| p.program.name == "ordinary").unwrap().program;
     assert!(snapback4_core::search_plan::ordinary::plan(&b.schema, program).is_some());
+    let composed = b.schema.operations["ordinary"].search.as_ref().unwrap();
+    assert_eq!((&*composed.needle, &*composed.cursor, &*composed.column, composed.limit), ("q", "c", "at", 2));
     assert!(snapback4_core::search_plan::merges(&program.body).is_empty(), "device keeps the bare scan");
 }
 #[test]
@@ -91,6 +93,7 @@ fn guards_explicit_predicates_held_and_nonmembers_keep_their_meaning() {
     for name in ["explicit", "guarded", "held"] {
         let program = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
         assert!(snapback4_core::search_plan::ordinary::plan(&b.schema, program).is_none(), "{name}");
+        assert!(b.schema.operations[name].search.is_none());
     }
     let mut engine = setup(2);
     engine.mutate("leave", None, Context::new("alice", [("id".into(), Value::Id("room00001".into()))].into())).unwrap();
@@ -193,4 +196,18 @@ fn a_hidden_population_does_not_change_the_inferred_page_or_receipt() {
     assert_eq!(before.next, after.next);
     assert_eq!(before.complete, after.complete);
     assert_eq!(before.metered, after.metered);
+}
+
+#[test]
+fn audience_proof_is_complete_authorized_and_bounded() {
+    let mut engine = setup(2);
+    engine.mutate("leave", None, Context::new("alice", [("id".into(), Value::Id("room00001".into()))].into())).unwrap();
+    // Even with no matching message, the completed opening excludes both the
+    // departed scope and another principal's scope from the proof.
+    let page = engine.query("ordinary", cx("absent", None)).unwrap();
+    assert!(page.data.as_array().unwrap().is_empty());
+    assert_eq!(page.search_scopes, Some(vec![r#"["room00000"]"#.into()]));
+    assert!(engine.query("explicit", cx("absent", None)).unwrap().search_scopes.is_none());
+    engine.set_ceilings(snapback4_core::Ceilings { output_bytes: 40, ..Default::default() });
+    assert_eq!(engine.query("ordinary", cx("absent", None)).unwrap_err().code, "E_SEARCH_OPEN");
 }

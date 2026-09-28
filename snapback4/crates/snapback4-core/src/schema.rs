@@ -58,9 +58,26 @@ pub struct UniqueRefusal {
     pub message: String,
 }
 
+// @ref LLP 3000.028#3.3 — the SDK serializes positions; Rust alone evaluates queries.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchComposition {
+    pub table: String,
+    pub index: String,
+    pub column: String,
+    pub kind: ColumnType,
+    pub order: crate::ir::Order,
+    pub limit: u64,
+    pub needle: String,
+    pub cursor: String,
+    pub variant: Option<crate::ir::VariantId>,
+}
+
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    /// Compiler-proved SDK composition descriptor; no application predicate is changed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search: Option<SearchComposition>,
     // @ref LLP 3000.017#2.4 — absent facts retain legacy schema bytes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ephemeral: bool,

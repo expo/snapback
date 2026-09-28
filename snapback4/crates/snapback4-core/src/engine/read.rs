@@ -1009,6 +1009,8 @@ impl<'r> Runner<'r> {
                 if unmatched {
                     continue;
                 }
+                // @ref LLP 3000.028#3.3 — the online device lane contains only certified Left scopes.
+                if self.context.retained_search && !self.tx.search_retained_row(&scan.table, &row)? { continue; }
                 let kept_history = self.device && parent_pinned && self.retained_row(&scan.table, &row)?;
                 if kept_history && streaming { continue; }
                 if self.device && parent_pinned && !kept_history && uniform_verdict == Some(false) { continue; }

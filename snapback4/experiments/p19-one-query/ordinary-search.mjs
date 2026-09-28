@@ -1,6 +1,7 @@
-// Independent current-scope subset qualification, not §7.2 mixed-host acceptance.
+// Ordinary per-chat and mixed-host qualification on a lane-owned builder copy.
 // @ref LLP 3000.028#3.3 — the device body and guarded control must remain intact.
 import assert from 'node:assert/strict';
+import { parkedChanges } from '../../packages/snapback4/test/helpers/sync-control.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -9,9 +10,9 @@ import { createHash } from 'node:crypto';
 
 const sb4 = resolve(import.meta.dirname, '../..');
 const scaledFloor = process.env.OS_FLOOR_U0500 === '1';
-const work = join(import.meta.dirname, scaledFloor ? '.work/os-u0500' : '.work/os');
+const work = join(import.meta.dirname, scaledFloor ? '.work/os-r1-u0500' : '.work/os-r1');
 const app = join(work, 'app');
-const report = join(sb4, 'reports/20260928-os-ordinary-search', ...(scaledFloor ? ['u0500'] : []));
+const report = join(sb4, 'reports/20260928-os-ordinary-search/round1', ...(scaledFloor ? ['u0500'] : []));
 const evidence = process.env.P19_EVIDENCE ?? '/home/ccheever/sb4-intent/rg-evidence/lane';
 const binary = join(sb4, 'target/debug/snapback4');
 const { createClient, mintId } = await import(join(sb4, 'packages/snapback4/dist/client.js'));
@@ -36,7 +37,7 @@ if (!existsSync(app)) {
 use personas osowner, osreader
 query osSearch(q: text <=100, c: cursor ?):
   return messages matching q where not .tombstone last 20 by .at after c
-query osChat(conversation: conversations, q: text <=100, c: cursor ?):
+query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
   return messages[conversation = conversation] matching q where not .tombstone last 20 by .at after c
 `);
   assert.equal(spawnSync('cp', ['-a', '--reflink=auto', join(evidence, 'scale-instance/.snapback4'), app]).status, 0);
@@ -99,7 +100,7 @@ try {
     const actual = [];
     let c;
     for (let page = 1; page <= 3; page++) {
-      const result = await local.read(`${stage}-coffee-${page}`, 'osChat', {conversation, q: 'coffee', c});
+      const result = await local.read(`${stage}-coffee-${page}`, 'searchChat', {conversation, q: 'coffee', c});
       actual.push(...ids(result.read));
       if (departed || !on) { assert.equal(result.read.complete, false); assert.equal(result.paths.length, 0); }
       c = result.read.next;
@@ -110,13 +111,14 @@ try {
   const locals = [];
   async function local(tier, name, auth) {
     let offline = false;
-    const requests = [], observations = [];
+    const requests = [], observations = [], serverPages = [];
     const opener = tier === 'wasm' ? webDevice({wasm, persist: memoryPersistence()}) : processDevice({binary, dir: join(work, `devices-${name}-${Date.now()}`)});
     const device = {async open(...args) {
       const handle = await opener.open(...args);
       return {close: () => handle.close(), async call(request) {
         const response = await handle.call(request);
-        if (request.op === 'query') observations.push({name: request.name, complete: response.ok?.complete, unknown: response.ok?.unknown, retained: response.ok?.retained, next: response.ok?.next});
+        if (request.op === 'search_state') observations.push({op: 'search_state', ...response});
+        if (request.op === 'query') observations.push({name: request.name, complete: response.ok?.complete, unknown: response.ok?.unknown, retained: response.ok?.retained, next: response.ok?.next, metered: response.ok?.metered, spent: request.spent});
         return response;
       }};
     }};
@@ -124,11 +126,13 @@ try {
       if (offline) throw new TypeError('OS offline');
       const path = new URL(input).pathname;
       requests.push(path);
-      if (path === '/changes') return new Promise((_, reject) => {
-        if (init?.signal?.aborted) return reject(init.signal.reason);
-        init?.signal?.addEventListener('abort', () => reject(init.signal.reason), {once: true});
-      });
-      return fetch(input, init);
+      if (path === '/changes') return parkedChanges(init?.signal);
+      const response = await fetch(input, init);
+      if(path.startsWith('/q/')) {
+        const json = await response.clone().json();
+        serverPages.push({path, args: JSON.parse(init.body).args, rows: json.data?.length, seq: json.seq, head: json.head, complete: json.complete, cut: json.cut, meter: json.meter});
+      }
+      return response;
     }});
     clients.push(client);
     await client.sync();
@@ -139,14 +143,14 @@ try {
         await until(async () => {await client.sync(); return client.link() === 'online';}, 'online sync before observation');
       }
     }, async read(stage, op, args) {
-      const start = requests.length, seen = observations.length;
+      const start = requests.length, seen = observations.length, remote = serverPages.length;
       const read = await client.query(q(op), args);
       const paths = requests.slice(start).filter(p => p.startsWith('/q/'));
-      record(`${tier}-${name}-${stage}`, {op, read, link: client.link(), queryRequests: paths, device: observations.slice(seen)});
-      return {read, paths};
+      record(`${tier}-${name}-${stage}`, {op, read, link: client.link(), queryRequests: paths, server: serverPages.slice(remote), device: observations.slice(seen)});
+      return {read, paths, server: serverPages.slice(remote)};
     }};
   }
-  for (const tier of ['process', 'wasm']) {
+  for (const tier of (process.env.OS_TIERS ?? 'process,wasm').split(',')) {
     const scale = await local(tier, 'u0500', {session: signed.session});
     let c, oracleCursor;
     for (let page = 0; page < 3; page++) {
@@ -168,7 +172,7 @@ try {
       await retained.network(on);
       await coffeePages(retained, `current-${on}`, false, on);
       for (const row of floor) {
-        const {read, paths} = await retained.read(`current-${on ? 'online' : 'offline'}-${row.text}`, 'osChat', {conversation, q: row.text});
+        const {read, paths} = await retained.read(`current-${on ? 'online' : 'offline'}-${row.text}`, 'searchChat', {conversation, q: row.text});
         assert.deepEqual(ids(read), on || row.ordinal >= 4 ? [row.id] : []);
         if (!on) { assert.equal(read.complete, false); assert.equal(paths.length, 0); }
       }
@@ -185,11 +189,11 @@ try {
       await retained.network(on);
       await coffeePages(retained, `departed-${on}`, true, on);
       for (const row of [...floor, {id: later, ordinal: 504, text: 'osfloorlater'}]) {
-        const {read, paths} = await retained.read(`departed-${on ? 'online' : 'offline'}-${row.text}`, 'osChat', {conversation, q: row.text});
+        const {read, paths} = await retained.read(`departed-${on ? 'online' : 'offline'}-${row.text}`, 'searchChat', {conversation, q: row.text});
         assert.deepEqual(ids(read), row.ordinal >= 4 && row.ordinal <= 5 ? [row.id] : []);
         assert.equal(read.complete, false); assert.equal(paths.length, 0);
       }
-      const result = await retained.read(`departed-empty-${on}`, 'osChat', {conversation: empty, q: 'osfloor'});
+      const result = await retained.read(`departed-empty-${on}`, 'searchChat', {conversation: empty, q: 'osfloor'});
       // Existing coverage limitation: this builder acquires by ordinal, while
       // search orders by at. Even an acquired empty Left group is incomplete.
       assert.deepEqual(ids(result.read), []); assert.equal(result.read.complete, false); assert.equal(result.paths.length, 0);
@@ -199,16 +203,43 @@ try {
       assert.deepEqual(ids(explicit.read), []);
     }
     await retained.network(true);
+    if (scaledFloor) {
+      const live = [];
+      let c;
+      for (let page = 0; page < 1000; page++) {
+        const r = await scaleOnline.query(q('searchNewest'), {q: 'coffee', c});
+        assert.ok(r.complete); live.push(...r.data); c = r.next;
+        if (!c) break;
+        assert.notEqual(page, 999, 'server oracle exhausted');
+      }
+      const oracle = [...live, ...coffeeRows.filter(r => r.ordinal >= 4)]
+        .sort((a,b) => b.at-a.at || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0)).map(r=>r.id);
+      await retained.network(true);
+      const actual = []; c = undefined;
+      for (let page=0;page<1000;page++) {
+        const result = await retained.read(`mixed-${page}`, 'osSearch', {q:'coffee',c});
+        assert.equal(result.paths.length,1); actual.push(...ids(result.read));
+        if (page === 0) {
+          assert.deepEqual(ids(result.read),oracle.slice(0,20));
+          assert.equal(result.server[0].rows,20);
+          assert.equal(JSON.parse(Buffer.from(result.read.next.slice(5),'base64url')).server,null);
+        }
+        c=result.read.next;if(!c)break;
+        assert.notEqual(page,999,'mixed traversal exhausted');
+      }
+      assert.deepEqual(actual,oracle);assert.equal(new Set(actual).size,actual.length);
+      record(`${retained.tier}-mixed-oracle`,{ids:actual,oneInvocationPerPage:true,retainedFirst:20});
+    }
   }
   const guard = await (scaledFloor ? scaleOnline : reader).query(q('searchIn'), {conversation, q: 'osfloor'});
   assert.equal(guard.denied?.code, 'NOT_MEMBER'); record('unchanged-server-guard', {read: guard});
   await sent(owner, 'addMember', {conversation, principal: floorPrincipal});
   for (const retained of locals) {
     await retained.network(true);
-    const {read} = await retained.read('rejoin-below-floor', 'osChat', {conversation, q: 'osfloorbelow'});
+    const {read} = await retained.read('rejoin-below-floor', 'searchChat', {conversation, q: 'osfloorbelow'});
     assert.deepEqual(ids(read), [floor[0].id]);
   }
-  record('finished', {pass: true, scope: 'current-scope server inference, original device scan, per-chat floor matrix; no mixed merge claim'});
+  record('finished', {pass: true, scope: 'ordinary search, current/departed floor matrix and full mixed traversal'});
 } catch (error) {
   record('failure', {message: error.stack}); process.exitCode = 1;
 } finally {

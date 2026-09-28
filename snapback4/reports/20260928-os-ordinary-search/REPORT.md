@@ -1,227 +1,218 @@
-# Lane OS — independent current-scope ordinary search
+# Lane OS — round 1, ordinary mixed search
 
-**Status: coherent subset; LLP 3000.028 §3.3 and §7.2 are NOT complete.**
-The RFC explicitly permits the inferred current-scope plan to land independently.
-No mixed-host plan is shipped. Online fallback still replaces the whole all-chat
-answer, so a mixed retained/current screen must keep its existing selection.
-Nothing is pushed or published.
+**SDK composition implemented and exercised through public clients and mounted
+React. The unchanged wasm budget remains red.** Nothing is pushed
+or published. [Round 0](./ROUND0.md) preserves the previous report and failure
+ledger; its evidence remains in this directory. Round 1 logs are under `round1/`.
 
-Started at `a745b110f2187004abb1cec8380b33b6d1396108` on
-`sb4-intent/os-ordinary-search`, after the requested
-`git fetch origin && git merge origin/main` reported `Already up to date.`
-The evidence store and WAL were copied as bytes into this worktree's ignored
-`experiments/p19-one-query/.work/`; the original was never opened by SQLite or
-Snapback. Input hash guards pass before and after. Other lanes were not modified.
+First ran `git fetch origin && git merge origin/main`: `Already up to date.`
+Read the binding lane prompt, round-0 report/journal, all of LLP 3000.028,
+Snapback 4's fence, root/design brief, exclusions, rules and current search guide.
+Applied the read-only `llp-orient` skill from the populated `lane-a5` copy.
+The governing constraints are LLP 3000.028 §3.3/§7.2, LLP 3000.024's compact
+opening/drain Decision, and the existing local publication fences. No other
+lane or evidence store was changed. No tool was installed.
 
 ## Delivered behavior
 
-**Deliberate behavior change:** a bare membership-audience word search goes from
-an empty incomplete server answer to the compact membership page for the admitted
-class, within the existing ceilings. This is a result change, not merely a new
-spelling. The source read rule still runs.
+**Deliberate behavior change, retained from round 0:** the bare membership-audience
+word search changes from an empty incomplete server answer to the compact
+membership page. Explicit membership queries and guarded operations keep their
+meaning. The original builder program and original query IR remain controls.
 
-The compiler requests the ordinary scoped words index without adding a membership
-predicate to the stored device program. A shared schema/IR proof recognizes one
-bare returned word page, an exact membership read rule, the matching sync audience,
-a required total unique membership key, a non-expiring and provably readable
-membership source, and the compact plan's existing uniformity requirements.
-A uniformly denied discovery source is deliberately excluded: rule existence can
-grant message access without granting reads of its membership witness.
-Server execution substitutes the
-existing compact evaluator. The bare device program still searches its authorized
-current and retained holdings. Explicit membership predicates, held operations,
-guarded operations, joins, native functions and unsupported audiences keep their
-evaluators. No guard is removed.
+The compiler now describes the proved bare single word page with a literal
+limit, word/cursor arguments and a time/integer plus ID order. The SDK coordinator
+uses that descriptor; Rust still evaluates the query, filters, tombstones,
+expiry and retained authority. Per-chat `searchChat` is explicitly authored
+without a membership guard in the builder-program fixture.
 
-The inferred server page uses the ordinary word cursor's original index descriptor
-and identical ordering suffix. Cursor construction reserves that actual descriptor
-before allocating. This permits ordinary local observation and fallback on a server
-continuation without turning the server cursor into a two-source continuation.
-The existing server meter, physical authorization bound, E_SEARCH_OPEN refusal,
-drain-cut continuation and final result-copy reservation remain in force.
-`check --cost` uses the effective server plan, names the inferred audience and gives
-the grouped repair. Empty needles keep the previous browse evaluator; its remaining
-N_NEVER_COMPLETE note now says when it applies.
+Online, the device scan includes only certified `Left` scopes; the original
+server operation supplies current scopes. Rejoined scopes never qualify as
+`Left`. The SDK orders the two streams, deduplicates, then applies the limit.
+It makes one server invocation per requested page. Opening refusals remain
+authoritative; a missing constituent head cannot establish a global prefix.
+A drain cut ends the attempt without a refill request, preserving its cut and
+incompleteness even if retained rows fill the result.
 
-The guide includes the unguarded ordinary per-chat body. It explicitly separates
-that body from existing guarded `searchIn`/`inChat`, and explains the current all-chat
-composition limitation. It continues to require an incomplete state instead of
-“No matches” for incomplete empty answers.
+The combined cursor contains two **consumed** positions. It never advances to
+an unconsumed response's `next`. Unconsumed hits are discarded, then recomputed
+and charged on a later requested page. No row buffer, cursor registry or durable
+search session survives the call. The token is limited to 4,096 encoded bytes
+and binds query/arguments, viewer, generation, order, link revision and a digest
+of device incarnation/acquisition state. Only emitted row keys enter source
+positions. A changed binding restarts the observation; a fresh coordinator can
+resume compatible positions without having retained the previous response.
 
-## Acceptance evidence and limits
+**Budget source: the existing device `Ceilings::default()` per-page read
+allowance.** `search_state` starts the ledger, reserves retained-state decoding,
+and exports its receipt. Cursor/argument work is prepaid; the Rust scan resumes
+those counters; the SDK then resumes the scan's receipt. The final state check
+resumes that same receipt.
+Comparisons, deduplication, streamed server decoding, retained buffers, output
+and cursor construction use that same ledger. Server work retains its separate,
+unchanged invocation meter. Coordinator exhaustion refuses `E_BOUND`.
 
-The reproducible harness is
-[`ordinary-search.mjs`](../../experiments/p19-one-query/ordinary-search.mjs).
-It uses public `createClient` and `createLocalClient`, a process device and the wasm
-web device with memory persistence. It is not a browser/React/Expo lifecycle witness.
-It preserves the complete builder program and adds only the ordinary search bodies
-and experiment personas. Original mutations create chats, send 503 messages,
-remove members and rejoin them; no alternate query evaluator or direct store edit
-constructs the results. Background change polls are held and explicit sync applies
-transitions. Logged query requests count `/q/` invocations, separately from sync.
+The coordinator reobserves device state after delivery and retains the existing
+identity, prediction and expiry fences. The complete authorized membership
+opening exports bounded scope keys, reserved and serialized directly under the
+server meter. The coordinator decodes and compares these keys on the shared
+ledger, requiring the server set and the device's Left set to be disjoint.
+An unsynced rejoin with overlap returns loading until sync updates the device;
+unrelated commits do not block the merge. Older devices explicitly refuse the
+new internal composition call. A server missing the scope proof cannot publish
+a mixed result. Offline the ordinary body retains its current/retained scan.
 
-| Requirement | Evidence / disposition |
+## Acceptance matrix
+
+| §7.2 requirement | Evidence and limit |
 | --- | --- |
-| u0500, coffee online | Both tiers' first three 20-hit ordinary pages match `searchNewest` exactly; one original-operation server invocation per page. `builder-search.jsonl` records the original 100-membership corpus; `u0500/builder-search.jsonl` adds the floor fixtures to that identity. |
-| Offline bare scan | Both tiers match the held scan, with 20 hits, incomplete coverage and zero query requests. A server continuation is also accepted offline and stays incomplete. |
-| Ordering, deduplication, filters | Native regression traverses complete synthetic streams against the explicit oracle for common, absent, rare and multi-term prefixes, timestamp ties and tombstones. Existing membership-search expiry/refill tests pass unchanged. |
-| Acquisition floor and per-chat pagination | For u0500, 27 coffee hits straddle the full `(conversation, ordinal, id)` acquisition floor of a 503-message chat with a 500-row acquisition. The oracle independently enumerates original ordinary history and sorts `(at, id)`. Online current membership returns all 27; offline and departed membership return the 24 acquired hits over two pages. Unique tokens immediately below, exactly at and above the floor are also checked. |
-| Departure, both link states | Both tiers keep acquired exact/above-floor hits with zero fallback, never recover the unacquired below-floor hit, and never return the post-leave coffee row. Explicit membership search excludes the departed token. |
-| Rejoin | Both tiers again find the unacquired below-floor token online after sync. The harness explicitly checks link readiness before calling an observation online. |
-| Unchanged-program control | Original builder compiles. Every original program's serialized IR is identical after adding the bare query. Guarded `searchIn` remains NOT_MEMBER on server and both devices, online/offline after departure; held server search remains E_QUERY_HELD. |
-| Unsupported audience / disclosure | Expiring memberships, denied membership discovery, no matching sync, authored guards and explicit membership queries do not infer. Adding 1,000 hidden messages leaves the inferred page, continuation, completeness and receipt identical. |
-| Opening and drain | Pure server tests sweep examined limits: opening refuses E_SEARCH_OPEN; successful opening followed by a drain cut stays incomplete and resumes through its emitted prefix. 100 and 1,000 memberships complete; 10,000 refuses. This is not the requested mixed-host drain test. |
-| Empty needles | Existing browse semantics and the word/browse cursor-variant refusal are tested. This subset does not promise complete global empty-needle browsing. |
-| Acquired empty departed chat | Honest incomplete empty result, zero fallback, on both tiers. The builder acquires by ordinal and searches by timestamp; the existing coverage proof does not certify this empty word range. Recorded limitation, not claimed complete. |
-| Retained-dominates-first-page | **Not implemented or passed.** No two-source merge or consumed-prefix buffering exists. |
-| Mixed server drain / one invocation | **Not implemented or passed.** Pure-server and current-scope request-count tests do not substitute for this requirement. |
-| Shared coordinator/device ledger | **Not implemented or passed.** No SDK coordinator or third allowance is added. |
-| Remaining lifecycle | Membership changes during response delivery, mixed link changes, mixed state reset, retained edits/expiry races, remount/reopen and mounted React/Expo transitions remain unqualified here. |
+| u0500 / coffee, online and offline | The full builder-copy harness compares current online pages with original `searchNewest`, and offline pages with `searchHeld`. Process and wasm each traverse 10,014 independently enumerated IDs in 501 combined pages, exactly one server query per page and no duplicate or omitted ID. |
+| Retained dominates page one | Process and wasm real-device tests fetch 20 server hits, emit 20 newer retained rows, and assert the server consumed position remains null. All 65 independently enumerated fixture IDs appear exactly once over the traversal, including a cross-source timestamp tie with BMP/astral Unicode IDs (Rust-compatible order). Both full builder-copy traversals also pass this condition: 20 retained rows emitted after 20 server hits were fetched, and no server position consumed. |
+| One server invocation / mixed drain | A real server with 4,077 live dense scopes reaches a default-meter drain cut after opening. Each requested combined page makes exactly one invocation. Retained rows fill page one while preserving `cut: meter` and `complete: false`; subsequent requests recompute the unconsumed server prefix. The full builder copy also passes: 245 added current chats × 32 word variants produce a real meter cut; two requested mixed pages each make one invocation, first emitting 20 retained rows with the server position still null. A separate SDK cut-stream test traverses every ID exactly once with three-hit constituent cuts. |
+| Shared ledger | Both real devices receive prepaid coordinator counters and return increased scan receipts. A near-full prepaid heap prevents the device scan from returning rows. The SDK seam proves decoding fits alone but refuses after a nearly exhausted scan; lowering a receipt is refused. |
+| Membership during delivery | A held server reply is released after completed leave sync; it is withdrawn with no second server invocation. A subsequent requested observation replans. |
+| Link change during pagination | A combined cursor restarts on the offline coverage domain; returning online uses the current binding. |
+| State reset / lost coordinator state | Both real device tiers execute `clear_rows` during a held response, withdraw it with one invocation, reacquire and restart the old cursor on current data. SDK epoch-reset delivery is also withheld. Fresh coordinator instances resume unconsumed hits without buffers. Process and wasm close/reopen tests traverse all 65 IDs exactly once across the restart. |
+| Retained edits and expiry | A post-leave server edit does not replace the retained delivered image. An expiry crossed while a real response is held withdraws that response, makes no extra invocation, and a later query excludes the expired ID. |
+| Rejoin | A rejoin not yet synced cannot merge a stale retained match; it returns loading. After sync, current server data wins, the retained lane excludes that scope, and incompatible continuation restarts. |
+| `searchChat` floor matrix | The full builder fixture uses the exact unguarded body. Current/departed × online/offline, tokens below/exactly at/above the full ordinal/ID acquisition floor, coffee pagination, whole empty group and rejoin are exercised on process and wasm. |
+| Guarded control | Original `searchIn` still returns `NOT_MEMBER` after departure on server and both device link states. No guard is removed. |
+| Empty needles / unsupported audiences | Existing browse/variant control and excluded-audience tests remain. SDK composition only selects a nonempty word branch; explicit membership, guarded and held programs have no descriptor. |
+| Mounted React transition | **Pass.** The existing Vite/headless Chromium harness mounts `useQuery` over a real wasm local client: current online → departed online → offline → rejoin. One unchanged operation retains images, renders “Results may be incomplete”, then replaces the edited retained match after rejoin. Expo is not separately witnessed. |
 
-Consequently §7.2 remains open. The largest missing piece is the new bridge between
-SDK-owned composition/cursor state and the Rust device scan's meter, including
-revalidation of retained ownership. Shipping an SDK array union would violate this
-contract. There is no dormant or partly activated mixed plan in this commit.
+## Qualification
 
-## Costs
+- Final focused JS: **22/22** cases, including real process/wasm traversal,
+  cuts, ledger exhaustion, two real reset cases and mounted React.
+  Log: `acceptance-publication.log`; earlier targeted passes are also retained.
+- Final affected Rust: **10/10** ordinary search (including bounded authorized
+  audience proof), **24/24** membership search, **11/11** search merge.
+  Log: `affected-qualified.log`.
+- Whole guide: **92 passed, 0 failed**, including a final pass after the guide
+  and membership-proof change. Log: `whole-guide-final.log`.
+- Full builder: process and wasm each pass **501 pages / 10,014 unique IDs**,
+  including 24 acquired retained coffee hits; first page emits 20 retained hits
+  while all 20 fetched server hits remain unconsumed. All 50 `searchChat` reads
+  pass the floor/current/departed/link/rejoin matrix. Full evidence:
+  `u0500/builder-search.jsonl`, final `finished: pass: true`.
+- Builder-program drain: **2/2 requested mixed pages pass** under default
+  ceilings, each with one invocation; `builder-drain.jsonl` ends in `pass: true`.
+- Required `scripts/test.sh` ran **once**, exact summary:
+  **`== 1 failure(s) in 1816 s`**. The only failed step is **`wasm build` (ours)**.
+  All other steps pass, including Rust, client tests (**3,864 pass / 10 skip**)
+  and models (**79 pass**). No baseline or environmental suite failure.
+- Original input hashes, including SQLite/WAL, are rechecked after all work.
+  Final reference audit and diff checks pass; logs are committed with this report.
 
-The exact builder already has all necessary indexes from its held and explicit
-membership queries: the regression asserts unchanged index maps for every existing
-table. A standalone bare query adds a normal scoped words index, with the normal
-server write and device index costs; it does not add synced rows, projection tables,
-new grants, per-query receipts or search sessions. Compiler plan descriptors are
-schema/program-derived, and the device IR stays unchanged. Complete §6 resource,
-wire/storage, adoption and lifecycle measurements are not claimed by this subset.
-Index requests precede the final bound proof: a candidate rejected only by that
-proof can still leave an ordinary scoped index and its normal maintenance cost,
-while keeping its original evaluator. Avoiding unused candidate indexes outside
-the admitted class remains a compiler refinement; the exact builder has no index
-delta. No maintenance work is exempted from its existing meter.
+The single suite started before final membership-proof, retained-state ledger
+and expiry-retry changes. Final focused Rust/JS/guide checks qualify these
+changes separately. The full builder run predates only the server proof's
+smaller direct-serialization reservation, the state's explicit output-bound
+refusal, Unicode tie handling and final publication-marker handling. Final
+targeted tests cover these refinements.
+The builder drain runs on the direct-serialization version. The historical suite
+is not a claim that every final source byte was rerun in that invocation.
 
-`server-meters.json` records the first three u0500/coffee pages on the lane's
-builder copy. Every page in both ordinary `osSearch` and explicit `searchNewest`
-returns 20 rows with 141 examined rows, 141 index entries, 140 probes, 1,619 steps,
-8,251 output bytes, zero writes and no cut. Ordinary heap receipts are 431,179 B
-then 602,776 B; explicit receipts are 433,439 B then 611,100 B. Ordinary cursor
-strings are 363 ASCII bytes versus 379 B explicit. Single samples range 22–43 ms
-ordinary and 20–22 ms explicit; these are not latency benchmarks or a p95 claim.
-No device/coordinator meter comparison is claimed. The capture script is
-[`ordinary-search-meters.mjs`](../../experiments/p19-one-query/ordinary-search-meters.mjs).
+## Costs and limits
 
-Same host/toolchain wasm builds:
+Final wasm: **2,044,274 B raw / 593,309 B gzip**. Round 0 was
+2,019,815 B raw / 585,378 B gzip: **+24,459 B raw / +7,931 B gzip**.
+The unchanged cap is **586,193 B**, so this is **7,116 B over budget (ours)**.
+No budget was raised. `wasm-final-bound.log` is the final device-feature build.
+The additional device bytes implement compiled composition metadata, retained-only scanning,
+ledger resumption, state proof/decoding and its internal call protocol. The
+server-only audience opening and TypeScript coordinator are not wasm code.
+The suite's earlier wasm was 2,041,667 B raw / 592,533 B gzip, also over cap.
 
-| | Raw | gzip (`gzip -9 -c`) |
-| --- | ---: | ---: |
-| Before | 2,019,815 B | 585,384 B |
-| Final | 2,019,815 B | 585,378 B |
-| Delta | 0 B | −6 B |
+Round 1 adds a compiler execution descriptor, the certified-Left scan filter,
+a meter continuation bridge and the SDK coordinator. It adds no schema index,
+synced row or durable cursor state beyond round 0. Every resumed page repeats
+server work from its consumed position; the local scan also repeats under its
+existing allowance. Its device-state binding intentionally invalidates more
+broadly than membership alone. The cursor is live, not a cross-page snapshot;
+refresh restarts ordering after edits. Expo and the full RFC's broader §6/§8
+measurements remain outside this round's qualification.
 
-The budget remains **586,193 B**; final headroom is 815 B. No ceiling was raised.
-An intermediate build grew by 28 raw / 124 gzip bytes because cursor pricing
-re-looked up a descriptor on the shared device path. Keeping the original index
-reference under the device feature set removed that unnecessary work. The final
-artifact hash and exact command are in `wasm-size.json`; the small remaining gzip
-difference is code generation/layout, not an additional device feature.
-No tool was installed. Node 24.13.1, Bun 1.3.14, Rust 1.97.0 and wasm-bindgen 0.2.127
-were already available. Builds use this worktree's target and generated artifacts.
+## Every failure
 
-## Verification and every failure
+The final successes do not erase the following retained logs:
 
-Successful focused checks: 9 new ordinary-search tests; 24 existing compact
-membership-search tests; 11 search-merge tests; 8 search certificate tests; whole
-guide **92 passed, 0 failed**; original full builder `check`; extended builder
-`check --cost`; both public full-store probes; input hash guards and whitespace.
-Final affected controls also pass: four read-cut tests, the simulator word-limit
-test and both memory/SQLite device word-limit tests. Reference and whitespace
-audits pass. Final reference audit: **522 LLP docs, 9,756 refs, 0 errors,
-0 unchecked** (`ref-check-final.log.gz`).
+- **Ours, compilation:** first build named the runner's store `rows` and treated
+  a `ColumnType` as a wrapped column. The next build needed the guarded-store
+  forwarding method. The next needed mutable device access for `search_state`.
+  One TypeScript build needed an explicitly optional `seq` value; the audience
+  proof first imported `MeterKind` through its private module path. Corrected.
+- **Ours, fixture setup:** the first JS test had a missing object brace; the
+  next fixture lacked the membership insert grant proof; then its seed entries
+  needed `{table, row}` envelopes. Descriptor diagnostics first omitted the
+  persona header. Corrected; all failed logs are retained.
+- **Ours, descriptor restriction:** the initial descriptor did not recognize
+  the compiler's equality prefix and explicit trailing ID. Until corrected,
+  tests exercised old routing, producing three traversal/lifecycle failures
+  and two explicit descriptor diagnostic failures. The descriptor now follows
+  the proved scan prefix and accepts the actual time/ID suffix.
+- **Ours, test expectations:** the first synthetic cut stream incorrectly
+  marked its terminal page incomplete without a safe next; withholding it was
+  correct. The first real drain expectation omitted retained rows interleaved
+  on page two. Both expectations now use the correct source semantics.
+- **Ours, harness:** the first full-store traversal parked `/changes` without
+  heartbeat bytes. The silence watchdog changed the link after 68 successful
+  mixed pages. The harness now uses the repository's heartbeat helper. The
+  original run is retained under `round1/u0500-silence-watchdog/`.
+- **Ours, build sequencing:** a subsequent qualification launched process
+  clients before the queued native build containing the watermark fence
+  finished. Six real-device tests and the full-store first mixed page returned
+  loading; wasm already had the new field. Final checks await the native build.
+  The full-store failure remains under `round1/u0500-before-native-fence-build/`.
+- **Ours, first rejoin fence:** after the native build was corrected, two
+  full-builder attempts still returned loading at mixed page zero. Re-syncing
+  after the oracle did not help: ongoing background commits kept the server
+  head ahead. `watermark-diagnostic.log` reproduces this with successful sync.
+  Replaced the global watermark condition with the bounded authorized audience
+  proof. The completed full builder run passes all 1,002 combined pages.
+- **Ours, proof reservations / drain setup:** synchronizing 4,076 added dense
+  scopes exhausted the shared metadata allowance before dispatch. These new
+  current scopes need not be acquired; removed that harness sync. The first
+  audience proof used excessive JSON-tree reservations and correctly refused
+  `E_SEARCH_OPEN` at 4,077 scopes; a diagnostic assertion exposes the refusal.
+  Direct, preallocated plain serialization now fits, and the same real drain
+  test passes under unchanged ceilings. Failed/repeated runs are retained as
+  `mixed-final-proof`, `mixed-final`, `mixed-completed` and `drain-proof-diagnostic`.
+- **Ours, builder drain calibration:** 4,030 added dense scopes on the builder
+  schema hit the heap opening refusal before draining. The control correctly
+  returned `E_SEARCH_OPEN`. Replaced this stress shape with 245 scopes × 32
+  word variants, which opens within the same envelope and produces a real
+  drain cut. Both combined-page assertions pass; the original failed probe
+  remains in `builder-drain-many-scopes.*`.
+- **Ours, mounted harness:** the first Vite attempt omitted React JSX-runtime
+  aliases; the next recreated the operation reference on every render, causing
+  React's update-depth error. Both harness defects are fixed. The mounted
+  current/departed/offline/rejoin test passes in 1.65 seconds.
+- **Ours, wasm budget:** every changed wasm build exceeded the unchanged cap.
+  The budget is not raised; the final size and full-suite classification above
+  remain explicit failures.
+- **Ours, inspection commands:** several early reads guessed absent paths;
+  several edit commands used a duplicated worktree prefix and changed nothing.
+  Discovery/working directory corrections followed. No installation, secret
+  copy or shared-path edit occurred.
 
-Full `scripts/test.sh` exact summary: **`== 1 failure(s) in 1882 s`**.
-The failing step is `cargo test`, containing exactly the three assertion failures
-listed below. All other suite steps pass. Client tests: main run 3,845 passed,
-10 skipped; seven acquisition/server shards total 56 passed; models 79 passed.
-There were no environmental qualification failures and no other full-suite reds.
-The requested suite ran once, with `CARGO_BUILD_JOBS=8`,
-`CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_PROFILE_TEST_DEBUG=0`, `CARGO_INCREMENTAL=0`,
-`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, `RUST_TEST_THREADS=8`,
-`NODE_OPTIONS=--max-old-space-size=4096` and an open-file limit of 65,536.
-The full log is `suite.log.gz`; logs and JSONL observations are archived as gzip
-files with their original names plus `.gz`.
+The full-suite failure classification is exhaustive: **ours — wasm build;
+baseline — none; environmental — none**. Earlier development failures above
+are also ours. Historical round-0 failures remain in `ROUND0.md`.
 
-The one full-suite invocation began before the control-assertion corrections and
-the final restriction requiring provably readable membership discovery. Those
-changes have final affected-test reruns; the whole guide was rerun as well. The
-suite built the intermediate wasm noted above. The final canonical wasm rebuild,
-budget check and package rebuild pass separately. This is not a claim that the
-single full-suite log qualifies every final source byte.
+## Reproduction
 
-Failure ledger (all earlier logs retained; final successes do not erase them):
+From `snapback4/`, build the native binary, wasm and client in that order; the
+wasm budget command reports the overrun. Run the focused files
+`ordinary-search.test.mjs` and `ordinary-search-ledger.test.mjs`, Rust
+`cargo test -p snapback4-sim --test ordinary_search`, and the whole guide.
+`OS_FLOOR_U0500=1 node experiments/p19-one-query/ordinary-search.mjs` creates a
+fresh lane-owned copy under `.work/os-r1-u0500`; move only that prior run's
+copy aside before repeating. Then
+`node experiments/p19-one-query/ordinary-search-drain.mjs` makes a second copy
+and exercises the builder-specific drain; its `.work/os-r1-builder-drain` must
+also be moved aside before a repeat. The original evidence store is never opened
+by SQLite. `verify-inputs.py` guards the original program/database/WAL hashes.
 
-- **Ours, fixture/setup:** the initial new test used `ordinary.q`, which namespaces
-  the operation, then looked for unqualified `ordinary`. Fixed its filename to
-  `schema.q` before using the expected-red behavior result.
-- **Baseline, intended reproduction:** the corrected new test failed its
-  completeness assertion on the original bare evaluator.
-- **Ours, compilation:** the new catalog field was initially missing from one
-  explicit constructor; the concurrent CLI build saw the same error. Two new test
-  additions then needed a slice `to_vec()` and an explicit `collect::<Vec<_>>()`.
-  These compilation errors were corrected; focused tests pass.
-- **Ours, expected assertion update:** the old `search_merge` guidance assertion
-  expected the now-inferred word branch's N_NEVER_COMPLETE repair. Its remaining
-  note applies to the empty browse branch; the test now checks that condition and
-  the inference proof. The initial failure is retained.
-- **Ours, full-suite assertions for the deliberate behavior change:** three
-  `snapback4-sim::clique` tests failed: `read_cut::nonuniform_full_response_sweep_including_cut`
-  encountered E_SEARCH_OPEN at a zero-row envelope;
-  `read_cut::calibration_uniform_words_continue_and_hidden_prefix_has_a_walk_bound`
-  expected the bare query to stop at the hidden walk bound; and
-  `search_global::lazy::w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped`
-  expected the nonuniform 32-word cut. Their old-evaluator controls now have an
-  explicit authored guard, preserving those assertions. The calibration also
-  tests the new unguarded inferred result on the same 99,090-row fixture.
-  Focused reruns pass (all four read-cut tests, the simulator word-limit test,
-  and both memory/SQLite device versions of the word-limit test).
-  The full suite was run once; its historical red result is preserved.
-- **Baseline coverage / ours expectation:** the first full-store probe expected
-  complete empty departed-chat search. It observed false completeness with retained
-  certification and zero fallback on the unchanged device semantics. The harness
-  now explicitly records and asserts that existing limitation; the implementation
-  does not claim to solve it.
-- **Ours, harness readiness:** the first u0500 floor run reached rejoin with an
-  incomplete stale local result and zero fallback, despite intending an online
-  read. The harness had not verified the link after sync. Link readiness is now
-  explicit, prior evidence is retained in `u0500-round1/`, and the second run passes.
-  The original transport cause is not established; it is not labeled an engine fix.
-- **Ours, operational commands:** one build-log redirect used a duplicated
-  `snapback4/` prefix, one version inspection used a wrong relative binary path,
-  and an apply-patch request contained an empty hunk. No source was partially
-  applied. Early file discovery hit absent guessed paths and the unpopulated
-  local skill symlink; subsequent discovery found the real paths.
-  The initial temporary meter capture also used an incorrect relative package
-  import; its setup failure is retained and the corrected capture succeeds.
-
-## Orientation and reproduction
-
-Read LLP 3000.028 in full, Snapback 4's command sheet and exclusions, LLP 3000's
-root decisions, the adopted design brief/rules, journal tail and search guide.
-Applied llp-orient read-only from the initialized `lane-a5` copy because this
-lane's skill symlink points to an unpopulated submodule. Relevant constraints:
-LLP 3000.028 §3.3/§7.2, LLP 3000.024's compact opening/continuation Decision,
-LLP 3000.015 §2's accounting/disclosure boundary, and the existing ordinary
-retained-query routing. No Snapback 1/2 gates or runtime bootstrap apply.
-Updated NOT-DOING before implementation; guide and governing RFC notes land with
-code. The journal records one entry for this lane.
-
-From `snapback4/`, after building the package and binary, run the harness against
-new lane-owned copies (an existing app copy carries prior test mutations):
-
-```sh
-node experiments/p19-one-query/ordinary-search.mjs
-OS_FLOOR_U0500=1 node experiments/p19-one-query/ordinary-search.mjs
-python3 experiments/p19-one-query/verify-inputs.py
-```
-
-The scripts never open the original database. Move only your own previous `.work`
-app copies aside before a fresh run. Credentials are parsed from the supplied
-fixture only for login and are not recorded. Servers/devices are closed by the
-harness; no other lane's processes are stopped.
+All log and JSONL artifacts in `round1/` are stored with `.gz` suffixes; use
+`gzip -dc` to inspect them. Filenames above omit that compression suffix.

@@ -39,16 +39,23 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 ## Process not doing
 
+- **2026-09-28 — ordinary mixed search** (LLP 3000.028 §3.3, lane OS round 1).
+  Admit the SDK's bounded merge of current server rows and certified Left images
+  for the proved single time-ordered word page. This removes application-owned
+  online/held selection for that shape. One server call per requested page;
+  recomputation pays again from consumed positions. The coordinator shares the
+  existing device read allowance. No durable search session, extra synced rows,
+  new authority or additional allowance is admitted.
+
 - **2026-09-28 — inferred current-scope word search** (LLP 3000.028 §3.3,
   lane OS). A single bare ordinary word page may derive the exact non-expiring
   membership audience for the existing compact server plan. This removes the
   requirement to repeat that audience predicate in this narrow server query.
   The compiler supplies a scoped words index when absent; it is an ordinary
   schema index, maintained on writes and on devices, with no extra synced rows
-  or new authority. The device keeps its original bare scan. Ordered composition
-  of current server rows with retained device rows, shared coordinator accounting
-  and combined continuations remain outside this independent subset; no merge
-  or durable search session is introduced.
+  or new authority. The device keeps its original bare scan. Round 0 left ordered composition
+  and combined accounting outside its independent subset; round 1 above admits
+  that bounded SDK composition. Durable search sessions remain excluded.
 - **2026-09-26 — a live query keeps presence current** (LLP 3000.018). A 0.4.2 probe found an observed `connected[p]` reporting `fresh: true` while stale for over a minute, and a comparative builder polled around it. What it unblocks: online marks and presence-aware lists that stay current. Taken off: "a presence stream" as an exclusion for live queries; a presence API, last-seen storage and multi-server presence stay out. Under the author's standing authorization for reworks that make queries excellent (2026-09-25).
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.
