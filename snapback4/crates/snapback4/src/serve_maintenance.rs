@@ -64,6 +64,7 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
             snapback4_core::JobState::Done => eprintln!("snapback4: job {} done: {} chunk{}, {} row{} written", run.name, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }),
             snapback4_core::JobState::Parked => {
                 work.parked += 1;
+                if shared.personas { shared.refusals.job(&run); }
                 eprintln!("snapback4: job {} parked after {} chunks: {}", run.name, run.chunks, run.error.as_deref().unwrap_or(""));
             }
             _ => {}

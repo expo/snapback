@@ -11,6 +11,7 @@ pub(super) type Sites = BTreeMap<(String, String), String>;
 
 pub(crate) const DIRECTORY: &str = "dev-refusals";
 const LIMIT: usize = 32;
+const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause use EMPTY_READ (cause not instrumented), which does not prove denial. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
 #[derive(Default, Clone)]
 pub(super) struct Recent {
     sender: Option<SyncSender<Value>>,
@@ -47,11 +48,23 @@ impl Recent {
                     eprintln!("dev refusal: could not save local record: {error}");
                 }
                 let r = &record;
-                eprintln!("dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; response {}; `snapback4 why recent --instance {}`",
-                    r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], r["requestId"], r["responseSequence"], identity["instance"].as_str().unwrap());
+                eprintln!("dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
+                    r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap());
             }
         }).map_err(|e| e.to_string())?;
         Ok(Self { sender: Some(sender), dropped, requests: Default::default(), watermark: Some(watermark) })
+    }
+    fn sequence(&self, mut record: Value) -> Value {
+        record["responseSequence"] = json!(self.watermark.as_ref().map_or(0, |w| w.next()));
+        record
+    }
+    /// A parked chunk is a terminal refusal without an HTTP refusal envelope.
+    /// Called only by dev maintenance after releasing the engine guard.
+    pub(super) fn job(&self, run: &snapback4_core::JobRun) {
+        if self.sender.is_none() { return; }
+        let code = run.error.as_deref().unwrap_or("UNKNOWN").split(':').next().unwrap_or("UNKNOWN");
+        self.submit(self.sequence(json!({"operation":run.name, "jobId":run.id,
+            "code":code, "clause":"cause not instrumented", "at":snapback4_core::now_ms()})));
     }
     fn submit(&self, record: Value) {
         if let Some(sender) = &self.sender {
@@ -73,6 +86,7 @@ fn save(path: &Path, identity: &Value, records: &VecDeque<Value>, dropped: usize
     match fs::remove_file(&temp) { Ok(()) => {}, Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}, Err(e) => return Err(e) }
     let mut file = private_file(&temp)?;
     let mut envelope = identity.clone();
+    envelope["scope"] = json!(SCOPE);
     envelope["records"] = json!(records);
     envelope["dropped"] = json!(dropped);
     let result = (|| { file.write_all(serde_json::to_string_pretty(&envelope)?.as_bytes())?; fs::rename(&temp, path) })();

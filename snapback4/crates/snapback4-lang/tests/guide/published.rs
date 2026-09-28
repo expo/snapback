@@ -28,7 +28,8 @@ const APP_FILES: &[&str] = &[
     "snapback/generated/api.ts", "snapback/generated/server.ts",
     "snapback/generated/native.rs", "snapback/generated/native.wasm",
     "snapback/generated/package.json", "snapback/generated/residency.json",
-    "snapback/native/Cargo.toml", ".snapback4/store.sqlite", ".snapback4/dev-refusals/<storeId>/<instance>.json",
+    "snapback/native/Cargo.toml", ".snapback4/store.sqlite",
+    ".snapback4/dev-refusals/<storeId>/<instance>.json",
     "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",
@@ -150,7 +151,7 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
         "Read [escape](../README.md).",
         "Read [details](https://example.com/private/new.md).",
     ] { assert!(!unshipped(text, &shipped).is_empty(), "accepted {text}"); }
-    for text in ["Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`."] {
+    for text in ["Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
         assert!(unshipped(text, &shipped).is_empty(), "refused {text}");
     }
     for text in [

@@ -2,6 +2,8 @@
 use serde_json::{Value, json};
 use std::{fs, io::{BufRead,BufReader,Read,Write}, net::TcpStream, process::{Child,Command,Stdio,Output}, path::PathBuf, sync::{Arc,atomic::{AtomicUsize,Ordering}}, time::{Duration,Instant}};
 const BIN: &str=env!("CARGO_BIN_EXE_snapback4");
+#[path = "dev_refusals/round3.rs"]
+mod round3;
 const SOURCE: &str="use personas alice\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add(owner: principal):\n  return insert rows {owner}\n";
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Project(PathBuf);
@@ -192,10 +194,10 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
   }
  }
  let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"bob"}}]));assert_eq!(seed["seeded"],1);
+ let before=dev.project.why(&[]);assert!(before.status.success());
  let page=dev.post("/q/page",json!({}));assert_eq!(page["data"],json!([]),"{page}");
- let records=dev.project.wait_record(store,"page");let record=records["records"].as_array().unwrap().last().unwrap();
- assert_eq!(record["clause"],"read rule");assert_eq!(record["code"],"FILTERED_READ");
- assert!(record["site"].as_str().unwrap().ends_with("schema.q:4:3"));
+ let after=dev.project.why(&[]);assert!(after.status.success());
+ assert_eq!(after.stdout,before.stdout,"visibility filtering is not a refusal");
  let terminal=dev.post("/q/afterRead",json!({}));assert_eq!(terminal["denied"]["code"],"NOT_FOUND");
  let records=dev.project.wait_record(store,"afterRead");let record=records["records"].as_array().unwrap().last().unwrap();
  assert_eq!(record["clause"],"cause not instrumented","an earlier filtered read is not this terminal refusal's cause");

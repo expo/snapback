@@ -27,20 +27,22 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-In `snapback4 dev`, the log and `snapback4 why recent` show the evaluated
-clause, source site and execution site when instrumented. Each record names
-its operation, code and request ID within a store/instance. With several live
-instances, select `why recent --instance ID` (optionally `--store ID`).
-Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json` retains 32 records.
-Stopped/mismatched streams are rejected. The asynchronous 32-slot queue drops
-excess records and reports `dropped` on recovery; `why recent` refuses older
-snapshots while the latest refusal is pending or dropped.
+In `snapback4 dev`, the log and `snapback4 why recent` cover refusals of
+mutations, queries, asset requests and jobs. Every refusal envelope and parked
+job gets a record: operation, code, request or job ID, and Unix time in
+milliseconds, within its store/instance. Instrumented causes name the evaluated
+clause and source; otherwise `cause not instrumented`, including replays.
+Visibility filtering in sync and reads is not recorded. Inspect `why TABLE`
+for read rules and sync residency, and `guide rules`. Empty/null query results
+without a known cause use local EMPTY_READ, also in composed results; this
+alone does not prove denial. A record describes only its named request or job.
 
-Every E_RULE/NOT_FOUND response gets a record. Missing instrumentation and
-replays say `cause not instrumented`, never reuse an earlier cause. Filtered
-reads use local code FILTERED_READ; empty/null answers without a known cause
-use EMPTY_READ, which alone does not prove denial. Query sites belong to the
-reader's generation; capture exhaustion points to `read through`, not an
-unevaluated insert rule. No arguments or row values are recorded, no HTTP
-endpoint exposes evidence, and production `serve` does not collect it.
-Caller bytes remain unchanged.
+With several live instances, select `why recent --instance ID` (optionally
+`--store ID`). Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json`
+retains 32 records. Stopped/mismatched streams are rejected. The asynchronous
+32-slot queue reports `dropped` on recovery; `why recent` refuses older
+snapshots while newer refusal evidence is pending or dropped.
+Query sites belong to the reader's generation; capture exhaustion points to
+`read through`. No arguments or row values are recorded, no HTTP endpoint
+exposes evidence, and production `serve` does not collect it. Caller bytes
+remain unchanged.

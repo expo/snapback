@@ -2061,16 +2061,20 @@ select `why recent --instance ID` (optionally `--store ID`); stopped or
 mismatched records are rejected. Logging and persistence run asynchronously:
 records may lag, and a stalled writer drops excess records from its 32-slot
 queue (`dropped` reports this when it resumes). No HTTP response exposes them,
-and production `serve` does not collect them. Every E_RULE/NOT_FOUND response
-records its operation, code and instance-scoped request ID; an uninstrumented
-path or replay says `cause not instrumented` instead of reusing an older cause.
-Query evidence uses its reader's generation and source coordinates. Capture
-exhaustion points to `read through`, even before an insert rule runs. Filtered
-reads use the local record code FILTERED_READ; empty/null query answers without
-an instrumented cause use EMPTY_READ (also within composed results). An empty
-answer alone does not prove a rule denial. `why recent` rejects a snapshot whose
-latest record is still pending or was dropped, until the writer catches up or
-you reproduce the refusal. No earlier cause is presented as that newer refusal.
+and production `serve` does not collect them. The stream covers refusals of
+mutations, queries, asset requests and jobs: every refusal envelope (including
+E_ASSET_UNKNOWN) and parked job records its operation, code, request or job ID,
+and Unix time in milliseconds. Missing instrumentation and replays say
+`cause not instrumented`. Jobs share the request stream's sequence and watermark.
+Query sites belong to their reader's generation; capture exhaustion points to
+`read through`, even before an insert rule runs.
+Visibility filtering in sync and reads is not recorded: inspect `snapback4 why TABLE`
+for read rules and sync residency, and `snapback4 guide rules`. Empty/null query
+answers without a known cause use local EMPTY_READ, also within composed results;
+this does not prove a rule denial. Each record describes only its named request
+or job at that time, never the outcome of a later sync or read. `why recent`
+rejects a snapshot while its latest refusal is pending or dropped, until the
+writer catches up or you reproduce it.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 
