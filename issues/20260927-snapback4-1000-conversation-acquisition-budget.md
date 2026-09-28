@@ -86,3 +86,31 @@ was measured this round; all four new browser targets are unestablished.
 The ordinary default remains in place. Round 3's unlanded index copy reductions
 were removed before this work. See [ROUND4](../snapback4/reports/20260927-ss-sync-scale/ROUND4.md)
 for the exact implemented subset, tests and remaining acceptance.
+
+## Round 5, 2026-09-28 — Worker option measured, acquisition still over target
+
+Still open. The local lane now implements `webDevice({ worker: true })`,
+the conservative page control snapshot/cold-watch bypass, prepared suspension,
+orphan/shared-receipt recovery, conditional delivery commit checks, mixed
+default/Worker navigation and bundled offline reopen. The unchanged default
+path remains the default. No code is pushed or published by this lane.
+
+Two final quiet-host Chromium runs with the live writer at 1,000 conversations
+measure 28.945/30.259 s acquisition, 516/515 ms during-acquisition live p95 and
+55/53 ms longest main-thread task. The page responsiveness and live p95 targets
+pass at 1,000, but the 27 s acquisition target fails. During maxima are
+1,426/1,312 ms over 101/102 samples, with zero timeouts; subsecond p95 does not
+mean every message met one second. Ordinary controls acquire in 27.066/26.876 s,
+with live p95 12.517/12.719 s and main-thread pauses 6.946/6.892 s.
+
+At 100, Worker acquisition is 5.291/4.997 s against ordinary 4.216/4.216 s;
+its live p95 is 1.686/1.019 s. Those regressions remain explicit acceptance
+misses. No sync-card Worker recommendation was added. The historical Node
+8/12 s targets are not remeasured or closed. Total Worker memory is not
+established by the page-only heap numbers. Wasm remains byte-identical at
+2,019,815 B raw / 585,384 B canonical gzip, cap unchanged at 586,193 B.
+
+See [ROUND5](../snapback4/reports/20260927-ss-sync-scale/ROUND5.md) for both
+initial/final Worker repetitions, controls, raw evidence, protocol tests,
+remaining acquisition work and outstanding independent review. Nothing in
+this round is ready for landing while those acceptance conditions remain.

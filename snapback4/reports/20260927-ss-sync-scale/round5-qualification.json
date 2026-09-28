@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "bb8c48955",
+  "command": "SNAPBACK4_RUST_TEST_PROCESSES=8 bash scripts/test.sh",
+  "invocations": 1,
+  "exitCode": 0,
+  "summary": "== 0 failure(s) in 1409 s",
+  "failures": [],
+  "rust": {
+    "passed": 4162,
+    "failed": 0,
+    "ignored": 30
+  },
+  "clientShards": {
+    "passed": 3919,
+    "failed": 0,
+    "skipped": 10
+  },
+  "serialModels": {
+    "passed": 79,
+    "failed": 0
+  },
+  "fixtureWrappers": {
+    "passed": 9,
+    "failed": 0
+  },
+  "affectedWebAndClock": {
+    "passed": 191,
+    "failed": 0
+  },
+  "controlAndSyncScale": {
+    "passed": 23,
+    "failed": 0
+  },
+  "guide": {
+    "passed": 92,
+    "failed": 0
+  },
+  "workerProtocol": {
+    "passed": 36,
+    "failed": 0
+  },
+  "workerBusyWatch": {
+    "passed": 3,
+    "failed": 0
+  },
+  "navigation": {
+    "defaultPassed": 10,
+    "workerPassed": 10
+  },
+  "idbWitness": {
+    "defaultExit": 1,
+    "workerExit": 1,
+    "classification": "baseline",
+    "failedExpectations": [
+      "durability.adoptionRejected",
+      "durability.adoptionUnlocked"
+    ]
+  },
+  "environmentalFailures": [],
+  "timeBudgetSeconds": 60,
+  "timeBudgetMet": false
+}

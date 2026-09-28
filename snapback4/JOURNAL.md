@@ -72325,3 +72325,74 @@ foundation and remaining work. Full file map, limitations, default criteria,
 commands, exact results and compressed evidence:
 reports/20260927-ss-sync-scale/ROUND4.md. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — SS round 5: Worker option implemented, measured, not ready to land
+
+Continued the round-4 foundation on `sb4-intent/ss-sync-at-scale`, fetching
+and merging origin/main first (already up to date). Local ordered subsets:
+`d3fe92105` control snapshot/watch bypass; `11d68425d` prepared suspension;
+`fa970ff41` orphan/receipt and conditional delivery integration; `16fe7c574`
+public Worker adapter, mixed navigation and offline reopen; `bb8c48955`
+measurement-driven cold-fence/first-open fixes and the repeated scale record.
+Every commit has the co-author trailer. Nothing pushed or published.
+
+The page keeps its exclusive claim, synchronous journal/authority and dispatch;
+the Worker keeps the unchanged VM and strict IndexedDB. Durable page control
+contains store/generation, acquisition incarnation, queue revision, prediction
+footprint (unknown blocks), issued-time floor and restore/send fences. A
+synchronous capture fences before Worker transfer. Only already wholly
+server-answered cold watches use the bypass; composition, held reads and
+supplementary collection remain disabled there. Dispatch and delivery retain
+credentials, expiry and every control fence. A temporary authority barrier now
+withholds without moving the watch behind the Worker queue.
+
+Prepared suspension commits the bound head's begin_send first; any later call
+synchronously cancels permission. Pagehide checks permission/credentials and
+captures the exit journal before keepalive. An unprepared head stays durable.
+Orphan transfer preserves custody/receipts under both claims. Conditional
+delivery transfers only its metadata delta to the page and executes current()
+inside the strict IDB transaction immediately before commit (LLP 3000.022 §4).
+Both openers wait for the old Worker lifetime and persistence barrier. The
+public form is webDevice({ worker: true }); the ordinary default and injected
+providers remain supported, while Worker plus custom persist explicitly refuses.
+
+Steps 1–4 are implemented/tested. Step 5 was measured twice per condition on
+a quiet 96-CPU host with Chromium 151.0.7922.34 and a live Node peer writer.
+Final Worker 1,000-conversation runs: acquisition 28.945/30.259 s, live p95
+516/515 ms, longest main-thread task 55/53 ms. The live and page-task targets
+pass; the 27 s acquisition target fails. Max live delay remains 1,426/1,312 ms,
+over 101/102 samples with zero timeouts. Ordinary controls: 27.066/26.876 s,
+12.517/12.719 s p95, 6.946/6.892 s main tasks. At 100 the Worker takes
+5.291/4.997 s against ordinary 4.216/4.216 s; live p95 1.686/1.019 s also
+misses one second. Initial and final repeats are both retained; no better
+sample is substituted. Page-only heap is not a total Worker-memory claim.
+Step 6 was deliberately not done because acceptance fails: no sync-card
+recommendation. Acquisition work and independent supervisor review remain;
+this option is not ready to land. Historical Node 8/12 s targets stay open.
+
+Final affected checks: web/default plus clock 191/191; control and sync-scale
+23/23; Worker Chromium protocol 36/36; real busy-Worker 503/expiry/admission
+cases 3/3; navigation default 10/10 and Worker 10/10; whole guide 92/92.
+Both existing IDB runs exit 1 only on baseline adoptionRejected/adoptionUnlocked
+expectations about eager recovery, already reproduced on main in round 4.
+The direct injected-persistence fault subcases remain default in that witness.
+Own early queued-helper initialization, extraction syntax, Node claim-helper
+regression and witness setup failures were fixed and their logs retained.
+No remaining environmental qualification failure.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1409 s`, exit 0.
+Rust 4,162 passed / 30 ignored; client shards 3,919 passed / 10 skipped;
+serial models 79/79; fixture wrappers 9/9; every build/typecheck/docs/release
+step passes. No product change during the run. The inherited 60 s full-suite
+time budget remains unmet. Canonical wasm stays 2,019,815 B raw / 585,384 B
+gzip, delta 0/0, SHA-256 unchanged at
+083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+Budget file is byte-identical at 586,193 B (809 B headroom); no Rust/ABI change.
+
+LLP 3000.007 §20.4 and the open acquisition ticket now record this state.
+Reference audit passed with zero errors. All tools/dependencies were already
+available or installed in the worktree; no shared tool installation. Only
+private worktree fixture copies were served; both verified owned servers were
+stopped. The GS source store/WAL was untouched. Full step status, implementation
+map, exact measurements, failure classifications and compressed qualification:
+reports/20260927-ss-sync-scale/ROUND5.md.
