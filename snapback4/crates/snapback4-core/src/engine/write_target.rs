@@ -172,7 +172,7 @@ impl Runner<'_> {
             let Some(old) = old else { return Err(runner.no_write_target()); };
             // Preserve alternate delete's existing read gate, without exposing
             // the private target or charging a hidden population through Get.
-            if !runner.check_rule(&target.table, Effect::Read, None, &old)? { return Err(runner.no_write_target()); }
+            if !runner.check_rule(&target.table, Effect::Read, None, &old)? { runner.refusing_clause(&target.table, "read rule"); return Err(runner.no_write_target()); }
             if !runner.check_rule(&target.table, Effect::Delete, None, &old)? {
                 return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
             }
@@ -210,7 +210,7 @@ impl Runner<'_> {
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update_fields(&target.table, &old, &new, &patch, readable)?;
             if let Some(condition) = condition {
-                self.require_readable_condition(readable)?;
+                self.require_readable_condition(&target.table, readable)?;
                 let projected_old = self.project_row(&target.table, old.clone())?;
                 let passed = self.write_condition(condition, projected_old);
                 match passed {
@@ -244,8 +244,8 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#14 — ruling 17 (b): an author condition needs a readable target; a blind patch needs none.
-    fn require_readable_condition(&self, readable: bool) -> Result<(), RuntimeError> {
-        if readable { Ok(()) } else { Err(self.no_write_target()) }
+    fn require_readable_condition(&self, table: &str, readable: bool) -> Result<(), RuntimeError> {
+        if readable { Ok(()) } else { self.refusing_clause(table, "read rule"); Err(self.no_write_target()) }
     }
 
     // @ref LLP 3000.007#17 — the runtime also forbids writes while engine old is in scope.

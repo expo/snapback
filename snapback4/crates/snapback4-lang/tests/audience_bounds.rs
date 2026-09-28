@@ -85,7 +85,7 @@ fn helper_refusal_finds_a_transitive_job_caller() {
     clean(&source);
     let d = refusal(&bound(&(source + PREVIEW)), "E_QUARRY_BOUND");
     contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts"]);
-    contains(&d.rewrite, &["system job caller(s) digest", "partial preview", "remove the unused viewer query `digestPreview`"]);
+    contains(&d.rewrite, &["system job caller(s) digest", "partial preview", "if this viewer query is unused, remove `digestPreview`"]);
 }
 
 #[test]

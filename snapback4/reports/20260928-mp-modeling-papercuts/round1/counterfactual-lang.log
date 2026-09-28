@@ -1,0 +1,86 @@
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 3.19s
+     Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-67dcf133690907b4)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+
+thread 'helper_refusal_finds_a_transitive_job_caller' (3314141) panicked at crates/snapback4-lang/tests/audience_bounds.rs:19:25:
+missing if this viewer query is unused, remove `digestPreview`: use `first N` only for a separately named paged preview: `members where .principal = reader first 50 by .id after c` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with conversation, id and pin the deciding columns (N_NEVER_COMPLETE). Or remove the unused viewer query `digestPreview` and keep the complete scheduled job: this loop is permitted under the system job caller(s) digest's chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test helper_refusal_finds_a_transitive_job_caller ... FAILED
+test query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context ... ok
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+failures:
+
+failures:
+    helper_refusal_finds_a_transitive_job_caller
+
+test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+error: test failed, to rerun pass `-p snapback4-lang --test audience_bounds`
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-7dc461985615a9c9)
+
+running 14 tests
+
+thread 'cross_group_sequence_witness_does_not_promise_first_insert_refusal' (3314151) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:186:5:
+[Diagnostic { site: Site { file: "schema.q", line: 8, col: 3 }, code: "N_SEQUENCE_READ", message: "members.ordinal: the first membership in an empty parent group always refuses E_RULE: sequence read authority requires `exists members[.parent, viewer]` before this row is inserted. `created parents[.parent]` can admit the insert rule but cannot establish that read authority or a fresh shared counter", rewrite: "preserve this membership audience with the manual allocator in `guide sequences`: use `ordinal: int` on members, `lastOrdinal: int default 0` on parents; seed the new parent's memberships with ordinal: 0, set later joins from the readable parent's lastOrdinal, and increment that field atomically on each message insert. Keep the message ordinal an int and unique by (parent, ordinal).", guide: "sequences", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cross_group_sequence_witness_does_not_promise_first_insert_refusal ... FAILED
+test aggregate_deadline_obeys_expiring_authorization_before_source_expiry ... ok
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+{"code":"E_RULE","family":"auth","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count","guide":"rules"}
+test sequence_first_membership_reproduces_before_changes ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+rewritten builder reactions: [{"count":2,"emoji":"heart","mine":true},{"count":1,"emoji":"laugh","mine":false}]
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+
+thread 'read_through_missing_parent_has_cause' (3314160) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:215:42:
+capture denial needs a developer cause
+test read_through_missing_parent_has_cause ... FAILED
+
+thread 'read_through_hidden_parent_has_cause' (3314159) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:215:42:
+capture denial needs a developer cause
+
+thread 'read_through_expired_parent_has_cause' (3314158) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:215:42:
+capture denial needs a developer cause
+test read_through_hidden_parent_has_cause ... FAILED
+test read_through_expired_parent_has_cause ... FAILED
+developer cause: RefusingClause { table: "members", clause: "insert rule", site: "add:3", generation: 1 }
+
+thread 'hidden_write_rule_denials_record_causes_without_changing_not_found' (3314154) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:259:42:
+remove
+test hidden_write_rule_denials_record_causes_without_changing_not_found ... FAILED
+developer cause: RefusingClause { table: "members", clause: "sequence read authority", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "unique key", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "cap parent", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "authorization allowance (insert)", site: "add:3", generation: 1 }
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+failures:
+
+failures:
+    cross_group_sequence_witness_does_not_promise_first_insert_refusal
+    hidden_write_rule_denials_record_causes_without_changing_not_found
+    read_through_expired_parent_has_cause
+    read_through_hidden_parent_has_cause
+    read_through_missing_parent_has_cause
+
+test result: FAILED. 9 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`
+error: 2 targets failed:
+    `-p snapback4-lang --test audience_bounds`
+    `-p snapback4-lang --test mp_reproduction`

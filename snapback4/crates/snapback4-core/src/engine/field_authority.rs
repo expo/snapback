@@ -60,6 +60,8 @@ impl<'r> Runner<'r> {
             if let Some(authority) = definition.written_by.get(field) {
                 owned = true;
                 if !self.context.is_system() && row.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone())) {
+                    #[cfg(feature = "sqlite")]
+                    self.refusing_clause(table, &format!("field authority {field}"));
                     return Err(RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}.{field} is written by .{}; omit {field} or write as the principal in .{} (guide rules)", authority.owner, authority.owner) });
                 }
             } else { ordinary = true; }
@@ -83,6 +85,8 @@ impl<'r> Runner<'r> {
         if !self.context.is_system() && let Some((field, authority)) = definition.written_by.iter().find(|(field, authority)|
             !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))
             && definition.rules.update.needs_field_value(field, &definition.columns[*field])) {
+            #[cfg(feature = "sqlite")]
+            self.refusing_clause(table, &format!("field authority {field}"));
             return Err(if readable { RuntimeError::Structural { code: "E_FIELD_AUTHORITY", message: format!("{table}.{field}: this transition needs the private value written by .{}; write as that owner or declare readable by audience (guide rules)", authority.owner) } } else { self.no_write_target() });
         }
         let transition = self.schema.tables[table].update_transition;
@@ -107,7 +111,7 @@ impl<'r> Runner<'r> {
         let cap = self.meter.capped_at.take();
         let result = self.authorized_scratch(self.rule_scratch(&definition.rules.read), &[], |runner, _| runner.authorize_image(table,row));
         if cap.is_some() { self.meter.capped_at = cap; }
-        result?.ok_or_else(|| self.no_write_target())
+        result?.ok_or_else(|| { self.refusing_clause(table, "read rule"); self.no_write_target() })
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

@@ -178,7 +178,7 @@ impl Runner<'_> {
                 self.meter.restore(mark);
                 return Err(if predecessor.is_some() {
                     RuntimeError::Constraint(format!("{table_name} already has a row with id {id}"))
-                } else { RuntimeError::Rule {table:table_name.into(),effect:Effect::Insert} });
+                } else { self.rule_refusal(table_name, Effect::Insert, "parent identity has stored children") });
             }
         }
         if let Some(existing) = &predecessor {
@@ -314,6 +314,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned() });
         };
         if self.schema.children(table_name).next().is_some() && !self.check_rule(table_name,Effect::Read,None,&old)? {
+            self.refusing_clause(table_name, "read rule");
             return Err(self.no_write_target());
         }
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
@@ -438,7 +439,11 @@ impl Runner<'_> {
                     && existing.field("id")?.as_str()? != id
                 {
                     self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
-                    if effect == Effect::Update && !readable { return Err(self.no_write_target()); }
+                    if effect == Effect::Update && !readable {
+                        #[cfg(feature = "sqlite")]
+                        self.refusing_clause(table_name, &format!("unique {}", index.columns().join(", ")));
+                        return Err(self.no_write_target());
+                    }
                     let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });

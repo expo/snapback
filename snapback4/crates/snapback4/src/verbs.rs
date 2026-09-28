@@ -840,10 +840,8 @@ pub fn why(options: &Options) -> i32 {
     };
     if subject == "recent" {
         let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("why: {error}"); return 1; } };
-        let path = project.data_dir().join(crate::serve::dev_refusals::FILE);
-        return match std::fs::read_to_string(&path) {
-            Ok(records) => { println!("{records}"); 0 }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => { println!("No recorded dev refusals. Run snapback4 dev and reproduce the refusal; recent keeps the last 32 clauses locally."); 0 }
+        return match crate::serve::dev_refusals::recent(&project.data_dir(), options.flags.get("store").map(String::as_str), options.flags.get("instance").map(String::as_str)) {
+            Ok(records) => { println!("{}", serde_json::to_string_pretty(&records).unwrap()); 0 }
             Err(error) => { eprintln!("why recent: {error}"); 1 }
         };
     }

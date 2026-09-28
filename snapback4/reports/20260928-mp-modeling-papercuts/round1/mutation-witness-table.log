@@ -1,0 +1,32 @@
+   Compiling snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+warning: unused variable: `witness`
+  --> crates/snapback4-lang/src/bind/refusals.rs:34:39
+   |
+34 |         let RuleExpr::Exists { table: witness, index, key, .. } = &table.rules.read else { continue };
+   |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_witness`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-lang` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 9.33s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-7dc461985615a9c9)
+
+running 1 test
+
+thread 'sequence_note_uses_declared_column_and_never_marks_a_different_witness_table' (3449436) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:277:5:
+assertion `left == right` failed: [Diagnostic { site: Site { file: "schema.q", line: 7, col: 3 }, code: "N_SEQUENCE_READ", message: "members.joinedAt: the first membership in an empty room group always refuses E_RULE: sequence read authority requires `exists members[.room, viewer]` before this row is inserted. `created rooms[.room]` can admit the insert rule but cannot establish that read authority or a fresh shared counter", rewrite: "preserve this membership audience with the manual allocator in `guide sequences`: use `joinedAt: int` on members, `lastOrdinal: int default 0` on rooms; seed the new parent's members rows with joinedAt: 0. For later inserts, assign joinedAt from the readable parent's counter and advance it atomically wherever your model allocates a position. Preserve existing uniqueness constraints. See `guide sequences` for counters shared across tables.", guide: "sequences", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 14, col: 3 }, code: "N_SEQUENCE_READ", message: "messages.ordinal: the first membership in an empty room group always refuses E_RULE: sequence read authority requires `exists members[.room, viewer]` before this row is inserted. `created rooms[.room]` can admit the insert rule but cannot establish that read authority or a fresh shared counter", rewrite: "preserve this membership audience with the manual allocator in `guide sequences`: use `ordinal: int` on messages, `lastOrdinal: int default 0` on rooms; seed the new parent's messages rows with ordinal: 0. For later inserts, assign ordinal from the readable parent's counter and advance it atomically wherever your model allocates a position. Preserve existing uniqueness constraints. See `guide sequences` for counters shared across tables.", guide: "sequences", mechanical: false, cascade_of: None }]
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test sequence_note_uses_declared_column_and_never_marks_a_different_witness_table ... FAILED
+
+failures:
+
+failures:
+    sequence_note_uses_declared_column_and_never_marks_a_different_witness_table
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 15 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

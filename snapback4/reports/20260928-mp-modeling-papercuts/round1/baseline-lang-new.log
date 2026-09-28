@@ -1,0 +1,44 @@
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.03s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-7dc461985615a9c9)
+
+running 11 tests
+
+thread 'cross_group_sequence_witness_does_not_promise_first_insert_refusal' (3146577) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:186:5:
+[Diagnostic { site: Site { file: "schema.q", line: 8, col: 3 }, code: "N_SEQUENCE_READ", message: "members.ordinal: the first membership in an empty parent group always refuses E_RULE: sequence read authority requires `exists members[.parent, viewer]` before this row is inserted. `created parents[.parent]` can admit the insert rule but cannot establish that read authority or a fresh shared counter", rewrite: "preserve this membership audience with the manual allocator in `guide sequences`: use `ordinal: int` on members, `lastOrdinal: int default 0` on parents; seed the new parent's memberships with ordinal: 0, set later joins from the readable parent's lastOrdinal, and increment that field atomically on each message insert. Keep the message ordinal an int and unique by (parent, ordinal).", guide: "sequences", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter' (3146583) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:23:5:
+[Diagnostic { site: Site { file: "schema.q", line: 10, col: 3 }, code: "E_READ_THROUGH", message: "children.parent must be immutable", rewrite: "immutable parent", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 10, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(parent)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }]
+
+thread 'test cross_group_sequence_witness_does_not_promise_first_insert_refusal ... aggregate_deadline_obeys_expiring_authorization_before_source_expiryFAILED' (
+3146575) panicked at crates/snapback4-lang/tests/mp_reproduction.rs:23:5:
+[Diagnostic { site: Site { file: "schema.q", line: 19, col: 3 }, code: "E_READ_THROUGH", message: "children.parent must be immutable", rewrite: "immutable parent", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 19, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(parent)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 19, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(parent)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }]
+test read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter ... FAILED
+test aggregate_deadline_obeys_expiring_authorization_before_source_expiry ... FAILED
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+developer cause: RefusingClause { table: "members", clause: "insert rule", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "sequence read authority", site: "add:3", generation: 1 }
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+{"code":"E_RULE","family":"auth","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count","guide":"rules"}
+test sequence_first_membership_reproduces_before_changes ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+rewritten builder reactions: [{"count":2,"emoji":"heart","mine":true},{"count":1,"emoji":"laugh","mine":false}]
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+developer cause: RefusingClause { table: "members", clause: "unique key", site: "add:3", generation: 1 }
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+developer cause: RefusingClause { table: "members", clause: "cap parent", site: "add:3", generation: 1 }
+developer cause: RefusingClause { table: "members", clause: "authorization allowance (insert)", site: "add:3", generation: 1 }
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+failures:
+
+failures:
+    aggregate_deadline_obeys_expiring_authorization_before_source_expiry
+    cross_group_sequence_witness_does_not_promise_first_insert_refusal
+    read_through_capture_denials_have_source_causes_with_unchanged_wire_and_meter
+
+test result: FAILED. 8 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+error: test failed, to rerun pass `-p snapback4-lang --test mp_reproduction`

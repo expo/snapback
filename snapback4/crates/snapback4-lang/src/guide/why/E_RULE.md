@@ -29,8 +29,14 @@ An explicit `require … else CODE` still refuses with the program's code.
 
 In development, reproduce under `snapback4 dev`: its log names the exact
 refusing clause, declaration site and execution site. `snapback4 why recent`
-reads the last 32 local records from `.snapback4/dev-refusals.json` (owner-only
-permissions). These records contain no row values or request arguments and
+reads up to 32 records from the one live dev instance, identifying its store,
+instance, PID and address. With several instances, select
+`snapback4 why recent --instance ID` (optionally `--store ID`). Owner-only
+records live under `.snapback4/dev-refusals/<storeId>/<instance>.json`;
+stopped instances and mismatched records are rejected. Logging is asynchronous;
+a full 32-record queue drops excess diagnostics and reports `dropped` when the
+writer resumes. Missing/expired or unreadable read-through parents point to
+the child's `read through` declaration. These records contain no row values or request arguments and
 have no HTTP endpoint. Production `serve` does not collect them. Replaying
 an existing write receipt does not reevaluate or invent a cause. Caller
 refusals retain the same generic text.

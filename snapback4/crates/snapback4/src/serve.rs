@@ -65,7 +65,7 @@ pub(crate) mod latency;
 pub(crate) mod dev_refusals;
 
 pub struct Shared {
-    refusals: Mutex<dev_refusals::Recent>,
+    refusals: dev_refusals::Recent,
     latency: Arc<latency::Registry>,
     project: std::path::PathBuf,
     temporary: bool,
@@ -312,7 +312,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let shared = Arc::new(Shared {
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
-        refusals: Mutex::new(dev_refusals::Recent::default()),
+        refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address)? } else { Default::default() },
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
@@ -1225,6 +1225,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
+                let capture;
                 let (outcome, metadata) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
@@ -1235,7 +1236,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    let capture = dev_refusals::Capture::new(shared, &op);
+                    capture = dev_refusals::Capture::new(shared, &op);
                     if let Some(capture) = &capture { context = capture.context(context); }
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
@@ -1365,7 +1366,7 @@ mod poison_tests {
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
             project: std::env::current_dir().unwrap(), temporary: true,
-            refusals: Mutex::new(dev_refusals::Recent::default()),
+            refusals: dev_refusals::Recent::default(),
             latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),

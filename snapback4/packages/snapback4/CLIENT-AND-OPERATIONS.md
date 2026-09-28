@@ -2055,9 +2055,15 @@ chunks each tick, and sweeps unplaced assets once a minute.
 
 An `E_RULE` caller response keeps its cause ambiguous to avoid probing hidden
 rows. In `snapback4 dev`, the stderr line and `snapback4 why recent` identify
-the exact refusing clause and its schema source site. The last 32 records stay
-in the owner-only local `.snapback4/dev-refusals.json`; no HTTP response exposes
-them, and production `serve` does not collect them. A replayed receipt does not
+the exact refusing clause and its schema source site. Each live dev instance
+keeps up to 32 records under the owner-only local
+`.snapback4/dev-refusals/<storeId>/<instance>.json`. Output identifies the store,
+instance, PID and address. When several dev instances run in this project,
+select `why recent --instance ID` (optionally `--store ID`); stopped or
+mismatched records are rejected. Logging and persistence run asynchronously:
+records may lag, and a stalled writer drops excess records from its 32-slot
+queue (`dropped` reports this when it resumes). No HTTP response exposes them,
+and production `serve` does not collect them. A replayed receipt does not
 reevaluate a rule or create a new record.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.

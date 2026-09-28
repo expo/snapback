@@ -73247,3 +73247,55 @@ in issues/closed/. Report, sibling census, commands, digests and compressed
 raw evidence accompany this entry. No shared-path tool installation, push or
 publication. scripts/test.sh was not run; the supervisor owns the landing
 suite. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-28 — Lane MP round 1: dev refusal ownership and exact cause corrections
+
+Read the round-0 prompt, report and journal, Astra's complete NOT READY review,
+and Grok's complete READY review when it arrived. First fetched origin and
+merged main 91c769c60 into the lane in 07179b8dd; the sole journal conflict
+retains both sides, verified as ordered subsequences. EQ and FL are included;
+RG was not yet in the fetched main. No push or publication.
+
+Dev evidence now belongs to a random live instance and its store, with producer
+identity in output and an exclusive file lock establishing liveness. Why recent
+selects an instance when several run and rejects stale/mismatched files. The
+32-record writer runs outside engine-lock and response execution, accepting a
+bounded nonblocking queue; blocked stderr cannot stall mutations. The queue
+reports dropped records when it resumes. Production capture remains disabled.
+
+Capture-denied child inserts now identify missing/expired or unreadable parents
+at their read-through declaration. Audited all E_RULE/NOT_FOUND paths: hidden
+parent writes, conditions, field authority and the remaining hidden-collision
+cases gain causes; the report explains plain absence, validation, authored
+requires, static action-seat admission and replay cases without inferred causes.
+Collector-on/off refusal bytes and all logical meter fields stay identical.
+
+N_SEQUENCE_READ now proves that the witness's indexed parent column matches
+the sequence group. Astra's cross-group access key can insert and receives no
+note; the builder's same-group trap remains noted. Grok's members-only model
+gets its declared column/parent rewrite, without inventing messages/ordinal.
+The preview advice conditionally removes an unused viewer query. Governing
+notes in LLPs 3000.014, 3000.015 and 3000.028 and published guide/CLI text agree.
+
+New committed tests exercise 40-record eviction, earlier authorization-witness
+expiry and missing/hidden/expired aggregate metadata. Removing repairs fails
+the intended tests; additional mutations catch eviction removal, a cross-table
+note and explicit stale deadline propagation. All mutations were restored.
+
+Affected checks: 27 targets, 396 passed, one lane-owned fixture failure, one
+existing ignored DG full-store test. Equal-length input IDs corrected that
+fixture's disclosed heap-cost comparison; final MP target: 16 passed, zero
+failed. All other affected tests pass, including 4 real-process tests and all
+93 guide tests. No remaining observed product-test failure. All development
+failures and attribution are in round1/VALIDATION.md; no environmental waiver.
+Scripts/test.sh was not run, as instructed; the supervisor's suite runs next.
+
+Wasm is 2,020,060 B raw / 586,299 B gzip, −124 / −85 B versus the rebuilt
+merged baseline (2,020,184 / 586,384). The unchanged 586,193 B cap still fails
+by 106 B, reduced from the inherited 191 B: an explicit baseline integration
+qualification failure, not a green budget claim. No ceiling increase, tool
+installation or shared path change. Source caps and reference/whitespace audits
+pass. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+Report and complete evidence: reports/20260928-mp-modeling-papercuts/round1/REPORT.md.

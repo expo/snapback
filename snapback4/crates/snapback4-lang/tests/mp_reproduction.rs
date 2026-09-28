@@ -177,3 +177,124 @@ fn raw_ir_cannot_enumerate_unpinned_parent_groups() {
     let why=e.query("totals",Context::new("alice",[("message".into(),snapback4_core::Value::Id("m".into()))].into())).unwrap_err();
     assert_eq!(why.code,"E_READ_THROUGH_SCAN");
 }
+
+#[test]
+fn cross_group_sequence_witness_does_not_promise_first_insert_refusal() {
+    let source = "table parents:\n  public\n  online only\ntable members:\n  parent: parents\n  access: parents\n  principal: principal\n  ordinal: sequence by parent\n  by byAccess: access, principal\n  read <- exists members[access = .parent, principal = viewer]\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert members {parent, access: parent, principal: viewer}\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|d| d.code == "N_SEQUENCE_READ"), "{:?}", b.notes);
+    let mut e = engine(source);
+    load(&mut e, "members", json!({"id":"other", "parent":"other", "access":"new", "principal":"alice"}));
+    let out = e.mutate("add", None, Context::new("alice", [("parent".into(),snapback4_core::Value::Id("new".into()))].into())).unwrap();
+    assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+}
+
+const THROUGH_CAUSE: &str = "table parents:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert children {parent}\n";
+#[test]
+fn read_through_missing_parent_has_cause() { through_cause("missing", "read through parent missing or expired"); }
+#[test]
+fn read_through_expired_parent_has_cause() { through_cause("expired", "read through parent missing or expired"); }
+#[test]
+fn read_through_hidden_parent_has_cause() { through_cause("hidden", "read through parent read rule"); }
+fn through_cause(parent: &str, clause: &str) {
+    use snapback4_core::engine::refusal_trace::RefusalTrace;
+    {
+        let mut pair = Vec::new();
+        for traced in [false, true] {
+            let mut e = engine(THROUGH_CAUSE);
+            let now = snapback4_core::now_ms();
+            load(&mut e, "parents", json!({"id":"expired", "owner":"alice", "until":now+50000}));
+            load(&mut e, "parents", json!({"id":"hidden", "owner":"bob", "until":now+200000}));
+            assert_eq!(e.store().rows("parents").unwrap().len(), 2, "expired parent is still physically stored");
+            let trace = RefusalTrace::default();
+            let context = Context::new("alice", [("parent".into(),snapback4_core::Value::Id(parent.into()))].into()).at(now+100000);
+            let out = e.mutate("add", None, if traced { context.with_refusal_trace(trace.clone()) } else { context }).unwrap();
+            let WriteState::Failed { why, .. } = out.state else { panic!("{out:?}") };
+            assert_eq!(why.code, "E_RULE");
+            pair.push((serde_json::to_vec(&why).unwrap(), out.metered));
+            if traced {
+                let cause = trace.take().expect("capture denial needs a developer cause");
+                assert_eq!(cause.clause, clause);
+                assert_eq!(cause.table, "children");
+                let b = snapback4_lang::compile(&[("schema.q".into(), THROUGH_CAUSE.into())]);
+                assert_eq!(b.refusal_sites[&(cause.table, cause.clause)], "schema.q:11:3");
+            } else { assert!(trace.take().is_none()); }
+        }
+        assert_eq!(pair[0], pair[1]);
+    }
+}
+
+#[test]
+fn aggregate_deadline_obeys_expiring_authorization_before_source_expiry() {
+    let source = "table grants:\n  parent: parents\n  principal: principal\n  until: time\n  unique parent, principal\n  expire at .until\n  read <- .principal = viewer\n  online only\ntable parents:\n  until: time\n  immutable until\n  expire at .until\n  read <- exists grants[.id, viewer]\n  online only\ntable children:\n  parent: parents\n  kind: text <=20\n  cap 20 by parent\n  immutable parent\n  read through .parent\n  online only\nview totals: count children by .parent, .kind\n  online only\nquery totals(parent: parents):\n  return totals[parent = parent] by .kind\n";
+    let mut e = engine(source);
+    let clock = snapback4_core::now_ms();
+    load(&mut e,"parents",json!({"id":"p","until":clock+500000}));
+    load(&mut e,"grants",json!({"id":"g","parent":"p","principal":"alice","until":clock+100000}));
+    load(&mut e,"children",json!({"id":"c","parent":"p","kind":"heart"}));
+    let context = |now| Context::new("alice",[("parent".into(),snapback4_core::Value::Id("p".into()))].into()).at(now);
+    let before = e.query("totals",context(clock+50000)).unwrap();
+    assert!(before.complete);
+    assert_eq!(before.data.as_array().unwrap().len(),1);
+    assert_eq!(before.next_expiry,Some(clock+100000));
+    let expired = e.query("totals",context(clock+100000)).unwrap();
+    assert!(expired.data.as_array().unwrap().is_empty());
+}
+
+#[test]
+fn hidden_write_rule_denials_record_causes_without_changing_not_found() {
+    use snapback4_core::engine::refusal_trace::RefusalTrace;
+    let source = "table parents:\n  owner: principal\n  n: int default 0\n  secret: int default 0 written by .owner\n  immutable owner\n  read <- .owner = viewer\n  update <- allow\n  delete <- allow\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  online only\nmutation remove(id: parents):\n  delete parents[id]\nmutation conditional(id: parents):\n  update parents[id] { n: 1 } if .n = 0\nmutation private(id: parents):\n  update parents[id] { secret: 1 }\n";
+    for (op, clause) in [("remove", "read rule"), ("conditional", "read rule"), ("private", "field authority secret")] {
+        let mut pair = Vec::new();
+        for traced in [false, true] {
+            let mut e = engine(source);
+            load(&mut e,"parents",json!({"id":"hidden","owner":"bob","n":0,"secret":0}));
+            let trace = RefusalTrace::default();
+            let context = Context::new("alice",[("id".into(),snapback4_core::Value::Id("hidden".into()))].into());
+            let out = e.mutate(op,None,if traced {context.with_refusal_trace(trace.clone())} else {context}).unwrap();
+            let WriteState::Failed {why,..} = out.state else {panic!("{op}: {out:?}")};
+            assert_eq!(why.code,"NOT_FOUND");
+            pair.push((serde_json::to_vec(&why).unwrap(),out.metered));
+            if traced {
+                let cause = trace.take().expect(op);
+                assert_eq!(cause.clause,clause,"{op}");
+                let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+                assert!(b.refusal_sites.contains_key(&(cause.table,cause.clause)));
+            }
+        }
+        assert_eq!(pair[0],pair[1],"{op}");
+    }
+}
+
+#[test]
+fn sequence_note_uses_declared_column_and_never_marks_a_different_witness_table() {
+    let source="table rooms:\n  public\n  online only\ntable members:\n  room: rooms\n  principal: principal\n  joinedAt: sequence by room\n  by byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\ntable messages:\n  room: rooms\n  principal: principal\n  ordinal: sequence by room\n  by byGroup: room, principal\n  read <- exists members[room = .room, principal = viewer]\n  online only\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let notes=b.notes.iter().filter(|d|d.code=="N_SEQUENCE_READ").collect::<Vec<_>>();
+    assert_eq!(notes.len(),1,"{notes:?}");
+    let note=notes[0];assert_eq!(note.site.line,7);
+    assert!(note.rewrite.contains("joinedAt: int"));assert!(note.rewrite.contains("on rooms"));
+    assert!(!note.rewrite.contains("message"),"{}",note.rewrite);
+    assert!(!note.rewrite.contains("(room, ordinal)"));
+}
+
+#[test]
+fn missing_hidden_and_expired_aggregate_parents_have_identical_metadata() {
+    let source="table parents:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  kind: text <=20\n  immutable parent\n  cap 20 by parent\n  read through .parent\n  online only\nview totals: count children by .parent, .kind\n  online only\nquery groups(parent: parents):\n  return totals[parent = parent] by .kind\n";
+    let mut e=engine(source);let now=snapback4_core::now_ms();
+    for (id,owner,until) in [("hidden_","bob",now+200000),("expired","alice",now+50000)] {
+        load(&mut e,"parents",json!({"id":id,"owner":owner,"until":until}));
+        load(&mut e,"children",json!({"id":id,"parent":id,"kind":"heart"}));
+    }
+    let query=|e:&mut Engine,id:&str| e.query("groups",Context::new("alice",[("parent".into(),snapback4_core::Value::Id(id.into()))].into()).at(now+100000)).unwrap();
+    let missing=query(&mut e,"missing");
+    for id in ["hidden_","expired"] {
+        let out=query(&mut e,id);
+        assert_eq!(out.data,missing.data,"{id}");assert_eq!(out.metered,missing.metered,"{id}");
+        assert_eq!(out.next,missing.next,"{id}");assert_eq!(out.next_expiry,missing.next_expiry,"{id}");
+        assert_eq!(out.tables,missing.tables,"{id}");assert_eq!(out.complete,missing.complete,"{id}");
+    }
+}

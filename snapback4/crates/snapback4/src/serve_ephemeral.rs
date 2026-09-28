@@ -253,7 +253,6 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                 .map(|out| (out, engine.store().meta("store_id").ok().flatten()))
         }
     };
-    drop(capture);
     match result {
         Ok((out, store_id)) => {
             respond_timed(
