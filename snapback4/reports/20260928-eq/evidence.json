@@ -1,0 +1,26 @@
+{
+  "history-react": {
+    "source": "experiments/p19-one-query/.work/eq-small-ARQIK8/snapshots.jsonl",
+    "sha256": "702ae91ad25c2dc686d55fb92abc94698f99b33669f30bca2f74de5da1fe876a",
+    "bytes": 18453,
+    "observations": 2
+  },
+  "history-ordinal": {
+    "source": "experiments/p19-one-query/.work/eq-small-E5aT2Y/snapshots.jsonl",
+    "sha256": "19b2511554b173668cc86c89373e2ab1d1072760919059eed50a8d6173303654",
+    "bytes": 2763753,
+    "observations": 456
+  },
+  "history-timestamp": {
+    "source": "experiments/p19-one-query/.work/eq-small-lOVZXk/snapshots.jsonl",
+    "sha256": "a73904f28b834cb06a827f4b887f867822d850264f1256d871a8b4c311ebc663",
+    "bytes": 2759331,
+    "observations": 458
+  },
+  "history-calibration": {
+    "source": "experiments/p19-one-query/.work/eq-scale-mGCiMC/snapshots.jsonl",
+    "sha256": "7c94a7a980d801a9e356fad9111cd0ddeee332eb1c738c71b7b4d49a5a228613",
+    "bytes": 3245951,
+    "observations": 459
+  }
+}

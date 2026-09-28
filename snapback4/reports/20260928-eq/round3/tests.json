@@ -1,0 +1,223 @@
+[
+  {
+    "name": "mint-baseline",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix_cursors",
+      "--no-fail-fast",
+      "baseline_minted_composite_unfinished_shape"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4/.work/round3-controls",
+    "mint": true,
+    "exit": 0,
+    "seconds": 46.583,
+    "summaries": [
+      "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.19s"
+    ],
+    "log_sha256": "14b7db2a6ca2c9e5e4e036fd2a4cecf09df3ebe1e15d0331abc7468f1789f4d7"
+  },
+  {
+    "name": "unmutated-eq",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix",
+      "--test",
+      "selected_prefix_regressions",
+      "--test",
+      "selected_prefix_cursors",
+      "--no-fail-fast"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4/.work/round3-controls",
+    "mint": false,
+    "exit": 0,
+    "seconds": 13.06,
+    "summaries": [
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s",
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s"
+    ],
+    "log_sha256": "878fd2b57bf998a243bc5624e3653a021a692e9f598652ed584c4b89079377b6"
+  },
+  {
+    "name": "mutation-one-column-shape",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix",
+      "--test",
+      "selected_prefix_regressions",
+      "--test",
+      "selected_prefix_cursors",
+      "--no-fail-fast"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4/.work/round3-controls",
+    "mint": false,
+    "exit": 101,
+    "seconds": 34.916,
+    "summaries": [
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+      "test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s"
+    ],
+    "log_sha256": "7a6f23b4909ba2d12b2c0a7b64d13612b53fb5505444e12f0a92cf39514fb7c9"
+  },
+  {
+    "name": "mutation-split-or",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix_regressions",
+      "--no-fail-fast",
+      "disjunction_stays_residual_and_returns_rows_from_both_arms"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4/.work/round3-controls",
+    "mint": false,
+    "exit": 101,
+    "seconds": 32.25,
+    "summaries": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s"
+    ],
+    "log_sha256": "445dd4c35e8a7c34425f184352de47527a8c1a514341081dc3873c3cf1f15144"
+  },
+  {
+    "name": "shared-target-eq-guide-initial",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix",
+      "--test",
+      "selected_prefix_regressions",
+      "--test",
+      "selected_prefix_cursors",
+      "--no-fail-fast",
+      "--test",
+      "guide"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4",
+    "mint": false,
+    "exit": 101,
+    "seconds": 7.176,
+    "summaries": [
+      "test result: FAILED. 90 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+      "test result: FAILED. 6 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s"
+    ],
+    "log_sha256": "d8203b5bb01b31ce6e6abd2445a90f4e9a63d90949356552b6c68a9951af703a"
+  },
+  {
+    "name": "clean-shared-target",
+    "command": [
+      "cargo",
+      "clean",
+      "-p",
+      "snapback4-core",
+      "-p",
+      "snapback4-lang",
+      "-p",
+      "snapback4-device"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4",
+    "mint": false,
+    "exit": 0,
+    "seconds": 0.118,
+    "summaries": [],
+    "log_sha256": "0f807f7661ff1b727519707ff75b83c460eaaf0f20d9b12fdef54251a2dd2f31"
+  },
+  {
+    "name": "final-eq-guide",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix",
+      "--test",
+      "selected_prefix_regressions",
+      "--test",
+      "selected_prefix_cursors",
+      "--no-fail-fast",
+      "--test",
+      "guide"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4",
+    "mint": false,
+    "exit": 0,
+    "seconds": 38.857,
+    "summaries": [
+      "test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s",
+      "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s"
+    ],
+    "log_sha256": "4da5c4d1809db1a93701071a65e27f2a531df0032446614155b3b199f7dc100d"
+  },
+  {
+    "name": "server-continuation",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "clique",
+      "--no-fail-fast",
+      "merge_continuation"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4",
+    "mint": false,
+    "exit": 0,
+    "seconds": 64.25,
+    "summaries": [
+      "test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 187 filtered out; finished in 20.85s"
+    ],
+    "log_sha256": "78a2628bb12572a0a496ef16daacd7662541276b4a30892ef357b1db2530d9ce"
+  },
+  {
+    "name": "device-continuation",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "--no-fail-fast",
+      "merge_continuation"
+    ],
+    "cwd": "/home/ccheever/sb4-intent/lane-eq/snapback4",
+    "mint": false,
+    "exit": 0,
+    "seconds": 84.227,
+    "summaries": [
+      "test result: ok. 134 passed; 0 failed; 0 ignored; 0 measured; 303 filtered out; finished in 30.38s"
+    ],
+    "log_sha256": "8ee3fafc9e6e7e57856188bde06ad70c5b0167b9c1f8e2c89f1ea83f2755af6b"
+  }
+]

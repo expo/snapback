@@ -1,0 +1,13 @@
+{
+  "rawBytes": 2019815,
+  "gzipBytes": 585384,
+  "budgetBytes": 586193,
+  "rawDelta": 0,
+  "byteIdentical": true,
+  "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "bindgen": "wasm-bindgen 0.2.127",
+  "node": "v24.13.1",
+  "wasmOpt": null,
+  "baselineCommit": "a745b110f2187004abb1cec8380b33b6d1396108"
+}

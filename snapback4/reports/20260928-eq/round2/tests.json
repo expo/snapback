@@ -1,0 +1,132 @@
+[
+  {
+    "name": "final-lang-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "selected_prefix",
+      "--test",
+      "selected_prefix_regressions",
+      "--test",
+      "selected_prefix_cursors",
+      "--test",
+      "guide",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 92 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s",
+      "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+      "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+      "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s"
+    ]
+  },
+  {
+    "name": "final-core",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--test",
+      "corpus",
+      "--test",
+      "disclosure",
+      "--test",
+      "meter",
+      "--test",
+      "lane_source",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s",
+      "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.07s",
+      "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s",
+      "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s"
+    ]
+  },
+  {
+    "name": "final-sim-continuation",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "merge_continuation",
+      "--no-fail-fast"
+    ],
+    "exit": 101,
+    "summaries": []
+  },
+  {
+    "name": "final-device-continuation-codec",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "merge_continuation",
+      "--test",
+      "codec",
+      "--no-fail-fast"
+    ],
+    "exit": 101,
+    "summaries": []
+  },
+  {
+    "name": "final-sim-continuation-verified",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "clique",
+      "--no-fail-fast",
+      "merge_continuation"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 187 filtered out; finished in 20.09s"
+    ]
+  },
+  {
+    "name": "final-device-continuation-verified",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "--no-fail-fast",
+      "merge_continuation"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 134 passed; 0 failed; 0 ignored; 0 measured; 303 filtered out; finished in 31.08s"
+    ]
+  },
+  {
+    "name": "final-device-codec",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "codec",
+      "--no-fail-fast"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s"
+    ]
+  }
+]

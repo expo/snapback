@@ -1,0 +1,30 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 12.01s
+     Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-99a0c9c58bd403f9)
+
+running 6 tests
+test ambiguous_count_star_refuses_without_prose_in_the_replacement ... ok
+test seek_operands_are_checked_in_the_enclosing_predicate_scope ... ok
+test multiline_repair_uses_tokens_and_preserves_the_whole_declaration ... ok
+test projected_view_repairs_use_inferred_field_types ... ok
+test nested_key_repairs_keep_conjuncts_bounds_and_order ... FAILED
+test optional_inclusive_comparisons_preserve_presence_in_early_late_and_other_modules ... ok
+
+failures:
+
+---- nested_key_repairs_keep_conjuncts_bounds_and_order stdout ----
+
+thread 'nested_key_repairs_keep_conjuncts_bounds_and_order' (2951019) panicked at crates/snapback4-lang/tests/familiar_repairs.rs:79:5:
+assertion `left == right` failed
+  left: ""
+ right: "members[conversation = .conversation] where .active first 20 by byConversation"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    nested_key_repairs_keep_conjuncts_bounds_and_order
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test familiar_repairs`

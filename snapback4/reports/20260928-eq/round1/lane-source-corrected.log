@@ -1,0 +1,18 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 25.88s
+     Running tests/lane_source.rs (target/debug/deps/lane_source-deb194a91cbc1c72)
+
+running 10 tests
+test compiler_emitted_list_sources_match_and_keep_bytes ... ok
+test original_corpus_source_bytes_survive_except_pretty_printing ... ok
+test every_published_quarry_lane_source_matches_and_keeps_canonical_bytes ... ok
+test skipped_unknown_syntax_keeps_the_existing_web_validation_boundary ... ok
+test newly_added_scan_fields_and_nullable_max_keep_the_derive_contract ... ok
+test ordinary_ir_structs_already_skip_unknown_subtrees_without_validation ... ok
+test every_corpus_lane_source_matches_and_keeps_canonical_bytes ... ok
+test mixed_scan_and_domain_fields_refuse_in_both_orders ... ok
+test typed_errors_keep_text_positions_and_nested_sources_use_the_same_decoder ... ok
+test generated_field_orders_missing_duplicates_unknowns_and_mixed_domains ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s

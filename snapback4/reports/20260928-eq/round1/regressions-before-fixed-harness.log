@@ -1,0 +1,37 @@
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.57s
+     Running tests/selected_prefix_regressions.rs (target/debug/deps/selected_prefix_regressions-b357c92a2aeabed9)
+
+running 4 tests
+test final_index_component_remains_residual_in_every_scan_shape ... FAILED
+test existing_seeks_stop_extension_at_their_column ... FAILED
+test earlier_refusal_and_division_still_run_before_argument_or_literal_equality ... FAILED
+test literal_equalities_match_brackets_and_keep_later_column_reads ... ok
+
+failures:
+
+---- final_index_component_remains_residual_in_every_scan_shape stdout ----
+
+thread 'final_index_component_remains_residual_in_every_scan_shape' (4097331) panicked at crates/snapback4-lang/tests/selected_prefix_regressions.rs:9:5:
+[Diagnostic { site: Site { file: "schema.q", line: 9, col: 10 }, code: "E_QUARRY_TYPE", message: "t.byKey takes (key: int); supplied (key = k: int) pins every key, leaving no column to range over", rewrite: "add id as the final column of byKey to range over this prefix", guide: "indexes", mechanical: false, cascade_of: None }]
+
+---- existing_seeks_stop_extension_at_their_column stdout ----
+
+thread 'existing_seeks_stop_extension_at_their_column' (4097330) panicked at crates/snapback4-lang/tests/selected_prefix_regressions.rs:9:5:
+[Diagnostic { site: Site { file: "schema.q", line: 8, col: 10 }, code: "E_QUARRY_TYPE", message: "t.byFull takes (key: int, second: int, id: a t reference); supplied (key = k: int) has the wrong key type", rewrite: "t[key, second] first 50 by byFull — supply key: int, second: int in index order", guide: "indexes", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- earlier_refusal_and_division_still_run_before_argument_or_literal_equality stdout ----
+
+thread 'earlier_refusal_and_division_still_run_before_argument_or_literal_equality' (4097329) panicked at crates/snapback4-lang/tests/selected_prefix_regressions.rs:26:13:
+assertion failed: ir::scans(&b.programs[0].program)[0].prefix.is_empty()
+
+
+failures:
+    earlier_refusal_and_division_still_run_before_argument_or_literal_equality
+    existing_seeks_stop_extension_at_their_column
+    final_index_component_remains_residual_in_every_scan_shape
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-lang --test selected_prefix_regressions`

@@ -1,0 +1,30 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-eq/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 14.02s
+     Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-c00a838f9a3e95e2)
+
+running 5 tests
+test unsafe_optional_conflicting_and_nonleading_equalities_stay_residual ... ok
+test full_unique_equality_keeps_the_original_page_type ... ok
+test unchanged_calibration_program_compiles ... ok
+test existing_prefix_constraints_survive ... ok
+test paired_plans_residual_order_limit_and_cross_spelling_cursors ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/selected_prefix_cursors.rs (target/debug/deps/selected_prefix_cursors-4845e3d3ccf53e29)
+
+running 1 test
+test baseline_minted_continuations_match_new_suffix_pages ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/selected_prefix_regressions.rs (target/debug/deps/selected_prefix_regressions-b357c92a2aeabed9)
+
+running 4 tests
+test earlier_refusal_and_division_still_run_before_argument_or_literal_equality ... ok
+test final_index_component_remains_residual_in_every_scan_shape ... ok
+test existing_seeks_stop_extension_at_their_column ... ok
+test literal_equalities_match_brackets_and_keep_later_column_reads ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s

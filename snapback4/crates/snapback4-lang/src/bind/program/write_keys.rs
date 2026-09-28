@@ -4,7 +4,7 @@ use super::*;
 impl<'a> Binder<'a> {
     pub(super) fn extra_write_test(&self, info: &'a TableInfo, write: &A, original: Diagnostic) -> Diagnostic {
         let A::Write { table, keys, site, .. } = write else { return original };
-        let read = ReadExpr { computed: Default::default(), order_keys: Vec::new(), table: table.clone(),
+        let read = ReadExpr { cursor_prefix: None, computed: Default::default(), order_keys: Vec::new(), table: table.clone(),
             keys: keys.clone(), index: None, range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };
         let Ok(read) = super::super::mixed_keys::read(info, &read, self.catalog) else { return original };
         let read = read.into_owned();
