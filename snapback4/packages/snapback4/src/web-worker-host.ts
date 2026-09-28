@@ -10,8 +10,10 @@ export interface WorkerTransaction {
   invoke: JournalInvoke;
   /** The marker and admission are in this one strict transaction. Returned
    * changes contain only journal acknowledgements and the store identity. */
-  commit(extra?: Change[]): Promise<Change[]>;
+  commit(extra?: Change[], durable?: () => void): Promise<Change[]>;
+  commitIf(current: () => boolean): Promise<void>;
 }
+export class StaleWorkerCommit extends Error {}
 
 // @ref LLP 3000.007#20.4 — the page claim outlives Worker termination and IDB writes.
 // Internal foundation for the browser opener, not yet a public DeviceCore.
@@ -21,6 +23,7 @@ export class WebWorkerHost {
   readonly control = new PageDeviceControl();
   private activity = 0;
   get revision(): number { return this.activity; }
+  invalidatePreparation(): void { this.activity++; }
   private worker: Worker | undefined;
   private lease: string | undefined;
   private attached = false;
@@ -106,9 +109,10 @@ export class WebWorkerHost {
       let active = true, dirty = false;
       const unblock: (() => void)[] = [];
       const owner = this.worker;
+      const journal = this.journal;
       const check = () => { if (!active || this.worker !== owner) throw new Error("the Worker transaction has ended"); };
       const transaction: WorkerTransaction = {
-        journal: [...this.journal.values()],
+        get journal() { return [...journal.values()]; },
         invoke: async request => {
           check(); dirty = true;
           const state = this.control.read(), page = request.page as Record<string, unknown> | undefined;
@@ -117,13 +121,26 @@ export class WebWorkerHost {
           if (!staging && !["state", "sync_state", "query", "backend", "meta", "queued", "residency", "next_submission"].includes(String(request.op))) unblock.push(this.control.block());
           return this.rpc({ action: "invoke", request });
         },
-        commit: async (extra = []) => {
+        commit: async (extra = [], durable) => {
           check();
           const reply = await this.rpc({ action: "commit", extra });
           dirty = false;
+          durable?.();
           this.remember(reply.journal);
           this.control.publish(reply.control);
           return reply.journal;
+        },
+        commitIf: async current => {
+          check();
+          const prepared = await this.rpc({ action: "prepare-conditional" });
+          const persistence = indexedDbStore(async () => null);
+          // @ref LLP 3000.022#4 — current() stays in its page realm and runs
+          // inside the live IDB transaction immediately before explicit commit.
+          // The Worker waits privately; abort/failure discards its mutated VM.
+          if (!await persistence.saveIfCurrent!(this.claim.name, prepared.changes, current)) throw new StaleWorkerCommit();
+          const reply = await this.rpc({ action: "finish-conditional" });
+          dirty = false;
+          this.control.publish(reply.control);
         },
       };
       try {

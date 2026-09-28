@@ -12,7 +12,8 @@ import { admissionAuthorityHost, admissionAuthorityRefusal, type AdmissionAuthor
 // are adopted by the next device that opens the store.
 
 import type { Write } from "./contract.ts";
-import { WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { claimStore, claimWithWebLocks, lockManager } from "./web-ownership.ts";
+import { terminalReceipts, receiptHistory, lookupReceipts, shareReceipts } from "./web-receipts.ts";
 import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
 import type { Queued } from "./local-types.ts";
@@ -437,63 +438,6 @@ function refusalText(error: unknown): string {
 
 // ----- one device per tab -----
 
-function lockManager(): LockManager | undefined {
-  return (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
-}
-
-/** Hold the store's lock for this tab; when another tab holds it, take a
- * tab-scoped store instead. Durable IndexedDB refuses when Web Locks cannot
- * establish exclusive ownership. */
-async function claimWithWebLocks(name: string, alternate: boolean): Promise<PersistenceClaim | null> {
-  const locks = lockManager();
-  if (!locks) throw new Error("webDevice: durable IndexedDB requires the Web Locks API for exclusive store ownership");
-  const held = await hold(locks, name);
-  if (held) return { name, release: held };
-  if (!alternate) return null;
-  const own = `${name}:tab-${Math.random().toString(36).slice(2, 10)}`;
-  const release = await hold(locks, own);
-  if (!release) throw new Error("webDevice: could not claim an exclusive tab-scoped device store");
-  return { name: own, release };
-}
-
-async function claimStore(persist: Persistence, name: string, alternate: boolean): Promise<PersistenceClaim | null> {
-  const claim = await persist.claim(name, alternate);
-  if (!claim) return null;
-  let problem: string | undefined;
-  if (typeof claim.name !== "string" || typeof claim.release !== "function") {
-    problem = "persistence returned an invalid exclusive claim";
-  } else if (!alternate && claim.name !== name) {
-    problem = `a non-alternate claim for ${name} must return that exact name`;
-  } else if (claim.name !== name && (!claim.name.startsWith(`${name}:tab-`) || claim.name.length === `${name}:tab-`.length)) {
-    problem = `an alternate claim for ${name} must use the ${name}:tab-* namespace`;
-  } else if (claim.name !== name && (typeof persist.others !== "function" || typeof persist.remove !== "function")) {
-    problem = "a persistence provider returning an alternate must implement others(prefix) and remove(name) for orphan adoption";
-  }
-  if (!problem) return claim;
-  if (typeof claim.release === "function") await claim.release();
-  throw new Error(`webDevice: ${problem}`);
-}
-
-/** Hold a lock until released; null when another holder has it. */
-function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) | null> {
-  return new Promise((resolve, reject) => {
-    let release!: () => void;
-    const done = new Promise<void>((r) => (release = r));
-    const requested = locks.request(name, { ifAvailable: true }, async (lock) => {
-      if (!lock) {
-        resolve(null);
-        return;
-      }
-      resolve(async () => {
-        release();
-        await requested;
-      });
-      await done;
-    });
-    void requested.catch(reject);
-  });
-}
-
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
 async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, waitForLock: (name: string) => void, authority?: AdmissionAuthorityContext): Promise<boolean> {
@@ -588,65 +532,6 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
     }
   }
   return retry;
-}
-
-type TerminalReceipt = Exclude<Write, { state: "pending" }>;
-
-function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
-  if (!text) return [];
-  // Only value-free terminal records cross tab boundaries, never outbox data.
-  return (JSON.parse(text) as Write[]).flatMap(write => write.state === "sent"
-    ? [{ state: "sent", id: write.id, seq: write.seq, replayed: true } as TerminalReceipt]
-    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } } as TerminalReceipt] : []);
-}
-
-async function receiptHistory(persist: Persistence, name: string): Promise<TerminalReceipt[]> {
-  const shared = `${name}:receipts`;
-  // Adoption requires enumeration too. Recheck existence on each lookup so a
-  // sibling's later adoption is visible, but a read never creates the window.
-  const exists = persist.has ? await persist.has(shared) : (await persist.others?.(shared))?.includes(shared);
-  if (!exists) return [];
-  const text = persist.read ? await persist.read(shared, "m", "client:write-history")
-    : (await persist.load(shared)).find(c => c.s === "m" && c.k === "client:write-history")?.v;
-  return terminalReceipts(text);
-}
-
-const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && write.why.code === "E_STORE_REPLACED";
-
-// @ref LLP 3000.013#6 — a caller's lookup applies adoption's correction rule.
-// A shared, verified outcome resolves this client's own unknown replacement
-// refusal; every other local outcome wins over shared history.
-function lookupReceipts(shared: TerminalReceipt[], local: TerminalReceipt[]): TerminalReceipt[] {
-  const merged = new Map(shared.map(write => [write.id, write]));
-  for (const write of local) {
-    const prior = merged.get(write.id);
-    if (prior && unknownOutcome(write) && !unknownOutcome(prior)) continue;
-    merged.set(write.id, write);
-  }
-  return [...merged.values()];
-}
-
-async function shareReceipts(persist: Persistence, name: string, text: string): Promise<boolean> {
-  const held = await claimStore(persist, `${name}:receipts`, false);
-  if (!held) return false;
-  try {
-    const kept = await receiptHistory(persist, name);
-    const positions = new Map(kept.map((write, index) => [write.id, index]));
-    for (const write of terminalReceipts(text)) {
-      const index = positions.get(write.id);
-      if (index === undefined) { positions.set(write.id, kept.length); kept.push(write); }
-      // @ref LLP 3000.013#6 — a verified outcome resolves replacement's unknown
-      // execution. The source device already validated the correction before
-      // persisting it; adoption must keep it before deleting that source.
-      else {
-        const prior = kept[index]!;
-        if (unknownOutcome(prior)) kept[index] = write;
-      }
-    }
-    // Corrections retain their position; authored outcomes remain immutable.
-    await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
-    return true;
-  } finally { await held.release(); }
 }
 
 // ----- persistence -----

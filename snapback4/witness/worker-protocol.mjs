@@ -55,10 +55,13 @@ serveWorker(globalThis);
 writeFileSync(join(dir, 'entry.js'), `
 import { WebWorkerHost } from '${sdk}/web-worker-host.js';
 import { WebWorkerSuspend } from '${sdk}/web-worker-suspend.js';
+import { openWorkerDevice } from '${sdk}/web-worker-device.js';
+import { deliveryCommit } from '${sdk}/local-device.js';
 import { AdmissionJournal } from '${sdk}/web-journal.js';
 import { indexedDbPersistence } from '${sdk}/web.js';
 const backend = ${JSON.stringify(schema)};
 const persist = indexedDbPersistence();
+const cores = new Map();
 const ok = reply => { if (reply.denied) throw new Error(JSON.stringify(reply)); return reply.ok; };
 const records = () => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:'));
 let host, journal, suspension, worker, hit, signal, workerStarts = 0;
@@ -120,6 +123,13 @@ const counts = async () => {
     queued: saved.filter(c => c.s === 'o').map(c => JSON.parse(c.v).id), markers: saved.filter(c => c.s === 'j').map(c => c.k) };
 };
 window.w = { open, call, recover, capture, admit, counts, records, first, second, terminal,
+  async coreOpen(id, name, kept = false) { cores.set(id, await openWorkerDevice(name, kept ? null : backend)); },
+  coreCall: (id, request) => cores.get(id).call(request),
+  coreClose: id => cores.get(id).close(),
+  async coreAcquire(id) { for (const request of [first, second, terminal]) ok(await cores.get(id).call(request)); },
+  coreAdmit: (id, key) => cores.get(id).call({ op: 'admit', entry: { id: key, seq: 1, op: 'send', args: { conversationId: 'c1', body: key }, viewer: 'dev:alice', now: 20, new_ids: [key], predictable: true, predicted: [] } }),
+  coreCollect: (id, request, current) => cores.get(id)[deliveryCommit](request, current),
+  storeNames: prefix => persist.others(prefix),
   prepareExit: () => suspension.prepare(),
   dispatchExit() {
     let sent = false, captured = false;
@@ -426,6 +436,42 @@ try {
     assert.equal(result.authority.epoch, '7'); assert.equal(result.authority.source, 'original-authority');
     assert.deepEqual(result.queued, []);
     return result;
+  });
+  await run('Worker adapter adopts only closed orphan outboxes and shares terminal receipts', async page => {
+    const result = await page.evaluate(async () => {
+      await w.coreOpen('a', 'adapter'); await w.coreAcquire('a');
+      await w.coreOpen('b', 'adapter'); await w.coreAcquire('b');
+      const admitted = await w.coreAdmit('b', 'orphan-write');
+      await w.coreCall('b', { op: 'keep_write', value: JSON.stringify({ state: 'sent', id: 'orphan-receipt', seq: 3 }) });
+      const live = await w.coreCall('a', { op: 'queued' });
+      await w.coreClose('b'); await w.coreClose('a');
+      await w.coreOpen('c', 'adapter', true);
+      const queued = await w.coreCall('c', { op: 'queued' });
+      const receipts = await w.coreCall('c', { op: 'meta', key: 'write-history', lookup: true });
+      const stores = await w.storeNames('adapter:tab-'); await w.coreClose('c');
+      return { admitted, live, queued, receipts, stores };
+    });
+    assert.equal(result.admitted.denied, undefined); assert.deepEqual(result.live.ok, []);
+    assert.deepEqual(result.queued.ok.map(e => e.id), ['orphan-write']);
+    assert.ok(JSON.parse(result.receipts.ok).some(e => e.id === 'orphan-receipt' && e.state === 'sent'));
+    assert.deepEqual(result.stores, []); return result;
+  });
+  await run('Worker conditional collection tests page authority at the actual IDB commit', async page => {
+    const result = await page.evaluate(async () => {
+      await w.coreOpen('a', 'conditional'); await w.coreAcquire('a');
+      const read = () => w.coreCall('a', { op: 'delivery', action: 'read', viewer: 'dev:alice' });
+      const before = await read(); let checks = 0;
+      const stale = await w.coreCollect('a', { op: 'delivery', action: 'write', viewer: 'dev:alice',
+        expected: before.ok.value, value: JSON.stringify({ ...JSON.parse(before.ok.value), serial: 123 }) }, () => ++checks === 1);
+      const after = await read();
+      const kept = await w.coreCollect('a', { op: 'delivery', action: 'write', viewer: 'dev:alice',
+        expected: after.ok.value, value: JSON.stringify({ ...JSON.parse(after.ok.value), serial: 456 }) }, () => true);
+      await w.coreClose('a'); await w.coreOpen('a', 'conditional', true); const reopened = await read();
+      await w.coreClose('a'); return { before, stale, after, kept, reopened, checks };
+    });
+    assert.ok(result.checks >= 2); assert.equal(result.after.ok.value, result.before.ok.value);
+    assert.equal(result.stale.ok, true); assert.equal(result.kept.ok, true);
+    assert.equal(JSON.parse(result.reopened.ok.value).serial, 456); return result;
   });
   await run('prepared pagehide keeps synchronous exit custody and the durable begin-send fence', async page => {
     const result = await page.evaluate(async () => {

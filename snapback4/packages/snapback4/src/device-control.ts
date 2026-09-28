@@ -29,7 +29,7 @@ export function coldReplyMatches(control: DeviceControlSnapshot, json: Record<st
   // reply cannot publish while that path waits behind acquisition.
   delete json.delivery;
   const head = json.head ?? json.seq;
-  const floor = Math.max(control.watermark, control.restore_watermark ?? 0, control.restore_images_at ?? 0);
+  const floor = Math.max(control.watermark, control.restore_watermark ?? control.transfer_watermark ?? 0, control.restore_images_at ?? 0);
   return json.store_id === (control.transfer_store_id ?? control.store_id) && Number.isSafeInteger(head) && Number(head) >= floor;
 }
 

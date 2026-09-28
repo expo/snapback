@@ -9,7 +9,7 @@ import type { Queued } from "./local-types.ts";
 
 export interface WorkerRequest {
   id: number;
-  action: "open" | "invoke" | "commit";
+  action: "open" | "invoke" | "commit" | "prepare-conditional" | "finish-conditional";
   name?: string;
   backend?: DeviceOpening | null;
   wasm?: string;
@@ -28,6 +28,7 @@ export class WorkerRuntime {
   private acquisition = 0;
   private queuedRevision = 0;
   private control: DeviceControlSnapshot | undefined;
+  private conditional: Change[] | undefined;
 
   async execute(message: WorkerRequest): Promise<unknown> {
     if (message.action === "open") {
@@ -42,6 +43,21 @@ export class WorkerRuntime {
       return { journal: [...this.journalChanges(saved), ...changes], control: this.control };
     }
     if (!this.device || !this.name) throw new Error("the Worker device must be restored before another call");
+    if (message.action === "finish-conditional") {
+      if (!this.conditional) throw new Error("no conditional commit was prepared");
+      this.residency.apply(this.conditional); this.conditional = undefined;
+      this.updateControl();
+      return { journal: [], control: this.control };
+    }
+    if (this.conditional) throw new Error("a conditional commit must finish before another Worker operation");
+    if (message.action === "prepare-conditional") {
+      const changes = JSON.parse(this.device.drain()) as Change[];
+      // Only a delivery CAS can use the page's current() closure. Full row,
+      // staging and outbox vectors always stay in this realm.
+      if (changes.some(c => c.s !== "m" || !c.k.startsWith("device:delivery:"))) throw new Error("conditional Worker commit contains non-delivery changes");
+      this.conditional = changes;
+      return { changes };
+    }
     if (message.action === "invoke") {
       if (message.request?.op === "residency") return { ok: this.residency.snapshot(wasmMemoryBytes()) };
       return JSON.parse(this.device.call(JSON.stringify(message.request)));
@@ -54,7 +70,7 @@ export class WorkerRuntime {
   }
 
   private journalChanges(changes: Change[]): Change[] {
-    return changes.filter(c => c.s === "j" || (c.s === "m" && c.k === "device:store_id"));
+    return changes.filter(c => c.s === "j" || c.s === "o" || (c.s === "m" && c.k === "device:store_id"));
   }
 
   private async commit(extra: Change[]): Promise<Change[]> {
@@ -65,6 +81,11 @@ export class WorkerRuntime {
     if (changes.length) await this.persist.save(this.name!, changes);
     this.residency.apply(changes);
     if (changes.some(c => c.s === "o")) this.queuedRevision++;
+    this.updateControl();
+    return this.journalChanges(changes);
+  }
+
+  private updateControl(): void {
     const invoke = (request: Record<string, unknown>) => JSON.parse(this.device!.call(JSON.stringify(request))).ok;
     const state = invoke({ op: "sync_state", capture: false });
     const entries = invoke({ op: "queued" }) as Queued[];
@@ -85,7 +106,6 @@ export class WorkerRuntime {
       watermark, transfer_watermark, restore_watermark, restore_images_at, send_revision,
       acquisition: this.acquisition, queuedRevision: this.queuedRevision,
       issuedFloor: Number(invoke({ op: "meta", key: "server-clock-floor" }) ?? 0), predictions: unknown ? null : [...predictions] };
-    return this.journalChanges(changes);
   }
 
   discard(): void { this.device?.free(); this.device = undefined; }
