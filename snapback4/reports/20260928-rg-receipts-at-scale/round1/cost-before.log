@@ -1,0 +1,60 @@
+check: ok — 4 tables (4 synced), 9 operations, no problems, 4 notes, 2.4 ms
+note: schema.q:1:1 — N_NO_HORIZON: table conversations: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync public last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:6:1 — N_NO_HORIZON: table members: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 100 by conversationId` bounds the rows per conversationId, not what a device acquires — `sync public` delivers every conversationId's rows to every device; measure what it costs with `check --residency`
+  rewrite: sync public last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:18:1 — N_NO_HORIZON: table messages: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: sync public last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:35:1 — N_NO_CURSOR: query unreadRows returns a page of 100 unread rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in unreadRows and append `after c` to this unread page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+scale: 7 of 9 operations are constant; 2 grow with data (unreadFor, unreadRows) — `check --cost` gives the certificate
+  view unread: key messages.conversationId = members.conversationId; one value per members row; source fanout <= 100; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256
+  query unreadFor:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger through the parent/expiry index (null expiry and expiry after now; unswept expired rows are not visited), reserving one examined unit and one step; the walk is not metered and does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.unreadFor.0: Server: certifies the member's whole live basis on the internal ledger through the parent/expiry index (null expiry and expiry after now; unswept expired rows are not visited), reserving one examined unit and one step; the walk is not metered and does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    point unread.byGroup — one row, one rule check
+  query unreadRows:
+    scale: grows with Server: certifies the member's whole live basis on the internal ledger through the parent/expiry index (null expiry and expiry after now; unswept expired rows are not visited), reserving one examined unit and one step; the walk is not metered and does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+      programs.unreadRows.0: Server: certifies the member's whole live basis on the internal ledger through the parent/expiry index (null expiry and expiry after now; unswept expired rows are not visited), reserving one examined unit and one step; the walk is not metered and does not use the private-walk allowance. Member lookup, authorization and the result cost more. Device: exact only with whole-group coverage and a completed live-basis scan; otherwise 0, pending, and the client does not ask.
+    scan unread.byId first 100 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+  mutation join:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes
+    no explicit reads
+    insert members, fans out to everyone
+  mutation send:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes; per write: `unread`: at most 2 derived writes per source transition (old/new groups)
+    no explicit reads
+    insert messages, fans out to everyone
+  mutation mark:
+    scale: constant — at most 8197 rows examined, 8193 probes, 0 lanes
+    write target members.byId — engine-private lookup; the update rule decides
+    update members, fans out to everyone
+  mutation tombstone:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes; per write: messages.byId: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions uses the internal ledger and shared 8,192-row physical authorization allowance; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows); `unread`: at most 2 derived writes per source transition (old/new groups)
+    write target messages.byId — engine-private lookup; the update rule decides
+    update messages, fans out to everyone
+  mutation edit:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes; per write: messages.byId: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions uses the internal ledger and shared 8,192-row physical authorization allowance; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows); `unread`: at most 2 derived writes per source transition (old/new groups)
+    write target messages.byId — engine-private lookup; the update rule decides
+    update messages, fans out to everyone
+  mutation remove:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes; per write: `unread`: at most 2 derived writes per source transition (old/new groups)
+    no explicit reads
+    delete messages, fans out to everyone
+  mutation leave:
+    scale: constant — at most 8196 rows examined, 8193 probes, 0 lanes
+    no explicit reads
+    delete members, fans out to everyone

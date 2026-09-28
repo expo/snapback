@@ -1,0 +1,20 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+error[E0599]: no variant, associated function, or constant named `Text` found for enum `value::Value` in the current scope
+   --> crates/snapback4-core/src/engine/row_views/batch/tests.rs:130:109
+    |
+130 |     let mut seed = vec![("conversations".into(), object([("id", Value::Id("busy".into())), ("title", Value::Text("Busy".into()))]))];
+    |                                                                                                             ^^^^ variant, associated function, or constant not found in `value::Value`
+    |
+   ::: crates/snapback4-core/src/value.rs:21:1
+    |
+ 21 | pub enum Value {
+    | -------------- variant, associated function, or constant `Text` not found for this enum
+    |
+note: if you're trying to build a new `value::Value`, consider using `value::Value::int` which returns `Result<value::Value, ValueError>`
+   --> crates/snapback4-core/src/value.rs:133:5
+    |
+133 |     pub fn int(value: i128) -> Result<Self, ValueError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `snapback4-core` (lib test) due to 1 previous error

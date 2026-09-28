@@ -1,0 +1,23 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 15.69s
+     Running tests/guide.rs (target/debug/deps/guide-132c71be9943abe4)
+
+running 1 test
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... FAILED
+
+failures:
+
+---- definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale stdout ----
+
+thread 'definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale' (2603006) panicked at crates/snapback4-lang/tests/guide/definitions.rs:365:5:
+assertion failed: text.contains("history-walking hook does not scale to a large group")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

@@ -1094,15 +1094,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const success = successSequence(entry);
       if (success != null) {
         const receipt = (await history.acknowledged(entry.id, success, true))!;
-        // A sent outbox entry already persisted its receipt before settlement;
-        // re-reading it must not refresh an evicted receipt. Emission is per
-        // client: another owner's durable receipt is still this client's first
-        // completion, and the emitted set suppresses a repeat.
+        // A sent entry already persisted its receipt; re-reading must not refresh
+        // an evicted receipt. Emission is per client: another owner's durable
+        // receipt is this client's first completion; the emitted set prevents repeats.
         if (entry.sent_seq == null) await settleReceipt(history, call, receipt);
         settled.get(entry.id)?.resolve(receipt); settled.delete(entry.id);
         emitWrite(receipt);
-        // A published acknowledgement already includes this effect. Starting
-        // another sync would withdraw freshness from a completed acquisition.
+        // A published acknowledgement already includes this effect and stays fresh.
         if (acquire && (entry.observed_seq == null || !caughtUp) && (await queued()).every(e => successSequence(e) != null)) await syncOnce();
         continue;
       }
@@ -1156,8 +1154,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             : { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), result: json.result }
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
         if (!closed && !("persistencePending" in result)) {
-          if (outcome.state === "sent") { if (acquire && (await queued()).every(e => successSequence(e) != null)) await syncOnce(); }
-          else rerunTables(predictedTables(entry.predicted));
+          if (outcome.state !== "sent") rerunTables(predictedTables(entry.predicted));
+          // @ref LLP 3000.019#3.3 — a refused tail still syncs earlier durable successes.
+          const remaining = acquire ? await queued() : [];
+          if (acquire && remaining.every(e => successSequence(e) != null) && (outcome.state === "sent" || remaining.some(e => e.observed_seq == null || !caughtUp))) await syncOnce();
         }
         settle?.resolve(outcome);
         emitWrite(outcome);

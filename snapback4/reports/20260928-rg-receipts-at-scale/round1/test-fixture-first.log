@@ -1,0 +1,33 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-rg/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized] target(s) in 18.83s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-15db242de061cbb6)
+
+running 10 tests
+test engine::row_views::batch::tests::batch_reserves_memory_and_charges_predicate_work_before_certifying ... ok
+test engine::row_views::batch::tests::capped_batch_admission_refuses_instead_of_certifying_zero ... ok
+test engine::row_views::batch::tests::batch_authorizes_each_member_and_parent_before_counting_and_rechecks_next_call ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::row_views::batch::tests::predicate_probe_preserves_a_small_writer_allowance ... ok
+test engine::row_views::batch::tests::predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions ... ok
+
+thread 'engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget' (2599168) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:132:29:
+called `Result::unwrap()` on an `Err` value: Require { code: "NOT_FOUND", site: Some("") }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets' (2599169) panicked at crates/snapback4-core/src/engine/row_views/batch/tests.rs:132:29:
+called `Result::unwrap()` on an `Err` value: Require { code: "NOT_FOUND", site: Some("") }
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget ... FAILED
+test engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets ... FAILED
+test engine::row_views::batch::tests::fifty_receipts_at_the_head_do_not_walk_ten_thousand_messages ... ok
+50 members / 1002 live rows: batch 26.755311ms; decoded 1002 instead of 50100
+test engine::row_views::batch::tests::fifty_members_share_one_live_walk_and_match_fifty_scalar_certifications ... ok
+
+failures:
+
+failures:
+    engine::row_views::batch::tests::receipt_probe_fallback_commits_eight_members_with_the_default_budget
+    engine::row_views::batch::tests::receipt_probe_fallback_commits_with_moderate_writer_budgets
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 152 filtered out; finished in 0.27s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`

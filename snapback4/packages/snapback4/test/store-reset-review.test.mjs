@@ -28,7 +28,7 @@ async function fixture(t, count = 1) {
   let schema = original.schema;
   let queryGate, localGate, mutationGate, syncGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [], syncRequests = [];
-  let queryUnavailable = false;
+  let queryUnavailable = false, refuseSecond = false;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
@@ -39,6 +39,11 @@ async function fixture(t, count = 1) {
       if (syncGate) await syncGate.promise;
       const request = JSON.parse(init.body);
       syncRequests.push(request);
+      if (refuseSecond && sends.length > 0 && request.from !== 0) {
+        const committed = events(store).filter(e => e.table === "messages");
+        committed[0].data.body = "committed first";
+        return Response.json({ snapshot: false, store_id: store, generation, events: committed, watermark: 11, more: false });
+      }
       return Response.json(request.from === 0 && !request.stream ? { ...snapshot(store, count), generation } : { snapshot: false, store_id: store, generation, events: [], watermark: 10, more: false });
     }
     if (path === "/changes") {
@@ -53,7 +58,9 @@ async function fixture(t, count = 1) {
       reads.push(captured);
       return Response.json(queryUnavailable ? { loading: true } : { data: captured, complete: true, tables: ["messages"] });
     }
-    if (path.startsWith("/m/")) { sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise; return Response.json({ state: "sent", seq: 11 }); }
+    if (path.startsWith("/m/")) { sends.push({ ...JSON.parse(init.body), store, exit: !!init.keepalive }); mutationStarts++; if (mutationGate) await mutationGate.promise;
+      if (refuseSecond && sends.length === 2) return Response.json({ state: "failed", why: { code: "SECOND_REFUSED", family: "application", message: "second write refused", retryable: false } });
+      return Response.json({ state: "sent", seq: 11 }); }
     if (path === "/probe") return Response.json({ ok: true });
     assert.fail(path);
   };
@@ -78,6 +85,7 @@ async function fixture(t, count = 1) {
   await open();
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
     unavailable(value) { queryUnavailable = value; },
+    refuseSecond() { refuseSecond = true; },
     replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
     widenBackend() {
       generation++; marker = "A2"; schema = structuredClone(schema);
@@ -110,6 +118,23 @@ test("a queued send follows a settled receipt without waiting for an intermediat
   assert.deepEqual(f.sends.map(write => write.args.body), ["first", "second"], "FIFO order is preserved");
   publishing.resolve();
   assert.deepEqual((await Promise.all([receipt, message])).map(write => write.state), ["sent", "sent"]);
+});
+
+test("a success followed by a terminal refusal syncs the committed write before the batch finishes", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  f.refuseSecond();
+  const sending = f.holdMutation();
+  const op = { kind: "mutation", name: "send" };
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  sending.resolve();
+  assert.deepEqual((await Promise.all([first, second])).map(write => write.state), ["sent", "failed"]);
+  assert.deepEqual(f.sends.map(write => write.args.body), ["first", "second"]);
+  const read = ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() }));
+  assert.ok(read.data?.some(row => row.body === "committed first"), "the first commit is locally visible without a /changes wake");
 });
 
 test("receipt head observations do not rescan retained media until publication or replacement", async t => {

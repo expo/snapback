@@ -90,7 +90,13 @@ impl Runner<'_> {
     pub(super) fn live_basis_scan(&mut self, m: &Maintain, member: &Value, cursor: Option<&Value>, limit: usize) -> Result<(i64,bool,Option<Value>),RuntimeError> {
         // @ref LLP 3000.015#3 — bounded authorized predicate ranges avoid visiting history.
         #[cfg(feature = "sqlite")]
-        if !self.device && cursor.is_none() && let Some(n) = self.small_view_range(m, member)? { return Ok((n, true, None)); }
+        let limit = if !self.device && cursor.is_none() {
+            let before = self.meter.used.examined;
+            if let Some(n) = self.small_view_range(m, member)? { return Ok((n, true, None)); }
+            // The caller reserved publication headroom before the probe. Keep
+            // its charges and spend only the remainder on the fallback walk.
+            limit.saturating_sub((self.meter.used.examined - before) as usize)
+        } else { limit };
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         let Some(expire) = source.expiry_column() else {

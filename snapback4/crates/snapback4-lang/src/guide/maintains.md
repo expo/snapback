@@ -688,9 +688,13 @@ position, add `and .ordinal > m.joinedAt` to exclude pre-join history. The
 engine assigns the sequence position at commit, shared per conversation.
 Own sends and tombstones are excluded explicitly. A source already expired at
 its commit clock is retired in that transaction, before adding a contribution;
-it will not be subtracted later. Server marks, background recounts, reads,
-snapshots and catch-up certify the live basis using only the null and future
-ranges of the parent/expiry index. Unswept expired inputs are never visited.
+it will not be subtracted later. Server certification may first probe a necessary
+predicate index: at most 65 stored keys decide whether at most 64 candidates
+can certify the count. These candidates include unswept expired inputs; expiry
+and the full predicate exclude them from the count. Larger ranges and background
+recounts use the null and future ranges of the parent/expiry index, seeking past
+expired inputs. An abandoned probe stays charged against the writer's recount
+allowance; a count that cannot finish leaves a pending recount and commits the mark.
 Server reads certify the whole current live range, including counts above the
 writer allowance, using the same policy for stored pending and settled values.
 Historical pending work never selects completeness or count-dependent refusal.
@@ -699,8 +703,9 @@ without publishing redundant recount commits or changing watermarks. Each
 private chunk counts against the maintenance allowance and releases the
 engine lock before the next chunk. The server
 certification scan can traverse the whole live group on its internal ledger.
-Reads reserve one examined unit and one step for certification; its walk is not metered, equally for queries and count-dependent
-writers. Completed and pending reads keep the same reservation.
+Reads reserve one examined unit and one step for certification; probes and walks
+consume the internal ledger, equally for queries and count-dependent writers.
+Completed and pending reads keep the same public reservation.
 Schema adoption atomically rebuilds a count when its member table, predicate
 inputs or expiry interpretation changes, including a default on a legacy absent
 expiry field. Stored counts carry an internal basis timestamp. Physical sweeps subtract only

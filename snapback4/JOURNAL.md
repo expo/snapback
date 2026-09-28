@@ -72251,3 +72251,55 @@ network profiles, controls, every suite failure and reproduction commands:
 [RG report](./reports/20260928-rg-receipts-at-scale/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-28 — RG round 1: charged probe fallback and complete migration
+
+Fetched and merged origin/main (0a5596c2c) first, producing 284cc8135 without
+conflicts. Read the round-0 prompt, report, journal and Astra review. Grok had
+no verdict at start; its later completed review was incorporated during the
+affected checks. Scoped llp-orient used the initialized sibling lane-i skill;
+the context pack records LLP 3000.015, 3000.019 and 3000.022 constraints.
+
+The abandoned 65-position predicate probe remains charged, and its actual
+examined work now reduces the fallback recount allowance while preserving
+publication headroom. The 1,000-message fixture commits at allowances 210,
+240, 256, 300 and 500, and for seven/eight members under the default 8,192
+allowance. Pending recounts finish privately at 999. Independent 63/64/65
+candidate cases include rejected prefixes followed by a live row and bound
+both probes and decodes. Baseline refusals and the clipped-loop mutant fail.
+
+Grok's successful-first-write/refused-tail case also reproduced: the first
+commit remained absent locally without a /changes wake. A terminal tail now
+syncs earlier unobserved successes before settlement; successful FIFO pairs
+still avoid an intermediate sync. Cost output describes both predicate-index
+certification and the shared expiry walk. The receipts card plainly says the
+history-walking hook does not scale to a large group and shows the migration.
+The retained original screenshot establishes the examined-8,192 refusal;
+the original log and JSON establish only its timeout.
+
+Two full builder repetitions use separate copies of the original store. The
+first retained round-0 migration misses the one-second target at 1.146 s
+send/settlement p95. Its profile exposed 244 remaining progress evaluations.
+Completing the copied app's member-only read migration removes that history
+acquisition path. The final run has zero progress evaluations: send/settlement
+p95 704 ms, visible-render p95 73 ms, receipt convergence p95 3.414 s, all 20
+measured sends below one second (maximum 925 ms). Cold ready is 7.698 s,
+including 5.769 s login/feed and 1.691 s navigation. Both runs and host-load
+traces remain retained; load and app form changed, so their individual latency
+contributions are not isolated. Original database/WAL hashes remain unchanged.
+
+Final affected checks pass: 254 Rust and 478 client tests, including the whole
+93-test guide, clock, settlement, receipts and delivery. One opt-in Rust
+measurement is ignored. The standalone 30-test refused-tail rerun overlaps
+those totals. Build/typecheck, app check/export and root reference audit pass.
+Every expected failing control, fixture/invocation and evidence-formatting
+failure, and the first probe miss is classified as ours in the report; no baseline or environmental check
+failure. Did not run scripts/test.sh: the supervisor owns the landing suite.
+
+Wasm 2,019,815 B raw / 585,381 B gzip, raw unchanged and gzip 3 B smaller than
+round 0, 812 B below the unchanged 586,193 B budget. The code section is
+byte-identical; only data differs. No tool installed, no budget or capability
+added. Report, full migration patch, profiles, controls and commands:
+[round-1 report](./reports/20260928-rg-receipts-at-scale/round1/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

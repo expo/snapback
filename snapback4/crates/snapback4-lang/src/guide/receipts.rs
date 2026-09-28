@@ -180,9 +180,14 @@ query messageReactions(message: messages):
 
 ```
 
-When migrating an older `useReceipts` recipe, remove its delivery debt,
+The older `useReceipts` history-walking hook does not scale to a large group:
+automatic paging and receipt writes can stall sends and hit the examined-row
+ceiling. Migrate it to the SDK reporter and the visible-screen hook below.
+When migrating, remove its delivery debt,
 automatic history `loadMore()` and background `progress` polling writers
 when adding `reports delivery`. Keep the visible screen's `seen` report.
+Replace the mounted `progress` read with `receiptMember`; its `ahead` messages
+otherwise keep acquiring history through SDK delivery.
 Loading older messages is a reader action; receipt convergence must not
 acquire history or enqueue a receipt for every page before sending a message.
 The SDK reports only positions it actually publishes, including disjoint

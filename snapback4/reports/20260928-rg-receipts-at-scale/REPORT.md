@@ -1,5 +1,34 @@
 # Lane RG — receipts at scale
 
+## Round 1 — 2026-09-28
+
+Merged `origin/main` (`0a5596c2c`) first, without conflicts. The probe's charged
+work now reduces the fallback recount allowance; all reported moderate/default
+budget cases commit and settle private recounts correctly. Added independent
+63/64/65-candidate tests, and fixed the late Grok finding where a refused tail
+left an earlier successful write unobserved. The receipts and cost guidance
+now describe the implementation and the full app migration.
+
+The final fresh-store probe with that complete migration records **704 ms
+send/settlement p95**, **73 ms visible-render p95**, **3.414 s receipt convergence
+p95**, and **7.698 s cold ready**. All 20 measured sends are below one second;
+maximum 925 ms. The first repeat using the retained round-0 app patch missed
+at 1.146 s p95. It exposed a still-mounted `progress` read; its measurements
+and higher host-load trace are retained, and no causal claim attributes the
+entire difference to the migration alone.
+
+Final checks pass: 254 Rust tests including the 93-test whole guide, and
+478 client tests; one opt-in Rust measurement is ignored. Wasm is **2,019,815 B
+raw / 585,381 B gzip**, 812 B under the unchanged budget and 3 gzip bytes
+smaller than round 0. `scripts/test.sh` was not run in this round.
+
+[Round-1 report, every failure and its disposition](round1/REPORT.md) ·
+[measurements](round1/fixed-guide-measurements.json) ·
+[complete builder migration](round1/complete-builder-migration.patch).
+Nothing was pushed or published.
+
+## Round 0 — retained record
+
 2026-09-28. Starting main: `1972112a0`. Branch:
 `sb4-intent/rg-receipts-at-scale`. `git fetch origin && git merge origin/main`
 completed first, with “Already up to date.” Nothing was pushed or published.
@@ -224,9 +253,14 @@ The current reporting form was already implemented on main; this change makes
 the migration obligation explicit. The SDK's duplicate reads/saves and the
 server's repeated count certification were separate implementation defects.
 An intermediate run with SDK/Rust fixes but the old hook stalled on the second
-send and displayed an examined-row ceiling refusal; it is preserved in
-[pre-migration-failure.log](pre-migration-failure.log). No claim is made that
-the unchanged legacy program satisfies the target.
+send and displayed an examined-row ceiling refusal. The
+[log](pre-migration-failure.log) and [JSON](pre-migration-failure.json) record
+only the settlement timeout; the retained [screenshot](pre-migration-failure.png)
+shows “examined rows reached the ceiling 8192.” The history-walking hook
+does not scale to a large group. Full-scale operation of the unchanged hook
+is not established; API compatibility does not establish that it is slower
+but working. The receipts card now says this plainly and shows the migration
+to SDK delivery collection and visible-screen `seen`.
 
 The design context was oriented against LLP 3000, 3000.015 §3 (authorized
 counting and meters), 3000.020 (device range proofs), 3000.022 (delivery
