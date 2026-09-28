@@ -116,6 +116,46 @@ fn predicate_probe_cutoff_counts_every_candidate_and_keeps_rejected_positions() 
     }
 }
 
+#[test]
+fn small_predicate_ranges_match_an_independent_unread_oracle() {
+    let schema = schema(false);
+    let rows = MemoryRows::new();
+    // Named fixture facts, not a second evaluation of RowKey::matches.
+    // Alice: read through 1, joined at 3. Bob: read through 1, joined at 0.
+    let fixtures = [
+        ("already-read", "busy", 1, "sender", false, Value::Null, [false, false]),
+        ("before-join", "busy", 2, "sender", false, Value::Null, [false, true]),
+        ("at-join", "busy", 3, "sender", false, Value::Null, [false, true]),
+        ("alice-self", "busy", 4, "alice", false, Value::Null, [false, true]),
+        ("tombstone", "busy", 5, "sender", true, Value::Null, [false, false]),
+        ("expired", "busy", 6, "sender", false, Value::Int(10), [false, false]),
+        ("bob-self", "busy", 7, "bob", false, Value::Null, [true, false]),
+        ("live", "busy", 8, "sender", false, Value::Int(20), [true, true]),
+        ("other-group", "elsewhere", 9, "sender", false, Value::Null, [false, false]),
+    ];
+    for (id, parent, ordinal, sender, tombstone, until, _) in &fixtures {
+        let mut row = message(id, parent, *ordinal, until.clone());
+        let Value::Row(fields) = &mut row else { unreachable!() };
+        fields.insert("senderId".into(), Value::Id((*sender).into()));
+        fields.insert("tombstone".into(), Value::Bool(*tombstone));
+        rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+    }
+    for (i, (principal, joined)) in [("alice", 3), ("bob", 0)].into_iter().enumerate() {
+        let expected = fixtures.iter().filter(|row| row.6[i]).count() as i64;
+        assert_eq!(expected, [2, 4][i], "the fixture oracle is independent of the engine predicate");
+        let mut member = member(principal, "busy", principal, 1);
+        let Value::Row(fields) = &mut member else { unreachable!() };
+        fields.insert("joinedAt".into(), Value::Int(joined));
+        rows.put("members", &schema.tables["members"], &member, None).unwrap();
+        let mut probe = runner(&rows, &schema, principal);
+        assert_eq!(probe.small_view_range(&schema.maintains[0], &member).unwrap(), Some(expected), "{principal}: exclude tombstones, self-sends, join floor, read floor, expiry and other groups");
+        assert!(probe.meter.used.examined <= 15);
+        assert!(probe.rebuilt_source_rows > 0 && probe.rebuilt_source_rows <= 7);
+        let actual = runner(&rows, &schema, principal).live_aggregate_batch("unread", &[view(principal, true)]).unwrap();
+        assert_eq!(actual[0].as_ref().unwrap().field("value"), Ok(&Value::Int(expected)));
+    }
+}
+
 fn receipt_writer(examined: u64, members: usize) -> crate::Engine {
     let mut source = include_str!("../../../../../snapback4-lang/tests/fixtures/row-keyed-view.q").to_owned();
     source.push_str("\nmutation markAll():\n");

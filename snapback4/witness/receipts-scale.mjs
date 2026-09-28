@@ -12,12 +12,12 @@ const sourceDir = mkdtempSync(join(root, 'target/rg-receipts-source-'));
 let source = readFileSync(join(root, 'crates/snapback4-lang/src/guide/receipts.rs'), 'utf8').split('```quarry\n')[1].split('```')[0];
 // Expiring source plus row-keyed unread counts reproduces the certification
 // shape, while all receipt/rule forms come from the tested current guide.
-source = 'use identity password\n' + source.replace('  at: time\n', '  at: time\n  expiresAt: time ?\n  expire at .expiresAt\n  immutable expiresAt\n');
-source += '\nview unread: count messages by members m\n  where .conversation = m.conversation and .ordinal > m.seenOrdinal and .sender != m.principal\nquery message(id: messages):\n  return messages[id]\n';
+source = 'use identity password\n' + source.replace('  at: time\n', '  at: time\n  tombstone: bool default false\n  expiresAt: time ?\n  expire at .expiresAt\n  immutable expiresAt\n');
+source += '\nview unread: count messages by members m\n  where .conversation = m.conversation and .ordinal > m.seenOrdinal and .ordinal > m.joinedOrdinal and .sender != m.principal and not .tombstone\nquery unreadFor(member: members):\n  return unread[member]\nquery message(id: messages):\n  return messages[id]\n';
 writeFileSync(join(sourceDir, 'schema.q'), source);
 const clients = [], network = [], browserErrors = [];
 let h;
-const result = { fixture: { members: 50, busyMessages: 10000, conversations: 100 }, warmups: 3, samples: [], pass: false };
+const result = { fixture: { members: 50, busyMessages: 10000, conversations: 100 }, unreadChecks: [], warmups: 3, samples: [], pass: false };
 try {
   h = await launch({ seed: [], sourceDir, entrySource: `import ${JSON.stringify(join(root, 'witness/receipts-scale-browser.tsx'))};` });
   const { page, api } = h;
@@ -37,8 +37,26 @@ try {
     for (let p = 0; p < members; p++) rows.push({ table: 'members', row: { id: `${id}-p${p}`, conversation: id, principal: accounts[p].session.principal, joinedOrdinal: 0, deliveredOrdinal: 0, seenOrdinal: count } });
     for (let n = 1; n <= count; n++) rows.push({ table: 'messages', row: { id: `${id}-m${n}`, conversation: id, sender: accounts[n % members].session.principal, ordinal: n, recipients: members - 1, text: `history ${g}/${n}`, at: 1700000000000 + n } });
   }
+  // Small-range oracle inside the same 100-conversation fixture. For peer 0
+  // only ordinal 7 qualifies; for peer 1 only 6 and 10 do. The other rows
+  // exercise read/join floors, self-sends, a tombstone (8) and expiry (9).
+  for (const { table, row } of rows) {
+    if (table === 'members' && row.id === 'quiet99-p0') Object.assign(row, { seenOrdinal: 3, joinedOrdinal: 5 });
+    if (table === 'members' && row.id === 'quiet99-p1') Object.assign(row, { seenOrdinal: 4, joinedOrdinal: 2 });
+    if (table === 'messages' && row.id === 'quiet99-m8') row.tombstone = true;
+    if (table === 'messages' && row.id === 'quiet99-m9') row.expiresAt = 1;
+  }
   const seeded = await fetch(api + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json());
   assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+  const q = name => ({ name, kind: 'query' }), m = name => ({ name, kind: 'mutation' });
+  async function unread(peer, member, expected, phase) {
+    const read = await clients[peer].query(q('unreadFor'), { member });
+    result.unreadChecks.push({ phase, member, expected, actual: read.data });
+    assert.equal(read.complete, true, `unread ${phase}: ${JSON.stringify(read)}`);
+    assert.equal(read.data, expected, `exact unread for ${member} ${phase}: ${JSON.stringify(read)}`);
+  }
+  await unread(0, 'quiet99-p0', 1, 'seeded mixed range');
+  await unread(1, 'quiet99-p1', 2, 'seeded mixed range');
   page.on('response', async response => {
     const path = new URL(response.url()).pathname;
     if (!['/sync', '/changes'].includes(path)) return;
@@ -52,7 +70,10 @@ try {
   result.cold = await page.evaluate(({ api, account }) => window.startReceipts(api, account.email, account.password), { api, account: accounts[0] });
   await page.waitForSelector('[data-message="history 0/10000"]');
   result.coldWebReadyMs = performance.now() - cold;
-  const q = name => ({ name, kind: 'query' }), m = name => ({ name, kind: 'mutation' });
+  const localUnread = await page.evaluate(() => window.readUnread('quiet99-p0'));
+  assert.equal(localUnread.complete, true, 'Chromium certifies the seeded unread view');
+  assert.equal(localUnread.data, 1, 'Chromium reads the seeded unread view');
+  result.unreadChecks.push({ phase: 'Chromium seeded range', member: 'quiet99-p0', expected: 1, actual: localUnread.data });
   for (let i = 0; i < 23; i++) {
     const text = `receipt-scale-${i}`, at = performance.now();
     await page.locator('#text').fill(text); await page.locator('#send').click();
@@ -67,6 +88,8 @@ try {
     }
     assert.ok(message, 'server settlement within 30 seconds');
     const sendRenderMs = performance.now() - at;
+    await unread(0, 'busy-p0', 0, `sample ${i} self-send`);
+    await unread(1, 'busy-p1', 1, `sample ${i} before seen`);
     for (const peer of clients.slice(1)) {
       assert.equal((await peer.query(q('message'), { id: message.id })).data?.text, text);
       for (const [name, args] of [['delivered', { conversation: 'busy', from: message.ordinal, through: message.ordinal }], ['seen', { conversation: 'busy', through: message.ordinal }]]) {
@@ -76,6 +99,7 @@ try {
     await page.locator(`[data-message="${text}"][data-receipt="read"]`).waitFor({ timeout: 30000 });
     const sample = { i, domMs, sendRenderMs, readConvergenceMs: performance.now() - at };
     console.log(JSON.stringify(sample)); result.samples.push(sample);
+    await unread(1, 'busy-p1', 0, `sample ${i} after seen`);
   }
   const p95 = key => result.samples.slice(3).map(x => x[key]).sort((a, b) => a - b)[18];
   result.domP95Ms = p95('domMs'); result.sendRenderP95Ms = p95('sendRenderMs'); result.readConvergenceP95Ms = p95('readConvergenceMs');

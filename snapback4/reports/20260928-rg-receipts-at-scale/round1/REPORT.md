@@ -36,12 +36,12 @@ not run in this round.
   expired candidates) and the shared live-expiry fallback, with the same
   fixed public reservation.
 
-Grok correctly observed that the linked pre-migration log and JSON showed
-only a timeout. The original screenshot, inspected and now retained as
-[pre-migration-failure.png](../pre-migration-failure.png), shows
-“examined rows reached the ceiling 8192.” The main report now distinguishes
-those two sources. Both full reviews and the [context pack](CONTEXT.md) are
-retained here.
+Round-2 evidence correction: the linked pre-migration log and JSON establish
+only a 30-second send/settlement miss, with no `E_BOUND` refusal. Round 1's
+claim that the retained screenshot establishes an examined-row refusal for
+that run is withdrawn. The screenshot is retained as an artifact, not as
+proof of that run's failure cause. Both full reviews and the
+[context pack](CONTEXT.md) remain here.
 
 ## Builder probe
 

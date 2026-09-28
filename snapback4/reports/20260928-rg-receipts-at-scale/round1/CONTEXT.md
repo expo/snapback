@@ -26,8 +26,9 @@ allowance deduction instead. Its successful-write/refused-tail case reproduces
 and is fixed. Its stale cost sentence is fixed in `check --cost`, its regression,
 and the matching maintains card. Rejected-prefix cutoff cases also catch the
 suggested removal of the full predicate. Its report-evidence observation was
-valid for the linked log/JSON: those record the timeout alone. The retained
-screenshot shows the examined-row refusal and is now included and linked.
+valid for the linked log/JSON: those record the timeout alone. Round 2 withdraws
+the screenshot attribution: the logged run establishes only the timeout, not
+an examined-row refusal.
 
 The first full repeat exposed a remaining mounted `progress` query in the
 copied builder app. The completed migration replaces it with the guide's

@@ -28,7 +28,7 @@ async function fixture(t, count = 1) {
   let schema = original.schema;
   let queryGate, localGate, mutationGate, syncGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [], syncRequests = [];
-  let queryUnavailable = false, refuseSecond = false;
+  let queryUnavailable = false, refuseSecond = false, beforeSend;
   let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
@@ -67,6 +67,10 @@ async function fixture(t, count = 1) {
   async function open() {
     const opener = webDevice({ wasm, persist });
     client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request) {
+      if (request.op === "begin_send" && beforeSend) {
+        const reply = await beforeSend(request);
+        if (reply) return reply;
+      }
       if (request.op === "sync_state" && failNextResetRead) {
         failNextResetRead = false;
         resetReadFailure();
@@ -86,6 +90,7 @@ async function fixture(t, count = 1) {
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
     unavailable(value) { queryUnavailable = value; },
     refuseSecond() { refuseSecond = true; },
+    beforeSend(callback) { beforeSend = callback; },
     replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
     widenBackend() {
       generation++; marker = "A2"; schema = structuredClone(schema);
@@ -130,11 +135,43 @@ test("a success followed by a terminal refusal syncs the committed write before 
   await until(() => f.sends.length === 1);
   const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
   await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  const publishing = f.holdSync(), syncs = f.stats().syncStarts;
+  let finished = false;
+  const batch = Promise.all([first, second]).then(writes => { finished = true; return writes; });
   sending.resolve();
-  assert.deepEqual((await Promise.all([first, second])).map(write => write.state), ["sent", "failed"]);
+  await until(() => f.sends.length === 2 && (f.stats().syncStarts > syncs || finished));
   assert.deepEqual(f.sends.map(write => write.args.body), ["first", "second"]);
+  assert.equal(finished, false, "batch completion waits for publication, with no sync between the POSTs");
+  publishing.resolve();
+  assert.deepEqual((await batch).map(write => write.state), ["sent", "failed"]);
   const read = ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() }));
   assert.ok(read.data?.some(row => row.body === "committed first"), "the first commit is locally visible without a /changes wake");
+});
+
+test("an early flush exit syncs an earlier success when another owner retires the tail", async t => {
+  const f = await fixture(t);
+  await until(() => f.client.acquired);
+  t.mock.timers.enable({ apis: ["setTimeout"] }); // A later retry cannot repair the missing exit sync.
+  f.refuseSecond(); // The sync fixture publishes the first commit; /changes stays held.
+  const sending = f.holdMutation(), op = { kind: "mutation", name: "send" };
+  const first = f.client.mutate(op, { conversationId: "c1", body: "first" });
+  await until(() => f.sends.length === 1);
+  const second = f.client.mutate(op, { conversationId: "c1", body: "second" });
+  await until(async () => ok(await f.core.call({ op: "queued" })).length === 2);
+  f.beforeSend(async request => {
+    // Another owner settles a terminal refusal just before this owner's
+    // begin_send: no unresolved tail remains to justify skipping the sync.
+    ok(await f.core.call({ op: "settle", id: request.id }));
+    return { denied: { code: "E_STORE", family: "store", message: "tail retired by another owner" } };
+  });
+  const syncs = f.stats().syncStarts;
+  sending.resolve();
+  await first;
+  await until(() => f.stats().syncStarts > syncs);
+  await until(async () => ok(await f.core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data?.some(row => row.body === "committed first"));
+  assert.equal(f.sends.length, 1, "the retired tail was never posted");
+  await f.client.close();
+  await second;
 });
 
 test("receipt head observations do not rescan retained media until publication or replacement", async t => {

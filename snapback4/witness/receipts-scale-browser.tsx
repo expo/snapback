@@ -71,4 +71,5 @@ function Screen() {
   return stats.cold;
 };
 (window as any).receiptStats = stats;
+(window as any).readUnread = (member: string) => client.query(query('unreadFor'), { member });
 (window as any).closeReceipts = () => client.close();

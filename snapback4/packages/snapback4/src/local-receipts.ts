@@ -18,6 +18,14 @@ export function successSequence(entry?: Queued): number | undefined {
   return seq != null && (entry?.sent_seq === seq || entry?.observed_seq === seq) ? seq : undefined;
 }
 
+// @ref LLP 3000.019#3.3 — terminal/retired tails cannot strand an earlier success.
+// Run outside the network chain, including before retry and after the FIFO loop.
+export async function syncSettledWrites(queued: () => Promise<Queued[]>, sync: () => Promise<unknown>, caughtUp: () => boolean, acquire: boolean, force = false): Promise<void> {
+  if (!acquire) return;
+  const remaining = await queued();
+  if (remaining.every(e => successSequence(e) != null) && (force || remaining.some(e => e.observed_seq == null || !caughtUp()))) await sync();
+}
+
 export async function recoverReceipt(history: WriteHistory, call: Call, id: string, observedSeq?: number | null, qualified = false): Promise<Terminal | undefined> {
   const known = observedSeq == null ? await history.read(id, true) : await history.acknowledged(id, observedSeq, qualified);
   if (!known || known.state === "pending") return;

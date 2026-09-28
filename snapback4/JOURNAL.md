@@ -72303,3 +72303,51 @@ added. Report, full migration patch, profiles, controls and commands:
 [round-1 report](./reports/20260928-rg-receipts-at-scale/round1/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-28 — RG round 2: observe every settled tail and pin unread predicates
+
+Fetched and merged origin/main (a745b110f) first, producing b972d869b without
+conflicts. Read both previous prompts, reports and journal entries and the full
+Grok review. Scoped llp-orient used the existing sibling lane-i skill read-only.
+
+Round 1 already fixed the ordinary refused tail and cost sentence. This round
+checks for unobserved successes before each retry exit and after the FIFO loop,
+including a tail another owner retired. Persistence-failure retry scheduling
+moves outside the serialized network callback, after that observation check.
+Successful pairs still POST in FIFO order without intermediate sync. The
+refused-tail test holds sync and requires local publication before the batch
+finishes; a second test freezes retry time and retires the tail before begin_send.
+Both fail when unobserved-success sync is disabled and pass with it.
+
+The Rust truth-table oracle counts Alice=2, Bob=4 over a small range containing
+read/join boundaries, self-sends, tombstones, unswept expiry, another group and
+live rows. Removing matches yields 6 instead of 2. The generated Chromium
+witness now reads unread: seeded mixed counts, a sender's zero and a peer's
+one/zero around seen. The same production mutant fails at 6 instead of 1.
+Final witness: all 72 count assertions pass; cold 1.015 s, send/settlement p95
+380 ms, render p95 253 ms, all-peer convergence p95 847 ms, 1,191 saves and
+132 metadata writes for 2,254 reports. It overlapped the single generated
+device disclosure test; the report retains that condition and the earlier
+successful 368 ms run, with no causal timing comparison or arbitrary-load claim.
+
+Correction to this journal's round-1 entry: the pre-migration log and JSON
+establish only a 30-second send/settlement miss, not an E_BOUND refusal.
+The screenshot attribution to that logged run is withdrawn. Both reports and
+the prior context pack carry the correction; this journal remains append-only.
+The cost test verifies small predicate-index candidates can include expired
+rows, larger ranges retain the shared expiry walk, and the fixed public
+examined/step reservation remains unchanged.
+
+Final checks: 255 Rust tests, including the entire 93-test guide, and 479 client
+tests pass; one opt-in Rust measurement is ignored. The 31-test standalone
+outbox rerun overlaps those counts. Debug/production/client builds, typecheck,
+reference audit and whitespace checks pass. All expected failing mutants and
+the first witness's incorrect row-shaped assertion are classified as ours;
+no baseline or environmental test failure. The witness assertion was corrected
+to the scalar keyed count. No scripts/test.sh run; the supervisor owns landing.
+
+Wasm remeasured, byte-identical to round 1: 2,019,815 B raw / 585,381 B gzip,
+812 B under the unchanged 586,193 B budget. No installs, push or publication.
+Report, exact commands, controls, measurements and failure classifications:
+[round-2 report](./reports/20260928-rg-receipts-at-scale/round2/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

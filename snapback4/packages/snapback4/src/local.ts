@@ -34,7 +34,7 @@ import { changeFeed } from "./changes.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
+import { lookupWrite, recoverReceipt, settleReceipt, successSequence, syncSettledWrites } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -1086,6 +1086,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     retryMs = Math.min(5000, retryMs * 2);
   }
   async function flushOnce(acquire = true) {
+    const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
     await exitDone;
     if (closed || !sendingAllowed) return;
     for (const entry of await queued()) {
@@ -1134,17 +1135,17 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
                   await settleReceipt(history, call, json.state === "sent"
                     ? { state: "sent", id: entry.id, seq: Number(json.seq ?? 0), replayed: true }
                     : { state: "failed", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined);
-                } catch { retryFlush(); return { ...response, persistencePending: true }; }
+                } catch { return { ...response, persistencePending: true }; }
               }
             }
             return response;
           } finally { ordinarySending = undefined; }
         });
-        if (!result.ok) { retryFlush(); return; }
+        if (!result.ok) { await syncUnobserved(); retryFlush(); return; }
         if ("retired" in result) continue;
         const json = result.json;
         const why = (json.why ?? json.denied) as Refusal | undefined;
-        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { retryFlush(); return; }
+        if (result.obsoleteAuth || why?.retryable || (json.state !== "sent" && !why)) { await syncUnobserved(); retryFlush(); return; }
         retryMs = 250;
         const settle = settled.get(entry.id);
         settled.delete(entry.id);
@@ -1155,16 +1156,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
         if (!closed && !("persistencePending" in result)) {
           if (outcome.state !== "sent") rerunTables(predictedTables(entry.predicted));
-          // @ref LLP 3000.019#3.3 — a refused tail still syncs earlier durable successes.
-          const remaining = acquire ? await queued() : [];
-          if (acquire && remaining.every(e => successSequence(e) != null) && (outcome.state === "sent" || remaining.some(e => e.observed_seq == null || !caughtUp))) await syncOnce();
+          await syncUnobserved(outcome.state === "sent");
         }
         settle?.resolve(outcome);
         emitWrite(outcome);
-        if ("persistencePending" in result) return;
-      } catch { retryFlush(); return; }
+        if ("persistencePending" in result) { await syncUnobserved(); retryFlush(); return; }
+      } catch { await syncUnobserved(); retryFlush(); return; }
       finally { if (ownsSettlement) settling.delete(entry.id); }
     }
+    await syncUnobserved();
   }
   // @ref LLP 3000.007#18.2 — early replay needs the persisted store's identity and head; a replacement must retire known receipts through sync first.
   async function replayOnOpen(): Promise<boolean> {
