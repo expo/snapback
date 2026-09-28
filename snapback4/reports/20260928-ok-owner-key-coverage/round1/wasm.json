@@ -1,0 +1,21 @@
+{
+  "before": {
+    "raw": 2017908,
+    "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a"
+  },
+  "after": {
+    "raw": 2017908,
+    "sha256": "1050652571e0f696a94b737f281273ebf73583769a34142e584e52d1f6edfd2a",
+    "gnu_gzip9_script": 585100,
+    "gnu_gzip9_filename_free": 585075
+  },
+  "budget": {
+    "gzip": 586193,
+    "set": "2026-09-27",
+    "sha256": "c63455bb7042ee36cbc1208b9c73dc06f7a24c25eac03f196f99214c82969efd"
+  },
+  "delta": {
+    "raw": 0,
+    "gnu_gzip9_script": 0
+  }
+}

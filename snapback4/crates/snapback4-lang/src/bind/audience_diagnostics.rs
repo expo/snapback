@@ -42,6 +42,6 @@ pub(super) fn public_conflict(schema: &Schema, maintain: &MaintainDecl, site: &S
     Some(Diagnostic::new(site, code,
         format!("{} inherits horizon-free public sync (`sync public`, no horizon) from {}; its explicit `read <- {}` (at {}) conflicts with that public audience. A maintained view cannot declare a separate sync audience",
             maintain.name, maintain.source, crate::print::with_source(&read.value, &|_| None), read.site),
-        format!("{}keep `read <- allow` (or omit read) to retain this public offline summary: every device receives every group, including other viewers' keys; use `online only` to keep the narrower read on the server and lose offline aggregate/absence coverage. Measure replica rows and bytes with `snapback4 test --residency`; guide maintains; guide offline-interactions",
+        format!("{}keep `read <- allow` (or omit read) to retain this public offline summary: every device receives every group, including other viewers' keys; use `online only` to keep the narrower read on the server and lose offline aggregate/absence coverage. For viewer-owned existence on an eligible public window, use source owner-key coverage with ordinary `exists` instead of this summary; this does not supply aggregate totals. Measure replica rows and bytes with `snapback4 test --residency`; guide maintains; guide offline-interactions",
             if code == "E_QUARRY_SYNTAX" { "remove the view's sync line, then " } else { "" })).guide("maintains"))
 }

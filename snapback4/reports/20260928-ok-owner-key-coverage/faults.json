@@ -1,0 +1,15 @@
+[
+  {
+    "nativeSigkillBeforePublication": "pass",
+    "store": {
+      "ok": {
+        "generation": 2,
+        "native": null,
+        "watermark": 0
+      }
+    }
+  },
+  {
+    "wasmAbortedPublicationAndAtomicClear": "pass"
+  }
+]

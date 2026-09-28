@@ -1,0 +1,48 @@
+{
+  "mode": "public",
+  "keys": 1000000,
+  "status": "unsettled acquisition; not a completed replica",
+  "page": {
+    "elapsedMs": 1792609.1999998093,
+    "jsHeapNow": 302465310,
+    "locks": {
+      "held": [
+        {
+          "clientId": "9D291D207192620D02063B11DBB9A2C2",
+          "mode": "exclusive",
+          "name": "owner-cost"
+        }
+      ],
+      "pending": []
+    }
+  },
+  "storage": {
+    "usage": 101430852,
+    "quota": 14136533378,
+    "overrideActive": false,
+    "usageBreakdown": [
+      {
+        "storageType": "file_systems",
+        "usage": 0
+      },
+      {
+        "storageType": "indexeddb",
+        "usage": 101430852
+      },
+      {
+        "storageType": "cache_storage",
+        "usage": 0
+      },
+      {
+        "storageType": "service_workers",
+        "usage": 0
+      }
+    ]
+  },
+  "pendingCalls": [
+    {
+      "type": "Frame",
+      "method": "evaluateExpression"
+    }
+  ]
+}

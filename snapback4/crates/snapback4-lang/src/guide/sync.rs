@@ -247,6 +247,14 @@ Downgrading a device below the store's version is unsupported.
 Backends without these forms keep their existing encoding and remain compatible
 with 0.2.33 devices.
 
+`with own keys .principal` after a public window acquires all of this viewer's
+immutable unique keys. See `guide feeds`. Only non-expiring public sources
+with caller-owned writes qualify. Another principal's miss, row images and
+counts keep their coverage. The source owner index, maintained keys and private
+log cost server work; device bytes grow with lifetime keys. Adoption backfills
+before publication; even zero keys need durable whole acquisition. Devices
+without `owner-key-coverage` refuse the backend.
+
 `online only` optionally documents a table with no sync. On a maintained `view`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
@@ -452,4 +460,6 @@ without a horizon, and the conflicting explicit read. Keep the public read
 (or omit it) for the public offline summary, or use `online only` and lose
 offline aggregate/absence coverage. A view cannot declare a separate sync
 audience; do not narrow its public source to make it private. See `guide
-maintains` and `guide offline-interactions` for the replica census."##;
+maintains` and `guide offline-interactions` for the replica census and the
+explicit source owner-key coverage alternative for viewer-owned existence.
+That alternative keeps the public window; it does not supply aggregate totals."##;

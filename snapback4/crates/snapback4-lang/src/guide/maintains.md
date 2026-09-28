@@ -71,7 +71,9 @@ private. E_QUARRY_SYNTAX refuses a separate sync line on any view. On this publi
 line, then keep the public read (or omit it) for the public offline summary,
 or use `online only` and lose offline aggregate/absence coverage. Never narrow
 the public source to make the view private. `guide offline-interactions` is
-the example and replica census; N_MAINTAIN_SYNCED links it too.
+the example and replica census; N_MAINTAIN_SYNCED links it too. For viewer-owned
+existence on an eligible public window, that card shows source owner-key
+coverage with ordinary `exists` instead of a summary; it does not supply totals.
 
 E_MAINTAIN_READ_EXPIRE means an aggregate over an expiring source has a read
 rule that uses fields its group keys do not determine. This includes a source

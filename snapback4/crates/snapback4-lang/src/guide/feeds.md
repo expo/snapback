@@ -70,7 +70,18 @@ table reposts:
   public 'public reposts'
   insert <- .actorId = viewer
   delete <- .actorId = viewer
-  sync public last 1000 by .at
+  sync public last 1000 by .at with own keys .actorId
+
+table likes:
+  postId: posts
+  principal: principal
+  at: time
+  unique postId, principal
+  immutable postId, principal, at
+  public 'public likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync public last 2000 by .at with own keys .principal
 
 table follows:
   followerId: principal
@@ -101,9 +112,40 @@ mutation remove(postId: posts):
   update posts[postId] { removed: true }
 query home(c: cursor ?):
   return following last 20 by .at after c
+query postState(postId: posts):
+  return { liked: exists likes[postId, viewer], reposted: exists reposts[viewer, postId] }
 query cards(c: cursor ?):
   return following last 20 by .at after c { *, card: posts[.post] }
 ```
+
+Own-key coverage is the default for this social example. The public windows
+stay bounded; a separate private partition contains every live unique key
+owned by this viewer. The same `postState` answers online and offline. A
+never-queried absent key is false and complete only after whole acquisition
+and catch-up publish durably. A key below the public window can be true without
+its row being held. Offline answers stay stale until sync; an unseen remote
+delete cannot immediately change them. Another principal's missing key is
+still unknown outside the public window. Do not render loading as false.
+
+The policy accepts non-expiring public windows, immutable total unique keys
+containing the principal, and caller-owned writes. Key fields must be readable
+and required; `id` and `value` are reserved by the projection. The compiler
+chooses one qualifying unique key; a direct `viewer` owner expression on that
+key qualifies. It proves existence only:
+row fields, extra predicates, counts and write targets keep their own coverage.
+Predicted writes overlay keys transactionally; unpredicted writes remain pending
+intents. Sign-out preserves the replica and the owner's proof for an offline
+reopen as the same principal. A different caller cannot use that partition's proof;
+its own whole partition must be acquired. Interrupted acquisition or adoption
+grants no empty-partition proof. Existing windows do not opt in.
+
+Each viewer pays for their lifetime keys, plus the public window. The server
+pays for an owner index, one maintained row per key and private log events in
+the source transaction. Backfill precedes adoption publication. This replaces
+public interaction summaries that send everybody's keys to every device; it
+does not make prolific owners bounded. Measure with `client.residency()`.
+Devices predating the `owner-key-coverage` capability refuse this backend;
+upgrade devices before enabling the policy. See `guide sync`.
 
 ## Trending: a bounded predicate read
 

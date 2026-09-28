@@ -296,6 +296,7 @@ pub(super) fn lower(
         .constraints
         .retain(|c| matches!(c, Constraint::Unique { .. }));
     schema.maintains.push(snapback4_core::schema::Maintain {
+        own_keys: None,
         row_key: Some(key),
         parent_key: None,
         aliases: BTreeMap::new(),

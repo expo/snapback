@@ -490,7 +490,7 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
     // @ref LLP 3000.007#18.2 — the first page names only this viewer's audience prefixes; held groups replace, left groups retain.
     let held = if cursor.is_none() {
         let mut held = crate::wire::HeldGroups::new();
-        for (name, _, sync) in schema.synced().filter(|(_, table, _)| table.leave == crate::schema::LeavePolicy::DeliveredHistory) {
+        for (name, _, sync) in schema.synced().filter(|(name, table, _)| table.leave == crate::schema::LeavePolicy::DeliveredHistory || schema.maintain_for(name).is_some_and(|m| m.own_keys.is_some())) {
             held.insert(name.to_owned(), snapshot_groups(tx, schema, name, sync, principal, now)?.iter().map(|group| group.iter().map(crate::wire::to_json).collect()).collect());
         }
         Some(held)

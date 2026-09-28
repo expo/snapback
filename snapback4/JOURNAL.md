@@ -72259,6 +72259,93 @@ Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
 
+## 2026-09-28 — Lane OK: explicit owner-key coverage (LLP 3000.028 §3.4)
+
+Implemented `with own keys .principal` on admitted public windows. The compiler
+maintains a private horizon-free unique-key projection and owner index, rewrites
+only caller-proved full-key `exists`, and fences old devices with
+`owner-key-coverage`. Empty absence requires the exact caller’s durably published
+whole partition; source/key writes, overlays, reset and markers share existing
+transactions. Streaming backfill avoids a lifetime-key totals map. The guide’s
+social example opts in explicitly; existing programs are unchanged.
+
+The calibration builder without its interaction summaries passes §7.3 through
+public native and wasm clients, including zero/last-delete/reinsert, stale remote
+delete, predicted/unpredicted pending writes, sign-out/caller switch and stopped
+publication. Additional native SIGKILL, wasm save abort, failed server adoption
+and meter rollback tests pass. Original program/log/SQLite/WAL hashes match.
+
+Affected checks: 5 device, 3 compiler, 92 whole-guide, 81 authorization and
+15 timeline-adoption tests pass. Ran scripts/test.sh exactly once:
+`== 1 failure(s) in 1862 s` (`cargo test`). All four failed assertions were ours:
+one guide authoring census and three timeline fixture assumptions; corrected
+and scoped reruns pass. All other phases pass, including 3,845 client tests
+(10 environment/legacy skips) and all 79 client-model tests. The report retains
+every failed attempt and its classification.
+
+Measured all four alternatives on identical builder copies and 1k/100k/1m-key
+synthetic owners: wire, rows/indexes, SQLite, real Chromium IndexedDB, adoption,
+backfill, memory, write/lock p50/p95 and log/partition amplification. u0500
+wire falls from 5,370,455 B with public summaries to 3,431,615 B. Prolific owners
+remain expensive: the count/canonical-ID key representation can exceed full
+own rows. No universal saving is claimed. Million-row Chromium acquisition
+stalled in all four alternatives; partial IDB usage, elapsed lower bounds and
+RSS are recorded, with an open filesystem follow-up. No complete million-key
+browser replica is claimed.
+
+Wasm: 2,017,908 B raw / 585,100 B GNU gzip-9, down 1,907 / 284 B from the
+same-toolchain baseline, 1,093 B under the unchanged 586,193 B budget. No meter,
+dependency or budget increase. JS bundle measurements are in the report.
+LLP 3000.028 remains Accepted: this owner-key lane does not claim completion of
+its search/diagnostic lanes or the React/Expo UI recipes. No tools installed;
+no other lane edited. Local commit has the co-author trailer; no push/publish.
+
+Evidence: [report](./reports/20260928-ok-owner-key-coverage/REPORT.md), P19
+owner-coverage/owner-faults/owner-browser witnesses and own_keys_cost.rs.
+
+## 2026-09-28 — Lane OK round 1: sign-out retention, residency and review regressions
+
+Addressed Grok's three findings and Astra's payload-test gap. Kept the existing
+local sign-out design: credentials are forgotten, the replica/outbox and owner's
+proof remain. Corrected guide feeds and LLP 3000.028 §§3.4/7.3, including the
+implementation record. Native and wasm public-client tests now acquire Alice,
+sign out offline and reopen the same store: Alice keeps complete false for a
+missing key; Bob's absent and old keys remain unknown, never false. Native and
+memory device tests additionally reopen their persisted stores.
+
+Web residency now lists declared `$ownKeys:*` projections beside ordinary tables,
+matching native. The deliberately aliased-store control confirms native residency
+can show Alice's owner-key counts to Bob, and ordinary private-table counts behave
+the same way. Normal SDK names already contain the principal. The ordinary private
+row is also readable through that incorrectly shared replica; owner-key absence
+still refuses. Filed `issues/20260928-snapback4-residency-counts-cross-principal-store-reuse.md`
+with both controls and a bounded follow-up; no replica deletion was introduced.
+
+Added the `insert <- .owner = viewer or allow` refusal case and payload assertions
+for both principals' snapshot puts and catch-up puts/tombstones. Regression
+controls fail on round 0's guide/web filter. Deliberate sign-out clearing,
+missing owner-group proof, public projection tombstones and `all`→`any` mutations
+all fail their respective tests; all mutations were restored before qualification.
+
+Full device suite: 1,373 passed, 0 failed, 5 existing ignored tests. Owner-key
+regressions: 6 device, 3 compiler and 2 public native/web lifecycle tests pass;
+whole guide: 93 pass. Package build/typecheck, native build, docs budget and
+reference audit pass. The broader JS web/device/residency/session run counted
+189 tests: 187 passed and 2 failed, representing one five-second exit-transport
+response timeout plus its parent. Isolated unchanged-baseline and final-candidate
+controls each pass 3/3. Recorded as environmental/timing, with root cause unproved;
+the report retains the original red. The only mistaken development assertion was
+ours: assuming ordinary row filtering on a deliberately aliased replica. It is
+now evidence for the ticket. Every failure and deliberate red is in the report.
+
+Wasm rebuild is byte-identical to round 0: 2,017,908 B raw / 585,100 B GNU gzip-9,
+zero delta, 1,093 B below the unchanged 586,193 B budget. No tools installed or
+other worktrees changed. Did not run scripts/test.sh: the supervisor's landing
+suite follows. Local commit carries the co-author trailer; no push or publication.
+
+Evidence: [round 1 report](./reports/20260928-ok-owner-key-coverage/ROUND1.md)
+and its round1 logs/measurements. The prior journal entry remains historical;
+this entry corrects its sign-out interpretation without rewriting it.
 
 ## 2026-09-28 — Lane DG: inherited audiences and helper query bounds
 
@@ -72788,3 +72875,52 @@ LLP 3000.007 section 20.4 records the cleanup boundary and adoption witness.
 Full file map, forms, failures, commands and retained evidence:
 reports/20260927-ss-sync-scale/ROUND9.md and round9-* in that directory.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OK round 2: integrate DG diagnostics and SS Worker device
+
+Fetched and merged origin/main 80036b466 into ad9e1c76c. The three expected
+conflicts are resolved: merge-both retained both journal histories and LLP
+revision notes; a subsequence check proves both parents' journal ordering.
+The binder was resolved by hand, keeping own_keys and audience_diagnostics.
+Inspected the automatic schema merge: owner projection lowering still precedes
+validation, while DG's public-conflict diagnostic remains at E_SYNC. Parser
+context and M8's helper/caller/query-cap gates survive. SS's Worker shares the
+same WebResidency implementation, including owner-key counters.
+
+Updated DG's stale offline-interactions card to preserve its public-summary
+census and add a compiled explicit own-key policy with ordinary exists. M6's
+repair offers owner-key coverage only for viewer-owned existence on an eligible
+public window, explicitly excluding aggregate totals. The maintains/sync cards
+point to the same alternative. Admission, publication, caller, sign-out,
+adoption, cost and old-device limits remain explicit. The pilot's 568 bytes
+are not claimed as the implemented representation's cost. LLP 3000.028 retains
+both implementation records and adds this integration note and Revised entry.
+
+Full device: 1,373 passed, zero failed, five existing ignored. Full compiler:
+1,065 passed, zero failed, eleven existing ignored; includes DG's 9 diagnostic
+and 2 runtime tests, all 93 guide tests and 4 owner-key compiler tests. The 6
+owner-key device regressions pass. CLI check/timeline adoption: 76 + 15 pass;
+core schema/authority checks: 10 pass. JS device/web/residency/session/clock:
+224 pass, no skips. Real Chromium Worker protocol: 48 cases; observation and
+restore fences: 5 cases; both pass with zero page errors. Native/wasm/package
+builds, typecheck, source caps, whitespace and reference audit pass. A focused
+106-test compiler/guide run also passed while the full device run continued;
+it is not added twice to the full totals. Full Rust command: 1,973.886 seconds.
+
+Qualification failures: ours 0, baseline 0, environmental 0. The initial merge
+exit 1 was expected. Fixed one inherited trailing blank line in web-receipts.ts;
+inspection path misses and two empty test filters are recorded, not counted as
+qualification. No existing ignored test was added or removed. Prior IndexedDB,
+aliased-store and SS IDB-witness limits remain recorded, not claimed fixed.
+Did not run scripts/test.sh: the supervisor's landing suite runs next.
+
+Fresh wasm is identical to round 1: 2,017,908 B raw / 585,100 B GNU gzip-9,
+delta 0/0, 1,093 B below the unchanged 586,193 B budget. No tools installed,
+shared tool paths or other worktrees changed; no meter/dependency/version/budget
+change. Report and durable logs: reports/20260928-ok-owner-key-coverage/ROUND2.md
+and round2/. Local merge commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. No push or publication.
+
+Evidence staging also caught eight Cargo logs with extra EOF blank lines
+(ours). Removed only trailing log whitespace; final whitespace checks pass.
+The report retains this non-test failure alongside the inherited source one.

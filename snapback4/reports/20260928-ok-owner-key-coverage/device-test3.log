@@ -1,0 +1,31 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 43.29s
+     Running tests/own_keys.rs (target/debug/deps/own_keys-08eeff2898fa2b81)
+
+running 2 tests
+test memory ... FAILED
+test sqlite ... FAILED
+
+failures:
+
+---- memory stdout ----
+
+thread 'memory' (2725429) panicked at crates/snapback4-device/tests/own_keys.rs:34:5:
+QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Bool(false), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 4, heap_bytes: 19, output_bytes: 14, rows_written: 0 }, tables: ["$ownKeys:likes"], next_expiry: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- sqlite stdout ----
+
+thread 'sqlite' (2725430) panicked at crates/snapback4-device/tests/own_keys.rs:34:5:
+QueryOutcome { delivery: None, delivery_meter: None, ephemeral: None, data: Bool(false), unavailable: false, complete: false, cut: None, capped_at: None, word_cut_at: None, next: None, seq: 0, metered: Metered { examined: 0, index_entries: 0, rule_probes: 0, steps: 4, heap_bytes: 19, output_bytes: 14, rows_written: 0 }, tables: ["$ownKeys:likes"], next_expiry: None }
+
+
+failures:
+    memory
+    sqlite
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-device --test own_keys`

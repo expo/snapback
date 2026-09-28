@@ -48,7 +48,11 @@ impl<'a> Binder<'a> {
         let location = self.site();
         self.record_selection(&location, read, &index, if mode == ReadMode::Exists { "exists" } else if info.maintained.is_some() { "scalar" } else { "row or null" }, &selection);
         self.sources.insert(location.clone(), (read.site.clone(), print::read_expr(read)));
-        let point = Read { site: location, table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
+        let mut point = Read { site: location, table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
+        // @ref LLP 3000.028#3.4 — only a caller-proved existence read may use the whole owner partition.
+        if mode == ReadMode::Exists && equalities.is_empty() {
+            super::super::own_keys::existence(self.schema, &mut point);
+        }
         if equalities.is_empty() { return Ok(if mode == ReadMode::Exists { Expr::Exists(point) } else { Expr::Get(point) }); }
         let row = self.temp("probe");
         out.push(Stmt::Let { name: row.clone(), value: Expr::Get(point) });

@@ -1,0 +1,6 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-ac90d473dc1f3bc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s

@@ -1,0 +1,48 @@
+PASS failed close releases app after restore idb failure
+PASS failed close releases app after restore observation failure
+PASS generation-changing observation completion preserves restore refusal
+PASS generation-changing adoption completion preserves restore refusal
+PASS obsolete A proof retires only its provisional refusal after B restart
+PASS obsolete A proof retires only its provisional refusal after B restart and validation retry
+PASS failed quiescence releases primary claim: default
+PASS failed quiescence releases primary claim: Worker
+PASS new offline device refuses before Worker startup and releases its claim
+PASS packaged entry and wasm URL; full offline shell and VM reopen
+PASS durable control snapshot stays conservative during a blocked publication
+PASS Worker emits durable prediction tables after admission acknowledgement
+PASS exit preparation failure preserves known admission success
+PASS exit preparation failure preserves known admission refusal
+PASS restore evidence survives a failed strict save and is drained before the next read
+PASS Worker accepts supplied bytes, Response promises and compiled wasm modules
+PASS public Worker option reopens offline through the bundled entry
+PASS navigation from busy Worker to default waits for strict persistence
+PASS an uncommitted call cannot return or hitchhike on a later commit
+PASS a Worker crash between RPCs invalidates the whole private call
+PASS termination: admission before-invoke
+PASS termination: admission after-invoke
+PASS termination: admission before-commit
+PASS termination: admission during-commit
+PASS termination: admission after-commit
+PASS crash: admission before-invoke
+PASS crash: admission after-invoke
+PASS crash: admission before-commit
+PASS crash: admission during-commit
+PASS crash: admission after-commit
+PASS termination: staging during-commit, atomic rows and reopen
+PASS termination: staging after-commit, atomic rows and reopen
+PASS termination: terminal during-commit, atomic rows and reopen
+PASS termination: terminal after-commit, atomic rows and reopen
+PASS navigation during staged save; journal capture survives before transfer
+PASS cross-tab claim stays held through termination and durable recovery
+PASS fallible cleanup cannot replay a retired admission
+PASS a failed termination barrier cannot release the page claim later
+PASS close after termination restores durable state before releasing custody
+PASS admission captures synchronously while terminal publication is outstanding
+PASS first cold acquisition cannot journal without a published store identity
+PASS captured authority survives transfer; logout prevents recovery admission
+PASS Worker adapter adopts only closed orphan outboxes and shares terminal receipts
+PASS Worker conditional collection tests page authority at the actual IDB commit
+PASS prepared pagehide keeps synchronous exit custody and the durable begin-send fence
+PASS a later queued call synchronously cancels prepared suspension permission
+PASS failed synchronous exit capture prevents a prepared keepalive
+PASS exit journal replay increments the send fence after interruption

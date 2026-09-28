@@ -1,0 +1,30 @@
+✔ native: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3237.984602ms)
+ℹ {"tier":"native","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"bytes":186,"rows":1},"likes":{"bytes":226,"rows":2},"notes":{"bytes":116,"rows":1}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KEWBE7E2VK5YDBWKPC31CY"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790580764205}}
+✖ web: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3541.772767ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6900.073279
+
+✖ failing tests:
+
+test at packages/snapback4/test/own-keys.test.mjs:37:3
+✖ web: sign-out preserves own-key proof for an offline same-store reopen, never another caller (3541.772767ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ok/snapback4/packages/snapback4/test/own-keys.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

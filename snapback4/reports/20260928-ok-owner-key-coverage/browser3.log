@@ -1,0 +1,10 @@
+(node:2984339) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+100000 summaries empty 29809.60000038147 5933902
+100000 summaries prolific 28630.300000190735 5969480
+100000 public empty 29088.700000286102 7352204
+100000 public prolific 28573.299999713898 9094231
+100000 own_rows empty 514.9000000953674 1656010
+100000 own_rows prolific 32902.40000009537 4249133
+100000 keys empty 486.2999997138977 1635665
+100000 keys prolific 25263.5 5565967

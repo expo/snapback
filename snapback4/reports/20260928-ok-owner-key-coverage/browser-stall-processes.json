@@ -1,0 +1,202 @@
+{
+  "summaries": {
+    "pid": 3128958,
+    "processPeaks": [
+      {
+        "pid": 3136297,
+        "renderer": false,
+        "peakRssKiB": 73044
+      },
+      {
+        "pid": 3137179,
+        "renderer": true,
+        "peakRssKiB": 74576
+      },
+      {
+        "pid": 3137184,
+        "renderer": true,
+        "peakRssKiB": 5371948
+      },
+      {
+        "pid": 3136539,
+        "renderer": false,
+        "peakRssKiB": 80260
+      },
+      {
+        "pid": 3136652,
+        "renderer": false,
+        "peakRssKiB": 55028
+      },
+      {
+        "pid": 3136546,
+        "renderer": false,
+        "peakRssKiB": 172444
+      },
+      {
+        "pid": 3136152,
+        "renderer": false,
+        "peakRssKiB": 583492
+      },
+      {
+        "pid": 3128958,
+        "renderer": false,
+        "peakRssKiB": 365832
+      },
+      {
+        "pid": 3136300,
+        "renderer": false,
+        "peakRssKiB": 72848
+      }
+    ]
+  },
+  "public": {
+    "pid": 3335785,
+    "processPeaks": [
+      {
+        "pid": 3336381,
+        "renderer": false,
+        "peakRssKiB": 72900
+      },
+      {
+        "pid": 3336535,
+        "renderer": false,
+        "peakRssKiB": 173604
+      },
+      {
+        "pid": 3336379,
+        "renderer": false,
+        "peakRssKiB": 72684
+      },
+      {
+        "pid": 3336649,
+        "renderer": true,
+        "peakRssKiB": 73312
+      },
+      {
+        "pid": 3336650,
+        "renderer": true,
+        "peakRssKiB": 4097912
+      },
+      {
+        "pid": 3335785,
+        "renderer": false,
+        "peakRssKiB": 420564
+      },
+      {
+        "pid": 3336346,
+        "renderer": false,
+        "peakRssKiB": 518520
+      },
+      {
+        "pid": 3336573,
+        "renderer": false,
+        "peakRssKiB": 53820
+      },
+      {
+        "pid": 3336531,
+        "renderer": false,
+        "peakRssKiB": 79764
+      }
+    ]
+  },
+  "own_rows": {
+    "pid": 3335775,
+    "processPeaks": [
+      {
+        "pid": 3336398,
+        "renderer": false,
+        "peakRssKiB": 80512
+      },
+      {
+        "pid": 3336400,
+        "renderer": false,
+        "peakRssKiB": 174780
+      },
+      {
+        "pid": 3336778,
+        "renderer": true,
+        "peakRssKiB": 4523392
+      },
+      {
+        "pid": 3335775,
+        "renderer": false,
+        "peakRssKiB": 408928
+      },
+      {
+        "pid": 3336329,
+        "renderer": false,
+        "peakRssKiB": 534744
+      },
+      {
+        "pid": 3336345,
+        "renderer": false,
+        "peakRssKiB": 73004
+      },
+      {
+        "pid": 3336775,
+        "renderer": true,
+        "peakRssKiB": 73768
+      },
+      {
+        "pid": 3336472,
+        "renderer": false,
+        "peakRssKiB": 55624
+      },
+      {
+        "pid": 3336344,
+        "renderer": false,
+        "peakRssKiB": 72952
+      }
+    ]
+  },
+  "keys": {
+    "pid": 3335766,
+    "processPeaks": [
+      {
+        "pid": 3336397,
+        "renderer": false,
+        "peakRssKiB": 173500
+      },
+      {
+        "pid": 3336337,
+        "renderer": false,
+        "peakRssKiB": 72828
+      },
+      {
+        "pid": 3336328,
+        "renderer": false,
+        "peakRssKiB": 617900
+      },
+      {
+        "pid": 3336339,
+        "renderer": false,
+        "peakRssKiB": 72660
+      },
+      {
+        "pid": 3336776,
+        "renderer": true,
+        "peakRssKiB": 5301668
+      },
+      {
+        "pid": 3336391,
+        "renderer": false,
+        "peakRssKiB": 81188
+      },
+      {
+        "pid": 3336426,
+        "renderer": false,
+        "peakRssKiB": 56024
+      },
+      {
+        "pid": 3336774,
+        "renderer": true,
+        "peakRssKiB": 74580
+      },
+      {
+        "pid": 3335766,
+        "renderer": false,
+        "peakRssKiB": 414748
+      }
+    ]
+  }
+}

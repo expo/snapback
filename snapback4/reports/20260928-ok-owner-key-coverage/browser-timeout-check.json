@@ -1,0 +1,36 @@
+{
+  "chromium": "151.0.7922.34",
+  "results": [
+    {
+      "keys": 1000,
+      "mode": "keys",
+      "viewer": "empty",
+      "pageSize": 10000,
+      "error": "Error: browser acquisition timeout; no completed-replica claim",
+      "progress": null,
+      "storage": {
+        "usage": 0,
+        "quota": 15122075191,
+        "overrideActive": false,
+        "usageBreakdown": [
+          {
+            "storageType": "file_systems",
+            "usage": 0
+          },
+          {
+            "storageType": "indexeddb",
+            "usage": 0
+          },
+          {
+            "storageType": "cache_storage",
+            "usage": 0
+          },
+          {
+            "storageType": "service_workers",
+            "usage": 0
+          }
+        ]
+      }
+    }
+  ]
+}

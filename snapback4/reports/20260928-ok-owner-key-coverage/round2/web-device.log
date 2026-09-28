@@ -1,0 +1,1420 @@
+TAP version 13
+# Subtest: web trusts structural admission of its backend but still validates arguments and executed reads
+ok 1 - web trusts structural admission of its backend but still validates arguments and executed reads
+  ---
+  duration_ms: 12.185072
+  type: 'test'
+  ...
+# Subtest: wasm field-authority refusals carry the owner-specific repair and rules guide
+ok 2 - wasm field-authority refusals carry the owner-specific repair and rules guide
+  ---
+  duration_ms: 8.092766
+  type: 'test'
+  ...
+# (node:329407) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web residency reconciles committed UTF-8 bytes through prediction, rollback, deletion and reopen
+ok 3 - web residency reconciles committed UTF-8 bytes through prediction, rollback, deletion and reopen
+  ---
+  duration_ms: 381.268635
+  type: 'test'
+  ...
+# Subtest: client residency works offline and fences a closed or retired client
+ok 4 - client residency works offline and fences a closed or retired client
+  ---
+  duration_ms: 1012.887467
+  type: 'test'
+  ...
+# Subtest: public client residency reads the native process store offline
+ok 5 - public client residency reads the native process store offline
+  ---
+  duration_ms: 1048.977355
+  type: 'test'
+  ...
+# Subtest: residency codes rejected device reads, preserves returned refusals, and rechecks closed/session state
+ok 6 - residency codes rejected device reads, preserves returned refusals, and rechecks closed/session state
+  ---
+  duration_ms: 1.29367
+  type: 'test'
+  ...
+# Subtest: app residency rechecks session custody even when the raw device read rejects
+ok 7 - app residency rechecks session custody even when the raw device read rejects
+  ---
+  duration_ms: 1.530605
+  type: 'test'
+  ...
+# Subtest: native: sign-out preserves own-key proof for an offline same-store reopen, never another caller
+ok 8 - native: sign-out preserves own-key proof for an offline same-store reopen, never another caller
+  ---
+  duration_ms: 4000.648972
+  type: 'test'
+  ...
+# {"tier":"native","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"bytes":186,"rows":1},"likes":{"bytes":226,"rows":2},"notes":{"bytes":116,"rows":1}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KHCH460KR3XVTBAS4X0MCB"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790583391856}}
+# Subtest: web: sign-out preserves own-key proof for an offline same-store reopen, never another caller
+ok 9 - web: sign-out preserves own-key proof for an offline same-store reopen, never another caller
+  ---
+  duration_ms: 4272.372378
+  type: 'test'
+  ...
+# {"tier":"web","samePrincipalMissing":false,"samePrincipalComplete":true,"otherPrincipalUnknown":true,"storeWideCounts":{"$ownKeys:likes":{"rows":1,"bytes":186},"likes":{"rows":2,"bytes":226},"notes":{"rows":1,"bytes":116}},"ordinaryRowOnAliasedStore":{"data":{"body":"private note","id":"alice-note","owner":"user:01M3KHCN0FJ681XX07NC9WS4SX"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790583396169}}
+# Subtest: server-class watches run locally first and recover remembered server data offline
+ok 10 - server-class watches run locally first and recover remembered server data offline
+  ---
+  duration_ms: 296.861211
+  type: 'test'
+  ...
+# Subtest: offline cold watches withhold placeholders, persisted local reads still work
+ok 11 - offline cold watches withhold placeholders, persisted local reads still work
+  ---
+  duration_ms: 1191.542058
+  type: 'test'
+  ...
+# Subtest: connected recovers a server false offline instead of the device presence assumption
+ok 12 - connected recovers a server false offline instead of the device presence assumption
+  ---
+  duration_ms: 137.21649
+  type: 'test'
+  ...
+#   alice notes: 2 rows, 106 bytes
+#   bob notes: 2 rows, 106 bytes
+#   alice counts: 1 rows, 63 bytes
+#   bob counts: 1 rows, 63 bytes
+#   alice permits: 0 rows, 0 bytes
+#   bob permits: 0 rows, 0 bytes
+#   alice total: 3 rows, 169 bytes
+#   bob total: 3 rows, 169 bytes
+#   total across personas: 6 rows, 338 bytes
+#   maintain counts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED
+# Subtest: clock advance expires presence on the server and a device
+ok 13 - clock advance expires presence on the server and a device
+  ---
+  duration_ms: 380.692328
+  type: 'test'
+  ...
+# presence device: advanced_ms=36000 before=1 after=0 wall_ms=53.87
+# Subtest: presence effects residency is additive in check, why and generated artifacts
+ok 14 - presence effects residency is additive in check, why and generated artifacts
+  ---
+  duration_ms: 52.72342
+  type: 'test'
+  ...
+# Subtest: check sidecar, why and test residency print facts, changes and measured cold rows
+ok 15 - check sidecar, why and test residency print facts, changes and measured cold rows
+  ---
+  duration_ms: 83.575023
+  type: 'test'
+  ...
+# Subtest: dev compares residency with the served generation even when check advanced its sidecar
+ok 16 - dev compares residency with the served generation even when check advanced its sidecar
+  ---
+  duration_ms: 523.3126
+  type: 'test'
+  ...
+# Subtest: provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+ok 17 - provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 489.872736
+  type: 'test'
+  ...
+# Subtest: provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+ok 18 - provenance native: wrapped presence recovers false, shaped rows without ids stay partial
+  ---
+  duration_ms: 135.910791
+  type: 'test'
+  ...
+# Subtest: rule 5: a real process device never recovers private memory after its permit expiry
+ok 19 - rule 5: a real process device never recovers private memory after its permit expiry
+  ---
+  duration_ms: 3144.151447
+  type: 'test'
+  ...
+# Subtest: wire stamps successes and refusals on sync, changes, query, mutation and session endpoints
+ok 20 - wire stamps successes and refusals on sync, changes, query, mutation and session endpoints
+  ---
+  duration_ms: 907.121619
+  type: 'test'
+  ...
+# Subtest: web: a legacy admission keeps its floor through upgrade, retirement and rollback
+ok 21 - web: a legacy admission keeps its floor through upgrade, retirement and rollback
+  ---
+  duration_ms: 329.166352
+  type: 'test'
+  ...
+# (node:330869) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: native: a legacy admission keeps its floor through upgrade, retirement and rollback
+ok 22 - native: a legacy admission keeps its floor through upgrade, retirement and rollback
+  ---
+  duration_ms: 60.489795
+  type: 'test'
+  ...
+# Subtest: web orphan recovery after attachment preserves its admission floor through settlement and rollback
+ok 23 - web orphan recovery after attachment preserves its admission floor through settlement and rollback
+  ---
+  duration_ms: 7.108759
+  type: 'test'
+  ...
+# Subtest: a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries
+ok 24 - a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries
+  ---
+  duration_ms: 174.812044
+  type: 'test'
+  ...
+# Subtest: native offline reopen restores legacy offset without issuedOffset or admissions and retains the session
+ok 25 - native offline reopen restores legacy offset without issuedOffset or admissions and retains the session
+  ---
+  duration_ms: 1200.921286
+  type: 'test'
+  ...
+# Subtest: a real held heartbeat poll learns clock advance from its final body
+ok 26 - a real held heartbeat poll learns clock advance from its final body
+  ---
+  duration_ms: 25078.602248
+  type: 'test'
+  ...
+# Subtest: native JSON bridge shares device time and restores offline (+25h)
+ok 27 - native JSON bridge shares device time and restores offline (+25h)
+  ---
+  duration_ms: 2165.515872
+  type: 'test'
+  ...
+# Subtest: native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses)
+ok 28 - native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses)
+  ---
+  duration_ms: 5150.736696
+  type: 'test'
+  ...
+# Subtest: native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last)
+ok 29 - native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last)
+  ---
+  duration_ms: 5156.805601
+  type: 'test'
+  ...
+# Subtest: the default session store stays in memory and browser persistence is explicit
+ok 30 - the default session store stays in memory and browser persistence is explicit
+  ---
+  duration_ms: 1.472107
+  type: 'test'
+  ...
+# Subtest: the local client rotates near expiry and keeps every protected request on the current bearer
+ok 31 - the local client rotates near expiry and keeps every protected request on the current bearer
+  ---
+  duration_ms: 25.830954
+  type: 'test'
+  ...
+# Subtest: a stale-token mutation refusal remains durable and retries after rotation
+ok 32 - a stale-token mutation refusal remains durable and retries after rotation
+  ---
+  duration_ms: 266.35572
+  type: 'test'
+  ...
+# Subtest: an online-only watch retries a stale-token refusal after rotation
+ok 33 - an online-only watch retries a stale-token refusal after rotation
+  ---
+  duration_ms: 15.46478
+  type: 'test'
+  ...
+# Subtest: a current-token sign-out cannot reclassify a stale write refusal
+ok 34 - a current-token sign-out cannot reclassify a stale write refusal
+  ---
+  duration_ms: 14.934003
+  type: 'test'
+  ...
+# Subtest: an authenticated change-feed refusal signs the online client out
+ok 35 - an authenticated change-feed refusal signs the online client out
+  ---
+  duration_ms: 9.02933
+  type: 'test'
+  ...
+# Subtest: worker, effect inspection, and service-session calls always carry the service bearer
+ok 36 - worker, effect inspection, and service-session calls always carry the service bearer
+  ---
+  duration_ms: 3.149623
+  type: 'test'
+  ...
+# (node:337644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web admission review: recovery and transport respect the session boundary
+    # Subtest: hiding during strict admission releases the session lock before transport and peer logout
+    ok 1 - hiding during strict admission releases the session lock before transport and peer logout
+      ---
+      duration_ms: 1110.261064
+      type: 'test'
+      ...
+    # Subtest: exit notification waits for a session turn queued after strict admission
+    ok 2 - exit notification waits for a session turn queued after strict admission
+      ---
+      duration_ms: 473.472851
+      type: 'test'
+      ...
+    # Subtest: navigation recovers its original outbox id before held-sync startup completes
+    ok 3 - navigation recovers its original outbox id before held-sync startup completes
+      ---
+      duration_ms: 847.867084
+      type: 'test'
+      ...
+    # Subtest: navigation recovers its original outbox id before offline startup completes
+    ok 4 - navigation recovers its original outbox id before offline startup completes
+      ---
+      duration_ms: 1895.869058
+      type: 'test'
+      ...
+    # Subtest: backend-required custody cannot exit offline and enables exit after validated adoption
+    ok 5 - backend-required custody cannot exit offline and enables exit after validated adoption
+      ---
+      duration_ms: 2355.245729
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its accepted decision
+    ok 6 - a hide during the startup probe waits for its accepted decision
+      ---
+      duration_ms: 959.409319
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its refused decision
+    ok 7 - a hide during the startup probe waits for its refused decision
+      ---
+      duration_ms: 1021.883077
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its restore decision
+    ok 8 - a hide during the startup probe waits for its restore decision
+      ---
+      duration_ms: 1079.220624
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its replacement decision
+    ok 9 - a hide during the startup probe waits for its replacement decision
+      ---
+      duration_ms: 1559.172968
+      type: 'test'
+      ...
+    # Subtest: a hide during the startup probe waits for its observed-replacement decision
+    ok 10 - a hide during the startup probe waits for its observed-replacement decision
+      ---
+      duration_ms: 1589.555374
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false)
+    ok 11 - legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false)
+      ---
+      duration_ms: 924.730905
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false)
+    ok 12 - legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false)
+      ---
+      duration_ms: 957.781314
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+    ok 13 - legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+      ---
+      duration_ms: 896.779822
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+    ok 14 - stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false)
+      ---
+      duration_ms: 939.467381
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false)
+    ok 15 - legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false)
+      ---
+      duration_ms: 928.641046
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+    ok 16 - legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+      ---
+      duration_ms: 827.947007
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+    ok 17 - stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true)
+      ---
+      duration_ms: 827.931443
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true)
+    ok 18 - legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true)
+      ---
+      duration_ms: 884.185084
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+    ok 19 - legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+      ---
+      duration_ms: 839.721492
+      type: 'test'
+      ...
+    # Subtest: stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+    ok 20 - stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true)
+      ---
+      duration_ms: 876.929905
+      type: 'test'
+      ...
+    # Subtest: legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true)
+    ok 21 - legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true)
+      ---
+      duration_ms: 1025.169777
+      type: 'test'
+      ...
+    # Subtest: an accepted probe enables exit before ordinary replay resolves
+    ok 22 - an accepted probe enables exit before ordinary replay resolves
+      ---
+      duration_ms: 909.376938
+      type: 'test'
+      ...
+    # Subtest: a successful reconnect enables exit after startup 503s
+    ok 23 - a successful reconnect enables exit after startup 503s
+      ---
+      duration_ms: 1908.36939
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its accepted probe
+    ok 24 - an empty-outbox open gates new clicks on its accepted probe
+      ---
+      duration_ms: 5008.658458
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its refused probe
+    ok 25 - an empty-outbox open gates new clicks on its refused probe
+      ---
+      duration_ms: 5007.602862
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its restore probe
+    ok 26 - an empty-outbox open gates new clicks on its restore probe
+      ---
+      duration_ms: 4929.445674
+      type: 'test'
+      ...
+    # Subtest: an empty-outbox open gates new clicks on its replacement probe
+    ok 27 - an empty-outbox open gates new clicks on its replacement probe
+      ---
+      duration_ms: 5115.131793
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+    ok 28 - A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false)
+      ---
+      duration_ms: 1186.610942
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+    ok 29 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false)
+      ---
+      duration_ms: 1054.722108
+      type: 'test'
+      ...
+    # Subtest: A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+    ok 30 - A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true)
+      ---
+      duration_ms: 1136.249175
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first
+    ok 31 - a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first
+      ---
+      duration_ms: 1449.72355
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first
+    ok 32 - a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first
+      ---
+      duration_ms: 1329.32221
+      type: 'test'
+      ...
+    # Subtest: receipt abort then retry persists sent before any replacement sync or POST
+    ok 33 - receipt abort then retry persists sent before any replacement sync or POST
+      ---
+      duration_ms: 1602.170848
+      type: 'test'
+      ...
+    # Subtest: sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen
+    ok 34 - sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen
+      ---
+      duration_ms: 1381.096422
+      type: 'test'
+      ...
+    # Subtest: a refused _ops row never acknowledges success after its NOT_ADMIN response is lost
+    ok 35 - a refused _ops row never acknowledges success after its NOT_ADMIN response is lost
+      ---
+      duration_ms: 1131.103274
+      type: 'test'
+      ...
+    # Subtest: a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup
+    ok 36 - a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup
+      ---
+      duration_ms: 1257.914934
+      type: 'test'
+      ...
+    # Subtest: a legacy refused observation with no history remains pending until same-id replay
+    ok 37 - a legacy refused observation with no history remains pending until same-id replay
+      ---
+      duration_ms: 2363.294634
+      type: 'test'
+      ...
+    # Subtest: final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification
+    ok 38 - final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification
+      ---
+      duration_ms: 569.281068
+      type: 'test'
+      ...
+    # Subtest: lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen
+    ok 39 - lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen
+      ---
+      duration_ms: 7484.231322
+      type: 'test'
+      ...
+    # Subtest: a pending changes rewind waits for an aborted successful receipt to become durable
+    ok 40 - a pending changes rewind waits for an aborted successful receipt to become durable
+      ---
+      duration_ms: 1976.5615
+      type: 'test'
+      ...
+    # Subtest: outbox-only sent_seq evidence rejects a replacement refusal without terminal history
+    ok 41 - outbox-only sent_seq evidence rejects a replacement refusal without terminal history
+      ---
+      duration_ms: 5474.020099
+      type: 'test'
+      ...
+    # Subtest: outbox-only observed_seq evidence rejects a replacement refusal without terminal history
+    ok 42 - outbox-only observed_seq evidence rejects a replacement refusal without terminal history
+      ---
+      duration_ms: 5567.540635
+      type: 'test'
+      ...
+    # Subtest: a keepalive settlement held past the exit timeout excludes ordinary delivery until commit
+    ok 43 - a keepalive settlement held past the exit timeout excludes ordinary delivery until commit
+      ---
+      duration_ms: 6584.215878
+      type: 'test'
+      ...
+    # Subtest: an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+    ok 44 - an aborted keepalive receipt transaction retains custody until receipt and retirement commit together
+      ---
+      duration_ms: 6482.545237
+      type: 'test'
+      ...
+    # Subtest: replacement after validation refuses the original orphan binding at the server (ordinary transport)
+    ok 45 - replacement after validation refuses the original orphan binding at the server (ordinary transport)
+      ---
+      duration_ms: 6614.9816
+      type: 'test'
+      ...
+    # Subtest: replacement after validation refuses the original orphan binding at the server (exit transport)
+    ok 46 - replacement after validation refuses the original orphan binding at the server (exit transport)
+      ---
+      duration_ms: 6439.134316
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan bound to A is retired before enqueue on B (ordinary transport)
+    ok 47 - a fresh orphan bound to A is retired before enqueue on B (ordinary transport)
+      ---
+      duration_ms: 6029.238332
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan bound to A is retired before enqueue on B (exit transport)
+    ok 48 - a fresh orphan bound to A is retired before enqueue on B (exit transport)
+      ---
+      duration_ms: 6167.91278
+      type: 'test'
+      ...
+    # Subtest: a recovered orphan bound to A is retired before enqueue on B (ordinary transport)
+    ok 49 - a recovered orphan bound to A is retired before enqueue on B (ordinary transport)
+      ---
+      duration_ms: 1699.257032
+      type: 'test'
+      ...
+    # Subtest: a recovered orphan bound to A is retired before enqueue on B (exit transport)
+    ok 50 - a recovered orphan bound to A is retired before enqueue on B (exit transport)
+      ---
+      duration_ms: 1706.698949
+      type: 'test'
+      ...
+    # Subtest: a fresh orphan waits for an unidentified destination and delivers its original id after matching sync
+    ok 51 - a fresh orphan waits for an unidentified destination and delivers its original id after matching sync
+      ---
+      duration_ms: 6213.61356
+      type: 'test'
+      ...
+    # Subtest: same-epoch logout tombstone refuses live admission
+    ok 52 - same-epoch logout tombstone refuses live admission
+      ---
+      duration_ms: 793.797298
+      type: 'test'
+      ...
+    # Subtest: same-epoch logout tombstone refuses live admission even with retained session fields
+    ok 53 - same-epoch logout tombstone refuses live admission even with retained session fields
+      ---
+      duration_ms: 521.040667
+      type: 'test'
+      ...
+    # Subtest: a confirmed epoch mismatch fences existing observations while the change poll is held
+    ok 54 - a confirmed epoch mismatch fences existing observations while the change poll is held
+      ---
+      duration_ms: 551.133088
+      type: 'test'
+      ...
+    1..54
+ok 37 - web admission review: recovery and transport respect the session boundary
+  ---
+  duration_ms: 131369.173959
+  type: 'test'
+  ...
+# {"mode":"held-sync","id":"01M3KHE9SH4FFDCEW7YY17FV46","outboxBeforeSync":true,"keepalive":true}
+# {"mode":"offline","id":"01M3KHEAN3KCZP33Q9B9VW5BD9","outboxBeforeSync":true,"keepalive":true}
+# {"mode":"accepted","originalId":"01M3KHEEVCAEQ0453ZMKQ4HYK7","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"refused","originalId":"01M3KHEFVG24PXZYGGF5GZNMBT","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"restore","originalId":"01M3KHEGT0M494KYZV9AVS7NP0","sendsWhileProbeHeld":0,"originalAudit":4}
+# {"mode":"replacement","originalId":"01M3KHEHVJKKG3ZSZAAR367JC0","sendsWhileProbeHeld":0,"originalAudit":4,"replacementAudit":0}
+# {"mode":"observed-replacement","originalId":"01M3KHEKC7Q7T5366QQMW3ACSD","sendsWhileProbeHeld":0,"originalAudit":5,"replacementAudit":0}
+# {"afterValidation":true,"transport":"ordinary","id":"01M3KHH4EHJWP8GVD53J6JQN3D","originalStore":"de7088dc545680ae0896cff3a3691a1d","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+# {"afterValidation":true,"transport":"keepalive","id":"01M3KHHARSVMH2R4FRFJ79KZJ8","originalStore":"de7088dc545680ae0896cff3a3691a1d","refusal":"E_STORE_REPLACED","auditA":18,"auditB":0}
+# {"orphan":"01M3KHHH377DVMC1CXADX25N55","hidden":false,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KHHQ3TXFPGZRT6GPGRJVFV","hidden":true,"recovered":false,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KHHX1QH8TARMJJZ1CXNYAB","hidden":false,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+# {"orphan":"01M3KHHYQHSZ90BD490B839KNM","hidden":true,"recovered":true,"enqueuedInB":0,"auditA":18,"auditB":0}
+# Subtest: failed admission cannot appear in later reads or hitchhike on the next saved call
+ok 38 - failed admission cannot appear in later reads or hitchhike on the next saved call
+  ---
+  duration_ms: 452.478251
+  type: 'test'
+  ...
+# Subtest: failed snapshot publication and backend adoption preserve acknowledged state
+ok 39 - failed snapshot publication and backend adoption preserve acknowledged state
+  ---
+  duration_ms: 14.502235
+  type: 'test'
+  ...
+# Subtest: private snapshot pages survive disposal and failed publication without exposing a partial partition
+ok 40 - private snapshot pages survive disposal and failed publication without exposing a partial partition
+  ---
+  duration_ms: 10.363239
+  type: 'test'
+  ...
+# Subtest: recovery read failures block calls until durable state can be reopened
+ok 41 - recovery read failures block calls until durable state can be reopened
+  ---
+  duration_ms: 4.814409
+  type: 'test'
+  ...
+# Subtest: failed initial persistence frees the constructed Wasm device
+ok 42 - failed initial persistence frees the constructed Wasm device
+  ---
+  duration_ms: 1.632788
+  type: 'test'
+  ...
+# Subtest: successful calls keep incremental persistence without loading the store again
+ok 43 - successful calls keep incremental persistence without loading the store again
+  ---
+  duration_ms: 5.540167
+  type: 'test'
+  ...
+# Subtest: close drains accepted calls once and refuses later calls
+ok 44 - close drains accepted calls once and refuses later calls
+  ---
+  duration_ms: 3.355311
+  type: 'test'
+  ...
+# Subtest: W11R2: evicted journal has no retry timer or missing-store read
+ok 45 - W11R2: evicted journal has no retry timer or missing-store read
+  ---
+  duration_ms: 2.432398
+  type: 'test'
+  ...
+# state=evicted retry_timers=0 orphan_loads=0
+# Subtest: W11R2: unidentified journal has no retry timer or missing-store read
+ok 46 - W11R2: unidentified journal has no retry timer or missing-store read
+  ---
+  duration_ms: 1.957786
+  type: 'test'
+  ...
+# state=unidentified retry_timers=0 orphan_loads=1
+# Subtest: W11R2: receipt lookup never opens an absent shared database and sees later adoption
+ok 47 - W11R2: receipt lookup never opens an absent shared database and sees later adoption
+  ---
+  duration_ms: 2.198967
+  type: 'test'
+  ...
+# empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+# Subtest: W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false)
+ok 48 - W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false)
+  ---
+  duration_ms: 2.600309
+  type: 'test'
+  ...
+# custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+# Subtest: W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true)
+ok 49 - W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true)
+  ---
+  duration_ms: 2.231637
+  type: 'test'
+  ...
+# custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+# Subtest: W11R2: a live sibling queues one cancellable lock wait without a timer
+ok 50 - W11R2: a live sibling queues one cancellable lock wait without a timer
+  ---
+  duration_ms: 3.578887
+  type: 'test'
+  ...
+# live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+# Subtest: W11R2: persistent recovery failure exhausts three backoffs then a sync can recover
+ok 51 - W11R2: persistent recovery failure exhausts three backoffs then a sync can recover
+  ---
+  duration_ms: 3.713228
+  type: 'test'
+  ...
+# failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+# Subtest: W11R2: IndexedDB existence fallback aborts creation of missing stores
+ok 52 - W11R2: IndexedDB existence fallback aborts creation of missing stores
+  ---
+  duration_ms: 0.474131
+  type: 'test'
+  ...
+# stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1038 ms
+# Subtest: stalled exit body recovers in order (not applied)
+ok 53 - stalled exit body recovers in order (not applied)
+  ---
+  duration_ms: 1580.023189
+  type: 'test'
+  ...
+# stalled exit: applied=true; 2 writes; 1 exit request; 1 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1018 ms
+# Subtest: stalled exit body recovers in order (already applied acknowledgement)
+ok 54 - stalled exit body recovers in order (already applied acknowledgement)
+  ---
+  duration_ms: 1125.95876
+  type: 'test'
+  ...
+# stalled exit close: 968 ms; 0 ordinary sends after close
+# Subtest: close during a stalled exit body resolves promptly
+ok 55 - close during a stalled exit body resolves promptly
+  ---
+  duration_ms: 1087.469587
+  type: 'test'
+  ...
+# Subtest: stalled exit wait stops immediately on close without cancelling delivery
+ok 56 - stalled exit wait stops immediately on close without cancelling delivery
+  ---
+  duration_ms: 0.723535
+  type: 'test'
+  ...
+# navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+# Subtest: pagehide sends committed writes synchronously and reopen is deduped by the server
+ok 57 - pagehide sends committed writes synchronously and reopen is deduped by the server
+  ---
+  duration_ms: 1135.223431
+  type: 'test'
+  ...
+# Subtest: pagehide dispatch and retryable hold invalidate the pending-write list
+ok 58 - pagehide dispatch and retryable hold invalidate the pending-write list
+  ---
+  duration_ms: 1086.753713
+  type: 'test'
+  ...
+# Subtest: hidden flushes, visible does not, and close removes page hooks
+ok 59 - hidden flushes, visible does not, and close removes page hooks
+  ---
+  duration_ms: 1091.835403
+  type: 'test'
+  ...
+# Subtest: mutate waits for outbox persistence before the exit transport can see it
+ok 60 - mutate waits for outbox persistence before the exit transport can see it
+  ---
+  duration_ms: 1078.664884
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch survives a stalled status save (cleanup blocked=false)
+ok 61 - first pagehide dispatch survives a stalled status save (cleanup blocked=false)
+  ---
+  duration_ms: 1089.200751
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch survives a stalled status save (cleanup blocked=true)
+ok 62 - first pagehide dispatch survives a stalled status save (cleanup blocked=true)
+  ---
+  duration_ms: 1087.71988
+  type: 'test'
+  ...
+# Subtest: a second exit before its status commit supersedes the first acknowledged exit and later hold
+ok 63 - a second exit before its status commit supersedes the first acknowledged exit and later hold
+  ---
+  duration_ms: 1092.457733
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available)
+ok 64 - first pagehide dispatch with failed marker capture starts no keepalive and reopens queued (cleanup available)
+  ---
+  duration_ms: 1086.707771
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available)
+ok 65 - first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup available)
+  ---
+  duration_ms: 1089.785606
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws)
+ok 66 - first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove throws)
+  ---
+  duration_ms: 1088.924413
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw)
+ok 67 - first pagehide dispatch with denied begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw)
+  ---
+  duration_ms: 1090.247538
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available)
+ok 68 - first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup available)
+  ---
+  duration_ms: 1085.657214
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws)
+ok 69 - first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove throws)
+  ---
+  duration_ms: 1081.681993
+  type: 'test'
+  ...
+# Subtest: first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw)
+ok 70 - first pagehide dispatch with throwing begin_send starts no keepalive and reopens queued (cleanup remove and overwrite throw)
+  ---
+  duration_ms: 1092.328366
+  type: 'test'
+  ...
+# Subtest: pagehide dispatch subscriber signOut prevents keepalive and POST
+ok 71 - pagehide dispatch subscriber signOut prevents keepalive and POST
+  ---
+  duration_ms: 1081.331537
+  type: 'test'
+  ...
+# Subtest: pagehide dispatch subscriber close prevents keepalive and POST
+ok 72 - pagehide dispatch subscriber close prevents keepalive and POST
+  ---
+  duration_ms: 1089.375598
+  type: 'test'
+  ...
+# Subtest: IndexedDB save resolves on transaction completion, not request success
+ok 73 - IndexedDB save resolves on transaction completion, not request success
+  ---
+  duration_ms: 2.26707
+  type: 'test'
+  ...
+# Subtest: failed persistence discards the device before either transport can send an undurable admission
+ok 74 - failed persistence discards the device before either transport can send an undurable admission
+  ---
+  duration_ms: 1081.667339
+  type: 'test'
+  ...
+# Subtest: an exit send invalidates an older sync receipt before the page resumes
+ok 75 - an exit send invalidates an older sync receipt before the page resumes
+  ---
+  duration_ms: 1090.37148
+  type: 'test'
+  ...
+# keepalive: 64141 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+# Subtest: keepalive counts UTF-8 bytes across clients and releases quota on failure
+ok 76 - keepalive counts UTF-8 bytes across clients and releases quota on failure
+  ---
+  duration_ms: 3.660669
+  type: 'test'
+  ...
+# Subtest: exit ordering survives reversed server processing
+ok 77 - exit ordering survives reversed server processing
+  ---
+  duration_ms: 1.350596
+  type: 'test'
+  ...
+# Subtest: exit never bypasses an oversized or quota-blocked predecessor
+ok 78 - exit never bypasses an oversized or quota-blocked predecessor
+  ---
+  duration_ms: 7.275659
+  type: 'test'
+  ...
+# Subtest: exit overlaps only the same ordinary in-flight head
+ok 79 - exit overlaps only the same ordinary in-flight head
+  ---
+  duration_ms: 1084.800566
+  type: 'test'
+  ...
+# Subtest: ordinary flush waits for the exit request before replaying its head
+ok 80 - ordinary flush waits for the exit request before replaying its head
+  ---
+  duration_ms: 1080.512035
+  type: 'test'
+  ...
+# (node:363859) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: web receipt upgrades preserve original binding and corrected shared custody
+    # Subtest: legacy binding survives adopted B on ordinary transport
+    ok 1 - legacy binding survives adopted B on ordinary transport
+      ---
+      duration_ms: 1988.922847
+      type: 'test'
+      ...
+    # Subtest: legacy binding survives adopted B on keepalive transport
+    ok 2 - legacy binding survives adopted B on keepalive transport
+      ---
+      duration_ms: 2036.636057
+      type: 'test'
+      ...
+    # Subtest: orphan replay correction survives adopter removal and the next recovery in its original position
+    ok 3 - orphan replay correction survives adopter removal and the next recovery in its original position
+      ---
+      duration_ms: 1873.382459
+      type: 'test'
+      ...
+    # Subtest: adoption corrects a shared replacement refusal to an orphan sent receipt
+    ok 4 - adoption corrects a shared replacement refusal to an orphan sent receipt
+      ---
+      duration_ms: 426.98489
+      type: 'test'
+      ...
+    # Subtest: lookup lets a shared correction supersede only this reader's replacement refusal
+    ok 5 - lookup lets a shared correction supersede only this reader's replacement refusal
+      ---
+      duration_ms: 1356.774005
+      type: 'test'
+      ...
+    # Subtest: a shared correction never hides this device's qualified or pending custody (replacement local history)
+    ok 6 - a shared correction never hides this device's qualified or pending custody (replacement local history)
+      ---
+      duration_ms: 1480.172871
+      type: 'test'
+      ...
+    # Subtest: a shared correction never hides this device's qualified or pending custody (absent local history)
+    ok 7 - a shared correction never hides this device's qualified or pending custody (absent local history)
+      ---
+      duration_ms: 1357.111919
+      type: 'test'
+      ...
+    # Subtest: shared-only lookup recovers absent history and opener remembers those ids without settling them
+    ok 8 - shared-only lookup recovers absent history and opener remembers those ids without settling them
+      ---
+      duration_ms: 1435.847937
+      type: 'test'
+      ...
+    # Subtest: shared-only refusal cannot settle legacy custody before bound replay
+    ok 9 - shared-only refusal cannot settle legacy custody before bound replay
+      ---
+      duration_ms: 2885.875924
+      type: 'test'
+      ...
+    # Subtest: adoption during lookup recomputes legacy custody (absent local history)
+    ok 10 - adoption during lookup recomputes legacy custody (absent local history)
+      ---
+      duration_ms: 1380.638212
+      type: 'test'
+      ...
+    # Subtest: adoption during lookup recomputes legacy custody (replacement local history)
+    ok 11 - adoption during lookup recomputes legacy custody (replacement local history)
+      ---
+      duration_ms: 1528.731626
+      type: 'test'
+      ...
+    # Subtest: lookup preserves local NOT_FOUND committed between history reads
+    ok 12 - lookup preserves local NOT_FOUND committed between history reads
+      ---
+      duration_ms: 1425.782481
+      type: 'test'
+      ...
+    # Subtest: lookup preserves local sent committed between history reads
+    ok 13 - lookup preserves local sent committed between history reads
+      ---
+      duration_ms: 1444.200626
+      type: 'test'
+      ...
+    1..13
+ok 81 - web receipt upgrades preserve original binding and corrected shared custody
+  ---
+  duration_ms: 21463.595536
+  type: 'test'
+  ...
+# {"transport":"ordinary","original":"7fdae78aba350e276c72a03958a18395","adopted":"b9382fdf6f8eac209a131a0f8b29b5c7","auditA":0,"auditB":0}
+# {"transport":"keepalive","original":"7fdae78aba350e276c72a03958a18395","adopted":"252a48d822f6d837005f1cbabd9eec07","auditA":0,"auditB":0}
+# orphan -> adopter -> next recovery -> offline reopen: NOT_ADMIN; audit=0; retention order unchanged
+# shared E_STORE_REPLACED + orphan sent seq 7 -> shared sent seq 7 in place; orphan removed
+# local E_STORE_REPLACED x3 + NOT_FOUND over shared NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_ADMIN -> NOT_ADMIN, sent 11, E_STORE_REPLACED, NOT_FOUND
+# qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+# qualified 7 over shared NOT_ADMIN -> sent 7 kept; qualified 8 over shared sent 99 -> sent 8 kept; legacy 9 over shared NOT_ADMIN -> pending, custody kept
+# Subtest: web review: acquisition lifetimes and bounded persistence
+    # Subtest: delivery guard aborts the actual IndexedDB transaction before stale debt commits
+    ok 1 - delivery guard aborts the actual IndexedDB transaction before stale debt commits
+      ---
+      duration_ms: 9.932213
+      type: 'test'
+      ...
+    # Subtest: IndexedDB commits in the passing guard turn before a queued fence change
+    ok 2 - IndexedDB commits in the passing guard turn before a queued fence change
+      ---
+      duration_ms: 4.384484
+      type: 'test'
+      ...
+    # Subtest: same-store reacquisition reconciles progress with an already-true acquired flag
+    ok 3 - same-store reacquisition reconciles progress with an already-true acquired flag
+      ---
+      duration_ms: 339.358529
+      type: 'test'
+      ...
+    # Subtest: a compiled special table name produces numeric own-property counts
+    ok 4 - a compiled special table name produces numeric own-property counts
+      ---
+      duration_ms: 22.34232
+      type: 'test'
+      ...
+    # Subtest: sign-out during a partial acquisition clears the raw client counts
+    ok 5 - sign-out during a partial acquisition clears the raw client counts
+      ---
+      duration_ms: 41.034258
+      type: 'test'
+      ...
+    # Subtest: one update stays bounded for 1,000 and 16,000 colliding rows
+    ok 6 - one update stays bounded for 1,000 and 16,000 colliding rows
+      ---
+      duration_ms: 3353.955117
+      type: 'test'
+      ...
+    # Subtest: entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together
+    ok 7 - entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together
+      ---
+      duration_ms: 65.066882
+      type: 'test'
+      ...
+    # Subtest: an old unbounded bucket is split at load before later bounded updates
+    ok 8 - an old unbounded bucket is split at load before later bounded updates
+      ---
+      duration_ms: 241.621441
+      type: 'test'
+      ...
+    # Subtest: publication clears only a proved deletion range, atomically with rows and the watermark
+    ok 9 - publication clears only a proved deletion range, atomically with rows and the watermark
+      ---
+      duration_ms: 1371.547896
+      type: 'test'
+      ...
+    1..9
+ok 82 - web review: acquisition lifetimes and bounded persistence
+  ---
+  duration_ms: 6278.982903
+  type: 'test'
+  ...
+# {"count":1000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":1000,"changed":1024,"last":1024}
+# {"count":16000,"bytes":262832,"maxBucketBytes":261718,"maxEntries":250,"calls":3,"rows":16000,"changed":1024,"last":1024}
+# Subtest: browser session authority commits through IndexedDB before releasing the session lock
+    # Subtest: a peer logout commits before the next lock holder and refuses a click captured from a stale mirror
+    ok 1 - a peer logout commits before the next lock holder and refuses a click captured from a stale mirror
+      ---
+      duration_ms: 1138.633591
+      type: 'test'
+      ...
+    # Subtest: a failed logout cannot commit after abort
+    ok 2 - a failed logout cannot commit after abort
+      ---
+      duration_ms: 921.197584
+      type: 'test'
+      ...
+    # Subtest: a failed logout cannot commit after quota
+    ok 3 - a failed logout cannot commit after quota
+      ---
+      duration_ms: 914.42558
+      type: 'test'
+      ...
+    # Subtest: a visible same-epoch tombstone refuses synchronously
+    ok 4 - a visible same-epoch tombstone refuses synchronously
+      ---
+      duration_ms: 415.167807
+      type: 'test'
+      ...
+    # Subtest: principal replacement and login commit the epoch before unlocking and survive reopen
+    ok 5 - principal replacement and login commit the epoch before unlocking and survive reopen
+      ---
+      duration_ms: 1096.660034
+      type: 'test'
+      ...
+    # Subtest: custom mirror namespaces isolate accounts and a missing namespace fails closed
+    ok 6 - custom mirror namespaces isolate accounts and a missing namespace fails closed
+      ---
+      duration_ms: 6.527878
+      type: 'test'
+      ...
+    # Subtest: a legacy mirror without IDB authority requires sign-in
+    ok 7 - a legacy mirror without IDB authority requires sign-in
+      ---
+      duration_ms: 98.563467
+      type: 'test'
+      ...
+    # Subtest: legacy epoch 5 migrates before sign-in and mutation (IDB absent)
+    ok 8 - legacy epoch 5 migrates before sign-in and mutation (IDB absent)
+      ---
+      duration_ms: 519.898211
+      type: 'test'
+      ...
+    # Subtest: legacy epoch 5 migrates before sign-in and mutation (IDB 9)
+    ok 9 - legacy epoch 5 migrates before sign-in and mutation (IDB 9)
+      ---
+      duration_ms: 554.061536
+      type: 'test'
+      ...
+    # Subtest: legacy epoch 10 migrates before sign-in and mutation (IDB 9)
+    ok 10 - legacy epoch 10 migrates before sign-in and mutation (IDB 9)
+      ---
+      duration_ms: 574.230597
+      type: 'test'
+      ...
+    # Subtest: a committed session reopens with actually full localStorage and no separate epoch key
+    ok 11 - a committed session reopens with actually full localStorage and no separate epoch key
+      ---
+      duration_ms: 1258.144474
+      type: 'test'
+      ...
+    # Subtest: reopen repairs speculative session B from committed session A before capturing a mutation
+    ok 12 - reopen repairs speculative session B from committed session A before capturing a mutation
+      ---
+      duration_ms: 987.06865
+      type: 'test'
+      ...
+    # Subtest: an aborted epoch migration preserves the legacy fence for the next open
+    ok 13 - an aborted epoch migration preserves the legacy fence for the next open
+      ---
+      duration_ms: 551.013144
+      type: 'test'
+      ...
+    # Subtest: a pre-IDB stamp cannot be promoted by a matching new login epoch
+    ok 14 - a pre-IDB stamp cannot be promoted by a matching new login epoch
+      ---
+      duration_ms: 842.023127
+      type: 'test'
+      ...
+    # Subtest: a device adapter dropping ownership refuses before journal recovery
+    ok 15 - a device adapter dropping ownership refuses before journal recovery
+      ---
+      duration_ms: 868.045344
+      type: 'test'
+      ...
+    1..15
+ok 83 - browser session authority commits through IndexedDB before releasing the session lock
+  ---
+  duration_ms: 11562.309916
+  type: 'test'
+  ...
+# {"captured":true,"outcome":"failed","code":"E_AUTH","audit":0,"strictCommitsUnderLock":2}
+# {"fullStorageReopen":true,"filledCharacters":5241876,"mutationCode":"E_ADMISSION"}
+# Subtest: web-shell vite: every exported file, every HTML, content hash and idempotence
+ok 84 - web-shell vite: every exported file, every HTML, content hash and idempotence
+  ---
+  duration_ms: 37.580198
+  type: 'test'
+  ...
+# Subtest: web-shell expo: every exported file, every HTML, content hash and idempotence
+ok 85 - web-shell expo: every exported file, every HTML, content hash and idempotence
+  ---
+  duration_ms: 11.059993
+  type: 'test'
+  ...
+# Subtest: web-shell update waits for activation and failed installation preserves active caches
+ok 86 - web-shell update waits for activation and failed installation preserves active caches
+  ---
+  duration_ms: 6.991734
+  type: 'test'
+  ...
+# Subtest: web-shell CLI runs without a platform binary and rejects unsafe bases/symlinks
+ok 87 - web-shell CLI runs without a platform binary and rejects unsafe bases/symlinks
+  ---
+  duration_ms: 79.021355
+  type: 'test'
+  ...
+# Subtest: active shell keeps its HTML and unused lazy chunk together while a new build waits
+ok 88 - active shell keeps its HTML and unused lazy chunk together while a new build waits
+  ---
+  duration_ms: 8.649769
+  type: 'test'
+  ...
+# Subtest: cached navigation resolves exported directory and extensionless pages at /
+ok 89 - cached navigation resolves exported directory and extensionless pages at /
+  ---
+  duration_ms: 7.433215
+  type: 'test'
+  ...
+# Subtest: cached navigation resolves exported directory and extensionless pages at /chat/
+ok 90 - cached navigation resolves exported directory and extensionless pages at /chat/
+  ---
+  duration_ms: 6.546225
+  type: 'test'
+  ...
+# Subtest: web startup: immediate admin navigation, synchronous refusals and acquisition hook
+    # Subtest: createApp and generated api journal before immediate location.assign
+    ok 1 - createApp and generated api journal before immediate location.assign
+      ---
+      duration_ms: 979.523745
+      type: 'test'
+      ...
+    # Subtest: restored identified device journals while its first sync is held
+    ok 2 - restored identified device journals while its first sync is held
+      ---
+      duration_ms: 868.673185
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: restoring
+    ok 3 - synchronous refusal: restoring
+      ---
+      duration_ms: 429.923381
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: no-device
+    ok 4 - synchronous refusal: no-device
+      ---
+      duration_ms: 80.582556
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: no-claim
+    ok 5 - synchronous refusal: no-claim
+      ---
+      duration_ms: 414.305432
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: ephemeral-device
+    ok 6 - synchronous refusal: ephemeral-device
+      ---
+      duration_ms: 367.450518
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: storage-full
+    ok 7 - synchronous refusal: storage-full
+      ---
+      duration_ms: 471.246209
+      type: 'test'
+      ...
+    # Subtest: synchronous refusal: before-first-sync
+    ok 8 - synchronous refusal: before-first-sync
+      ---
+      duration_ms: 414.581496
+      type: 'test'
+      ...
+    # Subtest: repairing storage permits the refused id to be retried
+    ok 9 - repairing storage permits the refused id to be retried
+      ---
+      duration_ms: 431.973173
+      type: 'test'
+      ...
+    # Subtest: useAcquisition reports committed snapshot pages and completion
+    ok 10 - useAcquisition reports committed snapshot pages and completion
+      ---
+      duration_ms: 599.898161
+      type: 'test'
+      ...
+    # Subtest: session-locked journal refuses stale authority: logout
+    ok 11 - session-locked journal refuses stale authority: logout
+      ---
+      duration_ms: 632.140755
+      type: 'test'
+      ...
+    # Subtest: session-locked journal refuses stale authority: principal
+    ok 12 - session-locked journal refuses stale authority: principal
+      ---
+      duration_ms: 589.563214
+      type: 'test'
+      ...
+    # Subtest: session-locked journal refuses stale authority: epoch
+    ok 13 - session-locked journal refuses stale authority: epoch
+      ---
+      duration_ms: 653.280753
+      type: 'test'
+      ...
+    # Subtest: session-locked journal refuses stale authority: recovery
+    ok 14 - session-locked journal refuses stale authority: recovery
+      ---
+      duration_ms: 1181.787248
+      type: 'test'
+      ...
+    # Subtest: a transient unlocked epoch observation refuses only that call
+    ok 15 - a transient unlocked epoch observation refuses only that call
+      ---
+      duration_ms: 418.809715
+      type: 'test'
+      ...
+    # Subtest: the bare online browser transport refuses without custody
+    ok 16 - the bare online browser transport refuses without custody
+      ---
+      duration_ms: 1.830535
+      type: 'test'
+      ...
+    # Subtest: IndexedDB packed rows retain atomic abort and reopen
+    ok 17 - IndexedDB packed rows retain atomic abort and reopen
+      ---
+      duration_ms: 70.472186
+      type: 'test'
+      ...
+    # Subtest: IndexedDB legacy rows retain atomic abort and reopen
+    ok 18 - IndexedDB legacy rows retain atomic abort and reopen
+      ---
+      duration_ms: 99.12607
+      type: 'test'
+      ...
+    1..18
+ok 91 - web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ---
+  duration_ms: 9647.386762
+  type: 'test'
+  ...
+# {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+# {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+# {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+# {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+# Subtest: cold server watch bypasses a busy VM at dispatch and delivery
+ok 92 - cold server watch bypasses a busy VM at dispatch and delivery
+  ---
+  duration_ms: 2.437425
+  type: 'test'
+  ...
+# Subtest: synchronous admission blocks before transfer; an older completion cannot clear it
+ok 93 - synchronous admission blocks before transfer; an older completion cannot clear it
+  ---
+  duration_ms: 1.288402
+  type: 'test'
+  ...
+# Subtest: unknown prediction blocks opaque reads
+ok 94 - unknown prediction blocks opaque reads
+  ---
+  duration_ms: 0.309645
+  type: 'test'
+  ...
+# Subtest: prediction prediction blocks opaque reads
+ok 95 - prediction prediction blocks opaque reads
+  ---
+  duration_ms: 0.150146
+  type: 'test'
+  ...
+# Subtest: held queries stay loading without local composition or a server call
+ok 96 - held queries stay loading without local composition or a server call
+  ---
+  duration_ms: 0.174391
+  type: 'test'
+  ...
+# Subtest: store fences a delayed server answer
+ok 97 - store fences a delayed server answer
+  ---
+  duration_ms: 0.245127
+  type: 'test'
+  ...
+# Subtest: generation fences a delayed server answer
+ok 98 - generation fences a delayed server answer
+  ---
+  duration_ms: 0.141231
+  type: 'test'
+  ...
+# Subtest: acquisition fences a delayed server answer
+ok 99 - acquisition fences a delayed server answer
+  ---
+  duration_ms: 0.228773
+  type: 'test'
+  ...
+# Subtest: publication fences a delayed server answer
+ok 100 - publication fences a delayed server answer
+  ---
+  duration_ms: 0.224927
+  type: 'test'
+  ...
+# Subtest: queue fences a delayed server answer
+ok 101 - queue fences a delayed server answer
+  ---
+  duration_ms: 0.240781
+  type: 'test'
+  ...
+# Subtest: send fences a delayed server answer
+ok 102 - send fences a delayed server answer
+  ---
+  duration_ms: 0.119309
+  type: 'test'
+  ...
+# Subtest: clock fences a delayed server answer
+ok 103 - clock fences a delayed server answer
+  ---
+  duration_ms: 0.108192
+  type: 'test'
+  ...
+# Subtest: backend fences a delayed server answer
+ok 104 - backend fences a delayed server answer
+  ---
+  duration_ms: 0.091617
+  type: 'test'
+  ...
+# Subtest: expiry withdraws a server response and a 503 leaves the next refresh runnable
+ok 105 - expiry withdraws a server response and a 503 leaves the next refresh runnable
+  ---
+  duration_ms: 0.308022
+  type: 'test'
+  ...
+# Subtest: credentials and authority still fence delayed bypass responses
+ok 106 - credentials and authority still fence delayed bypass responses
+  ---
+  duration_ms: 0.274742
+  type: 'test'
+  ...
+# Subtest: only eligible cold watches receive the capability; restart cannot revive an old revision
+ok 107 - only eligible cold watches receive the capability; restart cannot revive an old revision
+  ---
+  duration_ms: 0.130736
+  type: 'test'
+  ...
+# Subtest: transport distinguishes restore proof from unusable responses and omits delivery
+ok 108 - transport distinguishes restore proof from unusable responses and omits delivery
+  ---
+  duration_ms: 0.139629
+  type: 'test'
+  ...
+# Subtest: page restore refusal survives later publication and Worker restart
+ok 109 - page restore refusal survives later publication and Worker restart
+  ---
+  duration_ms: 0.150285
+  type: 'test'
+  ...
+# Subtest: obsolete proof retires only its provisional fence, not another unresolved store
+ok 110 - obsolete proof retires only its provisional fence, not another unresolved store
+  ---
+  duration_ms: 0.207511
+  type: 'test'
+  ...
+# Subtest: obsolete provisional completion cannot clear a ordinary confirmed refusal
+ok 111 - obsolete provisional completion cannot clear a ordinary confirmed refusal
+  ---
+  duration_ms: 0.116505
+  type: 'test'
+  ...
+# Subtest: obsolete provisional completion cannot clear a cold confirmed refusal
+ok 112 - obsolete provisional completion cannot clear a cold confirmed refusal
+  ---
+  duration_ms: 0.061482
+  type: 'test'
+  ...
+# Subtest: obsolete provisional completion cannot clear a host confirmed refusal
+ok 113 - obsolete provisional completion cannot clear a host confirmed refusal
+  ---
+  duration_ms: 0.041662
+  type: 'test'
+  ...
+# Subtest: retiring an obsolete page fence leaves another store fenced through restart
+ok 114 - retiring an obsolete page fence leaves another store fenced through restart
+  ---
+  duration_ms: 0.109413
+  type: 'test'
+  ...
+# Subtest: a transient Worker fence withholds cold fallback without queueing a VM read
+ok 115 - a transient Worker fence withholds cold fallback without queueing a VM read
+  ---
+  duration_ms: 0.341602
+  type: 'test'
+  ...
+1..115
+# tests 224
+# suites 0
+# pass 224
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 265705.876879

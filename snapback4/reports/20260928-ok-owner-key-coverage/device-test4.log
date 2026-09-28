@@ -1,0 +1,11 @@
+   Compiling snapback4-core v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 43.42s
+     Running tests/own_keys.rs (target/debug/deps/own_keys-08eeff2898fa2b81)
+
+running 2 tests
+test memory ... ok
+test sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
