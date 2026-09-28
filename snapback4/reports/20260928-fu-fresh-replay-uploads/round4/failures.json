@@ -1,0 +1,194 @@
+[
+  {
+    "log": "adjacent-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "a failed local rotation save is not silently repeated by its notification",
+      "online session: near-expiry rotates before a protected read; concurrent refreshes coalesce",
+      "the default session store stays in memory and browser persistence is explicit"
+    ],
+    "reason": "The online start introduced an await before establishing its refresh barrier (product regression, repaired). The other two failures were fixtures targeting the old number/order of store operations; they now target successor persistence and assert the retained predecessor claim."
+  },
+  {
+    "log": "app-expanded-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "a stale online refresh preserves another owner's kept successor",
+      "a stale local refresh preserves another owner's kept successor",
+      "stale online restoration restarts when another app rotates before its first save",
+      "stale local restoration restarts when another app rotates before its first save",
+      "restoration cleanup of invalid JSON preserves a replacement written after its read",
+      "restoration cleanup of expired session preserves a replacement written after its read",
+      "snapback4/packages/snapback4/test/app.test.mjs"
+    ],
+    "reason": "Older custody fixtures expected a competing refresh to dispatch, awaited successor adoption while holding the same storage lock, or damaged the store before a claim could be written. Reworked the interleavings without weakening credential/epoch preservation. The native fixture used keepSession from inside a locked get and deadlocked; its explicitly out-of-protocol writer now writes the backing adapter directly."
+  },
+  {
+    "log": "custody-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "online: nonretryable changes (false) is visible and stops polling",
+      "web: nonretryable changes (false) is visible and stops polling",
+      "online: nonretryable changes (undefined) is visible and stops polling",
+      "web: nonretryable changes (undefined) is visible and stops polling"
+    ],
+    "reason": "The changes fixture incorrectly combined public sync with owner-only read rules; corrected to the existing owner-scoped schema."
+  },
+  {
+    "log": "discard-probe-headers-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "public web probe recovery paces retryable and respects Retry-After",
+      "public web probe recovery paces nonretryable and respects Retry-After",
+      "public web probe recovery paces malformed and respects Retry-After"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "fence-unsent-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "app-online: a proven unsent automatic refresh can renew later (explicit)",
+      "app-online: a proven unsent automatic refresh can renew later (scheduled)",
+      "app-online: a proven unsent automatic refresh can renew later (peer)",
+      "app-web: a proven unsent automatic refresh can renew later (explicit)",
+      "app-web: a proven unsent automatic refresh can renew later (scheduled)",
+      "app-web: a proven unsent automatic refresh can renew later (peer)",
+      "local: a proven unsent automatic refresh can renew later (explicit)",
+      "local: a proven unsent automatic refresh can renew later (scheduled)",
+      "local: a proven unsent automatic refresh can renew later (peer)"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "hide-changes-refusal-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "online: nonretryable changes (false) is visible and stops polling",
+      "web: nonretryable changes (false) is visible and stops polling",
+      "online: nonretryable changes (undefined) is visible and stops polling",
+      "web: nonretryable changes (undefined) is visible and stops polling"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "malformed-auth-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "app-online: a shared-store peer and a new runtime fence json refresh",
+      "app-web: a shared-store peer and a new runtime fence json refresh",
+      "local: a shared-store peer and a new runtime fence json refresh"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "no-durable-claim-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "app-online: a shared-store peer and a new runtime fence reset refresh",
+      "app-web: a shared-store peer and a new runtime fence reset refresh",
+      "local: a shared-store peer and a new runtime fence reset refresh"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "polls-fixed.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "online: nonretryable changes (false) is visible and stops polling",
+      "web: nonretryable changes (false) is visible and stops polling",
+      "online: nonretryable changes (undefined) is visible and stops polling",
+      "web: nonretryable changes (undefined) is visible and stops polling"
+    ],
+    "reason": "The observation fixture called peek() instead of the public getSnapshot(); corrected."
+  },
+  {
+    "log": "polls-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "online: nonretryable changes (false) is visible and stops polling",
+      "web: nonretryable changes (false) is visible and stops polling",
+      "online: nonretryable changes (undefined) is visible and stops polling",
+      "web: nonretryable changes (undefined) is visible and stops polling"
+    ],
+    "reason": "The changes fixture used an invalid public-sync/owner-read schema; corrected."
+  },
+  {
+    "log": "public-expanded-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "app-online: a shared-store peer and a new runtime fence reset refresh",
+      "app-online: a shared-store peer and a new runtime fence json refresh",
+      "app-online: a shared-store peer and a new runtime fence body refresh"
+    ],
+    "reason": "The online warning assertion ran before its asynchronous automatic refresh finished. Wait for auth.why; the separate far-expiry restoration test still requires warning before an explicit refresh."
+  },
+  {
+    "log": "session-model-claims.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "local session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences"
+    ],
+    "reason": "The I2 claim exception initially missed revokeCurrent, which also invokes refresh. Covered explicitly; I14 additionally refuses any repeated consumed bearer."
+  },
+  {
+    "log": "session-model-initial.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "local session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "model regression: failed local rotation persistence cannot be committed by a second notification save",
+      "model regression: offline reopening starts after close commits the owned rotation",
+      "model regression: refusal after a failed rotation save also excludes its consumed predecessor",
+      "model regression: replacement retires a rotation whose persistence read failed",
+      "session model sweeps 120 failure points after an unpersisted rotation"
+    ],
+    "reason": "I2 still prohibited the required pre-dispatch claim. The model now allows only that metadata change while preserving credentials and epoch."
+  },
+  {
+    "log": "spin-nonretryable-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "public web probe recovery paces nonretryable and respects Retry-After"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; the corresponding fixed public tests pass."
+  },
+  {
+    "log": "affected-qualified.log.gz",
+    "classification": "ours",
+    "expected": false,
+    "tests": [
+      "app-web: failed outcome persistence retains the pre-dispatch fence and warning"
+    ],
+    "reason": "One diagnostic-persistence fixture expected the original in-memory transport error on a later explicit call. That call correctly consults the durable generic unknown claim after its detailed save failed. Corrected to assert original automatic warning separately; final two-tier rerun passes."
+  },
+  {
+    "log": "cache-peer-claim-negative.log.gz",
+    "classification": "ours",
+    "expected": true,
+    "tests": [
+      "app-online: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "app-online: a peer releases its warning after the owner proves non-dispatch (scheduled)",
+      "app-web: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "app-web: a peer releases its warning after the owner proves non-dispatch (scheduled)",
+      "local: a peer releases its warning after the owner proves non-dispatch (explicit)",
+      "local: a peer releases its warning after the owner proves non-dispatch (scheduled)"
+    ],
+    "reason": "Expected regression-negative control in a disposable SDK copy; corresponding fixed public tests pass."
+  }
+]

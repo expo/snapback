@@ -1,0 +1,1472 @@
+[
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::memory::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::memory::cases::w13e_grouped_cut_continues_through_9000_memberships",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::sqlite::cases::uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::memory::cases::w13e_dense_500",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::sqlite::cases::w13e_grouped_cut_continues_through_9000_memberships",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::sqlite::cases::w13e_dense_500",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::memory::cases::w13f_dense_500",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::memory::cases::w13e_newest_measures_complete_page_and_opening_envelope",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::memory::cases::w13e_dense_1000",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::sqlite::cases::w13f_dense_500",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::sqlite::cases::w13e_dense_1000",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::memory::cases::w13f_clique_every_row_hits_in_1000_lanes",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::memory::cases::w13f_dense_1000",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::sqlite::cases::w13f_clique_every_row_hits_in_1000_lanes",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "search_global::lazy::sqlite::cases::w13f_dense_1000",
+    "classification": "baseline",
+    "cause": "Device search null-as-array failure; exact name reproduced on merge 9563912e3.",
+    "resolution": "Unchanged; search-baseline-final.log.gz."
+  },
+  {
+    "suite": "cargo test",
+    "name": "blocked_stderr_cannot_block_responses_or_later_mutations",
+    "classification": "ours",
+    "cause": "Rerouting the evidence writer changed its persistence/backpressure coupling.",
+    "resolution": "Preserve existing writer, make writes fallible; dev-refusals-final.log.gz: 12 pass."
+  },
+  {
+    "suite": "cargo test",
+    "name": "w10r1b_dev_reports_the_same_cascades_as_check",
+    "classification": "ours",
+    "cause": "Watcher diagnostic formatting diverged from check output during print-site conversion.",
+    "resolution": "Preserve original presentation and summary wording on the asynchronous sink; lifecycle-final.log.gz."
+  },
+  {
+    "suite": "client tests",
+    "name": "every delivery await is explicitly classified",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:41:1",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "0 transient: local.ts:162 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "0 persistent: local.ts:162 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "2 transient: local.ts:165 save",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "2 persistent: local.ts:165 save",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "3 transient: local.ts:234 refreshAcquired",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "3 persistent: local.ts:234 refreshAcquired",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "6 transient: local.ts:335 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "6 persistent: local.ts:335 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "7 transient: local.ts:339 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "7 persistent: local.ts:339 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "9 transient: local.ts:528 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "9 persistent: local.ts:528 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "10 transient: local.ts:533 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "10 persistent: local.ts:533 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "11 transient: local.ts:540 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "11 persistent: local.ts:540 sendPost",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "13 transient: local.ts:582 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "13 persistent: local.ts:582 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "14 transient: local.ts:583 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "14 persistent: local.ts:583 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "17 transient: local.ts:642 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "17 persistent: local.ts:642 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "18 transient: local.ts:654 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "18 persistent: local.ts:654 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "19 transient: local.ts:669 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "19 persistent: local.ts:669 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "20 persistent: local.ts:674 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "25 transient: local.ts:704 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "25 persistent: local.ts:704 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "26 transient: local.ts:722 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "26 persistent: local.ts:722 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "27 transient: local.ts:729 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "27 persistent: local.ts:729 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "28 transient: local.ts:738 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "28 persistent: local.ts:738 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "29 transient: local.ts:760 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "29 persistent: local.ts:760 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "30 transient: local.ts:763 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "30 persistent: local.ts:763 syncRound",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "31 transient: local.ts:789 probe",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "31 persistent: local.ts:789 probe",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "34 transient: local.ts:795 probe",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "34 persistent: local.ts:795 probe",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "36 transient: local.ts:808 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "36 persistent: local.ts:808 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "38 transient: local.ts:812 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "38 persistent: local.ts:812 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "41 transient: local.ts:821 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "41 persistent: local.ts:821 waitForChange",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "48 transient: local.ts:1073 flush",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "48 persistent: local.ts:1073 flush",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "50 transient: local.ts:1093 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "50 persistent: local.ts:1093 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "52 transient: local.ts:1099 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "52 persistent: local.ts:1099 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "53 transient: local.ts:1101 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "53 persistent: local.ts:1101 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "54 transient: local.ts:1101 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "54 persistent: local.ts:1101 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "55 transient: local.ts:1106 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "55 persistent: local.ts:1106 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "57 transient: local.ts:1109 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "57 persistent: local.ts:1109 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "58 transient: local.ts:1114 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "58 persistent: local.ts:1114 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "59 transient: local.ts:1120 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "59 persistent: local.ts:1120 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "60 transient: local.ts:1123 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "60 persistent: local.ts:1123 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "61 transient: local.ts:1126 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "61 persistent: local.ts:1126 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "62 transient: local.ts:1131 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "62 persistent: local.ts:1131 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "63 transient: local.ts:1140 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "63 persistent: local.ts:1140 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "64 transient: local.ts:1144 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "64 persistent: local.ts:1144 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "65 transient: local.ts:1156 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "65 persistent: local.ts:1156 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "66 transient: local.ts:1160 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "66 persistent: local.ts:1160 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "67 transient: local.ts:1161 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "67 persistent: local.ts:1161 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "68 transient: local.ts:1164 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "68 persistent: local.ts:1164 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "77 transient: local-receipts.ts:11 settleReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "77 persistent: local-receipts.ts:11 settleReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "78 transient: local-receipts.ts:12 settleReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "78 persistent: local-receipts.ts:12 settleReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "79 transient: local-receipts.ts:30 receiptBatch",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "79 persistent: local-receipts.ts:30 receiptBatch",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "80 transient: local-receipts.ts:43 deliverAcknowledgedReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "80 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "81 transient: local-receipts.ts:44 deliverAcknowledgedReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "81 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "82 transient: local-receipts.ts:65 syncSettledWrites",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "82 persistent: local-receipts.ts:65 syncSettledWrites",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "83 transient: local-receipts.ts:66 syncSettledWrites",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "83 persistent: local-receipts.ts:66 syncSettledWrites",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "84 transient: local-receipts.ts:70 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "84 persistent: local-receipts.ts:70 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "85 transient: local-receipts.ts:70 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "85 persistent: local-receipts.ts:70 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "86 transient: local-receipts.ts:74 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "86 persistent: local-receipts.ts:74 recoverReceipt",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "92 transient: local-receipts.ts:108 terminalDeviceCall",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "92 persistent: local-receipts.ts:108 terminalDeviceCall",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "93 transient: local-receipts.ts:117 readQueued",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "93 persistent: local-receipts.ts:117 readQueued",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "94 transient: writes.ts:154 keep",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "94 persistent: writes.ts:154 keep",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "95 transient: writes.ts:181 acknowledged",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "95 persistent: writes.ts:181 acknowledged",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "96 transient: writes.ts:187 acknowledged",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "96 persistent: writes.ts:187 acknowledged",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "97 transient: writes.ts:194 persistPending",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "97 persistent: writes.ts:194 persistPending",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "98 transient: writes.ts:200 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "98 persistent: writes.ts:200 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "99 transient: writes.ts:203 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "99 persistent: writes.ts:203 read",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "107 transient: local-assets.ts:52 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "107 persistent: local-assets.ts:52 call",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "108 transient: local-assets.ts:70 home",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "108 persistent: local-assets.ts:70 home",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "109 transient: local-assets.ts:73 save",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "109 persistent: local-assets.ts:73 save",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "110 transient: local-assets.ts:79 drop",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "110 persistent: local-assets.ts:79 drop",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "111 transient: local-assets.ts:95 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "111 persistent: local-assets.ts:95 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "112 transient: local-assets.ts:97 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "112 persistent: local-assets.ts:97 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "113 transient: local-assets.ts:104 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "113 persistent: local-assets.ts:104 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "114 transient: local-assets.ts:108 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "114 persistent: local-assets.ts:108 check",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "115 transient: request-wait.ts:20 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "115 persistent: request-wait.ts:20 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "116 transient: request-wait.ts:21 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "116 persistent: request-wait.ts:21 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "117 transient: request-wait.ts:21 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "117 persistent: request-wait.ts:21 postForCaller",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "130 transient: pending-writes.ts:50 revision",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "130 persistent: pending-writes.ts:50 revision",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "131 transient: pending-writes.ts:57 record",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "131 persistent: pending-writes.ts:57 record",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "132 transient: pending-writes.ts:60 record",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "132 persistent: pending-writes.ts:60 record",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "133 transient: clock.ts:89 wrapped",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "133 persistent: clock.ts:89 wrapped",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "154 transient: local.ts:1094 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "154 persistent: local.ts:1094 flushOnce",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "155 transient: local-assets.ts:48 remove",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "155 persistent: local-assets.ts:48 remove",
+    "source": "packages/snapback4/test/delivery-fault-matrix.test.mjs:47:3",
+    "classification": "ours",
+    "cause": "Await census/recipe offsets and exact-delay assertions changed with HTTP decoding and jitter.",
+    "resolution": "Explicit semantic recipe mapping and shared decoder coverage; ordinary storage backoff preserved. Final matrix 317 pass inside final 481-case client selection. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "direct queries detect replacement in a denied response without polling",
+    "source": "packages/snapback4/test/online-store-terminal.test.mjs:69:56",
+    "classification": "ours",
+    "cause": "Test refusal fixtures omitted required family/message fields and failed envelope validation.",
+    "resolution": "Provide valid refusal fixtures while keeping store/credential fences and their original assertions. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "a buffered refusal head below an observed write is refetched before publication",
+    "source": "packages/snapback4/test/online-store-terminal.test.mjs:148:1",
+    "classification": "ours",
+    "cause": "Test refusal fixtures omitted required family/message fields and failed envelope validation.",
+    "resolution": "Provide valid refusal fixtures while keeping store/credential fences and their original assertions. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "late refresh successor cannot change terminal credentials; awaited E_AUTH gap: true",
+    "source": "packages/snapback4/test/online-terminal-entrypoints.test.mjs:58:3",
+    "classification": "ours",
+    "cause": "Test refusal fixtures omitted required family/message fields and failed envelope validation.",
+    "resolution": "Provide valid refusal fixtures while keeping store/credential fences and their original assertions. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "late refresh refusal cannot change terminal credentials; awaited E_AUTH gap: true",
+    "source": "packages/snapback4/test/online-terminal-entrypoints.test.mjs:58:3",
+    "classification": "ours",
+    "cause": "Test refusal fixtures omitted required family/message fields and failed envelope validation.",
+    "resolution": "Provide valid refusal fixtures while keeping store/credential fences and their original assertions. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "wasm: a failed background refresh keeps the answer and the link",
+    "source": "packages/snapback4/test/presence-local.test.mjs:71:3",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "process: a failed background refresh keeps the answer and the link",
+    "source": "packages/snapback4/test/presence-local.test.mjs:71:3",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "a refresh that fails keeps the interval, and a refused presence query keeps refreshing",
+    "source": "packages/snapback4/test/presence-refresh.test.mjs:94:1",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "an accepted loading answer is published, and a background failure keeps the answer and the link",
+    "source": "packages/snapback4/test/presence-refresh.test.mjs:156:1",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "repeating media failure cannot gate an already queued send and retries stay bounded",
+    "source": "packages/snapback4/test/store-reset-review.test.mjs:387:1",
+    "classification": "ours",
+    "cause": "Jitter incorrectly changed existing non-overload storage/housekeeping retry timing.",
+    "resolution": "Apply mutation jitter only to received overload; preserve existing storage backoff. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "the observation catch schedules the only retry that can publish an earlier success",
+    "source": "packages/snapback4/test/store-reset-review.test.mjs:515:1",
+    "classification": "ours",
+    "cause": "Jitter incorrectly changed existing non-overload storage/housekeeping retry timing.",
+    "resolution": "Apply mutation jitter only to received overload; preserve existing storage backoff. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "an older round returning false after HTTP 500 cannot skip the explicit follow-up",
+    "source": "packages/snapback4/test/sync-after-call.test.mjs:136:54",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  },
+  {
+    "suite": "client tests",
+    "name": "an unpublished 503 refresh keeps acquisition polling alive",
+    "source": "packages/snapback4/test/sync-scale.test.mjs:125:54",
+    "classification": "ours",
+    "cause": "Malformed 5xx became an accepted answer instead of preserving background refresh/transport behavior.",
+    "resolution": "Retain status-bearing E_HTTP_RESPONSE as failed transport outcome; quiet refresh keeps the answer/link; explicit sync follows its offline recovery path. Final client-regressions-final.log.gz: 481 pass."
+  }
+]

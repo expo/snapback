@@ -65,7 +65,7 @@ impl Supervisor {
                     revision = next;
                     match DevWorker::start(&project, shared.clone(), url.clone()) {
                         Ok(next) => worker = next,
-                        Err(error) => eprintln!("snapback4 worker: {error}"),
+                        Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
                     }
                 }
                 if let Some(worker) = &mut worker { worker.tick(); }
@@ -83,7 +83,7 @@ impl Drop for Supervisor {
         self.stop.store(true, std::sync::atomic::Ordering::Release);
         if let Some(thread) = self.thread.take() {
             thread.thread().unpark();
-            if thread.join().is_err() { eprintln!("snapback4 worker: supervisor panicked"); }
+            if thread.join().is_err() { snapback4_core::diagnostic!("snapback4 worker: supervisor panicked"); }
         }
     }
 }
@@ -144,7 +144,7 @@ impl DevWorker {
         // beyond the supervision window. Allow two seconds for shutdown.
         if self.child.is_some() && (self.started.elapsed() >= CHILD_WINDOW - Duration::from_secs(2)
             || self.child_expires_at.is_some_and(|at| self.shared.now() >= at.saturating_sub(2_000))) {
-            eprintln!("snapback4 worker: supervision window ended; replacing child");
+            snapback4_core::diagnostic!("snapback4 worker: supervision window ended; replacing child");
             self.close_child_session();
             self.stop_child();
             self.restart = Instant::now();
@@ -152,8 +152,8 @@ impl DevWorker {
         if let Some(child) = &mut self.child {
             match child.try_wait() {
                 Ok(None) => return,
-                Err(error) => { eprintln!("snapback4 worker: wait failed: {error}"); return; }
-                Ok(Some(status)) => eprintln!("snapback4 worker: exited {status}; restarting in {} ms", self.backoff.as_millis()),
+                Err(error) => { snapback4_core::diagnostic!("snapback4 worker: wait failed: {error}"); return; }
+                Ok(Some(status)) => snapback4_core::diagnostic!("snapback4 worker: exited {status}; restarting in {} ms", self.backoff.as_millis()),
             }
             self.child = None;
             self.crashes += 1;
@@ -174,7 +174,7 @@ impl DevWorker {
         };
         let session = match session {
             Ok(session) => session,
-            Err(error) => { eprintln!("snapback4 worker: cannot mint the child's session: {error}"); self.restart = Instant::now() + self.backoff; return; }
+            Err(error) => { snapback4_core::diagnostic!("snapback4 worker: cannot mint the child's session: {error}"); self.restart = Instant::now() + self.backoff; return; }
         };
         let token = session.token;
         self.child_expires_at = Some(session.expires_at);
@@ -182,35 +182,35 @@ impl DevWorker {
         // still receives it through its environment and its output is redacted below.
         if !self.explicit_env && self.starts == 0 && server_source(&self.project).is_none()
             && std::env::var_os("SNAPBACK4_WITNESS_DRIVER").is_none() {
-            println!("snapback4 dev worker: service:worker token (printed once): {token}");
+            snapback4_core::diagnostic_stdout!("snapback4 dev worker: service:worker token (printed once): {token}");
         }
         let secrets = { environment::values(&lock(&self.shared.bound).schema) };
         let secrets = match secrets {
             Ok(values) => values,
-            Err(error) => { eprintln!("snapback4 worker: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; return; }
+            Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; return; }
         };
         let mut redact: Vec<Vec<u8>> = secrets.values().map(|s| s.as_bytes().to_vec()).collect(); redact.push(token.as_bytes().to_vec());
         match command(&self.node).arg(&self.source).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
                 environment::pipe(child.stdout.take().expect("piped stdout"), redact.clone());
                 environment::pipe(child.stderr.take().expect("piped stderr"), redact);
-                eprintln!("snapback4 worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");
+                snapback4_core::diagnostic!("snapback4 worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");
             }
-            Err(error) => { eprintln!("snapback4 worker: cannot start: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; self.backoff = (self.backoff * 2).min(Duration::from_secs(5)); }
+            Err(error) => { snapback4_core::diagnostic!("snapback4 worker: cannot start: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; self.backoff = (self.backoff * 2).min(Duration::from_secs(5)); }
         }
     }
 
     fn record_status(&self, state: &str) {
         let record = serde_json::json!({ "source": self.source, "mode": if self.explicit_env { "serve" } else { "dev" }, "state": state, "starts": self.starts, "restarts": self.starts.saturating_sub(1), "crashes": self.crashes, "pid": self.child.as_ref().map(Child::id) });
         if let Err(error) = lock(&self.shared.engine).store().set_meta("worker:status", &record.to_string()) {
-            eprintln!("snapback4 worker: cannot record status: {error}");
+            snapback4_core::diagnostic!("snapback4 worker: cannot record status: {error}");
         }
     }
 
     fn close_child_session(&mut self) {
         if self.child_expires_at.take().is_some() {
             if let Err(error) = clear_child_session(lock(&self.shared.engine).store()) {
-                eprintln!("snapback4 worker: cannot close the child's session: {error}");
+                snapback4_core::diagnostic!("snapback4 worker: cannot close the child's session: {error}");
             }
         }
     }
@@ -269,8 +269,8 @@ fn warn_if_esm_entry_is_not_declared(source: &std::path::Path) {
     let renamed = source.with_extension("mts");
     let renamed = renamed.file_name().unwrap_or(renamed.as_os_str()).to_string_lossy().into_owned();
     let reason = if declares_module.is_some() { "the nearest package.json does not declare them" } else { "no package.json above it declares them" };
-    eprintln!("snapback4 worker: {} uses ES modules but {reason}, so Node will read it as CommonJS", source.display());
-    eprintln!("snapback4 worker:   rewrite: rename it to {renamed} — or declare \"type\": \"module\" for it");
+    snapback4_core::diagnostic!("snapback4 worker: {} uses ES modules but {reason}, so Node will read it as CommonJS", source.display());
+    snapback4_core::diagnostic!("snapback4 worker:   rewrite: rename it to {renamed} — or declare \"type\": \"module\" for it");
 }
 
 fn command(node: &std::path::Path) -> Command {

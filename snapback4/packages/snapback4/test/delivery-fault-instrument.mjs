@@ -22,6 +22,9 @@ export const scope = {
   'changes.ts': '*',
   'local-search.ts': '*',
   'local-query.ts': ['route'],
+  // The shared decoder now owns both mutation-body I/O and optional query
+  // decoding. Retry waits/send calls remain covered by their caller awaits.
+  'http-response.ts': ['readResponse'],
 };
 function name(node) {
   if (node.name) return node.name.getText();

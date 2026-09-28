@@ -1,0 +1,860 @@
+[
+  {
+    "run": "public-before",
+    "case": "public asset rotation preserves ECONNRESET without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public asset rotation preserves invalid without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public asset rotation preserves success without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "online: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "web: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public fresh web schema recover retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public fresh web schema exhaust retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public fresh web schema reset retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public fresh web schema invalid retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth guest: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth guest: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth guest: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth signup: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth signup: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth signup: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth login: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth login: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth login: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth refresh: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth refresh: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth refresh: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth logoutAll: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth logoutAll: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "public-before",
+    "case": "public auth logoutAll: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Round-1 SDK rejects 24 new public API guarantees; repaired in round 2."
+  },
+  {
+    "run": "affected-first",
+    "case": "rate/capacity refusals preserve online; malformed transport goes offline",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "argument custody and closed request settle without waiting for fetch",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "online assets revoke late credential-bound URLs across rotation, sign-out and close",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "schema startup 503/E_STORE/true: keeps saved session offline",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "schema startup 503/E_AUTH/true: keeps saved session offline",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "schema startup 403/E_STORE/false: keeps saved session offline",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "schema startup 200/E_STORE/true: keeps saved session offline",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-first",
+    "case": "schema startup 401/E_AUTH/true: forgets refused session",
+    "classification": "ours",
+    "disposition": "Corrected ephemeral close handling, required refusal fixture fields, schema 401 terminality, and old link/asset replay expectations."
+  },
+  {
+    "run": "affected-second",
+    "case": "schema startup 503/E_AUTH/true: keeps saved session connected",
+    "classification": "ours",
+    "disposition": "Retryable E_AUTH must not sign out the saved client during follow-up sync; terminal E_AUTH remains terminal."
+  },
+  {
+    "run": "matrix",
+    "case": "42 transient: local.ts:829 waitForChange",
+    "classification": "ours; test harness",
+    "disposition": "The moved refusal wait is reached only for a delivered refusal; updated the fault recipe to supply one."
+  },
+  {
+    "run": "matrix",
+    "case": "42 persistent: local.ts:829 waitForChange",
+    "classification": "ours; test harness",
+    "disposition": "The moved refusal wait is reached only for a delivered refusal; updated the fault recipe to supply one."
+  },
+  {
+    "run": "affected-broad",
+    "case": "a delayed transient conversion cannot publish an obsolete session's asset",
+    "classification": "ours; test maintenance",
+    "disposition": "Removed the old expectation of a second GET after a successful asset response during rotation; lifecycle tests pass."
+  },
+  {
+    "run": "audit-before",
+    "case": "public asset rotation preserves ECONNRESET without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public asset rotation preserves invalid without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public asset rotation preserves success without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "online: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "web: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public fresh web schema recover retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public fresh web schema exhaust retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public fresh web schema reset retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public fresh web schema invalid retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth guest: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth guest: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth guest: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth signup: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth signup: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth signup: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth login: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth login: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth login: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth refresh: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth refresh: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth refresh: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth logoutAll: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth logoutAll: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public auth logoutAll: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "online: public changes refusal classifies delivered refusals separately",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "web: public changes refusal classifies delivered refusals separately",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "online: public session rotation reset schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "online: public session rotation invalid schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "web: public session rotation reset schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "web: public session rotation invalid schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public saved web backend opens connected after exhausted schema overload",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset reset retains cause, rotation=false",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset unreachable retains cause, rotation=false",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset overload retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset reset retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset unreachable retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "audit-before",
+    "case": "public web asset invalid retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Copied round-1 SDK fails the requested and additional audit regressions; no worktree source changed."
+  },
+  {
+    "run": "no-mutation-jitter",
+    "case": "online: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "ours; expected mutation",
+    "disposition": "Both public mutation tests fail when jitter is removed; mutations exist only in an ignored SDK copy."
+  },
+  {
+    "run": "no-mutation-jitter",
+    "case": "web: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "ours; expected mutation",
+    "disposition": "Both public mutation tests fail when jitter is removed; mutations exist only in an ignored SDK copy."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public asset rotation preserves ECONNRESET without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public asset rotation preserves invalid without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public asset rotation preserves success without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public asset rotation preserves terminal-overload without consuming another view",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public ephemeral refusal preserves queued calls and never replays",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public fresh web schema recover retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public fresh web schema exhaust retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public fresh web schema reset retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public fresh web schema invalid retains startup cause",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth guest: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth guest: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth guest: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth signup: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth signup: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth signup: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth login: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth login: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth login: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth refresh: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth refresh: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth refresh: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth logoutAll: invalid retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth logoutAll: reset retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public auth logoutAll: unreachable retains cause with one request",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public changes refusal classifies delivered refusals separately",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public changes refusal classifies delivered refusals separately",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public session rotation reset schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public session rotation invalid schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public session rotation reset schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public session rotation invalid schedules only proven refusal retries",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public saved web backend opens connected after exhausted schema overload",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset reset retains cause, rotation=false",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset unreachable retains cause, rotation=false",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset overload retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset reset retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset unreachable retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public web asset invalid retains cause, rotation=true",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "online: public probe overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public probe overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "web: public sync overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "audit-final-before",
+    "case": "public transfers jitter beyond Retry-After and stop within their cumulative budget",
+    "classification": "baseline; expected negative",
+    "disposition": "Final round-1 SDK control: 44 failed public cases; fixed SDK passes."
+  },
+  {
+    "run": "grok-client-after",
+    "case": "online: public probe overload recovers an offline link without adopting identity",
+    "classification": "ours; test harness",
+    "disposition": "Changed probe trigger to the public connectivity event; restored query responses and excluded the unrelated zero-delay startup timer. Final affected selection passes."
+  },
+  {
+    "run": "grok-client-after",
+    "case": "web: public probe overload recovers an offline link without adopting identity",
+    "classification": "ours; test harness",
+    "disposition": "Changed probe trigger to the public connectivity event; restored query responses and excluded the unrelated zero-delay startup timer. Final affected selection passes."
+  },
+  {
+    "run": "grok-client-after",
+    "case": "public transfers jitter beyond Retry-After and stop within their cumulative budget",
+    "classification": "ours; test harness",
+    "disposition": "Changed probe trigger to the public connectivity event; restored query responses and excluded the unrelated zero-delay startup timer. Final affected selection passes."
+  },
+  {
+    "run": "grok-client-before",
+    "case": "online: public probe overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "First Grok reproductions, superseded by final round-1 source controls; initial test harness also needed corrections."
+  },
+  {
+    "run": "grok-client-before",
+    "case": "web: public probe overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "First Grok reproductions, superseded by final round-1 source controls; initial test harness also needed corrections."
+  },
+  {
+    "run": "grok-client-before",
+    "case": "web: public sync overload recovers an offline link without adopting identity",
+    "classification": "baseline; expected negative",
+    "disposition": "First Grok reproductions, superseded by final round-1 source controls; initial test harness also needed corrections."
+  },
+  {
+    "run": "grok-client-before",
+    "case": "public transfers jitter beyond Retry-After and stop within their cumulative budget",
+    "classification": "baseline; expected negative",
+    "disposition": "First Grok reproductions, superseded by final round-1 source controls; initial test harness also needed corrections."
+  },
+  {
+    "run": "grok-recovery-final",
+    "case": "snapback4/packages/snapback4/test/overload.test.mjs",
+    "classification": "ours; test harness",
+    "disposition": "Async cleanup restored removeEventListener too early. Close client before restoring globals; final affected selection passes."
+  },
+  {
+    "run": "http-final",
+    "case": "serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve",
+    "classification": "environmental; timing",
+    "disposition": "Existing token-bucket test assumes seven HTTP calls fit inside a 50 ms refill window; 96-way concurrent run crossed it. Unchanged test passes alone (0.03 s) and in the four-thread HTTP scope. No isolated baseline reproduction is claimed."
+  },
+  {
+    "run": "no-mutation-jitter-final",
+    "case": "online: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "ours; expected mutation",
+    "disposition": "Both public tiers fail with jitter deliberately removed in the disposable copy; fixed SDK passes."
+  },
+  {
+    "run": "no-mutation-jitter-final",
+    "case": "web: public mutation overload uses deterministic jitter and Retry-After",
+    "classification": "ours; expected mutation",
+    "disposition": "Both public tiers fail with jitter deliberately removed in the disposable copy; fixed SDK passes."
+  },
+  {
+    "run": "spawn-after",
+    "case": "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit",
+    "classification": "ours; test harness",
+    "disposition": "Use http_with_limits, matching the real server. Unbounded fixture had no refusal socket handle. Final test passes."
+  },
+  {
+    "run": "spawn-before",
+    "case": "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit",
+    "classification": "baseline; expected negative",
+    "disposition": "Old closure drops an unfinished request on failed spawn. Initial receiver fixture later changed to http_with_limits so the fixed refusal has its socket handle."
+  },
+  {
+    "run": "test-sh",
+    "case": "every delivery await is explicitly classified",
+    "classification": "ours; test maintenance",
+    "disposition": "Full runner loaded the census before late Grok source/manifest edits completed. Final matching sources/manifests pass the entire 315-case matrix."
+  },
+  {
+    "run": "test-sh",
+    "case": "packages/snapback4/test/overload.test.mjs",
+    "classification": "ours; test maintenance",
+    "disposition": "Full runner loaded the old async cleanup hook. Close-before-global-restore correction passes all 429 final affected cases, including this file."
+  },
+  {
+    "run": "test-sh",
+    "case": "online upload stops before retry when sign-out occurs during backoff",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "online upload stops before retry when rotation occurs during backoff",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "web upload stops before retry when sign-out occurs during backoff",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "web upload stops before retry when rotation occurs during backoff",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "online upload continues backoff after a completed transport refresh failure",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "online upload continues backoff after a completed admission refresh failure",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "web upload continues backoff after a completed transport refresh failure",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "test-sh",
+    "case": "web upload continues backoff after a completed admission refresh failure",
+    "classification": "ours; test maintenance",
+    "disposition": "Legacy timer mocks intercepted 250 ms, before upload jitter. Pin randomness and intercept 281.25 ms; all 46 upload-lifetime tests now pass."
+  },
+  {
+    "run": "spawn-no-guard-final",
+    "case": "serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit",
+    "classification": "ours; expected mutation",
+    "disposition": "Final real HTTP test with only PendingRequest refusal disabled returns HTTP 500 after waiting on the unfinished body. Fixed guard passes."
+  }
+]

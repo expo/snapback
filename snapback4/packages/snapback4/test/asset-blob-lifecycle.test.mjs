@@ -298,11 +298,9 @@ test("a delayed transient conversion cannot publish an obsolete session's asset"
     const result = await reading;
     assert.equal(old.closes, 1);
     if (ending === "rotation") {
-      assert.equal(result.url, "data:image/png;base64,Ag==");
-      assert.equal(fetches, 2, "only credential rotation retries the asset request");
-      assert.equal(next.closes, 1);
-      result.revoke();
-      assert.equal(result.url, "");
+      assert.equal(result.denied.code, "E_AUTH");
+      assert.equal(fetches, 1, "rotation cannot consume another view after a successful download");
+      assert.equal(next.closes, 0, "no replacement response was requested");
     } else {
       assert.equal(result.denied.code, "E_CLOSED");
       assert.equal(fetches, 1);

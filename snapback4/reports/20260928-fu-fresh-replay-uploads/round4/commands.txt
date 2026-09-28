@@ -1,0 +1,17 @@
+# From the repository root, unless a cwd is stated.
+git fetch origin
+bun run --cwd snapback4/packages/snapback4 build
+bun run --cwd snapback4/packages/snapback4 typecheck
+node --test --test-concurrency=4 snapback4/packages/snapback4/test/overload.test.mjs snapback4/packages/snapback4/test/refresh-custody.test.mjs snapback4/packages/snapback4/test/ephemeral-sender.test.mjs snapback4/packages/snapback4/test/session-security.test.mjs snapback4/packages/snapback4/test/online-session.test.mjs snapback4/packages/snapback4/test/app-local-session.test.mjs snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs snapback4/packages/snapback4/test/query-publication-session.test.mjs snapback4/packages/snapback4/test/schema-session.test.mjs snapback4/packages/snapback4/test/app.test.mjs
+node --test --test-name-pattern='failed outcome persistence' snapback4/packages/snapback4/test/refresh-custody.test.mjs
+SNAPBACK4_SESSION_SEQUENCES=100 node --test snapback4/packages/snapback4/test/app-session-model.test.mjs
+node snapback4/reports/20260928-fu-fresh-replay-uploads/round4/negative-controls.mjs
+# cwd snapback4:
+cargo test -p snapback4-lang --test guide
+node scripts/docs-budget.mjs
+# cwd repository root:
+./ref-check --verbose
+git diff --check
+# Measurement: gzip file input retains the artifact filename, as the budget script does.
+gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm
+# scripts/test.sh was not invoked. No push or publication.

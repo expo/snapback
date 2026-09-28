@@ -65,3 +65,6 @@ pub fn now_ms() -> i64 {
 
 #[cfg(feature = "sqlite")]
 pub mod private_fs;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod diagnostics;

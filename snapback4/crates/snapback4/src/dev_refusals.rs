@@ -45,10 +45,10 @@ impl Recent {
                 records.insert(at, record.clone());
                 if records.len() > LIMIT { records.pop_front(); }
                 if let Err(error) = save(&path, &identity, &records, writer_dropped.load(Ordering::Relaxed)) {
-                    eprintln!("dev refusal: could not save local record: {error}");
+                    let _ = writeln!(std::io::stderr().lock(), "dev refusal: could not save local record: {error}");
                 }
                 let r = &record;
-                eprintln!("dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
+                let _ = writeln!(std::io::stderr().lock(), "dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
                     r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap());
             }
         }).map_err(|e| e.to_string())?;

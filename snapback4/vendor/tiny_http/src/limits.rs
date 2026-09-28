@@ -8,6 +8,52 @@ use std::time::{Duration, Instant};
 
 use crate::connection::Connection;
 
+// @ref LLP 3000#http-overload-diagnostics — refuse before allocating a parser or thread.
+// A single nonblocking, fixed-size reply cannot park the accept loop behind a
+// peer that does not read. Failure to deliver it remains a transport failure.
+pub(crate) fn refuse_connection(mut socket: Connection) -> bool {
+    use std::io::Write;
+    const BODY: &str = r#"{"denied":{"code":"E_RATE_LIMIT","family":"limit","message":"HTTP connections or request workers are occupied; wait for pending writes to settle or reduce concurrent clients before retrying","retryable":true,"guide":"assets"}}"#;
+    let delivered = if socket.set_nonblocking(true).is_ok() {
+        let reply = format!("HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\nRetry-After: 1\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Retry-After\r\n\r\n{BODY}", BODY.len());
+        socket.write_all(reply.as_bytes()).is_ok()
+    } else { false };
+    let _ = socket.shutdown(Shutdown::Both);
+    delivered
+}
+
+/// Cumulative, saturating admission counters. HTTP writes are best-effort:
+/// successful writes do not prove that the peer received the response.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AdmissionRefusals {
+    pub http_written: usize,
+    pub http_failed: usize,
+    pub tls_closed: usize,
+}
+impl AdmissionRefusals {
+    pub fn total(self) -> usize { self.http_written.saturating_add(self.http_failed).saturating_add(self.tls_closed) }
+}
+#[derive(Default)]
+pub(crate) struct RefusalCounters {
+    http_written: AtomicUsize,
+    http_failed: AtomicUsize,
+    tls_closed: AtomicUsize,
+}
+impl RefusalCounters {
+    pub(crate) fn refuse(&self, socket: Connection, tls: bool) {
+        let written = if !tls { refuse_connection(socket) }
+            else { let _ = socket.shutdown(Shutdown::Both); false };
+        self.record(tls, written);
+    }
+    pub(crate) fn record(&self, tls: bool, written: bool) {
+        let counter = if tls { &self.tls_closed } else if written { &self.http_written } else { &self.http_failed };
+        let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1)));
+    }
+    pub(crate) fn snapshot(&self) -> AdmissionRefusals {
+        AdmissionRefusals { http_written: self.http_written.load(Ordering::Relaxed), http_failed: self.http_failed.load(Ordering::Relaxed), tls_closed: self.tls_closed.load(Ordering::Relaxed) }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ConnectionLimits {
     pub max_connections: usize,
@@ -96,5 +142,36 @@ impl ConnectionState {
         } else { Ok(remaining) }
     }
 
+    pub(crate) fn refuse(&self) -> bool {
+        self.socket.try_clone().is_ok_and(refuse_connection)
+    }
+
     pub(crate) fn shutdown(&self) { let _ = self.socket.shutdown(Shutdown::Both); }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::io::Read;
+    use std::os::unix::net::UnixStream;
+    #[test]
+    fn every_refusal_counts_even_failed_delivery_and_tls() {
+        let counters = RefusalCounters::default();
+        for i in 0..100 {
+            let (socket, mut peer) = UnixStream::pair().unwrap();
+            counters.refuse(socket.into(), false);
+            let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
+            assert!(reply.contains("503 Service Unavailable"));
+            assert!(reply.contains("\"retryable\":true"));
+            assert!(!reply.contains("\"family\":\"auth\""));
+            assert_eq!(counters.snapshot().total(), i + 1);
+        }
+        let (socket, peer) = UnixStream::pair().unwrap(); drop(peer);
+        counters.refuse(socket.into(), false);
+        let (socket, mut peer) = UnixStream::pair().unwrap();
+        counters.refuse(socket.into(), true);
+        let mut bytes = Vec::new(); peer.read_to_end(&mut bytes).unwrap();
+        assert!(bytes.is_empty(), "TLS refusal sends no cleartext");
+        assert_eq!(counters.snapshot(), AdmissionRefusals { http_written: 100, http_failed: 1, tls_closed: 1 });
+    }
 }

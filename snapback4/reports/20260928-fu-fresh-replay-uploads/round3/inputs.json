@@ -1,0 +1,12 @@
+{
+  "source_head": "7c94f7126873de2ff77864f68b45e6f70c39d64e",
+  "fetched_main": "9ef49d43cb713dfd5c80e0a50ce05164bc0b331d",
+  "node": "v24.13.1",
+  "inputs": {
+    "/home/ccheever/sb4-intent/lane-fu.prompt.md": "c237d3ed96343e373917d350b0b77173b858052077a32a2872a0f93f51f4547d",
+    "/home/ccheever/sb4-intent/lane-fu.r1.prompt.md": "25b20ccd20d42906575957f87b393166873c3bb185cea8f12f4a85e6fe421bcd",
+    "/home/ccheever/sb4-intent/lane-fu.r2.prompt.md": "acb7fe916d8871f9569d00035463ea05774d8fcad1e43a5cc804fe8e53c71b07",
+    "/home/ccheever/sb4-intent/reviews/fu-r2.astra.md": "f7ee1ffdcac3b86803a8b7c3d73dcc4a6b3182a7bff60eaf1b74f36cc0ebfaa6",
+    "/home/ccheever/sb4-intent/reviews/fu-r2.grok.md": "db576827ccc6505405c14eade34bc1973a37f9f2163e3930604f73d2041f0d9d"
+  }
+}

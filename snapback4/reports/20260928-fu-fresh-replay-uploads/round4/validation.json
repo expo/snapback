@@ -1,0 +1,88 @@
+{
+  "affected-final": {
+    "tests": 590,
+    "pass": 590,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "affected-qualified": {
+    "tests": 596,
+    "pass": 595,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "outcome-persistence-qualified": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "session-model-last": {
+    "tests": 54,
+    "pass": 54,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "sequences_per_tier": 100
+  },
+  "shared-final": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "renewal-polls-final": {
+    "tests": 18,
+    "pass": 18,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "peer-recheck-final": {
+    "tests": 6,
+    "pass": 6,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "delivery-adjacent-final": {
+    "tests": 334,
+    "pass": 334,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "app-final": {
+    "tests": 78,
+    "pass": 78,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "adjacent-fixed": {
+    "tests": 22,
+    "pass": 22,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "guide": {
+    "tests": 98,
+    "pass": 98,
+    "fail": 0
+  },
+  "affected_scope": {
+    "unique_cases": 596,
+    "unresolved_failures": 0,
+    "correction": "diagnostic-persistence fixture only; no product changes after affected-qualified"
+  },
+  "negative_controls": {
+    "mutations": 7,
+    "expected_failing_cases": 29
+  },
+  "full_suite": "not run, per round-4 instruction"
+}

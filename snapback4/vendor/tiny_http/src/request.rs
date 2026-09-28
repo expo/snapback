@@ -345,6 +345,15 @@ impl Request {
         if let Some(sender) = self.notify_when_responded.take() { let _ = sender.send(()); }
     }
 
+    /// One nonblocking static refusal, then abort without reading/draining.
+    /// Secure transports close without writing cleartext through their socket.
+    pub fn refuse_overload(self) -> crate::AdmissionRefusals {
+        let tls = self.secure;
+        let written = !tls && self.limits.as_ref().is_some_and(|limits| limits.refuse());
+        self.abort();
+        crate::AdmissionRefusals { http_written: usize::from(written), http_failed: usize::from(!tls && !written), tls_closed: usize::from(tls) }
+    }
+
     pub(crate) fn with_limits(mut self, limits: Option<std::sync::Arc<crate::limits::ConnectionState>>) -> Self {
         self.limits = limits;
         self

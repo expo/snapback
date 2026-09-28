@@ -1,0 +1,12 @@
+{
+  "pid": 2151788,
+  "beforeStop": null,
+  "exit": {
+    "code": 143,
+    "signal": null
+  },
+  "probe": {
+    "status": 401,
+    "body": "{\"denied\":{\"code\":\"E_AUTH\",\"family\":\"auth\",\"guide\":\"personas\",\"message\":\"sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development\"}}"
+  }
+}

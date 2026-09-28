@@ -1,0 +1,19 @@
+{
+  "version": "snapback.full-journey-scale-replay.v1",
+  "attempted": true,
+  "capSeconds": 14400,
+  "probeWallSecondsExcluded": 0,
+  "attempts": [
+    {
+      "attempt": 1,
+      "startedAt": "2026-09-28T17:15:58.485Z",
+      "finishedAt": "2026-09-28T17:16:26.210Z",
+      "settledPrefix": 0,
+      "disposition": "aborted"
+    }
+  ],
+  "receipt": {
+    "path": "artifacts/scale-replay-receipt.json",
+    "sha256": "sha256:a5720c846b449a38a34636c32ac158cfe8193bf77be97787818eee1d7dd00658"
+  }
+}

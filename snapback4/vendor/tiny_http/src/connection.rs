@@ -86,6 +86,14 @@ impl std::io::Write for Connection {
     }
 }
 impl Connection {
+    pub(crate) fn set_nonblocking(&self, nonblocking: bool) -> std::io::Result<()> {
+        match self {
+            Self::Tcp(s) => s.set_nonblocking(nonblocking),
+            #[cfg(unix)]
+            Self::Unix(s) => s.set_nonblocking(nonblocking),
+        }
+    }
+
     pub(crate) fn set_read_timeout(&self, timeout: Option<std::time::Duration>) -> std::io::Result<()> {
         match self {
             Self::Tcp(s) => s.set_read_timeout(timeout),

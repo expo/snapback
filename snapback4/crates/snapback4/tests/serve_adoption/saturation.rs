@@ -39,8 +39,9 @@ fn saturated_writer(path: &'static str) {
     assert_eq!(host.shared.engine.waiting() as usize, MUTATION_WORKERS, "reads did not release the writer");
     drop(owner);
     let replies: Vec<_> = writers.into_iter().map(|w| w.join().unwrap()).collect();
-    assert_eq!(replies.iter().filter(|r| r.is_empty()).count(), EXTRA);
-    for reply in replies.iter().filter(|r| !r.is_empty()) {
+    assert_eq!(replies.iter().filter(|r| status(r) == 503).count(), EXTRA);
+    for reply in replies.iter().filter(|r| status(r) == 503) { assert_eq!(body(reply)["denied"]["code"], "E_RATE_LIMIT"); }
+    for reply in replies.iter().filter(|r| status(r) != 503) {
         let answer = body(reply);
         match path {
             "/m/noop" => assert_eq!(answer["state"], "sent", "{reply}"),

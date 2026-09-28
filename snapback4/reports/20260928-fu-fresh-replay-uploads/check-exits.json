@@ -1,0 +1,22 @@
+{
+  "admission-after.exit": 0,
+  "admission-before.exit": 101,
+  "client-affected.exit": 0,
+  "client-before.exit": 1,
+  "evidence/replay.exit": 0,
+  "fixed-sdk-zero-wait/replay.exit": 1,
+  "fixed-zero-wait/replay.exit": 1,
+  "guide-final.exit": 0,
+  "guide.exit": 101,
+  "http-tests-final.exit": 0,
+  "http-tests.exit": 101,
+  "limits.exit": 0,
+  "production-build.exit": 0,
+  "ref-check-final.exit": 0,
+  "ref-check.exit": 0,
+  "test-sh.exit": 0,
+  "transport-cause.exit": 0,
+  "upload-after.exit": 0,
+  "wasm.exit": 0,
+  "zero-wait/replay.exit": 1
+}

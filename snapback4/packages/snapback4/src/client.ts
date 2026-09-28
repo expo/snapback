@@ -1,3 +1,4 @@
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -217,8 +218,8 @@ export function createClient(options: ClientOptions): Client {
     if (refreshing) await refreshing;
     if (closed || storeRefusal || !credentials || !watches.size) return false;
     const revision = credentialRevision;
-    const response = await doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal });
-    const next = await response.json() as BackendJson & { denied?: Refusal };
+    const { response, json } = await readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers: { ...headers }, signal: aborter.signal }), () => !closed && credentials && revision === credentialRevision, aborter.signal);
+    const next = json as unknown as BackendJson & { denied?: Refusal };
     if (closed || storeRefusal || !watches.size) return false;
     if (await obsoleteRefusal(next.denied, revision)) return false;
     if (!credentials || revision !== credentialRevision || !response.ok || !next.schema?.tables) return false;
@@ -346,7 +347,8 @@ export function createClient(options: ClientOptions): Client {
     for (const listener of viewerListeners) listener(next);
   };
 
-  const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
+  let transportFailure: Refusal | undefined, changesRefusal: Refusal | undefined;
+  const offline = (): Refusal => transportFailure ?? transportRefusal();
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
@@ -444,7 +446,7 @@ export function createClient(options: ClientOptions): Client {
       if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
       if (!refreshed.ok) {
-        if (refreshed.why.code === "E_AUTH") endCredentials();
+        if (refreshed.why.code === "E_AUTH" && !refreshed.why.retryable) endCredentials();
         else if (refreshed.why.retryable) scheduleRefresh(60_000);
         return refreshed;
       }
@@ -474,7 +476,7 @@ export function createClient(options: ClientOptions): Client {
   // A rotation invalidates the old token. Its late refusal is not a refusal
   // of the replacement: retry at the new revision (writes keep their id).
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
-    if (why?.code !== "E_AUTH") return false;
+    if (why?.code !== "E_AUTH" || why.retryable) return false;
     if (refreshing) await refreshing;
     if (storeRefusal || closed) return false;
     if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
@@ -525,8 +527,10 @@ export function createClient(options: ClientOptions): Client {
       }
       // A synchronous dispatch subscriber can end or rotate this session.
       if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
-      const json = (await response.json()) as Record<string, unknown>;
+      const send = () => doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
+      const { response, json } = path.startsWith("/q/")
+        ? await readWithAdmissionRetry(send, () => !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)), eph?.signal ?? aborter.signal)
+        : await send().then(async response => ({ response, json: await readResponse(response) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
       if (eph && !ephemeralReads.current(eph)) return { ok: false };
@@ -536,11 +540,13 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
       if (storeRefusal) return { ok: false };
-      if (response.status >= 500) {
-        const why = (json.why ?? json.denied) as Refusal | undefined;
-        const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
-        if (entry && why?.retryable) await hold(entry, why.code);
-        if (!quiet) setLink("offline"); return { ok: false };
+      const why = (json.why ?? json.denied) as Refusal | undefined;
+      if (why?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
+      const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
+      if (entry && why?.retryable) {
+        await hold(entry, why.code);
+        retryAfterMs = retryAfter(response.headers.get("retry-after"));
+        retryOverload = why.code === "E_RATE_LIMIT";
       }
       if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
         arrived(false);
@@ -552,7 +558,8 @@ export function createClient(options: ClientOptions): Client {
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json, revision };
-    } catch {
+    } catch (error) {
+      transportFailure = transportRefusal(error);
       if (credentials && !quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
       return { ok: false };
     }
@@ -565,7 +572,7 @@ export function createClient(options: ClientOptions): Client {
   }
   async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
-    if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet);
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
@@ -725,10 +732,10 @@ export function createClient(options: ClientOptions): Client {
     if (closed || !credentials || storeRefusal) return;
     const revision = credentialRevision;
     const floor = minimumReadSeq;
+    let response: Response | undefined;
     try {
-      const response = await doFetch(`${base}/probe`, { headers: { ...headers }, signal: aborter.signal });
-      let json: Record<string, unknown> = {};
-      try { json = (await response.json()) as Record<string, unknown>; } catch {}
+      response = await doFetch(`${base}/probe`, { headers: { ...headers }, signal: aborter.signal });
+      const json = await readResponse(response);
       if (closed || storeRefusal) return;
       observeStore(json, floor);
       if (storeRefusal) return;
@@ -736,11 +743,14 @@ export function createClient(options: ClientOptions): Client {
         if (attempt < 3) { await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt)); await probeOnce(attempt + 1); }
         return;
       }
-      if (response.status === 200 && json.ok === true && credentials) {
+      if (overloaded(refusal(json.denied)) && credentials && revision === credentialRevision) setLink("online");
+      if (response.status === 200 && json.ok === true && credentials && revision === credentialRevision) {
         probed = true;
         setLink("online");
+        return;
       }
     } catch {}
+    if (!closed && credentials && !storeRefusal) await pauseProbe(response, aborter.signal);
   }
 
   const changes = changeFeed(doFetch, base, aborter.signal, () => { if (!closed && credentials) setLink("offline"); }, () => { if (!closed && credentials && link === "offline") void probe(); });
@@ -748,7 +758,7 @@ export function createClient(options: ClientOptions): Client {
   async function poll() {
     if (polling) return;
     polling = true;
-    while (!closed && !storeRefusal && watches.size > 0) {
+    while (!closed && !storeRefusal && !changesRefusal && watches.size > 0) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
         if (!closed && credentials && link === "offline") await probe();
@@ -764,11 +774,18 @@ export function createClient(options: ClientOptions): Client {
         const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
-        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         observeStore(json as unknown as Record<string, unknown>, floor);
         if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
         if (closed || storeRefusal || !credentials) break;
+        if (await pauseRefusal(response, json.denied, aborter.signal)) continue;
+        if (refusal(json.denied)) {
+          changesRefusal = json.denied; queryEpoch++;
+          const deliver = deferReadNotifications(() => { for (const watch of watches.values()) { watch.reset({ denied: changesRefusal! }); scheduleExpiry(watch, null); } });
+          deliver(); for (const watch of watches.values()) notify(watch);
+          break;
+        }
+        if (!ephemeralReads.changed(eph, json.ephemeral)) continue;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         minimumReadSeq = Math.max(minimumReadSeq, json.seq);
@@ -787,7 +804,8 @@ export function createClient(options: ClientOptions): Client {
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
-      } catch {
+      } catch (error) {
+        transportFailure = transportRefusal(error);
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
         if (credentials) setLink("offline");
@@ -836,6 +854,7 @@ export function createClient(options: ClientOptions): Client {
   let flushing: Promise<void> | null = null;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let retryMs = 250;
+  let retryAfterMs = 0, retryOverload = false;
   function flush(): Promise<void> {
     if (flushing) return flushing;
     if (retry) { clearTimeout(retry); retry = undefined; }
@@ -849,7 +868,8 @@ export function createClient(options: ClientOptions): Client {
           finally { sending = null; }
           if (!sent) {
             if (closed || storeRefusal || !credentials) return;
-            retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
+            retry = setTimeout(() => { retry = undefined; void flush(); }, retryOverload ? jitter(Math.max(retryMs, retryAfterMs)) : Math.max(retryMs, retryAfterMs));
+            retryAfterMs = 0; retryOverload = false;
             (retry as { unref?: () => void }).unref?.();
             retryMs = Math.min(retryMs * 2, 5000);
             return;
@@ -977,11 +997,14 @@ export function createClient(options: ClientOptions): Client {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      // A successful reply is just as credential-bound as a refusal. Do not
-      // publish bytes fetched under a bearer that rotated while it was away.
+      // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
       if (revision !== credentialRevision) {
-        if ("url" in read) read.revoke();
-        return client.asset(id);
+        if ("denied" in read) {
+          if (read.denied.code === "E_AUTH" || (read.denied.code === "E_RATE_LIMIT" && read.denied.retryable)) return client.asset(id);
+          return read;
+        }
+        read.revoke();
+        return { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
       }
       if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
       if (storeRefusal || closed || !credentials) {

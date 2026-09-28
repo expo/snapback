@@ -282,13 +282,10 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   assert.equal((await client.refreshSession()).ok, true);
   oldRelease.resolve();
   const result = await reading;
-  assert.deepEqual(bearers, ["Bearer old", "Bearer next"]);
-  assert.equal(result.url, "blob:asset-4");
+  assert.deepEqual(bearers, ["Bearer old"]);
+  assert.equal(result.denied.code, "E_AUTH");
   assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2", "blob:asset-3"]);
-  assert.deepEqual(closed, revoked, "the replacement asset remains live until its handle is revoked");
-  result.revoke();
-  result.revoke();
-  assert.deepEqual(closed, ["blob:asset-1", "blob:asset-2", "blob:asset-3", "blob:asset-4"]);
+  assert.deepEqual(closed, revoked, "the old response is released without consuming another view");
 });
 
 test("mintId keeps burst and rollback ids monotonic without advancing their timestamp", () => {

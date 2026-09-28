@@ -1,0 +1,62 @@
+[
+  {
+    "name": "audit-final-before",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "public asset rotation preserves ECONNRESET without consuming another view",
+      "public asset rotation preserves invalid without consuming another view",
+      "public asset rotation preserves success without consuming another view",
+      "public asset rotation preserves terminal-overload without consuming another view",
+      "online: public ephemeral refusal preserves queued calls and never replays",
+      "web: public ephemeral refusal preserves queued calls and never replays",
+      "public fresh web schema recover retains startup cause",
+      "public fresh web schema exhaust retains startup cause",
+      "public fresh web schema reset retains startup cause",
+      "public fresh web schema invalid retains startup cause",
+      "online: public mutation overload uses deterministic jitter and Retry-After",
+      "web: public mutation overload uses deterministic jitter and Retry-After",
+      "public auth guest: invalid retains cause with one request",
+      "public auth guest: reset retains cause with one request",
+      "public auth guest: unreachable retains cause with one request",
+      "public auth signup: invalid retains cause with one request",
+      "public auth signup: reset retains cause with one request",
+      "public auth signup: unreachable retains cause with one request",
+      "public auth login: invalid retains cause with one request",
+      "public auth login: reset retains cause with one request",
+      "public auth login: unreachable retains cause with one request",
+      "public auth refresh: invalid retains cause with one request",
+      "public auth refresh: reset retains cause with one request",
+      "public auth refresh: unreachable retains cause with one request",
+      "public auth logoutAll: invalid retains cause with one request",
+      "public auth logoutAll: reset retains cause with one request",
+      "public auth logoutAll: unreachable retains cause with one request",
+      "online: public changes refusal classifies delivered refusals separately",
+      "web: public changes refusal classifies delivered refusals separately",
+      "online: public session rotation reset schedules only proven refusal retries",
+      "online: public session rotation invalid schedules only proven refusal retries",
+      "web: public session rotation reset schedules only proven refusal retries",
+      "web: public session rotation invalid schedules only proven refusal retries",
+      "public saved web backend opens connected after exhausted schema overload",
+      "public web asset reset retains cause, rotation=false",
+      "public web asset unreachable retains cause, rotation=false",
+      "public web asset overload retains cause, rotation=true",
+      "public web asset reset retains cause, rotation=true",
+      "public web asset unreachable retains cause, rotation=true",
+      "public web asset invalid retains cause, rotation=true",
+      "online: public probe overload recovers an offline link without adopting identity",
+      "web: public probe overload recovers an offline link without adopting identity",
+      "web: public sync overload recovers an offline link without adopting identity",
+      "public transfers jitter beyond Retry-After and stop within their cumulative budget"
+    ]
+  },
+  {
+    "name": "no-mutation-jitter-final",
+    "exit": 1,
+    "signal": null,
+    "failed": [
+      "online: public mutation overload uses deterministic jitter and Retry-After",
+      "web: public mutation overload uses deterministic jitter and Retry-After"
+    ]
+  }
+]

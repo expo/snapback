@@ -60,10 +60,10 @@ for (const refusal of [false, true]) for (const authGap of [false, true])
     const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === '/auth/logout') { logouts.push(new Headers(init.headers).get('authorization')); return Response.json({ ok: true }); }
-      if (path === '/auth/refresh') { rotating = true; rotationSignal = init.signal; await rotation.promise; return Response.json(refusal ? { denied: { code: 'E_AUTH' } } : { session: session('next') }, { status: refusal ? 401 : 200 }); }
+      if (path === '/auth/refresh') { rotating = true; rotationSignal = init.signal; await rotation.promise; return Response.json(refusal ? { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in to continue' } } : { session: session('next') }, { status: refusal ? 401 : 200 }); }
       const args = JSON.parse(init.body).args;
       if (args.change) { await change.promise; return Response.json(ready('B', 1)); }
-      if (args.auth) { await auth.promise; return Response.json({ denied: { code: 'E_AUTH' } }, { status: 401 }); }
+      if (args.auth) { await auth.promise; return Response.json({ denied: { code: 'E_AUTH', family: 'auth', message: 'sign in to continue' } }, { status: 401 }); }
       return Response.json(ready());
     } });
     t.after(async () => { change.resolve(); rotation.resolve(); auth.resolve(); await client.close(); });
@@ -118,7 +118,7 @@ test('app replacement never persists a late successor before probing the kept se
     const path = new URL(input).pathname, bearer = new Headers(init.headers).get('authorization');
     if (path === '/auth/refresh') { rotating = true; await rotation.promise; return Response.json({ session: session('next') }); }
     if (path === '/auth/logout') { revoked.push(bearer); return Response.json({ ok: true }); }
-    if (path === '/probe') { probes.push(bearer); return Response.json(bearer === 'Bearer old' ? { ok: true } : { denied: { code: 'E_AUTH' } }, { status: bearer === 'Bearer old' ? 200 : 401 }); }
+    if (path === '/probe') { probes.push(bearer); return Response.json(bearer === 'Bearer old' ? { ok: true } : { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in to continue' } }, { status: bearer === 'Bearer old' ? 200 : 401 }); }
     if (JSON.parse(init.body).args.change) { await change.promise; return Response.json(ready('B', 1)); }
     return Response.json(ready());
   } });

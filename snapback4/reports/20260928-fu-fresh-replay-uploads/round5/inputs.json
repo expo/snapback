@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-28T21:25:38.313617+00:00",
+  "head": "b22998869ee70e9797e7be9a4f59f2f93a69e150",
+  "main": "9ef49d43cb713dfd5c80e0a50ce05164bc0b331d",
+  "branch": "sb4-intent/fu-fresh-replay-uploads",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "product_sha256": {
+    "src/app.ts": "2934cc600331c26bf2239e222d3464d78d694125d167ab57650232cf9834c1d0",
+    "src/auth.ts": "63a3c48baa6c9baed1a08b84e4270535412a72b97f246dccf02816e244f5d1e7",
+    "src/client.ts": "3448aa1587693011c50dd7db983415874f78b77985d86d827eb99f14b897d02c",
+    "src/local.ts": "3cbf88c078dd45a63f2075e82b6cd147d9ff029c60d3ba6b321d1c2da02231ad",
+    "src/http-response.ts": "eb28ea1766885958103eb5544835144f0a7fe0447e9015b8f40267afe19f4b1f"
+  },
+  "prompt_review_sha256": {
+    "/home/ccheever/sb4-intent/lane-fu.r5.prompt.md": "9a37c4ddc20be9fccd05e23925835d1b42c44506d046e28da7e01441bc149e73",
+    "/home/ccheever/sb4-intent/reviews/fu-r3.astra.md": "a8a75d49d3f49f83b981812ab2ff2e5775d9e7a4340989d70f5072376fc94fa3",
+    "/home/ccheever/sb4-intent/reviews/fu-r4.astra.md": "b3a89da0234093c92ef37f989e1a0655de7a5991fa713dc991687a8fe7be4551",
+    "/home/ccheever/sb4-intent/reviews/fu-r2.grok.md": "be158994cb0f23a5ecc0b4c70592f46c03db7e38d79875e156d91e6ee76d2225"
+  }
+}

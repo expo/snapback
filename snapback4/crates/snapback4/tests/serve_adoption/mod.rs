@@ -48,7 +48,9 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
     assert_eq!(body(&schema)["generation"], old);
     assert!(!schema.contains("$timeline:"));
     assert_eq!(host.admission.syncs.load(Ordering::Acquire), 32);
-    assert!(host.request("POST", "/sync", headers, "{}").is_empty(), "sync admission remains bounded");
+    let refused = host.request("POST", "/sync", headers, "{}");
+    assert_eq!(status(&refused), 503, "sync admission remains bounded");
+    assert_eq!(body(&refused)["denied"]["code"], "E_RATE_LIMIT");
     let (write, write_thread)=request("/m/post",r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FA1","args":{"postId":"after","parentId":null}}"#.into());
     assert!(syncs.iter().all(|(sync, _)| sync.try_recv().is_err()));
     assert!(write.recv_timeout(Duration::from_millis(100)).is_err());
