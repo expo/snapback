@@ -72050,3 +72050,99 @@ No new comparative or crash qualification. No tool installed, push or
 publication. The commit carries the required Astra co-author trailer.
 Report and durable evidence: reports/20260927-dc-delivery-client/ROUND14.md
 and round14/ beside it.
+
+## 2026-09-28 — Lane SY: explicit sync observes a round begun after its call
+
+Fetched and merged origin/main first: already up to date at ede1f1177.
+Used the populated sibling llp-orient skill read-only. Recorded the author's
+ruling in LLP 3000 section 7 and one sentence each in the sync card and the
+operations manual. Explicit local sync now shares one follow-up among callers
+that encounter the same in-flight round; the new attempt owns success, offline
+completion or rejection, even if the older round failed. Internal syncOnce
+callers retain coalescing. Browser, process, Expo and custom handles share this
+TypeScript path. Acquisition/publication and lifecycle fences stay in that path.
+
+Ported DC's held-response leave interleaving and SS's held-response revocation
+interleaving through fetch injection on process/native and wasm. All four fail
+against merged baseline local.ts and pass after the fix. Original assertions
+are unchanged (AST comparison: 79 history, 161 asset-list assertions). Seven
+scheduler tests cover the ten-call burst, a caller during its follow-up,
+background wakes, offline fetch and device rejection, including failure of the
+older round. Five fail on baseline; both preserved wake tests fail under a
+loader that deliberately doubles the background round. Closed the DC ticket
+and imported the SS ticket's text with its resolution under issues/closed/.
+
+Affected sync/local/history/assets/React: 199 passed, 0 failed, 1 existing
+legacy-binary skip. Whole guide: 92/92. Original test source loaded byte-for-byte
+from the baseline: DC 50/50 isolated repetitions and SS 50/50. Build/typecheck,
+docs budget and references pass (521 LLPs, 9,746 refs, zero errors/unchecked).
+No new browser or iOS simulator witness claim.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+`== 1 failure(s) in 1893 s` — client tests. Its two failures are ours:
+repair-b-round7's ordinary interrupted publication and repair-b's interrupted
+snapshot catch-up expected three requests where the ruling requires four.
+Both mocks now accept and verify the follow-up from published progress while
+retaining the staged-mode assertions. All 75 Repair B/scheduler tests pass
+afterward; both updated fixtures fail on baseline. No runtime correction or
+second full-suite run. All other phases pass: Rust 4,144 / 30 ignored, doctests,
+client shards 56/56, models 79/79, wrappers 9/9. Client main before those fixture
+updates: 3,839 passed / 2 failed / 10 skipped. Full-suite baseline failures 0,
+environmental failures 0. The inherited 60-second suite budget remains exceeded.
+
+Other lane-owned failures are retained in the report: a misplaced test fetch
+hook caused four initial asset-control timeouts; two guide runs found the new
+sentence in the short introduction before it was moved below the example; the
+first DC repetition batch lost iteration 37 to our overlapping wasm-directory
+replacement (ENOENT, case never ran), then the final original-source batch
+passed all 50; two edit-command path mistakes and a trailing ticket blank line
+were corrected. Intended baseline and mutation failures are separately listed.
+
+Fresh baseline and suite-rebuilt wasm are byte-identical: 2,019,815 B raw /
+585,384 B gzip, delta 0 / 0, 809 B below the unchanged 586,193 B budget;
+SHA-256 083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+No device/core, dependency, version, meter or budget change. Node 24.13.1,
+Bun 1.3.14, Rust 1.97.0, wasm-bindgen 0.2.127; eight Cargo jobs/Rust test
+processes, debug info and incremental off, packaged SQLite flags, fd limit
+65,536. No tool installed or shared tool path changed. Report and compressed
+evidence: reports/20260928-sy-sync-after-call/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-28 — Lane SY round 1: false-result and background-round regressions
+
+First fetched and merged origin/main b8400c291 without conflicts; merge
+f86705f7a preserves both sides and carries the co-author trailer. Read the
+round-0 prompt, report and journal entry, and both complete Astra/Grok reviews.
+Accepted their test gaps. Used llp-orient read-only from the populated lane-a5
+skill. The existing LLP 3000 explicit-sync contract and guide still apply.
+
+Added three scheduler regressions. Two hold an older fetch until explicit
+sync is called, then return a network error or HTTP 500, making syncRound
+fulfill false. Both require a follow-up request, keep the explicit caller
+pending while it is held, and check its new watermark, online state and public
+undefined result. The third holds a round started by a wake/change notification,
+commits a newer mock-server head, and requires explicit sync to apply that
+new head. The existing real-server history and asset cases remain unchanged.
+No new test found a runtime defect; no production code changed.
+
+Both reviewed false-result mutations fail the two new transport cases (8 pass,
+2 fail each). The mutation returning background round promises directly fails
+the new wake case (9 pass, 1 fail). All failures are request-count assertions,
+1 instead of 2; no timeouts/cancellations. All seven old scheduler cases pass
+under every mutation. In-memory loaders leave source and generated files intact.
+Unmodified scheduler: 10/10. Affected sync/local/history/assets/React: 202 pass,
+0 fail, 1 inherited legacy-binary skip. Whole guide: 92/92. Rust asset lists:
+28 core and 22 device pass. Build, typecheck, whitespace and ref-check pass;
+references: 521 LLPs, 9,746 refs, zero errors/unchecked.
+
+Failure ledger: five deliberate mutation failures are ours. An inspection rg
+named two nonexistent test filenames (ours); discovery corrected the paths.
+No unexpected test/build failures, baseline failures or environmental failures.
+Did not run scripts/test.sh: the supervisor's landing suite runs next. Round-0
+complete-suite and 50+50 repetition evidence remains historical, not rerun.
+
+Remeasured the existing round-0 wasm, without rebuilding: 2,019,815 B raw /
+585,384 B gzip, identical SHA-256, delta 0/0; unchanged 586,193 B budget.
+No tool installed or shared tool path changed. Report and compressed logs:
+reports/20260928-sy-sync-after-call/REPORT.md and round1/. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

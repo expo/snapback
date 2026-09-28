@@ -180,8 +180,13 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
         generation: 1, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, outbox_status: true, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
       case "apply":
         if (request.page.snapshot) { staged = true; return { ok: { touched: [], published: false } }; }
-        assert.equal(request.page.snapshot_catchup, true);
-        assert.equal(request.first, false);
+        if (staged) {
+          assert.equal(request.page.snapshot_catchup, true);
+          assert.equal(request.first, false);
+        } else {
+          assert.equal(request.page.snapshot_catchup, false);
+          assert.equal(request.first, true);
+        }
         staged = false; published = request.page.watermark;
         return { ok: { touched: [], published: true } };
       case "set_meta": case "keep_write": case "adopt": return { ok: null };
@@ -197,8 +202,13 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
         const request = JSON.parse(init.body); requests.push(request);
         if (requests.length === 1) return Response.json({ snapshot: true, events: [], watermark: 5, more: false, generation: 1 });
         if (failures-- > 0) throw new TypeError("interrupted after staging");
-        assert.equal(request.stream, true, "the new syncRound must recover staged transfer mode");
-        assert.equal(request.from, 5);
+        if (staged) {
+          assert.equal(request.stream, true, "the new syncRound must recover staged transfer mode");
+          assert.equal(request.from, 5);
+        } else {
+          assert.equal(request.stream, false, "the explicit follow-up begins after publication");
+          assert.equal(request.from, 8);
+        }
         return Response.json({ snapshot: false, events: [], watermark: 8, images_at: 8, more: false, generation: 1 });
       }
       throw new TypeError("background transport held");
@@ -209,7 +219,8 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
     await client.sync();
     assert.equal(published, 8);
     assert.equal(staged, false);
-    assert.equal(requests.length, 3);
+    // Startup already began recovery; explicit sync must then observe a newer round.
+    assert.deepEqual(requests.map(r => [r.from, r.stream]), [[0, false], [5, true], [5, true], [8, false]]);
   } finally { await client.close(); }
 });
 

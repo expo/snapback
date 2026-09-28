@@ -1,0 +1,9 @@
+{
+  "raw_bytes": 2019815,
+  "gzip_bytes": 585384,
+  "sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+  "budget": 586193,
+  "baseline_sha256": "083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625",
+  "delta_raw_bytes": 0,
+  "delta_gzip_bytes": 0
+}

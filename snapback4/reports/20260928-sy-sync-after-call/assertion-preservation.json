@@ -1,0 +1,12 @@
+[
+  {
+    "path": "packages/snapback4/test/ordinary-history.test.mjs",
+    "assertions": 79,
+    "unchanged": true
+  },
+  {
+    "path": "packages/snapback4/test/asset-lists.test.mjs",
+    "assertions": 161,
+    "unchanged": true
+  }
+]

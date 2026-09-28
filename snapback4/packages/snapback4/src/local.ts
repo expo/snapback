@@ -18,8 +18,7 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // The local-first tier (LLP 3000 §7, one implementation): the device is
 // the Rust module — the partition in its own store, the stream applied,
 // the outbox kept, queries and predictions answered — and this client is
-// what remains: the session, the link, the transport, and the observation
-// of reads. Every word a screen reads is still the card. The module is
+// what remains: sessions, links, transport and reads. The module is
 // reached through one JSON call (`DeviceCore`), so the wasm device on the
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
@@ -32,7 +31,7 @@ import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
-import { requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
+import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
 import { lookupWrite, recoverReceipt, settleReceipt, successSequence } from "./local-receipts.ts";
@@ -564,6 +563,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
   let syncing: Promise<boolean> | null = null;
+  const syncAfterCall = explicitSync(() => syncing, syncOnce);
   function syncOnce(): Promise<boolean> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
     if (syncing) return syncing;
@@ -1347,7 +1347,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return () => sessionListeners.delete(listener);
     },
     async sync() {
-      if (!closed && !sessionDead) await syncOnce();
+      if (!closed && !sessionDead) await syncAfterCall();
     },
     refreshSession: refreshCurrent,
     async logoutAll() {

@@ -1,0 +1,83 @@
+{
+  "summary": "== 1 failure(s) in 1893 s",
+  "exit": 1,
+  "failed_phases": [
+    "client tests"
+  ],
+  "failures": [
+    {
+      "test": "ordinary publication keeps stream mode through false snapshot mode and an interrupted round",
+      "file": "repair-b-round7.test.mjs",
+      "classification": "ours",
+      "resolution": "Updated fixture for the required post-publication round; passed in 75-test affected rerun."
+    },
+    {
+      "test": "interrupted snapshot catch-up resumes its durable mode",
+      "file": "repair-b.test.mjs",
+      "classification": "ours",
+      "resolution": "Updated fixture for the required post-publication round; passed in 75-test affected rerun."
+    }
+  ],
+  "rust": {
+    "executions": 971,
+    "passed": 4144,
+    "failed": 0,
+    "ignored": 30
+  },
+  "client_summaries": {
+    "tests": [
+      3,
+      3,
+      12,
+      12,
+      11,
+      3,
+      12,
+      3851
+    ],
+    "pass": [
+      3,
+      3,
+      12,
+      12,
+      11,
+      3,
+      12,
+      3839
+    ],
+    "fail": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2
+    ],
+    "skipped": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      10
+    ]
+  },
+  "models": {
+    "tests": [
+      79
+    ],
+    "pass": [
+      79
+    ],
+    "fail": [
+      0
+    ],
+    "skipped": [
+      0
+    ]
+  }
+}

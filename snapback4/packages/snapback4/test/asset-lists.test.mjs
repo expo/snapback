@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { syncControl, parkedChanges } from "./helpers/sync-control.mjs";
 import { ServerClock } from "../dist/clock.js";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
@@ -182,8 +183,8 @@ test("reopening a legacy Alice list cannot publish Bob's upload or take his plac
   await served(url, asset.id, "stranger", 404);
 });
 
-for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (const ending of ["revoke", "clear", "delete"]) {
-  test(`${tier}: legacy ${copied ? "copied facts" : "bare id"} cannot retain bytes after real home ${ending}`, { timeout: 40000 }, async t => {
+for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (const ending of ["revoke", "clear", "delete"]) for (const controlled of !copied && ending === "revoke" ? [false, true] : [false]) {
+  test(`${tier}: legacy ${copied ? "copied facts" : "bare id"} cannot retain bytes after real home ${ending}${controlled ? " (older sync held across revoke)" : ""}`, { timeout: 40000 }, async t => {
     const f = await fixture(t);
     const legacy = await f.bob.mutate(mutation("createPost"), { images: [] });
     assert.equal(legacy.state, "sent");
@@ -207,9 +208,14 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
     assert.deepEqual(JSON.parse(decodeURIComponent(response.headers.get("x-snapback-asset-home"))), { store_id: storeId, table: "posts", row: f.id, column: "images" });
     await response.arrayBuffer();
     let offline = false;
+    const control = syncControl(t);
     const device = tier === "native" ? processDevice({ binary, dir: join(f.dir, "device") })
       : webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
-    const options = { url, persona: "bob", device, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: (...args) => offline ? Promise.reject(Error("offline")) : fetch(...args) };
+    const options = { url, persona: "bob", device, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: (input, init) => {
+      if (offline) return Promise.reject(Error("offline"));
+      if (controlled && new URL(input).pathname === "/changes") return parkedChanges(init.signal);
+      return control.fetch(input, init);
+    } };
     let local = await createLocalClient(options); f.clients.push(local); await local.sync();
     // An actual later put for B makes the false-home overwrite deterministic.
     assert.equal((await bob.mutate(mutation("touch"), { id: legacy.result.id })).state, "sent");
@@ -219,7 +225,12 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
     local = await createLocalClient(options); f.clients.push(local);
     const retained = await local.asset(f.a.id); assert.ok("url" in retained, JSON.stringify(retained));
     assert.deepEqual(Buffer.from(await (await fetch(retained.url)).arrayBuffer()), png); retained.revoke();
+    let older, held;
+    if (controlled) await local.sync(); // Drain the offline attempt before arming.
     offline = false;
+    if (controlled) {
+      held = control.hold(); older = local.sync(); await held.ready;
+    }
     if (ending === "revoke") {
       // The review's exact combined mutation: lose A and touch B together.
       assert.equal((await bob.mutate(mutation("revokeAndTouch"), { id: legacy.result.id })).state, "sent");
@@ -229,7 +240,8 @@ for (const tier of ["native", "wasm"]) for (const copied of [false, true]) for (
       assert.equal(out.state, "sent");
       assert.equal((await bob.mutate(mutation("touch"), { id: legacy.result.id })).state, "sent");
     }
-    await local.sync();
+    const synced = local.sync(); held?.release();
+    await synced; await older;
     await served(url, f.a.id, "bob", 404);
     offline = true;
     const rows = (await local.query(query, {})).data;
