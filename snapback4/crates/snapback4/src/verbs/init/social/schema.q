@@ -51,6 +51,7 @@ table messages:
   search text
   at: time
   unique byConversationOrdinal: conversation, ordinal
+  -- Immutable scope and time keep search keyset positions stable across updates.
   immutable conversation, sender, ordinal, recipients, at
   read <- exists members[.conversation, viewer]
   insert <- .sender = viewer and exists members[.conversation, viewer]
@@ -255,11 +256,6 @@ query typingIn(conversation: conversations):
 -- One ordinary pinned body keeps certified retained hits in both link states.
 query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
   return messages[conversation = conversation] matching q last 20 by .at after c
--- Current documented all-chat forms, until ordinary mixed search ships.
--- Current memberships online; device holdings (including retained) offline.
-query searchNewest(q: text <=100, c: cursor ?):
-  return messages matching q where exists members[.conversation, viewer] last 20 by .at after c
--- Keep this held query unguarded: check's membership rewrite would discard
--- lawful retained hits after leave. The current online/held split is deliberate.
-query searchHeld(q: text <=100, c: cursor ?) held:
+-- @ref LLP 3000.028#3.3 — the SDK combines current server and retained device hits.
+query search(q: text <=100, c: cursor ?):
   return messages matching q last 20 by .at after c

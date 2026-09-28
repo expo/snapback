@@ -203,6 +203,14 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   assert.equal((await online.mutate(api.setTyping, { conversation })).state, "failed", "revoked member cannot renew");
   const search = await b.query(api.searchChat, { conversation, q: "coffee" });
   assert.deepEqual(search.data.map(row => row.id), [message]);
+  // A concurrent sync may withdraw composition. Wait for a ready first page;
+  // refusal is still a failure, and the exact retained ID is required below.
+  const allSearch = await until(async () => {
+    const read = await b.query(api.search, { q: "coffee" });
+    assert.ok(!("denied" in read), JSON.stringify(read));
+    return "loading" in read ? false : read;
+  }, "ordinary retained search ready");
+  assert.deepEqual(allSearch.data.map(row => row.id), [message], "ordinary all-chat search keeps the departed hit online");
   const previous = b.viewer();
   await bob.auth.logout(); await bob.auth.guest();
   assert.notEqual(bob.client.viewer(), previous);

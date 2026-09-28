@@ -86,8 +86,9 @@ the bracket prefix and coverage. Extraction stops at a residual predicate,
 seek column or final index column. Other predicates and order stay intact;
 old cursors retain their validated index, scope and generation.
 
-Use `held` only for a read the server cannot answer, such as `searchHeld`
-over every chat this device holds. It never falls back, even online.
+`searchHeld` is an explicit device-only scope and never falls back, even online.
+For current server hits together with retained device hits, use one ordinary
+search in either link state (`guide search`), as the social starter does.
 N_HELD_UNKNOWN names a held query's read of a table, view or `read through`
 parent with no `sync`, or `connected[...]` server presence, including reads
 inside helpers and shapes: move the read to its own query,

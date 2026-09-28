@@ -523,6 +523,18 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert_eq!((bound.notes.len(), bound.notes.first().map(|n| n.code.as_str())), (1, Some("N_MAINTAIN_SYNCED")), "{label}: {:?}", bound.notes);
         return bound;
     }
+    // These exact published ordinary-search examples teach both coverage notes.
+    // Keep their codes, counts and query site pinned; no general note exemption.
+    let search_examples = quarry(card("search").unwrap());
+    let package_examples = quarry(include_str!("../../../packages/snapback4/README.md"));
+    if search_examples.iter().skip(1).chain(package_examples.iter())
+        .any(|block| block == source && block.contains("query search(q: text <=100, c: cursor ?):")) {
+        let mut codes = bound.notes.iter().map(|note| note.code.as_str()).collect::<Vec<_>>();
+        codes.sort_unstable();
+        assert_eq!(codes, ["N_NEVER_COMPLETE", "N_SYNC_ORDER"], "{label}: {:?}", bound.notes);
+        assert!(bound.notes.iter().all(|note| note.message.starts_with("query search")), "{label}: {:?}", bound.notes);
+        return bound;
+    }
     // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
     let unexpected: Vec<_> = bound.notes.iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
     assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));
@@ -791,31 +803,6 @@ fn every_card_compiles_clean() {
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
     assert_eq!(quarry(LANGUAGE).len(), 9, "paved introduction, familiar forms, five preserved language blocks, field-authority and ephemeral declarations");
-}
-
-#[test]
-fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
-    let text = card("search").unwrap();
-    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1.split("\n## ").next().unwrap();
-    let blocks = quarry(section);
-    assert_eq!(blocks.len(), 1);
-    let block = &blocks[0];
-    let (document, errors) = snapback4_lang::parse_document("schema.q", block);
-    assert!(errors.is_empty(), "{errors:?}");
-    assert_eq!(document.programs.len(), 3);
-    for form in ["searchHeld", "searchGrouped", "searchNewest"] {
-        let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
-        assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
-    }
-    for sentence in ["do not exchange them", "change both", "never advance past it", "Server batches", "Install the bounded server walk"] {
-        assert!(!section.contains(sentence), "obsolete protocol: {sentence}");
-    }
-    let server = block.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
-    // Turning off every sync deliberately makes searchHeld an unsynced held read.
-    let bound = compile(&server);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(!bound.notes.is_empty());
-    assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an

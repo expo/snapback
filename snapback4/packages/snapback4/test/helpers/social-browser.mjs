@@ -212,3 +212,35 @@ export function createClient(options) {
   return client;
 }
 `;
+
+// Search runs without controlled query answers: actual AppProvider, Pages,
+// wasm/IndexedDB and HTTP composition over the generated starter operations.
+export const searchHarness = `
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { AppProvider } from "snapback4/react";
+import { createApp } from "snapback4/app";
+import { webDevice } from "snapback4/web";
+import { keepSession, localStorageSessionStore } from "snapback4/auth";
+import Search from "starter-search";
+const { url, session } = await (await fetch("/fixture.json")).json();
+const sessionStore = localStorageSessionStore();
+await keepSession(url, session, sessionStore);
+window.searchCalls = [];
+const app = createApp({ url, sessionStore, device: webDevice({ wasm: fetch("/device.wasm") }),
+  fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path.startsWith("/q/search")) window.searchCalls.push({ path, body: JSON.parse(init.body) });
+    return fetch(input, init);
+  },
+});
+const opened = await app.ready;
+if (!opened.ok) throw Error(JSON.stringify(opened));
+await app.client.sync();
+const root = createRoot(document.getElementById("root"));
+window.mountSearch = conversation => root.render(<AppProvider app={app}><Search conversation={conversation} /></AppProvider>);
+window.syncSearch = () => app.client.sync();
+window.searchResidency = () => app.client.residency();
+window.finishSearch = async () => { root.unmount(); await app.close(); };
+window.fixtureReady = true;
+`;

@@ -78,16 +78,18 @@ projection alongside the existing public window, not a public all-viewer
 summary. Inspect `client.residency()` or `snapback4 test --residency` for your
 actual holdings; see `snapback4 guide offline-interactions`.
 
-Per-chat search uses one ordinary unguarded pinned query in both link states.
-The current all-chat recipe uses `searchNewest` for current memberships
-online and `searchHeld` for this device's current and retained holdings
-offline. It labels that domain difference explicitly. Do not apply the
-membership rewrite suggested for `searchHeld`: it would drop retained hits
-after leave. Search order is time;
-the acquired history window is ordinal, so offline search can be incomplete.
-No all-history or mixed-domain completeness claim is made. Adopt ordinary
-all-chat search when its inferred audience and retained merge ship. See
-`snapback4 guide search` for cuts and continuation limits.
+Search uses one ordinary query per scope: `search` across conversations and
+`searchChat` pinned to one conversation. Online, the replica client combines
+current server hits with this device's retained hits after leave; offline it
+searches acquired holdings. The online tier has only current server access.
+The schema keeps `conversation` and `at` immutable. Continuation follows
+`(at, id)`; `usePage` accumulates one latest observed image per message ID.
+Refresh to see new matches before the cursor. The screen shows “Partial
+results” only when the combined read has `complete: false`, including an
+empty incomplete answer. A complete page may still have more matches.
+Search order is time and the acquired history window is ordinal, so missing
+retained coverage can keep results incomplete. See `snapback4 guide search`
+for cuts and continuation limits.
 
 This small app deliberately has no push delivery, message deletion, expiry,
 media cache, or background catch-up scan. Those features need their own

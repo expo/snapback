@@ -131,7 +131,7 @@ table memberships:
   sync to memberships[.conversationId]
 
 table messages:
-  immutable conversationId
+  immutable conversationId, at
   conversationId: conversations
   authorId: principal
   body: text <=4000 ?
@@ -140,6 +140,7 @@ table messages:
   search body, caption
   read <- exists memberships[.conversationId, viewer]
   insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  retain delivered-history
   sync to memberships[.conversationId] last 500 by .at
 
 table profiles:
@@ -165,9 +166,9 @@ query searchChat(conversationId: conversations, q: text <=100, c: cursor ?):
 query searchGrouped(q: text <=100, c: cursor ?):
   return memberships[principal = viewer] after c first 20 by .conversationId where exists (messages[conversationId = .conversationId] by .at matching q) { conversationId, hits: messages[conversationId = .conversationId] matching q last 3 by .at }
 
--- a globally newest-first screen while every chat opens in one read
-query searchNewest(q: text <=100, c: cursor ?):
-  return messages matching q where exists memberships[.conversationId, viewer] last 20 by .at after c
+-- One ordinary all-chat search includes current and certified retained hits.
+query search(q: text <=100, c: cursor ?):
+  return messages matching q last 20 by .at after c
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by .handle
@@ -178,8 +179,9 @@ This version gives conversations their own table and lets an admin add members.
 can keep certified departed images locally in either link state. Its missing
 history remains incomplete; current members can fall back below the acquisition
 horizon. The guarded `inChat` still refuses NOT_MEMBER after departure.
-Use `inChat` for more hits in one conversation; `searchGrouped` and
-`searchNewest` use the grouped and global ordering described above.
+Use `searchChat` for more hits in one conversation, including after leave.
+`searchGrouped` pages current chats; ordinary `search` uses the combined global
+ordering described above. The guarded `inChat` is for current access only.
 `complete` means the query answered its declared request within known coverage and execution limits.
 A full `first 1` is complete without a cursor. A horizon, an online-only source or zero read sites gets no
 source-coverage line; that line never promises answer completeness.

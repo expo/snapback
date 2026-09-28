@@ -89,3 +89,14 @@ the public offline summary and its replica cost. Alternatively, add `online
 only` and keep the owner read on the server; this loses offline aggregate
 and absence coverage. Do not narrow the public source to make this view private.
 See `guide maintains` for the inheritance rules.
+
+## Retained message search
+
+The social starter uses one ordinary search per scope in either link state.
+Online, its replica client merges current server hits with certified retained
+hits from departed conversations. Offline it searches this device's holdings;
+an online-only client has no retained history. Keep the message's conversation
+and order column immutable, and render `usePage`'s identity-keyed accumulation.
+“Partial results” follows `complete: false`, including empty results; freshness
+and the presence of another page are separate. Missing acquisition ranges and
+cuts stay incomplete. See `guide search` for the compiling form and limits.
