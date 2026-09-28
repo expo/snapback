@@ -341,10 +341,10 @@ are exercised by the browser witnesses. See the SS round-6 report for the
 real app's acquisition, longest tasks and qualification limits; these are
 fixture measurements, not a cold-start deadline for other declarations.
 On the copied Clique scale store in Chromium on Linux, two Worker runs from
-fresh navigation through login and readiness took 27.6–29.3 s for the
-1,000-conversation account and 4.23 s for the 100-conversation account.
-The longest page task including boot was 83 ms; the default device still
-blocked about 6.8 s during the large account's publication. These results
+fresh navigation through login and readiness took 27.4–28.8 s for the
+1,000-conversation account and 4.05–4.17 s for the 100-conversation account.
+The longest page task including boot was 77 ms; the default device still
+blocked about 7.5 s during the large account's publication. These results
 recommend the opt-in for this workload, not a change to the package default.
 
 ## Online store changes

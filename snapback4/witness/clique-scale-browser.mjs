@@ -29,7 +29,9 @@ try{
  page.on('response',r=>{if(!r.url().includes('/sync'))return;pending.push((async()=>{
   const text=await r.text();let body;try{body=JSON.parse(text);}catch{return;}
   const tables=Object.create(null);for(const event of body.events??[]){const t=event.table??event.t??'unknown';const entry=tables[t]??={rows:0,bytes:0};entry.rows++;entry.bytes+=Buffer.byteLength(JSON.stringify(event));}
-  result.responses.push({status:r.status(),serverTiming:r.headers()['server-timing'],bytes:Buffer.byteLength(text),rows:body.events?.length??0,tables,snapshot:body.snapshot,more:body.more,at:Date.now(),request:JSON.parse(r.request().postData()??'{}').limit});
+  const server=new URL(r.url()).origin;
+  if(process.env.SS_EXPECT_SERVER) assert.equal(server,process.env.SS_EXPECT_SERVER,'export must use the measured server');
+  result.responses.push({server,status:r.status(),serverTiming:r.headers()['server-timing'],bytes:Buffer.byteLength(text),rows:body.events?.length??0,tables,snapshot:body.snapshot,more:body.more,at:Date.now(),request:JSON.parse(r.request().postData()??'{}').limit});
  })().catch(e=>result.errors.push(String(e))));});
  const navigationStart=performance.now();
  await page.goto(`http://127.0.0.1:${server.address().port}/?worker=${mode==='worker'?1:0}`);

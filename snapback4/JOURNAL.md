@@ -72396,3 +72396,76 @@ private worktree fixture copies were served; both verified owned servers were
 stopped. The GS source store/WAL was untouched. Full step status, implementation
 map, exact measurements, failure classifications and compressed qualification:
 reports/20260927-ss-sync-scale/ROUND5.md.
+
+## 2026-09-28 — SS round 6: real Clique acquisition, bounded IDB deletion
+
+Fetched/merged origin/main first on sb4-intent/ss-sync-at-scale (already up
+to date; no conflicts). Implementation commit b300391f2 preserves the default
+semantics, round-5 Worker option, strict commit, on-disk format and wasm ABI.
+No push, publication, integration or independent-review claim. The original
+calibration-24 store and RG worktree were untouched; both owned private-copy
+servers are stopped. All tool/dependency installation stayed in this worktree.
+
+Real builder Metro export in Chromium 151.0.7922.34, copies of the verified
+store: central u0001 has 1,000 memberships and receives 110,000 events / 41.586
+MB in 13 responses; u0500 has 100 and receives 15,679 / 5.371 MB in three.
+Two corrected final Worker repetitions, fresh navigation through login and
+rendered Offline access ready: 27.391/28.804 s centrally, 4.166/4.046 s at 100.
+No acquisition Long Tasks entry; page boot included, the worst is 77 ms.
+All round-6 30 s / 5 s / 200 ms targets pass for this workload. Default times
+are 28.414/26.659 and 4.003/4.395 s, but tasks reach 7,479/6,994 ms centrally
+and 368/422 ms at 100. Recommend the opt-in for these large accounts; package
+default and independent review remain unchanged. The corrected runs overlapped
+the complete suite on this 96-CPU shared host, not an exclusive-host run.
+
+The supplied Darwin/arm64 90-second timeout does not reproduce here, including
+published Linux 0.4.6 server/client at 29.089 s centrally / 4.532 s at 100 from
+login. This does not claim to fix its cause. Messages dominate central volume
+(90,500 rows); public ownLikes/ownReposts add 6,012 rows / 1.934 MB to both
+accounts. N_MAINTAIN_SYNCED already warns about them. The sync card now explains
+per-group horizons, full maintained key sets, largest-account measurement and
+the offline tradeoff of online only. No app declaration was changed.
+
+IDB now proves a complete physical deletion range inside the existing strict
+transaction before replacing scalar overflow deletions. Pure bucket deletion
+skips encoding removed images for byte-cap arithmetic. New browser regression
+proves abort/reopen atomicity, bounded probing, duplicates/nonexistent keys,
+unmatched survivors and mixed inserts; both negative controls fail as intended.
+Matched central Worker terminal saves improve 3.742/3.986 → 2.757/3.361 s;
+total acquisition remains roughly unchanged within run variation. Diagnostic
+CPU identifies about 4.06 s in index construction/insertion; IDB puts still
+serialize 636.9 MB, including 555.4 MB in staging. Server certification is
+bounded by the unread-only page's approximately 1.57 s engine time, not an
+isolated aggregate timer. Repeated whole-device recount is absent.
+
+Rejected sorted bulk indexes: +1,718 B gzip, 909 B over the unchanged cap;
+removed before qualification. Also rejected 1,024 buckets (69.2 s central)
+and structured values (no material central improvement). Final canonical wasm
+2,019,815 B raw / 585,384 B gzip, delta 0/0, cap 586,193 B, headroom 809 B;
+SHA-256 083297984d5d963d3d356ac1fb73fb4b05c3239f7a25ac6c69bc05f50185f625.
+
+Affected tests: 192/192 web/clock including Worker controls; sync-scale 5/5;
+Worker protocol 36/36; busy Worker watches 3/3; navigation default and Worker
+10/10 each; memory/index 13/13; count-batch equivalence/meter 1/1; whole guide
+92/92, repeated after correcting guide measurement numbers. Reference audit
+and package/type/syntax checks pass. Both IDB witnesses exit 1 only on baseline
+adoptionRejected/adoptionUnlocked assumptions, already reproduced on main in
+round 4 and tracked in the eager-orphan-recovery issue. No remaining own or
+environmental qualification red. Own early private-export/path setup errors
+were corrected and retained. Final audit caught eight runs aimed at the
+published server; retained them separately, then repeated against the paired
+control's lane server and added an expected-origin assertion to the witness.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1349 s`, exit 0.
+Rust 4,162 passed / 30 ignored; client shards 3,920 passed / 10 skipped;
+serial models 79/79; fixture wrappers 9/9; every full-suite stage passes.
+No full-suite failures. The inherited 60 s suite budget remains unmet.
+No runtime implementation changed during the run; later guide numbers were
+rechecked by the whole guide, and the origin assertion by all eight real runs.
+
+LLP 3000.007 §20.4 records the atomic deletion proof. Existing acquisition
+ticket remains open for historical Node 8/12 s, synthetic live-writer targets,
+review, bucket amplification and budget-constrained indexes. Worker total
+memory and broader platform qualification are not established here. File map,
+forms, every failure, all measurements and commands: reports/20260927-ss-sync-scale/ROUND6.md.
+All round-6 commits carry Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

@@ -114,3 +114,38 @@ See [ROUND5](../snapback4/reports/20260927-ss-sync-scale/ROUND5.md) for both
 initial/final Worker repetitions, controls, raw evidence, protocol tests,
 remaining acquisition work and outstanding independent review. Nothing in
 this round is ready for landing while those acceptance conditions remain.
+
+
+## Round 6, 2026-09-28 — real Clique accounts
+
+Still open for the historical Node/live-writer goals and independent review.
+The real calibration-24 store has 1,000 memberships for u0001 and 100 for
+u0500; the copied builder Metro export acquires 110,000/15,679 events.
+Two final Worker runs, fresh navigation through UI login and readiness:
+27.391/28.804 s centrally, 4.166/4.046 s at 100. Acquisition has no Long Tasks
+entry; including boot the worst is 77 ms. The round-6 30 s / 5 s / 200 ms
+targets pass for this workload. The unchanged default still blocks about
+7.5 s centrally. This does not close the different synthetic live-writer
+or Node 8/12 s acceptance conditions from earlier rounds.
+
+Bounded, transaction-local proof now coalesces a completely deleted physical
+row namespace into one IDB range delete. Pure bucket deletion skips encoding
+removed images for capacity calculations. Rows, staging, watermark and outbox
+keep one strict commit, the existing format and caps, and abort/reopen tests.
+Matched Metro Worker terminal saves fall from 3.742/3.986 s to 2.757/3.361 s;
+total acquisition is roughly unchanged within observed variation. Bucket
+write volume remains substantial: 636.9 MB of serialized put records in the
+instrumented central run. A sorted bulk-index trial exceeds the unchanged
+wasm budget by 909 B and is discarded; final shipping wasm is byte-identical.
+
+The supplied 90-second timeout is not reproduced on this Linux host, including
+with the published 0.4.6 Linux server/client (29.089 s from login submit).
+The original record identifies Darwin/arm64; no claim is made to fix that
+unreproduced cause. The two public maintained interaction views add 6,012
+rows, already warned by N_MAINTAIN_SYNCED. The sync card now explains how to
+bound and measure the largest account without hiding offline tradeoffs.
+
+See [ROUND6](../snapback4/reports/20260927-ss-sync-scale/ROUND6.md) for per-table
+bytes/responses, phase timings, rejected candidates, exact qualification and
+commands using only private copies. Nothing was pushed, published or landed;
+Worker review and broader memory/platform qualification remain outstanding.

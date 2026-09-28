@@ -1,0 +1,302 @@
+{
+  "cpuPath": "target/lane-ss-round6/diagnostic-default-u0001.json.cpuprofile",
+  "tracePath": "target/lane-ss-round6/diagnostic-trace.json",
+  "samplingMicroseconds": 1000,
+  "exclusiveMs": {
+    "host / other": 19577.426,
+    "command decode and validation": 1282.927,
+    "drain encoding": 666.362,
+    "publication remainder": 678.862,
+    "boundaries": 28.764,
+    "staging": 906.321,
+    "coverage": 383.235,
+    "commit and change encoding": 968.609,
+    "row writes": 188.313,
+    "staged row decode": 362.344,
+    "index construction": 1648.355,
+    "index insertion": 2415.344,
+    "media markers": 159.414,
+    "physical counts": 4.286
+  },
+  "inclusiveHostMs": {
+    "(garbage collector)": 749.787,
+    "passStringToWasm0": 126.729,
+    "getStringFromWasm0": 234.674,
+    "JSON.<computed>": 3010.727,
+    "writeBucket": 7297.614,
+    "pairBytes": 460.78
+  },
+  "json": {
+    "stringify": {
+      "count": 224574,
+      "ms": 1525.2
+    },
+    "parse": {
+      "count": 115409,
+      "ms": 1521.4
+    }
+  },
+  "transactions": {
+    "count": 629,
+    "modes": {
+      "readonly": 484,
+      "readwrite": 145
+    },
+    "puts": 20803,
+    "gets": 4070,
+    "deletes": 1047,
+    "bytes": 636878603,
+    "issueMs": 791.6,
+    "ms": 14483.5,
+    "stores": {
+      "sha256": {
+        "puts": 1,
+        "bytes": 9245230
+      },
+      "url": {
+        "puts": 1,
+        "bytes": 187
+      },
+      "m": {
+        "puts": 4156,
+        "bytes": 1880587
+      },
+      "undefined": {
+        "puts": 1,
+        "bytes": 230
+      },
+      "s": {
+        "puts": 16388,
+        "bytes": 555445994
+      },
+      "r": {
+        "puts": 256,
+        "bytes": 70306375
+      }
+    }
+  },
+  "pageCalls": [
+    {
+      "op": "apply",
+      "at": 1722.4,
+      "ms": 167.2,
+      "rows": 9895,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 158.5,
+        "puts": 315,
+        "gets": 277,
+        "deletes": 3,
+        "bytes": 7908694
+      }
+    },
+    {
+      "op": "apply",
+      "at": 2431.1,
+      "ms": 223.6,
+      "rows": 9984,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 763.2,
+        "puts": 383,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 18050255
+      }
+    },
+    {
+      "op": "apply",
+      "at": 3820.2,
+      "ms": 215,
+      "rows": 9987,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 473.5,
+        "puts": 384,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 28182851
+      }
+    },
+    {
+      "op": "apply",
+      "at": 4897.5,
+      "ms": 220.6,
+      "rows": 9990,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 369.9,
+        "puts": 381,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 38318028
+      }
+    },
+    {
+      "op": "apply",
+      "at": 5897.2,
+      "ms": 233.2,
+      "rows": 9993,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 517.1,
+        "puts": 378,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 48456278
+      }
+    },
+    {
+      "op": "apply",
+      "at": 7038.6,
+      "ms": 221,
+      "rows": 9990,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 645.1,
+        "puts": 381,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 58592394
+      }
+    },
+    {
+      "op": "apply",
+      "at": 8301.5,
+      "ms": 224.9,
+      "rows": 9988,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 726.8,
+        "puts": 382,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 68725863
+      }
+    },
+    {
+      "op": "apply",
+      "at": 9658.2,
+      "ms": 225.4,
+      "rows": 9988,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 30,
+        "ms": 833.7,
+        "puts": 384,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 78859746
+      }
+    },
+    {
+      "op": "apply",
+      "at": 11092.4,
+      "ms": 227.6,
+      "rows": 9990,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 1048.5,
+        "puts": 598,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 88933298
+      }
+    },
+    {
+      "op": "apply",
+      "at": 12739.4,
+      "ms": 201.8,
+      "rows": 9995,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 29,
+        "ms": 1388.9,
+        "puts": 4416,
+        "gets": 277,
+        "deletes": 2,
+        "bytes": 88960287
+      }
+    },
+    {
+      "op": "apply",
+      "at": 14714.5,
+      "ms": 112.2,
+      "rows": 8152,
+      "snapshot": true,
+      "more": true,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 78,
+        "ms": 1837.1,
+        "puts": 7292,
+        "gets": 313,
+        "deletes": 2,
+        "bytes": 27842036
+      }
+    },
+    {
+      "op": "apply",
+      "at": 18312.8,
+      "ms": 22.5,
+      "rows": 2048,
+      "snapshot": true,
+      "more": false,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 21,
+        "ms": 417.4,
+        "puts": 2037,
+        "gets": 271,
+        "deletes": 2,
+        "bytes": 3767950
+      }
+    },
+    {
+      "op": "apply",
+      "at": 18763.6,
+      "ms": 6172.7,
+      "rows": 0,
+      "snapshot": false,
+      "more": false,
+      "sampledMs": {},
+      "persistence": {
+        "transactions": 189,
+        "ms": 5188.7,
+        "puts": 3458,
+        "gets": 674,
+        "deletes": 1022,
+        "bytes": 70735552
+      }
+    }
+  ],
+  "perPageCpuAligned": false
+}
