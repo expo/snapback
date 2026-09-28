@@ -5,7 +5,7 @@ import { ReadObservation } from "../dist/read-observation.js";
 import { bindWatchPeek, observeWatch, observationKey } from "../dist/observe-watch.js";
 const q = { kind: "query", name: "pages" };
 const ready = (data, next) => ({ data, next, complete: true, cut: null, fresh: true });
-function fixture(t) {
+function fixture(t, op = q) {
   const watches = new Map();
   const client = { observe(op, args, options) {
     const key = observationKey(op, args, options);
@@ -14,9 +14,9 @@ function fixture(t) {
     }), watch => watch.publish(args.c ? ready(["b"], null) : ready(["a"], "second")), () => {}, () => null);
   } };
   bindWatchPeek(client, watches, () => null);
-  const pages = new Pages(client, q, {}), stop = pages.subscribe(() => {});
+  const pages = new Pages(client, op, {}), stop = pages.subscribe(() => {});
   t.after(stop);
-  const source = c => watches.get(observationKey(q, { c }));
+  const source = c => watches.get(observationKey(op, { c }));
   const notify = c => { for (const listener of source(c).subscribers) listener(); };
   return { pages, source, notify };
 }
@@ -50,4 +50,22 @@ test("usePage clears a later page's revalidating mark on replacement and replace
   source(null).publish(ready(["new a"], "changed cursor")); notify(null);
   assert.deepEqual(pages.getSnapshot().items, ["new a", "b"], "old cursor's suffix is dropped");
   assert.equal(source("second"), undefined);
+});
+
+for (const name of ["search", "history"]) test(`usePage ${name} repeats keep one newest image by ID through page refresh`, t => {
+  const { pages, source, notify } = fixture(t, { kind: "query", name });
+  source(null).publish(ready([{ id: "a", body: "old" }, { id: "b" }], "second")); notify(null);
+  pages.loadMore();
+  source("second").publish(ready([{ id: "a", body: "edited" }, { id: "c" }], null)); notify("second");
+  assert.deepEqual(pages.getSnapshot().items, [{ id: "a", body: "edited" }, { id: "b" }, { id: "c" }]);
+  assert.deepEqual(pages.getSnapshot().read.data, pages.getSnapshot().items);
+  source(null).reload(); notify(null);
+  assert.equal(pages.getSnapshot().items[0].body, "edited", "retaining an old image while revalidating does not make it newer");
+  source(null).publish(ready([{ id: "a", body: "newest" }, { id: "b" }], "second")); notify(null);
+  assert.equal(pages.getSnapshot().items[0].body, "newest", "earlier page refreshed after the suffix wins");
+  assert.equal(pages.getSnapshot().items.length, 3);
+  source("second").publish(ready([{ id: "a", body: "latest suffix" }, { id: "c" }], null)); notify("second");
+  assert.equal(pages.getSnapshot().items[0].body, "latest suffix");
+  source(null).publish(ready([{ id: "a", body: "restart" }], null)); notify(null);
+  assert.deepEqual(pages.getSnapshot().items, [{ id: "a", body: "restart" }], "dropped suffix cannot resurrect an image");
 });

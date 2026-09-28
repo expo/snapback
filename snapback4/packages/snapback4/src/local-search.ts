@@ -1,4 +1,4 @@
-// @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, two consumed positions.
+// @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, combined keyset continuation.
 import type { SearchComposition } from "./backend.ts";
 import type { Cursor, Read, Refusal } from "./contract.ts";
 import type { QueryEnvironment } from "./local-query.ts";
@@ -94,7 +94,7 @@ function decoded(value: string): unknown {
 type Row = Record<string, unknown> & { id: string };
 type Page = { data?: Row[]; denied?: Refusal; loading?: boolean; complete?: boolean; cut?: "words" | "meter" | null; next?: string | null; nextExpiry?: number | null; metered?: Counts };
 type State = { metered: Counts; left?: string[]; epoch: string; delivery: string; ceilings: Counts };
-type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
+type Position = { binding: string; epoch: string; audience: string | null; identity: string | null; after: string | null; server: string | null; local: string | null; localCut?: "words" | "meter" };
 
 // The server sorts/deduplicates the complete authorized opening by Value order.
 // Hash that canonical proof on every page, including current-only pages. These
@@ -166,7 +166,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     const bound = [name, args, env.principal, env.backend.generation, env.linkRevision, plan];
     ledger.text(jsonBound(bound, ledger));
     const binding = JSON.stringify(bound);
-    let position: Position = { binding, epoch: state.epoch, audience: null, identity: null, server: null, local: null };
+    let position: Position = { binding, epoch: state.epoch, audience: null, identity: null, after: null, server: null, local: null };
     if (combinedCursor(cursor)) {
       if (cursor.length > maxCursor) throw new SearchBound("cursor");
       let old: Position;
@@ -176,14 +176,15 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
         || old.localCut !== undefined && old.localCut !== "words" && old.localCut !== "meter") {
         return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } };
       }
-      if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string" && typeof old.identity === "string") position = old;
+      if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string" && typeof old.identity === "string"
+        && (old.after === null || typeof old.after === "string")) position = old;
       // State loss, membership/generation/argument changes restart both sources.
     }
     // A plain server/offline cursor has no store or audience binding. Online
     // composition must start fresh; offline evaluation can still seek that key.
     let local: Page = { data: [], complete: !position.localCut, next: null, cut: position.localCut ?? null };
     if (state.left?.length && !position.localCut) {
-      const reply = await env.call({ op: "query", name, args: { ...args, [plan.cursor]: position.local },
+      const reply = await env.call({ op: "query", name, args: { ...args, [plan.cursor]: position.after },
         viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used }); checkpoint();
       local = (reply.ok ?? { denied: reply.denied }) as Page;
       if (local.denied) return { ...loading, read: { denied: local.denied } };
@@ -193,7 +194,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if (await blocked()) return loading;
     checkpoint();
     const credential = env.credentialRevision;
-    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.server } }, r => ledger.decode(r)); checkpoint();
+    const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after } }, r => ledger.decode(r)); checkpoint();
     if (!response.ok || response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
     if (!response.searchIdentity || position.identity !== null && position.identity !== response.searchIdentity) {
@@ -286,12 +287,16 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
         if (fromLocal) retainedEmitted = true;
       }
       const next = sourceCursor(plan, row, env.backend.generation, ledger);
+      // Both lanes seek the combined consumed key on the next request. A new
+      // match before that key is outside this live traversal even if its lane
+      // emitted nothing yet. All fetched/unconsumed keys after it remain eligible.
+      position.after = next;
       if (fromLocal) { position.local = next; i++; } else { position.server = next; j++; }
     }
     const more = i < left.length || j < right.length || !!local.next || !!remote.next;
     let next: string | null = null;
     if (more && data.length) {
-      ledger.text(2048 + binding.length + (position.local?.length ?? 0) + (position.server?.length ?? 0));
+      ledger.text(2048 + binding.length + (position.local?.length ?? 0) + (position.server?.length ?? 0) + (position.after?.length ?? 0));
       next = prefix + encoded(position);
       if (next.length > maxCursor) throw new SearchBound("cursor");
       ledger.charge("output_bytes", next.length);

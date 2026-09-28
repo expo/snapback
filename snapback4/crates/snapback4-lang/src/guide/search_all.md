@@ -76,12 +76,9 @@ device searches only its current authorized domain; offline the same ordinary
 body searches authorized device holdings. Other ordered shapes keep their
 existing evaluator and routing.
 
-These are live keyset pages, not a traversal snapshot. An edit moving `at`
-across a consumed position can repeat or omit that ID. New matches inserted
-before that position require a fresh first page. This applies to the ordinary
-fallback too; immutable scope ownership only prevents a current/retained ID
-collision. `complete` proves a requested page, not that a changing corpus has
-been emitted exactly once across all pages.
+Each continuation returns the next `(at, id)` rows visible at that request across current server scopes and this device's retained rows; the traversal is not a snapshot.
+Changing an order key or match, or inserting a match before the consumed position, can repeat or skip that row; rows whose order, match, scope and readability stay stable appear exactly once, and `usePage` keeps one newest observed image per ID.
+For exactly-once pagination over message edits, declare `immutable at`; refresh from the first page to see new or newly matching rows before the cursor.
 
 ```quarry
 table members:

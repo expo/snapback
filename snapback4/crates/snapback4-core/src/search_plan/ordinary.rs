@@ -53,7 +53,7 @@ pub fn plan(schema: &Schema, program: &Program) -> Option<Plan> {
     let source = Scan { site: format!("{}.audience", scan.site), table: members.clone(), index: source_index.clone(),
         prefix: vec![IndexKeyExpr::Scalar(Expr::Input(Input::Viewer))], order: Order::Asc, take: Bound::Meter,
         existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
-        merge_site: None, provenance: scan.provenance, variant: None };
+        merge_site: None, cursor_pins: 0, provenance: scan.provenance, variant: None };
     // A uniform but denied membership table is not a discovery proof. Rule
     // existence may grant message access even when program reads of that
     // witness are forbidden; inference must never narrow that original domain.

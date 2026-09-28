@@ -1,0 +1,170 @@
+[
+  {
+    "seed": 3,
+    "old_failure": "false complete: new1",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new1 inserted before the consumed position."
+  },
+  {
+    "seed": 28,
+    "old_failure": "duplicate m00004",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00004 moves from at=20 to 279 and may repeat."
+  },
+  {
+    "seed": 46,
+    "old_failure": "false complete: m00010",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00010 moves before the consumed position (at=143)."
+  },
+  {
+    "seed": 88,
+    "old_failure": "duplicate m00003",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "Mutable-scope fallback moves m00003 to live and at=76; its repeated ID is not stable."
+  },
+  {
+    "seed": 105,
+    "old_failure": "false complete: 𐀀00022",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "U+10000-prefixed 00022 moves from 110 to 77, before the consumed position."
+  },
+  {
+    "seed": 112,
+    "old_failure": "duplicate 𐀀00001",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "U+10000-prefixed 00001 changes at to 97 and may repeat."
+  },
+  {
+    "seed": 113,
+    "old_failure": "false complete: new4",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new4 inserted before the consumed position."
+  },
+  {
+    "seed": 136,
+    "old_failure": "false complete: new3",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new3 inserted before the consumed position."
+  },
+  {
+    "seed": 140,
+    "old_failure": "false complete: new4",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new4 inserted before the consumed position."
+  },
+  {
+    "seed": 142,
+    "old_failure": "false complete: 00014",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "U+E000-prefixed 00014 stops matching, then matches again after its position was consumed."
+  },
+  {
+    "seed": 161,
+    "old_failure": "duplicate m00024",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00024 changes at to 24, then 282; its repeated ID is not stable."
+  },
+  {
+    "seed": 178,
+    "old_failure": "false complete: new1",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new1 inserted before the consumed position."
+  },
+  {
+    "seed": 181,
+    "old_failure": "duplicate 𐀀00022",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "U+10000-prefixed 00022 changes at to 72 and may repeat."
+  },
+  {
+    "seed": 197,
+    "old_failure": "false complete: new3",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new3 inserted before the consumed position."
+  },
+  {
+    "seed": 199,
+    "old_failure": "false complete: new1",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new1 inserted before the consumed position."
+  },
+  {
+    "seed": 207,
+    "old_failure": "duplicate m00016",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00016 changes at to 281 and may repeat."
+  },
+  {
+    "seed": 211,
+    "old_failure": "false complete: new3",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new3 inserted before the consumed position."
+  },
+  {
+    "seed": 229,
+    "old_failure": "duplicate m00006",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00006 changes at to 253 and may repeat."
+  },
+  {
+    "seed": 237,
+    "old_failure": "false complete: m00024",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00024 moves from at=120 to 7, before the consumed position, with sync."
+  },
+  {
+    "seed": 246,
+    "old_failure": "duplicate m00004",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00004 changes at to 166 and may repeat."
+  },
+  {
+    "seed": 250,
+    "old_failure": "duplicate m00016",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "m00016 changes at to 117 and may repeat."
+  },
+  {
+    "seed": 260,
+    "old_failure": "false complete: new3",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new3 inserted before the consumed position."
+  },
+  {
+    "seed": 267,
+    "old_failure": "false complete: new2",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "New match new2 inserted before the consumed position."
+  },
+  {
+    "seed": 292,
+    "old_failure": "duplicate 𐀀00022",
+    "process": "PASS (300-seed acceptance sweep)",
+    "wasm": "PASS (300-seed acceptance sweep)",
+    "reason": "U+10000-prefixed 00022 changes at to 22 and may repeat."
+  }
+]

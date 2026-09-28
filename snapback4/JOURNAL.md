@@ -73558,3 +73558,75 @@ No tool install, budget/version change, push or publication. Tests, fixtures,
 mutation patches, commands, exact summaries and hashes are in the round-3
 report directory. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane OS round 6: live combined keyset contract
+
+Fetched and merged origin/main fb7c0790b first, in b44e5b66b. Preserved both
+LLP revision histories and journal tails, and combined EQ's descriptor check
+with OS's inferred public index mapping. The native build exposed one further
+integration initializer: the synthetic ordinary membership Scan now sets
+cursor_pins to zero. Read all rounds 0–5 prompts, reports and journal entries,
+the r34 Grok READY review and the governing fence, LLP and guide context.
+Round 5 already covered Grok's same-count room swap Low; both host cases pass.
+
+Recorded the supervisor's decision in LLP 3000.028 §3.3: continuation seeks
+the combined (order key, id) position in each request's currently visible
+domain, without a snapshot guarantee. Stable rows retain exactly-once;
+changed keys/matches and new rows before the position may repeat or be skipped.
+The search card gives three actionable sentences, including immutable at.
+
+The independent oracle now computes exact pages from authored server rows
+and separately acquired retained images, while preserving identity withdrawal,
+disclosure, order, one invocation, no dead end, cuts and stable-row checks.
+All 300 mixed seeds pass on process and wasm. All 24 old flags pass on both;
+the report and closed issue list each verdict and live-keyset explanation.
+Another 22 current-only schedules per host compare identical server-only and
+composed operation schedules: 194 identical pages each. Original mixed
+schedules still exercise membership and link transitions. Six cut schedules
+per host keep their accepted explicit E_BOUND termination, not an xfail.
+
+Seed 159 found a real composition defect: after descending rows at 110 and
+100, a newly inserted server row at 107 entered the next page because that
+source's position was only 110. The cursor now records the combined consumed
+key and both sources seek it, preserving eligible unconsumed hits after it.
+The extra key is charged to the existing ledger and 4,096-byte cursor bound.
+Four first/last process/wasm regressions fail before repair and pass afterward.
+At 4,077 scopes the corrected seek exposes the ordinary server cursor's
+E_SEARCH_OPEN cost; a direct query with that cursor refuses identically.
+A second 249-scope word-dense fixture proves two real drain-cut pages and
+one invocation per page. No evaluator, authority or budget was relaxed.
+
+SDK usePage now accumulates search/history rows by ID, retaining the newest
+observed image at the first display position. Refreshed earlier pages win;
+metadata-only revalidation cannot make a stale image newer. Suffix drops and
+publication/deadline behavior remain intact. Search/history tests cover this.
+Affected qualification: 134 JavaScript cases including mounted React and both
+real hosts, 73 OS Rust cases, 17 EQ cases and all 93 guide cases pass. Native
+Expo and the full copied builder store remain historical qualification gaps.
+
+Ran scripts/test.sh exactly once: exit 1, exact summary
+`== 1 failure(s) in 1775 s`, followed only by `wasm build`. That failure is
+ours and expected: the unchanged wasm cap. Baseline/environmental failures:
+zero. Full Rust: 4,235 passed / 33 ignored; client: 4,012 passed / 10 skipped
+including the seven acquisition/server shards; fixture wrappers: 9 passed;
+client models: 79 passed / zero skipped. All other stages pass. The full suite
+also reruns all 300 oracle seeds and 22 differential schedules per host green.
+
+All development failures are ours and retained in round6/run-ledger.json:
+the missing Scan initializer; the four deliberate boundary regressions and
+seed 159; three acquired-image and eight mutable-cursor model corrections;
+drain-fixture calibration/expectations; exploratory path/filter errors; and
+the expected wasm-budget failure. The final oracle and affected checks are
+green. No baseline or environmental failure was observed.
+
+Final canonical wasm: 2,039,451 B raw / 592,722 B GNU file-input gzip-9,
+6,529 B above the unchanged 586,193 B cap. Rust 1.97.0, wasm-bindgen 0.2.127,
+no wasm-opt. SHA-256 e1691a03acdce0cb323cd8c5da25baea26bb5a6c514e2265a08c8ebf88b672d0.
+The +923 raw/+160 gzip change from round 5 is merged EQ cursor work/layout;
+round-6 product fixes are TypeScript, and the Scan initializer is server-only.
+Existing OS growth remains attributed to composition state/digests, retained
+filtering, shared ledger/dispatch and reset counter; family/absence checks pass.
+The supervisor owns the budget raise. No tool install, shared-path change,
+push or publication. Reports, acceptance matrix, LLP notes and the resolved
+issues/closed/20260928-snapback4-live-search-traversal.md carry the evidence.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

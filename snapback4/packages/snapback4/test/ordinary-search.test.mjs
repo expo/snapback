@@ -103,7 +103,7 @@ for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retai
     assert.equal(f.requests.length-start,1);
     actual.push(...ids(read));
     if(n===0){assert.deepEqual(ids(read),f.rows.slice(45).reverse().map(r=>r.id)); assert.equal(f.requests.at(-1).json.data.length,20);assert.equal(decode(read.next).server,null);}
-    if(n===1) assert.equal(f.requests.at(-1).body.args.c,null,'fetched server next was never consumed');
+    if(n===1) assert.equal(f.requests.at(-1).body.args.c,decode(c).after,'seek the combined boundary, preserving every unconsumed server hit');
     c=read.next;if(!c)break;
   }
   assert.deepEqual(actual,f.rows.reverse().map(r=>r.id));
@@ -261,9 +261,12 @@ test('ordinary mixed search: a real server drain cut is never automatically drai
   assert.equal(ids(first).length,20);assert.equal(first.cut,'meter');assert.equal(first.complete,false);
   assert.equal(decode(first.next).server,null);
   const next=await f.client.query(q,{q:'coffee',c:first.next});
-  assert.equal(f.requests.length-start,2);assert.equal(f.requests.at(-1).body.args.c,null);
-  assert.deepEqual(ids(next),f.rows.filter(r=>r.at<1045).reverse().slice(0,20).map(r=>r.id));assert.equal(next.complete,false);
-  assert.notEqual(decode(next.next).server,remote.next,'a partially consumed cut page cannot advance to its response next');
+  assert.equal(f.requests.length-start,2);assert.equal(f.requests.at(-1).body.args.c,decode(first.next).after);
+  // Seeking 4,077 heads with a cursor exceeds the ordinary server's heap
+  // envelope. That refusal remains authoritative; it must not trigger a drain.
+  const direct=await f.owner.query(q,{q:'coffee',c:decode(first.next).after});
+  assert.equal(direct.denied?.code,'E_SEARCH_OPEN');
+  assert.deepEqual(next.denied,direct.denied);
 });
 
 test('ordinary mixed search: retained edits stay at the delivered image; expiry crossing delivery withdraws it', {timeout:10000}, async t=>{
@@ -390,4 +393,54 @@ for (const tier of ['process','wasm']) test(`ordinary ascending Unicode ties cro
   const expected=[...f.rows].sort((a,b)=>a.at-b.at||Buffer.compare(Buffer.from(a.id),Buffer.from(b.id)));
   assert.deepEqual(all.map(r=>r.id),expected.map(r=>r.id));
   assert.equal(new Set(all.map(r=>r.id)).size,65);
+});
+
+for (const tier of ['process', 'wasm']) for (const ascending of [false, true])
+test(`ordinary mixed search ${tier}: combined keyset boundary excludes new heads ${ascending ? 'first' : 'last'}`, async t => {
+  const sign = ascending ? -1 : 1;
+  const rows = Array.from({ length: 45 }, (_, i) => ({ id: `r${String(i).padStart(2, '0')}`, room: i < 20 ? 'left' : 'live', at: sign * (100 - i), text: 'coffee' }));
+  const f = await setup(t, tier, null, { messages: rows, whole: true, ascending });
+  const first = await f.client.query(q, { q: 'coffee' });
+  assert.deepEqual(ids(first), rows.slice(0, 20).map(r => r.id));
+  // The server lane has emitted nothing. New/edited matches ahead of the
+  // combined consumed key must not be inserted into a later page.
+  await fetch(`${f.url}/seed`, { method: 'POST', body: JSON.stringify([{ table: 'messages', row: { id: 'newHead', room: 'live', at: sign * 200, text: 'coffee', tombstone: false, expires: null } }]) });
+  assert.equal((await f.admin.mutate(m('move'), { id: 'r44', at: sign * 180, text: 'coffee moved ahead' })).state, 'sent');
+  const before = f.requests.length, second = await f.client.query(q, { q: 'coffee', c: first.next });
+  assert.equal(f.requests.length - before, 1);
+  assert.deepEqual(ids(second), rows.slice(20, 40).map(r => r.id));
+  const third = await f.client.query(q, { q: 'coffee', c: second.next });
+  assert.deepEqual(ids(third), rows.slice(40, 44).map(r => r.id));
+  assert.equal(third.next, null);
+  assert.equal(third.complete, true);
+});
+
+test('ordinary mixed search: real word-dense drain pages follow the combined keyset once', {timeout:120000}, async t=>{
+  const f=await setup(t);
+  // The compact plan's default 8,192 examined allowance opens 4,077 live
+  // dense scopes but cuts during drain. They need not be acquired locally.
+  for(let first=0;first<248;first+=100){
+    const rows=[];
+    for(let n=first;n<Math.min(first+100,248);n++) {
+      rows.push({table:'members',row:{id:`extraMember${n}`,room:`extra${n}`,principal:'dev:bob'}});
+      for(let w=0;w<32;w++) rows.push({table:'messages',row:{id:`extraMessage${n}-${w}`,room:`extra${n}`,text:`coffee${String(w).padStart(2,'0')}`,at:1,tombstone:false,expires:null}});
+    }
+    const reply=await fetch(`${f.url}/seed`,{method:'POST',body:JSON.stringify(rows)}).then(r=>r.json());
+    assert.equal(reply.seeded,rows.length,JSON.stringify(reply));
+  }
+  const start=f.requests.length;
+  const first=await f.client.query(q,{q:'coffee'});
+  assert.equal(f.requests.length-start,1);
+  const remote=f.requests.at(-1).json;
+  assert.equal(remote.denied,undefined,JSON.stringify(remote));
+  assert.equal(remote.complete,false,JSON.stringify(remote));assert.equal(remote.cut,'meter');
+  assert.ok(remote.data.length>0 && remote.data.length<20);assert.ok(remote.next);
+  assert.equal(ids(first).length,20);assert.equal(first.cut,'meter');assert.equal(first.complete,false);
+  assert.equal(decode(first.next).server,null);
+  const next=await f.client.query(q,{q:'coffee',c:first.next});
+  assert.equal(f.requests.length-start,2);assert.equal(f.requests.at(-1).body.args.c,decode(first.next).after);
+  assert.ok(ids(next).length>0);assert.deepEqual(ids(next),f.rows.filter(r=>r.at<1045).reverse().slice(0,ids(next).length).map(r=>r.id));assert.equal(next.complete,false);assert.equal(next.cut,'meter');
+  const fetched=f.requests.at(-1).json;
+  assert.ok(fetched.data.every(row=>ids(next).includes(row.id)),'this short drain consumes every returned server hit');
+  assert.equal(decode(next.next).server,fetched.next,'only that fully consumed server prefix advances');
 });

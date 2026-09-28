@@ -9,13 +9,13 @@ import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
-import { random, compare, SearchModel, schema } from './helpers/search-oracle.mjs';
+import { random, compare, SearchModel, KeysetModel, schema } from './helpers/search-oracle.mjs';
 const query = { kind: 'query', name: 'search' }, wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 const decode = c => c?.startsWith('sb4s:') ? JSON.parse(Buffer.from(c.slice(5), 'base64url')) : null;
-async function scenario(host, seed) {
+async function scenario(host, seed, currentOnly = false) {
     const rng = random(seed), direction = rng(2) ? 'first' : 'last', limit = seed % 75 === 0 ? 100 : [2, 3, 5, 9][rng(4)], mutable = seed % 11 === 0;
     const cut = seed % 75 === 0 ? 'meter' : seed % 12 === 0 ? 'words' : null, source = schema({ direction, limit, mutable });
-    const callbacks = [], scope = { after: f => callbacks.push(f) }, trace = [{ seed, host, direction, limit, mutable, cut }], events = [];
+    const callbacks = [], scope = { after: f => callbacks.push(f) }, trace = [{ seed, host, direction, limit, mutable, cut, currentOnly }], events = [];
     let client, admin, owner, offline = false, core, calls = 0, target, targetDir, generationChanges = 0;
     try {
         const initial = await server(scope, '', source, { watch: true });
@@ -51,8 +51,10 @@ async function scenario(host, seed) {
         await client.sync();
         model.sync();
         async function mutate(name, args) { const fields = name === 'edit' ? ['id', 'text', 'at', 'expires'] : name === 'relocate' ? ['id', 'room', 'text', 'at'] : ['room']; const r = await (name === 'leave' ? owner : admin).mutate({ kind: 'mutation', name }, Object.fromEntries(fields.map(k => [k, args[k]]))); assert.equal(r.state, 'sent', JSON.stringify(r)); }
-        await mutate('leave', { room: 'left' });
-        model.members.delete('left');
+        if (!currentOnly) {
+            await mutate('leave', { room: 'left' });
+            model.members.delete('left');
+        }
         await client.sync();
         model.sync();
         if (mutable) {
@@ -61,9 +63,24 @@ async function scenario(host, seed) {
             model.write(next);
             trace.push('pre-traversal move');
         }
-        let c, emitted = new Set(), stable = new Set(model.readable(true).map(r => r.id)), changed = false, freshIdentity = false, forceReset = false, resets = 0;
-        function restart() { emitted = new Set(); stable = new Set(model.readable(!offline).map(r => r.id)); resets++; }
+        const visible = () => model.readable(!offline && !mutable);
+        const keyset = new KeysetModel(visible(), direction);
+        let c, changed = false, freshIdentity = false, forceReset = false, resets = 0;
+        const differential = currentOnly && !mutable && !cut;
+        let serverCursor, differentialPages = 0;
+        function restart() { keyset.restart(visible()); serverCursor = undefined; resets++; }
+        function synced() {
+            if (offline) return;
+            if (freshIdentity) {
+                model.reset();
+                freshIdentity = false;
+                changed = true;
+                forceReset = !mutable;
+            }
+            model.sync();
+        }
         for (let page = 0; page < 200; page++) {
+            keyset.observe(visible());
             const before = calls, read = await client.query(query, { q: 'cof', c });
             trace.push({ page, c: !!c, ids: read.data?.map(r => r.id), loading: read.loading, denied: read.denied?.code, cut: read.cut, complete: read.complete, next: !!read.next, calls: calls - before });
             if (!offline && !mutable)
@@ -106,32 +123,48 @@ async function scenario(host, seed) {
             }
             assert.ok(Array.isArray(read.data), JSON.stringify(read));
             const old = decode(c), next = decode(read.next);
-            const freshHead = [...model.readable(!offline)].sort((a, b) => (direction === 'first' ? 1 : -1) * compare(a, b))[0]?.id;
-            if (forceReset && read.data[0]?.id === freshHead || changed && old && (offline || next && (old.epoch !== next.epoch || old.binding !== next.binding)))
+            if (forceReset && !mutable || changed && old && (offline || next && (old.epoch !== next.epoch || old.binding !== next.binding)))
                 restart();
             changed = false;
             forceReset = false;
-            const readable = model.readable(!offline && !mutable), allowed = new Map(readable.map(r => [r.id, r]));
-            for (const id of stable)
-                if (!allowed.has(id))
-                    stable.delete(id);
+            const readable = visible(), allowed = new Map(readable.map(r => [r.id, r]));
+            keyset.observe(readable);
             assert.deepEqual(read.data.map(r => r.id), [...read.data].sort((a, b) => (direction === 'first' ? 1 : -1) * compare(a, b)).map(r => r.id), 'page order');
             for (const row of read.data) {
                 assert.ok(allowed.has(row.id), `unreadable ${row.id}`);
                 assert.ok([allowed.get(row.id), ...(mutable ? [model.images.get(row.id)] : [])].some(r => r && Object.keys(row).every(k => row[k] === r[k])), `wrong visible image ${row.id}`);
-                assert.ok(!emitted.has(row.id), `duplicate ${row.id}`);
-                emitted.add(row.id);
             }
-            // Public complete certifies a requested page. A terminal complete must
-            // additionally account for the traversal's whole currently readable set.
-            if (!mutable && read.complete && !read.next)
-                for (const row of readable)
-                    assert.ok(emitted.has(row.id), `false complete: ${row.id}`);
+            // Cuts keep their original incomplete-subset contract. An online
+            // suspended retained lane must still equal the server keyset page.
+            const suspended = !offline && !mutable && (next?.localCut || old?.localCut);
+            const domain = suspended ? readable.filter(row => model.members.has(row.room)) : readable;
+            const remaining = keyset.remaining(domain);
+            const expected = remaining.slice(0, limit);
+            if (!cut || !offline && !mutable) {
+                assert.deepEqual(read.data, expected, 'page equals current combined keyset model');
+                if (!read.next) assert.ok(remaining.length <= limit, 'terminal keyset omission');
+                if (read.complete && !read.next) assert.ok(!keyset.remaining(readable).slice(limit).length, 'false terminal complete');
+                keyset.consume(expected);
+            } else {
+                // The ordinary device cut need not establish a global prefix;
+                // authorization/order/one-call/dead-end checks still apply.
+                keyset.consume(read.data);
+            }
+            for (const id of keyset.stable.keys()) assert.ok((keyset.counts.get(id) ?? 0) <= 1, `stable duplicate: ${id}`);
+            if (differential && !offline) {
+                const direct = await owner.query(query, { q: 'cof', c: serverCursor });
+                assert.deepEqual(read.data, direct.data, 'server-only differential page');
+                assert.equal(read.complete, direct.complete, 'server-only differential complete');
+                assert.equal(!!read.next, !!direct.next, 'server-only differential continuation');
+                serverCursor = direct.next;
+                differentialPages++;
+                events.push('differential-page');
+            }
             assert.ok(read.data.length || read.complete || read.next, 'empty dead end');
             if (!read.next) {
-                if (!cut && !mutable)
-                    for (const id of stable)
-                        assert.ok(emitted.has(id), `stable match omitted: ${id}`);
+                if (!cut)
+                    for (const id of keyset.stable.keys())
+                        assert.equal(keyset.counts.get(id), 1, `stable match omitted: ${id}`);
                 events.push(`terminal:${read.cut ?? 'none'}`);
                 break;
             }
@@ -140,13 +173,17 @@ async function scenario(host, seed) {
                 assert.fail('nonterminating traversal');
             if (page >= 5)
                 continue;
-            const action = rng(mutable ? 11 : 10), shouldSync = !!rng(2);
+            let action = rng(mutable ? 11 : 10);
+            const shouldSync = !!rng(2);
+            // Additional server-only differential schedules stay online/current;
+            // the original 300 schedules still exercise every lifecycle action.
+            if (currentOnly && [1, 2].includes(action)) action = 3;
+            if (currentOnly && action === 9) action = 0;
             trace.push({ action, shouldSync });
             if (action === 0) {
                 if (shouldSync) {
                     await client.sync();
-                    if (!offline)
-                        model.sync();
+                    synced();
                 }
                 events.push('sync');
             }
@@ -165,8 +202,7 @@ async function scenario(host, seed) {
                 events.push('membership');
                 if (shouldSync) {
                     await client.sync();
-                    if (!offline)
-                        model.sync();
+                    synced();
                 }
             }
             if (action === 3) {
@@ -176,8 +212,7 @@ async function scenario(host, seed) {
                 events.push('new');
                 if (shouldSync) {
                     await client.sync();
-                    if (!offline)
-                        model.sync();
+                    synced();
                 }
             }
             if (action === 4 || action === 5 || action === 6) {
@@ -197,8 +232,7 @@ async function scenario(host, seed) {
                 events.push(['body', 'at', 'expiry'][action - 4]);
                 if (shouldSync) {
                     await client.sync();
-                    if (!offline)
-                        model.sync();
+                    synced();
                 }
             }
             if (action === 7 && seed % 3 !== 0) {
@@ -231,8 +265,7 @@ async function scenario(host, seed) {
                     events.push('move');
                     if (shouldSync) {
                         await client.sync();
-                        if (!offline)
-                            model.sync();
+                        synced();
                     }
                 }
             }
@@ -246,8 +279,7 @@ async function scenario(host, seed) {
                 await client.close();
                 client = await createLocalClient(options);
                 await client.sync();
-                if (!offline)
-                    model.sync();
+                synced();
                 events.push(shouldSync ? 'reset' : 'reopen');
             }
             if (action === 9) {
@@ -265,7 +297,7 @@ async function scenario(host, seed) {
                 events.push('link');
             }
         }
-        return { events, resets };
+        return { events, resets, differentialPages };
     }
     catch (error) {
         error.message += `\nORACLE ${JSON.stringify(trace)}`;
@@ -286,6 +318,12 @@ for (const host of ['process', 'wasm'])
         for (const seed of seeds) {
             try {
                 const r = await scenario(host, seed);
+                if (seed % 10 === 0 && seed % 11 !== 0 && seed % 12 !== 0 && seed % 75 !== 0) {
+                    const extra = await scenario(host, seed, true);
+                    assert.ok(extra.differentialPages > 0, 'current-only schedule exercised differential');
+                    r.events.push(...extra.events);
+                }
+                console.log(`ORACLE_PASS host=${host} seed=${seed}`);
                 for (const e of r.events)
                     coverage[e] = (coverage[e] ?? 0) + 1;
             }

@@ -38,6 +38,32 @@ export class SearchModel {
         return [...rows.values()].filter(row => !row.tombstone && (row.expires == null || row.expires > now) && row.text.startsWith('cof'));
     }
 }
+// Independent consumed position and traversal stability; source cursors and
+// returned row IDs never determine the expected page.
+export class KeysetModel {
+    constructor(rows, direction) { this.direction = direction; this.restart(rows); }
+    restart(rows) {
+        this.position = null;
+        this.stable = new Map(rows.map(row => [row.id, { at: row.at, room: row.room }]));
+        this.counts = new Map();
+    }
+    observe(rows) {
+        const visible = new Map(rows.map(row => [row.id, row]));
+        for (const [id, original] of this.stable) {
+            const row = visible.get(id);
+            if (!row || row.at !== original.at || row.room !== original.room) this.stable.delete(id);
+        }
+    }
+    remaining(rows) {
+        const sign = this.direction === 'first' ? 1 : -1;
+        return rows.filter(row => !this.position || sign * compare(row, this.position) > 0)
+            .sort((a, b) => sign * compare(a, b));
+    }
+    consume(expected) {
+        if (expected.length) this.position = { at: expected.at(-1).at, id: expected.at(-1).id };
+        for (const row of expected) this.counts.set(row.id, (this.counts.get(row.id) ?? 0) + 1);
+    }
+}
 export function schema({ direction, limit, mutable }) {
     return `use personas alice, bob
 table members:
