@@ -1,0 +1,16 @@
+{
+  "step": "native-witness",
+  "command": [
+    "env",
+    "WITNESS_UDID=81961F7D-DF85-4A7A-B376-20D9073AC101",
+    "WITNESS_PORT=44441",
+    "WITNESS_ARTIFACTS=/Users/ccheever/projects/snapback-pub-047/snapback4/reports/20260928-expo-0.4.7",
+    "node",
+    "witness/expo.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-047/snapback4",
+  "start": 1790558714.345834,
+  "end": 1790558739.882598,
+  "seconds": 25.537,
+  "exit": 0
+}

@@ -1,0 +1,10 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-ac90d473dc1f3bc2)
+
+running 4 tests
+test schema::field_authority::tests::created_and_exists_terms_require_private_values ... ok
+test schema::field_authority::tests::ordered_optional_types_require_private_values ... ok
+test schema::timeline::tests::owned_digest_frames_and_separates_every_input ... ok
+test schema::tests::target_sync_group_keys_are_required_in_raw_schemas ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.00s

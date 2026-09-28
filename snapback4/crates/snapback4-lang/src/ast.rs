@@ -306,6 +306,7 @@ pub struct ColumnAggregate {
 pub struct SyncDecl {
     pub audience: SyncAudience,
     pub horizon: Option<(u32, SyncOrder)>,
+    pub own_keys: Option<String>,
     pub site: Site,
 }
 

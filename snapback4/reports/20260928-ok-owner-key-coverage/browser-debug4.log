@@ -1,0 +1,3 @@
+context {"id":1,"result":{"result":{"type":"boolean","value":true}}}
+tab {"id":2,"result":{"result":{"type":"object","value":{"ready":"complete","memory":360441437}}}}
+storage {"id":3,"result":{"result":{"type":"object","value":{"usage":94702079,"quota":16859304094,"overrideActive":false,"usageBreakdown":[{"storageType":"file_systems","usage":0},{"storageType":"indexeddb","usage":94702079},{"storageType":"cache_storage","usage":0},{"storageType":"service_workers","usage":0}]}}}}

@@ -1,0 +1,41 @@
+runtime { id: 1, result: {} }
+debugger {
+  id: 2,
+  result: { debuggerId: '-8618395295811354547.-5414069514971930700' }
+}
+break {
+  id: 4,
+  result: {
+    breakpointId: '4:16:0:85',
+    actualLocation: { scriptId: '85', lineNumber: 16, columnNumber: 12 }
+  }
+}
+paused
+capture {
+  id: 5,
+  result: {
+    result: {
+      type: 'object',
+      subtype: 'error',
+      className: 'ReferenceError',
+      description: 'ReferenceError: browser is not defined\n' +
+        '    at eval (eval at <anonymous> (file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-browser.mjs:1:1), <anonymous>:1:26)\n' +
+        '    at Server.<anonymous> (file:///home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-browser.mjs:17:13)\n' +
+        '    at Server.emit (node:events:508:28)\n' +
+        '    at parserOnIncoming (node:_http_server:1210:12)\n' +
+        '    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)',
+      objectId: '-7974649134887099076.1.17'
+    },
+    exceptionDetails: {
+      exceptionId: 1,
+      text: 'Uncaught',
+      lineNumber: 0,
+      columnNumber: 25,
+      scriptId: '540',
+      stackTrace: [Object],
+      exception: [Object]
+    }
+  }
+}
+tab {"id":8,"result":{"result":{"type":"object","value":{}},"exceptionDetails":{"exceptionId":2,"text":"Uncaught (in promise) ReferenceError: __okBrowser is not defined","lineNumber":1,"columnNumber":20,"scriptId":"541","stackTrace":{"callFrames":[{"functionName":"","scriptId":"541","url":"","lineNumber":0,"columnNumber":19},{"functionName":"","scriptId":"541","url":"","lineNumber":0,"columnNumber":198}]},"exception":{"type":"object","subtype":"error","className":"ReferenceError","description":"ReferenceError: __okBrowser is not defined\n    at <anonymous>:1:20\n    at <anonymous>:1:199","objectId":"-7974649134887099076.1.19"}}}}
+{"id":9,"result":{"result":{"type":"object","value":{}},"exceptionDetails":{"exceptionId":3,"text":"Uncaught (in promise) ReferenceError: __okBrowser is not defined","lineNumber":1,"columnNumber":20,"scriptId":"542","stackTrace":{"callFrames":[{"functionName":"","scriptId":"542","url":"","lineNumber":0,"columnNumber":19},{"functionName":"","scriptId":"542","url":"","lineNumber":0,"columnNumber":315}]},"exception":{"type":"object","subtype":"error","className":"ReferenceError","description":"ReferenceError: __okBrowser is not defined\n    at <anonymous>:1:20\n    at <anonymous>:1:316","objectId":"-7974649134887099076.1.20"}}}}

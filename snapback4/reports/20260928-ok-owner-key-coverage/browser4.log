@@ -1,0 +1,10 @@
+(node:3084880) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.evaluate: Target page, context or browser has been closed
+    at /home/ccheever/sb4-intent/lane-ok/snapback4/experiments/p19-one-query/owner-browser.mjs:53:29
+
+Node.js v24.13.1

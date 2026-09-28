@@ -48,11 +48,44 @@ only` and keep the owner read on the server; this loses offline aggregate
 and absence coverage. Do not narrow the public source to make this view private.
 See `guide maintains` for the inheritance rules.
 
-The planned source owner-key policy in LLP 3000.028 is not available yet.
-It would keep the public window and supply a separate complete viewer-key
-partition for ordinary `exists` expressions. A private-table pilot on the
-same corpus held three like keys and one repost key for u0500: 568 logical
-row bytes. That pilot does not implement source maintenance or adoption,
-and its four-key size is not a lifetime bound or a supported schema repair.
-Until that policy ships, use the census to decide whether this public summary
-fits, or accept server-only interaction state.
+For viewer-owned existence, use explicit source owner-key coverage instead of
+the summary. Keep the public window, add `with own keys .principal`, remove
+`ownLikes`, and restore the ordinary `exists` expression:
+
+```quarry
+table posts:
+  author: principal
+  public 'public posts'
+  online only
+table likes:
+  post: posts
+  principal: principal
+  at: time
+  unique post, principal
+  immutable post, principal, at
+  public 'public likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync public last 2000 by .at with own keys .principal
+query postState(post: posts):
+  return { liked: exists likes[post, viewer] }
+```
+
+The source must be non-expiring with a total immutable unique owner key and
+caller-owned writes. The platform maintains a separate horizon-free partition
+of this viewer's keys. Only after its whole partition is durably acquired can
+a missing own key become false and complete. Another principal's key outside
+the public window stays unknown; this proof does not supply row images or
+aggregate totals. Offline answers remain stale relative to unseen remote writes.
+Sign-out preserves the replica and the owner's proof for the same principal;
+a different caller must acquire its own partition. Older devices without
+`owner-key-coverage` refuse this backend. See `guide sync` and `guide feeds`.
+
+Adoption backfills existing keys before publishing coverage. The owner index,
+key rows and private log partition add storage and write work. Measure
+`client.residency()` including `$ownKeys:likes`, plus acquisition and write costs;
+every extant own key is replicated, so prolific owners can still be expensive.
+The earlier private-table pilot held three like keys and one repost key for
+u0500 in 568 logical row bytes. That pilot was not this implementation, and
+its four-key size is neither a lifetime bound nor this policy's byte cost.
+Existing public summaries continue working; only an explicit policy adds keys.

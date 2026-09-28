@@ -1,0 +1,38 @@
+   Compiling snapback4-device v0.4.6 (/home/ccheever/sb4-intent/lane-ok/snapback4/crates/snapback4-device)
+warning: unused import: `memory::MemoryStore`
+ --> crates/snapback4-device/tests/own_keys_cost.rs:4:63
+  |
+4 | use snapback4_device::{device::{Backend, Device, StreamPage}, memory::MemoryStore};
+  |                                                               ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `u64: ToSql` is not satisfied
+   --> crates/snapback4-device/tests/own_keys_cost.rs:130:117
+    |
+130 | ...n().query_row("select count(distinct partition) from _log where seq>?1",[seq],|r|r.get(0)).unwrap();
+    |        --------- required by a bound introduced by this call               ^^^^^ the trait `ToSql` is not implemented for `u64`
+    |
+    = help: the following other types implement trait `ToSql`:
+              f32
+              f64
+              i16
+              i32
+              i64
+              i8
+              isize
+              u16
+            and 2 others
+    = note: required for `[u64; 1]` to implement `Params`
+note: required by a bound in `Connection::query_row`
+   --> /home/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rusqlite-0.40.2/src/lib.rs:684:12
+    |
+682 |     pub fn query_row<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<T>
+    |            --------- required by a bound in this associated function
+683 |     where
+684 |         P: Params,
+    |            ^^^^^^ required by this bound in `Connection::query_row`
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `snapback4-device` (test "own_keys_cost") generated 1 warning
+error: could not compile `snapback4-device` (test "own_keys_cost") due to 1 previous error; 1 warning emitted

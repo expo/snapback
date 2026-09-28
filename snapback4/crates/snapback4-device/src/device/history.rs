@@ -87,7 +87,8 @@ pub(super) fn retained(schema: &Schema, groups: &Groups, name: &str, coverage: C
 // @ref LLP 3000.007#18.2 — reads and predictions consult the same persisted held/left groups, including empty groups.
 pub(super) fn coverage_state(schema: &Schema, groups: &Groups, name: &str, coverage: Coverage<'_>) -> Result<CoverageState, RuntimeError> {
     let Some(table) = schema.table(name).filter(|table| table.sync.is_some()) else { return Ok(CoverageState::Unknown) };
-    if table.leave != LeavePolicy::DeliveredHistory { return Ok(CoverageState::Held); }
+    // @ref LLP 3000.028#3.4 — owner-key absence needs this principal's published whole group, even with until-revoked rows.
+    if table.leave != LeavePolicy::DeliveredHistory && !schema.maintain_for(name).is_some_and(|m| m.own_keys.is_some()) { return Ok(CoverageState::Held); }
     let group = match coverage {
         Coverage::Row(row) => row_key(table, row)?,
         Coverage::Range(index, prefix) => {

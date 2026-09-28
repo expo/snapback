@@ -38,6 +38,12 @@ impl Runner<'_> {
             self.meter.heap(price)?;
             return Ok(value);
         };
+        // @ref LLP 3000.028#3.4 — a generation-wide acquired flag cannot lend another caller an empty owner partition.
+        if self.device && maintain.own_keys.is_some() && !self.tx.current_group(&read.table, &read.index, &key)? {
+            self.unknown_fact(&read.table, &read.index, &key, &read.site);
+            self.components.note(|frame| frame.speculative = true);
+            return Ok(Value::Null);
+        }
         if let Some(message) = maintain.expiring_read_refusal(self.schema) {
             return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
         }

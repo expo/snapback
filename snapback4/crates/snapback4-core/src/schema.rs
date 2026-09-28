@@ -24,6 +24,7 @@ mod capabilities;
 mod delivery;
 pub use delivery::DeliveryBinding;
 pub mod field_authority;
+pub mod own_keys;
 pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
 
@@ -746,6 +747,9 @@ impl TextFormat {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
+    /// Compiler-owned whole owner-key partition (LLP 3000.028 §3.4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub own_keys: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub row_key: Option<crate::maintain::RowKey>,
     pub parent_key: Option<through::Through>,
@@ -993,6 +997,9 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (position, maintain) in schema.maintains.iter().enumerate() {
         validate_maintain(schema, position, maintain, &mut issues);
+        if let Err(message) = own_keys::validate(schema, maintain) {
+            issues.push(SchemaIssue { path: format!("maintains[{position}]"), message });
+        }
     }
     for issue in &mut issues {
         for maintain in schema.maintains.iter().filter(|m|m.private.is_some()) {
@@ -1453,28 +1460,7 @@ pub fn row_image<'a>(row: &'a Value, table: &Table) -> std::borrow::Cow<'a, Valu
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn target_sync_schema(content_optional: bool, audience_optional: bool) -> Schema {
-        let optional_id = |optional| if optional { ColumnType::Optional(Box::new(ColumnType::Id)) } else { ColumnType::Id };
-        let mut audience = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(audience_optional)), ("principal".into(), ColumnType::Principal)]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoomPrincipal".into(), Index::of(&["room", "principal"], true)), ("byPrincipalRoom".into(), Index::of(&["principal", "room", "id"], false))]));
-        audience.rules.insert = RuleExpr::Deny;
-        audience.rules.update = RuleExpr::Deny;
-        let mut content = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(content_optional))]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["room", "id"], false))]));
-        content.sync = Some(Sync { audience: Audience::Target { table: "memberships".into(), prefix: vec!["room".into()], principal: "principal".into() }, horizon: None });
-        Schema { tables: BTreeMap::from([("memberships".into(), audience), ("messages".into(), content)]), ..Schema::default() }
-    }
-
-    #[test]
-    fn target_sync_group_keys_are_required_in_raw_schemas() {
-        assert!(validate(&target_sync_schema(false, false)).is_empty());
-        for schema in [target_sync_schema(true, false), target_sync_schema(false, true)] {
-            let issues = validate(&schema);
-            assert!(issues.iter().any(|issue| issue.path == "tables.messages.sync" && issue.message.contains("needs required group keys")), "{issues:?}");
-        }
-    }
-}
+mod tests;
 
 /// The type an argument declares as a column type, for value validation.
 pub fn arg_as_column(kind: &ArgType) -> Option<ColumnType> {

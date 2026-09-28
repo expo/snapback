@@ -1,0 +1,18 @@
+(node:3244528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+fixture summaries empty 1993.5999999046326 5645839
+fixture summaries u0500 2792.2999997138977 10926239
+fixture summaries u0001 owner-progress 100000
+fixture summaries u0001 25943.5 40103680
+fixture public empty 1450.1999998092651 4245484
+fixture public u0500 3952 10404404
+fixture public u0001 owner-progress 100000
+fixture public u0001 23458.199999809265 45127106
+fixture own_rows empty 896.1000003814697 4103381
+fixture own_rows u0500 2230.9000000953674 8292671
+fixture own_rows u0001 owner-progress 100000
+fixture own_rows u0001 21667.60000038147 41219780
+fixture keys empty 947.5999999046326 3254886
+fixture keys u0500 2332.699999809265 8291935
+fixture keys u0001 owner-progress 100000
+fixture keys u0001 21676.199999809265 40802157
