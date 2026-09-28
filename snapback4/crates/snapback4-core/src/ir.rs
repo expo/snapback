@@ -325,6 +325,9 @@ pub struct Scan {
     pub provenance: KeyProvenance,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<crate::ir::VariantId>,
+    /// Leading equalities moved into this prefix; zero keeps strict cursor scope.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub cursor_pins: u32,
 }
 
 impl Scan {

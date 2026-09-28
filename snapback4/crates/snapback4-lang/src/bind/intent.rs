@@ -180,7 +180,8 @@ impl Requests {
     // its bracket prefix, but only for present, infallible binding values.
     fn selected_prefix(&self, table: &TableInfo, read: &mut ReadExpr) {
         let Some(index) = table.indexes.iter().find(|index| Some(&index.name) == read.index.as_ref()) else { return; };
-        if !index.is_plain() || read.keys.len() > index.columns.len() { return; }
+        if !index.is_plain() || read.keys.len() > index.columns.len() || read.range.is_none()
+            || read.matching.is_some() || !read.order_keys.is_empty() || !read.seeks.is_empty() { return; }
         // Preserve positional keys and reject gaps/mismatches through the
         // ordinary binder. Never repair an invalid authored constraint here.
         if read.keys.iter().enumerate().any(|(n, key)| key.column.as_ref().is_some_and(|column| column != &index.columns[n])) { return; }
@@ -189,6 +190,9 @@ impl Requests {
         let mut conjuncts = Vec::new();
         split(*predicate.clone(), &mut conjuncts);
         for column in &index.columns[read.keys.len()..] {
+            // A range needs an unpinned component. Existing seeks take the
+            // unchanged binder path above, including originally invalid seeks.
+            if read.keys.len() + 1 == index.columns.len() { break; }
             if !table.columns.get(column).is_some_and(|ty| !ty.optional) { break; }
             let candidates: Vec<_> = conjuncts.iter().enumerate().filter_map(|(n, predicate)| {
                 if !matches!(predicate, Expr::Binary { op, .. } if op == "=") { return None; }
@@ -197,11 +201,9 @@ impl Requests {
             // Multiple equalities may conflict. Leave all of them residual;
             // no arbitrary choice may acquire a different coverage domain.
             let [(n, value)] = candidates.as_slice() else { break; };
-            if !self.contexts.safe(read, value) { break; }
-            // Removing the final predicate must not turn an unpaged scan
-            // into a scalar unique lookup (or a maintained scalar total).
-            if index.unique && read.keys.len() + 1 == index.columns.len() && conjuncts.len() == 1
-                && read.range.is_none() && read.order_keys.is_empty() && read.matching.is_none() && read.seeks.is_empty() { break; }
+            // Only the leading conjunct may move: skipping an earlier row
+            // predicate could suppress its explicit refusal or arithmetic error.
+            if *n != 0 || !self.contexts.safe(read, value) { break; }
             let predicate = conjuncts.remove(*n);
             // Existing positional prefixes must stay positional, too.
             let named = read.keys.first().is_none_or(|key| key.column.is_some());
@@ -209,7 +211,12 @@ impl Requests {
         }
         // An unchanged predicate keeps its original source span, which is
         // also the input to source-preserving diagnostic repairs.
-        if read.keys.len() != original_prefix { read.filter = conjunction(conjuncts); }
+        if read.keys.len() != original_prefix {
+            if read.range.as_ref().is_some_and(|range| range.cursor.is_some()) {
+                read.cursor_prefix.get_or_insert(original_prefix);
+            }
+            read.filter = conjunction(conjuncts);
+        }
     }
 }
 

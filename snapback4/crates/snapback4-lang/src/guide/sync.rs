@@ -81,10 +81,10 @@ Keep receipts, profiles, quotes and reactions in separate queries rendered
 beside history, as `guide app` and `guide receipts` show. A decoration that
 loads or refuses must not take the page with it.
 
-With a selected index, a safe, non-optional leading equality establishes the
-same prefix and local coverage as its bracket spelling. Other predicates,
-order and cursor remain intact. Optional, fallible or conflicting equalities
-stay residual.
+On an explicitly indexed page, safe, non-optional leading equalities establish
+the bracket prefix and coverage. Extraction stops at a residual predicate,
+seek column or final index column. Other predicates and order stay intact;
+old cursors retain their validated index, scope and generation.
 
 Use `held` only for a read the server cannot answer, such as `searchHeld`
 over every chat this device holds. It never falls back, even online.

@@ -72253,3 +72253,73 @@ text logs (ours); trimming only trailing whitespace/blank EOF resolves them.
 Failure text and exact summaries are unchanged; compressed observations
 remain byte-exact against their manifest. Final reference audit: 522 LLPs,
 9,752 refs, zero errors/unchecked.
+
+## 2026-09-28 — Lane EQ round 1: conservative extraction and old cursors
+
+First fetched origin and merged origin/main; already up to date. Read the
+binding round-0 prompt/report/journal and Astra's full NOT READY review.
+Grok had no verdict at startup and was not awaited. This entry supersedes
+round 0's broad compatibility claims with the narrower rule below.
+
+Selected plain-index normalization now extracts only leading, safe,
+non-optional equalities on explicit pages. It never consumes the final index
+component; authored seeks and unpaged reads keep their original binding
+path. Regression tests preserve checked BAD_ROW and division E_DIV_ZERO,
+full-prefix scan/result shapes, existing bounds, originally invalid bounds
+and unpaged admission failures. Argument and literal variants are covered;
+a deliberate reject-all-literals mutation fails the new paired literal test.
+The builder's history case still normalizes and its surviving executable
+fields match the bracket fixture, apart from explicit cursor compatibility
+metadata. The separate equality fixture still removes historyHeld and the
+archived selector; the immutable original remains untouched.
+
+Normalized cursor pages mark only the number of extracted components in a
+defaulted Scan field appended to preserve old map and positional forms.
+The runtime validates a baseline descriptor's table, index, order, typed
+suffix, generation, variant and original prefix before converting it.
+Matching positions lose the pinned values; filter-reject meter cuts before
+or past the new group keep their continuation meaning in both directions.
+Unmarked plans retain strict validation. Twenty-four actual baseline-minted
+tokens cover direction, existing prefixes, arguments/literals and page/cut
+positions; continuation tests find no loss or duplication. Shared descriptor
+validation and removal of redundant decoding keep this under the wasm cap.
+No authorization, disclosure, meter, schema or version change.
+
+Both round-1 history runs pass all four process/wasm/React/calibration cases.
+The final rebuilt-artifact run archives 462 paired observations, including
+exact next-cursor equality, plus publication watches and React collections.
+It covers empty and 10,000-message groups, the exact 500-row floor, timestamp
+ties, publication, departure, remount, offline reopen and rejoin. Original
+program/log/SQLite/WAL hashes remain unchanged after the final rerun.
+Native Expo remains an environmental qualification gap: this Linux host has
+no xcrun or available documented Mac/Fleet/SSH target. Full section 7.1 is
+not claimed; process and React do not qualify Expo.
+
+Affected compiler tests 62/62, guide 92/92, core corpus/disclosure/meter 58/58
+and device codec 11/11 pass. scripts/test.sh ran exactly once. Exact summary:
+`== 1 failure(s) in 1856 s`, listing `cargo test`. The sole failing test was
+ours: lane_source's old positional Scan decoder, because cursor_pins was
+initially first. Appending it fixes the regression; all 10 lane-source tests,
+all 12 EQ tests and the whole 92-test guide pass afterward. Final workspace,
+client and wasm builds and the repeated witnesses pass. The original full
+suite red remains recorded, without claiming a second green complete run.
+All other suite stages passed, including 3,901 client tests (10 existing
+skips) and 79 client models with full seed counts.
+
+Every failure is classified in reports/20260928-eq/round1/REPORT.md: ours
+include deliberate round-0/mutation reproductions, test harness/constructor/
+target-name mistakes, six intermediate overbudget wasm builds, the full-suite
+positional decoder regression and corrected shell setup/read mistakes.
+Baseline test failures zero; environmental test failures zero. Expo remains
+unrun, and the ten opt-in client skips retain their reasons in the suite log.
+
+Final wasm: 2,020,387 B raw / 586,133 B gzip, +572/+749 B over the rebuilt
+same-toolchain round-0 baseline, for scoped legacy cursor conversion and its
+metadata. Unchanged cap 586,193 B; 60 B headroom. SHA-256:
+4f97bd8c5edc0100398cda8df1993221264861def35f2b47fb2f8fe5f5efbc3a.
+A Binaryen trial was installed only under this worktree's .work, with its
+npm cache there too; its worse gzip result was not used. No shared tool path,
+budget or dependency changed. LLP 3000.028's Revised line and implementation
+notes, the sync guide and the report record this scope and qualification gap.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

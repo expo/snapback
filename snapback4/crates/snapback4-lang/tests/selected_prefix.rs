@@ -17,7 +17,9 @@ fn paired_plans_residual_order_limit_and_cross_spelling_cursors() {
             let suffix = format!("{direction} 2 by byHistory after c");
             let a = bound(&format!("messages where {equality} and not .hidden {suffix}"), "conversation: int, c: cursor ?");
             let b = bound(&format!("messages[conversation = conversation] where not .hidden {suffix}"), "conversation: int, c: cursor ?");
-            assert_eq!(a.programs[0].program, b.programs[0].program);
+            assert_eq!(comparable(&a.programs[0].program), comparable(&b.programs[0].program));
+            assert_eq!(snapback4_core::ir::scans(&a.programs[0].program)[0].cursor_pins, 1);
+            assert_eq!(snapback4_core::ir::scans(&b.programs[0].program)[0].cursor_pins, 0);
             assert_eq!(a.schema.tables, b.schema.tables);
             let mut engine = Engine::memory(a.schema, a.programs.into_iter().map(|p| p.program)).unwrap();
             engine.seed((0..8).map(|n| ("messages".into(), object([
@@ -87,7 +89,7 @@ fn unchanged_calibration_program_compiles() {
     for old in &b.programs {
         if old.program.name == "historyHeld" { continue; }
         let new = ordinary.programs.iter().find(|p| p.program.name == old.program.name).unwrap();
-        assert_eq!(old.program, new.program, "builder operation {} changed", old.program.name);
+        assert_eq!(comparable(&old.program), comparable(&new.program), "builder operation {} changed", old.program.name);
     }
     let history = ordinary.programs.iter().find(|p| p.program.name == "history").unwrap();
     let scans = snapback4_core::ir::scans(&history.program);
@@ -107,4 +109,22 @@ fn full_unique_equality_keeps_the_original_page_type() {
         let page = engine.query("page", Context::new("alice", BTreeMap::from([("key".into(), Value::Int(key))]))).unwrap();
         assert_eq!(page.data.as_array().unwrap().len(), count);
     }
+}
+
+// The only IR difference is the equality page's legacy cursor descriptor.
+// Compare every execution field, including its normalized prefix and residuals.
+fn comparable(program: &snapback4_core::Program) -> serde_json::Value {
+    fn strip(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                fields.remove("cursor_pins");
+                for value in fields.values_mut() { strip(value); }
+            }
+            serde_json::Value::Array(values) => for value in values { strip(value); },
+            _ => {}
+        }
+    }
+    let mut value = serde_json::to_value(program).unwrap();
+    strip(&mut value);
+    value
 }

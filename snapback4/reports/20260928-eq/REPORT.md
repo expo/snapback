@@ -1,5 +1,12 @@
 # Lane EQ — selected-index equality coverage
 
+**Round 1:** see [the correction report](round1/REPORT.md) for the conservative
+planner rule, baseline-cursor conversion, repeated witnesses and current
+qualification. Astra found four compatibility defects in round 0; its broad
+compatibility statements below are historical and superseded by that report.
+
+## Round 0 record
+
 Date: 2026-09-28. Branch: `sb4-intent/eq-equality-prefix`. Starting commit: `a745b110f2187004abb1cec8380b33b6d1396108`. The first repository command was `git fetch origin && git merge origin/main`; it reported `Already up to date.` No push or publication.
 
 The planner fix and process/wasm/React history witnesses pass. **Full §7.1 qualification is not claimed: the native Expo simulator witness remains unavailable.** This Linux host has no `xcrun`, no documented machine-fleet file and an empty Fleet inventory. A Mac target was requested while the other work continued. The process device and React browser results are reported separately, not substituted for Expo.

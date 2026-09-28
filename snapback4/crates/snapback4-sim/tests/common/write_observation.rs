@@ -102,7 +102,7 @@ fn backend(e: &Engine) -> Backend {
     let mut programs: Vec<_> = e.programs().cloned().collect();
     for table in e.schema().tables.keys() {
         programs.push(Program { name: format!("__observation_{table}"), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
-            body: vec![Stmt::Return(Expr::Scan(Scan { variant: None, site: "observation".into(), table: table.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(20_000), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }))] });
+            body: vec![Stmt::Return(Expr::Scan(Scan { cursor_pins: 0, variant: None, site: "observation".into(), table: table.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(20_000), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }))] });
     }
     Backend { generation: e.generation(), schema: e.schema().clone(), programs }
 }

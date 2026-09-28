@@ -1,0 +1,30 @@
+{
+  "history-ordinal": {
+    "source": "experiments/p19-one-query/.work/eq-small-qDJ4rm/snapshots.jsonl",
+    "sha256": "2eb6e2dbdd59a3bd1495dbde8ca0713765e8bbe7c11088cc10e59d086f2e653b",
+    "bytes": 2763691,
+    "observations": 455,
+    "paired_observations": 154
+  },
+  "history-timestamp": {
+    "source": "experiments/p19-one-query/.work/eq-small-ovDu54/snapshots.jsonl",
+    "sha256": "e10b3568ce7616e9b68c10b150a015c4a57eda0ac4dfbabb0be904b56ee7118c",
+    "bytes": 2759207,
+    "observations": 456,
+    "paired_observations": 154
+  },
+  "history-calibration": {
+    "source": "experiments/p19-one-query/.work/eq-scale-WD8Ipu/snapshots.jsonl",
+    "sha256": "131780b5315c43ef533c21d0f5570dfc2b1312ea975823b9f575347dd96dd832",
+    "bytes": 3245951,
+    "observations": 459,
+    "paired_observations": 154
+  },
+  "history-react": {
+    "source": "experiments/p19-one-query/.work/eq-small-EfYZ3F/snapshots.jsonl",
+    "sha256": "11776637e705780d13e96e7b6f9e3528907f9e95cac6aab6c2d8798c03e5ac45",
+    "bytes": 18039,
+    "observations": 2,
+    "paired_observations": 0
+  }
+}
