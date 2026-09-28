@@ -26,3 +26,11 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+
+In development, reproduce under `snapback4 dev`: its log names the exact
+refusing clause, declaration site and execution site. `snapback4 why recent`
+reads the last 32 local records from `.snapback4/dev-refusals.json` (owner-only
+permissions). These records contain no row values or request arguments and
+have no HTTP endpoint. Production `serve` does not collect them. Replaying
+an existing write receipt does not reevaluate or invent a cause. Caller
+refusals retain the same generic text.

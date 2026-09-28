@@ -1,0 +1,21 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Checking snapback4-core v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-core)
+    Checking snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Checking snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Checking snapback4 v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4)
+error[E0616]: field `sources` of struct `BoundProgram` is private
+  --> crates/snapback4/src/dev_refusals.rs:24:95
+   |
+24 | ...   statements: bound.programs.iter().find(|p| p.program.name == operation).map(|p| p.sources.iter().map(|(k,(s,_))| (k.clone(),s....
+   |                                                                                         ^^^^^^^ private field
+
+For more information about this error, try `rustc --explain E0616`.
+error: could not compile `snapback4` (bin "snapback4") due to 1 previous error

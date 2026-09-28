@@ -821,3 +821,48 @@ does not disclose another owner's private predicate input.
 Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.
+
+## A page of messages with each message's reaction totals
+
+Pin the parent inside the message page. Each nested read authorizes that
+message before enumerating its emoji groups. A complete group-key lookup,
+`reactionTotals[message, emoji]`, returns one scalar; a parent prefix returns
+aggregate rows whose count is `.value`. The source's cap of 50 bounds its
+number of emoji groups. Without such a cap, use a bounded page and cursor.
+
+```quarry
+table messages:
+  owner: principal
+  at: time
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner last 500 by .at
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text 1..32
+  unique message, principal
+  cap 50 by message
+  immutable message, principal
+  read through .message
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync last 500 by .id
+view reactionTotals: count reactions by .message, .emoji
+fn reactionSummary(message: messages):
+  own = reactions[message.id, viewer].emoji
+  return reactionTotals[message = message.id] by .emoji { emoji, count: .value, mine: own = .emoji }
+query messagesWithTotals(c: cursor ?):
+  return messages[owner = viewer] last 20 by .at after c { *, reactions: reactionSummary(.) }
+```
+
+Keep the original parent page's audience key, predicates, order and cursor.
+The nested aggregate inherits the parent's read rule; do not add a separate
+read rule. An unpinned aggregate scan still refuses `E_READ_THROUGH_SCAN`.
+The aggregate group-key index lives on the server: this nested page uses server
+fallback on devices, even if they hold all child rows. Complete-key scalar totals
+can still recount held children locally. The builder's separate raw-reaction
+query remains suitable for offline reaction UI. Missing parent/source coverage
+is unknown; expired or retained history does not contribute to current totals. All pages and recounts share
+the operation's ordinary meter.

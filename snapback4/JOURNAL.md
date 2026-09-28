@@ -72924,3 +72924,50 @@ and round2/. Local merge commit carries Co-Authored-By: GPT-6 Astra
 Evidence staging also caught eight Cargo logs with extra EOF blank lines
 (ours). Removed only trailing log whitespace; final whitespace checks pass.
 The report retains this non-test failure alongside the inherited source one.
+
+## 2026-09-28 — Lane MP: calibration 24 modeling papercuts
+
+Reproduced the builder's sequence, parent-total, own-summary and digest-preview
+failures from read-only copies before changing behavior. Added source-site
+N_SEQUENCE_READ with the manual counter repair: a fresh parent or an empty
+child group cannot prove a fresh shared sequence counter. LLP 3000.015 section
+2.1 records the disclosure argument and dev-only refusal evidence. Native dev
+logs the exact clause and source; why recent reads 32 bounded local records.
+Production collection stays off. Five cause tests and a real dev/serve test
+prove the caller E_RULE bytes and meters unchanged.
+
+Admitted a maintained group scan only when the complete parent key is pinned
+and authorization is inherited through that readable parent. LLP 3000.014
+section 5.1 records the admission, hidden-parent equivalence and existing meter
+and lifetime rules. Group enumeration remains server-owned and devices fall
+back; complete-key scalar recount remains available. The maintains card shows
+the nested page form. Aggregate narrowing diagnostics now give the concrete
+owner-key declaration and ordinary exists rewrite; DG's complete-job repair
+names the unused digestPreview query to remove.
+
+The full rewritten builder fixture compiles, 519 to 517 physical lines. It
+removes fully synced ownLikes/ownReposts and raw reaction grouping, retains the
+manual sequence allocator and complete digest job. Offline true/false own-state
+survives memory and SQLite reopen outside public windows. Parent authorization,
+expiry, meter cuts, forged unpinned IR, and caller disclosure are covered.
+
+Ran scripts/test.sh exactly once: == 1 failure(s) in 3199 s, cargo test.
+Its missing test initializer field was ours and fixed. Complete Rust recovery
+ran 266 binaries / 979 executions plus doctests: 4,201 passed, one fixture-census
+failure, 33 ignored. The census failure was ours, fixed by locating the new
+fixture outside the frozen corpus. Final affected recovery: 57 passed, zero
+failed; whole compiled guide: 93 passed. Full-script client tests: 3,928 passed,
+zero failed, 10 existing skips; model tests: 79 passed. No remaining observed
+failure; no baseline/environmental waiver. Every development failure and
+resolution is recorded in the report's VALIDATION.md. Reference audit and
+source caps pass. Saved logs normalize terminal whitespace only.
+
+Wasm: 2,019,245 B raw / 585,639 B gzip, +1,337 / +539 for parent-scoped
+aggregate enumeration, 554 B below the unchanged 586,193 B cap. Native refusal
+payload is excluded. Dependencies and their removed cache stayed inside this
+worktree; no other lane or shared tool path was changed. The evidence store was
+not requalified. No push or publication. Local commit carries Co-Authored-By:
+GPT-6 Astra <noreply@openai.com>.
+
+Report, reproductions and full command logs:
+reports/20260928-mp-modeling-papercuts/REPORT.md.

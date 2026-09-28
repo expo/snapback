@@ -128,7 +128,9 @@ impl<'r> Runner<'r> {
                     if runner.device { runner.unknown_fact(name, index, prefix, "source rule admission"); }
                     return Ok(Some((None,key)));
                 }
-                let row = runner.authorize_image(name,row)?;
+                let row = if trusted && !provisional && runner.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
+                    Some(runner.authorized_synthetic(table, row))
+                } else { runner.authorize_image(name,row)? };
                 Ok(Some((row,key)))
             })?;
             let Some((row,key)) = candidate else { break; };

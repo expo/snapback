@@ -1,0 +1,15 @@
+   Compiling snapback4-lang v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.46s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-c84320c9aaad3540)
+
+running 8 tests
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+test sequence_first_membership_reproduces_before_changes ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s

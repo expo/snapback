@@ -347,6 +347,9 @@ impl<'a> Runner<'a> {
             for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
+        if let Err(RuntimeError::AuthorizationBudget { table, effect }) = &result {
+            self.refusing_clause(table, &format!("authorization allowance ({effect})"));
+        }
         // @ref LLP 3000.024#decision — the page plan follows the generated
         // result binding through return. Keep the final copy charge, and use
         // the original IR only on refusal rather than cloning it per execution.

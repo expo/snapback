@@ -4,6 +4,25 @@ use super::{rules::{self, Verdict}, runner::Runner, through::{ParentVerdict, cap
 use crate::{error::{MeterKind, RuntimeError}, rows::{Bounds, Dir}, schema::{Audience, through::*}, value::Value};
 
 impl Runner<'_> {
+    // @ref LLP 3000.014#5.1 — never enumerate aggregate keys before the parent verdict.
+    pub(super) fn aggregate_parent_prefix(&mut self, scan: &crate::ir::Scan, prefix: &[Value]) -> Result<Option<bool>, RuntimeError> {
+        let Some(m) = self.schema.maintain_for(&scan.table).filter(|m| m.groups_by_parent(self.schema)) else { return Ok(None) };
+        let parent = m.parent_key.as_ref();
+        let id = parent.and_then(|p| self.schema.tables[&scan.table].indexes[&scan.index].columns().iter().position(|f| f == &p.reference)).and_then(|at| prefix.get(at));
+        let (Some(parent), Some(id)) = (parent, id) else {
+            return Err(RuntimeError::Structural { code: "E_READ_THROUGH_SCAN", message: format!("{} at {} needs one pinned readable parent; use the parent page with a nested keyed totals read (guide maintains)", scan.table, scan.site) });
+        };
+        self.read_tables.insert(scan.table.clone());
+        self.read_tables.insert(m.source.clone());
+        let verdict = self.parent_verdict(&m.source, parent, id)?;
+        let unknown = verdict == ParentVerdict::Unknown || self.device && (self.beyond_horizon || self.schema.tables[&scan.table].sync.is_none());
+        if unknown {
+            self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site);
+            self.components.note(|frame| frame.speculative = true);
+        }
+        Ok(Some(!unknown && verdict == ParentVerdict::Readable))
+    }
+
     pub(super) fn parent_verdict(&mut self, child: &str, through: &Through, id: &Value) -> Result<ParentVerdict, RuntimeError> {
         let parent = &self.schema.tables[&through.parent];
         self.read_tables.insert(through.parent.clone());

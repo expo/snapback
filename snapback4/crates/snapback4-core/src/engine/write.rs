@@ -66,7 +66,7 @@ impl Runner<'_> {
         // An independent denial must never consult a hidden read witness.
         let authorized = independent && self.check_rule(table_name, Effect::Insert, None, &row)?;
         if independent && !authorized {
-            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { self.rule_refusal(table_name, Effect::Insert, "insert rule") });
         }
         if !table.sequences.is_empty() {
             // Admission reserves the worst case before either read verdict;
@@ -79,13 +79,14 @@ impl Runner<'_> {
         // @ref LLP 3000.015#2 — an unreadable allocation cannot expose counter,
         // uniqueness or cap state, even to a principal allowed to insert.
         if !self.sequence_insert_readable(table_name, &row)? {
-            return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+            self.refusing_clause(table_name, "sequence read authority");
+            return Err(if upsert_index.is_some() { self.no_write_target() } else { self.rule_refusal(table_name, Effect::Insert, "sequence read authority") });
         }
         if let Err(error) = supplied_sequence {
             // @ref LLP 3000.007#17 — absent upserts decide insert authority before field diagnostics.
             // A target key may supply an ordinal even when the patch does not.
             if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
-                return Err(if upsert_index.is_some() { self.no_write_target() } else { RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert } });
+                return Err(if upsert_index.is_some() { self.no_write_target() } else { self.rule_refusal(table_name, Effect::Insert, "insert rule") });
             }
             return Err(if upsert_index.is_some() { self.no_write_target() } else { error });
         }
@@ -108,7 +109,7 @@ impl Runner<'_> {
             }
         }
         if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
-            return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
+            return Err(self.rule_refusal(table_name, Effect::Insert, "insert rule"));
         }
         // Retry keys independent of engine allocation still identify a no-op
         // at the ceiling. Never use the clamped authority candidate as a key.
@@ -159,12 +160,12 @@ impl Runner<'_> {
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
-                if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert)?; }
+                if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert, "unique id")?; }
                 // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
                 // children collides like a live birth: check the old image's authority under the same
                 // reservation, without treating expiry as denial. A non-reader never probes the children.
                 else if has_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
-                    return Err(RuntimeError::Rule { table: table_name.into(), effect: Effect::Insert });
+                    return Err(runner.rule_refusal(table_name, Effect::Insert, "unique id"));
                 }
             }
             Ok(existing)
@@ -521,7 +522,7 @@ impl Runner<'_> {
                             for (row, key) in rows {
                                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                                 if !runner.expired(table, &row) {
-                                    if private_cap { runner.visible_collision(table_name, &row, effect)?; }
+                                    if private_cap { runner.visible_collision(table_name, &row, effect, &format!("cap {}", by.join(", ")))?; }
                                     count += 1;
                                 }
                                 if count >= *max as u64 { break; }
@@ -550,7 +551,7 @@ impl Runner<'_> {
             let found = runner.live_lookup(allowance, table, name, index, key)?;
             if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
                 runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
-                runner.visible_collision(table, row, effect)?;
+                runner.visible_collision(table, row, effect, &format!("unique {}", index.columns().join(", ")))?;
             }
             Ok(found)
         })
@@ -562,16 +563,14 @@ impl Runner<'_> {
         table: &str,
         row: &Value,
         effect: Effect,
+        clause: &str,
     ) -> Result<(), RuntimeError> {
         let mut image = row.clone();
         let definition = self.schema.table(table).expect("validated");
         materialize_optional_fields(&mut image, definition);
         let expired = definition.expired(&image, self.context.now.unwrap_or(0));
         if expired || !self.check_rule(table, Effect::Read, None, &image)? {
-            return Err(RuntimeError::Rule {
-                table: table.to_owned(),
-                effect,
-            });
+            return Err(self.rule_refusal(table, effect, clause));
         }
         Ok(())
     }

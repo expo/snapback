@@ -1,0 +1,15 @@
+
+> astra-snapback4@1.0.0 seed
+> node scripts/seed.mjs --segment m3
+
+file:///Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/scripts/seed.mjs:12
+ async function write(c,op,args,id){const r=await c.mutate(op,args,{id:idFrom(id)});if(r.state!=='sent')throw Error(JSON.stringify(r));return r}
+                                                                                                              ^
+
+Error: {"state":"failed","id":"0000000000W0MMMHN9M2MKN1GC","why":{"code":"E_RULE","family":"auth","guide":"rules","message":"members's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count"}}
+    at write (file:///Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/scripts/seed.mjs:12:111)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async seed (file:///Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/scripts/seed.mjs:23:29)
+    at async file:///Users/ccheever/clique-sb4-20260927-astra-cal24/lanes/astra-snapback4/scripts/seed.mjs:32:54
+
+Node.js v24.18.0

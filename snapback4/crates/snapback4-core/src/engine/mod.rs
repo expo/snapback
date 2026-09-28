@@ -75,6 +75,7 @@ pub use recorded::RecordedNulls;
 use write::target as write_target;
 pub(crate) use write_target::row_copy_ceiling;
 mod receipt;
+pub mod refusal_trace;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod retire_tests;
@@ -136,6 +137,8 @@ pub enum LoadMode { Import, Restore }
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
 pub struct Context {
+    #[cfg(feature = "sqlite")]
+    pub(crate) refusal_trace: Option<refusal_trace::RefusalTrace>,
     pub viewer: String,
     pub kind: String,
     pub args: BTreeMap<String, Value>,
@@ -161,13 +164,19 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] refusal_trace: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
     pub fn with_session(mut self, token: &str) -> Self {
         self.session_digest = Some(crate::identity::digest(token));
         self
+    }
+
+    /// Developer host instrumentation; never accepted from wire arguments.
+    #[cfg(feature = "sqlite")]
+    pub fn with_refusal_trace(mut self, trace: refusal_trace::RefusalTrace) -> Self {
+        self.refusal_trace = Some(trace); self
     }
 
     /// Request the metered, output-only source-identity envelope for a query.

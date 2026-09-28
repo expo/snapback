@@ -211,15 +211,16 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     }
     #[cfg(test)]
     test_work(&shared.mutation_wait);
-    let reader = {
+    let (reader, mut capture) = {
         let engine = lock(&shared.engine);
         // @ref LLP 3000.019#3.6 — ephemeral writes also lose authority while queued for adoption.
         if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
             return failed(request, why);
         }
-        shared.take_reader(&engine)
+        (shared.take_reader(&engine), super::dev_refusals::Capture::new(shared, op))
     };
     let mut context = Context::new(principal.clone(), args).at(shared.now());
+    if let Some(capture) = &capture { context = capture.context(context); }
     context.delivery_fingerprint = fingerprint;
     let result = match reader {
         Ok((epoch, mut reader)) => {
@@ -240,6 +241,8 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             #[cfg(test)]
             test_work(&shared.mutation_wait);
             let mut engine = lock(&shared.engine);
+            capture = super::dev_refusals::Capture::new(shared, op);
+            if let Some(capture) = &capture { context = capture.context(context); }
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))
                 .and_then(|()| {
@@ -250,6 +253,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                 .map(|out| (out, engine.store().meta("store_id").ok().flatten()))
         }
     };
+    drop(capture);
     match result {
         Ok((out, store_id)) => {
             respond_timed(

@@ -1,0 +1,37 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.4.7 (/home/ccheever/sb4-intent/lane-mp/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 56.50s
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-e60a655018261363)
+
+running 5 tests
+test parent_totals_memory_coverage_and_expiry ... FAILED
+test parent_totals_sqlite_coverage_and_expiry ... FAILED
+test builder_ordinary_own_state_before_and_after_owner_coverage ... ok
+test rewritten_builder_own_state_memory_reopen ... ok
+test rewritten_builder_own_state_sqlite_reopen ... ok
+
+failures:
+
+---- parent_totals_memory_coverage_and_expiry stdout ----
+
+thread 'parent_totals_memory_coverage_and_expiry' (1476087) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_READ_THROUGH", message: "messages.deadline is a captured deadline and must be immutable", rewrite: "immutable deadline  -- on table messages", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 14, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }]
+
+---- parent_totals_sqlite_coverage_and_expiry stdout ----
+
+thread 'parent_totals_sqlite_coverage_and_expiry' (1476088) panicked at crates/snapback4-device/tests/common/mod.rs:27:5:
+[Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_READ_THROUGH", message: "messages.deadline is a captured deadline and must be immutable", rewrite: "immutable deadline  -- on table messages", guide: "rules", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 13, col: 3 }, code: "E_QUARRY_UNKNOWN", message: "`$readThrough(message)` is not a rule", rewrite: "read <- exists memberships[.conversationId, viewer]", guide: "language", mechanical: false, cascade_of: None }, Diagnostic { site: Site { file: "schema.q", line: 14, col: 3 }, code: "E_SYNC", message: "sync cannot infer an audience from `deny`; use public, `.column = viewer`, or `exists target[.columns, viewer]`", rewrite: "use one invertible read rule, or remove sync (online only)", guide: "sync", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    parent_totals_memory_coverage_and_expiry
+    parent_totals_sqlite_coverage_and_expiry
+
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.84s
+
+error: test failed, to rerun pass `-p snapback4-device --test mp_builder`

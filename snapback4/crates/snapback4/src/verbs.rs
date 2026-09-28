@@ -835,9 +835,18 @@ pub fn doctor(options: &Options) -> i32 {
 
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
-        eprintln!("usage: snapback4 why <E_CODE | operation | table | id> [--release dir] [--values]");
+        eprintln!("usage: snapback4 why <E_CODE | recent | operation | table | id> [--release dir] [--values]");
         return 2;
     };
+    if subject == "recent" {
+        let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("why: {error}"); return 1; } };
+        let path = project.data_dir().join(crate::serve::dev_refusals::FILE);
+        return match std::fs::read_to_string(&path) {
+            Ok(records) => { println!("{records}"); 0 }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => { println!("No recorded dev refusals. Run snapback4 dev and reproduce the refusal; recent keeps the last 32 clauses locally."); 0 }
+            Err(error) => { eprintln!("why recent: {error}"); 1 }
+        };
+    }
     if subject == "reports" {
         println!("{}", snapback4_lang::guide::card("receipts").expect("receipts card"));
         return 0;

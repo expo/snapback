@@ -296,7 +296,7 @@ impl<'r> Runner<'r> {
         }
         if effect == Effect::Read { self.rule_dependencies(&rule); }
         let bytes = self.rule_scratch(&rule);
-        self.authorized_scratch(bytes, &[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| {
+        let result = self.authorized_scratch(bytes, &[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| {
             let mut next = next.clone();
             materialize_optional_fields(&mut next, table);
             let old = old.map(|old| {
@@ -305,7 +305,10 @@ impl<'r> Runner<'r> {
                 old
             });
             runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next)
-        }).map_err(|error| error.authorization_context(table_name, effect))
+        }).map_err(|error| error.authorization_context(table_name, effect));
+        #[cfg(feature = "sqlite")]
+        if effect != Effect::Read && matches!(result, Ok(false)) { self.refusing_clause(table_name, &format!("{effect} rule")); }
+        result
     }
 
     /// A row by id, materialized, without a rule check.
@@ -821,9 +824,10 @@ impl<'r> Runner<'r> {
         if let Some(message) = self.schema.maintain_for(&scan.table).and_then(|m| m.expiring_read_refusal(self.schema)) {
             return Err(RuntimeError::Structural { code: "E_MAINTAIN_READ_EXPIRE", message });
         }
-        if self.schema.maintain_for(&scan.table).is_some_and(|m| m.groups_by_parent(self.schema)) {
-            return Err(RuntimeError::Structural {code:"E_READ_THROUGH_SCAN",message:format!("{} at {} is keyed by its parent; read {}[parent] instead of scanning groups (guide maintains)",scan.table,scan.site,scan.table)});
-        }
+        let aggregate_scope = self.next_expiry.scope();
+        let aggregate_parent = self.aggregate_parent_prefix(scan, &prefix)?;
+        if aggregate_parent == Some(false) { return Ok((Vec::new(), Vec::new())); }
+        let aggregate_expiry = aggregate_scope.defer();
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         let retained = if let Some(word) = word { word.retained } else { self.device && self.retained_group(&scan.table, &scan.index, &prefix)? };
@@ -847,7 +851,7 @@ impl<'r> Runner<'r> {
             return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "pin the view's read audience or query by member (guide maintains)".into() });
         }
         let parent_pinned = table.through.as_ref().is_some_and(|t| index.columns().iter().take(prefix.len()).any(|f| f == &t.reference));
-        let always_visible = !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
+        let always_visible = aggregate_parent == Some(true) || !parent_pinned && (word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable());
         self.private_scan_authority(&scan.table, visibility.uniform, always_visible)?;
         if word.is_none() { self.reserve_delivered_scan(table, visibility, always_visible)?; }
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
@@ -860,7 +864,7 @@ impl<'r> Runner<'r> {
         let mut capped = false;
         let mut filter_interrupted = false;
         let mut uniform_verdict: Option<bool> = if parent_pinned { word.map(|word| word.admitted) } else { always_visible.then_some(true) };
-        let mut prefix_expiry = word.map_or_else(Default::default, |word| word.expiry);
+        let mut prefix_expiry = if aggregate_parent == Some(true) { aggregate_expiry } else { word.map_or_else(Default::default, |word| word.expiry) };
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }

@@ -61,7 +61,11 @@ use engine_lock::{FairMutex, Lockable};
 #[path = "latency.rs"]
 pub(crate) mod latency;
 
+#[path = "dev_refusals.rs"]
+pub(crate) mod dev_refusals;
+
 pub struct Shared {
+    refusals: Mutex<dev_refusals::Recent>,
     latency: Arc<latency::Registry>,
     project: std::path::PathBuf,
     temporary: bool,
@@ -308,6 +312,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let shared = Arc::new(Shared {
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
+        refusals: Mutex::new(dev_refusals::Recent::default()),
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
@@ -1230,6 +1235,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
+                    let capture = dev_refusals::Capture::new(shared, &op);
+                    if let Some(capture) = &capture { context = capture.context(context); }
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
@@ -1358,13 +1365,14 @@ mod poison_tests {
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
             project: std::env::current_dir().unwrap(), temporary: true,
+            refusals: Mutex::new(dev_refusals::Recent::default()),
             latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             readers: Mutex::new(QueryReaders::new(&engine)),
             engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
-            bound: Mutex::new(Bound { view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
+            bound: Mutex::new(Bound { refusal_sites: Default::default(), view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             worker_revision: AtomicUsize::new(0),
             committed: Condvar::new(),
