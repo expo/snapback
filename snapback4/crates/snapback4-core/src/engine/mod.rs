@@ -893,6 +893,12 @@ impl Engine {
         }
         server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, &program, &mut context.args)?;
+        // @ref LLP 3000.028#3.3 — only server execution substitutes this
+        // audience plan. The stored/device body keeps its retained domain.
+        #[cfg(feature = "server-search")]
+        let inferred_search = crate::search_plan::ordinary::plan(&self.schema, &program);
+        #[cfg(feature = "server-search")]
+        let program = inferred_search.as_ref().map_or(&program, |plan| &plan.program);
         if context.now.is_none() {
             context.now = Some(crate::now_ms());
         }
@@ -936,6 +942,8 @@ impl Engine {
             }
         }
         let mut runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
+        #[cfg(feature = "server-search")]
+        { runner.ordinary_search_cursor = inferred_search.as_ref().map(|plan| plan.cursor_indexes.clone()); }
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
         let next = runner.outcome_next_cursor()?;

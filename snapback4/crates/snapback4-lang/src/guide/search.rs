@@ -71,7 +71,8 @@ on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
 chat alone because the row is its own witness, so a roster page pinned by
 the chat is complete and no second table is needed. An unscoped search under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
-it); use the grouped or newest form below, or read on the device.
+it), except for the inferred ordinary server audience described below;
+use the grouped or newest form below, or read on the device.
 
 The newest form below merges the viewer's rooms by `at` and `id`, with
 one verdict per scope when its prefix decides the rule. Its uniform lane
@@ -154,6 +155,10 @@ query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   return messages[conversationId = conversationId] matching q after c last 50 by .at
 
+-- ordinary per-chat search; retained text does not require current membership
+query searchChat(conversationId: conversations, q: text <=100, c: cursor ?):
+  return messages[conversationId = conversationId] matching q last 20 by .at after c
+
 -- everything, grouped by chat
 query searchGrouped(q: text <=100, c: cursor ?):
   return memberships[principal = viewer] after c first 20 by .conversationId where exists (messages[conversationId = .conversationId] by .at matching q) { conversationId, hits: messages[conversationId = .conversationId] matching q last 3 by .at }
@@ -167,6 +172,10 @@ query people(q: text <=100, c: cursor ?):
 ```
 
 This version gives conversations their own table and lets an admin add members.
+`searchChat` has no membership guard: a table with `retain delivered-history`
+can keep certified departed images locally in either link state. Its missing
+history remains incomplete; current members can fall back below the acquisition
+horizon. The guarded `inChat` still refuses NOT_MEMBER after departure.
 Use `inChat` for more hits in one conversation; `searchGrouped` and
 `searchNewest` use the grouped and global ordering described above.
 `complete` means the query answered its declared request within known coverage and execution limits.

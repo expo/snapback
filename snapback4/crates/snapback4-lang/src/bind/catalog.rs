@@ -36,6 +36,7 @@ impl TableInfo {
 
 #[derive(Default)]
 pub struct Catalog {
+    pub ordinary_searches: Vec<ReadExpr>,
     pub source: crate::source::SourceMap,
     pub feed_views: BTreeMap<String, super::feed_view::Plan>,
     pub extremum_domains: BTreeMap<String, ReadExpr>,
@@ -201,7 +202,7 @@ impl Catalog {
         }
         let mut source = crate::source::SourceMap::default();
         for document in &documents { source.extend(&document.source); }
-        let mut catalog = Self { extremum_domains: BTreeMap::new(), canonical_read_origins: BTreeMap::new(), source, feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
+        let mut catalog = Self { ordinary_searches: Vec::new(), extremum_domains: BTreeMap::new(), canonical_read_origins: BTreeMap::new(), source, feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
         for maintain in catalog.maintains.values().filter(|m| m.read.is_none() && m.row_key.is_none()) {
             // A colliding ordinary table can exist even when target generation failed.
             if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }

@@ -180,6 +180,20 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
     let mut requests = Requests { contexts, ..Default::default() };
+    // @ref LLP 3000.028#3.3 — indexes for the server alternative are ordinary
+    // indexes; preserve the authored/device body, including its retained domain.
+    for read in &catalog.ordinary_searches {
+        if let Some(mut merge) = super::intent_lanes::expand(&tables, read) {
+            let mut candidate = requests.clone();
+            for lane in &mut merge.lanes {
+                if let Some(read) = &mut lane.planned { candidate.read(&tables, read, false); }
+                if let Some((_, source)) = &mut lane.loop_ { walk::expression(source, &mut |value| {
+                    if let Expr::Read(read) = value { candidate.read(&tables, read, false); }
+                }); }
+            }
+            if candidate.errors.is_empty() && super::intent_lanes::prefixes_decide_rules(&tables, &merge) { requests = candidate; }
+        }
+    }
     for table in catalog.tables.values_mut() {
         let original = &tables[&table.decl.name];
         for cap in &table.decl.caps {

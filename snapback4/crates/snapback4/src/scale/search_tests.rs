@@ -1,5 +1,21 @@
     use super::*;
     #[test]
+    fn ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair() {
+        let source = include_str!("../../../../experiments/p19-one-query/builder.q");
+        let source = format!("{source}\nquery osSearch(q: text <=100, c: cursor ?):\n  return messages matching q where not .tombstone last 20 by .at after c\n");
+        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let p = &b.programs.iter().find(|p| p.program.name == "osSearch").unwrap().program;
+        let notes = classify(&b.schema, p);
+        assert!(!notes.iter().any(|n| n.code == "N_SEARCH_UNSCOPED"));
+        let opening = notes.iter().find(|n| n.code == "N_SEARCH_OPEN").unwrap();
+        assert!(opening.message.contains("Inferred server audience members[principal = viewer] by .conversation"));
+        assert!(opening.rewrite.contains("return members[principal = viewer]"));
+        assert!(opening.rewrite.contains("not" ) || opening.rewrite.contains("tombstone = false"));
+        let certificate = super::super::analyze(&b.schema, p);
+        assert_eq!(certificate.bounds.lanes, None);
+    }
+    #[test]
     fn independent_search_cost_axes_include_inlined_peer_helpers() {
         let source = r#"
 table members:

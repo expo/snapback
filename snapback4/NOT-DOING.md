@@ -38,6 +38,17 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - **No multi-server presence, no presence history or last-seen storage, no broadcast event stream, no connection-bound rows.** `connected[p]` stays server-wide, counting held polls and their 35 s grace; a live query that may read it re-runs in the background about every 5 seconds to stay current (LLP 3000.018). Typing and viewing use short-lived, authorized ephemeral tables in one server process (LLP 3000.017); they never sync or decide durable invariants. A device does not know presence and says so.
 
 ## Process not doing
+
+- **2026-09-28 — inferred current-scope word search** (LLP 3000.028 §3.3,
+  lane OS). A single bare ordinary word page may derive the exact non-expiring
+  membership audience for the existing compact server plan. This removes the
+  requirement to repeat that audience predicate in this narrow server query.
+  The compiler supplies a scoped words index when absent; it is an ordinary
+  schema index, maintained on writes and on devices, with no extra synced rows
+  or new authority. The device keeps its original bare scan. Ordered composition
+  of current server rows with retained device rows, shared coordinator accounting
+  and combined continuations remain outside this independent subset; no merge
+  or durable search session is introduced.
 - **2026-09-26 — a live query keeps presence current** (LLP 3000.018). A 0.4.2 probe found an observed `connected[p]` reporting `fresh: true` while stale for over a minute, and a comparative builder polled around it. What it unblocks: online marks and presence-aware lists that stay current. Taken off: "a presence stream" as an exclusion for live queries; a presence API, last-seen storage and multi-server presence stay out. Under the author's standing authorization for reworks that make queries excellent (2026-09-25).
 
 - **No drift registries, inventories, line-pinned diagnostics registries, claim digests or frozen-record gates.** Generated projections are built, not committed.

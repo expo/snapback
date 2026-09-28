@@ -1,6 +1,8 @@
 //! Shared server search admission and schema-aware recovery queries.
 use crate::{ir::*, engine::rules};
 
+pub mod ordinary;
+
 // @ref LLP 3000.024#decision — the certificate must classify the running plan.
 pub fn eligible(schema: &crate::schema::Schema, merge: &Merge) -> bool {
     if merge.view.is_some() { return false; }

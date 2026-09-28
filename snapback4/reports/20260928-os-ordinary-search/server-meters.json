@@ -1,0 +1,104 @@
+[
+  {
+    "op": "/q/osSearch",
+    "ms": 42.72564599999998,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 431179,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 363,
+    "rows": 20
+  },
+  {
+    "op": "/q/osSearch",
+    "ms": 26.243333000000007,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 602776,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 363,
+    "rows": 20
+  },
+  {
+    "op": "/q/osSearch",
+    "ms": 22.003537999999935,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 602776,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 363,
+    "rows": 20
+  },
+  {
+    "op": "/q/searchNewest",
+    "ms": 20.447666000000027,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 433439,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 379,
+    "rows": 20
+  },
+  {
+    "op": "/q/searchNewest",
+    "ms": 20.268117000000075,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 611100,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 379,
+    "rows": 20
+  },
+  {
+    "op": "/q/searchNewest",
+    "ms": 21.391661,
+    "meter": {
+      "cut": null,
+      "examined": 141,
+      "heapBytes": 611100,
+      "indexEntries": 141,
+      "outputBytes": 8251,
+      "probes": 140,
+      "rowsWritten": 0,
+      "steps": 1619
+    },
+    "complete": true,
+    "nextBytes": 379,
+    "rows": 20
+  }
+]

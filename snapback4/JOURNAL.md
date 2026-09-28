@@ -72200,3 +72200,60 @@ supervisor owns the landing suite. No new full-suite or macOS claim.
 Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
 round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-28 — Lane OS: independent inferred current-scope ordinary search
+
+First fetched origin and merged origin/main on sb4-intent/os-ordinary-search;
+already up to date at a745b110f2187004abb1cec8380b33b6d1396108. Read Accepted
+LLP 3000.028 in full, the fence, root/design brief, rules, exclusions, journal
+and current search guide. Applied llp-orient read-only from the initialized
+lane-a5 skill copy. Updated NOT-DOING before implementation.
+
+Coherent subset explicitly allowed by LLP 3000.028 section 3.3: infer the compact
+server audience for one bare word page with an exact non-expiring membership
+rule, matching sync audience, total unique membership key and provably readable
+discovery source. The device body remains bare and includes authorized retained
+images. Deliberate result change: a bare membership-audience word search goes
+from an empty incomplete server answer to the compact membership page. Explicit
+membership queries, held operations, authored guards and unsupported audiences
+keep their evaluator. Empty needles retain the old browse path. The guide and
+check --cost explain the scope, opening refusal and grouped repair.
+
+The compiler requests ordinary scoped indexes; the original builder already
+has them and its index maps and original program IR stay identical. Candidate
+index requests precede final proof, so a rejected candidate can retain an unused
+ordinary index with normal maintenance costs. The server cursor keeps the
+ordinary index descriptor and identical suffix, charged before construction.
+No SDK coordinator, mixed merge, combined cursor, ledger bridge, new authority
+or durable search session is shipped. Section 7.2 is NOT complete: retained-first
+mixed pagination and mixed drain/coordinator/lifecycle witnesses remain open.
+
+Public process and wasm probes use copies of calibration 24's full store.
+u0500/coffee's first three pages match searchNewest with one server query each;
+offline bare pages match held search. An original-mutation 503-message chat has
+an acquisition floor at ordinal 4: 27 current online coffee hits, 24 acquired
+hits over two pages offline/departed, plus below/exact/above-floor tokens.
+Guarded searchIn stays NOT_MEMBER after departure on server and both device
+link states. Rejoin restores online below-floor access. Acquired empty departed
+word ranges remain honestly incomplete with zero fallback; recorded in
+issues/20260928-snapback4-empty-retained-search-coverage.md. Input hash guards
+confirm original SQLite/WAL/program files unchanged. No other lane was modified.
+
+Final affected tests: 9 ordinary-search, 24 existing membership-search,
+11 search-merge, 8 search-certificate, 4 read-cut, 1 simulator word-limit,
+2 device word-limit; whole guide 92 passed, 0 failed. Full scripts/test.sh ran
+once: exact summary "== 1 failure(s) in 1882 s". cargo test had three old bare
+nonuniform-control assertions, ours after the deliberate behavior change.
+Controls now have explicit guards; all affected reruns pass, including a new
+inferred assertion on the original 99,090-row calibration fixture. Every other
+suite step passes: client main 3,845 pass/10 skip, shards 56 pass, models 79 pass.
+No environmental qualification failure. Full historical red is retained, not
+claimed green; the report lists every earlier setup/compile/probe failure and
+the timing of final focused checks relative to that suite.
+
+Wasm final: 2,019,815 B raw / 585,378 B gzip, delta 0 / -6 B against this lane's
+baseline, unchanged 586,193 B cap. Ordinary and explicit builder server pages
+have identical examined/index/probe/step/output receipts; exact heap/cursor
+receipts and non-benchmark samples are in the report. No tool installed, budget
+raised, push or publication. Report: reports/20260928-os-ordinary-search/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

@@ -87,11 +87,14 @@ pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgra
 }
 
 fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4_lang::BoundProgram>) -> Certificate {
+    let search = search::classify(schema, program);
+    let inferred = snapback4_core::search_plan::ordinary::plan(schema, program);
+    let program = inferred.as_ref().map_or(program, |plan| &plan.program);
     let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { Ceilings::default() };
     let mut a = Analysis {
         schema, program, source,
         result: Certificate {
-            operation: program.name.clone(), search: search::classify(schema, program), class: Class::Constant,
+            operation: program.name.clone(), search, class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
             growth_sites: Vec::new(), aggregates: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),

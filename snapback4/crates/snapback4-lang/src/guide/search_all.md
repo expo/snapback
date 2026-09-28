@@ -5,6 +5,24 @@ Use **grouped** to page matching chats with previews. Return bare hits and
 read chat details separately. Both forms enforce source rules on the server
 and over held device rows.
 
+A single bare ordinary word page such as
+`return messages matching q where not .tombstone last 20 by .at after c`
+can now infer the current server audience from an exact non-expiring membership
+read rule and matching sync audience. `check --cost` names that inferred audience
+and its grouped rewrite. Its server result deliberately changes from an empty
+incomplete answer to the compact membership page when the work fits. Explicit
+membership predicates and query guards keep their meaning; other audiences,
+joins and native functions keep their existing evaluator. Empty needles still
+take the existing browse branch, whose coverage can remain incomplete.
+
+This is the current-scope server portion of ordinary search. The device keeps
+the original bare scan, including authorized retained images, but online fallback
+still replaces the whole result. Combining current server rows with departed
+device rows is not implemented. Keep the existing application selection for a
+mixed retained/current all-chat screen until the combined continuation and meter
+protocol is available. An incomplete empty answer means “Results may be incomplete,”
+never “No matches.”
+
 ```quarry
 table members:
   roomId: id

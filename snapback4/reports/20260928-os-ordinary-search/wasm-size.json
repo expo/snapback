@@ -1,0 +1,11 @@
+{
+  "rawBytes": 2019815,
+  "gzipBytes": 585378,
+  "gzipCommand": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "sha256": "ae7e4a3db056c901631056fcadd2cc88cf9e6e896241ba1d5925f54c9e5f9801",
+  "baselineRawBytes": 2019815,
+  "baselineGzipBytes": 585384,
+  "rawDelta": 0,
+  "gzipDelta": -6,
+  "budget": 586193
+}

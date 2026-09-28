@@ -125,8 +125,13 @@ fn matching_merge_refusals_name_the_admitted_rewrite_and_51_lanes_get_a_note() {
     let source = format!("{SCHEMA}\nquery all(q: text <=100, c: cursor ?):\n  return messages matching q after c last 50 by byWords\n");
     let compiled = bound(&source);
     let note = compiled.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
-    assert_eq!(note.rewrite, "messages matching q where exists members[.roomId, viewer] last 50 by .at, .id after c — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device");
-    assert_eq!(note.guide, "search");
+    // @ref LLP 3000.028#3.3 — the word branch now infers this exact audience;
+    // only its empty-needle browse branch retains the non-uniform scan note.
+    let program = &compiled.programs.iter().find(|p| p.program.name == "all").unwrap().program;
+    assert!(snapback4_core::search_plan::ordinary::plan(&compiled.schema, program).is_some());
+    assert!(note.message.contains("when the search text folds to no words"));
+    assert!(note.rewrite.starts_with("pin .roomId"));
+    assert_eq!(note.guide, "reads");
     println!("{note}");
 }
 

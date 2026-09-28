@@ -31,6 +31,7 @@ mod view_predicate;
 mod intent_lanes;
 mod intent_windows;
 mod intent_sync;
+mod intent_search;
 mod held;
 mod delivery;
 
@@ -70,6 +71,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
     intent_aggregates::remember_domains(&mut catalog);
+    intent_search::capture(&mut catalog);
     intent_variants::expand(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
@@ -411,7 +413,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         if bound.program.kind == snapback4_core::ir::ProgramKind::Job {
             continue;
         }
+        let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
         for scan in snapback4_core::ir::scans(&bound.program) {
+            if inferred_search.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) { continue; }
             let Some(table) = schema.table(&scan.table) else { continue };
             if table.rules.read.is_uniformly_readable() {
                 continue;
@@ -437,7 +441,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 Diagnostic::new(
                     &bound.site,
                     "N_NEVER_COMPLETE",
-                    format!("{} {}: the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
+                    format!("{} {}: {}the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
                     search_rewrite.clone().or(scope_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "))),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),

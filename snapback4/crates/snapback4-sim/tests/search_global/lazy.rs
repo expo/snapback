@@ -90,7 +90,9 @@ fn w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped() {
     rows.retain(|(table, _)| table == "members");
     for n in 0..33 { rows.push(message("r0000", n, format!("coffee{n:02}"), n as i64)); }
     rows.push(message("r0011", 0, "coffee".into(), 100));
-    let source = source(20, 1000) + "\nquery nonuniform(q: text <=100, c: cursor ?):\n  return messages matching q after c last 20 by byWords\n";
+    // @ref LLP 3000.028#3.3 — retain this authored-guard control on the old
+    // evaluator; an unguarded ordinary membership page now infers its audience.
+    let source = source(20, 1000) + "\nquery nonuniform(q: text <=100, c: cursor ?):\n  require q != 'blocked' else BLOCKED\n  return messages matching q after c last 20 by byWords\n";
     with_fixture(&source, rows, |q| {
         let page = q("wide", None, "cof");
         assert!(page.complete && page.cut.is_none() && page.next.is_some() && page.word_cut_at.is_none());
