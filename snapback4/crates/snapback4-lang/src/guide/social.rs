@@ -16,6 +16,8 @@ npx snapback4 dev
 The installed README explains native, Expo Go and web setup. Its Quarry file
 keeps profiles, follows, Following, likes, retained conversations/messages,
 SDK delivery reporting, typing, ordinary images and once images together.
+History uses `where .conversation = conversation` on its explicit horizon
+index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
 unknown coverage stays loading. See `guide offline-interactions`. The current
 all-chat search labels current memberships online versus held history offline;

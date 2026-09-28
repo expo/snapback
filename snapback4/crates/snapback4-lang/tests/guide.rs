@@ -782,7 +782,7 @@ fn every_card_compiles_clean() {
     }
     assert!(errors.is_empty(), "unclean blocks: {errors:?}");
     // The relocation preserves compiling adoption instructions for already installed apps.
-    let adoption = quarry(include_str!("../src/recipe/ADOPTION.md"));
+    let adoption = quarry(include_str!("../../../packages/snapback4/FOLLOWING-ADOPTION.md"));
     assert!(!adoption.is_empty(), "installed-app adoption must remain executable");
     for (index, block) in adoption.iter().enumerate() {
         clean(&format!("existing feed adoption block {}", index + 1), &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));

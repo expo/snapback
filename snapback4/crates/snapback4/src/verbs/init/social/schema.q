@@ -78,10 +78,10 @@ query inbox(c: cursor ?):
   return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
 
 query history(conversation: conversations, c: cursor ?):
-  return messages[conversation = conversation] last 20 by byConversationOrdinal after c
+  return messages where .conversation = conversation last 20 by byConversationOrdinal after c
 
 query messageReceipts(conversation: conversations, c: cursor ?):
-  return messages[conversation = conversation] last 20 by byConversationOrdinal after c { id, receipt: receipt(.) }
+  return messages where .conversation = conversation last 20 by byConversationOrdinal after c { id, receipt: receipt(.) }
 
 query receiptMember(conversation: conversations):
   return members[conversation, viewer]

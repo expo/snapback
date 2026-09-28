@@ -8,7 +8,10 @@ import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import { memorySessionStore } from "snapback4/auth";
 import { webDevice, memoryPersistence } from "snapback4/web";
-import { binary, until } from "./helpers/app-server.mjs";
+import { createLocalClient } from "snapback4/local";
+import { processDevice } from "snapback4/native";
+import { binary, server, until } from "./helpers/app-server.mjs";
+import { parkedChanges } from "./helpers/sync-control.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
 function starter(t) {
@@ -30,6 +33,63 @@ test("new requires an explicit template and names what init creates", t => {
   assert.match(result.stderr, /schema-only setup use snapback4 init/);
   assert.deepEqual(readdirSync(dir), []);
 });
+
+// @ref LLP 3000.028#7.3 — the starter must acquire owner coverage beyond its public window.
+for (const tier of ["native", "web"]) {
+  test(`social starter ${tier}: cold owner keys prove old likes and unqueried absence offline`, { timeout: 30_000 }, async t => {
+    const generated = starter(t), api = await generatedApi(generated);
+    const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+    const signup = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
+      email: "cold@example.com", password: "cold-owner-coverage-password",
+    }) }).then(r => r.json());
+    assert.ok(signup.session, JSON.stringify(signup));
+    const owner = signup.session.principal;
+    const author = createClient({ url, token: signup.session.token });
+    t.after(() => author.close());
+    const created = await author.mutate(api.post, { body: "cold fixture" });
+    assert.equal(created.state, "sent", JSON.stringify(created));
+    const oldPost = created.result.id;
+    // The old own like is below all 2,000 public rows. Seed before opening any
+    // device: a warm stream of inserts would retain it even without the policy.
+    const rows = [{ table: "likes", row: { id: "old-like", post: oldPost, principal: owner, at: 1 } }];
+    for (let n = 0; n < 2_000; n++) rows.push({ table: "likes", row: {
+      id: `recent-like-${n}`, post: oldPost, principal: `dev:reader${n}`, at: n + 2,
+    } });
+    const seeded = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
+    assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
+    const device = tier === "native" ? processDevice({ binary, dir: join(dir, "device") })
+      : webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+    let offline = false, allowAcquisition = false;
+    const client = await createLocalClient({ url, session: signup.session, device,
+      fetch: (input, init) => {
+        const path = new URL(input).pathname;
+        if (offline || (path === "/sync" && !allowAcquisition)) throw new TypeError("disconnected");
+        if (path === "/changes") return parkedChanges(init.signal);
+        return fetch(input, init);
+      },
+    });
+    t.after(() => client.close());
+    offline = true;
+    assert.equal(client.acquired, false);
+    for (const post of [oldPost, "absent-before-acquisition"]) {
+      const read = await client.query(api.postState, { post });
+      assert.equal(read.loading, true, JSON.stringify(read));
+      assert.equal(read.data, undefined, "an unacquired owner has unknown coverage, never false");
+    }
+    offline = false; allowAcquisition = true;
+    await client.sync();
+    assert.equal(client.acquired, true);
+    assert.equal((await client.residency()).tables.likes.rows, 2_000, "the public window stays bounded");
+    offline = true;
+    await client.sync(); // Discover the transport loss before asking for stale reads.
+    for (const [post, liked] of [[oldPost, true], ["never-queried-absent-post", false]]) {
+      const read = await client.query(api.postState, { post });
+      assert.deepEqual(read.data, { liked }, JSON.stringify(read));
+      assert.equal(read.complete, true, "complete owner partition proves presence and absence");
+      assert.equal(read.fresh, false, "offline coverage is not freshness");
+    }
+  });
+}
 
 export async function generatedApi(dir) {
   const source = readFileSync(join(dir, "snapback/generated/api.ts"), "utf8");

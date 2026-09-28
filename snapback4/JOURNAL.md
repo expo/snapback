@@ -73267,3 +73267,64 @@ No tool install, budget/version change, push or publication. Tests, fixtures,
 mutation patches, commands, exact summaries and hashes are in the round-3
 report directory. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-28 — Lane EX round 2: cold owner keys and published client guidance
+
+Read both prior EX prompts/reports/entries and Astra's complete round-1
+READY WITH CHANGES review. Grok was checked before work, during it and before
+completion; only progress text was available, with no findings or verdict.
+Fetched and merged origin/main ea7ecc896 (EQ) in 9f4bef13f. Preserved both
+parent journal sequences and all Revised notes. OS remains for round 3.
+
+The generated starter's native and wasm tests now cold-acquire 2,001 likes,
+with the old own like outside the 2,000-row public window. Before acquisition
+postState remains loading with no Boolean. After acquisition and disconnection,
+the old own key and a never-queried absent key return complete stale true/false.
+Removing the policy only from temporary generated output fails both tiers at
+the old-like assertion. No warm row stream or cached miss supplies the proof.
+
+Published FOLLOWING-ADOPTION.md through the package files list, including the
+existing owner's helpers, paused writes, ordered/checkpointed backfill and
+compiled bridge example. Existing guide/bridge tests read that canonical copy;
+the old repository document forwards to it. The feeds card points to the
+installed document. Replaced source/report/test pointers in README and client/
+server reference prose. A positive guard checks all compiled cards and shipped
+Markdown against manifest-derived file membership, separating exact documented
+app paths from checkout dependencies. It rejects Astra's precise adoption URL,
+bare/unlisted paths, traversal, remote files and a removed-package-file control.
+An npm dry-run confirms 203 files, including the adoption document.
+
+The client card assigns delivery reporting to the SDK and visible seen to the
+screen, replacing obsolete background receipt hook advice; receipts/sync were
+audited. Starter history and receipt pages adopt the sync card's idiomatic
+where equality on the explicit ordinal index; the generated why plan selects
+the conversation prefix. Real cursor-sharing and retained-history smoke pass.
+
+Final affected qualification: 97 whole-guide, five starter (new/check, full app
+and four snippet typechecks, native/wasm coverage and public smoke), 14 browser/
+prior-init, and 12 published bridge tests pass: 128 total, zero final failures,
+zero skips/ignores. Client build/typecheck, README 300/300 budget, references,
+source caps and whitespace pass. Did not run scripts/test.sh, as instructed.
+
+All exploratory failures were ours: fixture import of timeline source rows;
+expecting E_OFFLINE instead of loading before acquisition; checking freshness
+before discovering disconnect; initial guard token trimming, app-path and
+numeric-ratio classification; and a mutation wrapper that orphaned two owned
+dev servers before its exec correction. Recorded PIDs were cleaned up. A too
+strict merge-prefix assertion was followed by an unintended local commit with
+markers; immediately repaired and amended before implementation, with full
+parent-line preservation verified. Setup path misses are also recorded.
+Baseline/environmental test failures: zero. Both expected mutation reds are
+retained separately. No production assertion was weakened or deleted.
+
+Fresh merged wasm: 2,018,847 B raw / 585,970 B GNU file-input gzip-9, unchanged
+586,193 B budget, 223 B headroom. SHA-256
+9609882339d4e5d73065c5d608c90da71efaa27c824a7d92d32ebed5ee581bd1.
+EX changes no wasm/core/device/build input relative to merged main; the +939
+raw/+870 gzip bytes versus EX round 1 follow the EQ integration. No invented
+pre-edit byte comparison is claimed. Native Expo/Hermes/iOS/Android lifecycle
+qualification remains outstanding; no complete §8, scale or calibration claim.
+Report and all attempts: reports/20260928-ex-social-example/round2/REPORT.md.
+LLP 3000.028 §8 and its Revised line record this round. No tool install,
+dependency/version/budget change, push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

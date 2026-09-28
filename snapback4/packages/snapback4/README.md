@@ -243,8 +243,8 @@ query searchHeld(q: text <=100, c: cursor ?) held:
 ```
 
 Render receipts, profiles, quotes and reactions from their own queries beside history so a decoration that loads or
-refuses does not take the page with it. The [receipts
-card](https://github.com/ccheever/snapback/blob/main/snapback4/crates/snapback4-lang/src/guide/receipts.rs) (`npx snapback4 guide receipts`) gives the complete receipt model and queries. Use `held` only for a read the server cannot
+refuses does not take the page with it. Run `npx snapback4 guide receipts` for the complete receipt model,
+SDK delivery reporting and screen-owned visible `seen` reporting. Use `held` only for a read the server cannot
 answer, such as the all-chat word search above. It has no server fallback; HTTP clients receive `E_QUERY_HELD`.
 
 `cap 50 by conversation` is this product's maximum group size, enforced on writes. Choose caps only for actual product

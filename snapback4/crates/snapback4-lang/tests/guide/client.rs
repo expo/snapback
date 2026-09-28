@@ -1,4 +1,6 @@
 use super::card;
+#[path = "published.rs"]
+mod published;
 
 #[test]
 fn client_aliases_keep_typing_on_ephemeral() {

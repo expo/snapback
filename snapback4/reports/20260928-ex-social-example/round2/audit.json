@@ -1,0 +1,20 @@
+{
+  "parent_journals_in_order": {
+    "2ff8ef424edaa29c46387f013fbf42642f8d48af": true,
+    "ea7ecc896c166c31caf88f843e0c4dce4ea900b6": true
+  },
+  "journal_append_only": true,
+  "revision_entries_preserved": true,
+  "source_lines": {
+    "snapback4/crates/snapback4-lang/src/guide/social.rs": 78,
+    "snapback4/crates/snapback4-lang/tests/guide.rs": 1500,
+    "snapback4/crates/snapback4-lang/tests/guide/client.rs": 32,
+    "snapback4/crates/snapback4/src/verbs/init/social/schema.q": 265,
+    "snapback4/crates/snapback4/tests/feed_bridge.rs": 375,
+    "snapback4/packages/snapback4/test/social-starter.test.mjs": 210,
+    "snapback4/crates/snapback4-lang/tests/guide/published.rs": 142
+  },
+  "whitespace": "pass",
+  "wasm_input_delta": [],
+  "merge_commit": "9f4bef13f24f6c3112b592d9fbe72c82fcbbdc11"
+}

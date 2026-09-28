@@ -64,6 +64,11 @@ UI reference. Unknown outcomes never trigger automatic resubmission.
 
 ## Current coverage choices
 
+History uses `messages where .conversation = conversation last 20 by
+byConversationOrdinal after c`, as `guide sync` teaches. Its safe leading
+equality establishes the same scope and coverage as a bracket prefix.
+Receipt pages share that index and history cursor.
+
 Likes declare `sync public last 2000 by .at with own keys .principal`.
 Ordinary `exists likes[post, viewer]` answers “did I like this?” from the
 caller's complete key partition, even outside the public window. Before

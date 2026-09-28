@@ -40,7 +40,7 @@ mutation repostExisting(repostId: reposts):
   return feedAppRepost(repostId)
 "#;
 fn manual() -> String {
-    snapback4_lang::guide::quarry(include_str!("../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
+    snapback4_lang::guide::quarry(include_str!("../../../packages/snapback4/FOLLOWING-ADOPTION.md")).into_iter()
         .find(|s| s.starts_with("-- Existing installed feed module; not a new application starter\n")).unwrap()
 }
 fn tables() -> String { manual().split_once("mutation saveProfile").unwrap().0.to_owned() }

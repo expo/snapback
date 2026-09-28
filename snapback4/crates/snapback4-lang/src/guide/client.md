@@ -41,7 +41,7 @@ Keep the main list locally complete and server-needing decorations separate. An 
 ## Acknowledgements and receipts
 
 Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.
-Start its background (`visible: false`) delivery hooks only after `useAcquired()` is true. Deferring them took calibration 21's cold acquisition from 69.9 s to 5.6 s at 100 conversations.
+The SDK owns delivery reporting from acquired rows and accepted query manifests, even with no conversation mounted. The screen owns visible `seen` reporting; mount `useReceipts` for that screen, not background delivery observations.
 “Read” follows `seen` of the newest message on screen while the conversation is open and the app foregrounded; keep the hook above transient rows and follow its visibility input.
 The recipient set is membership at send time: later joins never enter it, and leaving/removal drops a recipient from the requirement, without recording that they read.
 

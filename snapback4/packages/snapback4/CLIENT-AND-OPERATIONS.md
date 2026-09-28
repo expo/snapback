@@ -1674,7 +1674,7 @@ metadata and payload sizes/digests; `--values` opts into stored payloads.
 Mutation arguments and results are not recorded. Child sessions last at most
 one day; the host replaces the child within that window and revokes the old
 child's family at startup, including after SIGKILL. `dev --worker` is refused;
-use the conventional `snapback/worker.ts`, `.mts` or `.mjs` path. `apps/chat/snapback/worker.ts` is the invitation example:
+use the conventional `snapback/worker.ts`, `.mts` or `.mjs` path. The invitation example below belongs in that worker:
 it mints a session for `member:<email>` and returns only `{ principal }`.
 
 ### The mock (`snapback4/mock`)
@@ -2167,12 +2167,10 @@ opens any backend now present, or checks that the store is still empty inside
 the installation transaction. Custom openers must forward that envelope
 unchanged. An older module rejects it; rebuild the native app when updating
 to this client. Generation changes use head validation and captured adoption
-with the persisted restore evidence intact. The module speaks the same call over a C ABI
-(`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
-`sb4_free`, `sb4_close`) and, for a Rust host, through
-`snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a
-process, one JSON line each way, which is how the Node tests drive the
-real module. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
+with the persisted restore evidence intact. For a custom Node host,
+`processDevice({ binary, dir })` from `snapback4/native` opens
+`snapback4 device <store>` as a process, exchanging one JSON line each way.
+Use this published adapter for the same native device protocol. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
 gzip as wasm.
 
 For Expo the module is the `snapback4-expo` package: `nativeDevice` is
