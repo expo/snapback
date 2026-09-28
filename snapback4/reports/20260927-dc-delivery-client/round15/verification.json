@@ -1,0 +1,143 @@
+{
+  "baseline-race": {
+    "exit": 1,
+    "tests": 1,
+    "pass": 0,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "baseline, intentionally reproduced scheduling race"
+  },
+  "baseline-extra-pump": {
+    "exit": 1,
+    "tests": 3,
+    "pass": 1,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "baseline, intentionally reproduced scheduling race"
+  },
+  "baseline-generation": {
+    "exit": 1,
+    "tests": 1,
+    "pass": 0,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "classification": "baseline, intentionally reproduced scheduling race"
+  },
+  "fixed-extra-pump": {
+    "exit": 0,
+    "tests": 4,
+    "pass": 4,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "delivery-initial": {
+    "exit": 0,
+    "tests": 60,
+    "pass": 60,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "refusal-audit": {
+    "exit": 0,
+    "tests": 30,
+    "pass": 30,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "delivery-browser": {
+    "exit": 0,
+    "tests": 436,
+    "pass": 436,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "approval": {
+    "exit": 0,
+    "tests": 874,
+    "pass": 874,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "build": {
+    "exit": 0
+  },
+  "typecheck": {
+    "exit": 0
+  },
+  "cli-build": {
+    "exit": 0
+  },
+  "ref-check": {
+    "exit": 0
+  },
+  "repetitions": {
+    "cpus": [
+      92,
+      93,
+      94,
+      95
+    ],
+    "load_workers": 8,
+    "node": "v24.13.1",
+    "groups": [
+      {
+        "name": "delivery",
+        "requested": 200,
+        "pass": 200,
+        "fail": 0,
+        "tests_passed": 12000,
+        "tests_failed": 0
+      },
+      {
+        "name": "generation-viewer",
+        "requested": 100,
+        "pass": 100,
+        "fail": 0,
+        "tests_passed": 100,
+        "tests_failed": 0
+      },
+      {
+        "name": "serial-gate",
+        "requested": 100,
+        "pass": 100,
+        "fail": 0,
+        "tests_passed": 100,
+        "tests_failed": 0
+      }
+    ],
+    "worker_pids": [
+      1038549,
+      1038550,
+      1038551,
+      1038552,
+      1038553,
+      1038554,
+      1038555,
+      1038556
+    ],
+    "load_cpu_seconds": [
+      41.51,
+      40.05,
+      40.45,
+      41.89,
+      40.26,
+      41.04,
+      40.69,
+      41.56
+    ],
+    "workers_reaped": true,
+    "seconds": 96.428
+  },
+  "full-suite": {
+    "run": false,
+    "reason": "Supervisor owns the landing suite; user explicitly prohibited scripts/test.sh."
+  }
+}

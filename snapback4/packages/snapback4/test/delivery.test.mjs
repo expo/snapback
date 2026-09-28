@@ -10,10 +10,13 @@ const deferred=()=>{let resolve; const promise=new Promise(r=>{resolve=r;});retu
 async function settle(){for(let i=0;i<8;i++)await turn();}
 let minted=0;
 function harness(t,{send=async()=>ok,local=false,storage=memoryDelivery()}={}){
- const calls=[],refused=[];let time=0,id=0,ready=true;
+ const calls=[],refused=[],waiters=[];let time=0,completed=0,ready=true;
  const q=new DeliveryQueue({storage,local,mint:()=>`id${++minted}`,now:()=>time,jitter:()=>0,ready:()=>ready,
-  send:async(mutation,body,signal)=>{calls.push({mutation,...body,signal});return send(calls.at(-1));},onRefused:e=>refused.push(e)});
- t.after(()=>q.stop());return {q,calls,refused,storage,advance:n=>{time+=n;},ready:b=>{ready=b;},state:()=>storage.update(s=>structuredClone(s)),async flush(){await q.pump();await settle();}};
+  send:async(mutation,body,signal)=>{calls.push({mutation,...body,signal});return send(calls.at(-1));},onRefused:e=>refused.push(e),
+  onSettled(){completed++;for(const [count,resolve] of waiters)if(completed>=count)resolve();}});
+ t.after(()=>q.stop());return {q,calls,refused,storage,advance:n=>{time+=n;},ready:b=>{ready=b;},state:()=>storage.update(s=>structuredClone(s)),
+  settled:count=>completed>=count?Promise.resolve():new Promise(resolve=>waiters.push([count,resolve])),
+  async flush(){await q.pump();await settle();}};
 }
 const groups=s=>Object.values(s.groups);
 test('maximal exact runs, binding identity and named arguments',async t=>{
@@ -64,7 +67,15 @@ test('online membership refusal preserves post-dispatch collections',async t=>{
  const pending=deferred();let dispatched=0;const h=harness(t,{send:async()=>++dispatched===1?pending.promise:new Promise(()=>{})});await h.q.accept(manifest([['c',1]]));await h.flush();await h.q.accept(manifest([['c',3]]));pending.resolve({accepted:true,json:{head:10,denied:{code:'NOT_MEMBER'}}});await settle();await h.flush();assert.equal(h.calls.length,2);assert.notEqual(h.calls[0].id,h.calls[1].id);assert.deepEqual(groups(await h.state())[0].owed,[[3,3]]);
 });
 test('generation and viewer fences reject callbacks',async t=>{
- const pending=deferred(),h=harness(t,{send:async()=>pending.promise});await h.q.accept(manifest([['c',1]]));await h.flush();await h.q.reset(true);await h.q.accept(manifest([['c',2]],{...binding,table:'photos'}));pending.resolve(ok);await settle();assert.deepEqual(groups(await h.state())[0].owed,[[2,2]]);
+ const pending=deferred(),successor=deferred();
+ const h=harness(t,{send:c=>c.args.from===1?pending.promise:successor.promise});
+ await h.q.accept(manifest([['c',1]]));await h.flush();await h.q.reset(true);
+ await h.q.accept(manifest([['c',2]],{...binding,table:'photos'}));
+ pending.resolve(ok);await h.settled(1);await h.flush();
+ assert.equal(h.calls.length,2);assert.equal(h.calls[0].signal.aborted,true);
+ assert.deepEqual(groups(await h.state())[0].owed,[[2,2]],'the successor reply stays held after the stale callback');
+ successor.resolve(ok);await h.settled(2);
+ assert.deepEqual(groups(await h.state())[0].reported,[[2,2]]);
 });
 test('deadline frees slot with same attempt id',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});const h=harness(t,{send:async()=>new Promise(()=>{})});await h.q.accept(manifest([['c',1]]));await h.flush();h.advance(15000);t.mock.timers.tick(15000);await settle();assert.equal(h.calls[0].signal.aborted,true);h.advance(1000);await h.flush();assert.equal(h.calls.length,2);assert.equal(h.calls[0].id,h.calls[1].id);
@@ -126,10 +137,13 @@ test('evicting lowest debt also fences its persisted uncertain attempt',async t=
  assert.deepEqual(h.refused,[]);assert.deepEqual(groups(await h.state())[0].refused,[]);
 });
 test('a pre-transport serial gate race spends no retry and keeps its persisted id',async t=>{
- let calls=0;const h=harness(t,{send:async()=>++calls===1?{json:{},accepted:false,deferred:true}:ok});
- await h.q.accept(manifest([['c',1]]));await h.flush();
+ const reply=deferred();let calls=0;
+ const h=harness(t,{send:async()=>++calls===1?{json:{},accepted:false,deferred:true}:reply.promise});
+ await h.q.accept(manifest([['c',1]]));await h.flush();await h.settled(1);
  assert.equal(groups(await h.state())[0].attempt.retries,0);
- await h.flush();assert.equal(h.calls[0].id,h.calls[1].id);assert.deepEqual(groups(await h.state())[0].reported,[[1,1]]);
+ await h.flush();assert.equal(h.calls.length,2);assert.equal(h.calls[0].id,h.calls[1].id);
+ assert.deepEqual(groups(await h.state())[0].owed,[[1,1]]);
+ reply.resolve(ok);await h.settled(2);assert.deepEqual(groups(await h.state())[0].reported,[[1,1]]);
 });
 
 test('a lost recorded membership refusal keeps its original collection boundary on retry',async t=>{
@@ -176,12 +190,42 @@ test('identical fingerprints keep refused and saturated evicted state',async t=>
  await h.storage.update(s=>{const g=groups(s)[0];g.owed=[];g.refused=[[1,1]];g.saturated=true;});
  await h.q.accept(manifest([['c',1],['c',3]]));const g=groups(await h.state())[0];assert.deepEqual(g.owed,[]);assert.equal(g.saturated,true);
 });
-test('an exhausted attempt retains its collection boundary while another interval runs',async t=>{
- let replay=false;const h=harness(t,{send:async c=>{if(c.args.from===1){if(!replay)throw Error('lost');return {accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};}return {accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}};}});
- await h.q.accept(manifest([['c',1]]));for(let i=0;i<9;i++){await h.flush();h.advance(60001);}
- await h.q.accept(manifest([['c',1],['c',3]]));await h.flush();
- replay=true;await h.q.reconnect();await h.flush();
- const g=groups(await h.state())[0];assert.deepEqual(g.owed,[[1,1],[3,3]]);
+for(const order of ['held','arrived'])test(`an exhausted attempt retains its collection boundary while another interval runs: fresh reply ${order}`,async t=>{
+ const replay=deferred(),fresh=deferred(),notMember={accepted:true,json:{head:10,why:{code:'NOT_MEMBER'}}};
+ let replaying=false,originalId;
+ const h=harness(t,{send:async c=>{
+  if(c.args.from===1){
+   originalId??=c.id;
+   if(!replaying)throw Error('lost');
+   return c.id===originalId?replay.promise:fresh.promise;
+  }
+  return {accepted:true,json:{head:10,why:{code:'RUNS_FULL'}}};
+ }});
+ await h.q.accept(manifest([['c',1]]));
+ for(let i=0;i<9;i++){await h.flush();await h.settled(i+1);h.advance(60001);}
+ let g=groups(await h.state())[0];
+ assert.equal(h.calls.length,9);assert.ok(h.calls.every(c=>c.id===originalId));
+ assert.equal(g.parked[0].kind,'retry');assert.equal(g.parked[0].attempt.id,originalId);
+ await h.q.accept(manifest([['c',1],['c',3]]));await h.flush();await h.settled(10);
+ assert.deepEqual(h.calls.at(-1).args,{conversation:'c',from:3,through:3});
+ g=groups(await h.state())[0];
+ assert.deepEqual(g.parked.map(p=>[p.kind,p.run]),[['retry',[1,1]],['full',[3,3]]]);
+ assert.deepEqual(g.parked[0].attempt.recent,[[1,1],[3,3]],'the other attempt did not reset the exhausted collection boundary');
+ replaying=true;await h.q.reconnect();await h.flush();
+ assert.equal(h.calls.length,11);assert.equal(h.calls.at(-1).id,originalId);
+ assert.deepEqual(groups(await h.state())[0].attempt.recent,[[1,1],[3,3]]);
+ // The old-id refusal preserves recollection. Only the subsequent new-id
+ // refusal can delete it; neither reply is chosen by settle() or a timer.
+ replay.resolve(notMember);await h.settled(11);
+ assert.deepEqual(groups(await h.state())[0].owed,[[1,1],[3,3]]);
+ await h.flush();assert.equal(h.calls.length,12);assert.notEqual(h.calls.at(-1).id,originalId);
+ assert.deepEqual(h.calls.at(-1).args,{conversation:'c',from:1,through:1});
+ if(order==='arrived'){fresh.resolve(notMember);await h.settled(12);}
+ if(order==='held'){
+  assert.deepEqual(groups(await h.state())[0].owed,[[1,1],[3,3]],'held reply retains the collection boundary');
+  fresh.resolve(notMember);await h.settled(12);
+ }
+ assert.deepEqual(groups(await h.state()),[],'the fresh NOT_MEMBER reply removes the group');
 });
 test('manifests omit unsafe coordinates rather than rounding an unfetched position',async t=>{
  const h=harness(t);await h.q.accept(manifest([['c',9007199254740992],['c',-9007199254740992],['c',41.5],['c',41]]));await h.flush();

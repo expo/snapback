@@ -72146,3 +72146,57 @@ Remeasured the existing round-0 wasm, without rebuilding: 2,019,815 B raw /
 No tool installed or shared tool path changed. Report and compressed logs:
 reports/20260928-sy-sync-after-call/REPORT.md and round1/. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+## 2026-09-28 — Lane DC round 15: deterministic exhausted-delivery fixture
+
+First fetched and merged origin/main: fast-forward b66a2cee4 to b8400c291,
+no conflicts. Read rounds 12–14 and their binding constraints, the Snapback 4
+command sheet, root/design brief, exclusions, journal and delivery guidance.
+Scoped llp-orient used the initialized sibling lane-a5 skill. LLP 3000.022
+section 4 governs the same-ID retry and original collection boundary.
+
+No product defect: reconnect makes the exhausted attempt eligible with its
+original ID, resets its retry budget/backoff when selected and schedules a
+pump; it does not await the reply. The old-ID NOT_MEMBER preserves later
+recollection. A subsequent new-ID NOT_MEMBER correctly deletes the group.
+The old fixture raced that second reply after eight setImmediate turns.
+
+Two explicit reply orders now hold both sends with separate deferred promises
+and await the real onSettled callback. They verify nine lost sends, interval 3
+running while interval 1 is parked, the original collection boundary through
+reconnect, retained owed [[1,1],[3,3]] while the fresh reply is held, and no
+group after it arrives. Audit found two other races in delivery.test.mjs:
+the generation/viewer test reused one promise for old and successor sends;
+the pre-transport serial-gate test could finish a retry before reading its
+attempt. Both now hold the successor reply and assert its later settlement.
+Refusal's eight-turn and adapter's thirty-turn helpers already freeze timers
+and have immediate fixed replies; no equivalent race found there.
+
+CPU-load evidence on expose-builder-pixel: eight worktree-owned busy loops
+and the test processes pinned to CPUs 92–95. Entire delivery file 200/200
+(12,000 case passes); each other fixed test an additional 100/100. Total
+96.428 seconds, 327.45 busy-loop CPU seconds. All eight recorded worker PIDs
+stopped and reaped. No tool installed or unrelated process touched.
+
+All requested checks pass: delivery/queue/refusal/CAS/activation/presence/
+browser plus prediction routing and source census 436/436 at file concurrency
+8; approval lifecycle/model/oracle 874/874 with 240 seeds. Initial delivery
+60/60, refusal 30/30; all four fixed cases pass extra-pump controls. Package
+build/typecheck, merged CLI build, source caps and whitespace pass. Root
+ref-check: 521 LLP docs, 9,744 refs, zero errors/unchecked.
+
+Every failure: baseline, intentionally reproduced — the round-12 exhausted
+fixture once, the extra-pump baseline batch's exhausted and serial-gate cases,
+and the dedicated generation pump case. Four assertion failures in three
+expected-red commands. Ours 0; environmental qualification failures 0. Logs
+retain the baseline reds; no rerun hides them. Only test code changes.
+
+Wasm remeasured, not rebuilt: byte-identical to round 14, 2,019,815 B raw /
+585,193 B gzip, SHA-256 fcb6e9a265f5c317efc6592eadd81cc439b9cf3a0d7310b2ebf6ef7de9286dd1,
+1,000 B under the unchanged cap. No runtime, dependency, version, meter or
+budget change; no design deviation or new open product issue. This closes
+the fixture race left open in round 12. Did not run scripts/test.sh: the
+supervisor owns the landing suite. No new full-suite or macOS claim.
+
+Report and durable logs: reports/20260927-dc-delivery-client/ROUND15.md and
+round15/. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
