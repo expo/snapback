@@ -259,7 +259,7 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     let names = range_price(&prefix, &bounds) + accounting::allocation("messages.byBucket".len());
     assert_eq!(names, 105);
     // @ref LLP 3000.007#20.24.1 — execution storage is measured and pinned, outside the payload ledger.
-    const PIN: usize = 2_048; // Measured 1,952 B for both warmed executions in one empty scan, rounded up to 1 KiB.
+    const PIN: usize = 2_048; // Retain the original two-statement envelope; only the preflight now executes.
     for scans in [1, 1_000] {
         let initial_runs = [PREFLIGHT, SQL].map(|sql| tx.conn().prepare_cached(sql).unwrap().get_status(Run));
         let mut meter = meter::Meter::new(Default::default(), meter::Cut::Cap);
@@ -282,12 +282,12 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
         assert_eq!(counts.allocated, native);
         assert_eq!(counts.freed, native);
         assert!(counts.peak <= PIN * 2, "peak live {} > {}", counts.peak, PIN * 2);
-        for (sql, initial) in [PREFLIGHT, SQL].into_iter().zip(initial_runs) {
-            assert_eq!(tx.conn().prepare_cached(sql).unwrap().get_status(Run) - initial, scans);
+        for ((sql, expected), initial) in [(PREFLIGHT, scans), (SQL, 0)].into_iter().zip(initial_runs) {
+            assert_eq!(tx.conn().prepare_cached(sql).unwrap().get_status(Run) - initial, expected);
         }
         assert!(meter.capped_at.is_none());
         println!("W14A empty scans={scans} statements={} native_allocated={native} native_per_scan={} maximum_per_scan={maximum} pin={PIN} peak_live={} native_freed={} end_live={} charged={}",
-            scans * 2, native / scans as usize, counts.peak, counts.freed, counts.live, meter.used.heap_bytes);
+            scans, native / scans as usize, counts.peak, counts.freed, counts.live, meter.used.heap_bytes);
     }
 }
 

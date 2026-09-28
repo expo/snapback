@@ -1,0 +1,74 @@
+{
+  "pass": true,
+  "stage": "final",
+  "counts": {
+    "users": 1008,
+    "profiles": 1008,
+    "followEdges": 5921,
+    "posts": 50228,
+    "topLevelPosts": 48224,
+    "replies": 2004,
+    "activeLikes": 5008,
+    "activeReposts": 1004,
+    "conversations": 1002,
+    "dms": 901,
+    "groups": 101,
+    "memberships": 2053,
+    "messages": 100015,
+    "textMessages": 99105,
+    "mediaMessages": 910,
+    "quotedReplies": 2736,
+    "activeReactions": 2000,
+    "disappearingSettingsEnabled": 0
+  },
+  "allPerEntityAndPerUserAndPerChatCounts": true,
+  "namedSpotsChecked": 27,
+  "busyHistoryPaged": true,
+  "probes": {
+    "celebrityWrite": {
+      "n": 200,
+      "p95": 56.7056670000311
+    },
+    "fiveFollowerWrite": {
+      "n": 8096,
+      "p95": 56.353000000002794
+    },
+    "following500": {
+      "n": 10,
+      "p50": 10.195165999932215,
+      "p95": 63.68574999994598
+    },
+    "following5": {
+      "n": 10,
+      "p50": 10.791875000111759,
+      "p95": 22.03762500011362
+    },
+    "celebrityFollower": {
+      "n": 10,
+      "p50": 9.768083999864757,
+      "p95": 15.200457999948412
+    },
+    "busyHistory": {
+      "n": 10,
+      "p50": 3.9859170001000166,
+      "p95": 13.38695800001733
+    },
+    "search100": {
+      "n": 10,
+      "p50": 14.963082999922335,
+      "p95": 22.95200000004843
+    },
+    "insights": {
+      "n": 10,
+      "p50": 2.6811250001192093,
+      "p95": 6.726875000167638
+    },
+    "trending": {
+      "n": 10,
+      "p50": 5.877708999905735,
+      "p95": 12.439333999995142
+    }
+  },
+  "start": 1790601319.271,
+  "end": 1790601333.436
+}
