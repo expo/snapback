@@ -449,7 +449,7 @@ test("social search in React/browser uses current server and retained device pag
         const hits = page.getByRole("button", { name: /^coffee / });
         await page.waitForFunction(() => [...document.querySelectorAll("button")].filter(node => node.textContent.startsWith("coffee ")).length === 20);
         assert.deepEqual(await hits.allTextContents(), expected.slice(0, 20).map(row => row.text), "one page must include server-only current hits and acquired departed hits in order");
-        await page.getByText(/Partial results/).waitFor(); // Retained time-order coverage is incomplete.
+        assert.equal(await page.getByText(/Partial results/).count(), 0, "nonempty retained results are present despite incomplete coverage (LLP 3000.031)");
         if (scenario.startsWith("pagination")) {
           for (const count of [40, 45]) {
             await page.getByRole("button", { name: "More matches" }).click();

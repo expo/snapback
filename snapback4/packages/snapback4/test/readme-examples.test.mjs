@@ -1,3 +1,5 @@
+import { presence } from "../dist/contract.js";
+import { readyRead } from "../dist/read-presence.js";
 import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,6 +25,7 @@ const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  myMembership: Query<{ conversationId: string }, { id: string } | null>;
   messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
   setTyping: Ephemeral<{ room: string }, null>;
   stopTyping: Ephemeral<{ room: string }, null>;
@@ -77,7 +80,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -225,7 +228,8 @@ test("client card composer clears at submit and offers refused text without repl
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {} }, useMutation: () => send,
+      api: { send: {}, myMembership: {} }, useMutation: () => send,
+      presence, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -255,22 +259,49 @@ test("client card composer clears at submit and offers refused text without repl
   }
 });
 
+test("client card composer disables only refused or proven absent membership", async () => {
+  const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
+    .match(/export function Composer[\s\S]*?\n}/)?.[0];
+  assert.ok(source);
+  for (const member of [
+    { loading: true }, { denied: { message: 'no' } },
+    readyRead({ data: null, complete: true, cut: null, fresh: false }),
+    readyRead({ data: null, complete: false, cut: null, fresh: false }),
+    readyRead({ data: { id: 'me' }, complete: true, cut: null, fresh: false, revalidating: true }),
+  ]) {
+    let called = false;
+    const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
+      target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
+    })}\nComposer;`, {
+      api: { send: {}, myMembership: {} }, presence, useQuery: () => member,
+      useState: () => ['hello', () => {}],
+      useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
+      React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },
+    });
+    const button = Composer({ conversationId: 'room' }).children[1];
+    const blocked = ['absent', 'denied'].includes(presence(member));
+    assert.equal(button.props.disabled, blocked, presence(member));
+    button.props.onClick();
+    assert.equal(called, !blocked, 'the handler guards a stale click too');
+  }
+});
+
 // Execute the published route owner: it retains route identity, never read data.
 test("profile route is chosen once per account and survives later loading", async () => {
   const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function initialProfileRoute[\s\S]*?\n}/)?.[0];
   assert.ok(source);
-  const choose = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\ninitialProfileRoute;`, { api: { myProfile: {} } });
+  const choose = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\ninitialProfileRoute;`, { api: { myProfile: {} }, presence });
   let calls = 0;
   let answer = { loading: true };
   const route = choose({ query: async () => { calls++; return answer; } });
   assert.equal(await route(), "loading");
   answer = { denied: { message: "unavailable" } };
   assert.equal(await route(), "error");
-  answer = { data: { handle: "alice" } };
+  answer = readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true });
   assert.equal(await route(), "app");
   answer = { loading: true };
   assert.equal(await route(), "app");
   assert.equal(calls, 3, "the chosen route never re-reads or retains the protected profile");
-  const otherAccount = choose({ query: async () => ({ data: null }) });
+  const otherAccount = choose({ query: async () => readyRead({ data: null, complete: true, cut: null, fresh: true }) });
   assert.equal(await otherAccount(), "profile", "another account starts with its own decision");
 });

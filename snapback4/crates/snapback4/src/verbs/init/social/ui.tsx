@@ -2,12 +2,6 @@ import { useState } from "react";
 import { Button, Image, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useAsset, useClient } from "snapback4/react";
-import type { Read } from "snapback4/contract";
-
-export function ReadState({ read }: { read: Read<unknown> }) {
-  return <Text>{"loading" in read ? "Loading…" : "denied" in read ? read.denied.message :
-    [read.revalidating ? "Checking…" : "", !read.fresh ? "Saved on this device" : "", !read.complete ? "Partial results" : ""].filter(Boolean).join(" · ")}</Text>;
-}
 export function Avatar({ id }: { id: string | null }) {
   const asset = useAsset(id);
   return asset.status === "ready" ? <Image source={{ uri: asset.url }} style={{ width: 64, height: 64 }} /> : null;

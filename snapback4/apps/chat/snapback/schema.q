@@ -111,6 +111,9 @@ mutation unsend(messageId: messages):
   return null
 
 -- @ref LLP 3000.011.003.000#2 — navigation reads held facts before any mutation.
+query myMembership(conversationId: conversations):
+  return memberships[conversationId, viewer]
+
 query room(conversationId: conversations):
   return { conversation: conversations[conversationId], membership: memberships[conversationId, viewer] }
 

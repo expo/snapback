@@ -1,3 +1,4 @@
+import { presence, isReady } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
 import { useClient, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
@@ -9,7 +10,7 @@ import { api } from "../snapback/generated/api";
 import { useOnlineArm } from "./useOnlineArm";
 import { useTyping } from "./useTyping";
 import { useOnceMedia } from "./useOnceMedia";
-import { ReadState, PhotoPicker } from "./ui";
+import { PhotoPicker } from "./ui";
 
 // @ref LLP 3000.028#8 — route and composer ownership do not follow query status.
 export function ConversationScreen({ conversation, url, visible = true }: { conversation: string; url: string; visible?: boolean }) {
@@ -48,15 +49,18 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
     }
     catch (error) { setProblem(String(error)); }
   }, [journal]);
-  const canSend = "data" in member && !!member.data && !member.revalidating;
+  // No-horizon members share this conversation's messages audience. Loading is
+  // first acquisition; only absence or refusal disables the durable send.
+  const canSend = presence(member) !== "absent" && presence(member) !== "denied";
+  const canReportSeen = isReady(member) && member.presence === "present" && !member.revalidating;
   const seen = useRef(0);
   const reportSeen = useCallback((through: number) => {
-    if (!visible || !canSend || through <= seen.current) return;
+    if (!visible || !canReportSeen || through <= seen.current) return;
     seen.current = through;
     void client.mutate(api.seen, { conversation, through }).then(write => {
       if (write.state === "failed" && seen.current === through) seen.current = 0;
     });
-  }, [client, conversation, visible, canSend]);
+  }, [client, conversation, visible, canReportSeen]);
   useEffect(() => { if (!visible) typing.stop(); }, [visible]);
   async function send() {
     const owner = lifetime.current;
@@ -74,8 +78,8 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
     finally { if (owner.active) { owner.admitting = false; setSubmitting(undefined); } }
   }
   return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
-    <Text accessibilityRole="header">{"data" in room && room.data ? room.data.title : "Conversation"}</Text>
-    <ReadState read={room} /><Text>{link}</Text>
+    <Text accessibilityRole="header">{isReady(room) && room.presence === "present" ? room.data.title : "Conversation"}</Text>
+    <Text>{presence(room) === "loading" ? "Loading…" : presence(room) === "partial" ? "Partial results" : "denied" in room ? room.denied.message : ""}</Text><Text>{link}</Text>
     {/* Composer lives above every transient read and the recycled message list. */}
     <TextInput testID="composer" accessibilityLabel="Message" value={draft} multiline
       onChangeText={text => { setDraft(text); typing.change(text); }} onBlur={typing.stop} />
@@ -89,7 +93,7 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
         setPhoto(current => args.photo?.id ?? current);
       }} attachmentBusy={!!photo} />)}
     <Text>{pending.filter(write => write.args.conversation === conversation).length} pending sends</Text>
-    {!canSend && <Text>Membership unavailable or left: your draft stays here; sending needs a current membership.</Text>}
+    {!canSend && <Text>Membership absent or refused: your draft stays here.</Text>}
     <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
     {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
     <History conversation={conversation} reportSeen={reportSeen} select={setSelected} />
@@ -135,7 +139,7 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
   const byId = new Map("data" in receipts ? receipts.data.map(row => [row.id, row.receipt]) : []);
   const next = "data" in history ? history.next : null;
   return <View>
-    <ReadState read={history} /><ReadState read={receipts} />
+    <Text>{presence(history) === "loading" ? "Loading…" : presence(history) === "partial" ? "Partial results" : "denied" in history ? history.denied.message : ""}</Text><Text>{presence(receipts) === "loading" ? "Loading…" : presence(receipts) === "partial" ? "Partial results" : "denied" in receipts ? receipts.denied.message : ""}</Text>
     {"data" in history && <FlatList testID={c ? `history-${c}` : "history"} data={rows} keyExtractor={row => row.id} onViewableItemsChanged={onViewableItemsChanged}
       renderItem={({ item: row }) => <View testID={`message-${row.id}`}>
         <Text>{row.text}{row.pending ? " · Sending…" : byId.has(row.id) ? ` · ${byId.get(row.id)}` : ""}</Text>
@@ -149,13 +153,13 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
 export function OnceViewer({ message, asset, onClose }: { message: string; asset: string; onClose(): void }) {
   const media = useOnceMedia();
   const row = useQuery(api.messagePhoto, { id: message }, { keep: false });
-  const invalid = "denied" in row || ("data" in row && (!row.data || row.data.photo?.id !== asset));
+  const invalid = presence(row) === "denied" || presence(row) === "absent" || (isReady(row) && row.presence === "present" && row.data.photo?.id !== asset);
   const ended = useRef(false); ended.current ||= invalid;
   useEffect(() => { if (invalid) { media.close(); onClose(); } }, [invalid, media.close, onClose]);
   return <View testID="once-viewer">
     <Button title="Close photo" onPress={() => { media.close(); onClose(); }} />
     {media.view?.url ? <Image accessibilityLabel="Once photo" source={{ uri: media.view.url }} style={{ width: 240, height: 240 }} /> :
-      <Button title="Open media" disabled={!!media.view || ended.current || !("data" in row) || row.revalidating} onPress={() => void media.open(asset)} />}
+      <Button title="Open media" disabled={!!media.view || ended.current || !isReady(row) || row.presence !== "present" || row.revalidating} onPress={() => void media.open(asset)} />}
     <Text>{media.view?.problem}</Text>
   </View>;
 }

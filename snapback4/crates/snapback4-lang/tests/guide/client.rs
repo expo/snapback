@@ -60,3 +60,25 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
     assert!(!bound.notes.is_empty());
     assert!(bound.notes.iter().all(|note| note.code == "N_HELD_UNKNOWN" && note.message.contains("searchHeld")), "{:?}", bound.notes);
 }
+
+#[test]
+fn presence_card_and_starters_teach_the_sdk_words() {
+    let client = card("client").unwrap();
+    for word in ["`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "member === \"absent\""] {
+        assert!(client.contains(word), "client missing {word}");
+    }
+    assert!(client.split_whitespace().count() <= 1200, "keep the client card concise");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../snapback4/src/verbs/init");
+    fn visit(path: &std::path::Path) {
+        for entry in std::fs::read_dir(path).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() { visit(&path); }
+            else if path.extension().is_some_and(|ext| ext == "ts" || ext == "tsx") {
+                let source = std::fs::read_to_string(&path).unwrap();
+                assert!(!source.contains("\"loading\" in") && !source.contains("'loading' in"), "{} bypasses SDK presence", path.display());
+                assert!(!source.contains("ReadState"), "{} copies a private read classifier", path.display());
+            }
+        }
+    }
+    visit(&root);
+}

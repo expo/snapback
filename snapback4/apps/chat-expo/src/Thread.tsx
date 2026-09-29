@@ -1,3 +1,4 @@
+import { presence } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { mintId } from "snapback4/client";
@@ -66,9 +67,9 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
       <Button title="Back" onPress={onBack} />
       {"data" in read && !read.fresh ? <Text style={styles.note}>As of {read.since ? new Date(read.since).toLocaleTimeString() : "the last sync"}</Text> : null}
     </View>
-    {"loading" in read ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
+    {presence(read) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
     {"denied" in read ? <Text style={styles.alert}>{read.denied.message}</Text> : null}
-    {"data" in read && !read.complete ? <Text style={styles.note}>History may be incomplete.</Text> : null}
+    {presence(read) === "partial" ? <Text style={styles.note}>History may be incomplete.</Text> : null}
     <FlatList inverted data={"denied" in read ? [] : items}
       keyExtractor={message => message.id} onEndReached={hasMore ? loadMore : undefined}
       renderItem={({ item }) => <View style={[styles.bubble, item.authorId === viewer ? styles.own : null, item.pending ? styles.pending : null]}>

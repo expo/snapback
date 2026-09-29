@@ -1,3 +1,4 @@
+import { presence } from "snapback4/contract";
 import { useEffect, useState } from "react";
 import { createLocalClient, type LocalClient } from "snapback4/local";
 import { localStorageSessionStore } from "snapback4/auth";
@@ -93,19 +94,15 @@ function Home({ view, persona, leave }: { view: ViewState; persona: string | nul
 
 function Room({ conversationId, view }: { conversationId: string; view: ViewState }) {
   const room = useQuery(api.room, { conversationId });
-  const link = useLink();
-  // A direct held lookup opens a room even when it is beyond the inbox page.
-  // No create mutation or global sync barrier belongs on this navigation path.
-  const held = "data" in room && room.data.conversation && room.data.membership;
-  let content;
-  if ("data" in room && room.data.conversation && room.data.membership) content = <>
-    <h2>{room.data.conversation.title}</h2>
-    {!room.complete && <p>Some room information is not available on this device.</p>}
+  const member = presence(useQuery(api.myMembership, { conversationId }));
+  // These memberships have no horizon and share the messages' group/audience.
+  // First acquisition is loading, never denial; the route keeps owning its draft.
+  return <>
+    <h2>{"data" in room && room.presence === "present" ? room.data.conversation?.title ?? "Conversation" : "Conversation"}</h2>
+    {presence(room) === "loading" && <p role="status">Checking this room…</p>}
+    {presence(room) === "partial" && <p role="status">Some room information is not available on this device.</p>}
+    {"denied" in room && <p role="alert">{room.denied.message}</p>}
     <Thread conversationId={conversationId} />
+    <Composer conversationId={conversationId} view={view} canCompose={member !== "absent" && member !== "denied"} />
   </>;
-  else if (link === "offline" || ("data" in room && !room.complete)) content = <p role="status">This room is not available on this device. Reconnect to check; it may still exist.</p>;
-  else if ("loading" in room) content = <p role="status">Checking this room…</p>;
-  else content = <p role="alert">{"denied" in room ? room.denied.message : "No accessible room was found in the current read."}</p>;
-  // Receipts remain visible even if this room's membership is revoked.
-  return <>{content}<Composer conversationId={conversationId} view={view} canCompose={!!held || "loading" in room} /></>;
 }

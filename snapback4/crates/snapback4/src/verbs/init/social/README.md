@@ -50,9 +50,12 @@ and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
 SDK's default one-second `revalidating` retention; no application cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
-Membership and receipt decorations withdraw immediately. Missing membership
-keeps the draft and disables send; stale/retained/revalidating rows never grant
-authority. The server still checks every action. Account change clears UI
+Membership and receipt decorations withdraw immediately. The no-horizon
+membership table shares the messages' audience within the conversation's group.
+After that group's first acquisition, its membership read proves `present` or
+`absent` even offline. `loading` is first acquisition; `loading`/`partial` keep
+send enabled. Membership `absent` or `denied` disables send and keeps the draft.
+Retained rows grant no authority; the server checks every action. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
 `seen`. Receipts appear on each bubble, using the same cursor as its history

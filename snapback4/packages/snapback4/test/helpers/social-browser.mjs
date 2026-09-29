@@ -67,7 +67,10 @@ const raw = ownerApp.client;
 await raw.sync();
 const peer = createClient({ url, token: bob.token });
 const other = createClient({ url, token: carol.token });
-const ready = (data, extra = {}) => ({ data, complete: true, fresh: true, cut: null, next: null, ...extra });
+const ready = (data, extra = {}) => {
+  const read = { data, complete: true, fresh: true, cut: null, next: null, ...extra };
+  return { ...read, presence: data !== null && !(Array.isArray(data) && !data.length) ? "present" : read.complete && read.cut === null && read.next == null ? "absent" : "partial" };
+};
 window.observations = [];
 let session = alice, currentRaw = raw;
 const values = new Map([
