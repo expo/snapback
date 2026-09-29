@@ -1,0 +1,115 @@
+{
+  "exit": 0,
+  "started": "2026-09-29T04:10:30Z",
+  "ended": "2026-09-29T04:45:11Z",
+  "log_sha256": "4288573a37a4e50e2a4fee82e9a5376e5cfba9c275a6660e39585c8357d6c1be",
+  "rust": {
+    "passed": 4305,
+    "failed": 0,
+    "ignored": 33
+  },
+  "fixtures": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "clients": {
+    "tests": 4868,
+    "pass": 4858,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "stages": [
+    [
+      "cargo build",
+      "2"
+    ],
+    [
+      "wasm build",
+      "0"
+    ],
+    [
+      "docs budget",
+      "2"
+    ],
+    [
+      "release guard",
+      "3"
+    ],
+    [
+      "package typecheck",
+      "2"
+    ],
+    [
+      "package build",
+      "3"
+    ],
+    [
+      "chat app check",
+      "0"
+    ],
+    [
+      "cargo test",
+      "661"
+    ],
+    [
+      "chat app typecheck",
+      "1"
+    ],
+    [
+      "expo app typecheck",
+      "1"
+    ],
+    [
+      "fixture wrapper tests",
+      "12"
+    ],
+    [
+      "client tests",
+      "1083"
+    ],
+    [
+      "client models",
+      "308"
+    ]
+  ],
+  "suite_seconds": 2064,
+  "sampled_memory_peak_bytes": 16662876160,
+  "selected_durations": [
+    {
+      "test": "web admission review: recovery and transport respect the session boundary",
+      "seconds": 128.801113586
+    },
+    {
+      "test": "a peer logout commits before the next lock holder and refuses a click captured from a stale mirror",
+      "seconds": 1.0842749839999999
+    },
+    {
+      "test": "online session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "seconds": 89.56538587899999
+    },
+    {
+      "test": "local session state machine preserves I1\u2013I13 across 5,000 seeded three-runtime sequences",
+      "seconds": 147.510308614
+    },
+    {
+      "test": "online clients preserve R1\u2013R6 across 3,000 seeded interleavings",
+      "seconds": 67.043699311
+    }
+  ],
+  "wasm": [
+    "2042203",
+    "593573",
+    "593719"
+  ]
+}

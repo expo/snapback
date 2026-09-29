@@ -174,7 +174,7 @@ impl DevWorker {
             PathBuf::from(path).canonicalize().map_err(|e| e.to_string())?.parent().ok_or("store parent")?.join(format!("worker-ledger-{namespace}.sqlite"))
         };
         let worker = Self { name: None, family: None, ledger, project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, worker_pid: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
-        crate::lifecycle::worker_cleanup();
+        crate::lifecycle::managed_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
         Ok(worker)
     }

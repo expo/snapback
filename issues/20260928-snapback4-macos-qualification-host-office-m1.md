@@ -87,13 +87,21 @@ M1 Max; probe load before assigning either.
    run on Linux and imports the result. Copy `receipt.json` and
    `snapback4-linux-x64-0.4.8.tgz` back into the M1 worktree's
    `snapback4/target/incoming/linux-0.4.8/`.
-3. `VERSION=… PUBDATE=… ATTEMPT=1 bash dryrun-when-quiet.sh` (or
+3. Once calibration is idle, prewarm tests **inside the bumped publication
+   worktree's `snapback4/` directory** with
+   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.
+   Use the dry run's Rust toolchain, target directory, default test profile,
+   features, `RUSTFLAGS` and Cargo profile environment. Do not add `--release`
+   or `--profile production`; those do not warm the suite's test artifacts.
+   This executes no tests and produces no qualification receipt. Then run
+   `VERSION=… PUBDATE=… ATTEMPT=1 bash dryrun-when-quiet.sh` (or
    `run-dryrun.sh` directly when the M1 is quiet), then `run-finish.sh`, which
    publishes and verifies the registry.
 4. Land the publication record as before. The M5 kit remains as the fallback
    host; nothing there was changed.
 
-Close this ticket when the 0.4.8 record on main names the M1 as its host.
+Close this ticket when the first subsequent publication record on main names
+the M1 as its host.
 
 ## 2026-09-28 — 0.4.8 on the M1: the suite does not pass here yet; published from the M5 fallback
 
@@ -108,3 +116,38 @@ Before the next M1 cut:
 1. The two Rust tests are made host-tolerant on main (the replay property is "wakes without a schedule tick", now bounded at 60 s with jobs asserted empty; the rate test re-drains its bucket before each request).
 2. The client test files that time out at 10 cores need their own fixes or a documented per-host concurrency for the publication run (the dry run unsets `SNAPBACK4_TEST_SERIAL_CLIENT_FILES`; decide whether publication may set a lower concurrency on smaller hosts without weakening the suite).
 3. Warm `cargo test --workspace --no-run` in the publication worktree before the dry run; compiling tests took most of an hour on the M1.
+
+
+## 2026-09-29 — Lane MT: ten-CPU suite qualification and test warm-up
+
+The full source suite passed twice on Linux restricted to CPUs 0–9, then once
+unpinned, with a 64 GiB memory cap and swap disabled: **2,064 s, 2,080 s and
+1,254 s**, respectively. The publication concurrency overrides were unset.
+Each run passed 4,305 Rust tests, 4,858 client tests, 79 model tests and nine
+fixture-wrapper tests; the same 33 Rust ignores and ten conditional client
+skips remain. No failures or cancellations in final qualification.
+
+`scripts/test.sh` now gives all ordinary client files one CPU-derived pool:
+`max(1, min(24, floor(os.availableParallelism() / 3)))`, or three slots on ten
+CPUs and 24 on 96. Acquisition/server-e2e no longer add seven shard processes
+outside that pool. Rust and full-count serial models retain their stages.
+Three existing retention/reset fixture races were reproduced and corrected
+without changing product code, assertions or timeouts: valid isolation reads,
+event capture for transient replacement notifications, and complete synthetic
+query evidence. The original Linux baseline was green; the historical M1
+file-level timeouts did not reproduce here. All diagnostic failures and their
+classifications are in the [Lane MT report](../snapback4/reports/20260929-mt-ten-core-suite/REPORT.md).
+
+The warm-up command in step 3 is compatible with the suite's authoritative
+Cargo inventory. On this host the cold inventory took 423 s; a subsequent
+`cargo test --workspace --no-run` reused all 273 test binaries in 0.25 s wall
+time. It must use the bumped publication worktree and matching build inputs;
+it supplies no test result or publication receipt. Wasm was byte-identical to
+the rebuilt baseline: 2,042,203 B raw / 593,573 B gzip-9, under the unchanged
+593,719 B cap.
+
+The M1 was neither contacted nor loaded; no artificial ambient memory pressure
+was introduced on Linux. This result does not qualify Darwin or those skipped
+conditional lanes. The ticket remains **Open** for the actual M1 publication
+record after calibration is idle. This lane committed locally only; no push
+or publication.
