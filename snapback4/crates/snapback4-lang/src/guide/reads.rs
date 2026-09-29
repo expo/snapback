@@ -55,33 +55,23 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-By default, online observations withdraw stale answers, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
-By default, a local observation may keep its previous answer with `fresh: false` and `since`
-only during an unavailable device read's server fallback, ending at fetch
-settlement or any local commit, reset, adoption, generation, account change or close.
+Same-key observations retain their last answer marked `revalidating` during
+plain refetch, reconnect and transport failure. Omitted `keep` and `keep: true`
+share this policy; `keep: false` withdraws immediately. Known change evidence
+starts a nonrenewable one-second bound when the replacement attempt begins;
+failure or timeout withdraws, and a later accepted answer can still publish.
+A notified cut keeps older replica answers ineligible until sync publishes it.
+A whole server answer at that cut may replace sooner. Expiry, sign-out,
+credential, store, schema and generation resets still withdraw immediately.
+`fresh` and `since` describe server freshness, independently of revalidation.
+With `keep: true`, a watch also lingers for 30 seconds after its last subscriber
+leaves, sharing the same observation, expiry, invalidation and reset fences.
+Local commits still revalidate it while unmounted; account/backend changes,
+`clear_rows`, `settle_exit`, ephemeral resets and close end its authority.
+See `guide client` for the complete retention and screen-lifetime recipe.
 A ready list read always carries an array; an absent point can still be null.
 `usePage` returns `items: []` while its first page is loading; earlier pages
 remain visible while a later page is unavailable.
-
-For screens that must not unmount on a transient reload, opt in with
-`useQuery(op, args, { keep: true })` or `usePage(op, args, { keep: true })`.
-Both clients keep the last published answer during loading with `fresh: false`
-and its `since`; a new answer or refusal replaces it. A kept answer may still
-show rows a revocation withdrew until the re-read lands. This is an application
-presentation choice, not evidence that the rows remain authorized.
-`client.observe(op, args, { keep: true })` is the same option without React.
-With `keep: true`, a watch lingers for 30 seconds after its last subscriber
-leaves. It keeps its live subscription, expiry timers and place in every reset,
-invalidation, ephemeral adoption and schema installation. A new opted-in
-subscriber with the same operation, arguments, viewer and store incarnation
-joins the watch's current snapshot, with its `fresh` and `since`. After 30 seconds
-without a subscriber it closes. Sign-out, credential or viewer changes, store
-replacement or adoption, and client `close` end a lingering watch at once.
-`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
-schema installation reset lingering watches like active ones before notifying.
-There is no separate store of retired answers. Lingering local watches re-run
-on commits; observation memory and normal background work continue while
-unmounted. Without `keep`, behavior is unchanged.
 
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
@@ -125,6 +115,15 @@ moves backward; `null` never expires. The hook cleans up on unmount.
 For typing and viewing indicators, use an ephemeral table (`guide ephemeral`,
 also `guide typing`). Keep its server query separate from the device-held
 chats list. The expiring-rows recipe above is for durable disappearing messages.
+
+## Measure live propagation
+
+Mounted reads wake from `/changes`, sync and re-evaluate affected queries, including parent and authorization dependencies.
+2026-09-29 loopback measurements (20 repetitions/flow, 20 mounted message rows, Linux debug server): commit-to-answer p95 24–67 ms with Chromium wasm, 33–84 ms with the process device.
+Four CPUs plus three busy workers: 31–66 ms and 47–119 ms. This reduced chat fixture is not a service guarantee.
+Measure two signed-in clients with queries mounted: record sender invocation, `sent` acknowledgement, changed `observe` snapshot, React `useLayoutEffect` and image `onLoad` separately.
+Acknowledgement follows commit; `waitSeconds: 0` measures custody. Inspect `/changes`, `/sync` and query requests in Network to separate transport from application work.
+Measure media upload, download and decoding separately. Repeat at least 20 times, idle and under CPU contention on your target.
 
 ## Nullable predicates and enum lanes
 

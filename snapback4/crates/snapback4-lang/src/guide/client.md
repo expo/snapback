@@ -84,7 +84,7 @@ decorations separate when including them would withhold the main list.
 
 ## Measure cold acquisition
 
-Use `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
+Use `guide reads` for live propagation measurements; `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
 
 ## Acknowledgements and receipts
 

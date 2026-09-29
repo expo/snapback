@@ -66,8 +66,12 @@ for (const host of ['process', 'wasm']) for (const name of ['item', 'mixed']) fo
     let now = Date.now(); t.mock.method(Date, 'now', () => now);
     const seen = []; watch.subscribe(() => seen.push(watch.getSnapshot()));
     failing = true; change.release.resolve(); await sync.arrived.promise;
-    await until(() => replicaReads > 0); await delay(20);
-    if (failure === 'readable' && keep !== false) {
+    // A known local answer now parks below the notified cut instead of
+    // repeatedly evaluating the old replica (including one that would throw).
+    if (keep !== false) await until(() => typeof episodeDeadline(watch.getSnapshot()) === 'number');
+    await delay(20);
+    assert.equal(replicaReads, 0, 'pending-cut observations do not evaluate the old replica');
+    if (keep !== false) {
       const read = watch.getSnapshot();
       assert.equal(read.revalidating, true, 'old replica answer cannot settle the notification');
       assert.equal(typeof episodeDeadline(read), 'number');

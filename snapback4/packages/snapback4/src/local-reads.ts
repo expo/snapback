@@ -34,6 +34,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  /** A previously local answer is waiting for its notified cut to apply. */
+  waitingForSync?: boolean;
   answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
@@ -163,11 +165,29 @@ export class LocalReads {
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
+  // @ref LLP 3000.023#10 — start the episode but release work below its pending cut.
+  // Sync publication resumes local answers, including disjoint applied footprints.
+  // Server-backed reads can qualify immediately and keep their existing path.
+  deferUntilSync(watch: LocalWatch, acquired: boolean): boolean {
+    if (watch.kept) watch.reload();
+    if (acquired && watch.changeCut !== undefined && watch.serverRead === false) {
+      watch.waitingForSync = true;
+      return true;
+    }
+    delete watch.waitingForSync;
+    return false;
+  }
+
   // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
-  applied(watches: Iterable<LocalWatch>, watermark: number): void {
-    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    const ready: LocalWatch[] = [];
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) {
+      delete watch.changeCut;
+      if (watch.waitingForSync) { delete watch.waitingForSync; ready.push(watch); }
+    }
+    return ready;
   }
 
   current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
@@ -191,7 +211,7 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) delete watch.changeCut;
+      if (reset) { delete watch.changeCut; delete watch.waitingForSync; }
       if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);

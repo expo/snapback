@@ -78102,3 +78102,50 @@ The black M5's 0.4.9 dry run ran lanes PQ and WK on macOS for the first time and
 Verified on the M5 (macOS, Node 24.18.0) and eb1000 (Linux, Node 24.13.1): per-row-retry 15/15,
 per-row-liveness 17/17, supervised-workers 5/5, snapshot regressions 2/2. 0.4.9 is re-cut from the
 main that includes this fix.
+
+
+## 2026-09-29 — LL round 0: measured live propagation
+
+Lane `sb4-intent/ll-live-latency`, from `a5e690077a4474eebc0f9dfeb26f7fc1e60d792f`.
+Built a public-SDK two-session harness with Chromium wasm, process devices,
+React commits and media readiness. Twenty repetitions per flow/configuration,
+including idle and four CPUs with three busy workers: 2,240 actions across 14
+before/after/control configurations, no measurement timeouts. Complete timestamps,
+p50/p95 distributions, input hashes, causal regressions and rerunnable tools are
+in `reports/20260929-ll-live-latency/REPORT.md` and its `tools/` directory.
+
+An acquired local observation below its notified cut now starts the existing
+bounded episode and parks until sync publication, releasing queue capacity.
+Publication wakes it even when an unknown notification resolves to a disjoint
+footprint. Whole server answers still qualify immediately; all consistency,
+completeness, scope and retention fences remain. Retained media carries the
+interpreter's full home-read dependencies, including authorization tables, and
+skips redundant checks only for confirmed, unexpired homes on known disjoint
+writes. Unknown footprints, legacy metadata, resets and expiry still recheck.
+The design is recorded in LLP 3000.023 §10 and LLP 3000.019 §3.5.
+
+With the builder's viewed-media setting, final commit-to-answer p95 across all
+eight flows is at most 66.226 ms wasm / 83.178 ms process idle, and 65.879 ms /
+118.846 ms under contention. Idle process reaction-add p95 fell from 141.598 to
+44.975 ms; its pre-apply query count fell to zero. Photo rows meet the 300 ms
+bound; bytes/decoding are measured separately. The original M1/0.4.8 multi-second
+UI stalls were not reproduced. The reduced fixture, process browser-bridge
+cost, direct local client, and copied baseline wasm provenance limit attribution;
+the report states each limitation. The reads card now gives measured scope and
+measurement steps at 236 lines; the client card remains within 130 lines.
+
+Ran `scripts/test.sh` exactly once: `== 1 failure(s) in 1555 s`, exit 1.
+Its `client tests` stage had 5,214 passes, one await-census failure and two
+mixed-evidence timeout cancellations (10 existing skips). All three were ours:
+update the changed media await's classification record, and replace waits for
+obsolete pre-sync reads with assertions that the owner parks. The timed-out
+worker was stopped after both timeouts to let the script finish. Full failure
+names, termination and earlier corrected test/guide failures are in FAILURES.md.
+Rust: 4,323 passed, 33 declared ignores; the serial model stage passed 79/79.
+Whole guide: 99/99. Final SDK build/typecheck and affected validation: 797/797,
+including all 160 delivery-fault site pairs and 300 mixed histories per host,
+zero failed seeds. No counts, timeouts or safety limits were weakened.
+
+The final synchronous policy extraction into LocalReads keeps local.ts at its
+1,500-line cap. Final wasm is 2,040,727 B raw / 592,959 B gzip, 760 B below the
+unchanged 593,719 B cap. No public contract change, push or publication.
