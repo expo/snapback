@@ -20,7 +20,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 // and applies at most once, and waits as `pending` while the link is down.
 // Every word a screen reads is on the card (contract.ts).
 
-import { ReadObservation, answerIdentity } from "./read-observation.ts";
+import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
@@ -698,12 +698,13 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.5 — every option follows the reset fence; retention never renews an episode.
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
-    const startedWith = answerIdentity(watch.snapshot);
     let exhausted = false, retryExpired = false;
     try {
       const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, revalidate: watch.kept || !("data" in watch.snapshot), accept: result => {
         if (signal.aborted) return true;
         if (result.deadlineWithdrawn?.()) return true;
+        // Due bodies return to the paced queue without exhausting the sequence retry round.
+        if (result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) return true;
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
         if (!result.transportOffline) scheduleExpiry(watch, result.nextExpiry);
@@ -716,8 +717,7 @@ export function createClient(options: ClientOptions): Client {
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
-        if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()
-          && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) { retryExpired = true; return; }
+        if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) { retryExpired = true; return; }
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);

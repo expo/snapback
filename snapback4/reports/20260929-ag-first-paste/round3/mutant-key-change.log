@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 5.64s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test upsert_advice_withholds_key_changing_patches ... FAILED
+
+failures:
+
+---- upsert_advice_withholds_key_changing_patches stdout ----
+
+thread 'upsert_advice_withholds_key_changing_patches' (3832442) panicked at crates/snapback4-lang/tests/first_paste.rs:190:5:
+a different stable principal must not receive advice: ResidencySite { site: "schema.q:31:10 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs held key coverage and additional read work, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji, principal: other }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, principal: other, message: message })" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    upsert_advice_withholds_key_changing_patches
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

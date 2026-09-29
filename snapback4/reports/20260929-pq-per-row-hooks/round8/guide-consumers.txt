@@ -1,0 +1,54 @@
+crates/snapback4/src/main.rs:102:                Some(keyword) => match guide::card(keyword) {
+crates/snapback4/src/verbs.rs:887:        println!("{}", snapback4_lang::guide::card("receipts").expect("receipts card"));
+crates/snapback4/tests/fix.rs:360:        assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), snapback4_lang::guide::card(target).unwrap().trim_end());
+crates/snapback4/tests/scale_row_ranges.rs:110:    let guide = snapback4_lang::guide::card("maintains").unwrap();
+crates/snapback4/tests/check.rs:146:        assert!(text.lines().any(|line| line.starts_with('#') && snapback4_lang::guide::card(keyword).unwrap().lines().any(|heading| heading == line)));
+crates/snapback4/tests/check.rs:1188:    let paragraph = snapback4_lang::guide::card("actions").unwrap().split("\n\n").find(|p| p.starts_with("E_SERVER_TOOLCHAIN means ")).unwrap();
+crates/snapback4/tests/check.rs:1352:    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("likeCount: count likes\n")).unwrap();
+crates/snapback4/tests/scale.rs:140:    let bounds = flat(guide::card("bounds").unwrap());
+crates/snapback4/tests/scale.rs:342:    for source in guide::quarry(guide::card("bounds").unwrap()) {
+crates/snapback4-sim/tests/digest/mod.rs:424:    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("jobs").unwrap()).into_iter()
+crates/snapback4/tests/clock.rs:237:    assert_eq!(snapback4_lang::guide::card("clock"), snapback4_lang::guide::card("jobs"));
+crates/snapback4-sim/tests/search_directory/mod.rs:6:    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).remove(0);
+crates/snapback4-lang/tests/constraint_diagnostics.rs:121:    guide::quarry(guide::card("writes").unwrap()).into_iter()
+crates/snapback4-lang/tests/list_reference_repair.rs:47:    let card = guide::card("types").unwrap();
+crates/snapback4-lang/tests/held_unknown.rs:30:        let source = guide::quarry(guide::card(card).unwrap()).into_iter()
+crates/snapback4-lang/tests/held_unknown.rs:191:        for source in guide::quarry(guide::card(name).unwrap()).into_iter().filter(|source| source.contains(" held:")) {
+crates/snapback4-lang/tests/residency_notes.rs:40:    assert!(snapback4_lang::guide::card("sync").unwrap().split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
+crates/snapback4-lang/tests/residency_notes.rs:164:    let source = snapback4_lang::guide::card("prediction").unwrap();
+crates/snapback4-lang/tests/residency_notes.rs:289:    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap()).remove(0);
+crates/snapback4-lang/tests/aggregate_copies.rs:149:    let section = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").unwrap().1;
+crates/snapback4-lang/tests/aggregate_copies.rs:156:    assert!(guide::card("maintains").unwrap().ends_with(section));
+crates/snapback4-lang/tests/aggregate_copies.rs:170:    let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
+crates/snapback4-lang/tests/aggregate_copies.rs:233:    guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
+crates/snapback4-lang/tests/aggregate_copies.rs:456:    let source = guide::quarry(guide::card("maintains").unwrap()).into_iter().find(|block| block.contains("table ranked:") && block.contains("update (old, next) <- exists likeCounts")).unwrap();
+crates/snapback4-lang/tests/guide.rs:37:        let card = snapback4_lang::guide::card(name).unwrap();
+crates/snapback4-lang/tests/guide.rs:42:    assert!(snapback4_lang::guide::card("presence").unwrap().contains("In tests: `snapback4 clock advance 36s`"));
+crates/snapback4-lang/tests/attribution_guide.rs:7:    snapback4_lang::guide::quarry(snapback4_lang::guide::card("maintains").unwrap()).into_iter()
+crates/snapback4-lang/tests/maintains.rs:221:    let maintains = snapback4_lang::guide::card("maintains").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+crates/snapback4-lang/tests/search_guidance.rs:6:    let card = snapback4_lang::guide::card("search").unwrap();
+crates/snapback4-lang/tests/row_keyed_views.rs:715:                let card=snapback4_lang::guide::card("maintains").unwrap();
+crates/snapback4-lang/tests/presence.rs:17:    for (source, name) in [(guide::quarry(guide::card("effects").unwrap()).remove(0), "send"), (guide::language(), "sendBrief")] {
+crates/snapback4-lang/tests/written_by.rs:102:    let card = guide::card("writes").unwrap();
+crates/snapback4-lang/tests/server_opt_in.rs:167:    for name in ["actions", "routes"] { assert!(guide::card(name).unwrap().contains("use server")); }
+crates/snapback4-lang/tests/server_opt_in.rs:168:    let services = guide::card("services").unwrap();
+crates/snapback4-lang/tests/own_keys.rs:91:    let card = snapback4_lang::guide::card("offline-interactions").unwrap();
+crates/snapback4-lang/tests/audience_bounds.rs:158:        contains(snapback4_lang::guide::card(keyword).unwrap(), &["offline", "horizon"]);
+crates/snapback4-lang/tests/routes.rs:104:    let card = snapback4_lang::guide::card("routes").unwrap();
+crates/snapback4-lang/tests/effect_reads.rs:107:    let blocks = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap());
+crates/snapback4-lang/tests/receipt_gaps.rs:6:    guide::quarry(guide::card("sequences").unwrap()).into_iter()
+crates/snapback4-lang/tests/receipt_gaps.rs:33:        assert_eq!(guide::card(phrase), guide::card("sequences"), "{phrase}");
+crates/snapback4-lang/tests/receipt_gaps.rs:41:    let card = guide::card("receipt gap expiring messages").unwrap();
+crates/snapback4-lang/tests/receipt_gaps.rs:190:    assert!(guide::card("sequences").unwrap().contains("prefix justifies advancing a receipt only after the caller's own authority check"));
+crates/snapback4-device/tests/readauth/outcomes.rs:184:fn app_card() -> String { snapback4_lang::guide::quarry(snapback4_lang::guide::card("app").unwrap())[0].clone() }
+crates/snapback4-device/tests/readauth/outcomes.rs:185:fn writes_card() -> String { format!("{}\n{}",language(),snapback4_lang::guide::quarry(snapback4_lang::guide::card("writes").unwrap())[0]) }
+crates/snapback4-device/tests/presence/effect_reads.rs:14:    let block = snapback4_lang::guide::quarry(snapback4_lang::guide::card("prediction").unwrap())[1].clone();
+crates/snapback4-device/tests/presence/mod.rs:70:            let source = format!("{}\nquery message(id: messages):\n  return messages[id]\nquery online(p: principal):\n  return connected[p]\n", snapback4_lang::guide::quarry(snapback4_lang::guide::card("effects").unwrap())[0]);
+crates/snapback4-device/tests/readauth/census.rs:42:        for (n, block) in guide::quarry(guide::card(name).unwrap()).iter().enumerate() {
+crates/snapback4-lang/tests/guide/recovery.rs:21:    let card = snapback4_lang::guide::card("effects").unwrap();
+crates/snapback4-lang/tests/guide/recovery.rs:32:    let card = snapback4_lang::guide::card("effects").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+crates/snapback4-lang/tests/ephemeral.rs:448:    let card = snapback4_lang::guide::card("ephemeral").unwrap();
+crates/snapback4-device/tests/unread_range.rs:260:    let guide = snapback4_lang::guide::card("maintains").unwrap();
+crates/snapback4-lang/tests/guide/intent.rs:59:    let source = quarry(snapback4_lang::guide::card("jobs").unwrap()).into_iter().find(|source| source.contains("fn unreadIn(")).unwrap();
+crates/snapback4-device/tests/guide_examples/mod.rs:10:    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("ephemeral").unwrap())
+crates/snapback4-device/tests/guide_examples/mod.rs:46:    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).remove(0);

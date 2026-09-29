@@ -1,0 +1,10 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+error[E0608]: cannot index into a value of type `&snapback4_core::Value`
+  --> crates/snapback4-device/tests/first_paste.rs:33:78
+   |
+33 |             let ids: Vec<_> = q.data.as_array().unwrap().iter().map(|row| row["id"].clone()).collect();
+   |                                                                              ^^^^^^
+
+For more information about this error, try `rustc --explain E0608`.
+error: could not compile `snapback4-device` (test "first_paste") due to 1 previous error

@@ -81,6 +81,10 @@ function ConversationList() {
 `inboxCards` is your application's query and fields. Keep server-needing
 decorations separate when including them would withhold the main list.
 
+## Measure cold acquisition
+
+Use `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
+
 ## Acknowledgements and receipts
 
 Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.

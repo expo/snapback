@@ -1,0 +1,312 @@
+{
+  "before": {
+    "samples": [
+      {
+        "profile": "before.json.default.0.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:15:40.194Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            12.46,
+            14.54,
+            16.36
+          ],
+          "freeMemory": 251018579968,
+          "stat": "cpu  607888807 3131212 175670330 28180451059 13093555 0 369088 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.09 avg300=0.45 total=7097517933\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 4016.311000000025,
+          "other wasm": 51.187999999999995,
+          "other wasm JSON encode/decode": 128.24099999999996,
+          "drain encoding": 58.54400000000001,
+          "staging other": 80.58900000000003,
+          "coverage": 3.1900000000000004,
+          "commit encoding": 78.85899999999995,
+          "publication other": 128.5709999999999,
+          "row and index construction": 43.907000000000004
+        }
+      },
+      {
+        "profile": "before.json.default.1.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:15:45.577Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            12.58,
+            14.53,
+            16.35
+          ],
+          "freeMemory": 249677684736,
+          "stat": "cpu  607896108 3131212 175671351 28180494203 13093590 0 369090 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.08 avg300=0.44 total=7097525960\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 4821.81500000007,
+          "other wasm JSON encode/decode": 129.77500000000006,
+          "other wasm": 48.427,
+          "drain encoding": 56.62499999999999,
+          "staging other": 75.69599999999998,
+          "coverage": 3.2119999999999997,
+          "commit encoding": 77.04599999999999,
+          "publication other": 124.15899999999999,
+          "row and index construction": 57.24499999999998
+        }
+      },
+      {
+        "profile": "before.json.default.2.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:15:51.685Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            19.59,
+            16.01,
+            16.82
+          ],
+          "freeMemory": 249388707840,
+          "stat": "cpu  607906685 3131212 175673074 28180540197 13093612 0 369094 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.07 avg300=0.43 total=7097550081\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 4786.655000000036,
+          "other wasm": 47.705999511718744,
+          "other wasm JSON encode/decode": 143.439,
+          "drain encoding": 55.433,
+          "staging other": 81.23999999999995,
+          "coverage": 2.102,
+          "commit encoding": 74.60499999999999,
+          "publication other": 135.26600000000002,
+          "row and index construction": 46.85400000000001
+        }
+      },
+      {
+        "profile": "before.json.default.3.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:15:57.757Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            19.06,
+            15.96,
+            16.8
+          ],
+          "freeMemory": 249480970240,
+          "stat": "cpu  607914447 3131212 175674212 28180589442 13093615 0 369097 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.06 avg300=0.42 total=7097559439\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 4028.5339995117574,
+          "other wasm": 44.84200000000001,
+          "other wasm JSON encode/decode": 143.23400000000007,
+          "drain encoding": 63.641999999999996,
+          "coverage": 3.1769999999999996,
+          "staging other": 79.39900000000003,
+          "commit encoding": 75.583,
+          "publication other": 121.07,
+          "row and index construction": 57.218999999999994
+        }
+      },
+      {
+        "profile": "before.json.default.4.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:03.046Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            18.65,
+            15.93,
+            16.78
+          ],
+          "freeMemory": 249385684992,
+          "stat": "cpu  607921091 3131212 175674730 28180632954 13093616 0 369098 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.06 avg300=0.42 total=7097565532\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 4098.289000000058,
+          "other wasm": 50.13800000000001,
+          "other wasm JSON encode/decode": 128.93499999999997,
+          "commit encoding": 77.73399999999997,
+          "drain encoding": 58.50500000000002,
+          "coverage": 5.313,
+          "staging other": 75.64500000000001,
+          "publication other": 128.21799999999996,
+          "row and index construction": 54.523
+        }
+      }
+    ],
+    "medianMs": {
+      "commit encoding": 77.04599999999999,
+      "coverage": 3.1900000000000004,
+      "drain encoding": 58.50500000000002,
+      "non-wasm / idle": 4098.289000000058,
+      "other wasm": 48.427,
+      "other wasm JSON encode/decode": 129.77500000000006,
+      "publication other": 128.21799999999996,
+      "row and index construction": 54.523,
+      "staging other": 79.39900000000003
+    }
+  },
+  "after": {
+    "samples": [
+      {
+        "profile": "after.json.default.0.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:10.199Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            18.44,
+            15.93,
+            16.78
+          ],
+          "freeMemory": 251000258560,
+          "stat": "cpu  607930324 3131212 175676527 28180690281 13093641 0 369101 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.05 avg300=0.41 total=7097585778\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 2105.5409999999756,
+          "other wasm": 44.980000000000004,
+          "other wasm JSON encode/decode": 136.237,
+          "drain encoding": 61.74700000000001,
+          "coverage": 4.274,
+          "staging other": 81.04999999999998,
+          "commit encoding": 76.72799999999998,
+          "publication other": 101.567,
+          "row and index construction": 51.176
+        }
+      },
+      {
+        "profile": "after.json.default.1.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:13.503Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            18.08,
+            15.9,
+            16.76
+          ],
+          "freeMemory": 250651537408,
+          "stat": "cpu  607934735 3131212 175677064 28180716877 13093645 0 369102 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.05 avg300=0.40 total=7097592872\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 2109.715999999981,
+          "other wasm": 52.829,
+          "other wasm JSON encode/decode": 130.79500000000004,
+          "drain encoding": 57.575000000000024,
+          "coverage": 4.239,
+          "staging other": 80.59699999999997,
+          "commit encoding": 72.406,
+          "publication other": 115.42799999999995,
+          "row and index construction": 45.51499999999998
+        }
+      },
+      {
+        "profile": "after.json.default.2.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:17.835Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            17.84,
+            15.89,
+            16.75
+          ],
+          "freeMemory": 250770128896,
+          "stat": "cpu  607940052 3131212 175677618 28180752494 13093670 0 369104 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.04 avg300=0.39 total=7097600169\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 2037.0880004882556,
+          "other wasm": 48.61999999999998,
+          "other wasm JSON encode/decode": 131.15099999999987,
+          "drain encoding": 57.378,
+          "staging other": 82.187,
+          "coverage": 3.85499951171875,
+          "commit encoding": 78.57100000000001,
+          "publication other": 116.47300000000004,
+          "row and index construction": 39.177
+        }
+      },
+      {
+        "profile": "after.json.default.3.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:22.022Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            17.53,
+            15.85,
+            16.74
+          ],
+          "freeMemory": 251035381760,
+          "stat": "cpu  607945123 3131212 175678236 28180786838 13093673 0 369105 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.04 avg300=0.39 total=7097605815\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 2056.645999511697,
+          "other wasm": 47.37400000000002,
+          "other wasm JSON encode/decode": 143.70800000000006,
+          "drain encoding": 56.527,
+          "staging other": 84.39800000000001,
+          "coverage": 2.158,
+          "commit encoding": 77.97599999999997,
+          "publication other": 112.53099999999996,
+          "row and index construction": 44.98200000000002
+        }
+      },
+      {
+        "profile": "after.json.default.4.cpuprofile",
+        "host": {
+          "at": "2026-09-29T06:16:25.233Z",
+          "hostname": "expose-builder-pixel",
+          "cpus": 96,
+          "cpu": "AMD EPYC 9454 48-Core Processor",
+          "load": [
+            17.53,
+            15.85,
+            16.74
+          ],
+          "freeMemory": 251024654336,
+          "stat": "cpu  607949205 3131212 175678923 28180812852 13093675 0 369106 0 0 0",
+          "pressure": "some avg10=0.00 avg60=0.04 avg300=0.38 total=7097614517\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+        },
+        "sampledMs": {
+          "non-wasm / idle": 1961.8020004882671,
+          "other wasm": 45.399,
+          "other wasm JSON encode/decode": 126.8179999999999,
+          "drain encoding": 60.65000000000001,
+          "staging other": 76.80100000000002,
+          "coverage": 1.042,
+          "commit encoding": 75.451,
+          "publication other": 109.41300000000001,
+          "row and index construction": 47.824000000000005
+        }
+      }
+    ],
+    "medianMs": {
+      "commit encoding": 76.72799999999998,
+      "coverage": 3.85499951171875,
+      "drain encoding": 57.575000000000024,
+      "non-wasm / idle": 2056.645999511697,
+      "other wasm": 47.37400000000002,
+      "other wasm JSON encode/decode": 131.15099999999987,
+      "publication other": 112.53099999999996,
+      "row and index construction": 45.51499999999998,
+      "staging other": 81.04999999999998
+    }
+  }
+}

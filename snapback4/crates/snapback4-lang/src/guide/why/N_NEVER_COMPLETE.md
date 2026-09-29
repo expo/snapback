@@ -23,3 +23,11 @@ does not need. `first` ascends; `last` descends; id breaks ties. Predicates run
 after the source rule. Parenthesize a nested read with its own modifiers:
 `exists (messages[roomId = .roomId] matching q)`. The named inner key binds
 the outer row's room; inside a predicate, `.` denotes that predicate's row.
+
+A lookup by title does not prove that title unique. Do not add a uniqueness
+constraint unless the product requires it, or pin an id you do not have.
+For a synced table whose read rule depends on its id, the note can print the
+same complete query declaration with `held` added. Paste it over that query
+only if device-only lookup fits the screen: its predicate, order and duplicate
+matches stay the same, but it requires acquired coverage and has no server
+fallback. Otherwise keep the server query and its incomplete absence verdict.

@@ -1,0 +1,23 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 4.89s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test upsert_advice_withholds_effectful_keys_and_patch_values ... FAILED
+
+failures:
+
+---- upsert_advice_withholds_effectful_keys_and_patch_values stdout ----
+
+thread 'upsert_advice_withholds_effectful_keys_and_patch_values' (4155928) panicked at crates/snapback4-lang/tests/first_paste.rs:135:9:
+resetKey(message), emoji: ResidencySite { site: "schema.q:32:10 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[resetKey(message), viewer] { emoji }) if exists reactions[message = resetKey(message), principal = viewer] else (insert reactions { emoji, message: resetKey(message), principal: viewer })" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    upsert_advice_withholds_effectful_keys_and_patch_values
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

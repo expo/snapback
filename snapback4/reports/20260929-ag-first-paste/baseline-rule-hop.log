@@ -1,0 +1,5 @@
+schema.q:31:34 — E_QUARRY_UNKNOWN: `.message` is not a rule term; rules read the row as .column
+  rewrite: .conversation
+  guide: language
+
+check: 1 problem

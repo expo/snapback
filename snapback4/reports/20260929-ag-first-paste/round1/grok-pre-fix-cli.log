@@ -1,0 +1,66 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 3.16s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 1 test
+test first_paste::failing_check_keeps_the_terse_prediction_reason ... FAILED
+
+failures:
+
+---- first_paste::failing_check_keeps_the_terse_prediction_reason stdout ----
+
+thread 'first_paste::failing_check_keeps_the_terse_prediction_reason' (344424) panicked at crates/snapback4/tests/check/first_paste.rs:11:9:
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_paste::failing_check_keeps_the_terse_prediction_reason
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4 --test check`
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.05s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 1 test
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... FAILED
+
+failures:
+
+---- b2_maintain_note_points_to_the_measured_cold_snapshot stdout ----
+
+thread 'b2_maintain_note_points_to_the_measured_cold_snapshot' (344438) panicked at crates/snapback4/tests/check.rs:839:5:
+check: ok — 3 tables (3 synced), 3 operations, no problems, 2 notes, 2.5 ms
+note: schema.q:1:1 — N_NO_HORIZON: table likes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 1000 by postId` bounds the rows per postId, not what a device acquires — `sync public` delivers every postId's rows to every device; measure what it costs with `check --residency`
+note: schema.q:10:1 — N_MAINTAIN_SYNCED: 2 synced maintains.
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    b2_maintain_note_points_to_the_measured_cold_snapshot
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 80 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

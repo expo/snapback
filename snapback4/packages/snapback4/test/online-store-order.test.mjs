@@ -94,7 +94,7 @@ test('a change response captured before a write is not evidence of a same-store 
   assert.deepEqual((await client.query(q, {})).data, []);
 });
 
-for (const observe of [false, true]) test(`${observe ? 'observed' : 'direct'} stale reads back off and stop after four requests`, async t => {
+for (const observe of [false, true]) test(`${observe ? 'observed' : 'direct'} stale-sequence reads back off and stop after four requests`, async t => {
   const changed = deferred(); const times = []; let current = false, polls = 0;
   const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
     if (url.includes('/changes')) {
@@ -102,7 +102,9 @@ for (const observe of [false, true]) test(`${observe ? 'observed' : 'direct'} st
       return blocked(init.signal);
     }
     if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2 });
-    times.push(Date.now()); return Response.json({ ...ready([], current ? 3 : 1), nextExpiry: current ? null : Date.now() - 1 });
+    // Observed expiry has its own paced recovery (per-row-progress); this round
+    // exercises sequence exhaustion. Direct expired reads still settle here.
+    times.push(Date.now()); return Response.json({ ...ready([], current ? 3 : 1), nextExpiry: current || observe ? null : Date.now() - 1 });
   } });
   t.after(async () => { changed.resolve({ seq: 3, tables: ['secrets'] }); await client.close(); });
   await client.mutate(m, {});

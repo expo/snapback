@@ -1,0 +1,18 @@
+--- a/snapback4/packages/snapback4/test/periphery.test.mjs
++++ b/snapback4/packages/snapback4/test/periphery.test.mjs
+@@ -405,5 +405,5 @@
+   assert.match(repaired, /a if cond else b/);
+   assert.match(repaired, /return a\.b\n/);
+-  assert.match(repaired, /count\(\[1, 2, 3\]\)/);
++  assert.match(repaired, /len\(\[1, 2, 3\]\)/);
+   assert.match(repaired, /-- keep/);
+   assert.equal(JSON.parse(run("run", "choose", '{"cond":true,"a":5,"b":9}', "--json").stdout).data, 5);
+--- a/snapback4/packages/snapback4/test/unread-range.test.mjs
++++ b/snapback4/packages/snapback4/test/unread-range.test.mjs
+@@ -266,5 +266,5 @@
+   assert.match(r.selection, /greatest encoded lower bound.*strict.*null is weakest/);
+   assert.match(r.fallback, /every range operand is null/);
+-  const text = execFileSync(binary, ['check'], { cwd: s.dir, encoding: 'utf8' });
++  const text = execFileSync(binary, ['check', '--verbose'], { cwd: s.dir, encoding: 'utf8' });
+   for (const part of [r.index, r.horizon.index, r.selection, r.fallback, '.ordinal > member.joinedAt']) assert.ok(text.includes(part), part);
+ });

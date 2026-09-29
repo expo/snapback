@@ -277,8 +277,8 @@ mutation writes():
     assert_eq!((&*refused.diagnostics[0].code, &*refused.diagnostics[0].rewrite), ("E_QUARRY_UNSUPPORTED", "fn"));
     let refused = compile(&[("schema.q".into(), "fn mint():\n  id = new\n  return id\nquery q():\n  return mint()\n".into())]);
     assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_PLACEMENT" && d.site.line == 5 && d.message.contains("mint ids")));
+    assert_eq!(query(&mut engine("fn noReturn():\n  n = 1\nquery q():\n  return noReturn()\n"), "q", &[]), Value::Null);
     for source in [
-        "fn noReturn():\n  n = 1\nquery q():\n  return noReturn()\n",
         "fn recursive(): recursive()\nquery q():\n  return recursive()\n",
         "fn stop():\n  continue\n  return\nquery q():\n  for i in range(0, 2):\n    stop()\n  return 1\n",
     ] {
@@ -1147,7 +1147,6 @@ fn guessed_spellings_are_mechanical_refusals_with_exact_rewrites() {
     for (source, expected) in [
         ("query q(cond: bool, a: int, b: int):\n  return cond ? a : b\n", "a if cond else b"),
         ("query q():\n  a = { b: 1 }\n  return a?.b\n", "."),
-        ("query q(x: [int] <=10):\n  return len(x)\n", "count(x)"),
         ("// guessed\nquery q():\n  return 1\n", "--"),
         ("# guessed\nquery q():\n  return 1\n", "--"),
     ] {

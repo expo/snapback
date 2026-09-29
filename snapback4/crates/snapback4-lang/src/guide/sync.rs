@@ -270,7 +270,7 @@ it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
 grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
-`online only`; `snapback4 test --residency` measures its cold rows. `check`
+`online only`; `snapback4 test --residency` measures its cold rows. `check --residency`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
 Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
 coverage; see `guide maintains` and the replica census in `guide offline-interactions`.
@@ -295,8 +295,7 @@ Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
 and deduplicated sites and rewrites.
 Every text `check` also summarizes mutations that never predict, blocked insert
 arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
-The horizon bucket and `why`'s qualified heading keep every read and site visible
-on unchanged checks. This includes the expiring source behind a live-aggregate
+`check --verbose` and `why` keep every read and site visible on unchanged checks. Plain `check` starts with the verdict and summarizes notes and prediction; sequence, field, view, ephemeral and scale details stay under `--verbose` (or the relevant `--cost`/`--residency` flag). JSON keeps its full report. This includes the expiring source behind a live-aggregate
 write-rule probe: prediction needs that source without a horizon.
 `N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
 only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
@@ -359,12 +358,68 @@ Custom persistence providers stay on the default device. The bundler must
 package the Worker entry and wasm asset; Vite and the Clique Metro web export
 are exercised by browser witnesses. These are fixture measurements,
 not a cold-start deadline for other declarations.
-On the copied Clique scale store in Chromium on Linux, two Worker runs from
-fresh navigation through login and readiness took 27.4–28.8 s for the
-1,000-conversation account and 4.05–4.17 s for the 100-conversation account.
-The longest page task including boot was 77 ms; the default device still
-blocked about 7.5 s during the large account's publication. These results
-recommend the opt-in for this workload, not a change to the package default.
+On eb1000 (AMD EPYC 9454, Chromium 151), five fresh-device runs against
+one retained Clique scale store have median acquisition times of 2.19 s
+(default) and 2.25 s (Worker): 100 memberships, 500 Following edges, 500 held
+messages and 3.65 MB of sync response bodies. The first inbox answer arrives
+before acquisition finishes. Render that answer while `useAcquisition()` shows
+progress; only `acquired` means the complete partition is durably ready offline.
+A heavy account with 1,000 memberships and 90,500 held messages takes a
+25.66 s Worker median in five instrumented runs (39.76 MB of response bodies).
+Group count alone does not predict bytes or time.
+For planning on a 10-core M1 Max, expect roughly 5–8 s at the smaller volume
+and 60–90 s at the heavy volume until measured there. These are engineering
+estimates from the slower calibration host, not Mac qualification or deadlines.
+The retained fixture differs from the slower Mac calibration; these estimates
+are not promises. The new bucket layout changes browser persistence, not the declared partition.
+
+The format-3 browser store upgrades the physical IndexedDB database from
+version 1 to 2, preserving existing stores, rows, staged acquisition and outbox.
+Old bucket formats migrate on load in one strict transaction; an aborted
+migration can be retried by the current client. The database version stays 2.
+A cached pre-upgrade client opening version 1 now rejects with `VersionError`
+(requested version is less than the existing version), before reading or writing.
+Reload the application with its updated page and Worker bundles to reopen the
+store. Keep that update available offline before relying on offline reopening;
+clearing browser storage would discard retained rows and pending writes.
+
+Measure your own largest account in five fresh browser profiles, with the
+production server and the same device choice. Record host load, browser version,
+network conditions, median and individual runs. Authenticate first; start this
+clock immediately before restoring that session into a fresh device store:
+
+```ts
+import { createApp } from 'snapback4/app';
+import { webDevice } from 'snapback4/web';
+import { login, keepSession, localStorageSessionStore } from 'snapback4/auth';
+
+const signed = await login(url, email, password);
+if (!signed.ok) throw new Error(signed.why.message);
+const sessionStore = localStorageSessionStore();
+await keepSession(url, signed.session, sessionStore);
+const started = performance.now();
+const app = createApp({ url, sessionStore, device: webDevice({ worker: true }) });
+app.auth.onChange(() => {
+  if (app.auth.state !== 'signed-in') return;
+  const client = app.client;
+  const stop = client.onAcquired(async acquired => {
+    if (!acquired) return;
+    const coldAcquisitionMs = performance.now() - started;
+    stop();
+    console.log({ coldAcquisitionMs, residency: await client.residency() });
+  });
+});
+await app.ready;
+```
+
+Use a fresh profile for each repetition: a reopened acquired store measures
+restoration instead. Keep DevTools Network open for `/sync` request counts,
+response bytes and `Server-Timing`; compare these with `client.residency()`
+(logical bytes, not transfer or disk bytes). Record the first screen separately
+from offline readiness. After readiness, disconnect, close/reopen the client,
+and check its expected rows and complete local pages. A longer first-screen
+query, network latency, broader horizons or more inherited views changes the
+result; reducing the screen's page size does not reduce acquisition.
 
 ## Online store changes
 
@@ -430,21 +485,6 @@ grouped by the audience columns inherits sync and is delivered as a value row.
 `online only` on a table documents the absence of sync; on an aggregate view it opts
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
-A 2026-09-27 measurement used a social messenger program/store
-at 100 conversations and a synthetic extension to 1,000
-(shared Linux x86_64, 96 reported CPUs; Node 24.13.1).
-Single cold runs with no concurrent writer acquired 15,588/110,088 rows:
-Node memory took 1.671/16.324 s; Node fake-IndexedDB took 2.022/21.036 s.
-Those adapters do not measure browser persistence.
-Fresh Chromium 151.0.7922.34 contexts with real IndexedDB and a concurrent
-live writer took 4.186/27.327 s at 100/1,000 conversations. At 1,000,
-send-to-live-query p95 during acquisition was 13.158 s (19 sequential
-samples, no timeouts), still above the 1 s target; after acquisition it was
-0.754 s (three warm-ups, twenty samples). The 100-conversation during p95 was
-also above target: 2.449 s (five samples). Terminal synchronous device work
-and persistence still stall live delivery. These are observed runs, not
-latency promises or a proven growth law; differing sample counts prevent a
-p95 distribution comparison.
 
 ## Refusals
 

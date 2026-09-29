@@ -1,0 +1,45 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 6.09s
+     Running tests/first_paste.rs (snapback4/target/debug/deps/first_paste-45b40df4500bac59)
+
+running 16 tests
+test upsert_advice_withholds_key_changing_patches ... ok
+test upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images ... FAILED
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test mixed_key_upsert_advice_cannot_change_existing_row_identity ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects ... FAILED
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test upsert_advice_withholds_effectful_keys_and_patch_values ... ok
+test upsert_advice_withholds_expiring_and_optional_result_images ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+test count_alias_predicates_and_keys_keep_real_group_column_precedence ... ok
+
+failures:
+
+---- upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images stdout ----
+
+thread 'upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images' (3699415) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 21, col: 14 }, code: "E_QUARRY_SYNTAX", message: "expected the end of the line, got \"=\"", rewrite: "end this statement here; put the next statement on its own line at the same indentation", guide: "language", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects stdout ----
+
+thread 'upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects' (3699411) panicked at crates/snapback4-lang/tests/first_paste.rs:133:13:
+assertion `left == right` failed
+  left: Row(ObjectFields({"emoji": String("heart"), "id": Id("00000000000000000000000001"), "message": Id("message-ours"), "principal": Id("alice")}, false, None, false))
+ right: Row(ObjectFields({"emoji": String("laugh"), "id": Id("00000000000000000000000001"), "message": Id("message-ours"), "principal": Id("alice")}, false, None, false))
+
+
+failures:
+    upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects
+    upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images
+
+test result: FAILED. 14 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

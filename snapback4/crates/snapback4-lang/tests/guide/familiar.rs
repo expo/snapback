@@ -4,6 +4,22 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 
 fn normalized(s: &str) -> String { s.split_whitespace().collect::<Vec<_>>().join(" ") }
+#[test]
+fn check_output_guidance_distinguishes_summaries_from_verbose_details() {
+    let bounds = card("bounds").unwrap();
+    assert!(bounds.contains("Default text `check` gives note summaries"));
+    assert!(bounds.contains("`check --verbose` adds rewrites"));
+    assert!(!bounds.contains("Every successful `check` summarizes"));
+    assert!(!super::README.contains("`snapback4 check` ends with a scale line"));
+    for name in ["maintains", "search"] {
+        let text = card(name).unwrap();
+        assert!(!text.contains("`check` prints this key"), "{name}");
+        assert!(!text.contains("With horizon-free sources, `check` reports"), "{name}");
+    }
+    let held = explain_code("E_QUERY_HELD").unwrap();
+    assert!(!held.contains("`check` prints\n`runs: device"));
+}
+
 #[derive(Deserialize)]
 struct Fact { id: String, card: String, home: String, text: String }
 #[test]

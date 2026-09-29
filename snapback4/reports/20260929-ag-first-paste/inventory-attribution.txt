@@ -1,0 +1,2 @@
+Root inventory inputs outside Snapback 4 match f56e8048a: git diff --exit-code returned 0
+The missing generated demo/Contract artifacts are fresh-checkout prerequisites. The diagnostics generator scans root crates/, packages/, targets/, clients/ and guide/, not snapback4/. No root generated registry was changed.

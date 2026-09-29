@@ -75899,6 +75899,60 @@ No tool installation, push or publication. Report:
 reports/20260928-lv-hook-retention/round11/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+
+## 2026-09-29 — AG round 0: Quarry first paste
+
+From f56e8048a on sb4-intent/ag-first-paste, replayed cal23–25 and the
+comparative builder's first attempts before editing. MP already admits the
+parent-pinned `(message, emoji)` aggregate scan. Added the count-row `count`
+alias, len/length aliases with unchanged count meters, aggregate public, and
+null fallthrough for effect helpers. Read-through upsert summaries now report
+the real reason and offer a source-specific update/insert alternative when its
+insert image is complete. The alternative remains manual: extra read authority
+and held coverage are required. Aggregate parent-rule repairs remove only a
+proved redundant traversal; shape-on repairs replace the exact tokens. These
+unambiguous cases work with check --fix. Digest-query refusal keeps job authority
+and offers removal of the entire unused preview. Nonunique title advice prints
+the exact held query, preserving duplicates and requiring acquired coverage.
+Decisions and deliberate refusals are recorded in LLP 3000.007 §23.
+
+The original cal25 check falls from 111 to 20 lines, verdict first. Plain output
+has no ephemeral $intent: names; verbose and JSON keep full detail, and explicit
+cost/residency reports remain. No client package or runtime implementation was
+changed. All new first-attempt tests execute intent or the literal printed repair:
+8 language tests, 2 memory/SQLite device tests, CLI mechanical-fix/output checks.
+Final check/fix tests pass 79+27; all 98 guide tests pass; the lowering differential
+passes all 11 tests without changing historical IR hashes. Three newly admitted
+census programs are pinned separately. Updated the guide cards and both stale
+length-spelling fact-home entries. Ref-check passes. Root check-inventories has
+unchanged Snapback 1 inventory/guide drift and missing generated demo artifacts;
+the report attributes every item rather than modifying another fence.
+
+Ran scripts/test.sh exactly once. Its exact summary is:
+
+```text
+== 2 failure(s) in 1299 s
+   cargo test
+   client tests
+```
+
+All 16 Rust failures were this lane's stale spelling/advice/output expectations;
+fixed and rerun green. The client stage had five failures: two receipt/retention
+races pass in isolation with both base and current binaries, whose fixture schema
+and executable-program activation digests match; one missing --cost detail was
+fixed and its unchanged client test passes. Two client-owned expectations still
+need len acceptance / verbose-detail updates. The no-client-edits boundary is
+preserved: the exact unapplied patch is in the report, validated 2/2 in an isolated
+copy. The full suite is not claimed green. Its 79 client model tests and all other
+script stages passed. Every failure, including local development failures and
+root inventory failures, is listed in the report's FAILURES.md.
+
+Fresh wasm: 2,042,203 B raw / 593,573 B gzip, 146 B below the unchanged
+593,719 B cap; SHA-256
+75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+Report: reports/20260929-ag-first-paste/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
 ## 2026-09-29 — LV reverted from main
 
 The supervisor reverted lane LV's implementation (merges `ee514de11`,
@@ -76129,6 +76183,152 @@ copy is unchanged. Report: reports/20260929-pq-per-row-hooks/round3/REPORT.md.
 No tool installation, push or publication. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+## 2026-09-29 — AG round 1: review corrections for first paste
+
+Started with git fetch origin and merge origin/main (4fd338de5), committing
+merge 62258cab4 with both LLP revision histories and every journal entry.
+LV stays reverted and LLP 3000.029 Shelved; SQ's §20.24.4 stays intact. Read
+the binding lane prompt, round-0 report/journal, Astra's complete review and,
+once it arrived during the full run, Grok's complete review. Addressed every
+finding from both reviewers.
+
+Upsert branch advice now requires stable keys and all field values; calls,
+row reads, spreads and key changes receive no speculative rewrite. The binder
+records row-valued positional keys so advice cannot mistake a row for its id;
+scalar-ID advice remains available. Count-view .count ordering resolves before
+index planning, with precedence for a real group column named count. Terse
+check shows/counts all four search warnings, retains prediction reasons even
+on failure, and names grouped maintains and affected predicting mutations.
+Rewrites and long explanations remain verbose; JSON presentation stays intact.
+The complete-helper refusal now puts its query-removal comment at that query's
+declaration and prints the exact inclusive line range, retaining the failing
+helper read and caller chain in the reason. Its regression pastes at the caret
+and range, then executes the job and the adjacent untouched query. Applied only
+the two authorized client expectation edits; no other client package changes.
+
+Each finding has a failing pre-fix regression control. Deleting the stable-key
+guard fails the effectful-key test. Final checks after the late Grok changes:
+10 audience/bounds, 1 frozen compatibility, 11 first-paste, 98 whole-guide,
+11 lowering and 41 residency-note tests; 81 CLI check, 10 cost, 3 notes,
+27 fix and 28 scale tests; 2 device witnesses and the 2 client expectation
+tests all pass. Ref-check passes with zero errors/unchecked references.
+LLP 3000.007 §23 and the affected guide cards record the corrected contracts.
+Shortened AG's language-card sentence to reconcile its wording with the reads
+card restored by the LV revert under the unchanged guide word budget.
+
+Ran scripts/test.sh exactly once, exit 0. Its exact summary is:
+
+```text
+== 0 failure(s) in 1428 s
+```
+
+Every stage passed: client shards total 4,561 passes and 10 declared skips;
+all 79 client-model tests pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. This run's Rust inventory predates the late Grok corrections;
+the separate affected checks above qualify that final delta. No second full
+run is claimed. The 60-second target remains missed; no timeout was increased.
+Pre-fix controls, fixture/setup errors, guide-budget iterations and two stale/
+misplaced test assertions are retained and attributed in round1/FAILURES.md;
+all are resolved. The report includes the complete terse-note classification.
+
+Fresh wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Later edits do not touch wasm build inputs. Rechecked both review files before
+finalizing. Report: reports/20260929-ag-first-paste/round1/REPORT.md.
+Local fix commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
+
+## 2026-09-29 — AG round 2: mixed-key safety and predicate count aliases
+
+Read both prior lane prompts/reports and Astra's complete round-1 review.
+Grok's final READY review arrived before the full suite; its filter and cursor
+test-strength observations are addressed too. Mixed positional/named upsert
+keys now receive no branch advice. The regression seeds id A/tag B and executes
+any offered rewrite verbatim: round 1 inserts a second swapped-key row, while
+the corrected compiler preserves the original update and withholds advice.
+Count-view aliases resolve in predicate, key, seek and order planning, retaining
+real count-column precedence and the same aggregate ranking refusals as value.
+Executed alias/canonical cases return identical results and meters.
+
+Audited all current guide cards and README check-output passages: default note
+summaries, verbose rewrites/explanations, and explicit cost/residency details.
+Updated two fact-home strings without removing facts. An authorized same-title
+DM ordered before six groups makes both memory/SQLite held-query witnesses
+detect a lost group filter. They consume the returned cursor and assert only
+the final group on page two; deleting after c also fails both. Controls and all
+development failures are attributed in round2/FAILURES.md. LLP 3000.007 §23
+records the contracts; runtime, authority, disclosure, bounds and meters stay
+unchanged. The only package change is the requested README correction.
+
+Final affected language checks pass: 1 compatibility, 13 first-paste, 99 guide,
+11 lowering, 14 maintains, 10 mixed-key, 41 residency and 5 selected-prefix
+tests. Both device witnesses and 149 CLI tests pass. The new guide assertion
+lives in the existing familiar module to keep guide.rs below 1,500 lines;
+the final whole-guide rerun passes 99/99. README remains 300 lines. Ref-check
+and source whitespace checks pass.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1354 s
+```
+
+Every stage passed: 4,561 client passes, ten declared skips, and all 79 client
+model tests. Full-suite failures: ours 0, baseline 0, environmental 0. The
+60-second target remains missed; no timeout or ceiling changed. Canonical wasm:
+2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged 593,719 B cap;
+SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Rechecked both final reviews. Report:
+reports/20260929-ag-first-paste/round2/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — AG round 3: conservative upsert advice and result/effect equivalence
+
+Read the binding prompts/reports from rounds 0–2 and Astra's complete round-2
+review. Branch advice now requires a complete required plain scalar image,
+stable keys and values, unchanged unique keys, a non-expiring target (including
+inherited expiry), and unconditional read authority from a direct public/allow
+parent. Optional, incomplete, defaulted, engine-owned and private images withhold
+advice. A hidden writable row also invalidates an existence branch, so the
+private Clique reaction fixture now keeps upsert. Each withheld site explains
+why and says to keep the upsert and observe queued/sent/failed state. Do not widen
+product authority to obtain advice. Offered branches still need held coverage
+and runtime meter headroom. No interpreter, client, authority or budget changes.
+
+The positive witness pastes each printed expression and compares returned
+values, stored reaction rows and durable effect names/payloads on both insert
+and update, using identical supplied IDs. Covers positional, named, repeated-key
+and scalar-id forms. Expiry returns null and emits nothing; optional extra is
+materialized as null; a hidden writable target updates one row, returns null
+and emits nothing. All withhold advice. Disabling the addressed-key-change,
+expiry, optional-image or unconditional-read guard fails its detecting test.
+The round-2 source fails the new regressions; all mutants are restored. Existing
+non-stable and row-valued key witnesses remain otherwise eligible so the new
+read-authority gate cannot mask them. LLP 3000.007 §23 and the prediction card
+record this deliberately smaller surface.
+
+Final affected checks: 17 first-paste, 99 whole-guide, 41 residency-note and
+one frozen-compatibility test pass. Eleven lowering comparisons passed; historical
+IR digests remain unchanged. The CLI why output names the withholding reason
+without printing a branch or stale insert hint. Docs budget, ref-check and
+whitespace checks pass. Every control/development failure and its resolution is
+attributed in reports/20260929-ag-first-paste/round3/FAILURES.md.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1387 s
+```
+
+All stages pass: 274 Rust binaries / 987 executions; 4,561 client tests with ten
+declared skips; 79 client-model tests. Full-suite failures: ours 0, baseline 0,
+environmental 0. The inherited 60-second target remains missed; no timeout or
+ceiling changes. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the unchanged 593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-ag-first-paste/round3/REPORT.md. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
 
 ## 2026-09-29 — DX round 0: ordinary empty reads are quiet
 
@@ -76222,6 +76422,46 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — AQ round 0: faster cold browser acquisition
+
+On eb1000 (EPYC 9454, 96 logical CPUs), five cold u0500 runs on a private
+copy of SQ's retained full-scale store give median 2.255 s Worker / 2.186 s
+default, from 4.436 / 4.898 s. Three sync replies still deliver 3,652,183 B
+and 11,612 rows. Worker strict persistence falls from 2.588 s to 0.501 s in
+five diagnostic runs; server production and wasm apply stay near 0.42/0.40 s.
+The first inbox answer remains near half a second. The heavy account
+(1,000 memberships, 90,500 messages) remains 25.661 s, from 26.606 s.
+
+Format 3 starts packed IndexedDB namespaces with 64 roots and splits full
+roots once into four leaves. The 512-entry / 256 KiB caps, sticky overflow,
+strict atomic row/metadata/outbox save and conditional commit fence remain.
+Formats 1/2 migrate packed and overflow rows atomically; aborted migration
+leaves the old store usable. No wasm, authorization, disclosure, coverage,
+completeness, durability, meter, declared partition or progress relaxation.
+LLP 3000.007 §20.4 records the design. The client and sync guide cards give
+expected times and a public measurement recipe, including heavy accounts.
+Mac planning estimates are 5–8 s probe / 60–90 s heavy, explicitly unmeasured;
+the retained fixture differs from calibration #26 and its 12.9 s is not used
+as a same-fixture speedup denominator.
+
+All 50 official browser runs match every retained row against delivery and
+answer the inbox completely offline. Tests pin request/bucket/strict-commit
+counts, split/migration rollback and complete offline reopening of 12,000
+known rows on both devices. A 256-root mutant is rejected. Affected tests
+241/241; Worker protocol 48/48; whole guide 98/98. scripts/test.sh ran once,
+exact summary `== 0 failure(s) in 1967 s`; client stage 4,565 pass / 0 fail /
+ten skips, final models 79/79. One introduced guide-card length failure was
+corrected without raising its cap; no baseline or environmental product-test
+failures occurred. The existing 60 s suite budget remains missed.
+
+Canonical wasm is unchanged: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the 593,719 B cap. Report, raw samples, phase attribution, host load and failure
+ledger: [AQ report](reports/20260929-aq-fast-acquisition/REPORT.md).
+No push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
 ## 2026-09-29 — Lane MT: the suite on ten CPUs
 
 First fetched and merged origin/main on sb4-intent/mt-ten-core-suite; already
@@ -76611,3 +76851,170 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 The local merge commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published. Report and complete failure ledger:
 [round 7](./reports/20260929-pq-per-row-hooks/round7/REPORT.md).
+## 2026-09-29 — AG round 4: withdraw generated read-through upsert rewrites
+
+Fetched and merged origin/main first (b7d05baff), preserving both appended
+journal tails in merge 7dec18559. Read all prior prompts/reports, the Snapback 4
+fence and Astra's entire round-3 review. Following the supervisor's decision,
+removed the upsert rewrite generator, its eight dedicated tests, source-syntax
+lookup and row-key tracking. Four review rounds exposed effect order, mixed-key
+identity, expiry/optional result, surrounding-expression precedence and shared
+helper argument-type hazards. The shared-helper Low is now moot: no caller gets
+generated code. Existing upsert execution and prediction behavior are unchanged.
+
+The truthful reason remains "upsert on a read-through child queues without a
+row" and points to snapback4 guide prediction, section "Read-through upserts:
+explicit insert/update". Its compiled example is for the builder to adapt;
+return values/effects, authority and prediction limits are explicit. A new CLI
+regression rejects a rewrite line for this diagnostic in why, default, verbose
+and residency output. It detects the old compiler. Existing reason tests remain.
+The declared-helper assertion now executes both len and length; overriding only
+declared len makes it fail. The mutant is restored. LLP 3000.007 §23 records the
+withdrawal and supersedes the earlier claimed equivalent subset. No runtime,
+client, authority, disclosure, bound or meter implementation change.
+
+Affected checks: 1 compatibility, 9 first-paste, 99 whole-guide, 11 lowering and
+41 residency tests; 150 CLI tests; 2 device witnesses all pass. Reference checks
+and whitespace checks pass. Whole-guide development failures and red controls
+are retained and attributed in round4/FAILURES.md; no guide fact/block or budget
+was removed or raised to make them pass.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+
+```text
+== 1 failure(s) in 1381 s
+   cargo test
+```
+
+The sole failure is ours: readauth's authoring census lacked the new guide
+example, card/prediction/4:setReaction | eligible. Its delta is one added entry,
+zero removals and no new private write site. Corrected that expected entry;
+the entire readauth target then passed 81/81. The original full-suite result
+remains failed, not replaced by the targeted rerun. Rust: 274 binaries / 987
+executions, 4,329 passed / 1 failed / 33 ignored. Client tests: 4,561 passed /
+ten skips / zero failed; client models 79/79; fixture wrapper 9/9. Every other
+stage passed. Attribution: ours 1 (fixed), baseline 0, environmental 0. The
+inherited 60-second suite target remains missed; no timeout or ceiling changed.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-ag-first-paste/round4/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — AQ round 1: fence cached clients before format-3 access
+
+First fetched and merged origin/main (b7d05baff), preserving both sides of
+its append-only journal conflict in merge 50b66b6a0. Read the round-0 prompt,
+report and Astra’s NOT READY review. Grok began with progress only; its final
+READY review arrived during verification and both Low coverage findings are
+addressed. Both final files were checked again after the suite.
+
+Format 3 now opens physical IndexedDB version 2. The version upgrade preserves
+existing object stores and records; only a new database creates `changes`.
+The strict bucket migration stays separate. After a migration abort, the
+current adapter can retry the old row representation inside version 2, while
+cached pre-AQ version-1 opens reject with VersionError before reads or writes.
+The sync guide explains the upgrade and updated page/Worker availability for
+offline reopening; clearing storage is not the upgrade procedure. LLP 3000.007
+§20.4 records the fence and durable retry boundary.
+
+A real Chromium regression runs verbatim f9620c815 adapter files beside current
+source: 600 old rows plus watermark, outbox, stage and base survive migration;
+an extra object store survives too. Eight old read/write attempts reject,
+including delete+watermark and direct updates. Current deletes and packed
+updates survive reopening. New stores also fence the old adapter. The test
+fails on round-0 source and the isolated version-1 mutation.
+
+Migration abort and retry now both assert actual strict durability. Relaxed
+and default durability mutants fail. Grok’s additional prediction-base gap is
+covered by packed and overflow `b` images, point reads and overflow updates;
+omitting `b` from packing fails. Bounds inspect all format-1 buckets including
+leaves, and split tests check every key against distinct original values.
+Two inspection helpers and the navigation witness now open the current DB
+version; the Node existence mock supplies oldVersion on its upgrade event.
+
+Final affected checks: 101 passed / 0 failed; real navigation passes; whole
+guide 98/98. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1374 s`. Client stage: 4,566 pass / 0 fail / ten existing
+skips; final full-count models 79/79. No full-suite failures are ours, baseline
+or environmental. Development failures and deliberate controls are classified
+in the report’s ledger. Grok’s final test-only additions arrived after the
+full-suite client stage and passed a separate final 15/15 browser run. Product
+code was unchanged throughout the full suite. The inherited 60-second suite
+budget remains missed; no timeout or count was relaxed.
+
+Rebuilt canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+No acquisition remeasurement or broader performance claim this round.
+Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-29 — Lane PQ round 8: retry rejected reads and fit the client card
+
+Merged origin/main 398552255 into PQ round 7 at 62e5ec73a, including AG and AQ.
+Read rounds 0–7 prompts/reports and both complete round-7 reviews; applied
+llp-orient. The only conflicts were the journal and client guide. Every complete
+journal entry from both parents remains unchanged. Keep Queries in rows and a
+short Measure cold acquisition pointer; sync retains the measurements, estimates,
+Worker/default choice and full recipe, with the retained-fixture caveat explicit.
+The client card is 129/130 lines; README remains 300/300. Final fetch still names
+the same main. No push, publication or tool installation.
+
+A local completion rejected by its pending change cut now stays dirty and retries
+through paced work, backing off from 25 ms to the existing one-second cap outside
+active slots. Sync can clear the cut without touching that watch's table, and the
+watch still obtains its row. An online already-due body enters paced expiry retry
+without exhausting its sequence acceptance round, even with unchanged answer
+identity or loading. Old bodies never publish. Updated LLP 3000.023 §10; no
+contract, retention-policy, Rust runtime, meter, queue limit or cap change.
+local.ts remains 1,500 lines.
+
+Twelve new regressions pass: real process/wasm profile and item observations,
+omitted notification tables and messages-only sync under all keep policies;
+plus cold/warm online expired responses followed by a current response without
+a notification. Restoring round-7 runtime modules in an isolated SDK copy fails
+all twelve at their recovery assertions. Heartbeat bytes prevent incidental
+watchdog recovery from masking the local bug. The complete failure ledger keeps
+earlier fixture corrections and controls. Affected tests pass 881/882, with only
+an obsolete await fingerprint; its reviewed update passes the full 317-case
+delivery matrix. Await counts and classifications do not change. Whole guide:
+99/99. All 28 guide-consumer targets pass 1,312 standard tests; six unrelated
+existing ignored cases are reported. Build, typecheck, docs budgets and reference
+checks pass. Real-clock 1,000-hook cases retain zero loading renders and 2,000
+evaluations on process, wasm and Worker. RL schedules pass 300 seeds per host;
+the full client phase independently passes another 300 per host.
+
+Ran scripts/test.sh exactly once, exit 1, with the exact summary:
+
+    == 1 failure(s) in 1308 s
+
+The failed stage is client tests: 4,958 tests, 4,947 passed, one failed, ten
+existing conditional skips, zero cancelled. The sole failure is ours:
+`observed stale reads back off and stop after four requests` combined stale
+sequence and expired-body rejection, so its old four-request expectation
+conflicts with the requested expiry repair (13 requests). Its observed fixture
+now isolates sequence exhaustion while preserving every four-request/backoff
+assertion; direct expired reads keep their existing test. The complete corrected
+store-order file and new retry file pass 25/25 afterward. Runtime source did not
+change during the full run. It remains a red full result, not a repeated or
+relabelled green run. All other stages pass, including 79/79 final models.
+Baseline failures: zero; environmental failures: zero. The inherited 60-second
+target remains missed; no timeout, seed count or cap was relaxed.
+
+Wasm: 2,040,529 B raw / 592,975 B gzip, unchanged from round 7 and 744 B below
+the 593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+One local merge commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Report and complete failure attribution:
+[PQ round 8](./reports/20260929-pq-per-row-hooks/round8/REPORT.md).
+
+Final diff audit caught an additional test filename collision, ours: the new
+12-case file had replaced the original 15-case per-row-retry.test.mjs. Restored
+the original byte-for-byte and moved the new cases to per-row-progress.test.mjs.
+The broad and full invocations did not run those 15 original cases. The final
+follow-up runs both retry files and the corrected store-order file: 40/40 pass.
+No runtime source changed; the report records this qualification limit and the
+setup correction for the first follow-up launch. The one full result stays red.
