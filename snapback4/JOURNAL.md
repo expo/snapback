@@ -75910,3 +75910,49 @@ dependencies also made a mounted history `loading` on every incoming message,
 send and settlement, the friction builders fought in every calibration. The
 retained-answer goal continues as a smaller change to LLP 3000.023's model.
 Lane PQ, which merged LV, will be ported onto this `main`.
+## 2026-09-29 — Lane SQ round 0: live SQLite read-path attribution
+
+Measured both storage hypotheses before choosing a policy. Copied PF's retained
+stores into this lane; never served or wrote PF's inputs. Replayed all 167,157
+scale actions through live dev with effects suppressed and schedules held,
+with zero failed actions and all original verification passing. Same-process
+immediate probes precede warmup/verification. Their first reads start 19/63/11 ms
+after the final recorded write receipt at 10%/50%/full. Background Following
+commits invalidate reader caches: warm 50% search has median 348 misses, versus
+zero after draining/restart. Full live/restarted median batch p95 is 6.021/4.884
+ms. The several-fold calibration Mac slowdown does not reproduce on Linux.
+
+Six cache/mmap configurations, nine rotating rounds, three warmups, all frozen
+rules and host loads are retained, plus per-query sqlite3_db_status and strace
+records. Shrinking to 64 KiB increases misses; 16/256 MiB does not establish a
+latency gain. Mmap removes many pread calls but likewise lacks a reliable timing
+gain. The queued 50% comparison has 211 actual server queries, zero SQLite
+file-lock busy results/busy sleeps, and checkpoint overlap without evidence of
+waiting on that lock. Reconstructed unfinished/resumed syscalls give maximum
+per-query futex time 1.024 ms under tracing; no zero-descheduling/I/O-pressure
+claim. Warm request queues are sub-millisecond and acquisition at most 0.002 ms.
+
+Retain the production defaults: FULL, single writer, independent snapshots,
+2,000 KiB cache per connection, mmap off, passive auto-checkpoint, no new WAL
+truncation policy or operator knob. Device stores, authority, coverage, meters
+and charges are unchanged. Before/after production binaries are byte-identical.
+Added the writer/reader/inspection pragma regression, expanded PF's read-only
+probe, documented memory/WAL/mmap limits and corrected the operations manual's
+stale NORMAL statement. LLP 3000.007 §20.24.4 preserves the finding and decision.
+
+Affected store 4/4; PF complexity 2/2; whole guide 98/98. scripts/test.sh ran
+once, exit 0, exact summary: `== 0 failure(s) in 1690 s`. Client stage 4,848 pass
+with ten declared skips; final model stage 79/79. No product-test failures in
+any attribution category. The documented 60-second target is still missed;
+the base journal already records 1,322 seconds. No ceiling or timeout changed.
+Corrected SQ setup, test-authoring, queue-sampling and strace-parser failures,
+and the superseded partial subprocess replay, remain in FAILURES.md/evidence.
+Fresh canonical wasm: 2,042,203 B raw / 593,573 B gzip, 146 B below the unchanged
+593,719 B cap; SHA-256 75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+
+The build-free, self-contained macos-curve.sh passed its Linux end-to-end run:
+both binaries complete nine rotating main/deep batches, preserving every rule
+margin. Search still fails the midpoint rule in both byte-identical controls;
+Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
+is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
+publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
