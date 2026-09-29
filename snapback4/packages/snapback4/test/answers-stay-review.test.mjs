@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { sdk, fixture, opener, q, m, parked, until, source } from './helpers/answers-stay.mjs';
 import { server } from './helpers/app-server.mjs';
 import { source as ephemeralSource, api } from './helpers/ephemeral-server.mjs';
+const { readyRead } = await import(new URL('read-existence.js', sdk));
 const { createClient } = await import(new URL('client.js', sdk));
 const { createLocalClient } = await import(new URL('local.js', sdk));
 const { ReadObservation, answerIdentity, answerObservation } = await import(new URL('read-observation.js', sdk));
@@ -14,7 +15,8 @@ const { LocalReads } = await import(new URL('local-reads.js', sdk));
 const { EphemeralReads } = await import(new URL('ephemeral-reads.js', sdk));
 const { episodeDeadline } = await import(new URL('read-episode.js', sdk));
 const { armReadExpiry, correctReadExpiries } = await import(new URL('read-expiry.js', sdk));
-const ready = data => ({ data, complete: true, fresh: true, cut: null });
+const ready = data => readyRead({ data, complete: true, fresh: true, cut: null });
+test('ready fixtures carry existence', () => { assert.equal(ready(null).existence, 'absent'); assert.equal(ready('row').existence, 'present'); });
 const gate = () => ({ arrived: Promise.withResolvers(), release: Promise.withResolvers() });
 
 for (const keep of [undefined, true]) for (const operation of ['apply', 'admit', 'settle']) {
