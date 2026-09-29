@@ -1,0 +1,262 @@
+{
+  "before": {
+    "conversations": {
+      "rows_examined": 1000,
+      "total_ms": 43.81634,
+      "scan_ms": 20.330619,
+      "single_aggregate_ms": 0.086757,
+      "rule_ms": 21.162852,
+      "projection_ms": 0.447576
+    },
+    "followingEdges": {
+      "rows_examined": 5,
+      "total_ms": 0.098678,
+      "scan_ms": 0.085919,
+      "single_aggregate_ms": 0.00043,
+      "rule_ms": 0.004238,
+      "projection_ms": 0.000831
+    },
+    "followingFeed": {
+      "rows_examined": 439,
+      "total_ms": 5.806091,
+      "scan_ms": 4.837481,
+      "single_aggregate_ms": 0.02587,
+      "rule_ms": 0.256006,
+      "projection_ms": 0.179217
+    },
+    "followingRemovedEvents": {
+      "rows_examined": 0,
+      "total_ms": 0.044076,
+      "scan_ms": 0.041772,
+      "single_aggregate_ms": 0.0,
+      "rule_ms": 0.0,
+      "projection_ms": 0.0
+    },
+    "followingWork": {
+      "rows_examined": 40,
+      "total_ms": 0.511396,
+      "scan_ms": 0.427811,
+      "single_aggregate_ms": 0.002514,
+      "rule_ms": 0.028431,
+      "projection_ms": 0.017518
+    },
+    "likes": {
+      "rows_examined": 1000,
+      "total_ms": 4.167906,
+      "scan_ms": 3.107476,
+      "single_aggregate_ms": 0.048025,
+      "rule_ms": 0.307843,
+      "projection_ms": 0.220123
+    },
+    "members": {
+      "rows_examined": 2048,
+      "total_ms": 49.05089,
+      "scan_ms": 22.685739,
+      "single_aggregate_ms": 0.11207,
+      "rule_ms": 22.944735,
+      "projection_ms": 0.558637
+    },
+    "messages": {
+      "rows_examined": 90509,
+      "total_ms": 1037.374218,
+      "scan_ms": 737.410733,
+      "single_aggregate_ms": 4.667031,
+      "rule_ms": 159.652706,
+      "projection_ms": 46.493535
+    },
+    "posts": {
+      "rows_examined": 1000,
+      "total_ms": 8.185147,
+      "scan_ms": 6.714654,
+      "single_aggregate_ms": 0.047384,
+      "rule_ms": 0.500891,
+      "projection_ms": 0.393474
+    },
+    "profiles": {
+      "rows_examined": 1008,
+      "total_ms": 4.936439,
+      "scan_ms": 3.705614,
+      "single_aggregate_ms": 0.054026,
+      "rule_ms": 0.400303,
+      "projection_ms": 0.268204
+    },
+    "reactions": {
+      "rows_examined": 2000,
+      "total_ms": 24.11545,
+      "scan_ms": 18.858635,
+      "single_aggregate_ms": 0.096814,
+      "rule_ms": 2.313997,
+      "projection_ms": 0.48224
+    },
+    "replyCounts": {
+      "rows_examined": 1956,
+      "total_ms": 5.994314,
+      "scan_ms": 3.912304,
+      "single_aggregate_ms": 0.219482,
+      "rule_ms": 0.517919,
+      "projection_ms": 0.217122
+    },
+    "repostCounts": {
+      "rows_examined": 988,
+      "total_ms": 2.948159,
+      "scan_ms": 1.930021,
+      "single_aggregate_ms": 0.123235,
+      "rule_ms": 0.2534,
+      "projection_ms": 0.108499
+    },
+    "reposts": {
+      "rows_examined": 1000,
+      "total_ms": 3.471973,
+      "scan_ms": 2.396222,
+      "single_aggregate_ms": 0.048476,
+      "rule_ms": 0.345582,
+      "projection_ms": 0.194602
+    },
+    "runs": {
+      "rows_examined": 2,
+      "total_ms": 14.588432,
+      "scan_ms": 13.663881,
+      "single_aggregate_ms": 0.00048,
+      "rule_ms": 0.081582,
+      "projection_ms": 0.00061
+    },
+    "unread": {
+      "rows_examined": 2048,
+      "total_ms": 3738.234585,
+      "scan_ms": 27.08207,
+      "single_aggregate_ms": 0.564747,
+      "rule_ms": 22.372784,
+      "projection_ms": 0.492458
+    }
+  },
+  "after": {
+    "conversations": {
+      "rows_examined": 1000,
+      "total_ms": 42.745484,
+      "scan_ms": 19.866569,
+      "single_aggregate_ms": 0.107808,
+      "rule_ms": 20.657708,
+      "projection_ms": 0.438663
+    },
+    "followingEdges": {
+      "rows_examined": 5,
+      "total_ms": 0.095232,
+      "scan_ms": 0.082774,
+      "single_aggregate_ms": 0.0005,
+      "rule_ms": 0.004016,
+      "projection_ms": 0.00088
+    },
+    "followingFeed": {
+      "rows_examined": 439,
+      "total_ms": 5.659423,
+      "scan_ms": 4.678464,
+      "single_aggregate_ms": 0.025049,
+      "rule_ms": 0.25307,
+      "projection_ms": 0.170249
+    },
+    "followingRemovedEvents": {
+      "rows_examined": 0,
+      "total_ms": 0.048653,
+      "scan_ms": 0.046289,
+      "single_aggregate_ms": 0.0,
+      "rule_ms": 0.0,
+      "projection_ms": 0.0
+    },
+    "followingWork": {
+      "rows_examined": 40,
+      "total_ms": 0.498126,
+      "scan_ms": 0.411557,
+      "single_aggregate_ms": 0.002421,
+      "rule_ms": 0.028608,
+      "projection_ms": 0.022473
+    },
+    "likes": {
+      "rows_examined": 1000,
+      "total_ms": 4.064322,
+      "scan_ms": 2.98836,
+      "single_aggregate_ms": 0.047427,
+      "rule_ms": 0.300861,
+      "projection_ms": 0.211041
+    },
+    "members": {
+      "rows_examined": 2048,
+      "total_ms": 44.834517,
+      "scan_ms": 20.671432,
+      "single_aggregate_ms": 0.105455,
+      "rule_ms": 21.091834,
+      "projection_ms": 0.474467
+    },
+    "messages": {
+      "rows_examined": 90509,
+      "total_ms": 954.519511,
+      "scan_ms": 676.234872,
+      "single_aggregate_ms": 4.535616,
+      "rule_ms": 146.331488,
+      "projection_ms": 42.298731
+    },
+    "posts": {
+      "rows_examined": 1000,
+      "total_ms": 7.806282,
+      "scan_ms": 6.372983,
+      "single_aggregate_ms": 0.054133,
+      "rule_ms": 0.473901,
+      "projection_ms": 0.376277
+    },
+    "profiles": {
+      "rows_examined": 1008,
+      "total_ms": 4.846284,
+      "scan_ms": 3.665974,
+      "single_aggregate_ms": 0.048221,
+      "rule_ms": 0.380336,
+      "projection_ms": 0.247985
+    },
+    "reactions": {
+      "rows_examined": 2000,
+      "total_ms": 23.43862,
+      "scan_ms": 18.298248,
+      "single_aggregate_ms": 0.096559,
+      "rule_ms": 2.2576,
+      "projection_ms": 0.444226
+    },
+    "replyCounts": {
+      "rows_examined": 1956,
+      "total_ms": 5.596449,
+      "scan_ms": 3.597491,
+      "single_aggregate_ms": 0.215418,
+      "rule_ms": 0.47566,
+      "projection_ms": 0.198499
+    },
+    "repostCounts": {
+      "rows_examined": 988,
+      "total_ms": 2.772425,
+      "scan_ms": 1.781851,
+      "single_aggregate_ms": 0.12348,
+      "rule_ms": 0.237403,
+      "projection_ms": 0.099452
+    },
+    "reposts": {
+      "rows_examined": 1000,
+      "total_ms": 3.333667,
+      "scan_ms": 2.247219,
+      "single_aggregate_ms": 0.047448,
+      "rule_ms": 0.327059,
+      "projection_ms": 0.177147
+    },
+    "runs": {
+      "rows_examined": 2,
+      "total_ms": 14.178787,
+      "scan_ms": 13.275761,
+      "single_aggregate_ms": 0.000551,
+      "rule_ms": 0.071707,
+      "projection_ms": 0.000761
+    },
+    "unread": {
+      "rows_examined": 2048,
+      "total_ms": 1856.771823,
+      "scan_ms": 26.340439,
+      "single_aggregate_ms": 0.523577,
+      "rule_ms": 22.231055,
+      "projection_ms": 0.512083
+    }
+  }
+}

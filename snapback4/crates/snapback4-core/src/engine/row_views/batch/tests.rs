@@ -342,3 +342,44 @@ fn batch_reserves_memory_and_charges_predicate_work_before_certifying() {
             Err(RuntimeError::Bound { kind: actual, .. }) if actual == kind));
     }
 }
+
+#[test]
+fn cold_basis_pages_preserve_live_counts_and_private_members() {
+    for private in [false, true] {
+        let schema = schema(private);
+        let rows = MemoryRows::new();
+        for (id, parent, principal, mark) in [("mine", "one", "reader", 75), ("peer", "two", "peer", 0)] {
+            rows.put("members", &schema.tables["members"], &member(id, parent, principal, mark), None).unwrap();
+        }
+        for parent in ["one", "two"] {
+            for n in 1..=96 {
+                let until = match n % 3 { 0 => Value::Int(5), 1 => Value::Null, _ => Value::Int(20) };
+                rows.put("messages", &schema.tables["messages"], &message(&format!("{parent}-{n}"), parent, n, until), None).unwrap();
+            }
+        }
+        for pending in [false, true] {
+            let input = [view("mine", pending), view("peer", pending)];
+            let ordinary = runner(&rows, &schema, "reader").live_aggregate_batch("unread", &input).unwrap();
+            let cold = runner(&rows, &schema, "reader").live_acquisition_batch("unread", &input).unwrap();
+            assert_eq!(cold, ordinary);
+            assert_eq!(cold[0].as_ref().unwrap().field("value"), Ok(&Value::Int(14)));
+            if private { assert!(cold[1].is_none()); }
+        }
+    }
+}
+
+#[test]
+fn cold_basis_falls_back_when_a_decoder_page_exceeds_available_heap() {
+    let schema = schema(false);
+    let rows = MemoryRows::new();
+    rows.put("members", &schema.tables["members"], &member("mine", "one", "reader", 0), None).unwrap();
+    for n in 1..=96 {
+        rows.put("messages", &schema.tables["messages"], &message(&format!("m{n}"), "one", n, Value::Null), None).unwrap();
+    }
+    let ceiling = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]) * 8;
+    let mut ordinary = runner(&rows, &schema, "reader"); ordinary.meter.ceilings.heap_bytes = ceiling;
+    let expected = ordinary.live_aggregate_batch("unread", &[view("mine", true)]).unwrap();
+    let mut cold = runner(&rows, &schema, "reader"); cold.meter.ceilings.heap_bytes = ceiling;
+    assert_eq!(cold.live_acquisition_batch("unread", &[view("mine", true)]).unwrap(), expected);
+    assert_eq!(expected[0].as_ref().unwrap().field("value"), Ok(&Value::Int(96)));
+}

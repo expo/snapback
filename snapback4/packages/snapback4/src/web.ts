@@ -1,3 +1,4 @@
+import { drainChanges } from "./web-drain.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { afterStoreLock } from "./app-storage.ts";
 import { indexedDbStore } from "./web-idb.ts";
@@ -91,7 +92,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       return openWorkerDevice(name, backend, await supplied);
     } };
   }
-  const persist = options.persist ?? indexedDbPersistence();
+  const persist = options.persist ?? indexedDbStore(claimWithWebLocks, true);
   if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {
     async open(name, backend) {
@@ -205,7 +206,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       const staleCollection = new Error("stale delivery collection");
       const settle = async (extra: Change[] = [], committedReply?: () => void, outboxStatusOnly = false, current?: () => boolean): Promise<void> => {
-        const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
+        const changes = [...drainChanges(device!), ...journal.cleanup(committed), ...extra];
         let issuedFloor: number | undefined;
         for (const change of changes) if (change.s === "o" && change.v !== null) {
           const now = (JSON.parse(change.v) as { now?: number }).now;
@@ -496,10 +497,10 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
             const backend = JSON.parse(device.call(JSON.stringify({ op: "backend" }))).ok;
             const adopted = JSON.parse(sourceDevice.call(JSON.stringify({ op: "adopt", backend, store_id: destination, send_revision: sourceState.send_revision })));
             if (adopted.denied) throw new Error(refusalText(JSON.stringify(adopted)));
-            await persist.save(orphan, JSON.parse(sourceDevice.drain()));
+            await persist.save(orphan, drainChanges(sourceDevice));
           }
           await sourceJournal.recover(sourceDevice, async (extra = []) => {
-            const changes = [...JSON.parse(sourceDevice.drain()) as Change[], ...extra];
+            const changes = [...drainChanges(sourceDevice), ...extra];
             await persist.save(orphan, changes);
             sourceJournal.remember(changes);
             sourceJournal.cleanup(new Map());

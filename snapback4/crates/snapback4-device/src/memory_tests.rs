@@ -76,3 +76,19 @@ table items:
         assert_eq!(bulk.export(), before);
     }
 }
+
+#[test]
+fn staged_sharing_accepts_only_the_exact_row_value() {
+    let row = object([("id", Value::Id("one".into())), ("body", Value::String("quotes \\\" and braces } {".into()))]);
+    let encoded = stored(&row);
+    for acquired in [false,true] {
+        let canonical: Rc<str> = format!("{{\"row\":{encoded},\"acquired\":{acquired}}}").into();
+        assert_eq!(&*Image::staged(canonical).unwrap(), encoded);
+        // A legacy/future stage may contain ignored fields or whitespace.
+        // Sharing must not smuggle these bytes into the standalone row image.
+        for extra in [",\"extra\":1", " "] {
+            let old: Rc<str> = format!("{{\"row\":{encoded}{extra},\"acquired\":{acquired}}}").into();
+            assert!(Image::staged(old).is_none());
+        }
+    }
+}

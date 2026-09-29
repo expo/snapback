@@ -1,0 +1,11 @@
+{
+  "recorded": "during isolated native replay",
+  "at": "2026-09-29T15:46:10.353805+00:00",
+  "hostname": "expose-builder-pixel",
+  "load": [
+    3.099609375,
+    5.46728515625,
+    8.5771484375
+  ],
+  "cpuPressure": "some avg10=0.00 avg60=0.02 avg300=0.12 total=7311979959\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+}

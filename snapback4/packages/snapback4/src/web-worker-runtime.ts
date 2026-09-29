@@ -1,3 +1,4 @@
+import { drainChanges } from "./web-drain.ts";
 import { WebDevice } from "./wasm/snapback4_device.js";
 import { cachedWasm, wasmMemoryBytes } from "./web-wasm.ts";
 import { indexedDbStore } from "./web-idb.ts";
@@ -22,7 +23,7 @@ export interface WorkerRequest {
 // private until commit completes; the page's host must not publish it early.
 // @ref LLP 3000.008.004#3 — a failed strict save discards the uncommitted VM.
 export class WorkerRuntime {
-  private readonly persist = indexedDbStore(async () => { throw new Error("only the page may claim a device store"); });
+  private readonly persist = indexedDbStore(async () => { throw new Error("only the page may claim a device store"); }, true);
   private readonly residency = new WebResidency();
   private device: WebDevice | undefined;
   private name: string | undefined;
@@ -52,7 +53,7 @@ export class WorkerRuntime {
     }
     if (this.conditional) throw new Error("a conditional commit must finish before another Worker operation");
     if (message.action === "prepare-conditional") {
-      const changes = JSON.parse(this.device.drain()) as Change[];
+      const changes = drainChanges(this.device);
       // Only a delivery CAS can use the page's current() closure. Full row,
       // staging and outbox vectors always stay in this realm.
       if (changes.some(c => c.s !== "m" || !c.k.startsWith("device:delivery:"))) throw new Error("conditional Worker commit contains non-delivery changes");
@@ -78,7 +79,7 @@ export class WorkerRuntime {
     // Only journal transfer/cleanup may be added by this page protocol. The
     // device itself produces every row, outbox and metadata change.
     if (extra.some(c => c.s !== "j")) throw new Error("only journal acknowledgements may accompany a Worker commit");
-    const changes = [...JSON.parse(this.device!.drain()) as Change[], ...extra];
+    const changes = [...drainChanges(this.device!), ...extra];
     if (changes.length) await this.persist.save(this.name!, changes);
     this.residency.apply(changes);
     if (changes.some(c => c.s === "o")) this.queuedRevision++;

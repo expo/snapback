@@ -1,0 +1,974 @@
+{
+  "before": {
+    "inclusive": [
+      [
+        "(root)",
+        25311.70000000263
+      ],
+      [
+        "",
+        11669.210999999143
+      ],
+      [
+        "execute",
+        11388.520999999138
+      ],
+      [
+        "WebDevice.<computed>",
+        10971.443999999115
+      ],
+      [
+        "js-to-wasm",
+        10642.92699999918
+      ],
+      [
+        "call",
+        10071.318999999354
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::web::WebDevice>::call",
+        9941.748999999367
+      ],
+      [
+        "webdevice_call multivalue shim",
+        9941.748999999367
+      ],
+      [
+        "wasm_bindgen[2f6837301c97a000]::__rt::maybe_catch_unwind::<<snapback4_device[a4a04f7b614bfd96]::web::WebDevice>::call::_::__wasm_bindgen_generated_WebDevice_call::{closure#0}, alloc[46d95d5090e9754d]::string::String>",
+        9941.748999999367
+      ],
+      [
+        "webdevice_call",
+        9941.748999999367
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::call::call_text::<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>",
+        9936.505999999366
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::call::try_call_text::<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>",
+        9936.505999999366
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::call::page_call::<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>",
+        9009.418999999869
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::device::Device<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>>::apply_publication",
+        8769.482999999995
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::device::Device<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>>::apply_publication_inner",
+        8768.423999999995
+      ],
+      [
+        "(idle)",
+        6694.198000000125
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx as snapback4_device[a4a04f7b614bfd96]::store::DeviceTx>::replace_rows::<<snapback4_device[a4a04f7b614bfd96]::device::Device<snapback4_device[a4a04f7b614bfd96]::memory::MemoryStore>>::apply_publication_inner::{closure#4}>",
+        5349.693000000079
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx as snapback4_core[5ba4d217ffaa1179]::rows::Rows>::put",
+        4663.1530000000585
+      ],
+      [
+        "writeBucket",
+        3547.1760000000017
+      ],
+      [
+        "JSON.<computed>",
+        3059.770000000005
+      ],
+      [
+        "read.onsuccess",
+        3000.547999999982
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx>::set_entry",
+        2461.5049999999906
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String>>::insert",
+        2256.614999999988
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String>>::entry",
+        2001.5649999999828
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::vec::Vec<u8>>",
+        1939.1759999999833
+      ],
+      [
+        "snapback4_core[5ba4d217ffaa1179]::rows::index_write",
+        1585.9379999999846
+      ],
+      [
+        "(program)",
+        1499.3359999999927
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite> as alloc[46d95d5090e9754d]::vec::spec_from_iter_nested::SpecFromIterNested<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::Index>, snapback4_core[5ba4d217ffaa1179]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[5ba4d217ffaa1179]::error::RuntimeError>>>>::from_iter",
+        1474.7939999999862
+      ],
+      [
+        "settle",
+        1466.5249999999864
+      ],
+      [
+        "<core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::Index>, snapback4_core[5ba4d217ffaa1179]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[5ba4d217ffaa1179]::error::RuntimeError>> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold::<(), core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator::try_for_each::call<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>::Break>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>>",
+        1406.914999999988
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>>::extend_desugared::<core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::Index>, snapback4_core[5ba4d217ffaa1179]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[5ba4d217ffaa1179]::error::RuntimeError>>>",
+        1397.5169999999882
+      ],
+      [
+        "<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::Index>, snapback4_core[5ba4d217ffaa1179]::rows::index_write::{closure#1}> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold::<(), <core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::Index>, snapback4_core[5ba4d217ffaa1179]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[5ba4d217ffaa1179]::error::RuntimeError>> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold<(), core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator::try_for_each::call<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>::Break>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[5ba4d217ffaa1179]::rows::IndexWrite>>>",
+        1396.331999999988
+      ],
+      [
+        "snapback4_core[5ba4d217ffaa1179]::rows::index_keys",
+        1345.6429999999893
+      ],
+      [
+        "request.onsuccess",
+        1170.1509999999978
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::ser::format_escaped_str::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[bd754e70d9a11cd7]::ser::CompactFormatter>",
+        1078.5259999999946
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::device::delivery::publish::<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx>",
+        1046.5639999999944
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx as snapback4_device[a4a04f7b614bfd96]::store::DeviceTx>::commit",
+        937.2539999999963
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::ser::format_escaped_str_contents::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[bd754e70d9a11cd7]::ser::CompactFormatter>",
+        921.1479999999973
+      ],
+      [
+        "drain",
+        907.7959999999987
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::device::snapshot::stage::<snapback4_device[a4a04f7b614bfd96]::memory::MemoryTx>",
+        904.3979999999987
+      ],
+      [
+        "IDBObjectStore.<computed>",
+        758.2030000000008
+      ],
+      [
+        "<snapback4_core[5ba4d217ffaa1179]::value::Value as serde_core[947dc13153fa8c9c]::ser::Serialize>::serialize::<&mut serde_json[bd754e70d9a11cd7]::ser::Serializer<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>>>",
+        718.319999999998
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::ser::Serializer<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>> as serde_core[947dc13153fa8c9c]::ser::Serializer>::serialize_newtype_variant::<snapback4_core[5ba4d217ffaa1179]::value::ObjectFields>",
+        708.784999999998
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::malloc",
+        687.3079999999987
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::ser::Serializer<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>> as serde_core[947dc13153fa8c9c]::ser::Serializer>::collect_map::<&alloc[46d95d5090e9754d]::string::String, &snapback4_core[5ba4d217ffaa1179]::value::Value, &alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::value::Value>>",
+        686.3989999999982
+      ],
+      [
+        "snapback4_device[a4a04f7b614bfd96]::device::delivery::collect",
+        663.7659999999992
+      ],
+      [
+        "webdevice_drain",
+        659.696999999999
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::web::WebDevice>::drain",
+        659.696999999999
+      ],
+      [
+        "webdevice_drain multivalue shim",
+        659.696999999999
+      ],
+      [
+        "wasm_bindgen[2f6837301c97a000]::__rt::maybe_catch_unwind::<<snapback4_device[a4a04f7b614bfd96]::web::WebDevice>::drain::_::__wasm_bindgen_generated_WebDevice_drain::{closure#0}, alloc[46d95d5090e9754d]::string::String>",
+        659.696999999999
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::de::from_str::<snapback4_device[a4a04f7b614bfd96]::call::PageArgument>",
+        646.0349999999979
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::call::PageArgument as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead>>",
+        646.0349999999979
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::de::from_trait::<serde_json[bd754e70d9a11cd7]::read::StrRead, snapback4_device[a4a04f7b614bfd96]::call::PageArgument>",
+        646.0349999999979
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::Deserializer>::deserialize_struct::<<snapback4_device[a4a04f7b614bfd96]::call::PageArgument as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::__Visitor>",
+        646.0349999999979
+      ],
+      [
+        "<snapback4_device[a4a04f7b614bfd96]::device::StreamPage as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead>>",
+        643.9109999999978
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::de::MapAccess<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::MapAccess>::next_value_seed::<core[7d5f0a2ba6a62c33]::marker::PhantomData<snapback4_device[a4a04f7b614bfd96]::device::StreamPage>>",
+        643.9109999999978
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::Deserializer>::deserialize_struct::<<snapback4_device[a4a04f7b614bfd96]::device::StreamPage as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::__Visitor>",
+        642.8489999999979
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::de::MapAccess<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::MapAccess>::next_value_seed::<core[7d5f0a2ba6a62c33]::marker::PhantomData<alloc[46d95d5090e9754d]::vec::Vec<snapback4_device[a4a04f7b614bfd96]::device::StreamEvent>>>",
+        639.6539999999978
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::Deserializer>::deserialize_seq::<<alloc[46d95d5090e9754d]::vec::Vec<_> as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::VecVisitor<snapback4_device[a4a04f7b614bfd96]::device::StreamEvent>>",
+        639.6539999999978
+      ],
+      [
+        "<<alloc[46d95d5090e9754d]::vec::Vec<_> as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::VecVisitor<snapback4_device[a4a04f7b614bfd96]::device::StreamEvent> as serde_core[947dc13153fa8c9c]::de::Visitor>::visit_seq::<serde_json[bd754e70d9a11cd7]::de::SeqAccess<serde_json[bd754e70d9a11cd7]::read::StrRead>>",
+        638.590999999998
+      ]
+    ],
+    "exclusive": [
+      [
+        "(idle)",
+        6694.198000000125
+      ],
+      [
+        "JSON.<computed>",
+        3030.955000000005
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::vec::Vec<u8>>",
+        1939.1759999999833
+      ],
+      [
+        "(program)",
+        1499.3359999999927
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::malloc",
+        639.5489999999995
+      ],
+      [
+        "memcmp",
+        586.8459999999991
+      ],
+      [
+        "put",
+        585.6290000000005
+      ],
+      [
+        "(garbage collector)",
+        563.877000000001
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<u8>>::append_elements[2]",
+        517.029
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::ser::format_escaped_str_contents::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[bd754e70d9a11cd7]::ser::CompactFormatter>",
+        480.507
+      ],
+      [
+        "RegExp: [^\\x00-\\x7f]",
+        374.92700000000013
+      ],
+      [
+        "decode",
+        251.30300000000008
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::free",
+        231.17799999999997
+      ],
+      [
+        "writeBucket",
+        212.32899999999984
+      ],
+      [
+        "snapback4_core[5ba4d217ffaa1179]::key::encode",
+        204.07799999999992
+      ],
+      [
+        "__rustc[6c289b9f9c454d21]::__rdl_dealloc",
+        199.74500000000012
+      ],
+      [
+        "cachedWasm",
+        192.367
+      ],
+      [
+        "read.onsuccess",
+        188.06200000000004
+      ],
+      [
+        "__rustc[6c289b9f9c454d21]::__rdl_realloc",
+        160.22899999999993
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::search_tree::<str>",
+        156.79199999999992
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::read::SliceRead>::skip_to_escape",
+        146.32799999999995
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, snapback4_device[a4a04f7b614bfd96]::memory::Dirty, alloc[46d95d5090e9754d]::collections::btree::set_val::SetValZST, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<snapback4_device[a4a04f7b614bfd96]::memory::Dirty>",
+        142.91300000000004
+      ],
+      [
+        "IDBObjectStore.<computed>",
+        138.82000000000008
+      ],
+      [
+        "",
+        134.358
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::Handle<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::collections::btree::node::marker::Leaf>, alloc[46d95d5090e9754d]::collections::btree::node::marker::Edge>>::insert::<alloc[46d95d5090e9754d]::alloc::Global>",
+        132.13700000000014
+      ],
+      [
+        "passStringToWasm0",
+        116.58499999999997
+      ],
+      [
+        "request.onsuccess",
+        116.30199999999995
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::string::String as core[7d5f0a2ba6a62c33]::clone::Clone>::clone",
+        110.24400000000006
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::navigate::LazyLeafRange<alloc[46d95d5090e9754d]::collections::btree::node::marker::Immut, alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::ir::ArgType>>::next_unchecked",
+        101.564
+      ],
+      [
+        "<core[7d5f0a2ba6a62c33]::result::Result<(), std[5ccbcb928378ab90]::io::error::Error>>::map_err::<serde_json[bd754e70d9a11cd7]::error::Error, <serde_json[bd754e70d9a11cd7]::error::Error>::io>[1]",
+        99.01799999999997
+      ],
+      [
+        "hashKey",
+        89.61499999999997
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::de::MapAccess<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::MapAccess>::next_entry::<alloc[46d95d5090e9754d]::string::String, serde_json[bd754e70d9a11cd7]::value::Value>",
+        88.18199999999999
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, serde_json[bd754e70d9a11cd7]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::string::String>",
+        82.08299999999998
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::raw_vec::RawVecInner>::deallocate",
+        81.65899999999995
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead> as serde_core[947dc13153fa8c9c]::de::Deserializer>::deserialize_any::<<serde_json[bd754e70d9a11cd7]::value::Value as serde_core[947dc13153fa8c9c]::de::Deserialize>::deserialize::ValueVisitor>",
+        80.74400000000003
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::read::StrRead as serde_json[bd754e70d9a11cd7]::read::Read>::parse_str",
+        78.52200000000006
+      ],
+      [
+        "apply",
+        77.49999999999999
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::de::MapAccess<_> as serde_core[947dc13153fa8c9c]::de::MapAccess>::next_key_seed::has_next_key::<serde_json[bd754e70d9a11cd7]::read::StrRead>",
+        77.47100000000002
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<u8> as core[7d5f0a2ba6a62c33]::cmp::Ord>::cmp",
+        74.116
+      ],
+      [
+        "<str as core[7d5f0a2ba6a62c33]::cmp::Ord>::cmp[1]",
+        72.02499999999998
+      ],
+      [
+        "encode",
+        71.162
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::value::Value>::as_i64",
+        70.497
+      ],
+      [
+        "<&mut alloc[46d95d5090e9754d]::vec::Vec<u8> as std[5ccbcb928378ab90]::io::Write>::write_all[1]",
+        70.101
+      ],
+      [
+        "<snapback4_core[5ba4d217ffaa1179]::value::Value as serde_core[947dc13153fa8c9c]::ser::Serialize>::serialize::<&mut serde_json[bd754e70d9a11cd7]::ser::Serializer<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>>>",
+        69.10300000000001
+      ],
+      [
+        "<&mut serde_json[bd754e70d9a11cd7]::ser::Serializer<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>> as serde_core[947dc13153fa8c9c]::ser::Serializer>::collect_map::<&alloc[46d95d5090e9754d]::string::String, &snapback4_core[5ba4d217ffaa1179]::value::Value, &alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::value::Value>>",
+        65.93800000000002
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::raw_vec::RawVecInner>::try_allocate_in",
+        60.477999999999994
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, serde_json[bd754e70d9a11cd7]::value::Value> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::next",
+        57.29199999999999
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::vec::Vec<u8>, alloc[46d95d5090e9754d]::string::String>>::entry",
+        57.096999999999994
+      ],
+      [
+        "serde_json[bd754e70d9a11cd7]::ser::format_escaped_str::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[bd754e70d9a11cd7]::ser::CompactFormatter>",
+        55.26699999999999
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::navigate::LazyLeafRange<alloc[46d95d5090e9754d]::collections::btree::node::marker::Immut, alloc[46d95d5090e9754d]::string::String, core[7d5f0a2ba6a62c33]::option::Option<i64>>>::next_unchecked",
+        54.31799999999999
+      ],
+      [
+        "<serde_json[bd754e70d9a11cd7]::de::Deserializer<serde_json[bd754e70d9a11cd7]::read::StrRead>>::parse_whitespace",
+        50.889
+      ],
+      [
+        "<snapback4_core[5ba4d217ffaa1179]::value::Value>::field",
+        50.850999999999985
+      ],
+      [
+        "<u8 as core[7d5f0a2ba6a62c33]::slice::cmp::SliceOrd>::compare",
+        49.992999999999995
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::unlink_chunk",
+        49.868
+      ],
+      [
+        "snapback4_core[5ba4d217ffaa1179]::wire::row_from_json",
+        47.77400000000003
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::sys::System as dlmalloc[34d9e156da7ff0eb]::Allocator>::alloc",
+        46.691
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::Handle<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::Leaf>, alloc[46d95d5090e9754d]::collections::btree::node::marker::Edge>>::insert::<alloc[46d95d5090e9754d]::alloc::Global>",
+        46.577
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::UniqueRefusal>, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::search_tree::<alloc[46d95d5090e9754d]::string::String>",
+        46.49699999999999
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, snapback4_core[5ba4d217ffaa1179]::schema::UniqueRefusal, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::string::String>",
+        43.63400000000001
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::ptr::drop_glue::<snapback4_core[5ba4d217ffaa1179]::value::Value>[1]",
+        42.219
+      ]
+    ]
+  },
+  "after": {
+    "inclusive": [
+      [
+        "(root)",
+        19107.700999998637
+      ],
+      [
+        "",
+        10247.956999999851
+      ],
+      [
+        "execute",
+        10103.03999999988
+      ],
+      [
+        "WebDevice.<computed>",
+        9671.304999999971
+      ],
+      [
+        "js-to-wasm",
+        9502.641000000007
+      ],
+      [
+        "call",
+        9005.3760000001
+      ],
+      [
+        "wasm_bindgen[2f6837301c97a000]::__rt::maybe_catch_unwind::<<snapback4_device[c534e3adcaf5113d]::web::WebDevice>::call::_::__wasm_bindgen_generated_WebDevice_call::{closure#0}, alloc[46d95d5090e9754d]::string::String>",
+        8877.899000000125
+      ],
+      [
+        "webdevice_call",
+        8877.899000000125
+      ],
+      [
+        "webdevice_call multivalue shim",
+        8877.899000000125
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::web::WebDevice>::call",
+        8876.830000000125
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::call::try_call_text::<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>",
+        8874.684000000127
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::call::call_text::<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>",
+        8874.684000000127
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::call::page_call::<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>",
+        7975.859000000232
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::device::Device<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>>::apply_publication",
+        7739.145000000207
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::device::Device<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>>::apply_publication_inner",
+        7739.145000000207
+      ],
+      [
+        "(idle)",
+        4751.318000000021
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx as snapback4_device[c534e3adcaf5113d]::store::DeviceTx>::replace_rows::<<snapback4_device[c534e3adcaf5113d]::device::Device<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>>::apply_publication_inner::{closure#4}>",
+        4411.247000000064
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx as snapback4_device[c534e3adcaf5113d]::store::DeviceTx>::put_staged",
+        2329.053999999988
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx>::put_image",
+        2198.274999999983
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries",
+        1406.179999999988
+      ],
+      [
+        "(program)",
+        1386.5199999999904
+      ],
+      [
+        "snapback4_core[d98b96cf8338be7f]::rows::index_write",
+        1379.3569999999834
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::device::delivery::publish::<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx>",
+        1363.9269999999917
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite> as alloc[46d95d5090e9754d]::vec::spec_from_iter_nested::SpecFromIterNested<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::Index>, snapback4_core[d98b96cf8338be7f]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[d98b96cf8338be7f]::error::RuntimeError>>>>::from_iter",
+        1284.819999999984
+      ],
+      [
+        "settle",
+        1281.2439999999929
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key as core[7d5f0a2ba6a62c33]::cmp::Ord>::cmp",
+        1245.8149999999937
+      ],
+      [
+        "JSON.<computed>",
+        1232.1779999999956
+      ],
+      [
+        "<core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::Index>, snapback4_core[d98b96cf8338be7f]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[d98b96cf8338be7f]::error::RuntimeError>> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold::<(), core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator::try_for_each::call<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>::Break>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>>",
+        1220.9359999999851
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>>::extend_desugared::<core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::Index>, snapback4_core[d98b96cf8338be7f]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[d98b96cf8338be7f]::error::RuntimeError>>>",
+        1211.4009999999855
+      ],
+      [
+        "<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::Index>, snapback4_core[d98b96cf8338be7f]::rows::index_write::{closure#1}> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold::<(), <core[7d5f0a2ba6a62c33]::iter::adapters::GenericShunt<core[7d5f0a2ba6a62c33]::iter::adapters::map::Map<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::Index>, snapback4_core[d98b96cf8338be7f]::rows::index_write::{closure#1}>, core[7d5f0a2ba6a62c33]::result::Result<core[7d5f0a2ba6a62c33]::convert::Infallible, snapback4_core[d98b96cf8338be7f]::error::RuntimeError>> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::try_fold<(), core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator::try_for_each::call<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>::Break>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>>::{closure#0}, core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<core[7d5f0a2ba6a62c33]::ops::control_flow::ControlFlow<snapback4_core[d98b96cf8338be7f]::rows::IndexWrite>>>",
+        1210.3149999999853
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::slice::sort::unstable::ipnsort::<(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>), <[(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>)]>::sort_unstable_by<<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries::{closure#0}>::{closure#0}>",
+        1160.1959999999995
+      ],
+      [
+        "snapback4_core[d98b96cf8338be7f]::rows::index_keys",
+        1153.9259999999865
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::slice::sort::unstable::quicksort::quicksort::<(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>), <[(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>)]>::sort_unstable_by<<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries::{closure#0}>::{closure#0}>",
+        1134.4990000000003
+      ],
+      [
+        "drainChanges",
+        966.9850000000038
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::slice::sort::unstable::quicksort::partition::<(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>), <[(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>)]>::sort_unstable_by<<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries::{closure#0}>::{closure#0}>",
+        951.5390000000026
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::slice::sort::unstable::quicksort::partition_lomuto_branchless_cyclic::<(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>), <[(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>)]>::sort_unstable_by<<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries::{closure#0}>::{closure#0}>",
+        941.9120000000023
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::device::snapshot::stage::<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx>",
+        888.7800000000036
+      ],
+      [
+        "read.onsuccess",
+        879.6689999999921
+      ],
+      [
+        "serde_json[8170d1a7318cd951]::ser::format_escaped_str::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[8170d1a7318cd951]::ser::CompactFormatter>",
+        808.4420000000035
+      ],
+      [
+        "serde_json[8170d1a7318cd951]::ser::format_escaped_str_contents::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[8170d1a7318cd951]::ser::CompactFormatter>",
+        732.6130000000028
+      ],
+      [
+        "snapback4_device[c534e3adcaf5113d]::device::delivery::collect",
+        696.9870000000013
+      ],
+      [
+        "key",
+        676.5089999999968
+      ],
+      [
+        "drain_chunk",
+        667.5110000000027
+      ],
+      [
+        "serde_json[8170d1a7318cd951]::de::from_trait::<serde_json[8170d1a7318cd951]::read::StrRead, snapback4_device[c534e3adcaf5113d]::call::PageArgument>",
+        631.5320000000013
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::call::PageArgument as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead>>",
+        631.5320000000013
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_struct::<<snapback4_device[c534e3adcaf5113d]::call::PageArgument as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::__Visitor>",
+        631.5320000000013
+      ],
+      [
+        "serde_json[8170d1a7318cd951]::de::from_str::<snapback4_device[c534e3adcaf5113d]::call::PageArgument>",
+        631.5320000000013
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::de::MapAccess<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::MapAccess>::next_value_seed::<core[7d5f0a2ba6a62c33]::marker::PhantomData<snapback4_device[c534e3adcaf5113d]::device::StreamPage>>",
+        629.3950000000013
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::device::StreamPage as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead>>",
+        629.3950000000013
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_struct::<<snapback4_device[c534e3adcaf5113d]::device::StreamPage as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::__Visitor>",
+        628.3230000000013
+      ],
+      [
+        "memcmp",
+        625.7450000000015
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_seq::<<alloc[46d95d5090e9754d]::vec::Vec<_> as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::VecVisitor<snapback4_device[c534e3adcaf5113d]::device::StreamEvent>>",
+        621.9080000000015
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::de::MapAccess<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::MapAccess>::next_value_seed::<core[7d5f0a2ba6a62c33]::marker::PhantomData<alloc[46d95d5090e9754d]::vec::Vec<snapback4_device[c534e3adcaf5113d]::device::StreamEvent>>>",
+        621.9080000000015
+      ],
+      [
+        "<<alloc[46d95d5090e9754d]::vec::Vec<_> as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::VecVisitor<snapback4_device[c534e3adcaf5113d]::device::StreamEvent> as serde_core[6d9fd61fca7485ab]::de::Visitor>::visit_seq::<serde_json[8170d1a7318cd951]::de::SeqAccess<serde_json[8170d1a7318cd951]::read::StrRead>>",
+        621.9080000000015
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_struct::<<snapback4_device[c534e3adcaf5113d]::device::StreamEvent as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::__Visitor>",
+        609.0730000000013
+      ],
+      [
+        "finish",
+        581.2099999999996
+      ],
+      [
+        "webdevice_drain_chunk",
+        579.8280000000016
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryStore>::drain_chunk",
+        579.8280000000016
+      ],
+      [
+        "wasm_bindgen[2f6837301c97a000]::__rt::maybe_catch_unwind::<<snapback4_device[c534e3adcaf5113d]::web::WebDevice>::drain_chunk::_::__wasm_bindgen_generated_WebDevice_drain_chunk::{closure#0}, alloc[46d95d5090e9754d]::string::String>",
+        579.8280000000016
+      ],
+      [
+        "webdevice_drain_chunk multivalue shim",
+        579.8280000000016
+      ]
+    ],
+    "exclusive": [
+      [
+        "(idle)",
+        4751.318000000021
+      ],
+      [
+        "(program)",
+        1386.5199999999904
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key as core[7d5f0a2ba6a62c33]::cmp::Ord>::cmp",
+        1245.8149999999937
+      ],
+      [
+        "JSON.<computed>",
+        1074.6819999999973
+      ],
+      [
+        "memcmp",
+        625.7450000000015
+      ],
+      [
+        "(garbage collector)",
+        523.7970000000005
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::malloc",
+        447.76600000000013
+      ],
+      [
+        "serde_json[8170d1a7318cd951]::ser::format_escaped_str_contents::<&mut alloc[46d95d5090e9754d]::vec::Vec<u8>, serde_json[8170d1a7318cd951]::ser::CompactFormatter>",
+        427.2100000000003
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::vec::Vec<u8>>::append_elements[2]",
+        391.8740000000003
+      ],
+      [
+        "__rustc[6c289b9f9c454d21]::__rdl_dealloc",
+        249.79299999999938
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::free",
+        211.8599999999997
+      ],
+      [
+        "RegExp: [^\\x00-\\x7f]",
+        204.00899999999967
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::read::SliceRead>::skip_to_escape",
+        192.89799999999966
+      ],
+      [
+        "cachedWasm",
+        183.8229999999998
+      ],
+      [
+        "snapback4_core[d98b96cf8338be7f]::key::encode",
+        181.76900000000003
+      ],
+      [
+        "now",
+        158.5749999999998
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, snapback4_device[c534e3adcaf5113d]::memory::Dirty, alloc[46d95d5090e9754d]::collections::btree::set_val::SetValZST, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<snapback4_device[c534e3adcaf5113d]::memory::Dirty>",
+        155.7999999999998
+      ],
+      [
+        "put",
+        152.7419999999999
+      ],
+      [
+        "read.onsuccess",
+        145.1319999999999
+      ],
+      [
+        "apply",
+        131.64499999999984
+      ],
+      [
+        "",
+        122.75400000000005
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::search_tree::<str>",
+        120.37700000000004
+      ],
+      [
+        "passStringToWasm0",
+        117.31799999999987
+      ],
+      [
+        "IDBObjectStore.<computed>",
+        107.27800000000002
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::de::MapAccess<_> as serde_core[6d9fd61fca7485ab]::de::MapAccess>::next_key_seed::has_next_key::<serde_json[8170d1a7318cd951]::read::StrRead>",
+        105.49999999999994
+      ],
+      [
+        "__rustc[6c289b9f9c454d21]::__rdl_realloc",
+        103.38399999999997
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::navigate::LazyLeafRange<alloc[46d95d5090e9754d]::collections::btree::node::marker::Immut, alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::ir::ArgType>>::next_unchecked",
+        101.08199999999992
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::value::Value>::as_i64",
+        89.87499999999994
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::slice::sort::unstable::quicksort::partition_lomuto_branchless_cyclic::<(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>), <[(snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key, alloc[46d95d5090e9754d]::rc::Rc<str>)]>::sort_unstable_by<<snapback4_device[c534e3adcaf5113d]::memory::compact_index::Index>::from_entries::{closure#0}>::{closure#0}>",
+        88.66
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::read::StrRead as serde_json[8170d1a7318cd951]::read::Read>::parse_str",
+        88.59300000000003
+      ],
+      [
+        "decode",
+        87.68299999999998
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::string::String as core[7d5f0a2ba6a62c33]::clone::Clone>::clone",
+        86.364
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::raw_vec::RawVecInner>::deallocate",
+        85.202
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, serde_json[8170d1a7318cd951]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::string::String>",
+        80.93699999999997
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::de::MapAccess<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::MapAccess>::next_entry::<alloc[46d95d5090e9754d]::string::String, serde_json[8170d1a7318cd951]::value::Value>",
+        77.83599999999997
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx as snapback4_device[c534e3adcaf5113d]::store::DeviceTx>::put_staged",
+        71.21799999999999
+      ],
+      [
+        "<u8 as core[7d5f0a2ba6a62c33]::slice::cmp::SliceOrd>::compare",
+        67.245
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_map::<<alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<_, _> as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::MapVisitor<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::value::Value>>",
+        67.08600000000001
+      ],
+      [
+        "<str as core[7d5f0a2ba6a62c33]::cmp::Ord>::cmp[1]",
+        65.958
+      ],
+      [
+        "<&mut serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead> as serde_core[6d9fd61fca7485ab]::de::Deserializer>::deserialize_any::<<serde_json[8170d1a7318cd951]::value::Value as serde_core[6d9fd61fca7485ab]::de::Deserialize>::deserialize::ValueVisitor>",
+        63.93300000000001
+      ],
+      [
+        "<&mut alloc[46d95d5090e9754d]::vec::Vec<u8> as std[5ccbcb928378ab90]::io::Write>::write_all[1]",
+        62.96800000000003
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::map::Iter<alloc[46d95d5090e9754d]::string::String, serde_json[8170d1a7318cd951]::value::Value> as core[7d5f0a2ba6a62c33]::iter::traits::iterator::Iterator>::next",
+        59.787000000000006
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, (alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::rc::Rc<str>), alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::string::String>",
+        58.68600000000002
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, alloc[46d95d5090e9754d]::collections::btree::map::BTreeMap<alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::schema::UniqueRefusal>, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::search_tree::<alloc[46d95d5090e9754d]::string::String>",
+        58.53299999999998
+      ],
+      [
+        "flush",
+        57.305
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::Handle<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, snapback4_core[d98b96cf8338be7f]::value::Value, alloc[46d95d5090e9754d]::collections::btree::node::marker::Leaf>, alloc[46d95d5090e9754d]::collections::btree::node::marker::Edge>>::insert::<alloc[46d95d5090e9754d]::alloc::Global>",
+        56.515
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::binary_heap::BinaryHeap<(i64, i64)>>::sift_down_range",
+        54.58300000000001
+      ],
+      [
+        "request.onsuccess",
+        53.595000000000006
+      ],
+      [
+        "core[7d5f0a2ba6a62c33]::ptr::drop_glue::<snapback4_core[d98b96cf8338be7f]::value::Value>[1]",
+        53.173999999999985
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::MemoryTx>::put_image",
+        53.14400000000001
+      ],
+      [
+        "save",
+        49.537000000000006
+      ],
+      [
+        "<serde_json[8170d1a7318cd951]::de::Deserializer<serde_json[8170d1a7318cd951]::read::StrRead>>::parse_object_colon",
+        47.99700000000001
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::string::String as core[7d5f0a2ba6a62c33]::iter::traits::collect::Extend<char>>::extend::<core[7d5f0a2ba6a62c33]::iter::adapters::take::Take<core[7d5f0a2ba6a62c33]::str::iter::Chars>>",
+        46.861999999999995
+      ],
+      [
+        "<dlmalloc[34d9e156da7ff0eb]::dlmalloc::Dlmalloc<dlmalloc[34d9e156da7ff0eb]::sys::System>>::unlink_chunk",
+        46.834000000000024
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::raw_vec::RawVecInner>::deallocate[1]",
+        45.92
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::raw_vec::RawVecInner>::try_allocate_in",
+        45.868
+      ],
+      [
+        "<snapback4_core[d98b96cf8338be7f]::value::Value>::field",
+        45.84400000000001
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Mut, alloc[46d95d5090e9754d]::string::String, core[7d5f0a2ba6a62c33]::option::Option<i64>, alloc[46d95d5090e9754d]::collections::btree::node::marker::LeafOrInternal>>::find_key_index::<alloc[46d95d5090e9754d]::string::String>",
+        44.78000000000001
+      ],
+      [
+        "<snapback4_device[c534e3adcaf5113d]::memory::compact_key::Key>::packed",
+        44.72899999999999
+      ],
+      [
+        "<alloc[46d95d5090e9754d]::collections::btree::node::Handle<alloc[46d95d5090e9754d]::collections::btree::node::NodeRef<alloc[46d95d5090e9754d]::collections::btree::node::marker::Dying, alloc[46d95d5090e9754d]::string::String, core[7d5f0a2ba6a62c33]::option::Option<i64>, alloc[46d95d5090e9754d]::collections::btree::node::marker::Leaf>, alloc[46d95d5090e9754d]::collections::btree::node::marker::Edge>>::deallocating_next_unchecked::<alloc[46d95d5090e9754d]::alloc::Global>",
+        41.601000000000006
+      ]
+    ]
+  }
+}

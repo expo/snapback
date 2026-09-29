@@ -77762,3 +77762,61 @@ No new timing distribution, wasm measurement, budget increase or security claim.
 Report: reports/20260929-np-macos-slice/round7/REPORT.md. Raw failures, passing
 logs, controls, source bindings and native evidence are retained. One local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-09-29 — HV round 0: compact heavy acquisition and strict row pages
+
+Profiled AQ’s retained full-scale u0001 fixture in an isolated lane copy. The
+1,000-membership account still has 90,500 messages and 105,034 rows in 12 sync
+responses. Peak memory was driven by terminal publication, retained Value trees,
+1,874,664 index entries and the monolithic drain; format-3 staging bucket rewrites
+wrote about 440 million characters across the large strict saves. Coverage was
+only 19.1 ms of the sampled baseline CPU. No horizon, index or row was dropped.
+
+The memory device retains validated row images, shares encoded index-id suffixes,
+bulk-builds ordered index pages and drains bounded bridge strings. Built-in web
+and Worker devices use format-4 structured-clone row pages, with a revision-fenced
+key directory, metadata and outbox in the same strict transaction. Format 3
+upgrades locally in one strict transaction without redownload; aborted migration
+and real default/Worker offline restore are tested. Old physical-version-2 clients
+refuse before interpreting the new layout. The public adapter still creates
+format 3 and reads both. Cold server count certification fetches at most 32 rows
+per admitted decoder page, retaining all expiry, row and field verdicts, with a
+single-row fallback when the larger reservation does not fit. LLP 3000.007 §20.4
+and LLP 3000.015 §3 record the design.
+
+Five alternating before/after repetitions per account and device on eb1000
+(EPYC 9454, 96 logical CPUs, Chromium 151; heavy load 3.24–10.71) improve u0001
+from 24.517 to 18.609 s default and 25.597 to 19.522 s Worker. First answers are
+0.441 / 0.520 s; wasm high-water is 307,625,984 / 307,691,520 B, down from
+769,064,960. Worker apply 8.474 s, strict persistence 3.566 s and server production
+2.557 s **miss all requested heavy targets**. The guide states measured costs,
+not phone/Mac promises. u0500 uninstrumented medians improve 2.199 → 1.945 s
+(default) and 2.298 → 2.076 s (Worker). All 60 samples retain complete row and
+offline inbox checks. No timing overlaps this lane’s builds.
+
+Native MemoryStore replay separates incremental peak/retained allocations:
+314,935,646 / 220,779,777 B versus baseline 795,018,108 / 593,147,053 B. Cumulative
+apply allocation remains 3.36 GB, explaining the smaller CPU improvement. The
+actual native SQLite shared-apply replay reaches acquired state in 38.882 s of
+apply with 96,000 KiB process peak RSS in the instrumented test profile; this is
+not a production iOS timing claim. The generated 6,000-row regression peaks at
+54.5% of the old retained representation and bounds bridge strings; it asserts
+an allocation proportion independent of host timing.
+
+Ran scripts/test.sh once: exact summary `== 1 failure(s) in 1493 s`, exit 1.
+All Rust targets passed, client totals 5,123 pass / 1 fail / 10 skip, final models
+79/79. The sole introduced failure was the stale delivery-await hash inventory;
+its four refreshed entries pass the focused recheck, without changing fault
+recipes or existing assertions. Final browser checks 59/59, whole guide 99/99,
+cold-basis regressions 2/2, generated heap/restore regression 1/1, ref-check zero
+errors. The report’s ledger lists every earlier implementation/setup failure.
+
+Canonical wasm is 2,082,607 B raw / 607,622 B gzip, versus rebuilt AQ baseline
+2,040,529 / 592,975: +42,078 raw / +14,647 gzip for the whole artifact. It exceeds
+the original 593,719 B cap by 13,903 B; the documented ratchet is measured plus
+1,000 = 608,622 B. The extra device code is compact image/key/index custody and
+bounded draining; TypeScript persistence and server batching are outside wasm.
+Throughput compiler experiments near 970 KB gzip were rejected. Runtime ceilings
+are unchanged. Report: reports/20260929-hv-heavy-acquisition/REPORT.md. One local
+commit with the requested GPT-6 Astra trailer; nothing pushed or published.

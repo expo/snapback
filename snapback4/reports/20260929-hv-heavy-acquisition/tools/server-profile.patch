@@ -1,0 +1,55 @@
+diff --git a/snapback4/crates/snapback4-core/src/partition.rs b/snapback4/crates/snapback4-core/src/partition.rs
+index b349aab4c6..fe8eb0d5e9 100644
+--- a/snapback4/crates/snapback4-core/src/partition.rs
++++ b/snapback4/crates/snapback4-core/src/partition.rs
+@@ -608,6 +608,8 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
+             return Ok((rows, exhausted, continuation, work));
+         }
+     }
++    let hv_start = std::time::Instant::now();
++    let mut hv_ns = [0u128; 4];
+     let (index_name, remaining, dir) = match &sync.horizon {
+         Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
+         None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc),
+@@ -634,8 +636,10 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
+         let principal = viewer.map(|(_,p)|p).unwrap_or(crate::SYSTEM_PRINCIPAL);
+         // Delivery owns a separate, unbounded internal ledger. Projection is
+         // not a caller-price capability; its reader validates each live row.
++        let hv_clock = std::time::Instant::now();
+         let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
+             .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)).into_value(),k)).collect::<Vec<_>>();
++        hv_ns[0] += hv_clock.elapsed().as_nanos();
+         let count = rows.len();
+         let mut certified = if viewer.is_some_and(|(schema, _)| schema.maintain_for(table_name)
+             .is_some_and(|m| m.row_key.is_some() && schema.tables[&m.source].is_expiring())) {
+@@ -652,17 +656,23 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
+             if table.expired(&row, now) { continue; }
+             // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
+             if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
++            let hv_clock = std::time::Instant::now();
+             if let Some(runner) = &mut aggregate {
+                 let Some(live_row) = (match certified { Some(row) => row, None => runner.live_aggregate(table_name, row)? }) else { continue; };
+                 row = live_row;
+             }
++            hv_ns[1] += hv_clock.elapsed().as_nanos();
++            let hv_clock = std::time::Instant::now();
+             if let Some(reader) = &mut reader {
+                 if !reader.check_rule(table_name, crate::schema::Effect::Read, None, &row)? { continue; }
+             }
++            hv_ns[2] += hv_clock.elapsed().as_nanos();
++            let hv_clock = std::time::Instant::now();
+             // Transport retains recorded attribution for device aggregates;
+             // only authored private fields are stripped from sync images.
+             let row = table.project_fields(row, viewer.map(|(_, principal)| principal)).into_value();
+             live.push((row, key));
++            hv_ns[3] += hv_clock.elapsed().as_nanos();
+             if live.len() == target { break; }
+         }
+         if live.len() == target { break; }
+@@ -672,5 +682,6 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
+     live.truncate(ask);
+     exhausted |= sync.horizon.as_ref().is_some_and(|horizon| taken + live.len() >= horizon.last as usize);
+     let work = if filtered { examined } else { live.len() };
++    if std::env::var_os("HV_SERVER_PROFILE").is_some() { eprintln!("HV_SERVER {table_name} {examined} {} {} {} {} {}",hv_start.elapsed().as_nanos(),hv_ns[0],hv_ns[1],hv_ns[2],hv_ns[3]); }
+     Ok((live, exhausted, if filtered { bounds.after } else { None }, work))
+ }

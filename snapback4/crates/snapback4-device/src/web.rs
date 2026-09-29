@@ -67,4 +67,11 @@ impl WebDevice {
     pub fn drain(&mut self) -> String {
         snapback4_core::json_codec::to_text(&self.device.store().drain()).unwrap_or_else(|_| "[]".into())
     }
+
+    /// Transfer bounded pieces of ONE durable batch. The host collects every
+    /// piece before saving, and still commits the whole call atomically.
+    // @ref LLP 3000.007#20.4 — chunking the bridge never splits strict publication.
+    pub fn drain_chunk(&mut self) -> String {
+        self.device.store().drain_chunk()
+    }
 }
