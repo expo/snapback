@@ -1,0 +1,128 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "benchmarks/schema/social-messenger/assertions.json",
+    "sha256": "sha256:e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8",
+      "note": "All six lifetime totals read from analytics.insights were reconciled against the source entities (authorPosts aggregation and followState) and each matching sm-insights-total-* tile was asserted to display that exact value: posts 97, likesReceived 4, repostsReceived 25, repliesReceived 21, followers 4, following 2."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness assertion m8-a02-insights-like-refresh passed (13301.8 ms): beforeLikes 3 -> afterLikes 4 after Bob's like, refreshMs 1783.6."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trend",
+      "note": "On a grader-owned isolated instance: the 7 buckets are exactly floor(serverNow/86400000)-6..0, a post created now increments only the last bucket, and the post's own server day equals that bucket - UTC day boundaries from server time."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trend",
+      "note": "On a fresh instance 6 of 7 days carry explicit zero posts and zero likesReceived - present as zeros, not omitted; the array is always length 7 with numeric counters."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trend",
+      "note": "Exercised with UNEQUAL like counts (3, 2 and 1 likes): the 3-like post ranks first and the full order is strictly by like count. The lane's mapped test only ranks posts with equal like counts, so this clause was not differentially exercised by the suite (see the coverage spot-verification detail)."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trend",
+      "note": "A 3-like post is in Trending, then the isolated instance's dev clock is advanced 25h: the post leaves Trending while a newly created post enters, and the old post keeps its 3 likes (it falls out of the window rather than losing data)."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trend",
+      "note": "Two posts tied at 3 likes: the newer one ranks ahead of the older, with server timestamps confirming the order."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader] Under config/digest.shortened.json (120 s periods anchored to 00:00:00 UTC) with four fresh grader accounts and EVERY client closed before the boundary, the target received exactly one digest for the period with newFollowers 1, newPostsInFollowing 2, unreadMessages 3, unreadChats 1 - each matching the authored activity exactly, and periodStart/periodEnd matching the aligned window."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader] The fresh persona that performed no activity received zero digest payloads in any period."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader] A whole following period in which nobody acted emitted no digest for the previously active target."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-restart",
+      "note": "[grader] Measured against a grader-written effects worker with NO in-process dedupe, so a backend re-emission would appear as a second distinct effect id. The backend was killed and restarted mid-period (new pids recorded) and the worker restarted against the new instance; after the boundary the target had exactly one distinct digest effect with the correct counts, and no user anywhere had more than one digest effect for that period."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader] Five messages were sent in a group the target is provably not a member of (roster checked). The target's digest still reported unreadMessages 3 and unreadChats 1 - exactly the member chat - so non-member activity contributed nothing. Corroborated in source: digestCounts iterates only 'members where .principal = principal'."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness assertion m8-a13-same-account-message-live passed (8059.9 ms, visibleMs 5894.4)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness assertion m8-a14-cross-device-read-state passed (18793.7 ms, clearVisibleMs 1723.5)."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness assertion m8-a15-dual-offline-convergence passed (30531.9 ms; firstFlushMs 5693.9, secondFlushMs 5650.3) - both warm-offline clients settled in server-arrival order with no loss and no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness assertion m8-a16-dual-offline-receipts passed (firstReadMs 15.0, secondReadMs 14.7) - receipts advanced normally after the dual-offline reconnect."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m8-native",
+      "note": "The lane recorded NO iOS simulator artifact for M8: the m8 segment summary carries supplementalExternal ios-simulator-m8 with status 'not-recorded', pass null, requiredForGreen false, and milestone-record.json records native.simulatorProof false. Per the brief's M8 native-artifact rule (same as M6), missing evidence leaves the proof absent rather than passing it. The lane's own web durable-offline probe (evidence/m8-durable-queue.json: offlineRelaunchPending true, exactlyOnce true) is a builder assertion on the web carrier, not the native artifact this assertion names, and O4 may not be scored from builder assertions."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m8-native",
+      "note": "The lane recorded NO iOS simulator artifact for M8: the m8 segment summary carries supplementalExternal ios-simulator-m8 with status 'not-recorded', pass null, requiredForGreen false, and milestone-record.json records native.simulatorProof false. Per the brief's M8 native-artifact rule (same as M6), missing evidence leaves the proof absent rather than passing it. The same web probe recorded an in-order flush reaching 'read' (ordinals 131/130, receiptsRead true), but again on the web carrier, not the simulator."
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "binary_sha256": "cb6265a63a7a25749fa133f177700f2671a0eed0b57a3ca5ac714324f83c34be",
+  "count": 55210,
+  "wall_seconds": 51.52535600634292,
+  "latency_ms": {
+    "p50": 0.822142,
+    "p95": 1.382843,
+    "p99": 1.60778
+  },
+  "request_ms_sum": 49051.412319,
+  "proc_io_delta": {
+    "rchar": 28772,
+    "wchar": 437955712,
+    "syscr": 8,
+    "syscw": 1804077,
+    "read_bytes": 0,
+    "write_bytes": 464609280,
+    "cancelled_write_bytes": 4096,
+    "cpu_ticks": 7051
+  },
+  "clock_ticks_per_second": 100,
+  "console_lines": 54669,
+  "console_bytes": 16815858,
+  "stored_records": 32,
+  "dropped": 541,
+  "latest_sequence": 55210,
+  "watermark": 55210,
+  "host_load_end": [
+    6.24072265625,
+    17.126953125,
+    19.81103515625
+  ],
+  "source": "use personas alice\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery empty():\n  return rows first 5 by .id\nquery point():\n  return rows['absent']\nquery composed():\n  return {outer: {row: rows['absent']}}\n"
+}

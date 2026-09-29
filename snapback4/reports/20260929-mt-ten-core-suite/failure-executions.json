@@ -1,0 +1,110 @@
+[
+  {
+    "log": "keep-device-fixed-full.log",
+    "test": "process: keep=undefined across refusal withdraws changed inputs and replaces the old answer",
+    "duration_ms": 11412.844432,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-refusal-before.log",
+    "test": "process: keep=undefined across refusal withdraws changed inputs and replaces the old answer",
+    "duration_ms": 11332.733448,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-refusal-before.log",
+    "test": "process: keep=undefined across refusal withdraws changed inputs and replaces the old answer",
+    "duration_ms": 11321.59826,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-remount-before.log",
+    "test": "wasm: keep remount lifetime, isolation, last subscriber and sign-out",
+    "duration_ms": 11698.945086,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-remount-trace.log",
+    "test": "wasm: keep remount lifetime, isolation, last subscriber and sign-out",
+    "duration_ms": 11720.116251,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-remount-wire-trace.log",
+    "test": "wasm: keep remount lifetime, isolation, last subscriber and sign-out",
+    "duration_ms": 11653.563965,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "keep-reset-file-before.log",
+    "test": "process keep=true facade=false: adoption drops active and lingering answers before a held read lands",
+    "duration_ms": 3285.757297,
+    "classification": "baseline",
+    "test_watchdog_ms": 20000,
+    "poll_attempts": 600,
+    "poll_delay_ms": 5
+  },
+  {
+    "log": "keep-reset-remount.log",
+    "test": "process keep=true facade=false: adoption drops active and lingering answers before a held read lands",
+    "duration_ms": 3291.473941,
+    "classification": "ours: rejected test-only correction",
+    "test_watchdog_ms": 20000,
+    "poll_attempts": 600,
+    "poll_delay_ms": 5
+  },
+  {
+    "log": "keep-reset-state.log",
+    "test": "process keep=true facade=false: adoption drops active and lingering answers before a held read lands",
+    "duration_ms": 3293.720233,
+    "classification": "baseline",
+    "test_watchdog_ms": 20000,
+    "poll_attempts": 600,
+    "poll_delay_ms": 5
+  },
+  {
+    "log": "keep-reset-trace-retry.log",
+    "test": "process keep=true facade=false: adoption drops active and lingering answers before a held read lands",
+    "duration_ms": 3304.218779,
+    "classification": "baseline",
+    "test_watchdog_ms": 20000,
+    "poll_attempts": 600,
+    "poll_delay_ms": 5
+  },
+  {
+    "log": "trial-10cpu-2slots.log",
+    "test": "wasm: keep remount lifetime, isolation, last subscriber and sign-out",
+    "duration_ms": 11322.896403,
+    "classification": "baseline",
+    "test_watchdog_ms": 30000,
+    "poll_attempts": 1000,
+    "poll_delay_ms": 10
+  },
+  {
+    "log": "trial-10cpu-reset-race.log",
+    "test": "process keep=true facade=false: adoption drops active and lingering answers before a held read lands",
+    "duration_ms": 3314.848744,
+    "classification": "baseline",
+    "test_watchdog_ms": 20000,
+    "poll_attempts": 600,
+    "poll_delay_ms": 5
+  }
+]

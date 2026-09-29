@@ -1,0 +1,1322 @@
+{
+  "name": "process true false adoption",
+  "watch": {
+    "loading": true
+  },
+  "idle": {
+    "loading": true
+  },
+  "remount": {
+    "data": "new",
+    "complete": true,
+    "cut": null,
+    "fresh": true,
+    "next": null
+  },
+  "generation": 2,
+  "marker": "new",
+  "store": "A",
+  "hold": false,
+  "heldReads": 2,
+  "commits": [
+    "adopt"
+  ],
+  "events": [
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/idle",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "queued",
+      "reply": [],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "op": "sync_state",
+      "reply": [
+        "acquired",
+        "adoption_capture",
+        "backend_required",
+        "generation",
+        "outbox_status",
+        "pending_bound",
+        "pending_complete",
+        "pending_ids",
+        "pending_through",
+        "receipt_outcomes",
+        "restore_images_at",
+        "restore_watermark",
+        "send_revision",
+        "snapshot_catchup",
+        "store_id",
+        "transfer_store_id",
+        "transfer_watermark",
+        "watermark"
+      ],
+      "generation": 2,
+      "marker": "new",
+      "hold": false
+    },
+    {
+      "path": "/q/marker",
+      "generation": 2,
+      "marker": "new",
+      "hold": false,
+      "store": "A"
+    }
+  ]
+}

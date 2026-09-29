@@ -1,0 +1,44 @@
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (435.204484ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (23.948391ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (13.521865ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (11.940586ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (10.307708ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (11.116119ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (65.171812ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (65.032243ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (49.92351ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (53.146189ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (50.91121ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (50.296078ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (38.383675ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (28.461435ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (25.183832ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (18.328629ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (13.721704ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (13.274294ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (64.646495ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (65.674204ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (60.195924ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (56.424774ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (51.403728ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (47.571945ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (26.656169ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (19.83787ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (11.088418ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (10.459586ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (9.2413ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (10.731663ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (60.311247ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (63.323852ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (55.310814ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (50.987183ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (49.395668ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (47.404785ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1893.479868
