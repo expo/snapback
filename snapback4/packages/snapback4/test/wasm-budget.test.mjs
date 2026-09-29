@@ -39,21 +39,33 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
 `);
     stub('cargo', 'echo cargo >> "$TOOLS_LOG"');
     stub('wasm-bindgen', 'while [ "$1" != --out-dir ]; do shift; done\nshift\nmkdir -p "$1"\nprintf wasm > "$1/snapback4_device_bg.wasm"\nprintf glue > "$1/snapback4_device.js"');
-    stub('wasm-opt', 'while [ "$1" != -o ]; do shift; done\ncp "$3" "$2"');
+    stub('wasm-opt', 'echo PATH-optimizer-called >> "$TOOLS_LOG"; exit 91');
+    const optimizerDir = path.join(root, 'node_modules/binaryen');
+    mkdirSync(path.join(optimizerDir, 'bin'), { recursive: true });
+    writeFileSync(path.join(root, 'package.json'), JSON.stringify({ devDependencies: { binaryen: '132.0.0' } }));
+    const installed = path.join(optimizerDir, 'package.json');
+    const optimizer = path.join(optimizerDir, 'bin/wasm-opt');
+    writeFileSync(installed, JSON.stringify({ version: '132.0.0' }));
+    const optimizerSource = `const { appendFileSync, copyFileSync } = require('node:fs');
+appendFileSync(process.env.TOOLS_LOG, 'locked-optimizer ' + process.argv.slice(2).join(' ') + '\\n');
+if (process.env.TEST_OPT_FAIL === 'true') process.exit(92);
+const at = process.argv.indexOf('-o'); copyFileSync(process.argv[at + 2], process.argv[at + 1]);
+`;
+    writeFileSync(optimizer, optimizerSource);
     stub('brotli', 'cat "${@: -1}"');
     stub('git', 'if [ "$1" = -C ]; then\n  printf "%s\\n" "$*" >> "$TOOLS_LOG"\n  if [ -n "$TEST_DIRTY" ]; then for arg in "$@"; do if [ "$arg" = "$TEST_DIRTY" ]; then echo " M $TEST_DIRTY"; fi; done; fi\nelse echo 123456789; fi');
     const budget = path.join(root, 'metrics/wasm-budget.json');
     const log = path.join(dir, 'tools.log');
     for (const name of ['build-wasm.sh', 'measure-wasm.sh']) {
-      const run = (dirty = '', familyFail = false) => spawnSync('bash', [path.join(root, 'scripts', name)], {
-        encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${path.dirname(process.execPath)}:${process.env.PATH}`, TOOLS_LOG: log, TEST_DIRTY: dirty, TEST_FAMILY_FAIL: String(familyFail) },
+      const run = (dirty = '', familyFail = false, optFail = false) => spawnSync('bash', [path.join(root, 'scripts', name)], {
+        encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${path.dirname(process.execPath)}:${process.env.PATH}`, TOOLS_LOG: log, TEST_DIRTY: dirty, TEST_FAMILY_FAIL: String(familyFail), TEST_OPT_FAIL: String(optFail) },
       });
       rmSync(budget, { force: true }); writeFileSync(log, '');
       const missing = run(); assert.notEqual(missing.status, 0); assert.match(missing.stderr, /wasm-budget.json/); assert.equal(readFileSync(log, 'utf8'), '');
       writeFileSync(budget, '{');
       const malformed = run(); assert.notEqual(malformed.status, 0); assert.match(malformed.stderr, /wasm-budget.json/); assert.equal(readFileSync(log, 'utf8'), '');
       writeFileSync(budget, JSON.stringify({ gzip: 1, set: '2026-09-17', why: 'force overrun' }));
-      for (const dirtyPath of ['', 'snapback4/crates', 'snapback4/rust-toolchain.toml', 'snapback4/metrics/wasm-budget.json']) {
+      for (const dirtyPath of ['', 'snapback4/crates', 'snapback4/rust-toolchain.toml', 'snapback4/metrics/wasm-budget.json', 'snapback4/package.json', 'snapback4/bun.lock']) {
         const dirty = Boolean(dirtyPath);
         const result = run(dirtyPath);
         assert.match(readFileSync(log, 'utf8'), /cargo/);
@@ -65,13 +77,26 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
           assert.equal(result.status, 0, result.stderr);
           const measured = JSON.parse(result.stdout); assert.equal(measured.dirty, dirty); assert.ok(measured.over > 0); assert.equal(measured.sha, '123456789');
           assert.equal(result.stderr.includes('WARNING: measuring a dirty source tree'), dirty);
-          assert.match(readFileSync(log, 'utf8'), /status --porcelain -- snapback4\/crates snapback4\/scripts snapback4\/Cargo.toml snapback4\/Cargo.lock snapback4\/rust-toolchain.toml snapback4\/metrics\/wasm-budget.json/);
+          assert.match(readFileSync(log, 'utf8'), /status --porcelain -- snapback4\/crates snapback4\/scripts snapback4\/Cargo.toml snapback4\/Cargo.lock snapback4\/rust-toolchain.toml snapback4\/metrics\/wasm-budget.json snapback4\/package.json snapback4\/bun.lock/);
           assert.match(readFileSync(log, 'utf8'), /--check-families/);
         }
       }
       if (name === 'build-wasm.sh') {
         writeFileSync(budget, JSON.stringify({ gzip: 10000000, set: '2026-09-17', why: 'within budget' }));
         const within = run(); assert.equal(within.status, 0, within.stderr); assert.match(within.stdout, /: ok\)/);
+        assert.match(readFileSync(log, 'utf8'), /locked-optimizer -Os/);
+        assert.match(readFileSync(log, 'utf8'), /locked-optimizer --code-folding/);
+        assert.doesNotMatch(readFileSync(log, 'utf8'), /PATH-optimizer-called/);
+        rmSync(optimizer); writeFileSync(log, '');
+        const absent = run(); assert.notEqual(absent.status, 0); assert.match(absent.stderr, /bun install --frozen-lockfile/);
+        assert.equal(readFileSync(log, 'utf8'), '', 'missing optimizer must refuse before cargo or PATH fallback');
+        writeFileSync(optimizer, optimizerSource);
+        writeFileSync(installed, JSON.stringify({ version: '131.0.0' }));
+        const mismatch = run(); assert.notEqual(mismatch.status, 0); assert.match(mismatch.stderr, /exact workspace pin/);
+        assert.equal(readFileSync(log, 'utf8'), '');
+        writeFileSync(installed, JSON.stringify({ version: '132.0.0' }));
+        const failed = run('', false, true); assert.equal(failed.status, 92, 'optimizer failure cannot silently ship raw wasm');
+
       }
       if (name === 'measure-wasm.sh') {
         writeFileSync(log, '');

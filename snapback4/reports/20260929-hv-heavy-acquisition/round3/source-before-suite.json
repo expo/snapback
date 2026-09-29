@@ -1,0 +1,8 @@
+{
+  "snapback4/packages/snapback4/src/web-idb.ts": "653c7ae51e0f8bf723d49f7470021300f7460d0ffc1ca30c21db1bc44a030a90",
+  "snapback4/packages/snapback4/test/web-pages.test.mjs": "eb65b7bee7dbd1cd55849f9d364d3495f8946d0a3fd6a7d46211f91184318ea7",
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": "1484f4d5914976a3f17e1bbe9e6c4fc3deec830d9ea73a3e01ddcba6b4cb863c",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "b50c4512a8951669f27b7acadd95d1db6160244bb84ec3daa9c64b09dda45fc3",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch/tests.rs": "dbe4351bb8d2f2f48c11bcaee7b5f2fa5acb1673233565fe74478ea11316bbbf",
+  "snapback4/crates/snapback4-device/src/memory.rs": "cd9997a8d037326aa1be339c566df9fbfaea4e82ba9f874350dc6fad9bd05357"
+}

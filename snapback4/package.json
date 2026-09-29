@@ -13,6 +13,7 @@
     "node": ">=24"
   },
   "devDependencies": {
+    "binaryen": "132.0.0",
     "expo-image-picker": "~57.0.17",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.21",

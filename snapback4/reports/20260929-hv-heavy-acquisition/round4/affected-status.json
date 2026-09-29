@@ -1,0 +1,51 @@
+[
+  {
+    "name": "affected-core",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib"
+    ],
+    "exit": 0,
+    "seconds": 38.48549473937601
+  },
+  {
+    "name": "affected-device",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--lib",
+      "--tests"
+    ],
+    "exit": 0,
+    "seconds": 1406.542973767966
+  },
+  {
+    "name": "whole-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide"
+    ],
+    "exit": 0,
+    "seconds": 17.536672200076282
+  },
+  {
+    "name": "build-and-codec",
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/wasm-budget.test.mjs",
+      "packages/snapback4/test/wasm-codec-census.test.mjs"
+    ],
+    "exit": 0,
+    "seconds": 14.631849743891507
+  }
+]

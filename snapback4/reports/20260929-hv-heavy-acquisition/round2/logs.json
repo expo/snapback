@@ -1,0 +1,82 @@
+{
+  "await-boundary.log.gz": {
+    "bytes": 153,
+    "sha256": "e211ee8a5b843ff3d98614d0e810d3408970ba49d5cea94ab8c1c05e4c3e581b"
+  },
+  "browser-affected.log.gz": {
+    "bytes": 1024,
+    "sha256": "5e5c2e467b764b24a846e87d0588fb9eb103fce3cc8fee6b961b17936a6e374c"
+  },
+  "browser-contracts.log.gz": {
+    "bytes": 4069,
+    "sha256": "1b3700606613d30147b9f4b7c214b3b318ee75df27b2ffb3a0045e19718ed687"
+  },
+  "codec-census-recheck.log.gz": {
+    "bytes": 1135,
+    "sha256": "f09f849ef8dbddaad1fb9d024a50cc668219d7cb1791d2e5d6a2c0ad9e7349eb"
+  },
+  "cold-after.log.gz": {
+    "bytes": 589,
+    "sha256": "aab5ce19ec31300470fa07cbafbc45490d614dd4dd8dda39ab2d874b5ddca897"
+  },
+  "cold-before.log.gz": {
+    "bytes": 567,
+    "sha256": "c145bb53d6b78ba70ac98129fe0146e45e74ebb41777024992f743af3fd5f5ba"
+  },
+  "cold-mutant.log.gz": {
+    "bytes": 569,
+    "sha256": "003002492ec2002ec7cb79747babe4af9ee04275c809346f93176bd1d30a0f55"
+  },
+  "core-affected.log.gz": {
+    "bytes": 5258,
+    "sha256": "97b7faec8de6a5dea56dc4fd1a9c7bde527b80947740b4db25ea4e37d82c2254"
+  },
+  "device-affected.log.gz": {
+    "bytes": 21662,
+    "sha256": "bdcb439d1fde3341378edf0c181ef9ba5567fe0e9aca41fc81c7583cc9b4292a"
+  },
+  "generated-memory.log.gz": {
+    "bytes": 251,
+    "sha256": "b320c1927b87ae0a1c129cb49ceec81d139c13d4cb34360cfd579f58ba0c203c"
+  },
+  "guide.log.gz": {
+    "bytes": 2640,
+    "sha256": "555fcf3c561c5a5d4f66e19bdf642d7a9088642b44c7ff65163d019fedce6072"
+  },
+  "images-after.log.gz": {
+    "bytes": 851,
+    "sha256": "ac93a6f576fba98f0328d2c2f450a39ffda46635fc4256ba505f5acb871fae5c"
+  },
+  "images-before.log.gz": {
+    "bytes": 496,
+    "sha256": "0d198b570795cc524b73e26a690bc8d9437cbf6ec3ae8b05e45b57ba8924481f"
+  },
+  "images-final.log.gz": {
+    "bytes": 309,
+    "sha256": "be78250e9dd8219ba911cfec53c5cccff49dd198ba746ae3e54865056a672851"
+  },
+  "package-build.log.gz": {
+    "bytes": 116,
+    "sha256": "1b7b7ac6293184083f19142ce0ec182775a55ed62ab6ea0dce3d90f2e820cd8d"
+  },
+  "packing-control.log.gz": {
+    "bytes": 177,
+    "sha256": "fbe1e28eeead1365980a19c346ecc3145b6fa85fe005666b7c78b7138b5d128f"
+  },
+  "packing-mutant.log.gz": {
+    "bytes": 512,
+    "sha256": "a1a568dcb8dc7e62bff781636eca5d046732339ea9fd533674292cc3af2d8db9"
+  },
+  "ref-check.log.gz": {
+    "bytes": 93,
+    "sha256": "11a599e7b29869af11a1db7fbcd9fb023a9e1e28b4d20da8cb584b30e5e3449d"
+  },
+  "suite.log.gz": {
+    "bytes": 154142,
+    "sha256": "a5ff28b8981c434fc28102d4bcc611c5e9215054c888bd4ae5411951ab91468a"
+  },
+  "wasm-final.log.gz": {
+    "bytes": 2117,
+    "sha256": "bd0d3af97cb13fd97704c5ef52dfb8b7b9a937a63558ef8deec79b90f009d344"
+  }
+}

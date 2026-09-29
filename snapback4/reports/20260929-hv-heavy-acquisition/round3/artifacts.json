@@ -1,0 +1,38 @@
+{
+  "snapback4/target/hv/round3/before-no-opt.wasm": {
+    "bytes": 2065883,
+    "sha256": "b92e428cc4e053f90a10a077b2bc439a494167bc40bc32d83b887bbcf70d4ab3"
+  },
+  "snapback4/target/hv/round3/final-no-opt.wasm": {
+    "bytes": 2065883,
+    "sha256": "b92e428cc4e053f90a10a077b2bc439a494167bc40bc32d83b887bbcf70d4ab3"
+  },
+  "snapback4/target/hv/round3/baseline-opt/snapback4_device_bg.wasm": {
+    "bytes": 2033727,
+    "sha256": "ffbed9f6fa475990c28c5a5acd0134977e1fa939ea6ec1e7ccbf026db73ae8b7"
+  },
+  "snapback4/target/hv/round3/final-opt.wasm": {
+    "bytes": 2033727,
+    "sha256": "ffbed9f6fa475990c28c5a5acd0134977e1fa939ea6ec1e7ccbf026db73ae8b7"
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2033727,
+    "sha256": "ffbed9f6fa475990c28c5a5acd0134977e1fa939ea6ec1e7ccbf026db73ae8b7"
+  },
+  "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2033727,
+    "sha256": "ffbed9f6fa475990c28c5a5acd0134977e1fa939ea6ec1e7ccbf026db73ae8b7"
+  },
+  "snapback4/scripts/build-wasm.sh": {
+    "bytes": 2237,
+    "sha256": "1c46877bd4f313493f0f92e2e67b7179631a2d8961f84f55d4023ab795c6b8af"
+  },
+  "snapback4/metrics/wasm-budget.json": {
+    "bytes": 32509,
+    "sha256": "1134dde35461ce939cefec4af6e7ff4bd702698d4ef5025b53f959fcb99b7949"
+  },
+  "target/hv/tools/binaryen-version_132/bin/wasm-opt": {
+    "bytes": 18506720,
+    "sha256": "1014958e6f20d412f1542320b43970214b0fb1ed780595e8f7c0d8761ed53725"
+  }
+}

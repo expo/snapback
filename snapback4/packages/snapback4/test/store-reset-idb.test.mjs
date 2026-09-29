@@ -30,19 +30,33 @@ function idbModel(t) {
             const current = databases.get(name), staged = new Map(current), tx = { error: null };
             const isWrite = mode === "readwrite";
             if (isWrite) assert.equal(options.durability, "strict");
-            tx.objectStore = () => ({
-              getAll() { return { result: [...current.values()] }; },
-              get([s, k]) { return { result: current.get(`${s} ${k}`) }; },
-              put(change) { staged.set(`${change.s} ${change.k}`, structuredClone(change)); },
-              delete([s, k]) { staged.delete(`${s} ${k}`); },
-            });
-            queueMicrotask(() => {
+            let pending = 0, finished = false;
+            const complete = () => {
+              if (pending || finished) return;
+              finished = true;
               const interrupted = isWrite ? fault : null;
               if (isWrite) fault = null;
               if (isWrite && interrupted !== "before-commit") databases.set(name, staged);
               if (interrupted) { tx.error = new Error(interrupted); tx.onabort(); }
               else tx.oncomplete();
+            };
+            // IDB remains active through request callbacks: the format read
+            // may enqueue all of this transaction's writes from onsuccess.
+            const read = result => {
+              const request = { result }; pending++;
+              queueMicrotask(() => {
+                try { request.onsuccess?.(); }
+                finally { pending--; queueMicrotask(complete); }
+              });
+              return request;
+            };
+            tx.objectStore = () => ({
+              getAll() { return read([...(isWrite ? staged : current).values()]); },
+              get([s, k]) { return read((isWrite ? staged : current).get(`${s} ${k}`)); },
+              put(change) { staged.set(`${change.s} ${change.k}`, structuredClone(change)); },
+              delete([s, k]) { staged.delete(`${s} ${k}`); },
             });
+            queueMicrotask(complete);
             return tx;
           },
         };

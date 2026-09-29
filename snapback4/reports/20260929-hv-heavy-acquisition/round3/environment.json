@@ -1,0 +1,16 @@
+{
+  "host": "expose-builder-pixel",
+  "machine": "x86_64",
+  "merge": "5b5e8db91c0bd792e1cb4f2b0bd780fa61287715",
+  "merged_main": "16fb4aa72102cdcc04b9ed3681d3c219d954a0a7",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "binaryen": "wasm-opt version 132 (version_132)",
+  "test_environment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "8",
+    "RUST_TEST_THREADS": "8"
+  },
+  "available_cpus": 96
+}

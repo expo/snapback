@@ -1,0 +1,69 @@
+{
+  "snapback4/target/hv/round4/final-with-path.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295
+  },
+  "snapback4/target/hv/round4/merged-binaryen.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295
+  },
+  "snapback4/target/hv/round4/setup-unmodified-rebuild.wasm": {
+    "bytes": 2005435,
+    "sha256": "93eb53b1ea2090befc70dbb19f1acd46498c2ef9a4b417d6fdf0181841b0a250",
+    "gzipBytes": 596818
+  },
+  "snapback4/target/hv/round4/final-no-path.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295,
+    "appleGzipBytes": 593714
+  },
+  "snapback4/target/hv/round4/merged-no-binaryen.wasm": {
+    "bytes": 2005435,
+    "sha256": "93eb53b1ea2090befc70dbb19f1acd46498c2ef9a4b417d6fdf0181841b0a250",
+    "gzipBytes": 596818
+  },
+  "snapback4/target/hv/round4/range-no-binaryen.wasm": {
+    "bytes": 2003069,
+    "sha256": "174c71f7e0cf3af9fcf4bdf58ab71e4022aa5f2f5088dcaf80e13b60d0ad557f",
+    "gzipBytes": 596296
+  },
+  "snapback4/target/hv/round4/pinned-first.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295
+  },
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295
+  },
+  "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+    "bytes": 1978828,
+    "sha256": "5740f90ae2ff64d4969dc6e44631ba7ae919732406f85392250d11ee7c40a7ae",
+    "gzipBytes": 593295
+  },
+  "snapback4/node_modules/binaryen/bin/wasm-opt": {
+    "bytes": 11279933,
+    "sha256": "608c021fa3f2c68cdc26f06a1454341089a0e689abb71cbe5a23ef7300e7f3e3"
+  },
+  "snapback4/target/hv/round4/mac-final.wasm": {
+    "bytes": 1979135,
+    "sha256": "549de290da21949d5299fd1f4f7f0a28fecfc046d5b7de78d787ef4d64dd8162",
+    "gnuGzipBytes": 593240,
+    "appleGzipBytes": 593652
+  },
+  "snapback4/target/hv/round4/remap/linux.wasm": {
+    "bytes": 1977628,
+    "sha256": "35e2680fa9eee411d4fd92fcb522ea814b65aa748e795378996a0230a2cd4d11",
+    "gnuGzipBytes": 593198
+  },
+  "snapback4/target/hv/round4/remap/mac.wasm": {
+    "bytes": 1977967,
+    "sha256": "01898b3ab5b1d8b14d8e88670df217150764d538d27badd4626f8f2eb2920552",
+    "gnuGzipBytes": 593250,
+    "appleGzipBytes": 593617
+  }
+}

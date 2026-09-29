@@ -347,13 +347,21 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "web-drain.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "web-idb-buckets.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "web-idb-pages.ts": {
+    "count": 3,
+    "sha256": "e3b802d95b865fec2440760f59bf88802bfae0ada8f9cbbe6e065930fdb37fbe"
+  },
   "web-idb.ts": {
-    "count": 14,
-    "sha256": "c8121c14f42e600ce0451840d920fe1179c07664c980ea1811c76029589fd983"
+    "count": 16,
+    "sha256": "0a0da37553cc7a3cb65a6dcfb687d1155bc32381e38e74232b4346567b902e13"
   },
   "web-journal-execution.ts": {
     "count": 1,
@@ -401,7 +409,7 @@
   },
   "web.ts": {
     "count": 47,
-    "sha256": "22ee8531c1b3f8ec2c3c359155a8031e5aa2ac0d7c931be0f322c7736905ec9f"
+    "sha256": "61f0e0b6e126322c96432d50a848c9d7a45e11ca50bd4531276f94f38cd25dd8"
   },
   "worker-ledger.ts": {
     "count": 6,

@@ -144,6 +144,40 @@ impl<'r> Runner<'r> {
         Ok(out)
     }
 
+    /// Cold certification has already admitted the member and entire source
+    /// group, including a decoder page reserved before entering prepaid work. Every row
+    /// still receives the ordinary expiry, rule and field verdict below.
+    // @ref LLP 3000.015#3 — live count certification shares its transaction and authority.
+    #[cfg(feature = "sqlite")]
+    pub(super) fn scan_acquisition_basis(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
+        const PAGE: usize = 32;
+        assert!(!self.device);
+        let table = &self.schema.tables[name];
+        let rows = self.disclosed_scratch(0, &[], |runner, scope| {
+            let selected = runner.tx.scan(scope, name, index, prefix, bounds, crate::rows::Dir::Asc, PAGE)?;
+            let mut out = Vec::with_capacity(selected.len());
+            for (mut row, key) in selected {
+                crate::schema::materialize_optional_fields(&mut row, table);
+                let provisional = runner.is_provisional(name, &row)?;
+                if provisional && !runner.context.is_system() && !scope.admit_probes(super::rules::rule_probes(&table.rules.read)) {
+                    out.push((None, key)); continue;
+                }
+                let row = if !provisional && runner.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
+                    Some(runner.authorized_synthetic(table, row))
+                } else { runner.authorize_image(name, row)? };
+                out.push((row, key));
+            }
+            Ok(out)
+        })?;
+        for (row, key) in &rows {
+            if let Some(row) = row {
+                self.meter.heap(row.heap_bytes() + row.projection_heap() + row.materialization_heap()
+                    + crate::rows::word_heap::key_decode(table.index(index).map_or(1, |i| i.components.len() + 1), key.len()))?;
+            }
+        }
+        Ok(rows)
+    }
+
     // @ref LLP 3000.015#1 — row and field authorization precede result pricing.
     pub(super) fn authorized_point(&mut self, read: &Read, index: &Index, key: &[Value], prepaid: bool, trusted: bool, prepaid_examined: bool, absent: &mut bool) -> Result<Option<AuthorizedRow<'r>>, RuntimeError> {
         let table = &self.schema.tables[&read.table];

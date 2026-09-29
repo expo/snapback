@@ -642,7 +642,7 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
             let runner = aggregate.as_mut().unwrap();
             runner.meter.heap(crate::rows::word_heap::slots::<Value>(count)
                 .saturating_add(crate::engine::row_copy_ceiling(table).saturating_mul(count as u64)))?;
-            Some(runner.live_aggregate_batch(table_name,
+            Some(runner.live_acquisition_batch(table_name,
                 &rows.iter().map(|(row, _)| row.clone()).collect::<Vec<_>>())?.into_iter())
         } else { None };
         examined += count;

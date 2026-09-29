@@ -68,6 +68,12 @@ pub trait DeviceTx: Rows {
         load()
     }
 
+    /// Install this exact decoded staged row. Memory may share its encoded
+    /// image; native stores keep the ordinary transactional row/index write.
+    fn put_staged(&self, _key: &str, name: &str, table: &snapback4_core::schema::Table, row: &snapback4_core::value::Value) -> Result<u64, RuntimeError> {
+        self.put(name, table, row, None)
+    }
+
     /// A new outbox entry; a duplicate submission number or id is refused.
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError>;
     /// The entry with this id, replaced.

@@ -358,30 +358,26 @@ Custom persistence providers stay on the default device. The bundler must
 package the Worker entry and wasm asset; Vite and the Clique Metro web export
 are exercised by browser witnesses. These are fixture measurements,
 not a cold-start deadline for other declarations.
-On eb1000 (AMD EPYC 9454, Chromium 151), five fresh-device runs against
-one retained Clique scale store have median acquisition times of 2.19 s
-(default) and 2.25 s (Worker): 100 memberships, 500 Following edges, 500 held
-messages and 3.65 MB of sync response bodies. The first inbox answer arrives
-before acquisition finishes. Render that answer while `useAcquisition()` shows
-progress; only `acquired` means the complete partition is durably ready offline.
-A heavy account with 1,000 memberships and 90,500 held messages takes a
-25.66 s Worker median in five instrumented runs (39.76 MB of response bodies).
-Group count alone does not predict bytes or time.
-For planning on a 10-core M1 Max, expect roughly 5–8 s at the smaller volume
-and 60–90 s at the heavy volume until measured there. These are engineering
-estimates from the slower calibration host, not Mac qualification or deadlines.
-The retained fixture differs from the slower Mac calibration; these estimates
-are not promises. The new bucket layout changes browser persistence, not the declared partition.
+On eb1000 (96 logical CPUs, AMD EPYC 9454, Chromium 151), five fresh-device
+runs have median acquisition times of 1.89 s (default) and 2.10 s (Worker):
+100 memberships, 500 Following edges, 500 held messages, 3.65 MB response bodies.
+A 1,000-membership account with 90,500 messages / 105,034 rows takes 18.40 s
+(default) or 19.17 s (Worker), with first inbox answers at 0.40 / 0.50 s and
+peak wasm heaps of 307.69 / 307.63 MB. These are five instrumented runs per
+mode, 39.76 MB transferred, 46.21 MB logical data, host load 3.98–11.16.
+Render the first answer while `useAcquisition()` shows progress; only `acquired`
+means the complete partition is durably ready offline. Group count alone does
+not predict bytes or time. The heavy account still exceeds an 8-second target.
+Mac and phone timings have not been measured for this implementation.
 
-The format-3 browser store upgrades the physical IndexedDB database from
-version 1 to 2, preserving existing stores, rows, staged acquisition and outbox.
-Old bucket formats migrate on load in one strict transaction; an aborted
-migration can be retried by the current client. The database version stays 2.
-A cached pre-upgrade client opening version 1 now rejects with `VersionError`
-(requested version is less than the existing version), before reading or writing.
-Reload the application with its updated page and Worker bundles to reopen the
-store. Keep that update available offline before relying on offline reopening;
-clearing browser storage would discard retained rows and pending writes.
+Built-in browser devices upgrade format-3 stores to format 4 locally in one
+strict transaction, preserving rows, unfinished acquisition, prediction bases
+and outbox. No redownload is needed. An abort leaves format 3 intact at physical
+IndexedDB version 3; the current client retries. An old version-2 client rejects
+with `VersionError` before reading or writing. Reload the application with both
+updated page and Worker bundles, and keep that update available offline before
+relying on offline reopening. Clearing storage would discard retained rows and
+pending writes. `indexedDbPersistence()` still creates format 3 and reads both.
 
 Measure your own largest account in five fresh browser profiles, with the
 production server and the same device choice. Record host load, browser version,

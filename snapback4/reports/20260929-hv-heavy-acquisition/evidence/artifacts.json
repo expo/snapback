@@ -1,0 +1,19 @@
+{
+  "target/hv/before-sdk/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2040529,
+    "sha256": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b"
+  },
+  "snapback4/packages/snapback4/dist/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2082607,
+    "sha256": "d4619b9efccc78693a2f8e415c9703d97efa81200ef6df6b8fb4d767b66d4394"
+  },
+  "target/hv/server-before": {
+    "bytes": 18711160,
+    "sha256": "bfb300f03f8e386a70aeada718c2694fa8c3b26d7caf4c9303e2eb497eeb9ae3"
+  },
+  "snapback4/target/production/snapback4": {
+    "bytes": 18718712,
+    "sha256": "4dd226e2bef6d1510f5d26ac91e63149524966fa0f59245be7208d3faca84fee"
+  },
+  "note": "Paired server artifact precedes the final single-row heap-admission fallback; the fixture takes the unchanged 32-row branch. Canonical wasm size remains identical after that server-only correction."
+}

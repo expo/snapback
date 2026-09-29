@@ -1,0 +1,10 @@
+{
+  "snapback4/packages/snapback4/src/web-idb.ts": "98998c1c2f5f5edc8d936b47a2e939f3ba15711c5480ba56616a9f4ea63d2f5a",
+  "snapback4/packages/snapback4/test/web-pages.test.mjs": "eb65b7bee7dbd1cd55849f9d364d3495f8946d0a3fd6a7d46211f91184318ea7",
+  "snapback4/packages/snapback4/test/web-review.test.mjs": "31cd1d315b6b7d3637fbda58e9722a27d20e403f3d463ccbe187ba33e6ca3f29",
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": "1484f4d5914976a3f17e1bbe9e6c4fc3deec830d9ea73a3e01ddcba6b4cb863c",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "b50c4512a8951669f27b7acadd95d1db6160244bb84ec3daa9c64b09dda45fc3",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch/tests.rs": "dbe4351bb8d2f2f48c11bcaee7b5f2fa5acb1673233565fe74478ea11316bbbf",
+  "snapback4/crates/snapback4-device/src/memory.rs": "28d683a4097bd4e8b8527aaba4e3dcd68a5ff4a4dfaa66aa24cf55491fec771c",
+  "snapback4/packages/snapback4/test/store-reset-idb.test.mjs": "9672343159199433e452e5ebbb1a6db327c4a4fe1df6f8435e29b39166f27436"
+}

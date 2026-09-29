@@ -1,0 +1,9 @@
+{
+  "applyMs": 38941.15489400001,
+  "applyCalls": 12,
+  "capturedInputAndHarnessBytes": 42226937,
+  "grossRustPeakBytes": 66786030,
+  "incrementalRustPeakBytes": 24559093,
+  "finalIncrementalRustRetainedBytes": 27110,
+  "rssKiB": 96000
+}
