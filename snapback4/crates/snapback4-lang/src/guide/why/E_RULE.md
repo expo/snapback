@@ -27,17 +27,18 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-In `snapback4 dev`, the log and `snapback4 why recent` cover refusals of
-mutations, queries, asset requests and jobs. Every refusal envelope and parked
-job gets a record: operation, code, request or job ID, and Unix time in
-milliseconds, within its store/instance. Instrumented causes name the evaluated
-clause and source; otherwise `cause not instrumented`, including replays.
-Visibility filtering in sync and reads is not recorded. Inspect `why TABLE`
-for read rules and sync residency, and `guide rules`. Empty/null query results
-without a known cause use local EMPTY_READ, also in composed results; this
-alone does not prove denial. A record describes only its named request or job.
+In `dev`, refusals and parked jobs record operation, code, request/job ID and
+Unix time per store/instance. Causes name the evaluated clause/source; replays
+and uninstrumented paths say `cause not instrumented`. Records describe only
+the named request/job.
+Visibility filtering is not recorded. Inspect `snapback4 why TABLE` for rules
+and residency. Unknown empty answers are silent and unrecorded by default;
+`dev --trace-empty` records them locally without console notices.
+`snapback4 why EMPTY_READ` gives rule, coverage and horizon investigation commands.
 
-With several live instances, select `why recent --instance ID` (optionally
+Console repeats print counted one-second windows; `guide refusals` explains.
+
+With several live instances select `why recent --instance ID` (optionally
 `--store ID`). Owner-only `.snapback4/dev-refusals/<storeId>/<instance>.json`
 retains 32 records. Stopped/mismatched streams are rejected. The asynchronous
 32-slot queue reports `dropped` on recovery; `why recent` refuses older

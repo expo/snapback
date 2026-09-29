@@ -41,6 +41,18 @@ shows the declaration; code validation is the same as `require … else CODE`.
 
 ## Operations
 
+Ordinary empty reads are quiet in `dev` and absent from `why recent`.
+`snapback4 dev --trace-empty` records unknown EMPTY_READ evidence locally,
+without console notices; `snapback4 why EMPTY_READ` gives the commands to
+inspect rules, sync coverage and horizons. Emptiness does not prove denial.
+Real refusals keep individual `why recent` records. Their console lines combine
+identical operation, code and cause for one second, then print once with a count.
+Repeats do not extend that window; at 32 distinct groups the oldest prints early.
+Normal dev shutdown drains these records and flushes their counts, even with
+held polls. It waits up to two seconds; a stalled writer or abrupt termination
+can still lose queued evidence and unprinted counts.
+
+
 `dev` and `doctor` print the 128-connection and two-upload caps and the local
 process's inherited file-descriptor soft/hard limits. E_HTTP_LIMIT warns below
 1024: use `ulimit -n 1024` and restart dev before a scale run. If the hard limit
@@ -108,8 +120,9 @@ thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL
 (signal name and number), and SNAPBACK4_THREAD_EXIT (watcher/maintenance
 stopped; an unexpected stop ends the server). Each is one line with verb,
 generation and reason; generation 0 means this process has not served yet.
-INT, TERM and HUP report immediately; with an application worker they clean
-it up and exit 128 + signal. Otherwise, and for fatal signals, the process
+INT, TERM and HUP report immediately; dev flushes its refusal writer and
+cleans up any application worker, then exits 128 + signal. Serve does that
+worker cleanup when configured. Otherwise, and for fatal signals, the process
 terminates immediately with its OS signal status. SIGKILL,
 power loss and an unwritable stderr cannot report from inside the process.
 Inspect the verb, generation, reason and any panic stack before restarting;
