@@ -1,0 +1,44 @@
+[
+  {
+    "round": 0,
+    "variant": "baseline",
+    "wallSeconds": 0.5036827982403338,
+    "apparentBytes": 494290187,
+    "diskBytes": 613949440
+  },
+  {
+    "round": 0,
+    "variant": "pinned",
+    "wallSeconds": 0.5041943048126996,
+    "apparentBytes": 602832815,
+    "diskBytes": 722534400
+  },
+  {
+    "round": 1,
+    "variant": "pinned",
+    "wallSeconds": 0.5088209151290357,
+    "apparentBytes": 602832815,
+    "diskBytes": 722534400
+  },
+  {
+    "round": 1,
+    "variant": "baseline",
+    "wallSeconds": 0.5057596708647907,
+    "apparentBytes": 494290187,
+    "diskBytes": 613949440
+  },
+  {
+    "round": 2,
+    "variant": "baseline",
+    "wallSeconds": 0.5070886039175093,
+    "apparentBytes": 494290187,
+    "diskBytes": 613945344
+  },
+  {
+    "round": 2,
+    "variant": "pinned",
+    "wallSeconds": 0.5092018931172788,
+    "apparentBytes": 602832815,
+    "diskBytes": 722534400
+  }
+]

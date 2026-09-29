@@ -1,0 +1,18 @@
+{
+  "start": "2026-09-29T16:56:42Z",
+  "loadBefore": [
+    10.36376953125,
+    6.91162109375,
+    7.67041015625
+  ],
+  "binary": "/home/ccheever/sb4-intent/lane-hv/snapback4/target/debug/deps/heavy_acquisition-ce790fd0e1d11dd4",
+  "capture": "/home/ccheever/sb4-intent/lane-hv/target/hv/baseline-profile.json.commands.json",
+  "ownSuitesFinished": true,
+  "exit": 0,
+  "end": "2026-09-29T16:57:21Z",
+  "loadAfter": [
+    10.1767578125,
+    7.2998046875,
+    7.7705078125
+  ]
+}

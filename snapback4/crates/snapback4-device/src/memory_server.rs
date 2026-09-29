@@ -64,6 +64,7 @@ impl MemoryStore {
             state: RefCell::new(self.state.borrow().clone()),
             schema: previous.clone(),
             changes: RefCell::new(self.changes.borrow().clone()),
+            drained: Cell::new(self.drained.get()),
         };
         let tx = staged.transaction()?;
         let shortened = through_activation::activate(&tx, &schema, previous.as_ref(), now)?;

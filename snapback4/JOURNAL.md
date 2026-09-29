@@ -78267,6 +78267,63 @@ logs, controls, source bindings and native evidence are retained. One local comm
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
 
 
+## 2026-09-29 — HV round 0: compact heavy acquisition and strict row pages
+
+Profiled AQ’s retained full-scale u0001 fixture in an isolated lane copy. The
+1,000-membership account still has 90,500 messages and 105,034 rows in 12 sync
+responses. Peak memory was driven by terminal publication, retained Value trees,
+1,874,664 index entries and the monolithic drain; format-3 staging bucket rewrites
+wrote about 440 million characters across the large strict saves. Coverage was
+only 19.1 ms of the sampled baseline CPU. No horizon, index or row was dropped.
+
+The memory device retains validated row images, shares encoded index-id suffixes,
+bulk-builds ordered index pages and drains bounded bridge strings. Built-in web
+and Worker devices use format-4 structured-clone row pages, with a revision-fenced
+key directory, metadata and outbox in the same strict transaction. Format 3
+upgrades locally in one strict transaction without redownload; aborted migration
+and real default/Worker offline restore are tested. Old physical-version-2 clients
+refuse before interpreting the new layout. The public adapter still creates
+format 3 and reads both. Cold server count certification fetches at most 32 rows
+per admitted decoder page, retaining all expiry, row and field verdicts, with a
+single-row fallback when the larger reservation does not fit. LLP 3000.007 §20.4
+and LLP 3000.015 §3 record the design.
+
+Five alternating before/after repetitions per account and device on eb1000
+(EPYC 9454, 96 logical CPUs, Chromium 151; heavy load 3.24–10.71) improve u0001
+from 24.517 to 18.609 s default and 25.597 to 19.522 s Worker. First answers are
+0.441 / 0.520 s; wasm high-water is 307,625,984 / 307,691,520 B, down from
+769,064,960. Worker apply 8.474 s, strict persistence 3.566 s and server production
+2.557 s **miss all requested heavy targets**. The guide states measured costs,
+not phone/Mac promises. u0500 uninstrumented medians improve 2.199 → 1.945 s
+(default) and 2.298 → 2.076 s (Worker). All 60 samples retain complete row and
+offline inbox checks. No timing overlaps this lane’s builds.
+
+Native MemoryStore replay separates incremental peak/retained allocations:
+314,935,646 / 220,779,777 B versus baseline 795,018,108 / 593,147,053 B. Cumulative
+apply allocation remains 3.36 GB, explaining the smaller CPU improvement. The
+actual native SQLite shared-apply replay reaches acquired state in 38.882 s of
+apply with 96,000 KiB process peak RSS in the instrumented test profile; this is
+not a production iOS timing claim. The generated 6,000-row regression peaks at
+54.5% of the old retained representation and bounds bridge strings; it asserts
+an allocation proportion independent of host timing.
+
+Ran scripts/test.sh once: exact summary `== 1 failure(s) in 1493 s`, exit 1.
+All Rust targets passed, client totals 5,123 pass / 1 fail / 10 skip, final models
+79/79. The sole introduced failure was the stale delivery-await hash inventory;
+its four refreshed entries pass the focused recheck, without changing fault
+recipes or existing assertions. Final browser checks 59/59, whole guide 99/99,
+cold-basis regressions 2/2, generated heap/restore regression 1/1, ref-check zero
+errors. The report’s ledger lists every earlier implementation/setup failure.
+
+Canonical wasm is 2,082,607 B raw / 607,622 B gzip, versus rebuilt AQ baseline
+2,040,529 / 592,975: +42,078 raw / +14,647 gzip for the whole artifact. It exceeds
+the original 593,719 B cap by 13,903 B; the documented ratchet is measured plus
+1,000 = 608,622 B. The extra device code is compact image/key/index custody and
+bounded draining; TypeScript persistence and server batching are outside wasm.
+Throughput compiler experiments near 970 KB gzip were rejected. Runtime ceilings
+are unchanged. Report: reports/20260929-hv-heavy-acquisition/REPORT.md. One local
+commit with the requested GPT-6 Astra trailer; nothing pushed or published.
+
 ## 2026-09-29 — SR round 0: offline custody and direct-message routes
 
 Corrected the social starter's Send gate: unknown/loading/revalidating membership
@@ -78581,6 +78638,54 @@ absent on this base; the report records its closure resolution for integration.
 One local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-29 — HV round 1: fixed-cap reductions and apply attribution
+
+Read the round-0 prompt/report and governing acquisition/persistence design.
+Merged origin/main first in 30c3a13804, preserving EA's identity wait, KR's test
+fix and the macOS Worker snapshot fix. Resolved only the LLP header and journal
+conflicts by keeping both sides; regenerated the delivery await inventory through
+awaitBoundary(). Round-0 reviews remain for the later commissioned round.
+
+The fixed 593,719 B gzip cap is still missed. Final wasm is 2,033,735 B raw /
+602,389 B gzip: 5,233 B saved from round 0, 8,670 B still over. Withdrew the
+608,622 B ratchet. Sorted page directories, one bulk/index container, one drain
+codec, a shared base-image map and narrow Binaryen folding reduce bytes without
+removing an index or changing a persisted contract. The report has the measured
+per-change ladder and complete production/named-counterpart size inventories;
+its named counterpart is explicitly not byte-identical to production.
+
+Sixty paired browser samples retain the heavy gains: u0001 default 18.40 s /
+Worker 19.17 s, first answers 0.405 / 0.496 s, peak wasm about 307.69 / 307.63 MB.
+u0500 is 1.895 / 2.099 s. The small Worker is 123 ms slower than this run's
+control, including main integration; all five samples remain below about 2.2 s.
+Three full-SDK phase samples per account/device attribute heavy apply to words
+18–19%, ordinary indexes about 21%, and rows/publication about 60%. Word entries
+are 905,414 of 1,874,664, including 450,699 in each message word index.
+
+LLP 3000.007 §20.4.1 proposes bounded background word-index construction only
+for review. It keeps row/ordinary-index publication atomic, foreground key
+admission intact, pending search incomplete, and restore/crash/version fences
+explicit. Forecast row-ready is 16.8–17.5 / 17.6–18.3 s before new overhead;
+fully search-ready still pays all construction. Deferral is not implemented.
+The next row-cost work is separately identified; the under-8-second and 256 MB
+goals remain unmet. The sync guide records the final measured expectations.
+
+Affected device tests passed 1,389 with five declared ignores; browser checks
+59/59; await inventory 1/1; whole guide 99/99. Ran scripts/test.sh exactly once,
+exit 1: `== 1 failure(s) in 1248 s`. Its only failed stage is wasm build, ours
+(retained round-0 cap debt); baseline and environmental test failures are zero.
+Full Rust passed 4,348 with 33 ignores, clients 5,186 with ten skips, models
+79/79 at full counts, fixtures 9/9. The nominal 60-second suite budget remains
+missed. After tests finished, isolated native apply passed at 38,941.2 ms with
+96,000 KiB peak RSS; the generated regression retains a 20,551,766 B peak,
+54.5% of the old retained representation. These are diagnostic native results,
+not an iOS latency claim. Codec-family/absence checks and reference validation
+are recorded in the report.
+
+Report, failure ledger and raw evidence:
+reports/20260929-hv-heavy-acquisition/round1/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
 
 ## 2026-09-29 — SR round 2: retire unused associations and bound route recovery
 
@@ -78629,6 +78734,60 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
 
+## 2026-09-29 — HV round 2: caller admission and canonical staged images
+
+Read both prior HV prompts/reports and the complete Astra r0n/Grok r0 reviews.
+Merged origin/main 38abb89b8e0b206644b9e2619c6f2d159a981d23 first in 8474e39603,
+keeping both journal conflict hunks and the SR/KR/publication changes. No await
+inventory conflict; its detecting check passes without hand editing.
+
+Cold certification now chooses and reserves its decoder page against the saved
+finite caller allowance before prepaid work. A page includes all 32 decoder
+bounds, rule scratch and both vectors; insufficient room selects one candidate,
+and an insufficient single decoder refuses before storage access. The regression
+observes actual requested limits and real decode allocations, including nested
+and nearly spent scopes. At 256 KiB per payload, fallback requests one row and
+allocates at most 263,776 B per scan; the roomy case requests 32 and allocates
+8,417,160 B. The original code and an unbounded-allowance mutant both fail it.
+Every candidate retains expiry, rule and field disclosure checks.
+
+Published memory images share a stage only after the whole canonical row matches.
+Noncanonical rows keep their canonical encoding. Whitespace, escaped Row/Map
+tags, nested empty maps and tag-like text now have the same metered scan price
+as ordinary canonical puts. The regression reproduces the old subtraction
+panic. Sharing still retains one backing stage allocation; the added transient
+serialization is one row. LLP 3000.015 §3 and LLP 3000.007 §20.4 record the fixes.
+
+The long-lived format-3 case is already fenced: each public adapter operation
+tries physical version 2, clears cached packing on VersionError and reopens
+version 3. A Chromium regression spans aborted/successful migration, rejected
+and accepted conditional saves, ordinary saves, deletion and strict durability;
+removing that invalidation makes the accepted update disappear and fails the
+test. Built-in owners retain their exclusive claim; the LLP now requires custom
+providers to preserve ownership and re-read format inside the write transaction
+or atomically fence stale owners. No production TypeScript change was needed.
+
+Affected core tests pass 168 with one declared ignore; device tests 1,390 with
+five ignores; browser checks 17/17 plus 114/114; whole guide 99/99; await census
+1/1. Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1339 s`.
+Wasm build fails on retained HV size debt, ours. Client tests fail two codec
+census assertions because the new fixture helper lacked an explicit function
+cfg(test) marker, ours; added the marker without changing the test body, then
+passed the complete census 26/26 and image regression 1/1. All other stages
+pass: Rust 4,349 with 33 ignores, clients 5,197 passes/two failures/ten skips,
+fixtures 9/9, full-count models 79/79. Baseline/environmental test failures are
+zero. The inherited 60-second process budget remains exceeded.
+
+Final wasm is 2,033,531 B raw / 602,216 B gzip, 173 B smaller than round 1 and
+8,497 B above the unchanged 593,719 B cap; WD owns the separate main reductions.
+Generated heavy peak/retained allocations remain 20,551,766 / 15,029,122 B,
+with the peak 54.5% of old retained storage. No heavy latency campaign was
+repeated, and no new timing claim is made. No word-index deferral is implemented.
+
+Report, failure ledger and raw evidence:
+reports/20260929-hv-heavy-acquisition/round2/REPORT.md.
+The local repair commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
 ## 2026-09-29 — WD round 0: recover device wasm headroom
 
 Measured main 38abb89b8e at 2,040,531 B raw / 592,979 B gzip, 740 B below
@@ -78711,6 +78870,61 @@ conflict in that record. Wasm remains 2,040,727 B raw / 592,959 B gzip, 760 B
 below the unchanged 593,719 B cap. No push or publication.
 
 
+### 2026-09-29 — HV round 3: transaction-local format routing and full witness admission
+
+Merged origin/main 16fb4aa721 in 5b5e8db91c first, retaining LL/SR and both
+journal sides; regenerated delivery-await-boundary.json through awaitBoundary().
+Grok's two round-2 reproductions now have detecting regressions. A format-3
+writer samples the marker inside its strict write transaction before any row
+write; if migration won the interval after the preliminary read, it aborts and
+retries the complete delta through pages. Chromium holds that read callback
+while another built-in adapter migrates: ordinary/conditional page saves and
+WebWorkerHost.commitIf keep point/load agreement, write no stray buckets and
+preserve false-predicate rollback. The Worker RPC fixture supplies row changes;
+today's real Worker restricts conditional operations to metadata. The existing
+real Worker tests also pass. Metadata-only writes keep their original path.
+
+The one-candidate fallback now reserves decoder plus rule scratch before its
+prepaid scope, against the saved caller allowance. A real SQLite exists-members
+witness varies 1/80,000-byte private notes and 0/256-KiB source payloads, directly
+and nested. The old code decoded 87,085 B against a 23,136 B ceiling; the fixed
+case refuses with 249 B of error allocation and zero scans/lookups. Exact
+admission still executes the witness and returns the independent count.
+LLP 3000.015 §3 records the complete reservation. LLP 3000.007 §20.4 corrects
+the old in-save cache-fence claim and explicitly records that the pricing scanner
+still accepts canonical spellings only. Canonical publication/restore protect
+metered scans; debug-only checks assert the image invariant at store entry.
+
+Final wasm is byte-identical to the merged baseline: 2,065,883 B raw / 605,320 B
+gzip without wasm-opt; 2,033,727 B raw / 602,215 B gzip with Binaryen 132. No
+artifact growth. The optimized result remains 8,496 B over the fixed 593,719 B
+cap; WD's separate reductions are not in this main snapshot. No budget raised.
+The generated 6,000-row regression retains 20,551,766 B peak / 15,029,122 B
+retained (54.5% of the old retained representation), complete offline restore
+and a 302,739 B maximum bridge string. No heavy timing campaign or new timing
+claim; all word indexes still finish before publication/replay.
+
+Affected core: 169 passes plus one ignore; affected device: 1,390 passes plus
+five ignores; guide: 99/99; final memory checks: 3/3; generated fixture: 1/1;
+browser page/review/navigation recheck: 48/48; codec census: 26/26; await
+classification: 1/1. The single full scripts/test.sh run exits 1 with exactly:
+
+    == 2 failure(s) in 1405 s
+       wasm build
+       client tests
+
+Wasm size is ours (retained HV debt). The two client leaves are the before-commit
+and after-commit reset-IDB model cases: the old fake completed without delivering
+read callbacks. Corrected its scheduling, keeping all original fault/custody
+assertions; the focused recheck passes 2/2. The full run retains those failures.
+No baseline/environmental failure. Rust passes 4,350 including 17 doctests,
+clients pass 5,248 with two failed leaves and ten skips, fixtures pass 9/9,
+serial models pass 79/79 with unchanged counts. No full-suite rerun.
+
+Report, complete failure ledger, source/artifact hashes and unedited logs:
+reports/20260929-hv-heavy-acquisition/round3/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
 ## 2026-09-29 — WD round 1: preserve duplicate-key allocations and heap outcomes
 
 Read the round-0 prompt/report and complete Astra review. Merged origin/main
@@ -78846,3 +79060,67 @@ Final `./ref-check --verbose`: `ref-check: ok — 525 LLP docs, 9955 refs in 298
 The merge, fixture correction and qualification evidence are committed on
 sb4/presence. Nothing was pushed or published. The final report is exported
 to /Users/ccheever/projects/snapback-sb5-program/presence-merge-2.final.md.
+
+### 2026-09-29 — HV round 4: locked portable Binaryen fits both host families
+
+Merged origin/main 4226fc9733 in d08c43ed6a, preserving WD's small_map and
+ObjectFields capacity correction, HV's compact representation and every earlier
+correctness fix. Both journal sides remain; the identical folding stage is
+consolidated. Merged no-Binaryen wasm is 2,005,435 B raw / 596,818 B gzip,
+3,099 B over the fixed 593,719 B cap. A clipped shared index iterator trial saves
+522 B but still misses by 2,577 B; discarded. No HV runtime source changes.
+
+Selected the user's authorized toolchain alternative: exact binaryen 132.0.0
+workspace devDependency and lockfile integrity. Build and measurement invoke its
+portable Node executable from node_modules, never PATH; missing/mismatched
+installation and optimizer failure refuse. Measurement now uses both passes
+and includes manifest/lockfile changes in its dirty-input check. The existing
+build-script test poisons PATH and detects missing, mismatched and failed tools.
+README/AGENTS and LLP 3000.002 record the build precondition and trade.
+
+Clean frozen installation and repeated Linux builds yield 1,978,828 B raw /
+593,295 B gzip, 424 B under, byte-identical with and without native wasm-opt on
+PATH and to the merged native-Binaryen control. A fresh arm64 M4 Mac build with
+Node 24.13.1, Rust 1.97.0 and wasm-bindgen 0.2.127 yields 1,979,135 B /
+593,652 B gzip, 67 B under; both repeats and a third build with a failing PATH
+optimizer are byte-identical. The installed Command Line Tools resolve the
+Mac's unaccepted-Xcode-license setup error without changing global settings.
+
+This does not close the existing cross-host Rust reproducibility issue. A common
+wasm-bindgen input optimizes identically on both hosts, while Cargo output already
+differs. Diagnostic path remapping removes host paths but not all codegen
+variation, so it is discarded. The bindgen installations also carry walrus
+0.26.4/0.26.5 producer metadata despite the same CLI version. Appended this
+evidence to the existing ticket. GNU and Apple gzip differ too: Apple's gzip
+prices the Linux artifact at 593,714 B, only 5 B below the cap. Every measured
+combination fits; no complete cross-host byte identity or fleet-wide physical
+host survey is claimed. No budget changed.
+
+Binaryen adds 23,273,804 B download / 108,542,397 B unpacked files to development,
+no runtime package dependency. Three alternating warm-cache clean installs have
+median 0.505760 s baseline / 0.508821 s pinned; apparent node_modules grows by
+108,542,628 B. One isolated empty-cache Binaryen install takes 0.626116 s here.
+The real workspace clean frozen install takes 0.50 s from cache; Mac's fresh
+workspace takes 17.16 s. These are disclosed host/cache samples, not install-time
+promises.
+
+Affected core 171 pass plus one ignore (its detecting child also passes), device
+1,391 pass plus five ignores, whole guide 99/99, build/codec 28/28. The generated
+6,000-row regression exactly retains round 3's 20,551,766 B peak / 15,029,122 B
+retained (54.5% of old retained allocation), 302,739 B maximum bridge string and
+complete offline restore. No new heavy-account timing claim. Documentation
+budgets and ref-check pass (524 LLPs / 9,953 refs, zero errors/unchecked).
+
+Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1634 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,355 passes
+including 17 doctests, 33 ignores; clients 5,250 passes, ten skips; fixture
+wrappers 9/9; serial models 79/79 with unchanged 10,000/3,000 sequence counts.
+The source bindings before/after the suite match. Earlier setup errors and the
+discarded trials remain in the complete failure ledger; no count, assertion,
+timeout or runtime contract is relaxed. The nominal 60-second suite bar remains
+missed. Report, hashes, remote scripts, clean-install measurements and unedited
+logs: reports/20260929-hv-heavy-acquisition/round4/REPORT.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -1,0 +1,36 @@
+{
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2033735,
+    "sha256": "32d74bdab978da83052fe07109939713fbd7acc49ca0cea6bcfb4bda56e243ec"
+  },
+  "target/hv/after-sdk/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2082607,
+    "sha256": "d4619b9efccc78693a2f8e415c9703d97efa81200ef6df6b8fb4d767b66d4394"
+  },
+  "snapback4/target/production/snapback4": {
+    "bytes": 18718712,
+    "sha256": "4dd226e2bef6d1510f5d26ac91e63149524966fa0f59245be7208d3faca84fee"
+  },
+  "target/hv/tools/binaryen-version_132/bin/wasm-opt": {
+    "bytes": 18506720,
+    "sha256": "1014958e6f20d412f1542320b43970214b0fb1ed780595e8f7c0d8761ed53725"
+  },
+  "target/hv/baseline-profile.json.commands.json": {
+    "bytes": 45260006,
+    "sha256": "d27bedcbd08aff1b6e63f8e58b83492bfb415958be42f6f524f76646abb4a2fc"
+  },
+  "target/hv/probe-capture.json.commands.json": {
+    "bytes": 4432644,
+    "sha256": "c79f9d52216b7586dc34e4f2a1486f11864ac86420ad4021796b358252f58c99"
+  },
+  "merge": "30c3a13804a444f2318d62ba7cdd3ab3490c351f",
+  "source_diff_sha256": "0449879081b623f91cda2715376398e564d4b02d1ec35bea292f46f7e660f73c",
+  "note": "The preserved round-0 SDK is the paired control. Both sides use the same production server on the lane-owned store-after fixture. Captures are private ignored inputs; no row payload is committed.",
+  "source_diff_base": "30c3a13804a444f2318d62ba7cdd3ab3490c351f",
+  "source_diff_paths": [
+    "snapback4/crates",
+    "snapback4/packages",
+    "snapback4/scripts",
+    "snapback4/metrics/wasm-budget.json"
+  ]
+}

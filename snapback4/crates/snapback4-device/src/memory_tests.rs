@@ -76,3 +76,66 @@ table items:
         assert_eq!(bulk.export(), before);
     }
 }
+
+#[test]
+fn staged_sharing_accepts_only_the_exact_row_value() {
+    let row = object([("id", Value::Id("one".into())), ("body", Value::String("quotes \\\" and braces } {".into()))]);
+    let encoded = stored(&row);
+    for acquired in [false,true] {
+        let canonical: Rc<str> = format!("{{\"row\":{encoded},\"acquired\":{acquired}}}").into();
+        assert_eq!(&*Image::staged(canonical, &encoded).unwrap(), encoded);
+        // A legacy/future stage may contain ignored fields or whitespace.
+        // Sharing must not smuggle these bytes into the standalone row image.
+        for extra in [",\"extra\":1", " "] {
+            let old: Rc<str> = format!("{{\"row\":{encoded}{extra},\"acquired\":{acquired}}}").into();
+            assert!(Image::staged(old, &encoded).is_none());
+        }
+    }
+}
+
+
+// Keep decoder fixture helpers visibly test-only to the source census too.
+#[cfg(test)]
+#[test]
+fn noncanonical_staged_rows_keep_canonical_metered_prices() {
+    use snapback4_core::meter::{Ceilings, Cut, InternalLedger, Meter};
+    let compiled = snapback4_lang::compile(&[("images.q".into(), "table items:\n  payload: json <=10000\n  public\n  sync public\n".into())]);
+    assert!(compiled.diagnostics.is_empty(), "{:?}", compiled.diagnostics);
+    #[derive(Deserialize)]
+    struct Stage { row: Value }
+    let table = &compiled.schema.tables["items"];
+    let scan = |store: &mut MemoryStore, ceiling| {
+        let tx = store.transaction().unwrap();
+        let mut ledger = InternalLedger::new(Meter::new(Ceilings { heap_bytes: ceiling, ..Ceilings::unbounded() }, Cut::Abort));
+        ledger.run(|meter, scope| tx.scan_metered("items", "byId", &[], &Bounds::default(), Dir::Asc, 1, scope, meter))
+    };
+    for payload in ["[{},{}]", "{\"nested\":[{}, {\"inside\":[{},{}]}]}", "[{}, {\"Row\":\"tag-like text {\\\"Map\\\":}\"}]"] {
+        let row = snapback4_core::wire::row_from_json(table, &serde_json::json!({"id":"one", "payload":serde_json::from_str::<serde_json::Value>(payload).unwrap()})).unwrap();
+        let canonical = stored(&row);
+        let mut scalar = MemoryStore::new();
+        scalar.install(&compiled.schema, &BTreeMap::new(), false).unwrap();
+        let tx = scalar.transaction().unwrap(); tx.put("items", table, &row, None).unwrap(); tx.commit().unwrap();
+        let expected = scan(&mut scalar, u64::MAX).unwrap();
+        // Observe admission without exposing the private ledger's counters.
+        let (mut low, mut price) = (0, 1 << 20);
+        assert!(scan(&mut scalar, price).is_ok());
+        while low + 1 < price {
+            let middle = (low + price) / 2;
+            if scan(&mut scalar, middle).is_ok() { price = middle; } else { low = middle; }
+        }
+        for image in [canonical.clone(), canonical.replace("\"Row\":", "\"Row\" : ").replace("\"Map\":", "\"Map\"\n:\t"),
+            canonical.replace("\"Row\"", "\"R\\u006fw\"").replace("\"Map\"", "\"M\\u0061p\""),
+            serde_json::to_string_pretty(&row).unwrap()] {
+            let stage = format!("{{\"row\":{image},\"acquired\":true}}");
+            let mut store = MemoryStore::new();
+            store.install(&compiled.schema, &BTreeMap::new(), false).unwrap();
+            let tx = store.transaction().unwrap();
+            tx.staged_put("stage", "items", &stage).unwrap();
+            tx.replace_rows(|| { tx.put_staged("stage", "items", table, &parsed::<Stage>("stage", &stage)?.row)?; Ok(()) }).unwrap();
+            tx.commit().unwrap();
+            assert_eq!(scan(&mut store, price).unwrap(), expected, "{image}");
+            assert_eq!(&*store.state.borrow().rows[&("items".into(), "one".into())], canonical);
+            assert!(scan(&mut store, price - 1).is_err(), "refuse before decoding above the same canonical price");
+        }
+    }
+}

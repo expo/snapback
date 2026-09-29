@@ -852,7 +852,7 @@ impl<S: DeviceStore> Device<S> {
                         let staged: snapshot::Staged = decoded(data)?;
                         after = key.clone();
                         if !staged.acquired && !history::is_left(&groups, table_name, &history::row_key(table, &staged.row)?) { continue; }
-                        tx.put(table_name, table, &staged.row, None)?;
+                        tx.put_staged(key, table_name, table, &staged.row)?;
                         if staged.acquired {
                             delivery_candidates.put(&self.schema, table_name, staged.row.field("id")?.as_str()?);
                             media::remember(&tx, table_name, table, &staged.row, self.generation)?;

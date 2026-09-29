@@ -1,0 +1,218 @@
+{
+  "memory": {
+    "inputAndHarness": 42236367,
+    "peak": 357172013,
+    "retained": 263016144,
+    "applyMs": 4535.235649,
+    "drainMs": 324.0371819999999,
+    "allocated": 3360169183,
+    "apply": [
+      {
+        "allocated": 96735465,
+        "ms": 84.459242,
+        "peak": 77997934,
+        "phase": "call-10",
+        "retained": 56536002,
+        "start": 44478957
+      },
+      {
+        "allocated": 122687453,
+        "ms": 117.96982,
+        "peak": 90299523,
+        "phase": "call-19",
+        "retained": 63085370,
+        "start": 50175203
+      },
+      {
+        "allocated": 122723709,
+        "ms": 116.871624,
+        "peak": 96314677,
+        "phase": "call-28",
+        "retained": 69069535,
+        "start": 56156988
+      },
+      {
+        "allocated": 122730638,
+        "ms": 120.475104,
+        "peak": 102283397,
+        "phase": "call-37",
+        "retained": 75049578,
+        "start": 62137912
+      },
+      {
+        "allocated": 122771878,
+        "ms": 126.340687,
+        "peak": 108291423,
+        "phase": "call-46",
+        "retained": 81051568,
+        "start": 68116716
+      },
+      {
+        "allocated": 122702647,
+        "ms": 126.070882,
+        "peak": 114248057,
+        "phase": "call-55",
+        "retained": 87010111,
+        "start": 74117824
+      },
+      {
+        "allocated": 122769310,
+        "ms": 129.219341,
+        "peak": 120274023,
+        "phase": "call-64",
+        "retained": 93052206,
+        "start": 80078027
+      },
+      {
+        "allocated": 122679797,
+        "ms": 133.42287199999998,
+        "peak": 126237508,
+        "phase": "call-73",
+        "retained": 99011605,
+        "start": 86120406
+      },
+      {
+        "allocated": 122764873,
+        "ms": 133.57075400000002,
+        "peak": 132266470,
+        "phase": "call-82",
+        "retained": 105022584,
+        "start": 92080355
+      },
+      {
+        "allocated": 90427636,
+        "ms": 96.29826700000001,
+        "peak": 130060490,
+        "phase": "call-91",
+        "retained": 109656078,
+        "start": 98090087
+      },
+      {
+        "allocated": 26599751,
+        "ms": 28.142021,
+        "peak": 115728857,
+        "phase": "call-118",
+        "retained": 108311354,
+        "start": 103464402
+      },
+      {
+        "allocated": 2164576026,
+        "ms": 3322.395035,
+        "peak": 357172013,
+        "phase": "call-125",
+        "retained": 298127646,
+        "start": 105848152
+      }
+    ],
+    "incrementalPeak": 314935646,
+    "incrementalRetained": 220779777
+  },
+  "sqlite": {
+    "inputAndHarness": 42226903,
+    "peak": 66785996,
+    "retained": 42254013,
+    "applyMs": 39269.358189000006,
+    "drainMs": 0.012212999999999996,
+    "allocated": 2623847965,
+    "apply": [
+      {
+        "allocated": 64531781,
+        "ms": 149.852518,
+        "peak": 61219118,
+        "phase": "call-10",
+        "retained": 42249334,
+        "start": 42246940
+      },
+      {
+        "allocated": 85938602,
+        "ms": 174.883725,
+        "peak": 66764930,
+        "phase": "call-19",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85989874,
+        "ms": 202.410885,
+        "peak": 66776701,
+        "phase": "call-28",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86008813,
+        "ms": 234.545881,
+        "peak": 66782252,
+        "phase": "call-37",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86020745,
+        "ms": 247.557754,
+        "peak": 66785996,
+        "phase": "call-46",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85996212,
+        "ms": 258.83076,
+        "peak": 66778559,
+        "phase": "call-55",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85989917,
+        "ms": 270.34709200000003,
+        "peak": 66777503,
+        "phase": "call-64",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 85983532,
+        "ms": 278.76802299999997,
+        "peak": 66774841,
+        "phase": "call-73",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 86002474,
+        "ms": 284.818693,
+        "peak": 66780393,
+        "phase": "call-82",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 59417001,
+        "ms": 218.147892,
+        "peak": 60049353,
+        "phase": "call-91",
+        "retained": 42249334,
+        "start": 42247393
+      },
+      {
+        "allocated": 14858452,
+        "ms": 49.963719,
+        "peak": 47815182,
+        "phase": "call-118",
+        "retained": 42249335,
+        "start": 42247393
+      },
+      {
+        "allocated": 1797110562,
+        "ms": 36899.231247,
+        "peak": 54332900,
+        "phase": "call-125",
+        "retained": 42251303,
+        "start": 42247393
+      }
+    ],
+    "incrementalPeak": 24559093,
+    "incrementalRetained": 27110
+  }
+}
