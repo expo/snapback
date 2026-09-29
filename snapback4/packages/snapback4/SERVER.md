@@ -35,9 +35,10 @@ prior behavior. Object key order does not matter.
 
 `serve <release-dir> --worker <path>` supervises Node 24 with restart backoff
 and shutdown. The worker receives only `PATH`, `HOME`, `TMPDIR`, `LANG`,
-`LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, declared secrets and a fresh,
-unprinted `SNAPBACK_SERVICE_TOKEN` for `service:worker`; `dev` constructs the
-same explicit environment. `doctor --release <dir>` reports worker counts;
+`LC_ALL`, `TZ`, `SNAPBACK_URL`, `SNAPBACK_WORKER_LEDGER`, declared secrets, an
+internal supervision marker and a fresh, unprinted `SNAPBACK_SERVICE_TOKEN`
+for `service:worker`. `dev` constructs the same explicit environment; parent
+`NODE_OPTIONS` is not copied. `doctor --release <dir>` reports worker counts;
 `why <id> [--release dir]` reports work and step metadata and payload
 sizes/digests, with actual payloads only under `--values`.
 Mutation arguments and results are not recorded. Supervised child sessions

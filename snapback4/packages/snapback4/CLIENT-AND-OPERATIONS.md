@@ -1633,11 +1633,80 @@ have succeeded. Actions never enter a device outbox or predict rows.
 
 ### Workers and services (`snapback4/worker`)
 
+Declare each worker as `snapback/workers/<service>.mjs` (or `.mts` or `.ts`).
+Both dev and serve supervise it with an injected `service:<service>` token,
+name-prefixed redacted logs, bounded restart backoff and shutdown with the host.
+Each worker has a process group; its watchdog kills remaining group members on
+worker exit or server death, including SIGKILL. Watchdogs retain store ownership
+through group cleanup; Node processes never inherit that descriptor. Restarting
+dev or serve waits up to five seconds for ownership, then reports E_STORE_BUSY
+if it remains held. Leave the ownership sidecar in place. Failed token retirement keeps
+the worker stopped until revocation commits, even after its declaration is removed.
+A failed deletion fences the retired revision on dev and serve; peers renew
+under the new revision. Ordinary queries and effect claims refuse old credentials.
+Watchdog death makes the host kill its Node group before replacement; catchable
+watchdog signals initiate bounded group cleanup. Failed new-declaration startup
+retries after repair without another source edit.
+The supervisor owns token rotation for both named and conventional workers.
+`/auth/refresh` returns HTTP 403 `E_WORKER_REFRESH` for these families and leaves
+the injected bearer live; keep using it. Manually minted seats remain refreshable,
+including seats with the same service name.
+Deploy packages this source subtree; helpers belong in subdirectories. Install
+its package dependencies on the deployment host. Symlinks at every level and
+non-regular source files are refused on every launch/restart. Named workers execute
+private copies of validated entry/helper bytes under `.snapback4`; source-path replacement cannot
+change the code or selected secrets of that launch. Package dependencies remain
+host-installed code, with `snapback/node_modules` taking precedence over
+project-root packages. Numbered releases use the nearest ancestor containing
+`snapback/node_modules`; install dependencies there. Schema, project and ancestor
+package manifests also use no-follow regular-file copies. Global temporary
+directories never add package lookup locations. Doctor reports each worker,
+including source-blocked, revocation-blocked and ledger-unavailable states.
+Startup clears prior reports with the previous host's credential retirement,
+so a removed declaration cannot retain a running report.
+Automatic dev `snapback/server.*` and `snapback/worker.*` entries likewise execute
+private copies of the schema tree, including generated modules and relative
+helpers. The TypeScript checker's tracked imports elsewhere inside the project
+also use validated copies; untracked relative helpers stay within `snapback/`.
+Source symlinks refuse before minting, including after a restart. The working
+directory remains the project; runtime files should use that or an explicit
+durable path, since module URLs refer to private source copies.
+Explicit `serve --worker <path>` still selects an operator-owned external entry.
+Named workers start with no declared secrets. A source line such as
+`// snapback4 secrets: PUSH_API_KEY` opts into named schema-declared secrets.
+The conventional generated runtime retains the full registry's secret set;
+service credentials remain trusted and are not per-effect ACLs.
+
+`ledger: true` uses `SNAPBACK_WORKER_LEDGER`, a durable SQLite file beside the
+opened backend store, shared by its supervised workers and retained across
+releases. The store's identity namespaces the file; fresh temporary stores and
+replacement stores cannot replay another store's completions.
+Completion commits before acknowledgement; redelivery replays the JSON result.
+`meta.idempotencyKey` equals `meta.id`, stable across attempts and restarts.
+A crash or unrecoverable storage/result-encoding failure after the external call
+but before the ledger commit can still repeat it: pass that key to providers that accept idempotency keys. Delivery remains
+at least once. Handlers sharing the file serialize, including across processes.
+A busy commit retains the transaction and retries only that commit, including
+after cancellation following provider success; a reader can delay completion.
+One hung provider stalls every handler sharing that file; give provider calls
+a timeout (for fetch, `signal: AbortSignal.timeout(30_000)`).
+Keep this file in backups and do not prune completions while effects may replay.
+Different disks do not share this protection. The ledger is for low-level effects;
+actions and generated `ctx.step` keep their existing contracts.
+Storage is validated before any claim. An initialization error stops polling
+without spending attempts. Supervised children exit and doctor records
+ledger-unavailable during bounded retries; repair storage to resume. Standalone
+`done` resolves so its owner can repair and restart.
+Later ledger storage failures close it and stop polling without a failed-effect
+settlement; unacknowledged claims can expire under their ordinary leases.
+Standalone workers still take explicit url/token; opt in with
+`ledger: "/durable/path/effects.sqlite"` or omit the option.
+
 ```ts
 import { runWorker, mintSession, revokeSessions, listEffects, GiveUp } from "snapback4/worker";
 const url = process.env.SNAPBACK_URL!, token = process.env.SNAPBACK_SERVICE_TOKEN!;
-runWorker({ url, token, effects: { notify: async (payload, meta) => {
-  const sent = await fetch("https://push.example.com/send", { method: "POST", headers: { "idempotency-key": meta.id }, body: JSON.stringify(payload) });
+runWorker({ url, token, ledger: true, effects: { notify: async (payload, meta) => {
+  const sent = await fetch("https://push.example.com/send", { method: "POST", headers: { "idempotency-key": meta.idempotencyKey }, body: JSON.stringify(payload) });
   if (!sent.ok) throw new GiveUp("Push provider refused the notification");
   return { providerId: meta.id };
 } } });
@@ -1722,13 +1791,13 @@ sessions keep their expiry.
 With `snapback/server.ts` (preferred) or the legacy `snapback/worker.ts`, `.mts`
 or `.mjs`, `dev` starts Node 24 in an explicit environment rather than
 inheriting the parent environment. The child receives only `PATH`, `HOME`,
-`TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `NODE_OPTIONS`, `SNAPBACK_URL`, every secret
+`TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `SNAPBACK_URL`, every secret
 name declared anywhere in the schema, and a per-child
-`SNAPBACK_SERVICE_TOKEN`. Generated server handlers get a frozen
+`SNAPBACK_SERVICE_TOKEN`, `SNAPBACK_WORKER_LEDGER` and the internal supervision
+marker. Parent `NODE_OPTIONS` is not copied. Generated server handlers get a frozen
 per-handler subset through `ctx.secrets`; the Node application remains trusted
-and can inspect its process environment, as can a legacy worker. Only the
-legacy development worker prints its service token once for compatibility;
-generated server entries and `serve` never print it. Supervised stdout/stderr
+and can inspect its process environment, as can a legacy worker. Automatically injected
+service tokens are never printed, including the legacy development entry. Supervised stdout/stderr
 redacts declared secret values and the service token across chunks. The host
 restarts crashes with 250 ms to 5 s backoff and stops the child when dev exits.
 `doctor` shows the worker file and request queue by state. In production,
@@ -1838,8 +1907,8 @@ step.
   identity requests, `dev` removes the per-peer and per-email minute counters and prints that fact and the
   host's Argon2 slot count once at startup: available cores, capped at 16, minimum 2. Connection/worker caps
   remain; `serve` keeps two Argon2 slots and the 30-per-peer and 10-per-email limits. `dev` and `serve` print
-  the listening URL and one newline first on stdout; with an application worker, `dev` also prints its
-  one-time token after that URL. Startup explanations, lifecycle messages and supervised worker logs go to
+  the listening URL and one newline first on stdout; automatically injected worker
+  tokens are never printed. Startup explanations, lifecycle messages and supervised worker logs go to
   stderr. Process exits carry a one-line stderr diagnostic with the verb, serving generation and reason:
   `SNAPBACK4_EXIT` for returned errors/stops, `SNAPBACK4_PANIC` for panics on any thread (including abort
   builds), `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher or maintenance thread
@@ -2212,9 +2281,9 @@ cp -a "$backup" "$restored"
 snapback4 serve "$restored" --bind 127.0.0.1 --port 0
 ```
 
-The copy includes the database and any SQLite sidecars, `assets/`, immutable `releases/` (including any packaged native module), `current`, and `releases.jsonl`. Authentication, deduplication, job and effect records live in that database. Keep the backup itself unserved. Serving repairs the selected release's generated database symlink to the restored deployment; unexpected regular files at that link path refuse startup.
+The copy includes the database and any SQLite sidecars, the supervised completion ledger when enabled, `assets/`, immutable `releases/` (including any packaged native module), `current`, and `releases.jsonl`. Authentication, deduplication, job and effect records live in that database. Keep the backup itself unserved. Serving repairs the selected release's generated database symlink to the restored deployment; unexpected regular files at that link path refuse startup.
 
-Use the printed isolated URL with a fresh device store and fresh outbox. Check current reads, backed-up identity access and an asset download. Do not attach a device store or pending outbox from the former server. Keep external effect workers disconnected from the restored endpoint. Serving automatically resumes built-in jobs and schedules: they can change the restored data or enqueue effects, so account for them when interpreting the recovered state. The automated exercise uses an actual parked job and a controlled schedule boundary to keep those records stable.
+Use the printed isolated URL with a fresh device store and fresh outbox. Check current reads, backed-up identity access and an asset download. Do not attach a device store or pending outbox from the former server. Keep external effect workers disconnected from the restored endpoint. Serving automatically starts declared effect workers and resumes built-in jobs and schedules: they can call providers, change the restored data or enqueue effects, so account for them when interpreting the recovered state. The automated exercise uses an actual parked job and a controlled schedule boundary to keep those records stable.
 
 The release-activation test executes this `cp -a` sequence after owned processes exit, verifies sessions, deduplication, queued effects, a parked job, release/program identity and asset bytes, and reads the restored data through a fresh process device. The original remains present with post-backup writes, proving the restored server is independent. It also verifies a permitted schema widening, a refused destructive candidate, and rollback after a new restored write. Rollback selects earlier source; it does not rewind rows.
 

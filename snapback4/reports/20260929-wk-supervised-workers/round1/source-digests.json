@@ -1,0 +1,15 @@
+{
+  "llp/3000.009-general-purpose-backend.rfc.md": "67784e9d7dcd1676b18672c48e79cb346a0a580a95a3247ff62e9c229ed0d961",
+  "snapback4/crates/snapback4-lang/src/guide/effects.rs": "4b79d4a9bc94a5d100af1015848706e8a8f4d868c4ffb5f4ca9e9249c5d95e4a",
+  "snapback4/crates/snapback4/src/dev_worker.rs": "621a29a501ebfd654aa830073d42e64f3c604ebc2c132a3b70f3d64795ba2f8f",
+  "snapback4/crates/snapback4/src/main.rs": "4182fe2a4afcf5356f9f8e05838a1a0b2dc5008615af48cef0dbd04da083b32d",
+  "snapback4/crates/snapback4/src/worker_declarations.rs": "f8fbcef30bfb089c0449a7f635d4e057a2934246c676a2d3b3886728db962f04",
+  "snapback4/crates/snapback4/src/worker_environment.rs": "d86ddc0b20d91cc496c29f7f1d035ec077fd4c2293e5610719cb10038c6b5457",
+  "snapback4/crates/snapback4/src/worker_process.rs": "6a77931b9c66302101d862f5f6184cef1e0639398568ee1aec06b8d966c9a4b0",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "af48228648360103f5bb96b8bc82bc084909e7bb8a3c7d628fe3c3d1c8a0f5ae",
+  "snapback4/packages/snapback4/src/worker-ledger.ts": "e9fc30fd12c35a20e8c06163dc323307bc13aed1560e79589f8e03d760bda4b8",
+  "snapback4/packages/snapback4/src/worker.ts": "8bb75da8ae31a02404bb3a1c31fc4da8832c9bc5514272775cb59f7684133e47",
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": "5d6bf0ba26b8de6346a6ac39cdd893b694b74262b2e9c22e226a4b4cae2d3064",
+  "snapback4/packages/snapback4/test/supervised-workers.test.mjs": "7cf26875297b300adadd4f96554a787457f70095b91f03c3b3e1371eecb488c7",
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "db87e179f738b56d6fb6ef9b4a419122872a42c9a9d7e08a2ba2276b9401cb96"
+}

@@ -1,0 +1,19 @@
+{
+  "files": {
+    "llp/3000.009-general-purpose-backend.rfc.md": "9ada9bb9821b552eff0f3432fa9676ea3cf4b39656c694a22631c1de7e8b1b3e",
+    "snapback4/crates/snapback4-lang/src/guide/effects.rs": "0482de0fc8190625d9a6d3be3b7fff4f6df2395677e78fae15fa2c98f3a140e1",
+    "snapback4/crates/snapback4-lang/src/guide/language.rs": "c5b4bfa8a1714e1a4047e609028fb1c76fd2d3f13fc76325590d8a4d9f971530",
+    "snapback4/crates/snapback4/src/dev_worker.rs": "dae3c7ced10df6c3aeef670c6a1eccbd54fa708b2a6c4eadaba8945d6fb793a1",
+    "snapback4/crates/snapback4/src/serve.rs": "33375a7d9f702b4834166f4b243c6e828bcf3d9eb2cda39621bae9da7287e29f",
+    "snapback4/crates/snapback4/src/store_owner.rs": "ba7de7d18ac06408e7dd7749a72fecbdd29874d56d48cb6fa18c78d8496cae51",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "9e33d24a8a0fe9eecddceecbc8a9325a99dc2c7fb4d4c49d5ae8a582174fdd76",
+    "snapback4/crates/snapback4/src/worker_declarations.rs": "d319583f8db775b5a6a5e91ccbd6c322cf779468b0dd43a6acfd6fb42c9c7b95",
+    "snapback4/crates/snapback4/src/worker_process.rs": "02670af42fb1b7d573baea406283218d5fec042565cc6462ff65b3b1d5164cea",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "b0d3342f699aedc66ec96f8670f3802ea3e3ac11dbbc6622e4d40baf208bf222",
+    "snapback4/packages/snapback4/src/worker-ledger.ts": "9833b7f746dab896dc46aca15cc78baa3f0951ae69780c95d5c9f2bbe1654447",
+    "snapback4/packages/snapback4/src/worker.ts": "3f474777f20e50868617693e9302819e16956518a0ba395efd5ae6001d06e25f",
+    "snapback4/packages/snapback4/test/worker-ledger-contention.test.mjs": "a5e8f012f777b584d27e9bdbcfeef26de6596d61c1e0aeed34a77ae69f3e050a",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "462a40d589a9bfda5f0104fb2876bc7f7c573584e351f03a46a0ca045b60584b",
+    "snapback4/scripts/test.sh": "0524ac6f52df8d34170f31c905f08195c5166f09a387196aca9d80fef9521167"
+  }
+}

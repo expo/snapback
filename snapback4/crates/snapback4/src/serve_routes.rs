@@ -50,7 +50,7 @@ fn principal(request: &Request, shared: &Shared) -> Result<String, Refusal> {
     if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return principal_of(request, shared); }
     let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
     let engine = lock(&shared.engine);
-    snapback4_core::identity::resolve(engine.store(), &token, shared.now()).map_err(|e| e.refusal())?
+    snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }).map_err(|e| e.refusal())?
         .map(|(principal, _)| principal).ok_or_else(|| Refusal::new("E_AUTH", "auth", "a session route requires a live bearer session").guide("routes"))
 }
 

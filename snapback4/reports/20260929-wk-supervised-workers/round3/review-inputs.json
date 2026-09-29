@@ -1,0 +1,10 @@
+{
+  "astra": {
+    "path": "/home/ccheever/sb4-intent/reviews/wk-r2.astra.md",
+    "sha256": "2d99e321bc1cc68523d06eee53d2d620aae11dd9e15c0e9b517eda18a8f2fdd6"
+  },
+  "grok": {
+    "path": "/home/ccheever/sb4-intent/reviews/wk-r2.grok.md",
+    "sha256": "3991a109fcd36a6c4fb23a50acce21f5ee7ab7fa2172a16e8da19d9b48f1721b"
+  }
+}

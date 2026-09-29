@@ -399,9 +399,13 @@
     "count": 47,
     "sha256": "22ee8531c1b3f8ec2c3c359155a8031e5aa2ac0d7c931be0f322c7736905ec9f"
   },
+  "worker-ledger.ts": {
+    "count": 6,
+    "sha256": "c7e2ab494bcb18a4d0f44dbd499bd18681baa53506d14b3c097818fe8c99769f"
+  },
   "worker.ts": {
-    "count": 36,
-    "sha256": "1fb6b36f47926dbdfc90da5df65ce752ee84257e5407a60404cfe1fc44599c3b"
+    "count": 40,
+    "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
   },
   "writes.ts": {
     "count": 10,

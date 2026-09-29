@@ -31,7 +31,7 @@ test("generated effects claim one static declaration and expose only frozen effe
     seen = ctx;
     assert.deepEqual(payload, { to: "a@example.test" });
     assert.deepEqual(Object.keys(ctx).sort(), ["effect", "invocation", "secrets", "step"]);
-    assert.deepEqual(Object.keys(ctx.effect).sort(), ["at", "attempt", "effect", "id", "seq", "worker"]);
+    assert.deepEqual(Object.keys(ctx.effect).sort(), ["at", "attempt", "effect", "id", "idempotencyKey", "seq", "worker"]);
     assert.deepEqual(Object.keys(ctx.invocation).sort(), ["attempt", "cancelled", "deadline", "id", "signal"]);
     for (const absent of ["query", "mutate", "principal", "writeIdFor", "sql", "data", "admin", "session", "token", "lease"]) assert.equal(absent in ctx, false);
     assert.equal(Object.isFrozen(ctx), true); assert.equal(Object.isFrozen(ctx.effect), true); assert.equal(Object.isFrozen(ctx.invocation), true);
@@ -221,7 +221,7 @@ test("legacy runWorker keeps its absent-contract claim and (payload, meta) handl
   });
   await worker.done;
   assert.deepEqual(calls[0].body, { limit: 8, lease: 60, wait: 25, effect: "mail", fenced: true });
-  assert.deepEqual(meta, { id: effect().id, effect: "mail", attempt: 2, seq: 17, at: 1234, worker: "service" });
+  assert.deepEqual(meta, { id: effect().id, idempotencyKey: effect().id, effect: "mail", attempt: 2, seq: 17, at: 1234, worker: "service" });
   assert.deepEqual(calls[1].body, { result: null });
 });
 

@@ -80,7 +80,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("reports", "receipts"), ("delivery", "receipts"), ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
-    ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
+    ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
     ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),

@@ -1,0 +1,5 @@
+{
+  "source": "snapback4/target/debug/snapback4",
+  "sha256": "7839b773449ea39077d1f003963cf3058b08435b0bfdf40b3de35ab186fe3703",
+  "reason": "private unchanged executable for final tests; concurrent Cargo relinks cannot invalidate current_exe"
+}

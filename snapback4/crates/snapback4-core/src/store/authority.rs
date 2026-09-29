@@ -109,7 +109,7 @@ impl Store {
     /// a credential from a replaced store. Keep this transaction private to
     /// the authority walk: ordinary row reads/writes still fence generation.
     // @ref LLP 3000.017#3.3 — poll authentication is independent of application catalog generation.
-    pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+    pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>, supervisor_revision: Option<usize>) -> Result<Option<(String, String)>, RuntimeError> {
         self.check_ownership()?;
         let sql = self.conn.unchecked_transaction()?;
         let identity: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
@@ -118,7 +118,7 @@ impl Store {
             return Ok(None);
         }
         let tx = Tx { sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &self.catalog };
-        let resolved = crate::authority::live_session(&tx, digest, now)?.map(|session| (session.principal, session.kind));
+        let resolved = crate::identity::resolve_session_tx(&tx, digest, now, supervisor_revision)?;
         tx.rollback()?;
         Ok(resolved)
     }

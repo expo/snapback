@@ -58,11 +58,14 @@ fn regular(path: &Path, create: bool, database: &Path) -> Result<File, String> {
 }
 
 // @ref LLP 3000.019#3.4 — sidecar flocks fence backend writers and share device ownership without locking SQLite.
-pub(crate) fn command(store: &Path) -> Result<Owner, String> { acquire(store, false) }
-pub(crate) fn device(store: &Path) -> Result<Owner, String> { acquire(store, true) }
+pub(crate) fn command(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::ZERO) }
+pub(crate) fn device(store: &Path) -> Result<Owner, String> { acquire(store, true, Duration::ZERO) }
+// @ref LLP 3000.009#5.3 — a restarting host waits for watchdogs to finish group cleanup.
+pub(crate) fn host(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::from_secs(5)) }
 
 #[cfg(unix)]
-fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
+fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> {
+    let deadline = std::time::Instant::now() + wait;
     for _ in 0..16 {
         let path = resolve(store)?;
         snapback4_core::private_fs::directory(path.parent().ok_or("store path has no parent")?)
@@ -72,11 +75,16 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
         let before = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?;
         let sidecar = snapback4_core::private_fs::owner_file(&path)
             .map_err(|e| failure(&snapback4_core::private_fs::owner_path(&path), e))?;
-        let locked = if shared { sidecar.try_lock_shared() } else { sidecar.try_lock() };
-        locked.map_err(|error| match error {
-            fs::TryLockError::WouldBlock => busy(&path),
-            fs::TryLockError::Error(error) => failure(&path, error),
-        })?;
+        let mut cleanup = None;
+        loop {
+            let locked = if shared { sidecar.try_lock_shared() } else { sidecar.try_lock() };
+            match locked {
+                Ok(()) => break,
+                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline && *cleanup.get_or_insert_with(|| stopped_host(&path)) => std::thread::sleep(Duration::from_millis(25)),
+                Err(fs::TryLockError::WouldBlock) => return Err(busy(&path)),
+                Err(fs::TryLockError::Error(error)) => return Err(failure(&path, error)),
+            }
+        }
         if !snapback4_core::private_fs::owner_is_named(&path, &sidecar) { continue; }
         snapback4_core::private_fs::database_file(&path).map_err(|e| failure(&path, e))?;
         let database = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?
@@ -94,7 +102,16 @@ fn acquire(store: &Path, shared: bool) -> Result<Owner, String> {
 }
 
 #[cfg(not(unix))]
-fn acquire(store: &Path, _: bool) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
+fn acquire(store: &Path, _: bool, _: Duration) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
+
+fn stopped_host(path: &Path) -> bool {
+    // A CLI owner or a host not yet announced still refuses immediately. A
+    // reachable listener does too; only a prior host's cleanup gets a wait.
+    // This is a refusal/wait hint, never permission to open the store: the
+    // sidecar must still be acquired. Never dial a non-loopback address hint.
+    address(path).is_some_and(|published| dialable(&published).is_none_or(|address|
+        std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_err()))
+}
 
 fn busy(path: &Path) -> String {
     let owner = address(path).unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
@@ -118,6 +135,8 @@ pub(crate) fn address(path: &Path) -> Option<String> {
 pub(crate) fn address(_: &Path) -> Option<String> { None }
 
 impl Owner {
+    pub(crate) fn worker_lock(&self) -> std::sync::Arc<File> { self._sidecar.clone() }
+
     pub(crate) fn path(&self) -> Result<&Path, RuntimeError> {
         #[cfg(unix)]
         {

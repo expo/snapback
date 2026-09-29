@@ -76183,6 +76183,44 @@ copy is unchanged. Report: reports/20260929-pq-per-row-hooks/round3/REPORT.md.
 No tool installation, push or publication. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+## 2026-09-29 — Lane WK round 0: supervised workers and completion ledger
+
+Builders no longer need a detached launcher or a JSONL completion set. Each
+`snapback/workers/<service>.mjs` (also `.mts`/`.ts`) declares a Node worker;
+dev and serve own its start, bounded restart backoff and shutdown. Deploy
+snapshots this source subtree. Children receive independent service families,
+name-prefixed redacted logs and a store-owned ledger path. Automatic service
+tokens are never printed, including the historical dev entry. Doctor reports
+each declaration and its last recorded state and restart counts. Manual seats,
+standalone runWorker and conventional server/worker entries remain available.
+
+`meta.idempotencyKey` is the effect's stable existing id. `ledger: true` durably
+commits successful JSON results before settlement; redelivery replays them.
+Standalone workers can supply a durable file path. SQLite serializes handlers
+sharing that file, including across processes; it survives release changes and
+must travel with backups. Delivery remains at least once: a crash after provider
+I/O but before ledger commit still needs the provider's idempotency key. Generated
+step reconciliation, native jobs, effect policies, ordering, meters and authority
+are unchanged. The host-only service check preserves the revision fence for each
+named family. LLP 3000.009 §5.2/§5.3 records the convention and its limits. The
+guide listing/cards and social starter expose the worker and ledger at setup.
+
+Focused checks: new supervision/ledger 5/5; real HTTP lost-settlement redelivery
+1/1 with one handler call; existing worker/context/starter 60/60; effect policy
+13/13; final whole guide 98/98; typecheck/build, docs budget and references pass.
+Ran scripts/test.sh once, exit 1, exact summary: `== 1 failure(s) in 1506 s`.
+Only failure: our stale all-module await inventory. Updated the two worker
+entries after reachability review; exact failed check rerun passes 1/1. Every
+other full-suite stage passed: clients 4,566 pass/1 fail/10 declared skips,
+models 79/79. No baseline/environmental test failures in that run. The baseline
+60-second process target remains missed; no ceiling changed. Earlier authoring,
+log-prefix and guide failures, plus the repaired missing-wasm precondition, are
+retained and attributed in the report's FAILURES.md.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap. Report: reports/20260929-wk-supervised-workers/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
 ## 2026-09-29 — AG round 1: review corrections for first paste
 
 Started with git fetch origin and merge origin/main (4fd338de5), committing
@@ -76424,6 +76462,49 @@ Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 
+## 2026-09-29 — Lane WK round 1: retire tokens and bind worker lifetime
+
+Merged origin/main first, preserving both journal entries. Addressed Astra's
+five findings and Grok's complete streamed review. Failed token retirement
+retains family custody and stops replacement minting until commit; locked-writer
+restart and expiry-independent rotation refuse the retired bearer. Removing
+the named-family DELETE kills both tests. Descriptor-relative no-follow opens
+reject schema/root/entry/helper symlinks and non-regular sources; regular helper
+bytes and permissions survive deployment. Ledger files follow the opened store,
+including --fresh, and are namespaced by store identity so reused effect IDs
+cannot replay an unrelated backend's completion.
+
+A pipe-owned watchdog gives each worker a process group, killing remaining
+members on worker exit or abrupt host death. Shutdown starts all grace periods
+together. Named entries receive no schema secrets unless their source names a
+subset with `// snapback4 secrets: KEY`; conventional generated runtimes retain
+the registry environment and all declared values remain redacted. All startup
+failure paths use increasing bounded backoff. Ledger validation precedes claims;
+corrupt storage suspends polling, while runtime storage/commit/rollback failures
+close storage and stop without failed-effect settlement. Deterministic contention
+kills Grok's surviving busy-retry mutation; all concurrent waiters must receive
+the original receipt. The shared-file lock remains intentional and documented:
+a hung provider stalls its peers, so the guide supplies a provider timeout.
+No change to core effect ordering/retries/meters/authority or native jobs.
+
+Final affected checks 62/62; whole guide 98/98; package build/typecheck, await
+census and reference audit pass. scripts/test.sh ran once, exit 1, exact summary:
+`== 1 failure(s) in 1319 s`. Its only failed stage was Cargo: three existing
+worker/adoption fixtures failed because our traversal rejected an absent schema
+directory. Restored the optional-declaration behavior and corrected test-harness
+watchdog launching; the exact rerun passes 3/3. These are ours, retained in the
+original full-run log. Clients 4,587 pass / zero fail / ten declared skips;
+models 79/79. No baseline/environmental full-run test failures; the standing
+60-second process budget remains a baseline miss, with no ceiling increase.
+The late Grok changes carry final affected evidence, not an atomic final-source
+full-battery claim. Every expected control and intermediate failure is recorded.
+
+Canonical wasm 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Linux execution only; no macOS or real-provider execution claim. Report and both
+review dispositions: reports/20260929-wk-supervised-workers/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
 ## 2026-09-29 — AQ round 0: faster cold browser acquisition
 
 On eb1000 (EPYC 9454, 96 logical CPUs), five cold u0500 runs on a private
@@ -76878,6 +76959,105 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip-9, 744 B under the unchanged
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-av-asset-resolution/round2/REPORT.md.
 
+## 2026-09-29 — WK round 2: credential and source custody through retirement and restart
+
+First fetched and merged origin/main (69e02e475), preserving both journal sides
+and the complete round-1 worker state with main's managed-cleanup hook. Read all
+lane prompts/reports and both completed round-1 reviews: Astra NOT READY, Grok
+READY WITH CHANGES. Applied llp-orient; extended LLP 3000.009 §5.3 in place.
+
+Removed declarations retain their worker/family until deletion commits and
+retry blocked retirement. A failure never records successful retirement;
+shutdown leaves its durable marker for startup cleanup. Ordinary query,
+mutation, route and change-poll authentication share the service revision fence
+inside the session snapshot; refresh rechecks under the serving-engine guard.
+Manual seats retain ordinary liveness. Every named launch/restart validates the
+whole declaration tree and executes a private copy of opened regular entry/helper
+bytes. Secret selection uses that same copy. Host dependencies and Node's module
+scope remain usable; invalid source refuses launch before replacement minting.
+
+Watchdog SIGKILL/OOM makes the host kill the retained Node group before replacing
+it. TERM/INT/HUP sent to the watchdog initiate bounded group cleanup, including
+without a live supervisor. A new declaration that fails initial admission keeps
+its name/backoff and retries after repair without another source edit. Added real
+SQLite commit-setting and open-contention witnesses: both FULL→OFF and the
+open-path busy-code mutation now fail. Existing delivery/lease/meter policy and
+the provider-call/ledger-commit ambiguity remain unchanged.
+
+Expected red controls reproduced each review defect. Final affected checks:
+73/73 worker/client regressions, core effect policy 13/13, whole guide 98/98,
+host unit tests 203/203 with four declared ignores. One additional host-unit run
+at Cargo's ambient concurrency exhausted its 1,024-descriptor limit: three
+explicitly retained environmental failures; unchanged source passed at the
+canonical two-thread concurrency. No test assertion, timeout or ceiling changed.
+
+scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1400 s`.
+No full-suite failures (ours, baseline or environmental). Clients 4,595 passed /
+zero failed / ten declared skips; final models 79/79. The inherited 60-second
+process target remains missed. Grok's final follow-ups arrived after the Rust
+stage and were qualified separately by the final affected/host/guide runs;
+this is not an atomic final-source full-battery claim.
+
+Canonical wasm remains 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both reviews were rechecked before completion. Reference audit passes. Evidence,
+all failures and review dispositions: reports/20260929-wk-supervised-workers/round2/REPORT.md.
+Linux execution only; no macOS/provider qualification. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — WK round 3: supervisor-owned refresh and complete worker source scopes
+
+First fetched and merged origin/main: already up to date at 13a00b80b. Read all
+four lane prompts, prior reports and the complete round-2 reviews. Applied
+llp-orient and extended LLP 3000.009 §5.3 with the implementation.
+
+Supervised families now refuse /auth/refresh with HTTP 403 E_WORKER_REFRESH:
+the supervisor owns rotation and keeps the injected bearer live; HTTP cannot
+issue another bearer outside its redactors. Named and conventional entries are
+covered, while a manual seat with the same service name still refreshes. Private
+snapshots preserve snapback/node_modules ahead of project-root packages. Four
+pre-fix controls detect the token leaks and missing/wrong package resolution.
+A standalone error-reporting test kills Astra's surviving redaction mutation.
+
+Grok's completed READY WITH CHANGES review arrived during the full client stage.
+Its blocking automatic-entry symlink hole is fixed too: dev preserves the
+snapback/worker.* or server.* spelling until no-follow validation, copies the
+schema tree including generated modules/relative helpers, and executes its
+private bytes. Three controls detect startup/restart symlinks and replacement
+of entry/helper paths after validation. Explicit serve --worker remains the
+operator-selected external-entry path. Installed packages remain trusted host
+code; source copies do not follow symlinks. Guide/manual/code registration and
+existing guide definition/recovery inventories co-evolve with these changes.
+
+Final affected tests: 102/102. Whole guide: 98/98. Host units: 203 passed,
+zero failed, four declared ignores. Docs budget and reference audit pass.
+Initial build/guide omissions and an invalid server fixture were ours and repaired.
+Two inherited watchdog tests raced asynchronous descendant SIGKILL delivery;
+the tests now wait for that death under their unchanged timeout and retain the
+assertions. An earlier unchanged ledger-process witness observed two actions:
+one isolated rerun, all 20 repeat trials and later affected runs passed without
+a product repair. Its cause remains unresolved and is tracked in a filesystem
+ticket. No red result is hidden or claimed fixed by a successful rerun.
+
+scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1336 s`.
+All stages passed: clients 4,605 passed / zero failed / ten declared skips;
+final models 79/79. No full-suite failures are ours, baseline or environmental.
+The inherited 60-second process target remains missed; no ceiling was raised.
+The final Grok follow-up is qualified by the separate affected/host/guide runs;
+the full invocation is not an atomic final-source qualification claim.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged
+593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both review inputs were rechecked before commit. Grok's low process-group ID
+reuse concern remains ticketed; ledger suspension, last-reported doctor state
+and semantic FULL durability tests retain their documented contracts. These
+limits and every failure are recorded in
+reports/20260929-wk-supervised-workers/round3/REPORT.md.
+Linux evidence only. Local commit has Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
 ## 2026-09-29 — Lane RL round 3: program generation retires displayed answers
 
 Fetched and merged origin/main first (merge f5d74035a, main b7d05baff),
@@ -76979,12 +77159,52 @@ stages passed, including 79/79 final models. Zero baseline or environmental
 failures. The red run remains recorded as red; no second full run was made.
 The inherited 60-second suite target is still missed; no ceiling increased.
 
+## 2026-09-29 — WK round 4: preserve completed ledger receipts through contention
+
+Read all prior lane prompts/reports and both complete round-3 reviews; checked
+Astra again before commit, unchanged. First fetched and merged origin/main
+in d22e97335, retaining both appended journal histories. Both reviews' high
+ledger finding is repaired: SQLITE_BUSY at COMMIT retains the completed
+transaction and retries only COMMIT. Two actual processes and a held reader
+reproduce two calls before repair and one call with two identical receipts
+afterward, including cancellation after provider success. Closed the intermittent
+ledger-duplicate ticket with this evidence and the honest remaining provider-call
+window for process death, unrecoverable storage or result-encoding failure.
+
+Serve now finds schema-local packages before project-root packages. Ledger
+initialization stops supervised children even with application timers and doctor
+records ledger-unavailable through bounded retries. Workers receive an explicit
+environment without parent NODE_OPTIONS. Failed credential retirement advances
+the original child's revision once on dev and serve, refuses the retired credential
+while deletion is held, renews peers and leaves manual seats live. Deleting the
+FULL setting, the busy-waiter abort check or the retirement CAS now fails its
+control. Only validated project source runs; credential lifecycle and keeping
+credentials out of logs retain their earlier guarantees and documented limits.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1358 s`, exit 1; stages
+cargo test and client tests. Cargo lifecycle: 20 passed / 1 failed. Clients:
+4,820 tests, 4,792 passed, 18 failed, 10 skipped, zero cancelled. All 19 failures
+are ours from round 3: one lifecycle, thirteen routes and four server fixture
+paths addressed the new private module location, and one server case exposed
+missing checked project imports outside snapback/. Corrected fixture outputs
+and added descriptor-validated copies using the existing checker dependency
+graph. Final scoped checks pass: 114/114 affected, 13/13 routes, 9/9 server,
+1/1 lifecycle (both dev/serve), 1/1 production rotation (named/conventional),
+and 98/98 whole guide. Final build/docs budget/reference checks pass. Full
+models passed 79/79; all other full stages passed. No baseline or environmental
+test failures; the inherited 60-second budget remains missed. No full rerun or
+all-green claim. Every failed test and setup/control error is in the report.
+
 Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 593,719 B cap; SHA-256
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 The local merge commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published. Report and complete failure ledger:
 [round 7](./reports/20260929-pq-per-row-hooks/round7/REPORT.md).
+LLP 3000.009 and effects/actions/server/operations docs co-evolve. The prior Low
+watchdog fallback group-ID ticket stays open. No actual-provider or macOS claim.
+Report: reports/20260929-wk-supervised-workers/round4/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
 ## 2026-09-29 — AG round 4: withdraw generated read-through upsert rewrites
 
 Fetched and merged origin/main first (b7d05baff), preserving both appended
@@ -77201,3 +77421,51 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 Report: [AV round 3](reports/20260929-av-asset-resolution/round3/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — WK round 5: retain ownership through worker cleanup
+
+Read all prior lane prompts/reports and both complete round-4 reviews; checked
+both input hashes again before commit. Merged origin/main in 22e37b564f, keeping
+both append-only journal histories. Watchdogs now inherit the same ownership
+flock as the host, retain it through group cleanup, and close the descriptor on
+Node execution. Immediate dev/serve restart waits for cleanup before opening the
+store or starting workers. Reachable listeners and unannounced CLI owners retain
+prompt refusal; the address is only a wait hint, never ownership authority.
+Both detecting restart tests record old-worker/helper overlap before the repair
+and none afterward. A descriptor-inheritance mutation fails both tests. The
+initialization-cancellation guard was already correct; a real locked-writer test
+now detects its deletion and requires AbortError after release.
+
+Grok's late review also has detecting repairs: snapshots live under private
+.snapback4 runtime directories, without adding temporary-parent package lookup;
+schema/project/ancestor package manifests use no-follow regular-file copies;
+startup clears prior status with credential retirement so removed workers cannot
+retain running reports. All eight controls fail before and pass after repair.
+The busy-COMMIT test holds a reader through 110 real busy attempts and detects a
+100-retry-cap mutation, including cancellation after provider success. Effect
+semantics, authority, meters and the provider-call/commit ambiguity are unchanged.
+The known Low numeric group-ID reuse concern remains in its existing open ticket.
+No forced-ID-reuse, macOS or actual-provider qualification is claimed.
+
+Ran scripts/test.sh exactly once, exit 1: `== 1 failure(s) in 1379 s`, stage
+cargo test. All three failed tests are ours: an intermediate guide edit moved
+language-00 from Details; unconditional waiting delayed competing-host refusal;
+and waiting behind token minting outlasted its SQLite deadline. Repaired and
+qualified separately: final guide 99/99, replay 15/15, run-admission 27/27,
+affected 125/125, host unit 204 passed with four declared ignores, routes 13/13,
+server end-to-end 9/9, signal cleanup 1/1. The affected final run uses a private
+byte-identical CLI copy after concurrent Cargo relinking disrupted two earlier
+follow-up checks; exact failures, evidence and attribution limits remain in the
+report. Full clients passed 4,820, zero failures, ten declared skips; full final
+models passed 79/79. Every other full stage passed. No baseline/environmental
+full-script test failure; the inherited 60-second process budget remains missed.
+The red full snapshot is retained, not repeated or relabeled after repairs.
+
+The merged guide baseline separately exceeded its word budget by 12 words;
+shortened two language-card prose lines without moving facts or changing examples.
+LLP 3000.009, effects and operations docs co-evolve. Reference and documentation
+checks pass. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-wk-supervised-workers/round5/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

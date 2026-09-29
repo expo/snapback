@@ -82,6 +82,9 @@ export function instrument(destination) {
 
 // Conservative boundary seal: any new/changed await anywhere in the client must
 // be reviewed for delivery reachability, even in a new module or helper owner.
+// worker.ts and worker-ledger.ts perform server effects, outside device mutation
+// delivery. Their new awaits are covered by supervised-workers/worker tests:
+// lost acknowledgements, durable replay, failed handlers and process contention.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {
