@@ -373,6 +373,16 @@ and 60–90 s at the heavy volume until measured there. These are engineering
 estimates from the slower calibration host, not Mac qualification or deadlines.
 The new bucket layout changes browser persistence, not the declared partition.
 
+The format-3 browser store upgrades the physical IndexedDB database from
+version 1 to 2, preserving existing stores, rows, staged acquisition and outbox.
+Old bucket formats migrate on load in one strict transaction; an aborted
+migration can be retried by the current client. The database version stays 2.
+A cached pre-upgrade client opening version 1 now rejects with `VersionError`
+(requested version is less than the existing version), before reading or writing.
+Reload the application with its updated page and Worker bundles to reopen the
+store. Keep that update available offline before relying on offline reopening;
+clearing browser storage would discard retained rows and pending writes.
+
 Measure your own largest account in five fresh browser profiles, with the
 production server and the same device choice. Record host load, browser version,
 network conditions, median and individual runs. Authenticate first; start this

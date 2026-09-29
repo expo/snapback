@@ -5,6 +5,8 @@ import { bucket, childBucket, packedStore, unpack, upgradeBuckets, writeGroup, t
 // Legacy per-row stores retain their representation. Metadata,
 // outbox and transfer acknowledgements share the same strict transaction.
 const FORMAT: Change = { s: "$format", k: "row-buckets", v: "3" };
+// @ref LLP 3000.007#20.4 — old owners must fail before reading or writing format 3.
+const DATABASE_VERSION = 2;
 const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
   tx.oncomplete = () => resolve();
   tx.onerror = () => reject(tx.error);
@@ -50,8 +52,11 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
   const packing = new Map<string, boolean>();
   const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
     let absent = false;
-    const request = indexedDB.open(name, 1);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open(name, DATABASE_VERSION);
+    request.onupgradeneeded = event => {
+      // The version fence preserves every existing store and format marker.
+      // load() separately migrates old buckets in a strict transaction.
+      if (event.oldVersion !== 0) return;
       if (create) {
         request.result.createObjectStore("changes", { keyPath: ["s", "k"] }).put(FORMAT);
         packing.set(name, true);

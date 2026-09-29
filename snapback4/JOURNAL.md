@@ -76178,3 +76178,54 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — AQ round 1: fence cached clients before format-3 access
+
+First fetched and merged origin/main (b7d05baff), preserving both sides of
+its append-only journal conflict in merge 50b66b6a0. Read the round-0 prompt,
+report and Astra’s NOT READY review. Grok began with progress only; its final
+READY review arrived during verification and both Low coverage findings are
+addressed. Both final files were checked again after the suite.
+
+Format 3 now opens physical IndexedDB version 2. The version upgrade preserves
+existing object stores and records; only a new database creates `changes`.
+The strict bucket migration stays separate. After a migration abort, the
+current adapter can retry the old row representation inside version 2, while
+cached pre-AQ version-1 opens reject with VersionError before reads or writes.
+The sync guide explains the upgrade and updated page/Worker availability for
+offline reopening; clearing storage is not the upgrade procedure. LLP 3000.007
+§20.4 records the fence and durable retry boundary.
+
+A real Chromium regression runs verbatim f9620c815 adapter files beside current
+source: 600 old rows plus watermark, outbox, stage and base survive migration;
+an extra object store survives too. Eight old read/write attempts reject,
+including delete+watermark and direct updates. Current deletes and packed
+updates survive reopening. New stores also fence the old adapter. The test
+fails on round-0 source and the isolated version-1 mutation.
+
+Migration abort and retry now both assert actual strict durability. Relaxed
+and default durability mutants fail. Grok’s additional prediction-base gap is
+covered by packed and overflow `b` images, point reads and overflow updates;
+omitting `b` from packing fails. Bounds inspect all format-1 buckets including
+leaves, and split tests check every key against distinct original values.
+Two inspection helpers and the navigation witness now open the current DB
+version; the Node existence mock supplies oldVersion on its upgrade event.
+
+Final affected checks: 101 passed / 0 failed; real navigation passes; whole
+guide 98/98. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1374 s`. Client stage: 4,566 pass / 0 fail / ten existing
+skips; final full-count models 79/79. No full-suite failures are ours, baseline
+or environmental. Development failures and deliberate controls are classified
+in the report’s ledger. Grok’s final test-only additions arrived after the
+full-suite client stage and passed a separate final 15/15 browser run. Product
+code was unchanged throughout the full suite. The inherited 60-second suite
+budget remains missed; no timeout or count was relaxed.
+
+Rebuilt canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+No acquisition remeasurement or broader performance claim this round.
+Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

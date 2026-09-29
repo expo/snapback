@@ -34,6 +34,12 @@ query all(c: cursor ?):
     .replace('request.result.every(key => Array.isArray(key) && key.length === 2 && typeof key[1] === "string" && keys.has(key[1]))', 'true');
   if (mutant === 'many-roots') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
     .replace('(legacy ? 255 : 63)', '255');
+  if (mutant === 'database-version') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8')
+    .replace('const DATABASE_VERSION = 2;', 'const DATABASE_VERSION = 1;');
+  if (mutant === 'migration-durability' || mutant === 'migration-default') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
+    .replace('durability: "strict"', `durability: "${mutant === 'migration-default' ? 'default' : 'relaxed'}"`);
+  if (mutant === 'base-store') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
+    .replace(' || s === "b"', '');
   for (const [name, selected] of [['local.ts', 'progress'], ['web-idb.ts', 'buckets']]) if (mutant === selected) {
     sourceOverrides[path(name)] = execFileSync('git', ['show', `18f3754fc:snapback4/packages/snapback4/src/${name}`], { cwd: root, encoding: 'utf8' });
   }
@@ -41,7 +47,8 @@ query all(c: cursor ?):
 import { acquisition } from '${path('acquisition.ts')}';
 import { prepareClient } from '${path('client-start.ts')}';
 import { createLocalClient as rawClient } from '${path('local.ts')}';
-Object.assign(window, { acquisition, prepareClient, rawClient });
+import { indexedDbStore as preAqStore } from '${join(root, 'packages/snapback4/test/fixtures/pre-aq-f9620c815/web-idb.ts')}';
+Object.assign(window, { acquisition, prepareClient, rawClient, preAqStore });
 ` });
   t.after(() => witness.close());
   const { page, api } = witness;
@@ -217,7 +224,8 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
       const after = await indexedDbPersistence().load(name);
       await store.save(name, changes);
       const packed = await new Promise((resolve, reject) => {
-        const request = indexedDB.open(name, 1);
+        const request = indexedDB.open(name);
+        request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result, tx = db.transaction('changes', 'readonly'), read = tx.objectStore('changes').get(['$bucket', 'r:0/0']);
           tx.oncomplete = () => { db.close(); resolve(read.result); }; tx.onerror = () => reject(tx.error);
@@ -249,16 +257,19 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
         request.onsuccess = () => { request.result.close(); resolve(); }; request.onerror = () => reject(request.error);
       });
       const store = indexedDbPersistence(), loaded = await store.load(name);
-      const physical = await new Promise(resolve => {
-        const request = indexedDB.open(name, 1);
+      const physical = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onerror = () => reject(request.error);
         request.onsuccess = () => {
           const db = request.result, tx = db.transaction('changes', 'readonly'), read = tx.objectStore('changes').getAll();
           tx.oncomplete = () => { db.close(); resolve(read.result); };
         };
       });
-      const packed = physical.find(c => c.s === '$bucket');
+      const packed = physical.filter(c => c.s === '$bucket');
       return { rows: loaded.length, entries: loaded.filter(c => c.s === 'r').length,
-        format: physical.find(c => c.s === '$format').v, packedEntries: JSON.parse(packed.v).length, packedBytes: new TextEncoder().encode(packed.v).byteLength,
+        format: physical.find(c => c.s === '$format').v,
+        packedEntries: Math.max(...packed.map(c => JSON.parse(c.v).length)),
+        packedBytes: Math.max(...packed.map(c => new TextEncoder().encode(c.v).byteLength)),
         first: await store.read(name, 'r', rows[0][0]), last: await store.read(name, 'r', rows.at(-1)[0]) };
     });
     assert.equal(result.entries, 1000); assert.equal(result.first, 'z'.repeat(1024)); assert.equal(result.last, 'z'.repeat(1024));
@@ -349,7 +360,7 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
         const key=`split-${n}`;let hash=2166136261;for(let i=0;i<key.length;i++)hash=Math.imul(hash^key.charCodeAt(i),16777619);
         if((hash&63)===0)keys.push(key);
       }
-      await store.save(name,keys.slice(0,512).map(k=>({s:'r',k,v:'old'})).concat([{s:'m',k:'watermark',v:'old'},{s:'o',k:'intent',v:'kept'}]));
+      await store.save(name,keys.slice(0,512).map(k=>({s:'r',k,v:`old:${k}`})).concat([{s:'m',k:'watermark',v:'old'},{s:'o',k:'intent',v:'kept'}]));
       const before=await store.load(name),put=IDBObjectStore.prototype.put;
       let rejected=false,aborted=false;
       IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.k==='r:0/0'){aborted=true;this.transaction.abort();}return req;};
@@ -362,9 +373,10 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
       let accepted;try{accepted=await store.saveIfCurrent(name,[{s:'r',k:keys[0],v:'stale'}],()=>{checks++;return current;});}finally{IDBObjectStore.prototype.put=put;}
       const all=await indexedDbPersistence().load(name);
       return {rejected,aborted,unchanged,accepted,checks,rows:all.filter(r=>r.s==='r').length,
-        old:await store.read(name,'r',keys[0]),added:await store.read(name,'r',keys[512]),watermark:await store.read(name,'m','watermark'),outbox:await store.read(name,'o','intent')};
+        allValues:keys.every((k,i)=>all.some(row=>row.s==='r'&&row.k===k&&row.v===(i===512?'new':`old:${k}`))),
+        old:await store.read(name,'r',keys[0])===`old:${keys[0]}`,added:await store.read(name,'r',keys[512]),watermark:await store.read(name,'m','watermark'),outbox:await store.read(name,'o','intent')};
     });
-    assert.deepEqual(result,{rejected:true,aborted:true,unchanged:true,accepted:false,checks:1,rows:513,old:'old',added:'new',watermark:'new',outbox:null});
+    assert.deepEqual(result,{rejected:true,aborted:true,unchanged:true,accepted:false,checks:1,rows:513,allValues:true,old:true,added:'new',watermark:'new',outbox:null});
   });
   await t.test('format two migration keeps packed and overflow rows, stage, watermark and outbox across abort', async()=>{
     const result=await page.evaluate(async()=>{
@@ -374,22 +386,102 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
           const store=open.result.createObjectStore('changes',{keyPath:['s','k']});
           for(const row of [{s:'$format',k:'row-buckets',v:'2'},
             {s:'$bucket',k:`r:${hash&255}`,v:JSON.stringify([[key,'packed']]),spill:true},
+            {s:'$bucket',k:`b:${hash&255}`,v:JSON.stringify([[key,'base packed']]),spill:true},
+            {s:'b',k:'base-overflow',v:'old base overflow'},
             {s:'r',k:'overflow',v:'old overflow'},{s:'s',k:'stage',v:'unpublished'},
             {s:'m',k:'watermark',v:'seven'},{s:'o',k:'intent',v:'pending'}])store.put(row);
         };open.onsuccess=()=>{open.result.close();resolve();};open.onerror=()=>reject(open.error);
       });
       const store=indexedDbPersistence(),prior=await store.read(name,'r',key),put=IDBObjectStore.prototype.put;
-      let rejected=false;IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.s==='$bucket')this.transaction.abort();return req;};
+      const migrationDurability=[];
+      let rejected=false;IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.s==='$bucket'){migrationDurability.push(this.transaction.durability);this.transaction.abort();}return req;};
       try{await store.load(name);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=put;}
-      const afterAbort={packed:await store.read(name,'r',key),overflow:await store.read(name,'r','overflow'),format:await store.read(name,'$format','row-buckets')};
-      await store.load(name);await store.save(name,[{s:'r',k:'overflow',v:'updated'}]);
+      const afterAbort={packed:await store.read(name,'r',key),overflow:await store.read(name,'r','overflow'),
+        base:await store.read(name,'b',key),baseOverflow:await store.read(name,'b','base-overflow'),format:await store.read(name,'$format','row-buckets')};
+      IDBObjectStore.prototype.put=function(row,...args){if(this.transaction.db.name===name&&row.s==='$format'&&row.v==='3')migrationDurability.push(this.transaction.durability);return put.call(this,row,...args);};
+      try{await store.load(name);}finally{IDBObjectStore.prototype.put=put;}
+      const migratedBase={packed:await store.read(name,'b',key),overflow:await store.read(name,'b','base-overflow')};
+      await store.save(name,[{s:'r',k:'overflow',v:'updated'},{s:'b',k:'base-overflow',v:'updated base'}]);
       const all=await indexedDbPersistence().load(name);
-      return {prior,rejected,afterAbort,all:all.sort((a,b)=>(a.s+a.k).localeCompare(b.s+b.k)),overflow:await store.read(name,'r','overflow'),format:await store.read(name,'$format','row-buckets')};
+      return {prior,rejected,afterAbort,migrationDurability,migratedBase,
+        updatedBase:await store.read(name,'b','base-overflow'),base:await store.read(name,'b',key),
+        all:all.sort((a,b)=>(a.s+a.k).localeCompare(b.s+b.k)),overflow:await store.read(name,'r','overflow'),format:await store.read(name,'$format','row-buckets')};
     });
     assert.equal(result.prior,'packed');assert.equal(result.rejected,true);
-    assert.deepEqual(result.afterAbort,{packed:'packed',overflow:'old overflow',format:'2'});
-    assert.deepEqual(result.all,[{s:'m',k:'watermark',v:'seven'},{s:'o',k:'intent',v:'pending'},{s:'r',k:'old-packed',v:'packed'},{s:'r',k:'overflow',v:'updated'},{s:'s',k:'stage',v:'unpublished'}]);
+    assert.deepEqual(result.afterAbort,{packed:'packed',overflow:'old overflow',base:'base packed',baseOverflow:'old base overflow',format:'2'});
+    assert.deepEqual(result.migratedBase,{packed:'base packed',overflow:'old base overflow'});
+    assert.equal(result.base,'base packed');assert.equal(result.updatedBase,'updated base');
+    assert.deepEqual(result.all,[{s:'b',k:'base-overflow',v:'updated base'},{s:'b',k:'old-packed',v:'base packed'},{s:'m',k:'watermark',v:'seven'},{s:'o',k:'intent',v:'pending'},{s:'r',k:'old-packed',v:'packed'},{s:'r',k:'overflow',v:'updated'},{s:'s',k:'stage',v:'unpublished'}]);
     assert.equal(result.overflow,'updated');assert.equal(result.format,'3');
+    assert.deepEqual(result.migrationDurability,['strict','strict']);
+  });
+  await t.test('format three fences the actual pre-AQ adapter and preserves existing stores', async () => {
+    const result = await page.evaluate(async () => {
+      const name = 'pre-aq-version-fence', old = preAqStore(indexedDbPersistence().claim);
+      // Keep another object store at physical version 1: the upgrade must retain it too.
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open(name, 1);
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore('changes', { keyPath: ['s', 'k'] })
+            .put({ s: '$format', k: 'row-buckets', v: '2' });
+          request.result.createObjectStore('extra').put('kept', 'sentinel');
+        };
+        request.onsuccess = () => { request.result.close(); resolve(); };
+        request.onerror = () => reject(request.error);
+      });
+      const rows = Array.from({ length: 600 }, (_, i) => ({ s: 'r', k: `row-${i}`, v: `value-${i}` }));
+      const metadata = [{ s: 'm', k: 'watermark', v: '1' }, { s: 'o', k: 'intent', v: 'pending' },
+        { s: 's', k: 'stage', v: 'unpublished' }, { s: 'b', k: 'base', v: 'confirmed' }];
+      await old.save(name, [...rows, ...metadata]);
+      const sort = rows => rows.toSorted((a, b) => (a.s + a.k).localeCompare(b.s + b.k));
+      const before = sort(await old.load(name)), current = indexedDbPersistence();
+      const migrated = sort(await current.load(name));
+      const rejected = [];
+      // The cached owner and a fresh old owner must both fail before reading or writing.
+      for (const adapter of [old, preAqStore(indexedDbPersistence().claim)]) {
+        for (const operation of [() => adapter.load(name), () => adapter.read(name, 'r', 'row-0'),
+          () => adapter.save(name, [{ s: 'r', k: 'row-0', v: null }, { s: 'm', k: 'watermark', v: '2' }]),
+          () => adapter.save(name, [{ s: 'r', k: 'row-1', v: 'stale direct update' }])]) {
+          try { await operation(); rejected.push(null); }
+          catch (error) { rejected.push({ name: error.name, message: error.message }); }
+        }
+      }
+      const afterOld = sort(await indexedDbPersistence().load(name));
+      await current.save(name, [{ s: 'r', k: 'row-0', v: null }, { s: 'r', k: 'row-1', v: 'new packed update' },
+        { s: 'm', k: 'watermark', v: '2' }]);
+      const reopened = indexedDbPersistence(), after = await reopened.load(name);
+      const physical = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onsuccess = () => {
+          const db = request.result, tx = db.transaction('extra'), sentinel = tx.objectStore('extra').get('sentinel');
+          tx.oncomplete = () => { resolve({ version: db.version, sentinel: sentinel.result }); db.close(); };
+          tx.onabort = () => { db.close(); reject(tx.error); };
+        };
+        request.onerror = () => reject(request.error);
+      });
+      // Brand-new format-3 stores must fence the old adapter too.
+      await current.save('fresh-version-fence', rows);
+      let freshError;
+      try { await old.load('fresh-version-fence'); } catch (error) { freshError = error.name; }
+      return { before, migrated, afterOld, rejected, physical, freshError, count: after.filter(row => row.s === 'r').length,
+        deleted: await reopened.read(name, 'r', 'row-0'), updated: await reopened.read(name, 'r', 'row-1'),
+        watermark: await reopened.read(name, 'm', 'watermark'), format: await reopened.read(name, '$format', 'row-buckets') };
+    });
+    assert.equal(result.before.length, 604);
+    assert.deepEqual(result.migrated, result.before);
+    assert.equal(result.rejected.length, 8);
+    for (const error of result.rejected) {
+      assert.equal(error?.name, 'VersionError');
+      assert.match(error.message, /requested version.*less than.*existing version/i);
+    }
+    assert.deepEqual(result.afterOld, result.before);
+    assert.deepEqual(result.physical, { version: 2, sentinel: 'kept' });
+    assert.equal(result.freshError, 'VersionError');
+    assert.equal(result.count, 599);
+    assert.equal(result.deleted, null);
+    assert.equal(result.updated, 'new packed update');
+    assert.equal(result.watermark, '2');
+    assert.equal(result.format, '3');
   });
   await t.test('both browser devices acquire every page and reopen complete offline', async()=>{
     await seed(Array.from({length:12000},(_,n)=>({id:`acq-${String(n).padStart(5,'0')}`,value:n})));
