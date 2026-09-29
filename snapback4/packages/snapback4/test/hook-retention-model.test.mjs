@@ -253,3 +253,70 @@ for (let seed = 1; seed <= 40; seed++) test(`independent ephemeral epoch model s
     while (publications.length) publish(publications.shift());
   } finally { stop.abort(); watches.forEach(w => w.retire()); }
 });
+
+// The oracle owns request order and values, not cache tickets, evidence floors,
+// or observation internals. Evaluation and final publication can finish apart.
+for (let seed = 1; seed <= 30; seed++) test(`pure local publication model seed ${seed}`, async () => {
+  const reads = new LocalReads(), index = new ReadIndex(), pending = [], completed = [];
+  const op = { kind: 'query', name: 'local' }, expected = new Map();
+  const backend = { generation: 1, schema: { tables: {}, operations: { local: { reads: ['docs'], held: true } } },
+    programs: [{ name: 'local', args: {}, body: [{ Return: { Get: { table: 'docs', index: 'id', key: [] } } }] }] };
+  const watches = ['A', 'B'].flatMap(id => [undefined, true].map(keep => Object.assign(new ReadObservation(keep), {
+    op, args: { id }, tables: new Set(['docs']), subscribers: new Set(), presenceRefresh: null,
+  })));
+  watches.forEach((watch, i) => index.set(String(i), watch));
+  let serial = 0, random = seed;
+  const rand = n => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return (random >>> 8) % n; };
+  const check = () => {
+    for (const watch of watches) {
+      const want = expected.get(watch.args.id), read = watch.read(null);
+      if (!want) continue;
+      assert.ok(!('loading' in read), `${seed}: purely local evaluation left ${watch.args.id} loading`);
+      assert.equal('denied' in read ? Number(read.denied.message) : read.data.serial, want.serial, 'an older local answer cannot win');
+      assert.equal('denied' in read, want.denied);
+    }
+    assert.equal(reads.serverAnswers.size, 0, 'local successes are not remembered server data');
+  };
+  const start = (id, denied, owner) => {
+    const candidate = { serial: ++serial, id, denied, owner };
+    let release;
+    const body = new Promise(resolve => { release = resolve; });
+    const env = {
+      backend, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0,
+      replicaBlocked: (key, deps) => reads.blocked(key, deps), evidenceMinimum: (key, deps) => reads.minimum(key, deps),
+      refreshing: null, link: 'online', caughtUp: true, identityChecked: true, lastSyncAt: 0,
+      principal: 'alice', partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
+      unavailable: () => null, queued: async () => [], notify() {}, deviceNow: () => 1, serverNow: () => 1,
+      serverAnswers: reads.serverAnswers.view(), call: () => body,
+      post: () => assert.fail('a local evaluation must not use HTTP'),
+    };
+    const evaluation = evaluateLocal(env, op, { id }, 0, 0).then(result => { completed.push({ ...candidate, result }); });
+    pending.push({ release: async () => {
+      release({ ok: { ...(denied ? { denied: { code: 'APP_DENIED', family: 'app', message: String(candidate.serial) } }
+        : { data: { serial: candidate.serial } }), complete: true, unknown: false, tables: ['docs'] } });
+      await evaluation;
+    } });
+  };
+  const publish = candidate => {
+    const { id, serial, denied, result, owner } = candidate;
+    const want = expected.get(id);
+    if (!want || serial > want.serial) expected.set(id, { serial, denied });
+    reconcileLocalRead(reads, index, backend, { ...result, op, args: { id }, evidenceSerial: reads.evidenceSerial },
+      () => { owner?.update(result.read); return true; }, () => {}, owner);
+    check();
+  };
+  try {
+    for (const id of ['A', 'B']) { start(id, false); await pending.shift().release(); publish(completed.shift()); }
+    for (let step = 0; step < 120; step++) {
+      const event = rand(5);
+      if (event < 3) {
+        const id = rand(2) ? 'A' : 'B', owner = rand(2) ? watches.find(w => w.args.id === id) : undefined;
+        start(id, !!rand(2), owner);
+      } else if (event === 3 && pending.length) await pending.splice(rand(pending.length), 1)[0].release();
+      else if (completed.length) publish(completed.splice(rand(completed.length), 1)[0]);
+      check();
+    }
+    while (pending.length) await pending.splice(rand(pending.length), 1)[0].release();
+    while (completed.length) publish(completed.splice(rand(completed.length), 1)[0]);
+  } finally { watches.forEach(w => w.retire()); }
+});

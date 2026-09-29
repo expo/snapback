@@ -1,0 +1,37 @@
+{
+  "invocations": 1,
+  "command": "ulimit -n 4096; bash scripts/test.sh",
+  "cwd": "snapback4",
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1322 s",
+  "failures": [],
+  "client": {
+    "tests": 4858,
+    "pass": 4848,
+    "fail": 0,
+    "skipped": 10,
+    "duration_ms": 367637.565847
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skipped": 0,
+    "duration_ms": 300781.026817
+  },
+  "stages": [
+    "-- ok: cargo build (33 s)",
+    "-- ok: wasm build (34 s)",
+    "-- ok: docs budget (2 s)",
+    "-- ok: release guard (9 s)",
+    "-- ok: package typecheck (2 s)",
+    "-- ok: package build (3 s)",
+    "-- ok: chat app check (0 s)",
+    "-- ok: cargo test (570 s)",
+    "-- ok: chat app typecheck (2 s)",
+    "-- ok: expo app typecheck (2 s)",
+    "-- ok: fixture wrapper tests (21 s)",
+    "-- ok: client tests (368 s)",
+    "-- ok: client models (300 s)"
+  ]
+}

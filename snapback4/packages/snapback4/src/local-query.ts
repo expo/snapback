@@ -28,7 +28,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { admissionRefused?: boolean; dependencyFree?: boolean; invalidated?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { localEvidence?: () => boolean; admissionRefused?: boolean; dependencyFree?: boolean; invalidated?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -76,6 +76,7 @@ export interface AnswerCache {
   get(key: string): ServerAnswer | undefined;
   set(key: string, answer: ServerAnswer, seq?: number): boolean;
   delete(key: string, seq?: number): boolean;
+  local(key: string, denied: boolean): boolean;
   forget(key: string): void;
   renew(): void;
 }
@@ -331,9 +332,15 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       if (result.credential !== undefined && result.credential !== env.credentialRevision) return loading;
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
-      // @ref LLP 3000.029#11 — an accepted device denial is replacement
-      // evidence too; preflight/unavailable results have already been withheld.
-      if (origin === "server" || origin === "composed" || (origin === "local" && "denied" in result.read)) {
+      // @ref LLP 3000.029#13 — preserve replica provenance through the final
+      // synchronous publication gate. Both outcomes enter the same order there,
+      // after any asynchronous continuation that could accept a newer answer.
+      if (origin === "local" && !("loading" in result.read)) {
+        const cache = env.serverAnswers, denied = "denied" in result.read;
+        result.localEvidence = () => cache.local(key, denied);
+        result.invalidated = true;
+      }
+      if (origin === "server" || origin === "composed") {
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
         if (remember && "data" in result.read) {
           const accepted = env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);

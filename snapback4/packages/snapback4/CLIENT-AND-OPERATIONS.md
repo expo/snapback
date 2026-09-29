@@ -1227,9 +1227,12 @@ predictions preserve the public-put proof too; relevant or unknown effects cance
 Every other changed dependency remains conservative. A pending sync cannot let
 a prediction or a new query resurrect pre-evidence replica data. Accepted
 one-shot and watch replacements reach every exactly matching read across
-retention policies, including nonempty subsets. Other queries and argument sets
-that depend on the affected tables withdraw, and new local evaluations remain
-fenced until the replica applies that evidence. Unknown footprints are global;
+retention policies, including nonempty subsets. Remote evidence withdraws other
+queries and argument sets depending on the affected tables, and new local
+evaluations remain fenced until the replica applies it. Current local answers
+share one publication order for successes and denials, without creating a sync
+requirement or withdrawing other arguments. Local successes are not remembered
+server data; an older local completion cannot overwrite a newer answer. Unknown footprints are global;
 explicit empty server footprints have no data dependencies. A transport failure
 does not become authority. Known cuts cannot erase a pending cutless fence.
 This is not a claim of instantaneous remote revocation: offline clients can only

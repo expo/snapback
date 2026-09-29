@@ -39,8 +39,9 @@ cannot unmount its children during plain revalidation after data has appeared.
 Keep routes owned by identity so actual invalidation can also preserve navigation.
 A changed dependency (including rule probes, inherited parents and maintained
 sources transitively), denial, deadline or account/backend
-change withdraws immediately and fences old replica reads until sync applies it.
-That fence follows the affected tables across query aliases and arguments; only
+change withdraws immediately. Remote evidence fences old replica reads until sync
+applies it; a current local answer needs no further sync.
+Remote fences follow affected tables across query aliases and arguments; only
 an exact query/argument match can share a replacement answer.
 A direct public-profile lookup by an immutable unique key stays visible through
 a proved non-deleting public put or a known unrelated footprint. Unseen commit

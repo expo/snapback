@@ -1,0 +1,16 @@
+{
+  "llp/3000.029-hook-retention-with-invalidation.rfc.md": "2bd79ecff1b91089d75ef92dad7c5e0ef519ef91912fcccf52a3698924849007",
+  "snapback4/crates/snapback4-lang/src/guide/client.md": "c0f888f6d59ecb4dbf97bd2387bafcc6b1f426b00cd7a86558b4bd0c48d1afbd",
+  "snapback4/crates/snapback4-lang/src/guide/reads.rs": "59493310b2d62c72c14b338f2af8fb804cda21cd6b6c1cc9590d00940762b7b3",
+  "snapback4/crates/snapback4-lang/tests/fixtures/guide-fact-homes.json": "5a34ebb974765e72a6e9b0859106125482ff98b0958344e92757cf278d59f11d",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "5e0db3d3c5face2399eb7501c8b52a1aeb647b19dc9a9dddd8095b9e09ab2449",
+  "snapback4/packages/snapback4/src/local-query.ts": "db4bdb642c0fcb307df866839f2090ecab687c49e45f862320652227262dc3ab",
+  "snapback4/packages/snapback4/src/local-read-publication.ts": "49fc83a5b43a3f0babf7b11e71d5b322dfded6bd20088c88be95493d145902ec",
+  "snapback4/packages/snapback4/src/local-reads.ts": "38322e88ed83ce0464ee9fd7f3a220903634940b7d74de5fb9bc9d461fd8fc49",
+  "snapback4/packages/snapback4/src/local-search.ts": "7be39d1bbbc4c3044b24e86903a5b6f0e628f8db8a74f182a186e3e9cd7472f0",
+  "snapback4/packages/snapback4/test/hook-retention-fences.test.mjs": "bf6fa661a3346d1672c7d40b74c63aaac414ddb19f9d50defa50557e1d41446e",
+  "snapback4/packages/snapback4/test/hook-retention-model.test.mjs": "14cb20f136397828fbc205182e845732406f89b64ccbc05792fa680afe18cf0f",
+  "snapback4/packages/snapback4/test/ordinary-search-ledger.test.mjs": "9cbabd02a4fa7314531fd4d198c84e784e9d2dc7e6f73e006c84e988d5c4fb52",
+  "snapback4/packages/snapback4/test/ordinary-search.test.mjs": "3fdc031b05996ab8eae064c6fec72a0c960504521557fe98fc84fca2f5e08b5e",
+  "snapback4/packages/snapback4/test/hook-retention-local.test.mjs": "a9d5c78a33f81ca1747e2e88bb3c9665305759b8088bbdeaab0c6161bb7177dd"
+}

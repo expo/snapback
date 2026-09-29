@@ -409,7 +409,7 @@ fn nativeSecret(ctx: &Ctx, args: &Json) -> Result<Json> {
   assert.equal(client.link(), 'online');
 });
 
-for (const code of ['E_HTTP_RESPONSE', 'E_STORE_BUSY', 'APP_DENIED']) test(`round 10 process: device-evaluated ${code} replaces mounted peers without HTTP`, { timeout: 120000 }, async t => {
+for (const code of ['E_HTTP_RESPONSE', 'E_STORE_BUSY', 'APP_DENIED', 'E_BOUND']) test(`round 10 process: device-evaluated ${code} replaces mounted peers without HTTP`, { timeout: 120000 }, async t => {
   const root = fileURLToPath(new URL('../../../', import.meta.url));
   const cutoff = Date.now() + 60_000;
   let now = cutoff - 1, httpQueries = 0, deviceDenials = 0;

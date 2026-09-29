@@ -10,6 +10,7 @@ import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
 import { answerObservation } from '../dist/read-observation.js';
+import { SearchLedger } from '../dist/local-search.js';
 
 const source = `use personas alice, bob
 table members:
@@ -74,7 +75,7 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
   const requests=[], scans=[], states=[];
   const persist=memoryPersistence();
   const opener = tier==='wasm' ? webDevice({wasm:readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url)),persist}) : processDevice({binary,dir:join(dir,'device')});
-  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return options.transformDeviceReply?.(req, result) ?? result;}}}},fetch:async(input,init)=>{
+  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(options.transformDeviceRequest?.(req) ?? req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return options.transformDeviceReply?.(req, result) ?? result;}}}},fetch:async(input,init)=>{
     if(offline) throw new TypeError('offline');
     const path=new URL(input).pathname;
     if(path==='/changes') return parkedChanges(init.signal);
@@ -513,4 +514,58 @@ test('ordinary mixed search: real word-dense drain pages follow the combined key
   const third=await f.client.query(q,{q:'coffee',c:next.next});
   assert.equal(f.requests.length-start,3);
   assert.ok(fetched.data.filter(row=>!ids(next).includes(row.id)).every(row=>ids(third).includes(row.id)),'unconsumed server hits survive');
+});
+
+for (const tier of ['process', 'wasm']) for (const phase of ['opening', 'after decode'])
+test(`round 11 mixed search ${tier}: ${phase} search_state budget refusal preserves retained authority`, async t => {
+  let failed = false, stateRefusals = 0, ceilings;
+  const deadline = Date.now() + 60000;
+  const decode = SearchLedger.prototype.decode;
+  // Pad a real HTTP 200 to fit decoding with ~4 KB left; the next real
+  // Rust search_state reservation refuses at its 8 KB charge.
+  SearchLedger.prototype.decode = async function(response) {
+    if (failed && phase === 'after decode') {
+      const text = await response.text();
+      assert.equal(response.status, 200);
+      const bytes = Math.floor((this.ceilings.heap_bytes - this.used.heap_bytes - 4096 - 128) / 32);
+      assert.ok(bytes > Buffer.byteLength(text));
+      response = new Response(text + ' '.repeat(bytes - Buffer.byteLength(text)), { status: 200 });
+    }
+    const json = await decode.call(this, response);
+    if (failed && phase === 'after decode') {
+      const remaining = this.ceilings.heap_bytes - this.used.heap_bytes;
+      assert.ok(remaining >= 4096 && remaining < 8192);
+    }
+    return json;
+  };
+  t.after(() => { SearchLedger.prototype.decode = decode; });
+  const f = await setup(t, tier, deadline, {
+    transformDeviceRequest(request) {
+      if (failed && phase === 'opening' && request.op === 'search_state' && !request.spent) {
+        return { ...request, spent: { ...Object.fromEntries(Object.keys(ceilings).map(k => [k, 0])), heap_bytes: ceilings.heap_bytes - 4096 } };
+      }
+      return request;
+    },
+    transformDeviceReply(request, reply) {
+      if (request.op === 'search_state') {
+        ceilings ??= reply.ok?.ceilings;
+        if (reply.denied?.code === 'E_BOUND') stateRefusals++;
+      }
+      return reply;
+    },
+    async transformResponse(response) { return Response.json({ ...await response.json(), nextExpiry: deadline }); },
+  });
+  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
+  watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.length);
+  const before = ids(watch.getSnapshot()), owner = answerObservation(watch.getSnapshot()), deadlines = { ...owner.deadlines };
+  const snapshots = []; watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  failed = true;
+  assert.equal((await f.client.query(q, args)).denied?.code, 'E_BOUND');
+  assert.ok(stateRefusals > 0, 'real device metadata call refused');
+  assert.deepEqual(ids(watch.getSnapshot()), before); assert.deepEqual(owner.deadlines, deadlines);
+  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
+  await until(() => optOut.getSnapshot().denied?.code === 'E_BOUND');
+  assert.deepEqual(ids(watch.getSnapshot()), before); assert.deepEqual(owner.deadlines, deadlines);
+  assert.ok(snapshots.every(read => Array.isArray(read.data)));
 });

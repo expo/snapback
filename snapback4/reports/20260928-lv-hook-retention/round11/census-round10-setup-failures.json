@@ -1,0 +1,178 @@
+[
+  {
+    "location": "packages/snapback4/test/ephemeral-capability.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-capability.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-e2e.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-e2e.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-fencing.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-fencing.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-keep.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-keep.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-lanes.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-lanes.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-reclamation.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-reclamation.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-routing.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-routing.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/ephemeral-watches.test.mjs:1:1",
+    "name": "packages/snapback4/test/ephemeral-watches.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/expiry-retry-watch.test.mjs:1:1",
+    "name": "packages/snapback4/test/expiry-retry-watch.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-app-expiry.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-app-expiry.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-app-model.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-app-model.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-authority-react.test.mjs:11:39",
+    "name": "createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal"
+  },
+  {
+    "location": "packages/snapback4/test/keep-authority-react.test.mjs:11:39",
+    "name": "createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal"
+  },
+  {
+    "location": "packages/snapback4/test/keep-authority.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-authority.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-clock.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-clock.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-device.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-device.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-expiry.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-expiry.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-incarnation.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-incarnation.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-observation.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-observation.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/keep-reset.test.mjs:1:1",
+    "name": "packages/snapback4/test/keep-reset.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/online-read-order.test.mjs:1:1",
+    "name": "packages/snapback4/test/online-read-order.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/page-ready.test.mjs:1:1",
+    "name": "packages/snapback4/test/page-ready.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/prediction-routing.test.mjs:1:1",
+    "name": "packages/snapback4/test/prediction-routing.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/presence-composed.test.mjs:1:1",
+    "name": "packages/snapback4/test/presence-composed.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/presence-live.test.mjs:1:1",
+    "name": "packages/snapback4/test/presence-live.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/presence-local.test.mjs:1:1",
+    "name": "packages/snapback4/test/presence-local.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/presence-refresh.test.mjs:1:1",
+    "name": "packages/snapback4/test/presence-refresh.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/query-publication-session.test.mjs:1:1",
+    "name": "packages/snapback4/test/query-publication-session.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/raw-read-deadlines.test.mjs:35:1",
+    "name": "closing a raw local handle stops its episode timer but keeps the deadline"
+  },
+  {
+    "location": "packages/snapback4/test/raw-read-deadlines.test.mjs:48:1",
+    "name": "resubscribing a raw local handle rearms its original episode deadline"
+  },
+  {
+    "location": "packages/snapback4/test/read-observation.test.mjs:7:67",
+    "name": "one replacing fetch ends retention: loading"
+  },
+  {
+    "location": "packages/snapback4/test/read-observation.test.mjs:7:67",
+    "name": "one replacing fetch ends retention: failure"
+  },
+  {
+    "location": "packages/snapback4/test/read-through-provenance.test.mjs:1:1",
+    "name": "packages/snapback4/test/read-through-provenance.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/read-through.test.mjs:1:1",
+    "name": "packages/snapback4/test/read-through.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/readauth.test.mjs:1:1",
+    "name": "packages/snapback4/test/readauth.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/remembered-answers.test.mjs:112:1",
+    "name": "a composed read's refusal removes no answer a later read remembered"
+  },
+  {
+    "location": "packages/snapback4/test/remembered-answers.test.mjs:129:1",
+    "name": "an earlier read's answer at a higher cut, landing while a composed read is out, is remembered"
+  },
+  {
+    "location": "packages/snapback4/test/retention-episode.test.mjs:1:1",
+    "name": "packages/snapback4/test/retention-episode.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/retention-lifecycle.test.mjs:1:1",
+    "name": "packages/snapback4/test/retention-lifecycle.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:1:1",
+    "name": "packages/snapback4/test/retention-online-boundaries.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/retention-pages.test.mjs:23:38",
+    "name": "usePage checks first page deadline before cached return without timer delivery"
+  },
+  {
+    "location": "packages/snapback4/test/retention-pages.test.mjs:23:38",
+    "name": "usePage checks second page deadline before cached return without timer delivery"
+  },
+  {
+    "location": "packages/snapback4/test/retention-store-withdrawal.test.mjs:1:1",
+    "name": "packages/snapback4/test/retention-store-withdrawal.test.mjs"
+  },
+  {
+    "location": "packages/snapback4/test/unread-range.test.mjs:1:1",
+    "name": "packages/snapback4/test/unread-range.test.mjs"
+  }
+]

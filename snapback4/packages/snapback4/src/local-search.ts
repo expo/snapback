@@ -153,7 +153,9 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
   const loading: SearchResult = { read: { loading: true }, nextExpiry: null, searchAttempt: true };
   const stateReply = await env.call({ op: "search_state", name }); checkpoint();
   const state = stateReply.ok as State | undefined;
-  if (stateReply.denied) return { ...loading, read: { denied: stateReply.denied as Refusal } };
+  // @ref LLP 3000.029#13 — metadata calls are SDK work, not query evaluation.
+  // checkpoint above preserves terminal session/store/partition boundaries.
+  if (stateReply.denied) return { ...loading, read: { denied: sdkRefusal({ ...stateReply.denied as Refusal }, "admission") } };
   if (!state) return loading; // older devices cannot partially activate composition
   const ledger = new SearchLedger(state.ceilings);
   try {
@@ -217,7 +219,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     position.identity = response.searchIdentity;
     if (!Array.isArray(remote.data)) return loading;
     const afterReply = await env.call({ op: "search_state", name, spent: ledger.used }); checkpoint();
-    if (afterReply.denied) return { ...loading, read: { denied: afterReply.denied as Refusal } };
+    if (afterReply.denied) return { ...loading, read: { denied: sdkRefusal({ ...afterReply.denied as Refusal }, "admission") } };
     const after = afterReply.ok as State | undefined;
     if (!after?.metered) return loading;
     ledger.resume(after.metered);

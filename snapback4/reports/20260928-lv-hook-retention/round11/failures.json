@@ -1,0 +1,689 @@
+[
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 process: local denial leaves acquired held reads runnable"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 wasm: local denial leaves acquired held reads runnable"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 process: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 wasm: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 process native: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 mixed search process: opening search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 mixed search process: after decode search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 mixed search wasm: opening search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before.log.gz",
+    "classification": "ours",
+    "reason": "expected regression on round 10",
+    "test": "round 11 mixed search wasm: after decode search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 process: local denial leaves acquired held reads runnable"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 wasm: local denial leaves acquired held reads runnable"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 process: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 wasm: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 process native: older local denial cannot replace newer local success"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 mixed search process: opening search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 mixed search process: after decode search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 mixed search wasm: opening search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "classification": "ours",
+    "reason": "fixture setup: missing built server",
+    "test": "round 11 mixed search wasm: after decode search_state budget refusal preserves retained authority"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 1"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 2"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 3"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 4"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 5"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 6"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 7"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 8"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 9"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 10"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 11"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 12"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 13"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 14"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 15"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 16"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 17"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 18"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 19"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 20"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 21"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 22"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 23"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 24"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 25"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 26"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 27"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 28"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 29"
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours",
+    "reason": "model fixture missing serialized Get key",
+    "test": "pure local publication model seed 30"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 1"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 2"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 3"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 4"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 5"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 6"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 7"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 8"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 9"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 10"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 11"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 12"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 13"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 14"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 15"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 16"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 17"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 18"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 19"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 20"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 21"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 22"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 23"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 24"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 25"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 26"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 27"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 28"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 29"
+  },
+  {
+    "log": "model-before.log.gz",
+    "classification": "ours",
+    "reason": "expected property control on round 10",
+    "test": "pure local publication model seed 30"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 1"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 2"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 3"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 4"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 5"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 6"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 7"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 8"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 9"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 10"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 11"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 12"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 13"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 14"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 15"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 16"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 17"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 18"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 19"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 20"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 21"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 22"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 23"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 24"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 25"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 26"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 27"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 28"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 29"
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "classification": "ours",
+    "reason": "expected mutation control",
+    "test": "pure local publication model seed 30"
+  },
+  {
+    "log": "guide.log.gz",
+    "classification": "ours",
+    "reason": "stale reads-06 snapshot; corrected",
+    "test": "familiar::every_moved_fact_has_its_why_or_details_home"
+  },
+  {
+    "log": "census-round10.log.gz",
+    "classification": "ours",
+    "failures": 219,
+    "inventory": "census-failures.json",
+    "explanation": "CENSUS.md"
+  },
+  {
+    "log": "census-round11.log.gz",
+    "classification": "ours",
+    "failures": 219,
+    "inventory": "census-failures.json",
+    "explanation": "CENSUS.md"
+  },
+  {
+    "log": "census-round10-setup.log.gz",
+    "classification": "ours",
+    "failures": 44,
+    "inventory": "census-round10-setup-failures.json",
+    "explanation": "34 package-import setup failures and ten prior LV contract assertions"
+  },
+  {
+    "log": "census-round10-presence-refresh.log.gz",
+    "classification": "ours",
+    "test": "an accepted loading answer is published, and a background failure keeps the answer and the link",
+    "reason": "prior LV unavailable-loading retention contract; original assertion retained"
+  },
+  {
+    "log": "census-round11-presence-refresh.log.gz",
+    "classification": "ours",
+    "test": "an accepted loading answer is published, and a background failure keeps the answer and the link",
+    "reason": "prior LV unavailable-loading retention contract; original assertion retained"
+  }
+]
