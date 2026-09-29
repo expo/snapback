@@ -295,13 +295,15 @@ test("profile route is chosen once per account and survives later loading", asyn
   let answer = { loading: true };
   const route = choose({ query: async () => { calls++; return answer; } });
   assert.equal(await route(), "loading");
+  answer = readyRead({ data: null, complete: false, cut: null, fresh: false });
+  assert.equal(await route(), "loading", "uncertain empty is not a missing profile route");
   answer = { denied: { message: "unavailable" } };
   assert.equal(await route(), "error");
   answer = readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true });
   assert.equal(await route(), "app");
   answer = { loading: true };
   assert.equal(await route(), "app");
-  assert.equal(calls, 3, "the chosen route never re-reads or retains the protected profile");
+  assert.equal(calls, 4, "the chosen route never re-reads or retains the protected profile");
   const otherAccount = choose({ query: async () => readyRead({ data: null, complete: true, cut: null, fresh: true }) });
   assert.equal(await otherAccount(), "profile", "another account starts with its own decision");
 });

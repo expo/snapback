@@ -73,9 +73,9 @@ if (isReady(point)) {
 declare const scalar: Read<boolean>;
 if (isReady(scalar)) {
   const value: boolean = scalar.data;
-  // @ts-expect-error scalar reads have no absent arm
-  const impossible: "absent" = scalar.presence;
 }
+// @ts-expect-error scalar reads have no absent arm
+const scalarAbsence: Read<boolean> = { presence: "absent", data: false, complete: true, cut: null, fresh: true };
 declare const array: Ready<readonly Row[]>;
 if (array.presence === "absent") { const rows: readonly Row[] = array.data; }
 // @ts-expect-error presence is required on every ready constructor
