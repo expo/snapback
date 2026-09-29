@@ -61,6 +61,7 @@ elif a[0] == 'launch':
                      link='offline' if segment == 'offline' else 'online', queries=[])
         smoke['pass'] = smoke.pop('pass_')
         smoke['queryFacts'] = config['queryFacts']
+        smoke['queryGeneration'] = config['queryGeneration']
         smoke['queries'] = [dict(name=name, classification='online-only' if fact['runs']=='server' else 'device-answerable',
             **(dict(state='loading', expectation='online-only: unavailable offline (expected)') if fact['runs']=='server' and segment=='offline' else dict(state='ready', count=0)))
             for name, fact in config['queryFacts'].items() if segment=='offline' or fact['runs']=='server']
@@ -116,6 +117,14 @@ elif a[0] == 'io':
     while True:
         time.sleep(.05)
 elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
+    if mode == 'smoke-source-race':
+        count_file = root / 'stopped-checks'
+        count = int(count_file.read_text()) + 1 if count_file.exists() else 1
+        count_file.write_text(str(count))
+        if count == 2:
+            # After driver preparation, before it starts dev's compilation.
+            schema = root / 'snapback/schema.q'
+            schema.write_text(schema.read_text().replace("  public 'fixture'", "  read <- allow\n  online only"))
     print('PID\tStatus\tLabel')
     pid = (root / 'app-pid').read_text() if (root / 'app-pid').exists() else ('6999' if mode == 'running' else '-')
     print(pid + '\t0\tUIKitApplication:dev.test[fixture]')

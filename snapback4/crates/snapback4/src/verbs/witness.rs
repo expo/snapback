@@ -157,7 +157,7 @@ impl Run {
         self.require_stopped()?;
         if let Some(proof) = &self.proof { preparation::verify(&self.options, self.manifest["appPath"].as_str().unwrap(), &proof["installedApp"]["sha256"], &format!("verify-{segment}"))?; }
         let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis(),
-            "proof": self.proof.as_ref().map(|p| json!({ "sha256": p["sha256"], "proofKind": p["proofKind"], "nativeBase": p["nativeBase"], "executedApp": { "inventory": { "sha256": p["executedApp"]["inventory"]["sha256"] } } })), "origin": format!("http://127.0.0.1:{}", self.options.port), "smoke": self.options.smoke, "queryFacts": self.manifest["queryFacts"], "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
+            "proof": self.proof.as_ref().map(|p| json!({ "sha256": p["sha256"], "proofKind": p["proofKind"], "nativeBase": p["nativeBase"], "executedApp": { "inventory": { "sha256": p["executedApp"]["inventory"]["sha256"] } } })), "origin": format!("http://127.0.0.1:{}", self.options.port), "smoke": self.options.smoke, "queryFacts": self.manifest["queryFacts"], "queryGeneration": self.manifest["queryGeneration"], "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
         let mut command = Command::new("xcrun");
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
@@ -203,6 +203,7 @@ impl Run {
             if Instant::now() >= end { return Err(error("E_WITNESS_BACKEND", "dev did not become ready before the step timeout")); }
             tick()?;
         }
+        self.bind_served_queries()?;
         self.event("backend-ready"); Ok(())
     }
     fn stop_backend(&mut self) -> Result<()> {
@@ -413,7 +414,7 @@ fn prepare(mut options: Options) -> Result<Run> {
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
     let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
         "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
-        "queryFacts": if options.smoke { smoke::query_facts(project)? } else { Value::Null },
+        "queryFacts": Value::Null, "queryGeneration": Value::Null,
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
         "backend": { "command": [binary.to_string_lossy(), "dev", "--port", options.port.to_string(), "--no-watch"],
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },

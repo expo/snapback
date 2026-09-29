@@ -1,5 +1,6 @@
 // @ref LLP 3000.030#3 — private own-project preparation; never launch through Expo CLI.
 import fs from 'node:fs';
+import { nativeReferences } from './native-inputs.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -28,16 +29,42 @@ const excluded = new Set(['.git', '.expo', '.snapback4', '.snapback4-witness', '
 function sourceOmit(p) { return excluded.has(p.split('/')[0]) || p.split('/').some(n => n === 'provider-secrets.env' || n.startsWith('.env')); }
 function nativeOmit(p) { return p === 'build' || p.startsWith('build/') || p === 'Pods' || p.startsWith('Pods/') || p.includes('/xcuserdata') || p === '.xcode.env.local'; }
 function nativeInput(root) {
+  root = fs.realpathSync(root);
   const deps = inventory(path.join(root, 'node_modules'));
   const ios = fs.existsSync(path.join(root, 'ios')) ? inventory(path.join(root, 'ios'), nativeOmit) : null;
+  const references = [];
+  if (ios) for (const name of fs.readdirSync(path.join(root, 'ios')).filter(n => n.endsWith('.xcodeproj'))) {
+    const file = path.join(root, 'ios', name, 'project.pbxproj');
+    const parsed = spawnSync('/usr/bin/plutil', ['-convert', 'json', '-o', '-', file], { encoding: 'utf8' });
+    if (parsed.status !== 0) fail('E_WITNESS_NATIVE_COMPAT', `cannot inspect native references in ${file}`);
+    references.push(nativeReferences(root, JSON.parse(parsed.stdout), name.slice(0, -10)));
+  }
+  // Root the Pods inventory at the project: generated header links point into
+  // node_modules, which is independently inventoried in full above.
+  const podTargets = [];
+  const pods = fs.existsSync(path.join(root, 'ios/Pods'))
+    ? inventory(root, p => p !== 'ios' && p !== 'ios/Pods' && !p.startsWith('ios/Pods/'),
+      (file, resolved) => podTargets.push({ path: file, target: path.relative(root, resolved) })) : null;
+  // CocoaPods headers also link into Expo/RN codegen's generated input tree.
+  // Bind its bytes explicitly rather than treating all ignored build files as safe.
+  const generated = path.join(root, 'ios/build/generated/ios');
+  const podsGenerated = fs.existsSync(generated) ? inventory(generated) : null;
+  for (const row of podTargets) {
+    const target = row.target;
+    if (!target.startsWith('node_modules/') && !target.startsWith('ios/Pods/')
+      && !(podsGenerated && target.startsWith('ios/build/generated/ios/'))
+      && !(target.startsWith('ios/') && !nativeOmit(target.slice(4)))) {
+      fail('E_WITNESS_NATIVE_COMPAT', `Pods input outside covered roots: ${row.path} -> ${target}; use manual preparation`);
+    }
+  }
   const config = readJSON(path.join(root, 'app.json'));
   const manifest = readJSON(path.join(root, 'package.json'));
   const lock = hash(fs.readFileSync(path.join(root, 'package-lock.json')));
-  return { config, manifest, lock, dependencies: deps, ios };
+  return { config, manifest, lock, dependencies: deps, ios, pods, podsGenerated, references };
 }
 function sameInputs(a, b, code = 'E_WITNESS_NATIVE_COMPAT') {
   const changes = [];
-  for (const key of ['config', 'manifest', 'lock', 'dependencies', 'ios']) if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) {
+  for (const key of ['config', 'manifest', 'lock', 'dependencies', 'ios', 'pods', 'podsGenerated', 'references']) if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) {
     changes.push({ field: key, ...(a[key]?.files && b[key]?.files ? { changes: differences(a[key].files, b[key].files) } : { expected: a[key], actual: b[key] }) });
   }
   if (changes.length) { seal(path.join(out, 'input-differences.json'), changes); fail(code, `input differences in ${changes.map(x => x.field).join(', ')}; see input-differences.json; use witness ios --build ${project}`); }

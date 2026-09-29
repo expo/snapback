@@ -4,6 +4,7 @@
 // online tier (`snapback4/client`) when it is not.
 import { requireOptionalNativeModule } from "expo-modules-core";
 import type { DeviceCore, DeviceOpener } from "snapback4/local";
+import { witnessRuntime } from "./witness-runtime";
 import type { WitnessContainer } from "./witness-core";
 
 interface Snapback4Native extends WitnessContainer {
@@ -22,7 +23,7 @@ const native = requireOptionalNativeModule<Snapback4Native>("Snapback4");
 const trace = Boolean(process.env.EXPO_PUBLIC_SNAPBACK_TRACE);
 // Metro includes the runner but does not evaluate it on an ordinary launch.
 const smoke = native?.witnessLaunch && JSON.parse(native.witnessLaunch).smoke === true
-  ? (require("./smoke") as typeof import("./smoke")).createSmoke(native) : null;
+  ? (require("./smoke") as typeof import("./smoke")).createSmoke(native, { runtime: witnessRuntime() }) : null;
 
 export function nativeAvailable(): boolean {
   return native !== null;

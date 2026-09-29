@@ -4,8 +4,8 @@ import CryptoKit
 // Runtime environment is not exposed to Hermes by Expo. This small bridge
 // supplies it and durable file append; the scenario and protocol live in JS.
 enum WitnessContainer {
-  // @ref LLP 3000.030#6 — native reads bind the embedded payload on every cold launch.
-  static func observation() throws -> [String: Any]? {
+  // @ref LLP 3000.030#6 — native reads bind the selected payload on every cold launch.
+  static func observation(_ scriptURL: String?) throws -> [String: Any]? {
     guard let launch, let bytes = launch.data(using: .utf8),
       let config = try JSONSerialization.jsonObject(with: bytes) as? [String: Any],
       let proof = config["proof"] as? [String: Any] else { return nil }
@@ -13,16 +13,25 @@ enum WitnessContainer {
       guard let url else { throw Snapback4OpenException("E_WITNESS_PROOF: missing embedded payload") }
       return SHA256.hash(data: try Data(contentsOf: url, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
     }
+    guard let scriptURL, let selected = URL(string: scriptURL), selected.isFileURL,
+      selected.host == nil || selected.host == "" || selected.host == "localhost",
+      selected.query == nil, selected.fragment == nil,
+      let embedded = Bundle.main.url(forResource: "main", withExtension: "jsbundle")
+    else { throw Snapback4OpenException("E_WITNESS_PROOF: unknown or remote selected JavaScript") }
+    let actual = selected.standardizedFileURL.resolvingSymlinksInPath()
+    guard actual == embedded.standardizedFileURL.resolvingSymlinksInPath() else {
+      throw Snapback4OpenException("E_WITNESS_PROOF: selected JavaScript differs from installed main.jsbundle: \(scriptURL)")
+    }
     #if DEBUG
     let release = false
     #else
     let release = true
     #endif
-    return ["format": 1, "run": config["run"] ?? "", "segment": config["segment"] ?? "",
+    return ["format": 2, "run": config["run"] ?? "", "segment": config["segment"] ?? "",
       "proofSha256": proof["sha256"] ?? "", "nativeBase": (proof["nativeBase"] as? [String: Any])?["app"] ?? "",
       "output": ((proof["executedApp"] as? [String: Any])?["inventory"] as? [String: Any])?["sha256"] ?? "",
-      "bundleId": Bundle.main.bundleIdentifier ?? "", "release": release, "helper": "native-proof-v1",
-      "javascriptSha256": try digest(Bundle.main.url(forResource: "main", withExtension: "jsbundle")),
+      "bundleId": Bundle.main.bundleIdentifier ?? "", "release": release, "helper": "native-proof-v2", "scriptURL": actual.absoluteString, "selectedScriptURL": scriptURL, "selectedBundlePath": actual.path,
+      "javascriptSha256": try digest(actual),
       "executableSha256": try digest(Bundle.main.executableURL)]
   }
   static var launch: String? {

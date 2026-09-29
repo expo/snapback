@@ -76126,3 +76126,35 @@ duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-s
 Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
+
+
+## 2026-09-29 — NP-mac round 2 — selected bundle, kept facts and preparation ownership
+
+Requalified LLP 3000.030 §11 after Astra's round-1 NOT READY review. Native
+startup now hashes the actual RN-selected installed file and rejects unknown,
+remote/alternate selection, runtime dev and launcher/updates state. Smoke facts
+come from the committed served generation; every runs/held fact and generation
+matches the kept backend before querying. The bounded adapter refuses external
+native/config/build inputs, custom scripts/flags/tools and uncovered Pods links;
+the full source Pods tree and generated header target tree are keyed. Preparation retains its leader identity and
+project lease through bounded group SIGTERM/SIGKILL cleanup. Preparation-level
+wrong-HBC tests kill the formerly surviving both-guards deletion.
+
+Both reviews were read in full. Grok's Pods and conditional-native issues are
+addressed; eligible native queries now require an application witness. Its
+requested device E_OFFLINE ban is not adopted because the supervisor explicitly
+preserved data-or-explained-refusal in round 1. No core/compiler/client semantics,
+published package or wasm bytes changed.
+
+A and the final warm own B pass all three segments. Five final-code repacks pass:
+median 41.385 s, nearest-rank p95 53.816 s
+(round 1: 46.109 / 56.639 s; changes -4.724 /
+-2.823 s). Real alternate bundle/dev/stale facts, external
+native/Pods inputs, interrupted descendant, scheme/base, cold error, post-success
+death and owner/port controls fail as intended. 28 helper, 28 driver, 10 witness
+unit and 98 guide checks pass; eight guard-removal mutations are killed.
+LLP 3000.030 remains Accepted. [Round-2 report](reports/20260929-np-macos-slice/round2/REPORT.md)
+retains commands, hashes, timings, every failed/development attempt and review
+dispositions. Only owned simulator 13ABE380-D739-4436-A348-E8C23B959C0C was used;
+it was deleted after collection. No push/publication. Required merge
+859d250c39 preserved both journal sides; this is one appended round-2 entry.

@@ -31,9 +31,11 @@ three `segments` marked `passed` mean:
   explained refusal for compiler-declared device-answerable reads. Loading,
   a thrown query or an uncaught JS error fails for those reads. Server-only
   reads are recorded as `online-only: unavailable offline (expected)` with
-  their actual `loading` or `E_OFFLINE`-style refusal. The driver compiles
-  this classification from the backend schema and includes the complete
-  eligible query facts in each receipt; missing facts fail. A loading result
+  their actual `loading` or `E_OFFLINE`-style refusal. The driver reads
+  the committed compiler generation actually served by its owned backend and
+  includes its generation and complete eligible query facts in each receipt.
+  Before querying, the helper matches every runs/held fact and the generation
+  against the kept backend; missing or stale facts fail. A loading result
   never determines the classification.
 - `restart`: after another termination and backend restart, the cold app is
   online and its watermark has reached the exact `syncBarrier.seq` passed
@@ -55,6 +57,8 @@ video and screenshots show the actual app and may contain its visible data.
 An empty partition proves opening and lifecycle only; seed/sign in with the
 history you want to qualify before running. Required-argument queries, writes,
 media and application-specific correctness need the deeper runner below.
+Optional-argument native queries require an application witness: generic smoke
+refuses their conditional module availability rather than calling them server-only.
 Ordinary launches do not load the smoke runner or install its error handler.
 
 ## Own Release preparation (bounded adapter)
@@ -70,7 +74,11 @@ This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0,
 Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
 `app.json`. Use your existing generated iOS project with its native customizations
-and UIScene lifecycle ready for iOS 27. Dynamic config, fingerprint overrides,
+and UIScene lifecycle ready for iOS 27. Native sources/resources and build
+inputs must resolve inside the inventoried iOS/dependency roots; external Xcode
+references, custom build scripts/Podfile/environment hooks, and scheme actions
+are refused. The adapter accepts only its pinned generated build phases.
+Dynamic config, fingerprint overrides,
 local workspaces/modules/plugins and linked `expo-updates` are refused; prepare
 those projects yourself and use installed-app mode. The witness makes no
 compatibility claim for them. It never migrates your native lifecycle for you.
@@ -80,8 +88,12 @@ bundles it as `http://127.0.0.1:<port>`. An app that ignores that variable must
 already use this origin. Smoke checks the actual client origin against the owned
 backend. Use the native witness observation helper from this source revision
 and rebuild the native module; published 0.4.7 alone lacks that observation.
-The helper hashes the embedded HBC and native executable at each launch,
-records Release/Hermes state, and binds them to the sealed external proof.
+The helper observes React Native SourceCode.scriptURL and requires its resolved
+local file to equal the verified installed main.jsbundle before hashing that
+selected file and the native executable. Unknown, remote or alternate bundle
+selection, a true/unknown runtime __DEV__ value, linked Updates or a nonempty
+launcher/updates manifest fail. The validator checks
+these observations against the sealed external proof on every launch.
 No session, credentials or application rows are supplied by the driver.
 
 `build.json` is created once, read-only, after successful preparation. It binds
@@ -93,6 +105,8 @@ launch; native startup, exact installed inventory and artifact hashes are
 rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
 The per-project cache and simulator leases preserve concurrent owners.
+Preparation retains the unreaped process-group leader through bounded cleanup;
+SIGTERM-resistant group members receive SIGKILL before its lease is released.
 
 After a successful base build, JS/assets-only edits can reuse its native binary:
 
@@ -104,7 +118,9 @@ npx snapback4 witness ios --repack artifacts/native-smoke/build.json \
 Install and lock `@expo/repack-app` 0.10.3 in the app before the base build.
 This tool is not a Snapback package dependency. `--repack` and `--build` are
 exclusive; repack requires `--app-project` and the same static-config project,
-locked dependencies, native helper, toolchain and fingerprint. Native/config
+locked dependencies, native helper, toolchain and fingerprint. The complete
+source Pods tree, its generated iOS header target tree, and links into the inventoried dependencies,
+is also compared; hand-edited pod bytes require rebuilding. Native/config
 changes refuse with `--build` recovery. Both routes exclude expo-updates.
 Repack uses supported `--js-bundle-only` and a fresh export:embed, not a prior
 `dist` export. It checks HBC/compiler, exact native and metadata bytes, and
@@ -113,7 +129,7 @@ bundled assets against that export's resource graph before installation.
 `repack.json` and the sealed `proof.json` bind the immutable base, new output,
 changed-file list and tool integrity. Repack smoke uses `repack-smoke-ios-*`
 artifacts and `application-release-repack` proof kind. Each cold launch binds
-the actual embedded HBC/native executable again. A warm `--build` always makes
+the selected HBC/native executable again. A warm `--build` always makes
 a new own-build receipt and remains the fallback. No credentials or signing
 settings are changed, and no native identity is rewritten.
 

@@ -61,14 +61,20 @@ Release witness.
 
 Own-build preparation (`witness ios --build … --smoke`) needs the updated native
 witness helper in this source revision. Its synchronous native observation hashes
-the executable and embedded HBC, records Release state and binds each launch to
-the external proof; JavaScript records Hermes state. Rebuild the native module
+the executable and the file selected by React Native SourceCode.scriptURL.
+Selection must resolve to the verified installed main.jsbundle; unknown, remote
+or alternate URLs fail, as do runtime __DEV__ true/unknown and launcher/updates
+manifest presence. The validator
+checks Release/Hermes, the selected path and hashes against the external proof. Rebuild the native module
 when adopting it. Ordinary launches remain inactive. Linked expo-updates is
 outside this preparation adapter because an embedded hash cannot attest a cached
 update selected at runtime. The JS smoke helper consumes compiler query facts
-from the driver: device-answerable loading fails, while server-only offline
+from the driver, bound to the generation actually served. It checks every
+runs/held fact against the kept backend before querying. Stale facts fail;
+device-answerable loading fails, while server-only offline
 loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
-must answer online in prime and restart. Client semantics are unchanged.
+must answer online in prime and restart. Conditional native-module queries
+require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
 
 After an own base build, `witness ios --repack <build.json> --app-project .
 --smoke` qualifies JS/assets-only edits on the same native binary. The app must

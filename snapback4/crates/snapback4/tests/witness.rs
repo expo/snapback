@@ -144,6 +144,17 @@ mod driver {
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
     #[test]
+    fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
+        let fixture = Fixture::new();
+        let output = fixture.run("smoke-source-race", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["queryFacts"]["rows"]["runs"], "server");
+        assert_eq!(manifest["queryGeneration"], 1);
+        assert_eq!(manifest["segments"]["offline"]["receipt"]["queries"][0]["classification"], "online-only");
+    }
+
+    #[test]
     fn smoke_wrong_origin_marks_the_segment_failed() {
         let fixture = Fixture::new();
         let output = fixture.run("smoke-wrong-origin", Fixture::port());

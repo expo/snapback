@@ -2,23 +2,52 @@
 //! captures, timeouts, artifact reservation and cleanup as application scenarios.
 use super::*;
 
-// @ref LLP 3000.011.005.000#2 — compile the owned backend; never classify from a runtime result.
-pub(super) fn query_facts(root: &Path) -> Result<Value> {
-    let bound = crate::project::Project { root: root.to_owned() }.compile().map_err(|e| error("E_WITNESS_BACKEND", e))?;
-    compiled_query_facts(&bound)
-}
-fn compiled_query_facts(bound: &snapback4_lang::Bound) -> Result<Value> {
-    use snapback4_core::ir::{ArgType, ProgramKind};
-    if !bound.diagnostics.is_empty() { return Err(error("E_WITNESS_BACKEND", "cannot compile smoke residency facts; run snapback4 check")); }
+// @ref LLP 3000.011.005.000#2 — use the compiled generation actually served, not a second source read.
+fn served_query_facts(backend: &Value) -> Result<Value> {
+    use snapback4_core::ir::{ArgType, Program, ProgramKind};
+    let refuse = || error("E_WITNESS_BACKEND", "served backend has invalid compiler residency facts");
+    if !backend["generation"].as_u64().is_some_and(|g| g > 0) { return Err(refuse()); }
+    let programs: Vec<Program> = serde_json::from_value(backend["programs"].clone()).map_err(|_| refuse())?;
     let mut facts = serde_json::Map::new();
-    for p in &bound.programs {
-        let p = &p.program;
+    for p in programs {
         if p.kind != ProgramKind::Query || !p.args.values().all(|a| matches!(a, ArgType::Optional(_))) { continue; }
-        let fact = bound.schema.operations.get(&p.name).ok_or_else(|| error("E_WITNESS_BACKEND", format!("missing compiler fact for {}", p.name)))?;
-        if !matches!(fact.runs.as_deref(), Some("device" | "server")) { return Err(error("E_WITNESS_BACKEND", format!("missing residency for {}", p.name))); }
-        facts.insert(p.name.clone(), json!({ "runs": fact.runs, "held": fact.held }));
+        if p.native { return Err(error("E_WITNESS_BACKEND", format!("native query {} requires an application witness; generic smoke cannot classify conditional module availability", p.name))); }
+        let fact = &backend["schema"]["operations"][&p.name];
+        if !matches!(fact["runs"].as_str(), Some("device" | "server")) { return Err(refuse()); }
+        let held = match &fact["held"] { Value::Null => false, Value::Bool(b) => *b, _ => return Err(refuse()) };
+        if facts.insert(p.name, json!({ "runs": fact["runs"], "held": held })).is_some() { return Err(refuse()); }
     }
     Ok(Value::Object(facts))
+}
+
+impl Run {
+    pub(super) fn bind_served_queries(&mut self) -> Result<()> {
+        if !self.options.smoke { return Ok(()); }
+        // /schema requires an application session. Read the same committed
+        // generation locally, then bind it to the owned dev host's status;
+        // the driver neither creates nor borrows an application credential.
+        let host = super::super::adoption::request(address(self.options.port), "GET", "/dev/status")
+            .ok_or_else(|| error("E_WITNESS_BACKEND", "cannot read the owned backend's generation"))?;
+        let db = rusqlite::Connection::open_with_flags(self.manifest["backend"]["store"].as_str().unwrap_or_default(), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .map_err(|e| error("E_WITNESS_BACKEND", e))?;
+        let (generation, schema, programs, store_id): (i64, String, String, String) = db.query_row(
+            "SELECT generation, schema, programs, (SELECT value FROM _meta WHERE key='store_id') FROM _generations WHERE generation=(SELECT value FROM _meta WHERE key='generation')",
+            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+        if host["generation"] != generation || host["storeId"] != store_id || !host["adoption"].is_null() {
+            return Err(error("E_WITNESS_BACKEND", "owned backend and committed compiler generation differ"));
+        }
+        let schema: Value = serde_json::from_str(&schema).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+        let programs: BTreeMap<String, Value> = serde_json::from_str(&programs).map_err(|e| error("E_WITNESS_BACKEND", e))?;
+        let backend = json!({ "generation": generation, "schema": schema, "programs": programs.into_values().collect::<Vec<_>>() });
+        let facts = served_query_facts(&backend)?;
+        if !self.manifest["queryFacts"].is_null()
+            && (self.manifest["queryFacts"] != facts || self.manifest["queryGeneration"] != backend["generation"]) {
+            return Err(error("E_WITNESS_BACKEND", "served backend generation/facts changed during smoke"));
+        }
+        self.manifest["queryFacts"] = facts;
+        self.manifest["queryGeneration"] = backend["generation"].clone();
+        Ok(())
+    }
 }
 fn validate_queries(segment: &str, value: &Value, facts: &Value) -> Result<()> {
     let refuse = || error("E_WITNESS_RECEIPT", format!("{segment} query results do not match compiler residency facts"));
@@ -100,6 +129,10 @@ impl Run {
             self.manifest["segments"][segment]["status"] = json!("failed");
             self.manifest["segments"][segment]["error"] = json!(problem);
             return Err(problem);
+        }
+        let receipt = &self.manifest["segments"][segment]["receipt"];
+        if receipt["queryGeneration"] != self.manifest["queryGeneration"] || receipt["generation"] != self.manifest["queryGeneration"] {
+            return Err(error("E_WITNESS_RECEIPT", "smoke receipt differs from the served query generation"));
         }
         validate_queries(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["queryFacts"])?;
         validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
@@ -205,7 +238,13 @@ query required(id: heldRows):
   return heldRows[id]
 "#.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let facts = compiled_query_facts(&bound).unwrap();
+        let backend = json!({ "generation": 42, "schema": bound.schema.public_projection(),
+            "programs": snapback4_lang::emit::backend_programs(&bound) });
+        let facts = served_query_facts(&backend).unwrap();
+        let mut native = backend.clone(); native["programs"][0]["native"] = json!(true);
+        assert!(served_query_facts(&native).unwrap_err().contains("native query"));
+        let mut invalid = backend.clone(); invalid["generation"] = Value::Null;
+        assert!(served_query_facts(&invalid).is_err());
         assert_eq!(facts.as_object().unwrap().len(), 3);
         assert_eq!(facts["held"]["runs"], "device");
         assert_eq!(facts["remote"]["runs"], "server");

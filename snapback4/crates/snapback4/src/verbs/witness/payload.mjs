@@ -7,7 +7,7 @@ export const shellQuote = value => "'" + value.replaceAll("'", "'\\''") + "'";
 export const fail = (code, message) => { throw new Error(`${code}: ${message}`); };
 export const readJSON = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 export const seal = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o444 });
-export function inventory(root, omit = () => false) {
+export function inventory(root, omit = () => false, onLink = () => {}) {
   root = fs.realpathSync(root);
   const files = [];
   function walk(relative) {
@@ -20,6 +20,7 @@ export function inventory(root, omit = () => false) {
       if (stat.isSymbolicLink()) {
         const target = fs.readlinkSync(file), resolved = fs.realpathSync(file);
         if (path.isAbsolute(target) || !resolved.startsWith(root + path.sep)) fail('E_WITNESS_PROOF', `escaping link: ${rel}`);
+        onLink(rel, resolved);
         files.push({ ...row, type: 'symlink', target });
       } else if (stat.isDirectory()) {
         files.push({ ...row, type: 'directory' }); walk(rel);
