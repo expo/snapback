@@ -28,7 +28,7 @@ mutation addNote(body: text):
 
 ## Limits
 
-- `count(x)`, `len(x)` and `length(x)` count text characters or list items; aliases share typing and meters. Other unsupported spellings give E_QUARRY_UNSUPPORTED.
+- `count(x)`, `len(x)`, `length(x)`: text characters or list items; identical typing and meters. Unsupported spellings: E_QUARRY_UNSUPPORTED.
 - A field or argument must fit its declared type: E_QUARRY_TYPE.
 - Queries only read; writes belong in mutations or jobs: E_QUARRY_PLACEMENT.
 

@@ -1,6 +1,74 @@
 use super::*;
 
 #[test]
+fn failing_check_keeps_the_terse_prediction_reason() {
+    let project = Project::new();
+    project.source(&format!("{}\nquery broken():\n  return missingName\n", include_str!("../../../snapback4-lang/tests/fixtures/ag/upsert.q")));
+    for flags in [vec!["check"], vec!["check", "--verbose"]] {
+        let output = project.run(&flags);
+        assert!(!output.status.success());
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("setReaction") && text.contains("upsert on a read-through child queues without a row"), "{text}");
+    }
+    assert_eq!(parsed(&project.run(&["check", "--json"]))["ok"], false);
+}
+
+#[test]
+fn terse_check_counts_and_explains_search_behavior_warnings() {
+    let project = Project::new();
+    let schema = r#"
+table members:
+  conversation: id
+  principal: principal
+  unique conversation, principal
+  read <- exists members[.conversation, viewer]
+table messages:
+  conversation: id
+  text: text <=4000
+  at: time
+  search text
+  by byWords: conversation, words(text), at, id
+  read <- exists members[.conversation, viewer]
+fn peers(chat: id):
+  return members[conversation = chat] first 50 by .id
+"#;
+    for (read, codes) in [
+        ("messages matching q where exists members[.conversation, viewer] last 20 by .at after c",
+            vec!["N_SEARCH_WORDS", "N_SEARCH_OPEN"]),
+        ("messages matching q last 20 by .at after c",
+            vec!["N_SEARCH_UNSCOPED", "N_SEARCH_WORDS"]),
+        ("messages matching q where exists members[.conversation, viewer] last 20 by .at after c { *, peers: peers(.conversation) }",
+            vec!["N_SEARCH_WORDS", "N_SEARCH_OPEN", "N_SEARCH_SHAPE"]),
+        ("merge messages matching q after c last 20 by byWords:\n    [m.conversation] for m in members[principal = viewer] first 100 by .conversation",
+            vec!["N_SEARCH_WORDS"]),
+    ] {
+        project.source(&format!("{schema}\nquery search(q: text <=100, c: cursor ?):\n  return {read}\n"));
+        let json = parsed(&project.run(&["check", "--json"]));
+        let notes = json["notes"].as_array().unwrap().len() + json["search"].as_array().unwrap().len();
+        for flags in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["check", "--verbose"]] {
+            let output = project.run(&flags);
+            assert!(output.status.success(), "{output:?}");
+            let text = String::from_utf8(output.stdout).unwrap();
+            assert!(text.lines().next().unwrap().contains(&format!(", {notes} note")), "{text}");
+            for code in &codes {
+                let line = text.lines().find(|line| line.contains(code)).unwrap_or_else(|| panic!("missing {code}: {text}"));
+                if *code == "N_SEARCH_OPEN" {
+                    assert!(line.contains("E_SEARCH_OPEN") && line.contains("without a continuation"), "{line}");
+                }
+                if *code == "N_SEARCH_WORDS" && read.starts_with("merge") {
+                    assert!(line.contains("incomplete") && line.contains("heap-null") && line.contains("without next"), "{line}");
+                }
+                assert_eq!(line.contains("rewrite:"), flags.contains(&"--verbose"), "{line}");
+            }
+        }
+        let mut verbose = parsed(&project.run(&["check", "--verbose", "--json"]));
+        let mut json = json;
+        verbose.as_object_mut().unwrap().remove("ms"); json.as_object_mut().unwrap().remove("ms");
+        assert_eq!(json, verbose);
+    }
+}
+
+#[test]
 fn cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented() {
     let project = Project::new();
     project.source("table typing:\n  room: id\n  principal: principal\n  unique room, principal\n  cap 50 by room\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation setTyping(room: id):\n  upsert typing[room, viewer] {}\nquery typingIn(room: id):\n  return typing where .room = room\n");

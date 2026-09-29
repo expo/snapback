@@ -836,7 +836,9 @@ or bypasses aggregate disclosure checks. Use it only for intentionally public to
 Pin the parent inside the message page. Each nested read authorizes that
 message before enumerating its emoji groups. A complete group-key lookup,
 `reactionTotals[message, emoji]`, returns one scalar; a parent prefix returns
-aggregate rows whose count is `.value` or `.count`; `{ emoji, count }` is shorthand. A declared group column named `count` keeps its own meaning. The source's cap of 50 bounds its
+aggregate rows whose count is `.value` or `.count`; `{ emoji, count }` is shorthand.
+`first 10 by .count` orders by count too. A real group column named `count`
+keeps precedence in projections and ordering. The source's cap of 50 bounds its
 number of emoji groups. Without such a cap, use a bounded page and cursor.
 
 ```quarry

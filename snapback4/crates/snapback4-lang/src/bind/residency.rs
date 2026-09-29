@@ -198,6 +198,7 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
                 let mut copy = site.clone();
                 if copy.kind == "upsert" && let Some((source_site, _)) = program.sources.values()
                     .find(|(source_site, name)| location == format!("{source_site} ({name})"))
+                    && !program.row_write_keys.contains(&source_site.to_string())
                     && let Some(rewrite) = super::first_paste::upsert(catalog, source_site) {
                     copy.rewrite = rewrite;
                     copy.reason.push_str("; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon");

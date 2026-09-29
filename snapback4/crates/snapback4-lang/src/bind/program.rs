@@ -40,6 +40,8 @@ pub struct BoundProgram {
     /// Whole-domain consumers for diagnostics only; absent from IR/wire.
     pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
+    /// Source write keys lowered from a row through its id; advice must not treat the row as an id.
+    pub(crate) row_write_keys: std::collections::BTreeSet<String>,
     /// Source-table pages before binding filters, for executable horizon repairs only.
     pub(crate) page_sources: BTreeMap<String, ReadExpr>,
     pub(crate) canonical_sources: BTreeMap<String, String>,
@@ -77,6 +79,7 @@ pub struct Binder<'a> {
     view_types: BTreeMap<String, Ty>,
     constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
+    row_write_keys: std::collections::BTreeSet<String>,
     page_sources: BTreeMap<String, ReadExpr>,
     canonical_sources: BTreeMap<String, String>,
     selections: BTreeMap<String, String>,
@@ -140,7 +143,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), row_write_keys: Default::default(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, caller_loops: 0, in_prelude: false, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -169,7 +172,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
+            return Some(BoundProgram { statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, row_write_keys: binder.row_write_keys, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -254,7 +257,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(schema, &program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
+        Some(BoundProgram { statement_ends, page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, row_write_keys: binder.row_write_keys, timeline_scans: binder.timeline_scans, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers })
     }
 
     fn site(&mut self) -> String {
@@ -1013,6 +1016,8 @@ impl<'a> Binder<'a> {
             if let Ty::Row(table) | Ty::WriteRow(table) = t.required()
                 && table == info.decl.name
             {
+                // @ref LLP 3000.007#23 — retain this typing choice for source-only upsert advice.
+                self.row_write_keys.insert(site.to_string());
                 out.extend(row_setup);
                 let id = self.temp("key");
                 out.push(Stmt::Let { name: id.clone(), value: ir::field(e, "id") });

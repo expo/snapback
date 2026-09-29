@@ -42,19 +42,20 @@ pub(super) fn inherited_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDec
 }
 
 // A branch is advice, not an automatic repair: it adds a row-read requirement.
-// Restrict repeated expressions to stable values, never duplicate a call or write.
+// @ref LLP 3000.007#23 — the existence branch must not precede a patch's reads or effects.
+// Restrict keys and fields to stable values, never move a call or row read.
 pub(super) fn upsert(catalog: &Catalog, site: &Site) -> Option<String> {
     let original = catalog.source.syntax_at(site)?;
     let Expr::Write { op: WriteOp::Upsert, table, keys, fields, condition: None, if_absent: false, site } = original else { return None; };
-    fn stable(expr: &Expr) -> bool {
+    fn stable(expr: &Expr, catalog: &Catalog) -> bool {
         match expr {
-            Expr::Name { name, .. } => name != "new",
+            Expr::Name { name, .. } => name != "new" && !catalog.tables.contains_key(name) && !catalog.view_reads.contains_key(name),
             Expr::Literal { .. } => true,
-            Expr::Member { base, .. } => stable(base),
+            Expr::Member { base, .. } => stable(base, catalog),
             _ => false,
         }
     }
-    if !keys.iter().all(|key| stable(&key.value)) { return None; }
+    if !keys.iter().all(|key| stable(&key.value, catalog)) { return None; }
     let info = catalog.tables.get(table)?;
     let columns = if keys.iter().all(|key| key.column.is_some()) {
         keys.iter().map(|key| key.column.clone().unwrap()).collect::<Vec<_>>()
@@ -65,7 +66,8 @@ pub(super) fn upsert(catalog: &Catalog, site: &Site) -> Option<String> {
     };
     // A patch that changes a key is not equivalent to a separate insert image.
     for field in fields {
-        if field.spread { return None; }
+        let value = field.value.clone().unwrap_or_else(|| Expr::Name { name: field.name.clone(), site: field.site.clone() });
+        if field.spread || !stable(&value, catalog) { return None; }
         if let Some(i) = columns.iter().position(|name| *name == field.name) {
             let value = field.value.as_ref().map_or_else(|| field.name.clone(), |expr| catalog.source.expression(expr));
             if value != catalog.source.expression(&keys[i].value) { return None; }

@@ -115,6 +115,81 @@ fn cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update()
 }
 
 #[test]
+fn upsert_advice_withholds_effectful_keys_and_patch_values() {
+    for (key, fields) in [
+        ("message", "emoji: reset(message, emoji)"),
+        ("resetKey(message)", "emoji"),
+        ("message", "emoji: (reactions[message, viewer] ! else NOT_FOUND).emoji"),
+    ] {
+        let original = UPSERT.replace("upsert reactions[message, viewer] { emoji }",
+            &format!("upsert reactions[{key}, viewer] {{ {fields} }}")) + r#"
+fn reset(message: messages, emoji: text 1..32):
+  delete reactions[message, viewer]
+  return emoji
+fn resetKey(message: messages):
+  delete reactions[message, viewer]
+  return message
+"#;
+        let b = clean(&original);
+        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+        assert!(site.rewrite.is_empty(), "{key}, {fields}: {site:?}");
+        let mut e = engine(&original);
+        chat(&mut e, "ours", "alice");
+        reaction(&mut e, "existing", "alice", "heart");
+        let mut ctx = message_context(); ctx.args.insert("emoji".into(), Value::String("laugh".into()));
+        let out = e.mutate("setReaction", None, ctx).unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        let rows = e.store().rows("reactions").unwrap();
+        assert_eq!(rows.len(), 1);
+        let expected = if fields.contains("reactions[") { "heart" } else { "laugh" };
+        assert_eq!(rows[0].field("emoji").unwrap(), &Value::String(expected.into()));
+    }
+}
+
+#[test]
+fn row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite() {
+    let original = UPSERT.replace("  return upsert reactions[message, viewer] { emoji }",
+        "  row = reactions[message, viewer] ! else NOT_FOUND\n  return upsert reactions[row] { message, principal: viewer, emoji }");
+    let b = clean(&original);
+    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+    assert!(site.rewrite.is_empty(), "a row key needs row.id, not an inferred id = row: {site:?}");
+    let mut e = engine(&original);
+    chat(&mut e, "ours", "alice"); reaction(&mut e, "existing", "alice", "heart");
+    let mut ctx = message_context(); ctx.args.insert("emoji".into(), Value::String("laugh".into()));
+    assert!(matches!(e.mutate("setReaction", None, ctx).unwrap().state, WriteState::Sent { .. }));
+    let rows = e.store().rows("reactions").unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("emoji").unwrap(), &Value::String("laugh".into()));
+}
+
+#[test]
+fn count_alias_orders_aggregate_rows_before_index_planning() {
+    for (column, a, z, expected) in [
+        ("category: text <=20", json!("a"), json!("z"), json!([1, 2])),
+        ("count: int", json!(7), json!(9), json!([2, 1])),
+    ] {
+        let field = column.split(':').next().unwrap();
+        let source = format!("table items:\n  {column}\n  public\nview totals: count items by .{field}\nquery ordered():\n  return totals first 10 by .count {{ value }}\n");
+        let mut e = engine(&source);
+        for (id, value) in [("a1", &a), ("a2", &a), ("z1", &z)] {
+            load(&mut e, "items", json!({"id":id, field:value}));
+        }
+        let q = e.query("ordered", context()).unwrap();
+        let values: Vec<_> = wire::to_json(&q.data).as_array().unwrap().iter().map(|row| row["value"].clone()).collect();
+        assert_eq!(json!(values), expected);
+        if field == "category" {
+            let mut canonical = engine(&source.replace("by .count", "by .value"));
+            for (id, value) in [("a1", &a), ("a2", &a), ("z1", &z)] {
+                load(&mut canonical, "items", json!({"id":id, field:value}));
+            }
+            let canonical = canonical.query("ordered", context()).unwrap();
+            assert_eq!(q.data, canonical.data);
+            assert_eq!(q.metered, canonical.metered);
+        }
+    }
+}
+
+#[test]
 fn cal24_length_guesses_share_unicode_list_and_meter_semantics() {
     for source in [include_str!("fixtures/ag/len.q"), include_str!("fixtures/ag/length.q")] {
         let mut e = engine(source);
@@ -156,13 +231,25 @@ fn cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim() {
 #[test]
 fn cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement() {
     let first = include_str!("fixtures/ag/bound.q").replace("view reactionCounts:", "effect notify\nview reactionCounts:")
-        .replace("    result = digestCounts(member.principal)", "    result = digestCounts(member.principal)\n    emit notify { principal: member.principal, total: result }");
+        .replace("    result = digestCounts(member.principal)", "    result = digestCounts(member.principal)\n    emit notify { principal: member.principal, total: result }")
+        + "\nquery untouched():\n  return 42\n";
     let b = bound(&first);
     let d = b.diagnostics.iter().find(|d| d.code == "E_QUARRY_BOUND").unwrap();
     assert!(!d.mechanical, "removing a query is a product choice");
     assert!(d.message.contains("entire unused viewer query"), "{d}");
-    let fixed = first.replace("query digestPreview():\n  return digestCounts(viewer)", &d.rewrite);
+    let lines: Vec<_> = first.lines().collect();
+    let start = d.site.line as usize - 1;
+    assert_eq!(d.site.file, "schema.q"); assert_eq!(d.site.col, 1);
+    assert_eq!(lines[start], "query digestPreview():", "the caret must identify the declaration to replace");
+    let range = d.message.split("replace lines ").nth(1).expect("full declaration line range")
+        .split_whitespace().next().unwrap();
+    let (from, through) = range.split_once('-').unwrap();
+    assert_eq!(from.parse::<usize>().unwrap(), start + 1);
+    let end = through.parse::<usize>().unwrap();
+    let fixed = lines[..start].iter().copied().chain(std::iter::once(d.rewrite.as_str()))
+        .chain(lines[end..].iter().copied()).collect::<Vec<_>>().join("\n") + "\n";
     let mut e = engine(&fixed);
+    assert_eq!(e.query("untouched", context()).unwrap().data, Value::Int(42));
     chat(&mut e, "ours", "alice"); chat(&mut e, "another", "alice"); chat(&mut e, "hidden", "bob");
     let job = e.run_job("digest", Default::default(), 100).unwrap();
     assert_eq!(job.state, snapback4_core::JobState::Done, "{job:?}");

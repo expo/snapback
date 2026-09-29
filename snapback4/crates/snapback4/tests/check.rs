@@ -836,7 +836,8 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let compact = p.run(&["check"]);
     assert!(compact.status.success());
     let compact = String::from_utf8(compact.stdout).unwrap();
-    assert!(compact.contains("N_MAINTAIN_SYNCED: 2 synced maintains."), "{compact}");
+    assert!(compact.contains("N_MAINTAIN_SYNCED: 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
+    assert!(compact.contains("createPost, like, repost would stop predicting"), "{compact}");
     assert!(!compact.contains("maintain likeCounts:"), "{compact}");
     let output = p.run(&["check", "--residency", "--verbose"]);
     assert!(output.status.success(), "{output:?}");
@@ -908,7 +909,7 @@ fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("schema.q:1:1 — E_NOT_PREDICTABLE"));
-    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutations never predict: dispatch (author marked this mutation : server)"));
     let verbose = p.run(&["check", "--verbose"]);
     assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutations never predict: dispatch"));
     p.source(&source.replace(": server", ":"));

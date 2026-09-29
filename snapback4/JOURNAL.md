@@ -76010,3 +76010,59 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — AG round 1: review corrections for first paste
+
+Started with git fetch origin and merge origin/main (4fd338de5), committing
+merge 62258cab4 with both LLP revision histories and every journal entry.
+LV stays reverted and LLP 3000.029 Shelved; SQ's §20.24.4 stays intact. Read
+the binding lane prompt, round-0 report/journal, Astra's complete review and,
+once it arrived during the full run, Grok's complete review. Addressed every
+finding from both reviewers.
+
+Upsert branch advice now requires stable keys and all field values; calls,
+row reads, spreads and key changes receive no speculative rewrite. The binder
+records row-valued positional keys so advice cannot mistake a row for its id;
+scalar-ID advice remains available. Count-view .count ordering resolves before
+index planning, with precedence for a real group column named count. Terse
+check shows/counts all four search warnings, retains prediction reasons even
+on failure, and names grouped maintains and affected predicting mutations.
+Rewrites and long explanations remain verbose; JSON presentation stays intact.
+The complete-helper refusal now puts its query-removal comment at that query's
+declaration and prints the exact inclusive line range, retaining the failing
+helper read and caller chain in the reason. Its regression pastes at the caret
+and range, then executes the job and the adjacent untouched query. Applied only
+the two authorized client expectation edits; no other client package changes.
+
+Each finding has a failing pre-fix regression control. Deleting the stable-key
+guard fails the effectful-key test. Final checks after the late Grok changes:
+10 audience/bounds, 1 frozen compatibility, 11 first-paste, 98 whole-guide,
+11 lowering and 41 residency-note tests; 81 CLI check, 10 cost, 3 notes,
+27 fix and 28 scale tests; 2 device witnesses and the 2 client expectation
+tests all pass. Ref-check passes with zero errors/unchecked references.
+LLP 3000.007 §23 and the affected guide cards record the corrected contracts.
+Shortened AG's language-card sentence to reconcile its wording with the reads
+card restored by the LV revert under the unchanged guide word budget.
+
+Ran scripts/test.sh exactly once, exit 0. Its exact summary is:
+
+```text
+== 0 failure(s) in 1428 s
+```
+
+Every stage passed: client shards total 4,561 passes and 10 declared skips;
+all 79 client-model tests pass. Full-suite failures: ours 0, baseline 0,
+environmental 0. This run's Rust inventory predates the late Grok corrections;
+the separate affected checks above qualify that final delta. No second full
+run is claimed. The 60-second target remains missed; no timeout was increased.
+Pre-fix controls, fixture/setup errors, guide-budget iterations and two stale/
+misplaced test assertions are retained and attributed in round1/FAILURES.md;
+all are resolved. The report includes the complete terse-note classification.
+
+Fresh wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Later edits do not touch wasm build inputs. Rechecked both review files before
+finalizing. Report: reports/20260929-ag-first-paste/round1/REPORT.md.
+Local fix commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

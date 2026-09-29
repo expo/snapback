@@ -314,10 +314,15 @@ the write queued without predicted rows and lets the server judge it;
 observe its pending/failed/sent state instead of treating missing local
 rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
-invent an empty row or mint different IDs on replay.A synced read-through child's `upsert` can still queue without a predicted row.
-`why` names that limit, not an online-only table. For simple keys it prints an
-explicit update/insert expression to replace the upsert expression. That choice
+invent an empty row or mint different IDs on replay.
+
+A synced read-through child's `upsert` can still queue without a predicted row.
+`why` names that limit. For stable keys and field values it prints an
+update/insert replacement. That choice
 adds a readable-key test; it needs held absence, parent and cap coverage and
-can still queue past a horizon. It is not a `check --fix` repair.
+can still queue past a horizon. Row-valued positional keys receive no rewrite.
+Calls, row reads, spreads and key-changing patches
+receive no branch rewrite: testing existence first could change their meaning.
+It is not a `check --fix` repair.
 
 "##;

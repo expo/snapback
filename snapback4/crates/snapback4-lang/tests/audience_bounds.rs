@@ -135,7 +135,7 @@ fn job_bound_helpers_require_a_query_ineligible_prefix() {
 }
 
 #[test]
-fn query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context() {
+fn query_replacement_points_at_declaration_with_helper_loop_and_job_context() {
     let original = clean(BUILDER);
     for wrapper in [false, true] {
         let preview = if wrapper { PREVIEW.replace("digestCounts(viewer", "wrapped(viewer") + "\nfn wrapped(reader: principal, periodStart: time, periodEnd: time):\n  return digestCounts(reader, periodStart, periodEnd)\n" } else { PREVIEW.into() };
@@ -143,7 +143,8 @@ fn query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context() 
         let d = refusal(&b, "E_QUARRY_BOUND");
         contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts", "members[principal = reader]", "conversation-based read rule", "no system authority"]);
         if wrapper { contains(&d.message, &["-> wrapped", "-> digestCounts"]); }
-        assert_eq!(d.site.line, BUILDER.lines().position(|s| s.contains("for member in members[principal = reader]")).unwrap() as u32 + 1);
+        assert_eq!(d.site.line, (BUILDER.to_owned() + &preview).lines().position(|s| s.starts_with("query digestPreview")).unwrap() as u32 + 1);
+        assert!(d.message.contains("replace lines"));
         contains(&d.message, &["first 50", "partial preview", "not an equivalent complete total", "cursor", "Inner recipient work must fit one chunk", "parks with E_BOUND"]);
         contains(&d.rewrite, &["system job caller(s) digest"]);
         assert_eq!(b.programs.iter().find(|p| p.program.name == "digest").unwrap().program,

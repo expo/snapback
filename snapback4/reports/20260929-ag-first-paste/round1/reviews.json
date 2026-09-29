@@ -1,0 +1,19 @@
+{
+  "checked_utc": "2026-09-29T04:59:15.625703+00:00",
+  "reviews": [
+    {
+      "family": "astra",
+      "path": "/home/ccheever/sb4-intent/reviews/ag-r0.astra.md",
+      "bytes": 3534,
+      "sha256": "6777c13881ad72318fbefd5585d49b26020b43e6182c2dbd2cc5c73f6beb9f79",
+      "reviewed_in_full": true
+    },
+    {
+      "family": "grok",
+      "path": "/home/ccheever/sb4-intent/reviews/ag-r0.grok.md",
+      "bytes": 8874,
+      "sha256": "2c6c92eccc66707af0a9ad85cdee1c4e0d4729be85fc76c78d9ef6f530c3a938",
+      "reviewed_in_full": true
+    }
+  ]
+}

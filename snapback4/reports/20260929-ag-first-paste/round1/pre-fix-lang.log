@@ -1,0 +1,39 @@
+   Compiling snapback4-core v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 31.32s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 10 tests
+test count_alias_orders_aggregate_rows_before_index_planning ... FAILED
+test upsert_advice_withholds_effectful_keys_and_patch_values ... FAILED
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+
+failures:
+
+---- count_alias_orders_aggregate_rows_before_index_planning stdout ----
+
+thread 'count_alias_orders_aggregate_rows_before_index_planning' (4087139) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 6, col: 10 }, code: "E_SCHEMA_CONSTRAINT", message: "undeclared column count", rewrite: "fix the declaration named by this message", guide: "indexes", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- upsert_advice_withholds_effectful_keys_and_patch_values stdout ----
+
+thread 'upsert_advice_withholds_effectful_keys_and_patch_values' (4087141) panicked at crates/snapback4-lang/tests/first_paste.rs:135:9:
+message, emoji: reset(message, emoji): ResidencySite { site: "schema.q:32:10 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji: reset(message, emoji) }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji: reset(message, emoji), message: message, principal: viewer })" }
+
+
+failures:
+    count_alias_orders_aggregate_rows_before_index_planning
+    upsert_advice_withholds_effectful_keys_and_patch_values
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

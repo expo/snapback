@@ -154,6 +154,26 @@ fn note_reports(notes: &[snapback4_lang::Diagnostic], verbose: bool) -> Vec<Stri
     }).collect()
 }
 
+fn print_prediction(bound: &Bound, verbose: bool) {
+    let summary = if verbose { snapback4_lang::bind::residency::prediction_summary(bound) }
+        else { snapback4_lang::bind::residency::prediction_overview(bound) };
+    if let Some(summary) = summary { println!("{}", crate::presentation::indexes(&bound.schema, &summary, verbose)); }
+}
+
+fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
+    let Some((first, rest)) = note.message.split_once('\n') else { return note.message.clone(); };
+    if note.code == "N_MAINTAIN_SYNCED" {
+        let names = rest.lines().filter_map(|line| line.trim().strip_prefix("maintain ")?.split_once(':').map(|(name, _)| name)).collect::<Vec<_>>();
+        let consequences = rest.lines().filter_map(|line| {
+            let (_, consequence) = line.rsplit_once("; ")?;
+            consequence.contains("would stop predicting").then(|| consequence.split(" (site ").next().unwrap())
+        }).collect::<Vec<_>>();
+        return format!("{first} {}. Inherited sync has no horizon; online only loses offline coverage{}", names.join(", "),
+            if consequences.is_empty() { String::new() } else { format!("; {}", consequences.join("; ")) });
+    }
+    format!("{}.", first.trim_end_matches(':'))
+}
+
 pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
@@ -163,7 +183,7 @@ pub fn check(options: &Options) -> i32 {
     };
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
-        if !options.json && options.flags.contains_key("verbose") && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{}", crate::presentation::indexes(&bound.schema, &summary, options.flags.contains_key("verbose"))); }
+        if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
@@ -173,7 +193,7 @@ pub fn check(options: &Options) -> i32 {
     }
     if !bound.diagnostics.is_empty() {
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
-        if !options.json && options.flags.contains_key("verbose") && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{}", crate::presentation::indexes(&bound.schema, &summary, options.flags.contains_key("verbose"))); }
+        if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
@@ -211,6 +231,7 @@ pub fn check(options: &Options) -> i32 {
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
+    let note_count = bound.notes.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
     let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
@@ -225,7 +246,7 @@ pub fn check(options: &Options) -> i32 {
     if options.json {
         println!("{}", json!({ "ok": true, "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if options.flags.contains_key("verbose") {
             for line in &sequences { println!("  {line}"); }
             for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
@@ -236,28 +257,30 @@ pub fn check(options: &Options) -> i32 {
             }
         }
         if options.flags.contains_key("verbose") { for line in &field_authority { println!("  {line}"); } }
-        if details {
-            if options.flags.contains_key("verbose") {
-                for report in note_reports(&bound.notes, true) { println!("{}", present(&report)); }
-            } else {
-                for note in &bound.notes {
-                    let summary = if let Some((first, _)) = note.message.split_once('\n') { format!("{}.", first.trim_end_matches(':')) } else { note.message.clone() };
-                    println!("note: {} — {}: {}", note.site, note.code, present(&summary));
-                }
+        if options.flags.contains_key("verbose") {
+            for report in note_reports(&bound.notes, true) { println!("{}", present(&report)); }
+        } else {
+            for note in &bound.notes {
+                let summary = note_summary(note);
+                println!("note: {} — {}: {}", note.site, note.code, present(&summary));
             }
         }
     }
     if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("cost")) {
         println!("{scale_summary}");
+    }
+    if !options.json {
         for search in certificates.iter().flat_map(|certificate| &certificate.search) {
-            println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
+            if options.flags.contains_key("verbose") {
+                println!("  {} at {}: {}; rewrite: {} (guide {})", search.code, search.site, search.message, search.rewrite, search.guide);
+            } else {
+                println!("note: {} — {}: {}", search.site, search.code, present(search.summary));
+            }
         }
     }
     if details && !options.json {
-        let summary = if options.flags.contains_key("verbose") { snapback4_lang::bind::residency::prediction_summary(&bound) }
-            else { snapback4_lang::bind::residency::prediction_overview(&bound) };
-        if let Some(summary) = summary { println!("{}", present(&summary)); }
-        if !options.flags.contains_key("verbose") { println!("check --verbose for notes, rewrites and execution details; why <op> for one operation"); }
+        print_prediction(&bound, options.flags.contains_key("verbose"));
+        if !options.flags.contains_key("verbose") { println!("check --verbose for explanations, rewrites and execution details; why <op> for one operation"); }
     }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", present(&residency::facts(&bound))); }
     if !details && options.flags.contains_key("residency") && !options.json {

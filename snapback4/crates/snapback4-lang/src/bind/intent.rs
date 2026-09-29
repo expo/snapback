@@ -65,6 +65,14 @@ impl Requests {
     pub(super) fn read(&mut self, tables: &BTreeMap<String, TableInfo>, read: &mut ReadExpr, rule: bool) {
         if super::validate_key_names(read).is_err() { return; }
         let Some(table) = tables.get(&read.table) else { return; };
+        // @ref LLP 3000.007#23 — resolve count-row order aliases before choosing an index;
+        // an authored group column named count always keeps precedence.
+        if !table.columns.contains_key("count")
+            && table.maintained.as_ref().is_some_and(|m| m.aggregate == "count") {
+            for column in &mut read.order_keys {
+                if column == "count" { *column = "value".into(); }
+            }
+        }
         if read.index.is_some() {
             if !rule { self.selected_prefix(table, read); }
             return;
