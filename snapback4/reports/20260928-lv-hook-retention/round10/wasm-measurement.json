@@ -1,0 +1,10 @@
+{
+  "raw": 2042203,
+  "gzip": 593641,
+  "cap": 593719,
+  "headroom": 78,
+  "sha256": "d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466",
+  "rebuilt": false,
+  "delta_gzip": 0,
+  "command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+}

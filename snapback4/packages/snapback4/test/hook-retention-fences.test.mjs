@@ -409,6 +409,68 @@ fn nativeSecret(ctx: &Ctx, args: &Json) -> Result<Json> {
   assert.equal(client.link(), 'online');
 });
 
+for (const code of ['E_HTTP_RESPONSE', 'E_STORE_BUSY', 'APP_DENIED']) test(`round 10 process: device-evaluated ${code} replaces mounted peers without HTTP`, { timeout: 120000 }, async t => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  const cutoff = Date.now() + 60_000;
+  let now = cutoff - 1, httpQueries = 0, deviceDenials = 0;
+  const f = await server(t, undefined, `use personas alice
+table secrets:
+  body: text
+  read <- allow
+  sync public
+query nativeSecret(code: text, cutoff: time): native
+`, { startupTimeout: 90000, prepare(dir) {
+    const native = join(dir, 'snapback/native');
+    mkdirSync(join(native, 'src'), { recursive: true });
+    writeFileSync(join(native, 'Cargo.toml'), readFileSync(join(root, 'native-fixtures/following/Cargo.toml'), 'utf8')
+      .replace('sb4-fixture-following', 'sb4-fixture-retention-device-denials')
+      .replace('../../crates/snapback4-native', join(root, 'crates/snapback4-native')));
+    writeFileSync(join(native, 'src/lib.rs'), `use snapback4_native::{Ctx, Json, Result, Error};
+snapback4_native::module! { reads: [nativeSecret] }
+#[allow(non_snake_case)]
+fn nativeSecret(ctx: &Ctx, args: &Json) -> Result<Json> {
+    if ctx.now()? >= args["cutoff"].as_i64().unwrap() {
+        return Err(Error::new(args["code"].as_str().unwrap(), "native device cutoff reached"));
+    }
+    Ok(ctx.get("secrets", "secret")?.map(Json::Object).unwrap_or(Json::Null))
+}
+`);
+    mkdirSync(join(dir, 'snapback/generated'), { recursive: true });
+    mkdirSync(join(root, 'target/native-fixture'), { recursive: true });
+    symlinkSync(join(root, 'target/native-fixture'), join(dir, 'snapback/generated/native-target'), 'dir');
+  } });
+  assert.equal((await fetch(f.url + '/seed', { method: 'POST', body: JSON.stringify([
+    { table: 'secrets', row: { id: 'secret', body: 'secret' } },
+  ]) }).then(r => r.json())).seeded, 1);
+  const opener = processDevice({ dir: join(f.dir, 'device'), binary });
+  const client = await createLocalClient({ url: f.url, persona: 'alice',
+    device: { async open(...args) {
+      const core = await opener.open(...args);
+      return { ...core, async call(request, ...rest) {
+        const query = request.op === 'query' && request.name === 'nativeSecret';
+        const reply = await core.call(query ? { ...request, now } : request, ...rest);
+        if (query && (reply.denied ?? reply.ok?.denied)?.code === code) deviceDenials++;
+        return reply;
+      } };
+    } },
+    fetch(input, init) { if (new URL(input).pathname.startsWith('/q/')) httpQueries++; return parked(input, init); },
+  });
+  t.after(() => client.close());
+  await client.sync();
+  const op = q('nativeSecret'), args = { code, cutoff };
+  const watches = [undefined, false, true].map(keep => client.observe(op, args, { keep }));
+  for (const watch of watches) { watch.subscribe(() => {}); t.after(() => watch.close()); }
+  await until(() => watches.every(watch => watch.getSnapshot().data?.body === 'secret'));
+  assert.equal(httpQueries, 0, 'the mounted secret was evaluated on the device');
+  now = cutoff;
+  const read = await client.query(op, args);
+  assert.equal(read.denied?.code, code);
+  assert.equal(read.denied?.message, 'native device cutoff reached');
+  assert.ok(deviceDenials > 0, 'the actual native device returned the denial');
+  assert.equal(httpQueries, 0, 'the denying call never used HTTP fallback');
+  for (const watch of watches) assert.equal(watch.getSnapshot().denied?.code, code, 'device evidence replaces every policy before return');
+});
+
 for (const tier of ['online', 'process', 'wasm']) for (const failure of [200, 404, 'E_OFFLINE', 'E_STORE', 'E_STORE_BUSY', 'E_AUTH']) test(`round 7 ${tier}: ${typeof failure === 'number' ? `malformed HTTP ${failure}` : failure} preserves query authority and deadlines`, async t => {
   const f = await fixture(t); let malformed = false, offline = false, attempts = 0, aliasRequests = 0;
   const deadline = Date.now() + 60_000;

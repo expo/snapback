@@ -331,7 +331,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       if (result.credential !== undefined && result.credential !== env.credentialRevision) return loading;
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
-      if (origin === "server" || origin === "composed") {
+      // @ref LLP 3000.029#11 — an accepted device denial is replacement
+      // evidence too; preflight/unavailable results have already been withheld.
+      if (origin === "server" || origin === "composed" || (origin === "local" && "denied" in result.read)) {
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
         if (remember && "data" in result.read) {
           const accepted = env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);

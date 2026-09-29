@@ -9,6 +9,7 @@ import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 import { binary, server, until } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
+import { answerObservation } from '../dist/read-observation.js';
 
 const source = `use personas alice, bob
 table members:
@@ -73,7 +74,7 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
   const requests=[], scans=[], states=[];
   const persist=memoryPersistence();
   const opener = tier==='wasm' ? webDevice({wasm:readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url)),persist}) : processDevice({binary,dir:join(dir,'device')});
-  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return result;}}}},fetch:async(input,init)=>{
+  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return options.transformDeviceReply?.(req, result) ?? result;}}}},fetch:async(input,init)=>{
     if(offline) throw new TypeError('offline');
     const path=new URL(input).pathname;
     if(path==='/changes') return parkedChanges(init.signal);
@@ -81,7 +82,7 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
       const refusal = options.queryResponse?.(); if (refusal) return refusal;
       const response=await fetch(input,init);requests.push({body:JSON.parse(init.body),json:await response.clone().json()});
       if(hold){const current=hold;hold=null;current.arrived.resolve();await current.release.promise;}
-      return response;
+      return options.transformResponse ? options.transformResponse(response) : response;
     }
     return fetch(input,init);
   }};
@@ -113,6 +114,42 @@ for (const tier of ['process', 'wasm']) for (const code of ['E_HTTP_RESPONSE', '
   await until(() => optOut.getSnapshot().denied?.code === code, 'opted-out composed query exposes its diagnostic');
   assert.deepEqual(ids(watch.getSnapshot()), before);
   assert.ok(snapshots.every(read => read.data?.length), 'composed diagnostic does not withdraw data');
+});
+
+for (const tier of ['process', 'wasm']) for (const failure of ['missing searchCurrent', 'missing ledger', 'SDK budget']) test(`round 10 mixed search ${tier}: ${failure} preserves the page and deadlines`, async t => {
+  let malformed = false;
+  const deadline = Date.now() + 60_000;
+  const f = await setup(t, tier, deadline, { transformDeviceReply(request, reply) {
+    if (malformed && request.op === 'search_state' && reply.ok) {
+      if (failure === 'missing ledger') return { ...reply, ok: { ...reply.ok, metered: undefined } };
+      if (failure === 'SDK budget') return { ...reply, ok: { ...reply.ok, ceilings: { ...reply.ok.ceilings, heap_bytes: 1 } } };
+    }
+    return reply;
+  }, async transformResponse(response) {
+    const json = await response.json();
+    assert.ok(Array.isArray(json.searchCurrent), 'the server supplied a valid envelope');
+    json.nextExpiry = deadline;
+    if (malformed && failure === 'missing searchCurrent') delete json.searchCurrent;
+    return Response.json(json, { status: response.status, headers: response.headers });
+  } });
+  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
+  watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.length);
+  const before = ids(watch.getSnapshot()), owner = answerObservation(watch.getSnapshot());
+  const deadlines = { ...owner.deadlines }, snapshots = [];
+  assert.equal(deadlines.server, deadline);
+  assert.equal(deadlines.device, deadline);
+  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
+  malformed = true;
+  const code = failure === 'SDK budget' ? 'E_BOUND' : 'E_INPUT';
+  assert.equal((await f.client.query(q, args)).denied?.code, code);
+  assert.deepEqual(ids(watch.getSnapshot()), before, 'response validation is not replacement evidence');
+  assert.deepEqual(owner.deadlines, deadlines, 'direct failure cannot change either deadline');
+  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
+  await until(() => optOut.getSnapshot().denied?.code === code);
+  assert.deepEqual(ids(watch.getSnapshot()), before);
+  assert.deepEqual(owner.deadlines, deadlines, 'peer failure cannot change either deadline');
+  assert.ok(snapshots.every(read => Array.isArray(read.data)), 'no loading or refusal replaces retained rows');
 });
 
 for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retained first page, consumed prefixes and every ID exactly once`,async t=>{

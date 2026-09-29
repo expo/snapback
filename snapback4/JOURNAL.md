@@ -75809,3 +75809,45 @@ the unchanged 593,719 B cap; SHA-256
 No wasm source changed or fresh wasm build claimed. Report:
 reports/20260928-lv-hook-retention/round9/REPORT.md. No tool installation, push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Lane LV round 10: device denials and SDK validation origins
+
+Started from round-9 5395f049b on sb4-intent/lv-hook-retention. Read rounds 0–9's
+prompts, reports and lane journal, LLP 3000.029, and Astra's full round-9 review;
+applied llp-orient and checked the client/reads guide. Fetch found origin/main at
+fbe996a1f; merge-tree found no conflicts, so no merge was performed. The supervisor
+owns landing qualification; scripts/test.sh was not run.
+
+Accepted device-evaluated denials now enter the existing ordered replacement
+path and reconcile matching mounted peers before a direct query returns.
+Preflight, unavailable/speculative, credential, deadline and dependency checks
+remain. Mixed-search overlap response validation uses the shared private origin
+helper, preserving retained pages and both original deadlines on malformed
+envelopes. The one requested sweep also marks missing device-ledger metadata,
+both SDK cursor rejection branches, coordinator allowance exhaustion and online
+JSON request validation. Terminal lifecycle boundaries still withdraw; unrelated
+write/action/effect diagnostics are listed by origin without redesigning them.
+LLP 3000.029 §11 and Revised distinguish response validation from evaluated
+authority. Four production TypeScript files change; no awaits added or moved.
+
+All five requested regressions fail against round-9 artifacts at the intended
+assertions and pass after the fix. Three actual native process queries return
+E_HTTP_RESPONSE, E_STORE_BUSY or APP_DENIED when ctx.now reaches their cutoff:
+zero HTTP queries, all three retention policies reconciled before return.
+Process/wasm malformed-search cases preserve exact rows and device/server
+deadlines. Additional sweep regressions bring the new cases to 11/11.
+
+Final frozen-source affected run: 1,059/1,059, zero failed/cancelled/skipped,
+including FU overload, all 333 delivery matrix checks and three browser
+witnesses (both profile gates: one mount, zero loading flashes). Whole guide
+98/98; server overload 3/3; build/declarations, typecheck, references and whitespace
+pass. The five expected before-fix failures and four read-only orientation
+lookup errors are ours and recorded in round10/FAILURES.md. No unexpected test
+failure or baseline/environmental exemption; no new full-suite or Expo UI claim.
+
+Existing wasm is byte-identical to round 9: 2,042,203 B raw / 593,641 B gzip,
+78 B under the unchanged 593,719 B cap, SHA-256
+d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
+No fresh wasm build or runtime Rust change. Report and one completed site/origin
+sweep: reports/20260928-lv-hook-retention/round10/. No tool installation, push or
+publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

@@ -1,0 +1,107 @@
+packages/snapback4/src/admission.ts:15:  return { code: "E_ADMISSION", family: "store", message, site, rewrite, guide: "writes" };
+packages/snapback4/src/mock.ts:94:    if (!fn) return { denied: { code: "E_OP", family: "op", message: `unknown query ${op.name}` } };
+packages/snapback4/src/mock.ts:95:    if (link === "signed-out") return { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } };
+packages/snapback4/src/mock.ts:119:      if (link !== "online") return { denied: { code: link === "offline" ? "E_OFFLINE" : "E_AUTH", family: link === "offline" ? "link" : "auth", message: "an action needs an online signed-in client", retryable: link === "offline" }, id };
+packages/snapback4/src/mock.ts:123:      if (!handler) return { denied: { code: "E_ACTION_UNKNOWN", family: "action", message: `unknown action ${op.name}` }, id };
+packages/snapback4/src/mock.ts:126:        catch (error) { return { state: "failed", id, why: { code: "E_ACTION_FAILED", family: "action", message: String(error) } }; }
+packages/snapback4/src/mock.ts:154:        if (!fn) return emitWrite({ state: "failed", id, why: { code: "E_OP", family: "op", message: `unknown mutation ${op.name}` } });
+packages/snapback4/src/mock.ts:155:        if (link === "signed-out") return emitWrite({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write" } });
+packages/snapback4/src/mock.ts:197:      return { denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: `the mock holds no bytes for ${id}` } };
+packages/snapback4/src/mock.ts:207:    async refreshSession() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } }; },
+packages/snapback4/src/mock.ts:208:    async logoutAll() { return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } }; },
+packages/snapback4/src/app-revocations.ts:25:  const damaged = () => new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.auth",
+packages/snapback4/src/residency.ts:15:      code: "E_STORE", family: "store", site: "client.residency",
+packages/snapback4/src/local-backend.ts:28:  if (response.status === 401 && why?.code === "E_HTTP_RESPONSE") throw new BackendAuthError({ code: "E_AUTH", family: "auth", message: "the server refused this session" });
+packages/snapback4/src/web.ts:350:                    code: write.why.code, family: write.why.family,
+packages/snapback4/src/local-sync.ts:46:export const legacyInputRefusal = { denied: { code: "E_INPUT", family: "input",
+packages/snapback4/src/local-search.ts:36:    this.refusal = { code: "E_BOUND", family: "bound", message: this.message, site: "ordinary search coordinator", guide: "search" };
+packages/snapback4/src/local-search.ts:159:    if (!state.metered) return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the device to support the ordinary search ledger" } } };
+packages/snapback4/src/local-search.ts:174:      catch { return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } }; }
+packages/snapback4/src/local-search.ts:177:        return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } };
+packages/snapback4/src/local-search.ts:262:    const invalidOverlap = () => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
+packages/snapback4/src/http-response.ts:26:  return failed({ code: 'E_OFFLINE', family: 'link', message: `the request did not complete${cause ? `: ${cause}` : '; the host supplied no transport cause'}; check the connection and server logs before retrying`, retryable: true }, 'transport');
+packages/snapback4/src/http-response.ts:29:  return failed({ code: 'E_HTTP_RESPONSE', family: 'link', message: `the server answered HTTP ${status} without a valid ${outcome} response; the ${outcome} outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true }, 'decoder');
+packages/snapback4/src/local.ts:342:  const unavailable = (): Refusal | null => closed ? { code: "E_CLOSED", family: "client", message: "this client is closed" } : sessionDead ? { code: "E_AUTH", family: "auth", message: "sign in to continue" } : null;
+packages/snapback4/src/local.ts:372:  const signedOut = (): SignIn => ({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+packages/snapback4/src/local.ts:431:    if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
+packages/snapback4/src/local.ts:432:    if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+packages/snapback4/src/local.ts:456:      if (closed) { retire(refreshed); return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } }; }
+packages/snapback4/src/local.ts:465:        const why: Refusal = { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" };
+packages/snapback4/src/local.ts:1151:          : { state: "failed", id: entry.id, why: (json.why as Refusal | undefined) ?? (json.denied as Refusal | undefined) ?? { code: "E_STORE", family: "store", message: "the server answered without a state", retryable: true } };
+packages/snapback4/src/local.ts:1251:          return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
+packages/snapback4/src/local.ts:1282:        ? { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } : null);
+packages/snapback4/src/local.ts:1336:      if (closed) return { ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } };
+packages/snapback4/src/local.ts:1337:      if (sessionDead || !session) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+packages/snapback4/src/mock-ephemeral.ts:34:    if (!fn) return { code: "E_OP", family: "op", message: `unknown ephemeral mutation ${name}` };
+packages/snapback4/src/mock-ephemeral.ts:46:    catch (error) { return { code: "E_CLIENT", family: "client", message: String(error) }; }
+packages/snapback4/src/mock-ephemeral.ts:50:      if ((changed || touched.has(table)) && !lives.has(table)) return { code: "E_QUARRY_EPHEMERAL", family: "schema", message: `the mock needs an ephemeral life for ${table}; ephemeral writes cannot change durable rows` };
+packages/snapback4/src/actions.ts:10:  if (op.kind !== "action") return { denied: { code: "E_ACTION_UNKNOWN", family: "action", message: "act takes an Action from the generated api" }, id };
+packages/snapback4/src/actions.ts:14:  catch { return { denied: { code: "E_INPUT", family: "input", message: "action arguments must be JSON-serializable" }, id }; }
+packages/snapback4/src/writes.ts:32:function refused(id: string, code: string, message: string): Extract<Write, { state: "failed" }> {
+packages/snapback4/src/writes.ts:33:  return { state: "failed", id: typeof id === "string" ? id : "", why: { code, family: "input", message, guide: "writes" } };
+packages/snapback4/src/writes.ts:92:    const immediate = running as Promise<Write<R>> & { state?: string; why?: { code: string } };
+packages/snapback4/src/writes.ts:114:    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+packages/snapback4/src/local-delivery.ts:75:        return { json: { ...json, denied: { code: "E_STORE_REPLACED" } }, accepted: false };
+packages/snapback4/src/local-delivery.ts:79:      if (refused) return { json: env.restored() ? { ...json, denied: { code: "E_STORE_RESTORE" } } : {}, accepted: false };
+packages/snapback4/src/app-journal.ts:25:    const refused: Terminal = { state: "failed", id: intent.id, why: { code: "E_STORE_REPLACED", family: "store",
+packages/snapback4/src/app-journal.ts:72:  return { state: "failed", id, why: { code: "E_WRITE_RECEIPT_EXPIRED", family: "input", guide: "writes", site: "app.mutate",
+packages/snapback4/src/app-journal.ts:114:      report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
+packages/snapback4/src/app-journal.ts:118:      report(new StorageWarning({ code: "E_CLIENT", family: "client", site: "app.mutate",
+packages/snapback4/src/web-worker-device.ts:29:      throw new Error(JSON.stringify({ denied: { code: "E_AUTH", family: "auth",
+packages/snapback4/src/web-worker-device.ts:105:        code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically`,
+packages/snapback4/src/web-receipts.ts:13:    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } } as TerminalReceipt] : []);
+packages/snapback4/src/asset-lifetime.ts:17:export const assetInvalidated: Refusal = { code: "E_ASSET_UNKNOWN", family: "asset", message: "the asset's authority changed; open it again from a current readable row" };
+packages/snapback4/src/session-authority.ts:15:const failed = (error: unknown) => new StorageWarning({ code: "E_CLIENT", family: "store", site: "app.auth",
+packages/snapback4/src/online-delivery.ts:31:      if (!env.current()) return { json: { ...json, denied: { code: typeof json.store_id === "string" && store && json.store_id !== store ? "E_STORE_REPLACED" : "E_STORE_RESTORE" } }, accepted: false };
+packages/snapback4/src/local-assets.ts:36:const absent = (): AssetRead => ({ denied: { code: "E_OFFLINE", family: "link", message: "no retained ordinary media is available offline", retryable: true } });
+packages/snapback4/src/local-assets.ts:220:      { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+packages/snapback4/src/auth.ts:15:const refused = (message: string): Refusal => ({ code: "E_AUTH", family: "auth", message });
+packages/snapback4/src/server-json.ts:7:  constructor(code: string, message: string, family = "action") {
+packages/snapback4/src/server-json.ts:10:    this.refusal = Object.freeze({ code, family, message });
+packages/snapback4/src/server-json.ts:25:export function strictJson(value: unknown, code: string, limit = 1_048_576): string {
+packages/snapback4/src/server-json.ts:73:export function label(value: string, code: string): void {
+packages/snapback4/src/app-client.ts:32:      return { code: "E_CLIENT", family: "client", message: String(error), site: "app.client",
+packages/snapback4/src/app-client.ts:229:      catch { return { state: "failed", id, why: { code: "E_INPUT", family: "input", message: "mutation arguments must be JSON-serializable", guide: "writes" } }; }
+packages/snapback4/src/device-restore.ts:11:export const restoreRefusal = (): Refusal => ({ code: "E_STORE_RESTORE", family: "store", guide: "sync",
+packages/snapback4/src/admission-authority.ts:45:export const admissionAuthorityRefusal = (): Refusal => ({ code: "E_AUTH", family: "auth",
+packages/snapback4/src/app-online.ts:63:    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+packages/snapback4/src/app-online.ts:140:      if (storeRefusal || !active || raw.viewer() !== viewer) return Promise.resolve(failedSignal(mintId(), storeRefusal ?? { code: "E_AUTH", family: "auth", message: "sign in to write" }));
+packages/snapback4/src/app-online.ts:145:      if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
+packages/snapback4/src/app-online.ts:177:          return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
+packages/snapback4/src/app-online.ts:269:        why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
+packages/snapback4/src/ephemeral.ts:5:export const ephemeralOffline = (): Refusal => ({ code: "E_OFFLINE", family: "link", retryable: true,
+packages/snapback4/src/ephemeral.ts:49:    ? { code: "E_CLOSED", family: "client", message: "this client is closed" }
+packages/snapback4/src/ephemeral.ts:122:        return Promise.resolve(failedSignal(id, { code: "E_INPUT", family: "input", message: "ephemeral arguments must be JSON-serializable" }));
+packages/snapback4/src/ephemeral.ts:128:        { code: "E_RATE_LIMIT", family: "auth", retryable: true, message: "the ephemeral lane already holds 256 waiting calls" }));
+packages/snapback4/src/server-context.ts:31:  const closedWhy = { code: "E_ACTION_CLOSED", family: "action", message: "the action context has closed" };
+packages/snapback4/src/server-context.ts:43:    if (deadline !== null && now() >= deadline) end({ code: "E_ACTION_DEADLINE", family: "action", message: "the action deadline has passed" });
+packages/snapback4/src/server-context.ts:97:        end({ code: "E_ACTION_LEASE", family: "action", message: "this action attempt no longer holds its lease" });
+packages/snapback4/src/server-context.ts:99:        end({ code: "E_ACTION_CANCELLED", family: "action", message: "the action was cancelled" });
+packages/snapback4/src/server-context.ts:101:        end({ code: status.errorCode ?? "E_ACTION_LEASE", family: "action", message: "this action attempt is no longer running" });
+packages/snapback4/src/server-context.ts:104:    lost(error) { end(error instanceof ServerError ? error.refusal : { code: "E_OFFLINE", family: "link", message: "the action status could not be confirmed", retryable: true }); },
+packages/snapback4/src/client.ts:361:  const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
+packages/snapback4/src/client.ts:362:  const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
+packages/snapback4/src/client.ts:364:  function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
+packages/snapback4/src/client.ts:367:    storeRefusal = { code, family: "store", site: "client", guide: "sync",
+packages/snapback4/src/client.ts:438:    if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+packages/snapback4/src/client.ts:469:        return { ok: false, why: { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" } };
+packages/snapback4/src/client.ts:534:    catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
+packages/snapback4/src/client.ts:592:    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+packages/snapback4/src/client.ts:1048:      if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
+packages/snapback4/src/client.ts:1056:      if (!sameSession()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } };
+packages/snapback4/src/client.ts:1080:        return { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+packages/snapback4/src/client.ts:1117:      if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
+packages/snapback4/src/app.ts:58:  return { code, family: code === "E_AUTH" ? "auth" : "client", message,
+packages/snapback4/src/app.ts:66:  constructor() { super({ code: "E_AUTH", family: "auth", message: "the stored session changed in another app", site: "app.auth", rewrite: "await app.auth.login(email, password)" }); }
+packages/snapback4/src/app.ts:73:    configurationError = new StorageWarning({ code: "E_CLIENT", family: "client", message: String(error),
+packages/snapback4/src/app.ts:228:  const inactive = (): Extract<SignIn, { ok: false }> => ({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this app operation was superseded", site: "app.auth", rewrite: "await app.auth.login(email, password)" } });
+packages/snapback4/src/app.ts:451:          if (revision === expected) publish("signed-out", null, json.denied ?? { code: "E_OFFLINE", family: "link", message: "the replacement backend is unreachable", retryable: true });
+packages/snapback4/src/app.ts:705:            if (!await revocations.hasGlobal()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };
+packages/snapback4/src/server-effect-context.ts:40:  const closedWhy: Refusal = { code: "E_EFFECT_CLOSED", family: "effect", message: "the effect context has closed" };
+packages/snapback4/src/server-effect-context.ts:68:      if (!ended && !closed) end({ code: "E_OFFLINE", family: "link", message: "the effect authority could not be confirmed", retryable: true });
+packages/snapback4/src/server-effect-context.ts:78:      end({ code: "E_OFFLINE", family: "link", message: `effect request failed with HTTP ${response.status}`, retryable: true });
+packages/snapback4/src/server-effect-context.ts:86:      end({ code: "E_EFFECT_LEASE", family: "effect", message: "this effect attempt no longer holds its lease" });
+packages/snapback4/src/server-effect-context.ts:88:      end({ code: "E_EFFECT_CANCELLED", family: "effect", message: "the effect was cancelled" });
+packages/snapback4/src/server-effect-context.ts:90:      end({ code: status.errorCode ?? "E_EFFECT_LEASE", family: "effect", message: "this effect attempt is no longer running" });
+packages/snapback4/src/server-effect-context.ts:100:      else if (!ended) end({ code: "E_OFFLINE", family: "link", message: "the effect status could not be confirmed", retryable: true });
+packages/snapback4/src/server-effect-context.ts:119:        if (!ended && !closed) end({ code: "E_OFFLINE", family: "link", message: "the effect authority could not be confirmed", retryable: true });

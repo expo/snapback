@@ -5,6 +5,7 @@ import type { QueryEnvironment } from "./local-query.ts";
 import { sha256 } from "./sha256.ts";
 import type { StoreCapture } from "./local-types.ts";
 import type { LocalWatch } from "./local-reads.ts";
+import { sdkRefusal } from "./http-response.ts";
 
 // @ref LLP 3000.028#3.3 — identity is captured before HTTP and validated
 // before any source position can be accepted, independently of delivery images.
@@ -33,7 +34,7 @@ export class SearchBound extends Error {
   readonly refusal: Refusal;
   constructor(kind: string) {
     super(`ordinary search exhausted the device read allowance (${kind})`);
-    this.refusal = { code: "E_BOUND", family: "bound", message: this.message, site: "ordinary search coordinator", guide: "search" };
+    this.refusal = sdkRefusal({ code: "E_BOUND", family: "bound", message: this.message, site: "ordinary search coordinator", guide: "search" }, "admission");
   }
 }
 /** The budget source is device Ceilings::default(), exported by search_state.
@@ -156,7 +157,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
   if (!state) return loading; // older devices cannot partially activate composition
   const ledger = new SearchLedger(state.ceilings);
   try {
-    if (!state.metered) return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the device to support the ordinary search ledger" } } };
+    if (!state.metered) return { ...loading, read: { denied: sdkRefusal({ code: "E_INPUT", family: "input", message: "upgrade the device to support the ordinary search ledger" }, "decoder") } };
     ledger.resume(state.metered);
     ledger.text(jsonBound(input, ledger));
     const args = { ...input as Record<string, unknown> };
@@ -171,10 +172,10 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (cursor.length > maxCursor) throw new SearchBound("cursor");
       let old: Position;
       try { old = decoded(cursor.slice(prefix.length)) as Position; }
-      catch { return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } }; }
+      catch { return { ...loading, read: { denied: sdkRefusal({ code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" }, "admission") } }; }
       if (!old || typeof old !== "object" || ![old.server, old.local].every(c => c === null || typeof c === "string")
         || old.localCut !== undefined && old.localCut !== "words" && old.localCut !== "meter") {
-        return { ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" } } };
+        return { ...loading, read: { denied: sdkRefusal({ code: "E_INPUT", family: "input", message: "invalid ordinary search cursor" }, "admission") } };
       }
       if (old.binding === binding && old.epoch === state.epoch && typeof old.audience === "string" && typeof old.identity === "string"
         && (old.after === null || typeof old.after === "string")) position = old;
@@ -259,7 +260,7 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       if (!remote.data.length) throw new SearchBound(`retained ${local.cut}; narrow the search or search one chat`);
     }
     const current = response.json.searchCurrent;
-    const invalidOverlap = () => ({ ...loading, read: { denied: { code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" } } });
+    const invalidOverlap = () => ({ ...loading, read: { denied: sdkRefusal({ code: "E_INPUT", family: "input", message: "upgrade the server to support ordinary search overlap" }, "decoder") } });
     if (!Array.isArray(current) || current.length > retained.length) return invalidOverlap();
     // Validate a page-sized subset in linear work, like the scope proof above.
     // Prepay both sets and membership probes; decoding already charged ID bytes.

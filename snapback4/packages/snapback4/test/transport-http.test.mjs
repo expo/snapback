@@ -41,6 +41,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const headers = { "x-snapback-persona": "alice", "content-type": "application/json" };
+test('round 10: SDK argument serialization refusal is not query evidence', async t => {
+  const client = createClient({ url: 'http://localhost:1', persona: 'alice', fetch: async () => { throw Error('no request should be sent'); } });
+  t.after(() => client.close());
+  const args = {}; args.self = args;
+  const result = await client.query({ kind: 'query', name: 'secret' }, args);
+  assert.equal(result.denied?.code, 'E_INPUT');
+  assert.equal(nonAuthoritativeRefusal(result.denied), true);
+});
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(check, ms = 8000) {
   const end = performance.now() + ms;

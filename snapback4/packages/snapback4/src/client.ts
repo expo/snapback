@@ -2,7 +2,7 @@ import { ReadIndex } from "./read-index.ts";
 import { RememberedAnswers } from "./local-reads.ts";
 import { readKey, readInputs, invalidateReadEvidence } from "./read-observation.ts";
 import { AssetLifetime } from "./asset-lifetime.ts";
-import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded, nonAuthoritativeRefusal, decoderRefusal } from "./http-response.ts";
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded, nonAuthoritativeRefusal, decoderRefusal, sdkRefusal } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -531,7 +531,7 @@ export function createClient(options: ClientOptions): Client {
     }
     if ((path.startsWith("/m/") || path.startsWith("/a/")) && storeIdentity) body = { ...(body as object), store_id: storeIdentity };
     try { encoded = JSON.stringify(body); }
-    catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
+    catch { return { ok: true, json: { denied: sdkRefusal({ code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" }, "admission") } }; }
     try {
       // @ref LLP 3000.019#3.3 — the list follows dispatch, never receipt state.
       if (path.startsWith("/m/")) {
