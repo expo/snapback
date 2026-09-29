@@ -1,0 +1,62 @@
+✔ native state reads cannot replace another admission attempt CAS token (76.641651ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (47.473865ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (51.895861ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (53.067787ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (48.572372ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (55.620453ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (47.833825ms)
+✔ online expiry recovers a peer outcome (settled=false) (11.759981ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.510371ms)
+✔ native cached empty cannot bypass FIFO (1337.788208ms)
+✔ native cached empty cannot bypass captured binding (1322.226742ms)
+✖ native late capture cannot expire a peer execution (settled=false) (8426.970081ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3326.497541ms)
+✔ native handoff model: freeze (50.595583ms)
+✔ native handoff model: binding (49.110168ms)
+✔ native handoff model: fifo (56.898298ms)
+✔ native handoff model: expiry (58.245106ms)
+✖ restore custody stays visible until unsent refusal commits (346.841645ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15124.496301
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=false) (8426.970081ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:87:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:93:1
+✖ restore custody stays visible until unsent refusal commits (346.841645ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at restoreHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:99:44)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

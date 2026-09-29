@@ -1,4 +1,4 @@
-import type { Refusal } from "./contract.ts";
+import type { Refusal, Write } from "./contract.ts";
 
 export interface Queued {
   id: string;
@@ -18,6 +18,7 @@ export interface Queued {
   now?: number;
   admission_waiting?: boolean;
   admission_refusal?: Refusal;
+  admission_outcome?: Exclude<Write, { state: "pending" }>;
 }
 
 export interface StoreCapture {

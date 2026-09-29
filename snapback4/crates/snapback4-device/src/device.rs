@@ -84,6 +84,9 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    /// Local wall time of this publication, supplied by the SDK, never the server.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity_at: Option<u64>,
     /// Pinned server time of this authoritative page; old transports may omit it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub now: Option<i64>,
@@ -1024,7 +1027,16 @@ impl<S: DeviceStore> Device<S> {
 
     /// A caller-supplied id may already have executed beyond the local receipt
     /// window. Its prediction refusal cannot decide the server's replay outcome.
-    pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
+    pub fn admit_with_replay(&mut self, entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
+        self.admit_inner(entry, replay_candidate, #[cfg(not(target_arch = "wasm32"))] None)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn admit_with_identity(&mut self, entry: Queued, replay_candidate: bool, expected: Option<&str>) -> Result<Queued, RuntimeError> {
+        self.admit_inner(entry, replay_candidate, Some(expected))
+    }
+
+    fn admit_inner(&mut self, mut entry: Queued, replay_candidate: bool, #[cfg(not(target_arch = "wasm32"))] expected: Option<Option<&str>>) -> Result<Queued, RuntimeError> {
         // @ref LLP 3000.017#4.5 — memory writes never enter durable admission or replay.
         if self.schema.operations.get(&entry.op).is_some_and(|f| f.ephemeral) {
             return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral writes cannot enter the device outbox; call the online ephemeral lane".into() });
@@ -1034,11 +1046,7 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_healthy(&tx)?;
         // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(original) = identity_admission::entries(tx.meta("client:identity-admissions")?.as_deref())?.into_iter().find(|original| original.id == entry.id) {
-            identity_admission::same_input(&original, &entry)?;
-            // Custody already owns minted row ids, order and the original clock.
-            entry = original;
-        }
+        identity_admission::admit(&tx, &mut entry, expected)?;
         if let Some(data) = tx.outbox_get(&entry.id)? {
             let original: Queued = decoded(&data)?;
             if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
@@ -1171,22 +1179,21 @@ impl<S: DeviceStore> Device<S> {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    pub fn read_identity_admissions(&mut self) -> Result<Option<String>, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let value = tx.meta("client:identity-admissions")?;
+        if let Some(value) = &value { identity_admission::compare(&tx, Some(value), value)?; }
+        let value = tx.meta("client:identity-admissions")?;
+        tx.commit()?;
+        Ok(value)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn compare_identity_admissions(&mut self, expected: Option<&str>, value: &str) -> Result<bool, RuntimeError> {
         let tx = self.store.transaction()?;
-        let key = "client:identity-admissions";
-        if tx.meta(key)?.as_deref() != expected { tx.rollback()?; return Ok(false); }
-        // Either kind of custody may win first. Compare both under this
-        // writer transaction, before accepting a new deferred record.
-        let previous = identity_admission::entries(expected)?;
-        for entry in identity_admission::entries(Some(value))? {
-            if previous.iter().any(|old| old.id == entry.id && identity_admission::same_input(old, &entry).is_ok()) { continue; }
-            if let Some(data) = tx.outbox_get(&entry.id)? {
-                identity_admission::same_input(&decoded(&data)?, &entry)?;
-            }
-        }
-        tx.set_meta(key, value)?;
+        let matched = identity_admission::compare(&tx, expected, value)?;
         tx.commit()?;
-        Ok(true)
+        Ok(matched)
     }
 
     /// Replace the bounded terminal history atomically, also across native owners.

@@ -166,8 +166,7 @@ refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 
-Writes need no acquisition gate. Pending custody waits up to 30 seconds for
-store identification, including reload; see `why E_ADMISSION` for recovery.
+Identification: 30 seconds across reload; recovery: `why E_ADMISSION`.
 
 ## A constraint across rows you cannot read
 

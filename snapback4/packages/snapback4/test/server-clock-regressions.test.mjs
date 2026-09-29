@@ -13,7 +13,8 @@ const backend = { generation: 1, schema: { tables: {} }, programs: [
   { name: 'read', kind: 'Query', args: {}, body: [] },
   { name: 'server', kind: 'Query', args: {}, body: [], runs: 'server' },
 ] };
-const drain = async () => { for (let n = 0; n < 100; n++) await Promise.resolve(); };
+// Drain the full microtask queue without advancing the mocked Date/timers.
+const drain = () => new Promise(resolve => setImmediate(resolve));
 async function close(client, t) {
   let done = false;
   const closing = client.close().finally(() => { done = true; });

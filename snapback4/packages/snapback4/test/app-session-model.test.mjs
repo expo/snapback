@@ -9,7 +9,7 @@ test("identity custody: offline first save remains pending while a peer recovers
   { op: "reopen", app: 1, account: 1, hold: false, fault: { kind: "set", at: 11 }, holdDispatch: false },
 ], {}, "online"));
 
-for (const [name, schedule] of [["native state-read overlap", 0], ["deferred/ordinary exact-input race", 1], ["peer dispatch before expiry", 2]]) {
+for (const [name, schedule] of [["native state-read overlap", 0], ["deferred/ordinary exact-input race", 1], ["peer dispatch before expiry", 2], ["native frozen identification", 3], ["native captured binding", 4], ["native durable FIFO", 5], ["native receipt before expiry", 6], ["restore before deferred settlement", 7], ["identity published before queue read", 8], ["successful probe behind peer dispatch", 9]]) {
   test(`identity custody session schedule: ${name}`, () => execute([{ op: "identityCustody", schedule, variant: 0 }]));
 }
 
@@ -30,6 +30,8 @@ for (const tier of ["online", "local"]) for (let slice = 0; slice < 5; slice++) 
     }
   }
   if (count >= 5000 && slice === 4) for (const name of ["read-overlap", "dedup", "expiry"]) assert.ok(coverage[`custody.${name}`] >= 1666, `exercised ${name}`);
+  if (count >= 5000 && slice === 4) for (const name of ["freeze", "binding", "fifo", "native-expiry", "restore"]) assert.equal(coverage[`custody.${name}`], 1000, `exercised ${name}`);
+  if (count >= 5000 && slice === 4) for (const name of ["publication", "successful-probe"]) assert.equal(coverage[`custody.${name}`], 2500, `exercised ${name}`);
   if (count >= 5000 && slice === 4) for (const event of ["write.outcome", "write.outcomeAfterFence", "write.unknownAtClose", "write.knownAtDelivery", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (count >= 5000 && slice === 4) {
     for (const op of operations) assert.ok(coverage[`op.${op}`] > 0, `generated ${op}`);

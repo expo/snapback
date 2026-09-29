@@ -169,6 +169,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 }
                 let entry = take(&mut request, "entry")?;
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
+                #[cfg(not(target_arch = "wasm32"))]
+                if request.get("identity_expected").is_some() {
+                    return encoded(&device.admit_with_identity(queued_entry(entry)?, replay, request.get("identity_expected").and_then(Json::as_str))?);
+                }
                 encoded(&device.admit_with_replay(queued_entry(entry)?, replay)?)?
             }
             "settle" => {
@@ -202,7 +206,12 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.dequeue(text(&request, "id")?)?;
                 Json::Null
             }
-            "meta" => json!(device.meta(text(&request, "key")?)?),
+            "meta" => {
+                let key = text(&request, "key")?;
+                #[cfg(not(target_arch = "wasm32"))]
+                if key == "identity-admissions" { return Ok(json!(device.read_identity_admissions()?)); }
+                json!(device.meta(key)?)
+            },
             "set_meta" => {
                 device.set_meta(text(&request, "key")?, text(&request, "value")?)?;
                 Json::Null

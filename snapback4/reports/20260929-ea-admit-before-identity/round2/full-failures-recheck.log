@@ -1,0 +1,522 @@
+✔ wasm: ordinary search loading classification (691.494713ms)
+✔ wasm: ordinary search denied classification (287.663829ms)
+✔ online app reopens after replacement; replacement accepts session: true (46.742049ms)
+✔ online app reopens after replacement; replacement accepts session: false (21.951031ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: false (44.878495ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: true (39.291421ms)
+✔ event slots wasm: owned-event fallback waits for the source prediction (8391.567743ms)
+✔ event slots wasm: rejected owned events cannot make a speculative scan publishable (8003.608361ms)
+✔ bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages (8241.44405ms)
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (4276.300272ms)
+✔ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (5376.689782ms)
+✔ bounded Following wasm: a known branch wins over static server routing (4238.494934ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4250.225435ms)
+✔ bounded Following wasm: a late card miss and oversized withheld output still use fallback (1141.425628ms)
+✔ bounded Following wasm: untaken online-only card branches remain answerable when held (218.002718ms)
+✔ bounded Following wasm: composed reads withhold the entire answer across the prediction fence (8005.694409ms)
+✔ bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors (1171.754144ms)
+✔ bounded Following wasm: a predicted post fences fallback until observation (7991.701109ms)
+✔ bounded Following wasm: online-only cards withhold offline (224.780827ms)
+✔ bounded Following wasm: repost prediction needs a held original (8224.032206ms)
+✔ bounded Following wasm: held cards and transport failures stay withheld (213.421521ms)
+✔ bounded Following wasm: online-only repost cards use the prediction fence before server routing (8002.843768ms)
+✔ bounded Following wasm: a response racing prediction admission is invalidated (4227.461779ms)
+✔ bounded Following wasm: repost horizon misses withhold but full-source nulls remain data (207.806726ms)
+✔ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (14082.282915ms)
+(node:761181) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local pending writes emit once with the kept device identity (83.801715ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (61.875791ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (5135.664963ms)
+✔ local startup releases a device when initialization after the protocol probe fails (2.077514ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (15.3115ms)
+✔ local observations skip idle polls and rerun after a committed page (35.020029ms)
+✔ local generation adoption reruns observations whose dependencies changed (42.741763ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (45.444543ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (2.186988ms)
+✔ local observations rerun when the device-reported visible lifetime expires (213.757045ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (14.195817ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (5.341826ms)
+✔ every local prediction invalidates observations, including unrelated tables (23.060284ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (603.486593ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (677.526906ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (327.274168ms)
+✔ native: sync before a lost write reply does not apply an increment twice (364.516638ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (260.405814ms)
+✔ W13b fallback boundary: cursorless (1001.945685ms)
+✔ W13b fallback boundary: meter (1002.972734ms)
+✔ W13b fallback boundary: words (1001.961457ms)
+✔ W13b fallback boundary: missing fact (1003.905552ms)
+✔ W13b fallback boundary: presence (1001.960666ms)
+✔ W13b fallback boundary: offline missing fact (1002.215539ms)
+✔ W13b fallback boundary: held (1003.581175ms)
+✔ W13b fallback boundary: retained (1002.979093ms)
+✔ W13b fallback boundary: pending predictable write (1002.754446ms)
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1607.349602ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (291.307841ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W8a web held horizon stays local online, including observe (197.574391ms)
+✔ composed watch wasm: revocation fences pre-revocation server fields (615.662834ms)
+✔ composed query wasm: revocation fences pre-revocation server fields (190.036653ms)
+✔ composed query return wasm: revocation fences pre-revocation server fields (189.533829ms)
+✔ every delivery await is explicitly classified (143.468906ms)
+✔ expiry retry chained permits wasm (581.78712ms)
+✔ expiry retry populated watch wasm (199.157663ms)
+✔ expiry retry server pagination wasm (186.058931ms)
+✔ expiry retry server pagination watch wasm (182.264513ms)
+✔ expiry retry remembered branch wasm (173.286307ms)
+✔ expiry retry remembered branch watch wasm (172.359357ms)
+✔ expiry retry remembered branch timer watch wasm (270.233263ms)
+✔ Following becomes withheld on composed re-observation: server (1019.026227ms)
+✔ Following becomes withheld on composed re-observation: offline (1004.19703ms)
+✔ Following becomes withheld on composed re-observation: pending (1002.093446ms)
+✔ Following becomes withheld on composed re-observation: transport recovered (1002.921467ms)
+✔ wasm acquisition boundary: public timeline (610.592494ms)
+✔ wasm acquisition boundary: conversation ordinal (199.508609ms)
+✔ createApp keep=true property: process, seed 23, 50ms authority (34048.913556ms)
+ℹ inside-episode data notifications: 79; deadline withdrawals: 11
+✔ createApp keep=true property: process, seed 44, 50ms authority (34013.75207ms)
+ℹ inside-episode data notifications: 77; deadline withdrawals: 11
+✔ createApp keep=true property: process, seed 445, 50ms authority (33893.184163ms)
+ℹ inside-episode data notifications: 81; deadline withdrawals: 10
+✔ createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (7082.671933ms)
+✔ local sign-out completes with logout stalled and a fresh store cannot reopen the old account (27.565236ms)
+✔ sign-out revokes a delayed refresh request without adopting it (6.020975ms)
+✔ sign-out revokes a delayed refresh request ignoring abort without adopting it (2.327769ms)
+✔ sign-out revokes a delayed refresh body ignoring abort without adopting it (2.078866ms)
+✔ sign-out completes locally when refresh never returns (2.116483ms)
+✔ sign-out retains an already-resolved rotation until its adoption microtask (2.280318ms)
+✔ sign-out deletes after an already-started persistent refresh write, never before it (13.135688ms)
+✔ a failed credential deletion rejects sign-out and can be retried (2.558064ms)
+✔ media cleanup cannot postpone durable credential deletion (1.844816ms)
+✔ ordinary close detaches an unread rotation and retires its later successor (12.777581ms)
+✔ column activation: wasm, server watch (1390.125531ms)
+✔ column activation: wasm, device watch (987.661515ms)
+✔ README client card members are functions on both tiers, except device-only sync (21.495408ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ wasm: comparative history preserves stored fields, edits and view-once assets (694.417323ms)
+▶ wasm: comparative DM before acquisition, HTTP decorations, and unpredicted offline send
+  ✔ history and queued sends render while separate decorations load or refuse (1.989592ms)
+✔ wasm: comparative DM before acquisition, HTTP decorations, and unpredicted offline send (2196.977764ms)
+✔ wasm: app screen and history after leave, remount and offline/online reopen (2158.195005ms)
+✔ wasm: receipts screen and history after leave, remount and offline/online reopen (2200.568816ms)
+✔ wasm: receipts screen and history after leave, remount and offline/online reopen (older sync held across leave) (1292.972494ms)
+✔ wasm: comparative screen and history after leave, remount and offline/online reopen (2263.024955ms)
+✔ ordinary search full last 86 overlaps process (702.850102ms)
+✔ ordinary search full last 100 overlaps process (661.159575ms)
+✔ expired current replacement keeps retained history process (540.620348ms)
+✔ native client reset with an unobserved prediction (1021.863469ms)
+✔ native client reset with an unobserved prediction held (1002.568639ms)
+✔ native client install failure with an unobserved prediction (1001.936401ms)
+✔ native client install failure with an unobserved prediction held (1001.791885ms)
+✔ rule 1: sign-out during local cannot publish private data (1024.47364ms)
+✔ rule 1: sign-out during dispatch cannot publish private data (1003.47001ms)
+✔ rule 1: sign-out during transport cannot publish private data (1001.891895ms)
+✔ rule 1: sign-out during delivery cannot publish private data (1001.937222ms)
+✔ rule 1: sign-out during publication cannot publish private data (1002.166225ms)
+✔ rule 1: close during local cannot publish private data (1003.588277ms)
+✔ rule 1: close during dispatch cannot publish private data (1003.373315ms)
+✔ rule 1: close during transport cannot publish private data (1003.666464ms)
+✔ rule 1: close during delivery cannot publish private data (1002.668348ms)
+✔ rule 1: close during publication cannot publish private data (1001.476651ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (11.991093ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (4.500786ms)
+  ✔ the receipts card retains seen retries and scope without delivery reporting (5.275707ms)
+  ✔ the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation (9.236864ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (11.273668ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (38.086976ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (20.432294ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (280.689926ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (4.557871ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (4.063491ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (3.694187ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (2.073718ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (4.239965ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (2.475881ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (3.638283ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (3.010202ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (2.283903ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (59.305999ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (56.059063ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (7.585358ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (2.171805ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (3.320637ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (5.439233ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (4.616489ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (8.087732ms)
+  ✔ useQuery lingering remount has data in its first committed render (9.528091ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (4.419204ms)
+  ✔ usePage lingering remount has data in its first committed render (8.859238ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (4.334367ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (20.33574ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (21.204242ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (28.418174ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (32.662044ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (5.415277ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (14.263658ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (23.808535ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (14.82537ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (4.385182ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (408.557418ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (3.567807ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (5.973893ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (4.979985ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.18855ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (4.76361ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (25.132499ms)
+11:46:54 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:46:54 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:46:54 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:46:54 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (263.931879ms)
+11:46:55 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (208.341759ms)
+11:46:55 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:46:55 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (184.427245ms)
+✔ React hooks and reference-app lifetimes (2824.523788ms)
+✔ wasm: retained nested rows follow source parents on reordered pages (609.366206ms)
+✔ wasm: retained nested rows follow source parents on shifted pages (204.270296ms)
+✔ wasm: composed tables sharing an ID keep independent retained rows (208.167378ms)
+✔ wasm: projections without id replace a retained copy using its source envelope (215.872236ms)
+✔ wasm: an identityless object merges its identified child rows (219.498151ms)
+✔ wasm: an unidentified sibling preserves paired parents and drops an unpaired current row (210.237651ms)
+✔ wasm: an anonymous nested page appends only retained history after a partial rejoin (211.260633ms)
+✔ wasm: an in-place edit under an anonymous nested page replaces its retained copy (210.038101ms)
+✔ wasm: Clique capture partitions and answers equal the flattened program (769.709282ms)
+✔ wasm: an unheld parent falls back without losing retained rows (813.070043ms)
+✔ wasm: four-level capture, covered prediction and inherited expiry (233.767918ms)
+✔ wasm: retained children do not terminally refuse a reused parent delete (202.867103ms)
+✔ wasm: an expired unswept matching child queues its parent delete (178.12562ms)
+✔ packages/snapback4/test/repair-b-overflow.test.mjs (97.08866ms)
+✔ private commits rerun the published image without adopting the staged identity (67.065359ms)
+✔ ordinary publication keeps stream mode through false snapshot mode and an interrupted round (1002.38278ms)
+✔ change polling takes published native progress after another owner advances (2014.315223ms)
+✔ publication notifies watches even when its following state read fails; retry uses durable progress (63.271573ms)
+✔ packages/snapback4/test/repair-b-round9.test.mjs (92.123157ms)
+✔ catch-up requests adopt the device transfer cursor (19.003193ms)
+✔ interrupted snapshot catch-up resumes its durable mode (1003.824101ms)
+✔ generation adoption compares published identity during private acquisition (2.712746ms)
+✔ provenance wasm: wrapped presence recovers false, shaped rows without ids stay partial (599.844724ms)
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (622.576776ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (287.406733ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (276.911393ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (259.151985ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (262.760793ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1308.018074ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (261.257841ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (443.699149ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (254.284669ms)
+✔ MQ speculative events wasm: retained history and independent held coverage (8311.723752ms)
+✔ MQ expiry local left wasm: retained history and independent held coverage (1265.614328ms)
+✔ MQ expiry local watch left wasm: retained history and independent held coverage (1245.696835ms)
+✔ MQ local permit wasm: retained history and independent held coverage (1239.977903ms)
+✔ MQ local permit watch wasm: retained history and independent held coverage (1256.125745ms)
+✔ MQ local branch wasm: retained history and independent held coverage (278.26441ms)
+✔ MQ local branch watch wasm: retained history and independent held coverage (265.911646ms)
+✔ MQ local page wasm: retained history and independent held coverage (274.225016ms)
+✔ MQ ineligible wasm: retained history and independent held coverage (274.553928ms)
+✔ MQ points wasm: retained history and independent held coverage (273.959879ms)
+✔ MQ delete current wasm: retained history and independent held coverage (320.662597ms)
+✔ MQ revoke current wasm: retained history and independent held coverage (336.262609ms)
+✔ MQ rejoin wasm: retained history and independent held coverage (308.806738ms)
+✔ MQ held change wasm: retained history and independent held coverage (315.132599ms)
+✔ MQ close wasm: retained history and independent held coverage (257.476473ms)
+✔ MQ sign-out wasm: retained history and independent held coverage (272.140913ms)
+✔ MQ transport wasm: retained history and independent held coverage (247.132749ms)
+✔ MQ adoption wasm: retained history and independent held coverage (617.747597ms)
+✔ MQ reset wasm: retained history and independent held coverage (1293.957587ms)
+✔ MQ rotation wasm: retained history and independent held coverage (299.951345ms)
+✔ MQ prediction wasm: retained history and independent held coverage (4331.018334ms)
+✔ MQ expiry left wasm: retained history and independent held coverage (348.214693ms)
+✔ MQ expiry held wasm: retained history and independent held coverage (306.543035ms)
+✔ MQ interrupted snapshot wasm: retained history and independent held coverage (1309.127163ms)
+✔ MQ retained snapshot wasm: retained history and independent held coverage (337.202829ms)
+snapback4: the server refused the partition: E_STORE: reader unavailable
+✔ schema startup 503/E_STORE/true: keeps saved session connected (19.420038ms)
+✔ schema startup 503/E_AUTH/true: keeps saved session connected (1.810013ms)
+✔ schema startup 403/E_STORE/false: keeps saved session connected (2.097043ms)
+✔ schema startup 200/E_STORE/true: keeps saved session connected (1.422031ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (42.31987ms)
+✖ composition: a deadline behind the issued floor does not loop server refetches (6.499492ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.892295ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.925276ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.936272ms)
+✖ composition publishes at both deadlines, device first (2.485365ms)
+✖ composition publishes at both deadlines, server first (1.819607ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (5.748256ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.901772ms)
+✔ freshness is clamped at publication after wall time rolls back (1.7681ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (1.819016ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (2.385375ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.415091ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.815742ms)
+✖ composed data with no server deadline still withdraws at its local row deadline (1.539497ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (30.872493ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (270.069007ms)
+✔ an online-only watch retries a stale-token refusal after rotation (15.318099ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (13.558692ms)
+✔ R4: wasm a same-identity head below acquisition halts as a restore (2579.156494ms)
+ℹ wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R4: process a same-identity head below acquisition halts as a restore (2240.870741ms)
+ℹ process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✖ ten explicit calls during one round share exactly one follow-up (27.08814ms)
+✔ a call during the follow-up waits for its own newer round (2.626476ms)
+✔ a wake-driven round is not doubled (2.787978ms)
+✔ explicit sync during a held wake-driven round observes the newer head (2.39559ms)
+✔ a wake during an explicit round coalesces without an extra round (1.956693ms)
+✔ explicit sync waits for the follow-up's offline fetch (3.52304ms)
+✔ explicit sync waits for the follow-up's device rejection (1.82769ms)
+✔ an older round returning false after network error cannot skip the explicit follow-up (1.58133ms)
+✔ an older round returning false after HTTP 500 cannot skip the explicit follow-up (1.656944ms)
+✔ a failed older round cannot skip the explicit follow-up attempt (1.337284ms)
+✔ wasm: early generation adoption preserves unsent writes, known and lost acknowledgements (930.196084ms)
+✔ wasm: early generation head preserves restore evidence from deferred stream (288.29857ms)
+✔ wasm: early generation head preserves restore evidence from staged snapshot (285.227637ms)
+✔ wasm: early head 20 and ordinary page decide deferred stream evidence identically (594.037901ms)
+✔ wasm: early head 25 and ordinary page decide deferred stream evidence identically (596.219771ms)
+✔ wasm: missing early watermark preserves deferred stream evidence until a headed retry (396.568027ms)
+✔ wasm: early head 20 and ordinary page decide staged snapshot evidence identically (602.895176ms)
+✔ wasm: early head 25 and ordinary page decide staged snapshot evidence identically (488.909812ms)
+✔ wasm: missing early watermark preserves staged snapshot evidence until a headed retry (393.623915ms)
+✔ wasm: invalid early heads are retryable and never reach observation or adoption (169.302495ms)
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (457.699513ms)
+  ✔ stream overflow preserves generation and store identity (632.863935ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (642.961078ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (12865.503291ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (14563.7039ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (4694.610309ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (5739.567632ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (66198.760536ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (5604.597392ms)
+  ✔ process replaces the old store before shrinking (6639.088426ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (14365.709724ms)
+✔ wasm a new replica recovers its oversized first commit (7060.001055ms)
+ℹ {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (14898.21845ms)
+✔ wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (39397.280191ms)
+✔ wasm: many ordinary commits recover by halving without snapshot (9711.993754ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm a snapshot continuation overflow keeps its cursor and terminates at limit one (215.237061ms)
+✔ wasm bare refusals retain held rows beyond the horizon and allow a later sync retry (200.046403ms)
+✔ unread badge uses server fallback online and keeps its bound after cold offline reopen (1522.799295ms)
+✔ unread fallback respects held (1091.443216ms)
+✔ unread fallback respects prediction (4105.087761ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1572.0145ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1148.981396ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1146.390603ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1137.482952ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (2066.490824ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3P8YZ4P3CPFBEFQRDEY139X","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (2069.426534ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3P8Z15452SMK8ZR8QPDCQ68","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals memory: one caller ID is independent per principal (216.60978ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+ℹ tests 291
+ℹ suites 0
+ℹ pass 286
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 157896.855665
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:77:59
+✖ composition: a deadline behind the issued floor does not loop server refetches (6.499492ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok('data' in watch.getSnapshot())
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:88:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, device first (2.485365ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'typing'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:163:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'typing' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, server first (1.819607ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'typing'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:163:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'typing' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:300:1
+✖ composed data with no server deadline still withdraws at its local row deadline (1.539497ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'private'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:310:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'private' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/sync-after-call.test.mjs:52:1
+✖ ten explicit calls during one round share exactly one follow-up (27.08814ms)
+  AssertionError [ERR_ASSERTION]: the burst costs only one extra round
+  
+  11 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/sync-after-call.test.mjs:65:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 11,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

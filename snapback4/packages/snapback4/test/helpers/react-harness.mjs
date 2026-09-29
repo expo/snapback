@@ -462,11 +462,11 @@ const cases = {
       await mount(h("div", null, ...owners.map((app, index) => h(SnapbackProvider, { client: app.client, key: index }, h(Pending, { index })))));
       for (let n = 0; n < 100 && ![...host.querySelectorAll("p")].every(p => p.textContent === "pending"); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
       equal([...host.querySelectorAll("p")].map(p => p.textContent), ["pending", "pending"], "both hooks pending");
-      await until(() => entered.every(Boolean), "both retry requests held");
-      await act(async () => { waits[0].resolve(); await until(() => events[0].length === 1, "A terminal notification"); });
+      await until(() => entered.some(Boolean), "one retry request held");
+      equal(entered.filter(Boolean).length, 1, "peer waits for the dispatch owner's receipt");
+      await act(async () => { waits.forEach(wait => wait.resolve()); await until(() => events.every(e => e.length === 1), "both owners notified after one receipt commits"); });
       equal(host.querySelector("#owner-0").textContent, "sent", "A hook settled");
-      equal(host.querySelector("#owner-1").textContent, "pending", "B still waits for its confirmation");
-      await act(async () => { waits[1].resolve(); await until(() => events[1].length === 1, "B must notify even after A retired the entry"); });
+      equal(entered.filter(Boolean).length, 1, "the peer never sends a redundant successful retry");
       equal(host.querySelector("#owner-1").textContent, "sent", "B hook settled without polling write(id)");
       await act(async () => { await a.client.write(id); await b.client.write(id); });
       equal(events, [["sent"], ["sent"]], "notifications deduplicate separately for each owner");

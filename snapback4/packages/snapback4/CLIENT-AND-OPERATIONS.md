@@ -1000,6 +1000,14 @@ Writes require no acquisition gate. Before store identification they keep durabl
 custody with `reason: "waiting for backend identification"`; a 30-second deadline
 survives reload. `E_ADMISSION_TIMEOUT` or `E_ADMISSION_STORE` means no send: repair
 the connection/current backend and review the draft before submitting a new id.
+A restore disables transport while unsent deferred refusals finish settlement.
+Pending custody stays visible until its terminal receipt commits, including a
+held or failed receipt save; `onWrite` then reports that outcome. Native owners
+consult the shared queue and receipts, so a cached empty queue cannot bypass
+capture order or the original store binding, and expiry cannot overwrite a
+peer's executed outcome. Identity published before the deadline remains valid
+when a delayed poll or reopen observes it later. Online owners wait for an
+in-flight peer's durable outcome before dispatching that id.
 
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";

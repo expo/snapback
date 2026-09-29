@@ -88,6 +88,25 @@ for (const worker of [false, true]) {
     }
   });
   if (baseline) continue;
+  test(`restore settles deferred custody without transport (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    const schema = await (await fetch(`${f.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json();
+    await f.page.evaluate(async store => {
+      const backend = (await core.call({ op: 'backend' })).ok;
+      const result = await core.call({ op: 'apply', first: true, page: {
+        generation: backend.generation, snapshot: true, events: [], watermark: 100, images_at: 100,
+        committed_above: {}, more: true, next: 'held', store_id: store,
+      } });
+      if (result.denied) throw Error(JSON.stringify(result));
+    }, schema.store_id);
+    const write = await f.page.evaluate(() => save('unsent before restore'));
+    assert.equal(write.state, 'pending');
+    await f.page.evaluate(() => start());
+    await f.page.waitForFunction(() => events.length === 1);
+    assert.equal(await f.page.evaluate(() => events[0].why.code), 'E_ADMISSION_STORE');
+    assert.equal(await f.page.evaluate(() => posts.length), 0);
+    assert.equal((await f.page.evaluate(id => client.write(id), write.id)).why.code, 'E_ADMISSION_STORE');
+  });
   test(`deferred burst, prediction, ids and reload (${tier})`, { timeout: 90_000 }, async t => {
     const f = await browser(t, worker);
     const before = await f.page.evaluate(async () => {

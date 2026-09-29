@@ -19,16 +19,17 @@ export function pendingChanges() {
 }
 
 export async function localPendingWrites(queued: () => Promise<Queued[]>, history: WriteHistory,
-  unavailable: () => unknown, acquired: () => boolean, holds?: ReturnType<typeof localPendingHolds>): Promise<readonly PendingWrite[]> {
+  unavailable: () => unknown, acquired: () => boolean, holds?: ReturnType<typeof localPendingHolds>, restored: () => boolean = () => false): Promise<readonly PendingWrite[]> {
   if (unavailable()) return [];
   const entries = await queued();
   if (unavailable()) return [];
   const terminal = await history.settledIds();
   if (unavailable()) return [];
-  const unsettled = entries.filter(entry => successSequence(entry) == null && !terminal.has(entry.id));
+  const unsettled = entries.filter(entry => successSequence(entry) == null && (!terminal.has(entry.id)
+    || (entry.admission_waiting && history.hasUnpersisted(entry.id))));
   const reasons = await holds?.reasons(unsettled);
   if (unavailable()) return [];
-  return unsettled.map(entry => {
+  return unsettled.filter(entry => !restored() || entry.admission_waiting).map(entry => {
     const reason = entry.admission_waiting ? "waiting for backend identification" : reasons?.get(entry.id) ?? entry.dispatch;
     const state = entry.admission_waiting ? "queued" : reason ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued";
     return {

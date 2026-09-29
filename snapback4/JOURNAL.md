@@ -76748,3 +76748,57 @@ No acquisition remeasurement or broader performance claim this round.
 Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — EA round 2: preserve custody across native, peer and restore handoffs
+
+Fetched and merged origin/main first, preserving both sides of the LLP header
+and append-only journal conflicts (33ca394356), then merged later backstop
+state without conflict (95c718c362). RL, AG and AQ changes remain. Read the
+prior prompts/reports and Astra's full NOT READY review. Grok initially had
+progress only; its final NOT READY review arrived during verification. Both
+High findings were addressed and the final file was checked again at finish.
+
+Native admission now reads durable deferred custody every time, verifies
+compare token, captured store, exact input and FIFO in the writer transaction,
+and carries the captured binding into transport. Native expiry reconciles
+ordinary outbox and retained terminal receipts under the same lock; a peer's
+executed write cannot become an unsent timeout. Deferred refusals stay visible
+behind restore until terminal custody commits, while transport remains fenced.
+The freeze-save deletion now fails a peer-expiry schedule paused immediately
+after that save. These detectors first failed against the unfixed code.
+
+Identity publication records SDK wall time atomically, including a native
+publication racing a stale expiry read. Timely publication survives delayed
+observation/reopen; genuinely late publication still expires. Online owners
+hold a per-ID dispatch claim through receipt persistence, so a late original
+or replacement probe cannot duplicate dispatch or clobber peer success.
+Native reads also exposed sync-follow-up and close-correlation lifecycle
+races, now fixed with unchanged existing assertions. Guide and governing LLP
+text describe the final custody rules.
+
+Extended the session model with native binding/FIFO, freeze, peer expiry,
+restore, publication/reopen and successful late-probe schedules. The full
+suite model stage passed 98/98, including 10,000 extended session sequences
+and 3,000 separate online-client interleavings. A full-count follow-up passed
+71/71 with another execution of the same 10,000 session seeds (5,000 per tier),
+not 20,000 distinct seeds. No invariant, timeout or sequence count was relaxed.
+
+Final affected checks: 149/149; delivery matrix 323/323; whole guide 99/99;
+native device suites 30 + 436 passed, one existing ignored; React 50/50;
+close lifecycle 7/7; sync/clock 29/29; nested failure families 48/48. Typecheck,
+build and root LLP ref-check pass. scripts/test.sh ran once, exit 1, exact
+summary: `== 2 failure(s) in 2924 s` (`cargo test`, `client tests`). Both are
+ours: the guide word budget and client failures detailed individually in the
+report ledger. None is assigned to baseline or environment. Every failed
+family was rechecked; five intermediate clock/sync failures were corrected
+and pass the final scoped suites. The full run overlapped late Grok fixes and
+artifact rebuilds, so it does not certify one immutable final revision. The
+60-second full-suite budget remains missed.
+
+Canonical wasm: 2,041,005 B raw / 592,929 B gzip, 790 B below the unchanged
+593,719 B cap. SHA-256:
+3d4de100e2acf705583f345b9902a911713899c8227ac656a223b2ba641ba2ab.
+Report: [EA round 2](reports/20260929-ea-admit-before-identity/round2/REPORT.md),
+with review snapshots, detecting controls, full logs, every failure's
+classification, model coverage and final source hashes. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

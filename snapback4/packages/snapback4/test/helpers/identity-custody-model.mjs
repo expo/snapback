@@ -18,7 +18,9 @@ const until = async predicate => { for (let n = 0; n < 500; n++) { if (await pre
 export async function nativeCustodySchedule(kind, variant = 0) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ea-model-')), cores = [], release = gate(), reached = gate();
   const opener = processDevice({ dir, binary: binary() });
-  const open = async () => { const core = await opener.open('shared', { initial_backend: modelBackend }); cores.push(core); return core; };
+  const backend = structuredClone(modelBackend);
+  if (kind === 'dedup' && variant % 3 === 2) backend.programs.push({ ...backend.programs[1], name: 'otherWrite' });
+  const open = async () => { const core = await opener.open('shared', { initial_backend: backend }); cores.push(core); return core; };
   try {
     const rawA = await open(), rawB = await open(); let paused = false;
     const a = nativeAdmission({ ...rawA, async call(request, committed) {
@@ -46,8 +48,6 @@ export async function nativeCustodySchedule(kind, variant = 0) {
       if (variant % 3 === 1) { other.args = first.args; other.viewer = 'dev:bob'; }
       if (variant % 3 === 2) {
         other.args = first.args; other.op = 'otherWrite';
-        const backend = structuredClone(modelBackend); backend.programs.push({ ...backend.programs[1], name: 'otherWrite' });
-        ok(await rawB.call({ op: 'adopt', backend }));
       }
       const ordinary = await rawB.call({ op: 'admit', entry: other });
       if (!deferredFirst) ok(ordinary);
@@ -63,7 +63,7 @@ export async function nativeCustodySchedule(kind, variant = 0) {
     }
   } finally { release.resolve(); for (const core of cores) await core.close(); rmSync(dir, { recursive: true, force: true }); }
 }
-export async function onlineExpirySchedule(settled = false, variant = 0) {
+export async function onlineExpirySchedule(settled = false, variant = 0, probeStore) {
   const values = new Map(), clients = [], aProbe = gate(), aReached = gate(), response = gate(), posts = [], outcomes = new Map(), events = [];
   const url = `https://ea-custody-${mintId()}.invalid`;
   const store = { async get(k) { return values.get(k) ?? null; }, async set(k, v) { values.set(k, v); }, async delete(k) { values.delete(k); } };
@@ -73,7 +73,7 @@ export async function onlineExpirySchedule(settled = false, variant = 0) {
     const raw = createClient({ url, persona: 'alice', fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === '/probe') {
-        if (owner === 'A') { aReached.resolve(); await aProbe.promise; throw Error('identity unavailable to A'); }
+        if (owner === 'A') { aReached.resolve(); await aProbe.promise; if (probeStore) return Response.json({ ok: true, seq: outcomes.size, store_id: probeStore }); throw Error('identity unavailable to A'); }
         return Response.json({ ok: true, seq: outcomes.size, store_id: 'original-store' });
       }
       if (path.startsWith('/m/')) {
@@ -95,6 +95,7 @@ export async function onlineExpirySchedule(settled = false, variant = 0) {
     if (settled) { response.resolve(); await until(async () => (await b.client.write(id))?.state === 'sent'); }
     wall += 30_001; aProbe.resolve();
     for (let i = 0; i < 5; i++) { await tick(); mock.timers.tick(1000); await tick(); }
+    assert.equal(posts.length, 1, 'a successful late probe cannot duplicate a peer dispatch');
     const current = await a.client.write(id);
     assert.equal(current.state, settled ? 'sent' : 'pending', 'an executed write can never expire as unsent');
     assert.ok(events.every(w => w.state === 'sent'), JSON.stringify(events));

@@ -34,7 +34,7 @@ import { episodeDeadline } from "./read-episode.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { deliverAcknowledgedReceipt, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
@@ -110,8 +110,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
-  // Restore before installing a backend: sync must validate the old evidence
-  // before adoption. Each server/viewer pair has one store.
+  // Restore before backend adoption: validate old evidence. One store per server/viewer.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online", linkRevision = 0;
   let generation = 0;
@@ -276,7 +275,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (denied?.code !== "E_STORE_RESTORE") return;
     partitionDenied = denied;
     deliveryQueue?.fence(true);
-    pending.notify();
+    pending.notify(); flushRecovered?.();
     observeIncarnation(storeIdentity, true);
     for (const watch of watches.values()) { watch.publish({ denied }); notify(watch); }
   }
@@ -292,6 +291,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return capture;
   }
   async function call(request: Record<string, unknown>, committedTables?: Set<string>, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
+    if (request.op === "apply" || request.op === "observe_store") request = { ...request, page: { ...(request.page as object), identity_at: Date.now() } };
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     let observed = false;
     const delivery: (() => void)[] = [];
@@ -554,12 +554,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
   let syncing: Promise<boolean> | null = null;
-  const syncAfterCall = explicitSync(() => syncing, syncOnce);
-  function syncOnce(): Promise<boolean> {
+  const syncAfterCall = explicitSync(() => syncing, syncOnce, () => syncOnce(true));
+  function syncOnce(reserve = false): Promise<boolean> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
-    if (syncing) return syncing;
-    const result = network(syncRound);
-    syncing = result;
+    if (syncing && !reserve) return syncing;
+    const result = network(() => { syncing = result; return syncRound(); });
+    if (!reserve) syncing = result;
     void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
     return result;
   }
@@ -635,11 +635,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
         {
-          // Neither refusal delivers a row batch. An overflow watermark is
-          // only an event cut; preserve explicit image-head evidence without
-          // inventing terminality or treating a refusal as delivered progress.
-          // Generation discovery reports the current head, so it must check
-          // retained image evidence before adoption can clear that evidence.
+          // Refusals deliver no rows; an overflow watermark is only an event cut.
+          // Preserve image heads without inventing progress. Generation discovery
+          // must validate retained evidence before adoption can clear it.
           const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
             ...(generationChanged ? { images_at: page.watermark } : {}) } : page });
           if (observed.denied || partitionDenied?.code === "E_STORE_RESTORE") { refuseRestore(observed.denied); return false; }
@@ -649,8 +647,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // Observation reports shared metadata; keep this interpreter's adoption requirement.
           backendRequired ||= !!observation.backend_required;
           if (observation.reset) {
-            // call() already invalidated the retired incarnation synchronously.
-            // Discard this round's old cursors before inspecting the new store.
+            // call() fenced the retired incarnation; discard its cursors before inspecting the new store.
             watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
             page.captured_watermark = 0;
             adoptedGeneration = true;
@@ -670,8 +667,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const pageGeneration = Number(page.generation ?? generation);
         if (generationChanged || pageGeneration !== generation || (backendRequired && partitionCurrent)) observeIncarnation(storeIdentity, true);
         if (generationChanged || pageGeneration !== generation || replacedStore || backendRequired) {
-          // Generation counters restart with a new store. Reload the backend
-          // even when its number matches, then acquire its current partition.
+          // A new store restarts generation numbers. Reload even on a match, then acquire its partition.
           let backendRevision = credentialRevision;
           const backendIncarnation = incarnation;
           try {
@@ -697,8 +693,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (denied) {
           if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
-            // Restart acquisition without applying the refusal's watermark.
-            // Keep the reduced limit; snapshot rows can split a whole commit.
+            // Restart at the reduced limit without adopting the refusal's watermark; snapshots can split commits.
             watermark = 0; after = undefined; catchingUp = false;
             restartingSnapshot = true;
             partitionDenied = null;
@@ -721,8 +716,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         restartingSnapshot = false;
         const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
         publicationOutstanding = !published;
-        // call() has already preserved committed tables for finally, even if
-        // its media reconciliation or the following metadata inspection fails.
+        // call() preserved committed tables for finally, even if media or the following metadata read fails.
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
@@ -958,8 +952,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return () => { deliver?.(); if (reset && watches.get(watch.key) === watch) notify(watch); };
   }
   function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
-  // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
-  // that nothing replaced meanwhile: expiry, invalidation and store replacement keep their own withdrawal.
+  // @ref LLP 3000.018#3.2 — background presence publishes only while expiry, invalidation and replacement still permit it.
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
@@ -1061,7 +1054,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let ordinarySending: string | undefined;
   let flushAgain = false;
   function flush(): Promise<void> {
-    if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve();
     if (flushing) {
       flushAgain = true;
       return flushing;
@@ -1082,7 +1074,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return run;
   }
   function retryFlush() {
-    if (closed || sessionDead || retry || partitionDenied?.code === "E_STORE_RESTORE") return;
+    if (closed || sessionDead || retry) return;
     retry = setTimeout(() => { retry = undefined; void flush(); }, retryOverload ? jitter(Math.max(retryMs, retryAfterMs)) : Math.max(retryMs, retryAfterMs));
     retryAfterMs = 0; retryOverload = false;
     (retry as { unref?: () => void }).unref?.();
@@ -1096,11 +1088,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for await (const entry of receiptBatch(queued, history)) {
       await exitDone;
       if (closed) return;
-      if (entry.admission_refusal) {
-        const write = { state: "failed" as const, id: entry.id, why: entry.admission_refusal };
+      if (entry.admission_refusal || entry.admission_outcome) {
+        const write = entry.admission_outcome ?? { state: "failed" as const, id: entry.id, why: entry.admission_refusal! };
         await settleReceipt(history, receiptCall, write);
         completeWrite(write); continue;
       }
+      if (partitionDenied?.code === "E_STORE_RESTORE") continue;
       if (entry.admission_waiting || !sendingAllowed) { retryFlush(); return; }
       const success = successSequence(entry);
       if (success != null) {
@@ -1229,8 +1222,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
         const submission = ++submissions;
         const newIds: string[] = [];
-        // The module mints ids for `new` from the ids we pass, so the server
-        // applies the same ones; a burst takes them from one ascending clock.
+        // Device and server use these same `new` ids; a burst takes them from one ascending clock.
         for (let n = 0; n < 8; n++) newIds.push(mintId());
         const schema = backend!.schema;
         const program = backend!.programs.find((p) => p.name === op.name);
@@ -1275,7 +1267,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       });
     }),
     write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
-    pendingWrites: () => localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds),
+    pendingWrites: () => localPendingWrites(queued, history, unavailable, () => acquired, holds, () => partitionDenied?.code === "E_STORE_RESTORE"),
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
@@ -1412,10 +1404,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       writeListeners.clear();
       // Network waits cancel promptly. Already delivered responses retain local
       // receipt/settlement custody until that bounded device work finishes.
-      for (const [id, { resolve }] of settled) if (!settling.has(id)) resolve({ state: "pending", id });
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, persistingSession, endingSession, ...active]);
-        for (const [id, { resolve }] of settled) resolve({ state: "pending", id });
+        await resolveClosingWrites(queued, history, settled);
         await deliveryStopped;
         await media?.close();
         // A failed admission can leave storage unavailable until reopen; clock

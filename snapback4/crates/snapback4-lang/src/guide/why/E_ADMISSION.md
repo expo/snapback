@@ -18,6 +18,7 @@ review the draft and submit a new id. `createApp`'s online journal likewise take
 custody before its first identity probe. These deadlines never expire a write
 whose dispatch may already have executed, including dispatch by another runtime.
 Expiry recovers a shared terminal receipt; it never replaces that outcome.
+A restore stops transport. Unsent deferred refusals stay visible until committed settlement notifies `onWrite`.
 
 `E_ADMISSION_STORE` means the backend changed before admission. The write was
 not sent. Reload the current backend, review the draft and submit with a new id.

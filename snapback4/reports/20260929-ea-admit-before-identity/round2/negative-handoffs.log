@@ -1,0 +1,134 @@
+✖ native cached empty cannot bypass FIFO (1335.267763ms)
+✔ native cached empty cannot bypass captured binding (1313.300135ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3326.690851ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3378.318222ms)
+✔ native handoff model: freeze (50.793055ms)
+✖ native handoff model: binding (48.182203ms)
+✖ native handoff model: fifo (52.381516ms)
+✖ native handoff model: expiry (49.492135ms)
+✖ native device checks deferred binding even without the SDK (48.089304ms)
+✖ restore custody stays visible until unsent refusal commits (410.538788ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 4
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10153.84439
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass FIFO (1335.267763ms)
+  AssertionError [ERR_ASSERTION]: deferred FIRST must precede SECOND
+  + actual - expected
+  
+  + '01M3P6TPHRSTXCPSX8F9BZG0RP'
+  - '01M3P6TPH1KRAKGEE8KJF2GKJV'
+              ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '01M3P6TPHRSTXCPSX8F9BZG0RP',
+    expected: '01M3P6TPH1KRAKGEE8KJF2GKJV',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:95:61
+✖ native handoff model: binding (48.182203ms)
+  AssertionError [ERR_ASSERTION]: replacement must not admit captured intent
+  
+  1 !== 0
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:54:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:95:61
+✖ native handoff model: fifo (52.381516ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   '01M3P6TZGMHJCY97QBJWYB6JRS',
+      '01M3P6TZGMHJCY97QBJWYB6JRT'
+    ]
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:59:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '01M3P6TZGMHJCY97QBJWYB6JRT' ],
+    expected: [ '01M3P6TZGMHJCY97QBJWYB6JRS', '01M3P6TZGMHJCY97QBJWYB6JRT' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:95:61
+✖ native handoff model: expiry (49.492135ms)
+  AssertionError [ERR_ASSERTION]: [{"args":{"hiddenHandle":false,"refuse":false},"dispatch":"","id":"01M3P6TZJ984V6RYF4D6ZTF6XH","new_ids":[],"now":1,"observed_seq":null,"op":"write","predictable":false,"predicted":[],"receipt_store":{"id":"session-model-store","success_seq":1},"sent_seq":1,"seq":1,"viewer":"dev:alice"},{"id":"01M3P6TZJ984V6RYF4D6ZTF6XH","op":"write","args":{"hiddenHandle":false,"refuse":false},"viewer":"dev:alice","seq":1,"now":1,"new_ids":[],"predicted":[],"predictable":false,"admission_waiting":true,"admission_refusal":{"code":"E_ADMISSION_TIMEOUT","family":"store","site":"client.mutate","guide":"writes","message":"This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.","rewrite":"check the connection and backend URL, then submit with a new write id"}}]
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:62:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:96:1
+✖ native device checks deferred binding even without the SDK (48.089304ms)
+  AssertionError [ERR_ASSERTION]: device admission independently enforces the captured store
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:52:33)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/identity-handoffs.test.mjs:97:1
+✖ restore custody stays visible until unsent refusal commits (410.538788ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'queued'
+  
+      at restoreHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:98:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'queued',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,26 @@
+✔ native state reads cannot replace another admission attempt CAS token (67.580917ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (44.757957ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (44.936406ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (50.095455ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (42.334376ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (47.396983ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (46.112407ms)
+✔ online expiry recovers a peer outcome (settled=false) (25.603515ms)
+✔ online expiry recovers a peer outcome (settled=true) (5.269516ms)
+✔ native cached empty cannot bypass FIFO (1335.229156ms)
+✔ native cached empty cannot bypass captured binding (1326.513938ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3324.288677ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3326.763422ms)
+✔ native handoff model: freeze (51.510276ms)
+✔ native handoff model: binding (52.878988ms)
+✔ native handoff model: fifo (59.123545ms)
+✔ native handoff model: expiry (54.733917ms)
+✔ restore custody stays visible until unsent refusal commits (405.43534ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10061.131247

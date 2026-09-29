@@ -823,34 +823,36 @@ export function createClient(options: ClientOptions): Client {
     await dispatch.owner?.held?.(entry.id, reason);
   }
   async function send(entry: (typeof pending)[number]): Promise<boolean> {
-    const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args }, entry.response);
-    if (storeRefusal) return true;
-    if (!result.ok) return false;
-    const json = result.json;
-    const refusal = (json.why ?? json.denied) as Refusal | undefined;
-    if (refusal?.retryable) {
-      await hold(entry, refusal.code);
-      return false;
-    }
-    if (json.state === "sent") {
-      const at = Number(json.seq ?? 0);
-      minimumReadSeq = Math.max(minimumReadSeq, at);
-      const outcome = json.replayed === true
-        ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
-        : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
-      entry.resolve(outcome);
-      emitWrite(outcome);
-      for (const watch of watches.values()) void refresh(watch, true);
-    } else {
-      // A 400 carries `denied` (an input or auth refusal), a judged write
-      // carries `why`; neither is the link's fault.
-      const why = (json.why ?? json.denied) as Refusal | undefined;
-      if (!why) return false; // An unrecognized answer does not settle this id.
-      const outcome = { state: "failed", id: entry.id, why } as const;
-      entry.resolve(outcome);
-      emitWrite(outcome);
-    }
-    return true;
+    try {
+      const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args }, entry.response);
+      if (storeRefusal) return true;
+      if (!result.ok) return false;
+      const json = result.json;
+      const refusal = (json.why ?? json.denied) as Refusal | undefined;
+      if (refusal?.retryable) {
+        await hold(entry, refusal.code);
+        return false;
+      }
+      if (json.state === "sent") {
+        const at = Number(json.seq ?? 0);
+        minimumReadSeq = Math.max(minimumReadSeq, at);
+        const outcome = json.replayed === true
+          ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
+          : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
+        entry.resolve(outcome);
+        emitWrite(outcome);
+        for (const watch of watches.values()) void refresh(watch, true);
+      } else {
+        // A 400 carries `denied` (an input or auth refusal), a judged write
+        // carries `why`; neither is the link's fault.
+        const why = (json.why ?? json.denied) as Refusal | undefined;
+        if (!why) return false; // An unrecognized answer does not settle this id.
+        const outcome = { state: "failed", id: entry.id, why } as const;
+        entry.resolve(outcome);
+        emitWrite(outcome);
+      }
+      return true;
+    } finally { await dispatch.owner?.after?.(entry.id); }
   }
 
   let flushing: Promise<void> | null = null;

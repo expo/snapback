@@ -1,0 +1,21 @@
+(node:636933) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local pending writes emit once with the kept device identity (92.23126ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.827028ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (475.697879ms)
+✔ native: sync before a lost write reply does not apply an increment twice (389.084369ms)
+✔ README client card members are functions on both tiers, except device-only sync (23.770699ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ packages/snapback4/test/react.test.mjs (393.61473ms)
+✔ R4: wasm a same-identity head below acquisition halts as a restore (2583.066759ms)
+ℹ wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+✔ R4: process a same-identity head below acquisition halts as a restore (2242.617786ms)
+ℹ process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4984.881026

@@ -10,7 +10,7 @@ import { journalChanges } from "./journal-changes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
-import { dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
+import { claimDispatch, dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
 import { IDENTITY_WAIT_MS, identityRefusal } from "./identity-admission.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
@@ -30,6 +30,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const unsavedHolds = new Map<string, { reason: string; revision: string | undefined }>();
   const dispatchRevisions = new Map<string, string | undefined>();
   const recoveredIntents = new Set<string>();
+  const dispatchClaims = new Map<string, () => void>();
+  const dispatchSettlements = new Map<string, Promise<void>>();
+  let paused!: () => void;
+  const pausing = new Promise<undefined>(resolve => { paused = () => resolve(undefined); });
   const listeners = new Set<(write: Terminal) => void>();
   const pending = pendingChanges();
   const stopPending = raw.onPendingWrites?.(pending.notify);
@@ -92,28 +96,39 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       // queue once, so all newly failed receipts share the same pinned save.
       const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
       if (retiring) void refuseStore(write.why).catch(report);
-      else void settle(write).catch(error => retain(write, error));
+      else dispatchSettlements.set(write.id, settle(write).catch(error => retain(write, error)));
     }
   });
   const initial = await locked(key, read);
   const journalEvents = journalChanges(key, pending.notify);
   ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
-    before: (id, identity) => change(journal => {
-      const intent = journal.pending.find(entry => entry.id === id);
-      if (!intent) {
-        const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
-        if (receipt) return { write: receipt, revision: undefined };
-        throw new Error("the write has no durable intent; it cannot be dispatched");
-      }
-      const write = bindIntentStore(journal, intent, identity);
-      return { write, revision: intent.statusRevision };
-    }).then(({ write, revision }) => {
-      unsavedHolds.delete(id);
-      if (write) recoveredIntents.add(id);
-      else if (active) dispatchRevisions.set(id, revision);
-      return write;
-    }),
+    before: async (id, identity) => {
+      const claim = dispatchClaims.has(id) ? Promise.resolve(dispatchClaims.get(id)!) : claimDispatch(`${key}.dispatch.${id}`);
+      const release = dispatchClaims.get(id) ?? await Promise.race([claim, pausing]);
+      if (!release) { void claim.then(release => release()); return { state: "pending", id }; }
+      dispatchClaims.set(id, release);
+      try { return await change(journal => {
+        if (!active) return { write: { state: "pending" as const, id }, revision: undefined };
+        const intent = journal.pending.find(entry => entry.id === id);
+        if (!intent) {
+          const receipt = journal.receipts.find(entry => entry.id === id) ?? retiredReceipt(journal, id);
+          if (receipt) return { write: receipt, revision: undefined };
+          throw new Error("the write has no durable intent; it cannot be dispatched");
+        }
+        const write = bindIntentStore(journal, intent, identity);
+        return { write, revision: intent.statusRevision };
+      }).then(({ write, revision }) => {
+        unsavedHolds.delete(id);
+        if (write) recoveredIntents.add(id);
+        else if (active) dispatchRevisions.set(id, revision);
+        return write;
+      }); } catch (error) { dispatchClaims.delete(id); release(); throw error; }
+    },
+    after: async id => {
+      try { await dispatchSettlements.get(id); }
+      finally { dispatchSettlements.delete(id); dispatchClaims.get(id)?.(); dispatchClaims.delete(id); }
+    },
     held: (id, reason) => {
       const revision = dispatchRevisions.get(id);
       return change(journal => {
@@ -300,7 +315,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
   inheritClose(client, raw);
-  function pause() { active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  function pause() { active = false; paused(); pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
