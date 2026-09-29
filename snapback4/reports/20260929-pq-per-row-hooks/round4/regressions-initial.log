@@ -1,0 +1,37 @@
+✔ wasm: an unrelated replicated write preserves online-only memory offline (467.284393ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (115.287623ms)
+✔ apply: remembered dependencies with footprint [] (0.471677ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.181001ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.129594ms)
+✔ apply: remembered dependencies with footprint undefined (0.127581ms)
+✔ admit: remembered dependencies with footprint [] (0.109063ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.074582ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.079209ms)
+✔ admit: remembered dependencies with footprint undefined (0.099389ms)
+✔ settle: remembered dependencies with footprint [] (0.064046ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.054622ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.048192ms)
+✔ settle: remembered dependencies with footprint undefined (0.048313ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.042264ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.041583ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.03994ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.03989ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (2.660026ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.356144ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.41415ms)
+✔ queued observation still withdraws at row expiry (1.161561ms)
+✔ queued observation still withdraws at reset (0.51377ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (88.171253ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (101.078727ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (88.465975ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (145.081154ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (135.310711ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (124.186009ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1395.162079

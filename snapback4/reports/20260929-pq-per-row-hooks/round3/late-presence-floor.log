@@ -1,0 +1,118 @@
+✖ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (741.024405ms)
+✖ wasm keep=false: presence publication rechecks a floor raised after evaluation (325.133649ms)
+✖ wasm keep=true: presence publication rechecks a floor raised after evaluation (324.72117ms)
+✖ process keep=undefined: presence publication rechecks a floor raised after evaluation (361.200676ms)
+✖ process keep=false: presence publication rechecks a floor raised after evaluation (365.988793ms)
+✖ process keep=true: presence publication rechecks a floor raised after evaluation (391.506148ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2626.723357
+
+✖ failing tests:
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (741.024405ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=false: presence publication rechecks a floor raised after evaluation (325.133649ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=true: presence publication rechecks a floor raised after evaluation (324.72117ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=undefined: presence publication rechecks a floor raised after evaluation (361.200676ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=false: presence publication rechecks a floor raised after evaluation (365.988793ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=true: presence publication rechecks a floor raised after evaluation (391.506148ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

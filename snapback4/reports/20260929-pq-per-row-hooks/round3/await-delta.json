@@ -1,0 +1,13 @@
+[
+  {
+    "file": "local.ts",
+    "before": {
+      "count": 160,
+      "sha256": "298ac32f1b15a63c000686711ff7266bc644bd2eafe4df69016a4883097bd90d"
+    },
+    "after": {
+      "count": 159,
+      "sha256": "9be3d306401cbd872455a79f511565e05067242904c2f93bb48d52e3e14ff7ca"
+    }
+  }
+]

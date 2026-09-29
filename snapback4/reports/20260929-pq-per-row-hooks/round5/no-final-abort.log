@@ -1,0 +1,118 @@
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (643.049644ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (187.634899ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (171.282735ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (204.514473ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (201.318031ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (196.391135ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1747.061419
+
+✖ failing tests:
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (643.049644ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (187.634899ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (171.282735ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (204.514473ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (201.318031ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (196.391135ms)
+  AssertionError [ERR_ASSERTION]: the cancelled body never reaches publish
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

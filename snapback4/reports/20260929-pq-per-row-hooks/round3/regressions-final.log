@@ -1,0 +1,43 @@
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (579.84026ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (100.534991ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (130.696723ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (136.044098ms)
+✔ process keep=false: a full queue cannot postpone the change transition (123.087349ms)
+✔ process keep=true: a full queue cannot postpone the change transition (146.667969ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (170.402681ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (339.049429ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (80.585182ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (313.360079ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (76.223264ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (310.873713ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (118.668437ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (347.775888ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (129.310456ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (361.461258ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (120.375766ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (344.03398ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (29.815794ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.343618ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.271813ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.557967ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (487.71304ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (64.118664ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (61.74054ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (116.381149ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (101.161029ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (95.748086ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (87.414447ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (91.519269ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (202.400846ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (166.971939ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (59.168476ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (72.761326ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (102.421147ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5641.576075

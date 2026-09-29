@@ -1,0 +1,28 @@
+✖ expired server replies: close watch, keep=true (1701.59834ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1816.434323
+
+✖ failing tests:
+
+test at packages/snapback4/test/expired-server-watch.test.mjs:15:5
+✖ expired server replies: close watch, keep=true (1701.59834ms)
+  AssertionError [ERR_ASSERTION]: close watch stops expiry retries
+
+  11 !== 10
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expired-server-watch.test.mjs:98:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 11,
+    expected: 10,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,36 @@
+✖ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (2112.118194ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2293.280777
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-react.test.mjs:37:1
+✖ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (2112.118194ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   calls: 5,
+  +   loading: 3,
+  +   rows: 1
+  -   calls: 3,
+  -   loading: 0,
+  -   rows: 2
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-react.test.mjs:47:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { calls: 5, loading: 3, rows: 1 },
+    expected: { calls: 3, loading: 0, rows: 2 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -647,7 +647,7 @@ test("ordinary media survives a process-device offline reopen; once never persis
   await view(ordinary.id); await view(secret.id);
   assert.equal((await manifest()).length, 1); assert.equal(await stored(secret.id), null);
   await view(ordinary.id);
-  assert.equal(assetRequests, 3, "online media is revalidated on every call");
+  assert.equal(assetRequests, 4, "each online call revalidates: two ordinary transfers, plus a refused Range and one once transfer");
   assert.equal((await local.asset(secret.id)).denied?.code, "E_ASSET_VIEWED");
   await local.close(); offline = true;
   local = await createLocalClient(options); f.clients.push(local);

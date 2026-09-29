@@ -6,11 +6,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { defaultFetch } from '../dist/node-fetch.js';
+import { READ_WORK_LIFETIME } from '../dist/read-work.js';
 import { ServerClock } from '../dist/clock.js';
 import { ephemeralServer, device, api, until } from './helpers/ephemeral-server.mjs';
 
 for (const ending of ['recover', 'close watch', 'close client']) {
-  for (const keep of ending === 'close watch' ? [false] : [undefined, false, true]) {
+  for (const keep of [undefined, false, true]) {
     test(`expired server replies: ${ending}, keep=${keep}`, async t => {
       const { url } = await ephemeralServer(t);
       const writer = createClient({ url, persona: 'alice' });
@@ -57,7 +58,8 @@ for (const ending of ['recover', 'close watch', 'close client']) {
       const timers = [];
       const realTimeout = globalThis.setTimeout;
       t.mock.method(globalThis, 'setTimeout', (callback, ms, ...args) => {
-        if (context.getStore() !== timerContext) return realTimeout(callback, ms, ...args);
+        // Queue turns and the independent attempt deadline are not expiry backoff.
+        if (context.getStore() !== timerContext || ms === 0 || ms === READ_WORK_LIFETIME) return realTimeout(callback, ms, ...args);
         // Keep the product's requested delay; this test, not host scheduling,
         // releases its callback after checking the wait and single-flight state.
         const handle = realTimeout(() => {}, ms);

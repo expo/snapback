@@ -134,9 +134,15 @@ validated using the same scalar rules as arguments.
 
 ## Operations
 
+For additional workers, declare `snapback/workers/<service>.mjs` (also `.mts`
+or `.ts`). Both dev and serve run these entries; guide effects shows the
+completion ledger and stable provider key. `deploy` packages that source subtree.
+
+
 `snapback4 dev` starts `snapback/server.ts` (or `.mts` or `.mjs`), falling back
 to `snapback/worker.ts` (or `.mts` or `.mjs`), with Node 24, `SNAPBACK_URL`
-and `SNAPBACK_SERVICE_TOKEN` for `service:worker`.
+and `SNAPBACK_SERVICE_TOKEN` for `service:worker`, plus `SNAPBACK_WORKER_LEDGER`
+for opt-in low-level effect completions. Tokens are never printed.
 `dev --worker` is refused; use one of those conventional paths.
 It restarts a crashed worker with backoff and stops it on dev exit.
 The child environment is constructed explicitly, with runtime variables and
@@ -146,8 +152,9 @@ its value out of Quarry, generated files and logs.
 
 `snapback4 serve <release-dir> --worker <path>` supervises that Node 24 entry
 with the same restart backoff and shutdown. Its environment contains only
-`PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `NODE_OPTIONS`, the supplied
-`SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`, and declared secrets. The path may
+`PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, the supplied
+`SNAPBACK_URL`, `SNAPBACK_SERVICE_TOKEN` and `SNAPBACK_WORKER_LEDGER`, declared
+secrets and an internal supervision marker. Parent `NODE_OPTIONS` is not copied. The path may
 name the application's `server.ts`; deployment does not automatically package
 its TypeScript import graph. The service:worker token is minted
 for each child and never printed by serve. Each child session lasts at most

@@ -1,0 +1,50 @@
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (456.298278ms)
+✖ process: a local active attempt has its own bounded episode and accepts late success (126.340219ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 698.816131
+
+✖ failing tests:
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:191:41
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (456.298278ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790661182116
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:212:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790661182116,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:191:41
+✖ process: a local active attempt has its own bounded episode and accepts late success (126.340219ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790661182240
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:212:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790661182240,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

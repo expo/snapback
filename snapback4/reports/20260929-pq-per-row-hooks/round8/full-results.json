@@ -1,0 +1,24 @@
+{
+  "summary": "== 1 failure(s) in 1308 s",
+  "exit": 1,
+  "failedStages": [
+    "client tests"
+  ],
+  "client": {
+    "tests": 4958,
+    "passed": 4947,
+    "failed": 1,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "finalModels": {
+    "tests": 79,
+    "passed": 79,
+    "failed": 0
+  },
+  "fullFailureAttribution": {
+    "ours": 1,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

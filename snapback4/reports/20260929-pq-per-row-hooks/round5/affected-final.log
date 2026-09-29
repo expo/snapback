@@ -1,0 +1,997 @@
+✔ wasm: apply revocation, keep=undefined, held (542.483087ms)
+✔ wasm: admit revocation, keep=undefined, held (191.620464ms)
+✔ wasm: transfer revocation, keep=undefined, held (177.394846ms)
+✔ wasm: remount revocation, keep=undefined, held (170.698164ms)
+✔ wasm: apply revocation, keep=undefined, throw (170.296883ms)
+✔ wasm: admit revocation, keep=undefined, throw (74.853291ms)
+✔ wasm: transfer revocation, keep=undefined, throw (1175.402058ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (170.665065ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (79.128741ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (184.615661ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (303.632308ms)
+✔ wasm: admit revocation, keep=undefined, retryExhausted (1288.523773ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (284.087673ms)
+✔ wasm: apply revocation, keep=false, held (181.266499ms)
+✔ wasm: admit revocation, keep=false, held (1183.504472ms)
+✔ wasm: transfer revocation, keep=false, held (170.997643ms)
+✔ wasm: remount revocation, keep=false, held (1169.608486ms)
+✔ process: apply revocation, keep=undefined, held (1213.478221ms)
+✔ process: admit revocation, keep=undefined, held (1223.34309ms)
+✔ process: transfer revocation, keep=undefined, held (1214.409144ms)
+✔ process: remount revocation, keep=undefined, held (1223.876557ms)
+✔ process: apply revocation, keep=undefined, throw (1210.041783ms)
+✔ process: admit revocation, keep=undefined, throw (1885.53586ms)
+✔ process: transfer revocation, keep=undefined, throw (1210.907818ms)
+✔ process: apply revocation, keep=undefined, unavailable (1214.135927ms)
+✔ process: admit revocation, keep=undefined, unavailable (1110.97238ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1206.307257ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1310.200846ms)
+✔ process: admit revocation, keep=undefined, retryExhausted (1318.471916ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (1304.221058ms)
+✔ process: apply revocation, keep=false, held (1216.280856ms)
+✔ process: admit revocation, keep=false, held (1202.577769ms)
+✔ process: transfer revocation, keep=false, held (1209.691414ms)
+✔ process: remount revocation, keep=false, held (1212.195196ms)
+✔ online: revoked data, keep=undefined, held (144.61289ms)
+✔ online: revoked data, keep=undefined, retryExhausted (246.207794ms)
+✔ online: revoked data, keep=undefined, unavailable (145.747371ms)
+✔ online: revoked data, keep=undefined, throw (157.93859ms)
+✔ online: revoked data, keep=false, held (155.686823ms)
+✔ online: revoked data, keep=false, retryExhausted (160.704377ms)
+✔ online: revoked data, keep=false, unavailable (155.353163ms)
+✔ online: revoked data, keep=false, throw (144.918188ms)
+✔ every delivery await is explicitly classified (143.321218ms)
+✔ 0 transient: local.ts:150 read (363.948002ms)
+✔ 0 persistent: local.ts:150 read (52.279114ms)
+✔ 1 transient: local.ts:151 lookup (85.805261ms)
+✔ 1 persistent: local.ts:151 lookup (39.822658ms)
+✔ 2 transient: local.ts:153 save (32.439347ms)
+✔ 2 persistent: local.ts:153 save (37.821898ms)
+✔ 3 transient: local.ts:223 refreshAcquired (31.608111ms)
+✔ 3 persistent: local.ts:223 refreshAcquired (49.193768ms)
+✔ 4 transient: local.ts:294 captureStore (93.472738ms)
+✔ 4 persistent: local.ts:294 captureStore (31.026049ms)
+✔ 5 transient: local.ts:301 call (30.630846ms)
+✔ 5 persistent: local.ts:301 call (32.457676ms)
+✔ 6 transient: local.ts:331 call (33.615682ms)
+✔ 6 persistent: local.ts:331 call (30.075243ms)
+✔ 7 transient: local.ts:335 call (32.375301ms)
+✔ 7 persistent: local.ts:335 call (29.036206ms)
+✔ 8 transient: local.ts:521 sendPost (53.936299ms)
+✔ 8 persistent: local.ts:521 sendPost (30.128633ms)
+✔ 9 transient: local.ts:524 sendPost (29.178499ms)
+✔ 9 persistent: local.ts:524 sendPost (35.998173ms)
+✔ 10 transient: local.ts:530 sendPost (30.112468ms)
+✔ 10 persistent: local.ts:530 sendPost (29.974992ms)
+✔ 11 transient: local.ts:537 sendPost (31.482693ms)
+✔ 11 persistent: local.ts:537 sendPost (56.645782ms)
+✔ 12 transient: local.ts:548 sendPost (29.161483ms)
+✔ 12 persistent: local.ts:548 sendPost (28.713701ms)
+✔ 13 transient: local.ts:580 syncRound (29.448363ms)
+✔ 13 persistent: local.ts:580 syncRound (28.692119ms)
+✔ 14 transient: local.ts:581 syncRound (27.574804ms)
+✔ 14 persistent: local.ts:581 syncRound (30.378638ms)
+✔ 15 transient: local.ts:599 syncRound (27.399431ms)
+✔ 15 persistent: local.ts:599 syncRound (40.749948ms)
+✔ 16 transient: local.ts:614 syncRound (28.250397ms)
+✔ 16 persistent: local.ts:614 syncRound (20.026716ms)
+✔ 17 transient: local.ts:642 syncRound (22.308768ms)
+✔ 17 persistent: local.ts:642 syncRound (29.583536ms)
+✔ 18 transient: local.ts:654 syncRound (26.4854ms)
+✔ 18 persistent: local.ts:654 syncRound (32.278787ms)
+✔ 19 transient: local.ts:669 syncRound (38.74364ms)
+✔ 19 persistent: local.ts:669 syncRound (54.048858ms)
+✔ 20 transient: local.ts:674 syncRound (39.049999ms)
+✔ 20 persistent: local.ts:674 syncRound (34.157374ms)
+✔ 21 transient: local.ts:691 syncRound (43.50599ms)
+✔ 21 persistent: local.ts:691 syncRound (26.568775ms)
+✔ 22 transient: local.ts:693 syncRound (45.506099ms)
+✔ 22 persistent: local.ts:693 syncRound (52.64992ms)
+✔ 23 transient: local.ts:701 syncRound (34.756982ms)
+✔ 23 persistent: local.ts:701 syncRound (33.770022ms)
+✔ 24 transient: local.ts:702 syncRound (34.41562ms)
+✔ 24 persistent: local.ts:702 syncRound (33.760298ms)
+✔ 25 transient: local.ts:704 syncRound (35.591974ms)
+✔ 25 persistent: local.ts:704 syncRound (37.444182ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page
+✔ 26 transient: local.ts:722 syncRound (76.012819ms)
+✔ 26 persistent: local.ts:722 syncRound (79.640228ms)
+✔ 27 transient: local.ts:729 syncRound (26.124258ms)
+✔ 27 persistent: local.ts:729 syncRound (33.176253ms)
+✔ 28 transient: local.ts:738 syncRound (26.55878ms)
+✔ 28 persistent: local.ts:738 syncRound (59.824147ms)
+✔ 29 transient: local.ts:760 syncRound (26.983618ms)
+✔ 29 persistent: local.ts:760 syncRound (39.23054ms)
+✔ 30 transient: local.ts:763 syncRound (26.293203ms)
+✔ 30 persistent: local.ts:763 syncRound (44.121863ms)
+✔ 31 transient: local.ts:789 probe (33.149332ms)
+✔ 31 persistent: local.ts:789 probe (26.714153ms)
+✔ 32 transient: local.ts:791 probe (51.939695ms)
+✔ 32 persistent: local.ts:791 probe (27.899401ms)
+✔ 33 transient: local.ts:792 probe (29.860341ms)
+✔ 33 persistent: local.ts:792 probe (29.031318ms)
+✔ 34 transient: local.ts:794 probe (29.089405ms)
+✔ 34 persistent: local.ts:794 probe (28.081905ms)
+✔ 35 transient: local.ts:798 probe (31.523715ms)
+✔ 35 persistent: local.ts:798 probe (99.838742ms)
+✔ 36 transient: local.ts:802 probe (29.931547ms)
+✔ 36 persistent: local.ts:802 probe (29.258588ms)
+✔ 37 transient: local.ts:812 waitForChange (65.459596ms)
+✔ 37 persistent: local.ts:812 waitForChange (98.148268ms)
+✔ 38 transient: local.ts:813 waitForChange (67.126035ms)
+✔ 38 persistent: local.ts:813 waitForChange (73.696847ms)
+✔ 39 transient: local.ts:816 waitForChange (70.362257ms)
+✔ 39 persistent: local.ts:816 waitForChange (96.158204ms)
+✔ 40 transient: local.ts:821 waitForChange (68.401928ms)
+✔ 40 persistent: local.ts:821 waitForChange (81.183501ms)
+✔ 41 transient: local.ts:823 waitForChange (57.743457ms)
+✔ 41 persistent: local.ts:823 waitForChange (110.833677ms)
+✔ 42 transient: local.ts:826 waitForChange (57.452151ms)
+✔ 42 persistent: local.ts:826 waitForChange (84.62403ms)
+✔ 43 transient: local.ts:828 waitForChange (85.566153ms)
+✔ 43 persistent: local.ts:828 waitForChange (82.681217ms)
+✔ 44 transient: local.ts:835 waitForChange (56.884218ms)
+✔ 44 persistent: local.ts:835 waitForChange (76.941762ms)
+✔ 45 transient: local.ts:851 waitForChange (83.979904ms)
+✔ 45 persistent: local.ts:851 waitForChange (80.738644ms)
+✔ 46 transient: local.ts:860 follow (61.129083ms)
+✔ 46 persistent: local.ts:860 follow (57.662505ms)
+✔ 47 transient: local.ts:863 follow (83.841577ms)
+✔ 47 persistent: local.ts:863 follow (51.853846ms)
+✔ 48 transient: local.ts:868 follow (64.890192ms)
+✔ 48 persistent: local.ts:868 follow (58.421063ms)
+✔ 49 transient: local.ts:1071 flush (57.734784ms)
+✔ 49 persistent: local.ts:1071 flush (27.844107ms)
+✔ 50 transient: local.ts:1089 flushOnce (28.316806ms)
+✔ 50 persistent: local.ts:1089 flushOnce (28.300231ms)
+✔ 51 transient: local.ts:1091 flushOnce (33.524404ms)
+✔ 51 persistent: local.ts:1091 flushOnce (85.146153ms)
+✔ 52 transient: local.ts:1093 flushOnce (28.269515ms)
+✔ 52 persistent: local.ts:1093 flushOnce (57.614924ms)
+✔ 53 transient: local.ts:1097 flushOnce (33.926397ms)
+✔ 53 persistent: local.ts:1097 flushOnce (43.399281ms)
+✔ 54 transient: local.ts:1099 flushOnce (26.845581ms)
+✔ 54 persistent: local.ts:1099 flushOnce (42.781895ms)
+✔ 55 transient: local.ts:1099 flushOnce (29.107262ms)
+✔ 55 persistent: local.ts:1099 flushOnce (28.917307ms)
+✔ 56 transient: local.ts:1104 flushOnce (49.278465ms)
+✔ 56 persistent: local.ts:1104 flushOnce (30.224296ms)
+✔ 57 transient: local.ts:1105 flushOnce (27.340834ms)
+✔ 57 persistent: local.ts:1105 flushOnce (27.841504ms)
+✔ 58 transient: local.ts:1107 flushOnce (27.026752ms)
+✔ 58 persistent: local.ts:1107 flushOnce (30.353981ms)
+✔ 59 transient: local.ts:1112 flushOnce (30.765688ms)
+✔ 59 persistent: local.ts:1112 flushOnce (31.327811ms)
+✔ 60 transient: local.ts:1118 flushOnce (52.507386ms)
+✔ 60 persistent: local.ts:1118 flushOnce (31.38031ms)
+✔ 61 transient: local.ts:1121 flushOnce (27.550938ms)
+✔ 61 persistent: local.ts:1121 flushOnce (28.121083ms)
+✔ 62 transient: local.ts:1124 flushOnce (27.94583ms)
+✔ 62 persistent: local.ts:1124 flushOnce (35.560247ms)
+✔ 63 transient: local.ts:1129 flushOnce (27.455945ms)
+✔ 63 persistent: local.ts:1129 flushOnce (28.273882ms)
+✔ 64 transient: local.ts:1138 flushOnce (52.109038ms)
+✔ 64 persistent: local.ts:1138 flushOnce (27.636386ms)
+✔ 65 transient: local.ts:1142 flushOnce (28.996155ms)
+✔ 65 persistent: local.ts:1142 flushOnce (27.482105ms)
+✔ 66 transient: local.ts:1154 flushOnce (27.316236ms)
+✔ 66 persistent: local.ts:1154 flushOnce (27.97246ms)
+✔ 67 transient: local.ts:1158 flushOnce (27.369425ms)
+✔ 67 persistent: local.ts:1158 flushOnce (31.771576ms)
+✔ 68 transient: local.ts:1159 flushOnce (55.195536ms)
+✔ 68 persistent: local.ts:1159 flushOnce (29.655613ms)
+✔ 69 transient: local.ts:1162 flushOnce (26.34524ms)
+✔ 69 persistent: local.ts:1162 flushOnce (59.731307ms)
+✔ 70 transient: local.ts:1166 replayOnOpen (31.597275ms)
+✔ 70 persistent: local.ts:1166 replayOnOpen (26.115656ms)
+✔ 71 transient: local.ts:1171 replayOnOpen (28.718008ms)
+✔ 71 persistent: local.ts:1171 replayOnOpen (62.154882ms)
+✔ 72 transient: local.ts:1174 replayOnOpen (29.585018ms)
+✔ 72 persistent: local.ts:1174 replayOnOpen (26.869447ms)
+✔ 73 transient: local.ts:1175 replayOnOpen (29.644307ms)
+✔ 73 persistent: local.ts:1175 replayOnOpen (27.389406ms)
+✔ 74 transient: local.ts:1177 replayOnOpen (32.012648ms)
+✔ 74 persistent: local.ts:1177 replayOnOpen (28.301914ms)
+✔ 75 transient: local.ts:1442 commit (27.828184ms)
+✔ 75 persistent: local.ts:1442 commit (50.971994ms)
+✔ 76 transient: local.ts:1444 commit (27.14538ms)
+✔ 76 persistent: local.ts:1444 commit (60.832568ms)
+✔ 77 transient: local.ts:1453 listenForExit (27.043788ms)
+✔ 77 persistent: local.ts:1453 listenForExit (27.152901ms)
+✔ 78 transient: local-receipts.ts:11 settleReceipt (26.305491ms)
+✔ 78 persistent: local-receipts.ts:11 settleReceipt (30.558487ms)
+✔ 79 transient: local-receipts.ts:12 settleReceipt (29.294472ms)
+✔ 79 persistent: local-receipts.ts:12 settleReceipt (30.772499ms)
+✔ 80 transient: local-receipts.ts:30 receiptBatch (26.245501ms)
+✔ 80 persistent: local-receipts.ts:30 receiptBatch (49.68198ms)
+✔ 81 transient: local-receipts.ts:43 deliverAcknowledgedReceipt (26.600383ms)
+✔ 81 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt (39.640645ms)
+✔ 82 transient: local-receipts.ts:44 deliverAcknowledgedReceipt (15.007972ms)
+✔ 82 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt (16.774531ms)
+✔ 83 transient: local-receipts.ts:65 syncSettledWrites (28.651338ms)
+✔ 83 persistent: local-receipts.ts:65 syncSettledWrites (57.853993ms)
+✔ 84 transient: local-receipts.ts:66 syncSettledWrites (48.70807ms)
+✔ 84 persistent: local-receipts.ts:66 syncSettledWrites (59.851807ms)
+✔ 85 transient: local-receipts.ts:70 recoverReceipt (27.590798ms)
+✔ 85 persistent: local-receipts.ts:70 recoverReceipt (29.552289ms)
+✔ 86 transient: local-receipts.ts:70 recoverReceipt (28.635064ms)
+✔ 86 persistent: local-receipts.ts:70 recoverReceipt (25.619091ms)
+✔ 87 transient: local-receipts.ts:74 recoverReceipt (26.144359ms)
+✔ 87 persistent: local-receipts.ts:74 recoverReceipt (54.247756ms)
+✔ 88 transient: local-receipts.ts:82 lookupWrite (31.803935ms)
+✔ 88 persistent: local-receipts.ts:82 lookupWrite (27.154054ms)
+✔ 89 transient: local-receipts.ts:86 lookupWrite (30.140881ms)
+✔ 89 persistent: local-receipts.ts:86 lookupWrite (29.466801ms)
+✔ 90 transient: local-receipts.ts:88 lookupWrite (32.984495ms)
+✔ 90 persistent: local-receipts.ts:88 lookupWrite (30.029013ms)
+✔ 91 transient: local-receipts.ts:94 lookupWrite (53.941396ms)
+✔ 91 persistent: local-receipts.ts:94 lookupWrite (31.120009ms)
+✔ 92 transient: local-receipts.ts:94 lookupWrite (31.578516ms)
+✔ 92 persistent: local-receipts.ts:94 lookupWrite (30.735242ms)
+✔ 93 transient: local-receipts.ts:108 terminalDeviceCall (27.793993ms)
+✔ 93 persistent: local-receipts.ts:108 terminalDeviceCall (29.020021ms)
+✔ 94 transient: local-receipts.ts:117 readQueued (25.889236ms)
+✔ 94 persistent: local-receipts.ts:117 readQueued (49.38874ms)
+✔ 95 transient: writes.ts:154 keep (26.884369ms)
+✔ 95 persistent: writes.ts:154 keep (30.852048ms)
+✔ 96 transient: writes.ts:181 acknowledged (26.139271ms)
+✔ 96 persistent: writes.ts:181 acknowledged (38.480796ms)
+✔ 97 transient: writes.ts:187 acknowledged (17.570504ms)
+✔ 97 persistent: writes.ts:187 acknowledged (15.239118ms)
+✔ 98 transient: writes.ts:194 persistPending (27.26579ms)
+✔ 98 persistent: writes.ts:194 persistPending (26.652751ms)
+✔ 99 transient: writes.ts:200 read (47.725486ms)
+✔ 99 persistent: writes.ts:200 read (29.457757ms)
+✔ 100 transient: writes.ts:203 read (26.357679ms)
+✔ 100 persistent: writes.ts:203 read (28.508043ms)
+✔ 101 transient: writes.ts:215 lookup (32.698616ms)
+✔ 101 persistent: writes.ts:215 lookup (29.637637ms)
+✔ 102 transient: writes.ts:217 lookup (30.909073ms)
+✔ 102 persistent: writes.ts:217 lookup (54.242257ms)
+✔ 103 transient: local-exit.ts:38 exitTransport (25.892782ms)
+✔ 103 persistent: local-exit.ts:38 exitTransport (26.970498ms)
+✔ 104 transient: local-exit.ts:41 exitTransport (25.910108ms)
+✔ 104 persistent: local-exit.ts:41 exitTransport (26.699181ms)
+✔ 105 transient: local-exit.ts:42 exitTransport (28.922414ms)
+✔ 105 persistent: local-exit.ts:42 exitTransport (26.169667ms)
+✔ 106 transient: local-exit-settlement.ts:22 exitRefusalSettlement (26.288565ms)
+✔ 106 persistent: local-exit-settlement.ts:22 exitRefusalSettlement (50.430973ms)
+✔ 107 transient: local-exit-settlement.ts:25 exitRefusalSettlement (26.825951ms)
+✔ 107 persistent: local-exit-settlement.ts:25 exitRefusalSettlement (27.581124ms)
+✔ 108 transient: local-assets.ts:52 call (25.775095ms)
+✔ 108 persistent: local-assets.ts:52 call (37.130131ms)
+✔ 109 transient: local-assets.ts:70 home (28.531358ms)
+✔ 109 persistent: local-assets.ts:70 home (37.288828ms)
+✔ 110 transient: local-assets.ts:73 save (26.601144ms)
+✔ 110 persistent: local-assets.ts:73 save (50.863251ms)
+✔ 111 transient: local-assets.ts:79 drop (26.66524ms)
+✔ 111 persistent: local-assets.ts:79 drop (38.880625ms)
+✔ 112 transient: local-assets.ts:95 check (26.063578ms)
+✔ 112 persistent: local-assets.ts:95 check (39.407465ms)
+✔ 113 transient: local-assets.ts:97 check (26.024229ms)
+✔ 113 persistent: local-assets.ts:97 check (37.83014ms)
+✔ 114 transient: local-assets.ts:104 check (50.619646ms)
+✔ 114 persistent: local-assets.ts:104 check (38.843489ms)
+✔ 115 transient: local-assets.ts:108 check (25.788395ms)
+✔ 115 persistent: local-assets.ts:108 check (26.328234ms)
+✔ 116 transient: request-wait.ts:20 postForCaller (25.688025ms)
+✔ 116 persistent: request-wait.ts:20 postForCaller (27.902374ms)
+✔ 117 transient: request-wait.ts:21 postForCaller (25.914545ms)
+✔ 117 persistent: request-wait.ts:21 postForCaller (31.451477ms)
+✔ 118 transient: request-wait.ts:21 postForCaller (50.563111ms)
+✔ 118 persistent: request-wait.ts:21 postForCaller (32.880219ms)
+✔ 119 transient: local-sync.ts:50 legacyInput (37.467496ms)
+snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+✔ 119 persistent: local-sync.ts:50 legacyInput (23.887395ms)
+✔ 120 transient: local-sync.ts:67 syncTransport (30.073921ms)
+✔ 120 persistent: local-sync.ts:67 syncTransport (19.885294ms)
+snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+✔ 121 transient: local-sync.ts:68 syncTransport (38.555337ms)
+snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+✔ 121 persistent: local-sync.ts:68 syncTransport (23.394807ms)
+✔ 122 transient: local-sync.ts:69 syncTransport (61.444566ms)
+✔ 122 persistent: local-sync.ts:69 syncTransport (24.138261ms)
+✔ 123 transient: device-restore.ts:57 restoreWitness (30.768822ms)
+✔ 123 persistent: device-restore.ts:57 restoreWitness (30.525098ms)
+✔ 124 transient: local-backend.ts:25 loadBackend (44.493971ms)
+✔ 124 persistent: local-backend.ts:25 loadBackend (27.217287ms)
+✔ 125 transient: local-native.ts:16 installNativeAttempt (35.810943ms)
+✔ 125 persistent: local-native.ts:16 installNativeAttempt (61.02667ms)
+✔ 126 transient: local-native.ts:28 installNativeAttempt (30.454401ms)
+✔ 126 persistent: local-native.ts:28 installNativeAttempt (27.179081ms)
+✔ 127 transient: local-native.ts:41 installNativeAttempt (28.622544ms)
+✔ 127 persistent: local-native.ts:41 installNativeAttempt (28.698078ms)
+✔ 128 transient: local-native.ts:43 installNativeAttempt (30.405868ms)
+✔ 128 persistent: local-native.ts:43 installNativeAttempt (28.102064ms)
+✔ 129 transient: local-native.ts:46 installNativeAttempt (28.156676ms)
+✔ 129 persistent: local-native.ts:46 installNativeAttempt (51.759955ms)
+✔ 130 transient: pending-writes.ts:50 revision (27.782756ms)
+✔ 130 persistent: pending-writes.ts:50 revision (26.214905ms)
+✔ 131 transient: pending-writes.ts:57 record (26.533583ms)
+✔ 131 persistent: pending-writes.ts:57 record (29.015754ms)
+✔ 132 transient: pending-writes.ts:60 record (27.084619ms)
+✔ 132 persistent: pending-writes.ts:60 record (27.189756ms)
+✔ 133 transient: clock.ts:89 wrapped (27.411609ms)
+✔ 133 persistent: clock.ts:89 wrapped (56.943718ms)
+✔ 134 transient: clock.ts:135 save (29.783365ms)
+✔ 134 persistent: clock.ts:135 save (27.519341ms)
+✔ 135 transient: changes.ts:52 changeFeed (57.280934ms)
+✔ 135 persistent: changes.ts:52 changeFeed (81.834667ms)
+✔ 136 transient: changes.ts:61 changeFeed (82.634416ms)
+✔ 136 persistent: changes.ts:61 changeFeed (63.799507ms)
+✔ 137 transient: changes.ts:70 changeFeed (58.77943ms)
+✔ 137 persistent: changes.ts:70 changeFeed (78.578415ms)
+✔ 138 transient: changes.ts:74 changeFeed (94.418575ms)
+✔ 138 persistent: changes.ts:74 changeFeed (103.147102ms)
+✔ 139 transient: local-search.ts:14 searchReplyIdentity (42.699741ms)
+✔ 139 persistent: local-search.ts:14 searchReplyIdentity (32.360629ms)
+✔ 140 transient: local-search.ts:68 decode (36.657642ms)
+✔ 140 persistent: local-search.ts:68 decode (30.297246ms)
+✔ 141 transient: local-search.ts:77 decode (62.262682ms)
+✔ 141 persistent: local-search.ts:77 decode (37.348768ms)
+✔ 142 transient: local-search.ts:153 ordinarySearch (43.556355ms)
+✔ 142 persistent: local-search.ts:153 ordinarySearch (37.307517ms)
+✔ 143 transient: local-search.ts:187 ordinarySearch (39.680724ms)
+✔ 143 persistent: local-search.ts:187 ordinarySearch (28.352971ms)
+✔ 144 transient: local-search.ts:194 ordinarySearch (35.379415ms)
+✔ 144 persistent: local-search.ts:194 ordinarySearch (54.231701ms)
+✔ 145 transient: local-search.ts:204 ordinarySearch (35.799044ms)
+✔ 145 persistent: local-search.ts:204 ordinarySearch (27.515115ms)
+✔ 146 transient: local-search.ts:205 ordinarySearch (34.80928ms)
+✔ 146 persistent: local-search.ts:205 ordinarySearch (35.394278ms)
+✔ 147 transient: local-search.ts:218 ordinarySearch (34.812746ms)
+✔ 147 persistent: local-search.ts:218 ordinarySearch (35.590843ms)
+✔ 148 transient: local-query.ts:260 route (54.431801ms)
+✔ 148 persistent: local-query.ts:260 route (28.394313ms)
+✔ 149 transient: local-query.ts:265 route (27.498489ms)
+✔ 149 persistent: local-query.ts:265 route (27.600131ms)
+✔ 150 transient: local-query.ts:267 route (37.749188ms)
+✔ 150 persistent: local-query.ts:267 route (28.848945ms)
+✔ 151 transient: local-query.ts:271 route (36.540987ms)
+✔ 151 persistent: local-query.ts:271 route (59.645849ms)
+✔ 152 transient: local-query.ts:274 route (30.424676ms)
+✔ 152 persistent: local-query.ts:274 route (27.884028ms)
+✔ 153 transient: local-query.ts:275 route (35.826736ms)
+✔ 153 persistent: local-query.ts:275 route (28.241614ms)
+✔ 154 transient: http-response.ts:42 readResponse (29.47334ms)
+✔ 154 persistent: http-response.ts:42 readResponse (28.12564ms)
+✔ 155 transient: http-response.ts:42 readResponse (30.432108ms)
+✔ 155 persistent: http-response.ts:42 readResponse (59.938568ms)
+✔ 156 transient: local.ts:1092 flushOnce (27.443297ms)
+✔ 156 persistent: local.ts:1092 flushOnce (26.889046ms)
+✔ 157 transient: local-assets.ts:48 remove (28.443587ms)
+✔ 157 persistent: local-assets.ts:48 remove (42.278299ms)
+✔ durable-only dev adoption answers a held legacy poll with the new generation within 500 ms (453.728938ms)
+✔ online: durable-only change requests and answers retain the base wire bytes (2151.743854ms)
+✔ online: adoption replaces mounted ephemeral interests, including removal (1350.509071ms)
+✔ wasm: durable-only change requests and answers retain the base wire bytes (3605.263841ms)
+✔ wasm: adoption replaces mounted ephemeral interests, including removal (1968.128173ms)
+✔ a self-invalidating guard is sent twice and returns its second refusal (139.10988ms)
+✔ online: a durable mounted watch discovers ephemeral capability on adoption (990.944501ms)
+✔ wasm: a durable mounted watch discovers ephemeral capability on adoption (805.756074ms)
+✔ online capability discovery cannot swallow a generation invalidation for durable watches (22.43709ms)
+✔ schema retries retire a known obsolete durable answer before adoption completes (538.731298ms)
+✔ schema retries still deliver durable inserts during initial discovery (641.534753ms)
+✔ schema E_AUTH after revocation terminates discovery without retrying (874.500422ms)
+✔ schema E_AUTH from an obsolete bearer waits for rotation before retrying (674.362852ms)
+✔ adoption during initial capability discovery invalidates a durable watch (3147.336142ms)
+✔ initial capability discovery retries one schema 503 and restores watch interests (466.403394ms)
+✔ a poll generation fences stale schema facts until bounded retries catch up (91.767729ms)
+✖ initial backend installation rejects a query already in flight (50.478303ms)
+✔ ephemeral typing: five real-server trials beside a durable typing control (61992.403562ms)
+ℹ {"trial":1,"ephemeralFirstMs":37.726,"ephemeralGoneAfterLastMs":4010.6,"ephemeralRequests":2,"durableFirstMs":45.946,"durableGoneAfterLastMs":4045.942,"durableRequests":45}
+ℹ {"trial":2,"ephemeralFirstMs":8.698,"ephemeralGoneAfterLastMs":4017.437,"ephemeralRequests":2,"durableFirstMs":41.793,"durableGoneAfterLastMs":4007.267,"durableRequests":45}
+ℹ {"trial":3,"ephemeralFirstMs":10.382,"ephemeralGoneAfterLastMs":4015.434,"ephemeralRequests":2,"durableFirstMs":44.396,"durableGoneAfterLastMs":4099.902,"durableRequests":45}
+ℹ {"trial":4,"ephemeralFirstMs":9.359,"ephemeralGoneAfterLastMs":4020.562,"ephemeralRequests":2,"durableFirstMs":38.527,"durableGoneAfterLastMs":4008.421,"durableRequests":45}
+ℹ {"trial":5,"ephemeralFirstMs":8.576,"ephemeralGoneAfterLastMs":4018.363,"ephemeralRequests":2,"durableFirstMs":42.002,"durableGoneAfterLastMs":4121.373,"durableRequests":45}
+ℹ EPHEMERAL_ACCEPTANCE=[{"trial":1,"ephemeralFirstMs":37.726,"ephemeralGoneAfterLastMs":4010.6,"ephemeralRequests":2,"durableFirstMs":45.946,"durableGoneAfterLastMs":4045.942,"durableRequests":45},{"trial":2,"ephemeralFirstMs":8.698,"ephemeralGoneAfterLastMs":4017.437,"ephemeralRequests":2,"durableFirstMs":41.793,"durableGoneAfterLastMs":4007.267,"durableRequests":45},{"trial":3,"ephemeralFirstMs":10.382,"ephemeralGoneAfterLastMs":4015.434,"ephemeralRequests":2,"durableFirstMs":44.396,"durableGoneAfterLastMs":4099.902,"durableRequests":45},{"trial":4,"ephemeralFirstMs":9.359,"ephemeralGoneAfterLastMs":4020.562,"ephemeralRequests":2,"durableFirstMs":38.527,"durableGoneAfterLastMs":4008.421,"durableRequests":45},{"trial":5,"ephemeralFirstMs":8.576,"ephemeralGoneAfterLastMs":4018.363,"ephemeralRequests":2,"durableFirstMs":42.002,"durableGoneAfterLastMs":4121.373,"durableRequests":45}]
+✔ poll coverage uses the smallest watch answer, and stale revisions precede incarnation checks (1.249003ms)
+✔ online: stale epochs and delayed queries/polls cannot resurrect a retired incarnation (764.547864ms)
+✔ wasm: stale epochs and delayed queries/polls cannot resurrect a retired incarnation (1198.290049ms)
+✖ online: kept typing survives member commits and expires during a held re-read (4430.420644ms)
+ℹ burst: 42 default loading publications; 43 kept publications, all visible
+✖ wasm: kept typing survives member commits and expires during a held re-read (7096.323799ms)
+✖ process: kept typing survives member commits and expires during a held re-read (7164.445594ms)
+✔ online: lane order, renewal suppression, refusals, bound and offline waiting (128.623644ms)
+✔ wasm: lane order, renewal suppression, refusals, bound and offline waiting (1557.919759ms)
+✔ mock renews unchanged rows, expires per table, rolls back refusals, and never emits durable writes (21.128748ms)
+✔ mock supplied ids execute and emit once (online) (42.387201ms)
+✔ mock supplied ids execute and emit once (offline) (20.183661ms)
+✔ online: a real hidden prefix expires silently and incomplete polling reaches the visible row (1506.85734ms)
+✔ wasm: a real hidden prefix expires silently and incomplete polling reaches the visible row (1841.880494ms)
+✔ online: ephemeral bypasses writes, admission and journals (172.997243ms)
+✔ wasm: ephemeral bypasses writes, admission and journals (1544.797849ms)
+✔ app-online: ephemeral bypasses writes, admission and journals (162.635988ms)
+✔ app-wasm: ephemeral bypasses writes, admission and journals (1159.252754ms)
+✔ app-online: session storage waits stay inside the bounded lane (146.041889ms)
+✔ app-wasm: session storage waits stay inside the bounded lane (1156.132195ms)
+✔ one in-flight request, renews coalesces at the tail and set/set/stop stays stopped (22.314145ms)
+✔ coalesced replacement moves behind an intervening stop (2.199128ms)
+✔ window applies at call and dequeue using send time; stop closes it (1.085016ms)
+✔ nonrenewals never coalesce or suppress; waiting is bounded at 256 (25.286992ms)
+✔ offline fails waiting and new calls immediately, without replay (0.389293ms)
+✔ rate/capacity refusals preserve online; malformed transport goes offline (0.761031ms)
+✔ argument custody and closed request settle without waiting for fetch (0.224106ms)
+✔ generated ephemeral API and React preserve disjoint mutation outcomes (1832.428955ms)
+✖ online keep: 1.15 s replies publish on the incomplete 1 s cadence (active) (4391.512101ms)
+✖ online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering) (4358.474313ms)
+✔ online: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry (4427.784054ms)
+ℹ mutation reply 6.9 ms; publication after reply 0.7 ms; old elapsed 17.2 ms
+✔ online: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change (4364.590905ms)
+ℹ request cadence 1000.3 ms; delayed response gap 100.6 ms
+✔ wasm: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry (5842.59821ms)
+ℹ mutation reply 4.8 ms; publication after reply 2.9 ms; old elapsed 14.5 ms
+✔ wasm: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change (5375.283077ms)
+ℹ request cadence 999.8 ms; delayed response gap 98.0 ms
+✔ expired server replies: recover, keep=undefined (2278.549884ms)
+✔ expired server replies: recover, keep=false (1743.266719ms)
+✔ expired server replies: recover, keep=true (1750.331709ms)
+✔ expired server replies: close watch, keep=undefined (1375.173317ms)
+✔ expired server replies: close watch, keep=false (1370.983693ms)
+✔ expired server replies: close watch, keep=true (1390.303097ms)
+✔ expired server replies: close client, keep=undefined (1351.198648ms)
+✔ expired server replies: close client, keep=false (1345.070268ms)
+✔ expired server replies: close client, keep=true (1373.436705ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (636.437844ms)
+✔ expired warm server answer withdraws before retry, keep=false (250.094375ms)
+✔ expired warm server answer withdraws before retry, keep=true (249.881367ms)
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (459.776386ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (25.166501ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (19.238935ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (10.813473ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (10.227625ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (10.894283ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (66.797797ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (66.789365ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (59.057813ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (49.053094ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (49.598882ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (50.812882ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (39.110006ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (34.479663ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (24.254144ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (18.832946ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (14.165207ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (14.047661ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (67.816565ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (68.549564ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (62.423469ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (55.405698ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (49.250419ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (46.447317ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (21.424291ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (20.525233ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (11.048124ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (11.156517ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (8.834115ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (8.832232ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (56.827599ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (61.15043ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (46.897261ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (41.015493ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (43.9415ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (40.896354ms)
+✖ wasm keep=undefined: a full queue cannot postpone the change transition (659.387785ms)
+✖ wasm keep=false: a full queue cannot postpone the change transition (198.199473ms)
+✖ wasm keep=true: a full queue cannot postpone the change transition (189.297656ms)
+✖ process keep=undefined: a full queue cannot postpone the change transition (148.806099ms)
+✖ process keep=false: a full queue cannot postpone the change transition (236.616139ms)
+✖ process keep=true: a full queue cannot postpone the change transition (125.105966ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (189.420341ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (409.084505ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (176.904456ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (412.206124ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (186.266252ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (428.547624ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (224.878011ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (467.45702ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (224.261787ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (443.507293ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (156.370821ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (459.537505ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (609.883462ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (179.191995ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (175.184337ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (216.537555ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (214.476415ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (216.784175ms)
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (200.447432ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (233.006997ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (268.807902ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (28.025738ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (6.238534ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.603563ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (8.633103ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (527.105846ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (161.949724ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (169.395147ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (166.183361ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (203.628391ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (200.357437ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (191.597484ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (193.210602ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (187.645108ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (198.374423ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (130.946432ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (162.707961ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (184.779541ms)
+✔ wasm: unknown apply refresh drains after the watermark (591.264157ms)
+✔ process: unknown apply refresh drains after the watermark (218.38221ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (154.107667ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (158.163798ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (159.852981ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (158.137439ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (173.099451ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (164.013538ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (200.935814ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (195.113315ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (191.737884ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (137.025166ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (150.071986ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (148.041742ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (147.173911ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (161.12663ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (164.499557ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (201.3873ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (183.2908ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (190.511114ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (851.573194ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (1916.332757ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4170.007024ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790664709366,"lastStart":1790664711385,"wallIsReal":true,"link":"online"}
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (33452.701033ms)
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (4339.21508ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790664746970,"lastStart":1790664749141,"wallIsReal":true,"link":"online"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (560.123346ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (157.290247ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (153.665884ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (193.258354ms)
+✔ process keep=false: sign-out never replaces its denial with loading (194.34375ms)
+✔ process keep=true: sign-out never replaces its denial with loading (198.03845ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (25.695964ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (22.030269ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (23.347554ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (186.219259ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (201.441902ms)
+✔ apply: remembered dependencies with footprint [] (0.347942ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.141252ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.063174ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.07357ms)
+✔ apply: remembered dependencies with footprint undefined (0.052799ms)
+✔ admit: remembered dependencies with footprint [] (0.053771ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.055654ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.047972ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.043816ms)
+✔ admit: remembered dependencies with footprint undefined (0.031156ms)
+✔ settle: remembered dependencies with footprint [] (0.025989ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.029134ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.052208ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.029625ms)
+✔ settle: remembered dependencies with footprint undefined (0.031647ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.039499ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.026129ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.02682ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.022323ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.025068ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.296373ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.182994ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.183706ms)
+✔ queued observation still withdraws at row expiry (0.477186ms)
+✔ queued observation still withdraws at reset (0.249794ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (187.013971ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (218.751043ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (183.123518ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (178.008328ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (190.680748ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (224.783046ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (231.564683ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (221.098382ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (185.396576ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (189.03415ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (177.476872ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (203.019577ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (223.070379ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (214.19403ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (183.353933ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (153.659764ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (153.903329ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (608.833102ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (176.548279ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (167.554436ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (216.410122ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (236.065691ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (256.788129ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (203.936141ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (262.623167ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (12.319059ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (11.159812ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (11.074223ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (0.558928ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (19.163009ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.242734ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.91384ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.368381ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.297956ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (2.963713ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (358.683914ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1063.50316ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (711.410607ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (1.010866ms)
+✔ composed wasm: a retained field beside presence keeps refreshing (5597.174412ms)
+✔ composed process: a retained field beside presence keeps refreshing (5266.634163ms)
+✔ online: a live online mark follows the principal it reads (20188.468901ms)
+ℹ {"tier":"online","cameOnlineMs":4987,"wentAwayAfterCloseMs":8701}
+✔ native: a live online mark follows the principal it reads (20238.062282ms)
+ℹ {"tier":"native","cameOnlineMs":5012,"wentAwayAfterCloseMs":8703}
+✔ web: a live online mark follows the principal it reads (20598.364724ms)
+ℹ {"tier":"web","cameOnlineMs":5007,"wentAwayAfterCloseMs":8709}
+✔ wasm: a failed background refresh keeps the answer and the link (1243.889899ms)
+✔ wasm: an accepted loading is published, and recovery never brings back the answer it replaced (2071.898365ms)
+✔ wasm: an accepted refusal is published, and recovery never brings back the answer it replaced (2150.246874ms)
+✔ wasm: an overtaken background reply changes neither the answer, the interval, nor what recovery shows (3186.534162ms)
+✔ wasm: an accepted background reply does not replace a newer answer another read remembered (2081.078399ms)
+✔ wasm: an accepted background reply is what a later recovery shows (2123.100216ms)
+✔ wasm: an accepted background reply replaces an older read's answer that landed while it ran (2065.185246ms)
+✔ wasm: an older read's refusal that lands after an accepted background reply does not erase it (2058.341373ms)
+✔ wasm: a refusal read at a later store cut outranks an answer remembered before it landed (2069.175132ms)
+✔ wasm: a read retried after its store changed takes a new place in the order (2101.747583ms)
+✔ wasm: forgetting an expired answer leaves the next server answer free to be remembered (5163.730679ms)
+✔ wasm: a reply that names no store cut is ordered by when its read began (2065.278939ms)
+✔ wasm: an accepted background reply does not undo a newer read's deletion of an absent answer (2081.713256ms)
+✔ process: a failed background refresh keeps the answer and the link (803.204047ms)
+✔ process: an accepted loading is published, and recovery never brings back the answer it replaced (2098.236393ms)
+✔ process: an accepted refusal is published, and recovery never brings back the answer it replaced (2093.495663ms)
+✔ process: an overtaken background reply changes neither the answer, the interval, nor what recovery shows (3186.055746ms)
+✔ process: an accepted background reply does not replace a newer answer another read remembered (2110.415613ms)
+✔ process: an accepted background reply is what a later recovery shows (2097.773307ms)
+✔ process: an accepted background reply replaces an older read's answer that landed while it ran (2096.575919ms)
+✔ process: an older read's refusal that lands after an accepted background reply does not erase it (2097.23802ms)
+✔ process: a refusal read at a later store cut outranks an answer remembered before it landed (2109.550936ms)
+✔ process: a read retried after its store changed takes a new place in the order (2134.019347ms)
+✔ process: forgetting an expired answer leaves the next server answer free to be remembered (5183.942218ms)
+✔ process: a reply that names no store cut is ordered by when its read began (2121.119037ms)
+✔ process: an accepted background reply does not undo a newer read's deletion of an absent answer (2107.851414ms)
+✔ a presence answer re-runs in the background after its server's interval, never showing loading (321.070207ms)
+✔ unguarded background refresh reports a newly accepted delivery coordinate with changes held (507.957008ms)
+✔ an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops (2720.055716ms)
+✔ a refresh that fails keeps the interval, and a refused presence query keeps refreshing (912.198793ms)
+✔ an invalidation during a background refresh withdraws at once, and the late refresh is discarded (522.295642ms)
+✔ an interval a timer cannot hold is clamped, not wrapped to an immediate refresh (100.855362ms)
+✔ a background reply that a newer read overtook leaves the newer interval alone (664.942808ms)
+✔ an accepted loading answer is published, and a background failure keeps the answer and the link (910.733496ms)
+✔ a background reply older than a commit the client observed is not published (707.356754ms)
+✔ a read that settles after the credentials end arms no refresh timer (73.539539ms)
+✔ closing a raw local handle stops its episode timer but keeps the deadline (2.751425ms)
+✔ wasm: resubscribing a raw local handle starts a bounded episode (1575.967368ms)
+✔ wasm: resubscribing a raw local handle rearms its original episode (1188.436775ms)
+✔ process: resubscribing a raw local handle starts a bounded episode (1204.126284ms)
+✔ process: resubscribing a raw local handle rearms its original episode (1223.264956ms)
+✔ closed raw local handle checks its device deadline when closed before it is due (0.540951ms)
+✔ closed raw local handle checks its device deadline when closed after it is due (0.219869ms)
+✔ closed raw local handle checks its server deadline when closed before it is due (0.2667ms)
+✔ closed raw local handle checks its server deadline when closed after it is due (0.19364ms)
+✔ a closed remembered answer ignores a local wakeup but still checks its server deadline (0.28684ms)
+✔ raw snapshot latches its device row deadline before timers, keep=undefined (0.474471ms)
+✔ raw peek latches its device row deadline before timers, keep=undefined (0.242103ms)
+✔ raw snapshot latches its server row deadline before timers, keep=undefined (0.217806ms)
+✔ raw peek latches its server row deadline before timers, keep=undefined (0.250765ms)
+✔ raw snapshot latches its device row deadline before timers, keep=true (0.280992ms)
+✔ raw peek latches its device row deadline before timers, keep=true (0.208693ms)
+✔ raw snapshot latches its server row deadline before timers, keep=true (0.188152ms)
+✔ raw peek latches its server row deadline before timers, keep=true (0.160601ms)
+✔ a later cut wins; at one cut, or without one, the read that began later wins (1.14758ms)
+✔ a reply below a cut already named is older, through replies without one (0.205278ms)
+✔ forgetting an expired answer preserves its highest store cut (0.983825ms)
+✔ forget fences a pre-expiry reply at cut undefined, including later arrivals (0.176204ms)
+✔ forget fences a pre-expiry reply at cut 10, including later arrivals (0.094281ms)
+✔ forget fences a pre-expiry reply at cut 11, including later arrivals (0.063976ms)
+✔ forget fences absent keys too and a rejected answer still names its cut (0.105688ms)
+✔ selective clear fences an in-flight remembered answer at cut undefined (0.181342ms)
+✔ selective clear fences an in-flight remembered answer at cut 10 (0.094562ms)
+✔ selective clear fences an in-flight remembered answer at cut 11 (0.145559ms)
+✔ a composed read's refusal removes no answer a later read remembered (2.054641ms)
+✔ an earlier read's answer at a higher cut, landing while a composed read is out, is remembered (0.382673ms)
+✔ a composed read's refusal at a later cut removes an older answer a later read remembered (0.331086ms)
+✔ a composed answer takes its place in the order, so an older answer that lands later loses (0.743394ms)
+✔ a composed read's whole answer is not remembered (1.891976ms)
+✔ a refusal is ordered by the cut its evaluation read, not the head taken before it (0.272919ms)
+✔ a refetch after the credentials change takes a new place in the order (0.338958ms)
+✔ an expired device answer re-routed to the server takes a new place in the order (0.483645ms)
+✔ displayed expiry fences old bodies while preserving unexpired memory and its cuts (0.168282ms)
+✔ web device: +25h default-now prediction stays above the latest page across offline reload and server settlement (4178.763213ms)
+ℹ offset before reload 90000001 ms; after 90000001 ms; server settlement advanced 120442 ms
+✔ web held typing: deadline republishes locally and clock advance expires on the next query response without a deletion (2649.290971ms)
+ℹ held answer deadline lateness (ms): 1, 0, 1, 1, 1; within 16.7ms frame: true
+✔ web crash recovery restores admission time before issuing time after wall-clock rollback (1366.77564ms)
+✔ web crash after settlement keeps the admission floor after its outbox entry is retired (1261.3053ms)
+✔ live orphan time reaches the clock and next admission: first observation (1384.335857ms)
+✔ live orphan time reaches the clock and next admission: after attach (1007.61383ms)
+✔ deferred journal admission advances an idle client immediately after backend adoption (376.228226ms)
+✔ a returned admission timestamp raises the clock even without host notifications (1006.419008ms)
+✔ reload at a held orphan commit cannot replay a waiting journal before its floor (7.116118ms)
+✔ rejected save at a held orphan commit cannot replay a waiting journal before its floor (5.057112ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (38.018937ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (26.483734ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (14.817514ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.524114ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.687189ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.683675ms)
+✔ composition publishes at both deadlines, device first (2.527289ms)
+✔ composition publishes at both deadlines, server first (2.097174ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.604406ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.789604ms)
+✔ freshness is clamped at publication after wall time rolls back (1.498056ms)
+✔ useNow catches deadline between render and effect installation (32.985612ms)
+✔ useNow catches correction between render and effect installation (4.51565ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.680027ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.119488ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (4.385014ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.448321ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.57447ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (2.384315ms)
+✔ wire stamps successes and refusals on sync, changes, query, mutation and session endpoints (253.366824ms)
+✔ web: a legacy admission keeps its floor through upgrade, retirement and rollback (379.171077ms)
+(node:910610) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: a legacy admission keeps its floor through upgrade, retirement and rollback (44.666513ms)
+✔ web orphan recovery after attachment preserves its admission floor through settlement and rollback (6.039895ms)
+✔ a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries (231.628954ms)
+✔ native offline reopen restores legacy offset without issuedOffset or admissions and retains the session (1140.044465ms)
+✔ a real held heartbeat poll learns clock advance from its final body (25172.178725ms)
+✔ native JSON bridge shares device time and restores offline (+25h) (1223.353083ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses) (4222.127716ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last) (4215.342844ms)
+✔ receipt-driven reads share an unchanged durable clock and retry failed saves (17.499925ms)
+✔ clock chooses the minimum RTT in a recent bounded window, then forgets old samples (0.28012ms)
+✔ advance switches windows immediately; late pre-advance replies cannot rewind it (0.125468ms)
+✔ restart rejects every already-issued other-epoch response, including on a fork (19.384531ms)
+✔ streaming advances are provisional receipt stamps with no half-wait overshoot (0.346019ms)
+✔ now stays integer and monotonic when the offset shrinks or wall time rolls back (0.124577ms)
+✔ an offline cold start restores the estimate and admission floor beside device identity (0.269404ms)
+✔ a fork owns its own persistence and a new live sample wins over stored offset (0.191327ms)
+✔ malformed metadata and invalid samples cannot poison device time (0.178247ms)
+✔ recovered issued time wakes deadlines without changing the estimate or accepting invalid floors (0.679259ms)
+✔ stream final-body clock stamp supersedes pre-advance response headers (0.950154ms)
+✔ wall-clock rollback discards the old window and does not spin frozen deadlines (0.138798ms)
+✔ detaching drains its final save and never queues later response samples on a closed device (0.169975ms)
+✔ retained asset homes and expiry use the same estimated time as device reads (2.907188ms)
+✔ a 20s response cannot latch a midpoint error (stream arrives first) (0.226429ms)
+✔ a 20s response cannot latch a midpoint error (slow arrives first) (0.111828ms)
+✔ a lone slow receipt stamp advances both clocks across a fork and offline restart (0.185468ms)
+✔ the durable admission floor survives retirement of every queued entry (0.143985ms)
+✔ a short confirmation corrects a legacy round-two issued offset and notifies watches (0.154722ms)
+✔ 1000ms response obeys the short-RTT boundary before and after refinement (0.114492ms)
+✔ 1001ms response obeys the short-RTT boundary before and after refinement (0.043355ms)
+✔ 2000ms response obeys the short-RTT boundary before and after refinement (0.034081ms)
+✔ real changeFeed learns an advance from three buffered two-second polls (1.822322ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset 0) (0.150265ms)
+✔ a non-admission last cannot pin a negative startup correction (issuedOffset -2678400000) (0.064207ms)
+✔ an offline legacy offset without issuedOffset preserves a valid thirty-day session (0.115173ms)
+✔ a non-admission last above wall time cannot pin an offline issued offset (0.107251ms)
+✔ newest equal-RTT measured sample wins even when the issued floor masks its correction (0.105478ms)
+✔ newest equal-RTT streaming sample wins even when the issued floor masks its correction (0.044586ms)
+ℹ tests 748
+ℹ suites 0
+ℹ pass 735
+ℹ fail 13
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259973.119173
+
+✖ failing tests:
+
+test at packages/snapback4/test/ephemeral-capability.test.mjs:224:1
+✖ initial backend installation rejects a query already in flight (50.478303ms)
+  AssertionError [ERR_ASSERTION]: the answer from before installation must never publish
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-capability.test.mjs:247:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ online: kept typing survives member commits and expires during a held re-read (4430.420644ms)
+  AssertionError [ERR_ASSERTION]: the held bodies contain the live peer and its original server deadline
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:143:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ wasm: kept typing survives member commits and expires during a held re-read (7096.323799ms)
+  AssertionError [ERR_ASSERTION]: timed out: all typing replies held before expiry
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:127:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ process: kept typing survives member commits and expires during a held re-read (7164.445594ms)
+  AssertionError [ERR_ASSERTION]: timed out: all typing replies held before expiry
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:127:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-watches.test.mjs:18:40
+✖ online keep: 1.15 s replies publish on the incomplete 1 s cadence (active) (4391.512101ms)
+  AssertionError [ERR_ASSERTION]: periodic refresh must not discard successful slow replies
+  + actual - expected
+
+  + []
+  - [
+  -   {
+  -     principal: 'dev:alice'
+  -   }
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-watches.test.mjs:47:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { principal: 'dev:alice' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-watches.test.mjs:18:40
+✖ online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering) (4358.474313ms)
+  AssertionError [ERR_ASSERTION]: periodic refresh must not discard successful slow replies
+  + actual - expected
+
+  + []
+  - [
+  -   {
+  -     principal: 'dev:alice'
+  -   }
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/ephemeral-watches.test.mjs:47:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { principal: 'dev:alice' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ wasm keep=undefined: a full queue cannot postpone the change transition (659.387785ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  3 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ wasm keep=false: a full queue cannot postpone the change transition (198.199473ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  3 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ wasm keep=true: a full queue cannot postpone the change transition (189.297656ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  3 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ process keep=undefined: a full queue cannot postpone the change transition (148.806099ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ process keep=false: a full queue cannot postpone the change transition (236.616139ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  3 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-boundaries.test.mjs:46:3
+✖ process keep=true: a full queue cannot postpone the change transition (125.105966ms)
+  AssertionError [ERR_ASSERTION]: no slot has opened for the replacement
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:80:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (33452.701033ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-react.test.mjs:160:14) {
+    name: 'TimeoutError'
+  }

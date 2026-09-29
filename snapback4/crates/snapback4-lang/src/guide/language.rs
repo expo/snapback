@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-Quarry defines tables, rules and backend operations; eligible programs run on devices too.
+Quarry defines backend data and operations.
 `snapback4 guide from-sql` translates SQL and Convex idioms.
 
 ```quarry
@@ -34,7 +34,7 @@ mutation addNote(body: text):
 
 ## Details
 
-Repeated predicates and qualified helpers use the same reads and helpers:
+Repeated predicates and qualified helpers:
 
 ```quarry
 query familiarHelpers(kind: enum('open', 'closed')):

@@ -1,0 +1,5 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+src/local-query.ts(204,189): error TS2379: Argument of type '{ retain?: false; publishResult: false; revalidate: boolean | undefined; }' is not assignable to parameter of type '{ retain?: boolean; revalidate?: boolean; publishResult?: boolean; accept?: (result: { read: Read<R>; result: Result<R>; origin: "server" | "local" | "remembered" | "composed"; }) => boolean; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'revalidate' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.

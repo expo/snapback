@@ -1,0 +1,90 @@
+TAP version 13
+# Subtest: reference rejects transient empty member answers and sign-out loading
+ok 1 - reference rejects transient empty member answers and sign-out loading
+  ---
+  duration_ms: 1.003424
+  type: 'test'
+  ...
+# seed process 1 526.109589
+# cut 2 589.91959
+# before sync 2 590.478357
+# after sync 2 592.751655
+# replacement handled 2 602.291604
+# direct handled 2 602.343091
+# settled 2 4580.282238
+# cut 3 4580.583249
+# before sync 3 4581.310359
+# after sync 3 4588.105193
+# replacement handled 3 4588.234918
+# direct handled 3 4589.127625
+# settled 3 4589.274005
+# cut 4 4589.414766
+# before sync 4 4590.142967
+# after sync 4 4593.392658
+# replacement handled 4 4604.160327
+# direct handled 4 4604.257653
+# settled 4 4614.652293
+# cut 5 4614.773174
+# before sync 5 4615.572712
+# after sync 5 4619.261551
+# replacement handled 5 4619.335702
+# direct handled 5 4619.403434
+# settled 5 4629.96245
+# main membership done 4630.105194
+# mixed done 4673.215309
+# main closed 5579.420076
+# generation done 5656.312094
+# notification done 5761.781235
+# {"host":"process","seeds":1,"failedSeeds":0,"failures":[]}
+# Subtest: mixed evidence schedule process: 1 independent histories
+ok 2 - mixed evidence schedule process: 1 independent histories
+  ---
+  duration_ms: 6658.953775
+  type: 'test'
+  ...
+# seed wasm 1 7182.880382
+# cut 2 7608.893854
+# before sync 2 7609.258481
+# after sync 2 7611.399049
+# replacement handled 2 7621.856693
+# direct handled 2 7621.899958
+# settled 2 11595.29134
+# cut 3 11595.418661
+# before sync 3 11595.633092
+# after sync 3 11598.189544
+# replacement handled 3 11598.22668
+# direct handled 3 11598.562794
+# settled 3 11598.597816
+# cut 4 11598.639048
+# before sync 4 11598.848982
+# after sync 4 11600.333838
+# replacement handled 4 11610.64976
+# direct handled 4 11610.684883
+# settled 4 11620.860784
+# cut 5 11620.941786
+# before sync 5 11621.206913
+# after sync 5 11622.735624
+# replacement handled 5 11622.762234
+# direct handled 5 11622.777016
+# settled 5 11632.084607
+# main membership done 11632.140831
+# mixed done 11647.338209
+# main closed 12593.165495
+# generation done 12643.543693
+# notification done 12707.367654
+# {"host":"wasm","seeds":1,"failedSeeds":0,"failures":[]}
+# Subtest: mixed evidence schedule wasm: 1 independent histories
+ok 3 - mixed evidence schedule wasm: 1 independent histories
+  ---
+  duration_ms: 6955.335281
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13736.392668

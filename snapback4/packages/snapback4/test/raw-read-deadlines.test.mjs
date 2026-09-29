@@ -1,7 +1,14 @@
 // @ref LLP 3000.023#3.4 — row deadlines stay exact, including without timer delivery.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ReadObservation } from "../dist/read-observation.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { ReadObservation, answerObservation } from "../dist/read-observation.js";
+import { createLocalClient } from "../dist/local.js";
+import { webDevice, memoryPersistence } from "../dist/web.js";
+import { processDevice } from "../dist/native.js";
+import { episodeDeadline } from "../dist/read-episode.js";
+import { server, binary, until } from "./helpers/app-server.mjs";
 import { armReadExpiry, correctReadExpiries } from "../dist/read-expiry.js";
 import { ServerClock } from "../dist/clock.js";
 import { bindWatchPeek, observeWatch, observationKey, peekObservation } from "../dist/observe-watch.js";
@@ -45,18 +52,71 @@ test("closing a raw local handle stops its episode timer but keeps the deadline"
   f.wall(1000); assert.equal(f.handle.getSnapshot(), loading, "expiry remains latched across rollback");
 });
 
-test("resubscribing a raw local handle rearms its original episode deadline", t => {
-  const f = fixture(t);
-  f.owner.reload(true); f.handle.close();
-  f.wall(1500);
-  let notifications = 0;
-  f.handle.subscribe(() => notifications++);
-  // Local rerun reloads when the subscription starts again.
-  f.owner.reload();
-  t.mock.timers.tick(499); f.wall(2000); t.mock.timers.tick(1);
-  assert.deepEqual(f.owner.snapshot, { loading: true }, "the restarted timer withdraws without an accessor");
-  assert.equal(notifications, 1, "resubscription does not renew the original deadline");
-});
+// Exercise the production subscription callback, without manually reloading its owner.
+for (const tier of ["wasm", "process"]) for (const continuing of [false, true]) {
+  test(`${tier}: resubscribing a raw local handle ${continuing ? "rearms its original" : "starts a bounded"} episode`, async t => {
+    const { url, dir } = await server(t, "", `use personas alice, bob
+table rows:
+  owner: principal
+  value: int
+  read <- .owner = viewer
+  update <- allow
+  sync to .owner
+query read():
+  return rows['r']
+mutation transfer():
+  update rows['r'] { owner: 'dev:bob' }
+mutation edit():
+  update rows['r'] { value: 8 }
+`);
+    await fetch(url + "/seed", { method: "POST", body: JSON.stringify([
+      { table: "rows", row: { id: "r", owner: "dev:alice", value: 7 } },
+    ]) });
+    const base = tier === "process" ? processDevice({ binary, dir: join(dir, "device") })
+      : webDevice({ wasm: readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url)), persist: memoryPersistence() });
+    const gate = Promise.withResolvers(); let hold = false, starts = 0;
+    const client = await createLocalClient({ url, persona: "alice", device: { async open(...args) {
+      const core = await base.open(...args);
+      return { ...core, async call(request, commit) {
+        const result = await core.call(request, commit);
+        if (hold && request.op === "query") { starts++; await gate.promise; }
+        return result;
+      } };
+    } }, fetch: (input, init) => {
+      if (new URL(input).pathname !== "/changes") return fetch(input, init);
+      return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
+    } });
+    t.after(async () => { gate.resolve(); await client.close(); }); await client.sync();
+    const handle = client.observe(q, {}); handle.subscribe(() => {}); t.after(() => handle.close());
+    await until(() => handle.getSnapshot().data?.value === 7 && !handle.getSnapshot().revalidating);
+    const owner = answerObservation(handle.getSnapshot());
+    const mutate = async name => assert.equal((await fetch(url + "/m/" + name, { method: "POST",
+      headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ id: crypto.randomUUID(), args: {} }),
+    }).then(r => r.json())).state, "sent");
+    let originalDeadline;
+    if (continuing) {
+      hold = true; await mutate("edit"); await client.sync(); await until(() => starts > 0);
+      originalDeadline = episodeDeadline(handle.getSnapshot());
+      assert.ok(Number.isFinite(originalDeadline));
+    }
+    handle.close(); hold = false;
+    await mutate("transfer"); await client.sync();
+    assert.equal((await client.query(q, {})).data, null, "the replica has applied the ownership change");
+    const before = starts, seen = []; hold = true;
+    handle.subscribe(() => seen.push(owner.snapshot));
+    await until(() => starts > before);
+    assert.equal(handle.getSnapshot().data?.value, 7);
+    assert.equal(handle.getSnapshot().revalidating, true, "subscription takes the production policy transition");
+    const deadline = episodeDeadline(handle.getSnapshot());
+    assert.ok(Number.isFinite(deadline), "the replacement attempt arms its episode");
+    if (continuing) assert.equal(deadline, originalDeadline, "resubscription never renews an existing episode");
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, deadline - Date.now()) + 20));
+    assert.deepEqual(owner.snapshot, { loading: true }, "the real timer withdraws without a snapshot accessor");
+    assert.ok(seen.some(read => read.loading), "withdrawal notifies the resubscribed handle");
+    hold = false; gate.resolve();
+    await until(() => handle.getSnapshot().data === null && !handle.getSnapshot().revalidating);
+  });
+}
 
 for (const domain of ["device", "server"]) for (const when of ["before", "after"]) {
   test(`closed raw local handle checks its ${domain} deadline when closed ${when} it is due`, t => {

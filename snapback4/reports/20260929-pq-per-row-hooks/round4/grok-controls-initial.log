@@ -1,0 +1,29 @@
+local-sweep-reloads 1
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (81.438632ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (604.545115ms)
+ℹ tests 6
+ℹ pass 4
+ℹ fail 2
+✖ failing tests:
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (81.438632ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (604.545115ms)
+online-sweep-reloads 1
+✖ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (39.793373ms)
+✖ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.871196ms)
+✖ online keep=true: held-only expiry preserves the newer raw answer beyond one second (23.435402ms)
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+✖ failing tests:
+✖ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (39.793373ms)
+✖ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.871196ms)
+✖ online keep=true: held-only expiry preserves the newer raw answer beyond one second (23.435402ms)
+sign-out-reloads 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-pq/snapback4/reports/20260929-pq-per-row-hooks/round4/controls.py", line 38, in <module>
+    assert run.returncode == 1 and re.search(r'ℹ fail [1-9]', output), name + ' survived or failed outside tests'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: sign-out-reloads survived or failed outside tests

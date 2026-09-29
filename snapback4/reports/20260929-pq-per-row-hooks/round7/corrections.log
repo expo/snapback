@@ -1,0 +1,98 @@
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11705.414117ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (11659.41094ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (11779.203293ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (27072.483142ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (26398.786379ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (26434.195941ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (25922.691926ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (25792.899542ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (25584.094852ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 23, 50ms authority (10829.956531ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 1
+✔ createApp keep=true property: online, seed 44, 50ms authority (11334.787342ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 445, 50ms authority (11148.074653ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 1
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (26648.265069ms)
+ℹ inside-episode data notifications: 64; deadline withdrawals: 2
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (26347.102037ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (26204.476195ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 23, 50ms authority (25616.068567ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 44, 50ms authority (25531.739501ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 445, 50ms authority (25281.30546ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (578.572363ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (172.200029ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (159.066444ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (192.537231ms)
+✔ process keep=false: sign-out never replaces its denial with loading (176.438782ms)
+✔ process keep=true: sign-out never replaces its denial with loading (190.348841ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (23.396848ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.932093ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.57076ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (175.026635ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (210.8445ms)
+✔ apply: remembered dependencies with footprint [] (0.649444ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.351507ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.155713ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.146179ms)
+✔ apply: remembered dependencies with footprint undefined (0.123655ms)
+✔ admit: remembered dependencies with footprint [] (0.092038ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.111037ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.122724ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.082974ms)
+✔ admit: remembered dependencies with footprint undefined (0.055543ms)
+✔ settle: remembered dependencies with footprint [] (0.078718ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.064126ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.109925ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.069765ms)
+✔ settle: remembered dependencies with footprint undefined (0.069775ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.09342ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.054672ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.050796ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.050936ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.05391ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (2.857443ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.44682ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.644667ms)
+✔ queued observation still withdraws at row expiry (1.079839ms)
+✔ queued observation still withdraws at reset (0.522483ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (182.855319ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (205.818787ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (197.638137ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (188.715873ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (189.20758ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (213.511528ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (215.771005ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (222.915783ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (183.507587ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (187.27255ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (181.39451ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (228.472152ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (218.02279ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (220.31107ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (1.1007ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.531446ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.466409ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.556854ms)
+ℹ tests 72
+ℹ suites 0
+ℹ pass 72
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 381436.048157

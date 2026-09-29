@@ -24,6 +24,8 @@ for (const keep of [undefined, true]) for (const operation of ['apply', 'admit',
     t.after(() => owner.retire()); owner.publish(ready('A'));
     new LocalReads().committed([owner], operation);
     assert.equal(owner.snapshot.data, 'A', 'commit does not flash loading');
+    assert.equal(episodeDeadline(owner.snapshot), undefined, 'commit queues the bound');
+    owner.reload(); // The replacement attempt starts.
     assert.equal(episodeDeadline(owner.snapshot), 2000);
     if (failure === 'throw') await assert.rejects(owner.fetch(async () => { throw Error('device read failed'); }, () => {}));
     else now = 2000;

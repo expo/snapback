@@ -1,0 +1,12 @@
+{
+  "llp/3000.009-general-purpose-backend.rfc.md": "ebf39f3ffbfb1d7507216475435f2980c4eccb94448fafc996a1b07c248485eb",
+  "snapback4/crates/snapback4-lang/src/diag.rs": "0d396e796f568a9d77087cde3df1445b9c640654080b2d5d84600c16e02d4eef",
+  "snapback4/crates/snapback4-lang/src/guide/codes.rs": "f4b8cd0051d115ec7b6edd837a6fb9976cc002d0fddddd5f3def914639c00d58",
+  "snapback4/crates/snapback4-lang/src/guide/effects.rs": "4fcf67a7f9f818531ce26e2c2fb66f436f9c943340bafb37cafafc9881d6d3a2",
+  "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "670f71cd8fc953515e7ba668063ba94a84347a95be4affda30011683df87a6aa",
+  "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": "6dd86b862f149f2d010c5e0f96f670b02a2a0d2f43d98507898d598cb1f04eee",
+  "snapback4/crates/snapback4/src/auth.rs": "805212ef78a5f8fca95272a01e660696e631b4846c608daf4b29d146861d3143",
+  "snapback4/crates/snapback4/src/worker_declarations.rs": "35e45401581e5b5f903542b11c4eb76c242899929833aec75348ad2e784f063a",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "3331c2a5c43290343e75fdcb71915d1698e0069f1e23514a5c21fd66a1b35922",
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "e14829dc6b0e99c53a0c2a165d0d0ae24f2d07e004d7cb3a123f6e5dd98abf03"
+}

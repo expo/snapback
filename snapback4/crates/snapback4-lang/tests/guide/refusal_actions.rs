@@ -59,6 +59,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_ASSET_UNKNOWN", &["For an unknown asset on download, use the intended viewer's live session; a placed asset also needs a live, readable home row", "Missing and hidden stay indistinguishable", "On placement, use your own upload and the id it returned", "a readable home row does not grant upload ownership"]),
     ("E_ASSET_VIEWED", &["a consumed view cannot be retried by that principal"]),
     ("E_AUTH", &["Renew or sign in again for an expired session", "check that the token belongs to the backend the URL actually reaches", "`serve` never accepts that persona header"]),
+    ("E_WORKER_REFRESH", &["Keep using the injected token", "the refusal leaves it live", "Manually minted service seats can still refresh"]),
     ("E_BOUND", &["Read a smaller page, narrow its predicate, or move the sweep into a job", "never the count: it would measure rows the viewer may not read"]),
     ("E_CLIENT", &["repair the client adapter to return the declared outcome", "collect with the original intent ID before starting another write"]),
     ("E_CLOCK_DEV_ONLY", &["`serve` refuses clock flags and the control endpoint", "dev-only loopback `POST /dev/clock/advance`"]),

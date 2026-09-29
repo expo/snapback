@@ -1,0 +1,30 @@
+[
+  {
+    "log": "guide-consumers-0.log.gz",
+    "targets": 5,
+    "passed": 169,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "log": "guide-consumers-1.log.gz",
+    "targets": 1,
+    "passed": 253,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "log": "guide-consumers-2.log.gz",
+    "targets": 19,
+    "passed": 366,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "log": "guide-consumers-3.log.gz",
+    "targets": 3,
+    "passed": 524,
+    "failed": 0,
+    "ignored": 1
+  }
+]

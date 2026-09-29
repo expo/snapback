@@ -1,0 +1,17 @@
+final-change-version 1
+✖ wasm keep=undefined: the final callback checks a change version raised after evaluation (594.2007ms)
+✖ wasm keep=false: the final callback checks a change version raised after evaluation (168.428359ms)
+✖ wasm keep=true: the final callback checks a change version raised after evaluation (176.956493ms)
+✖ process keep=undefined: the final callback checks a change version raised after evaluation (208.409695ms)
+✖ process keep=false: the final callback checks a change version raised after evaluation (199.964966ms)
+✖ process keep=true: the final callback checks a change version raised after evaluation (209.66713ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: the final callback checks a change version raised after evaluation (594.2007ms)
+✖ wasm keep=false: the final callback checks a change version raised after evaluation (168.428359ms)
+✖ wasm keep=true: the final callback checks a change version raised after evaluation (176.956493ms)
+✖ process keep=undefined: the final callback checks a change version raised after evaluation (208.409695ms)
+✖ process keep=false: the final callback checks a change version raised after evaluation (199.964966ms)
+✖ process keep=true: the final callback checks a change version raised after evaluation (209.66713ms)

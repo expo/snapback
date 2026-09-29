@@ -1,0 +1,34 @@
+✔ expired server replies: recover, keep=undefined (2180.087112ms)
+✔ expired server replies: recover, keep=false (1648.034853ms)
+✔ expired server replies: recover, keep=true (1659.070561ms)
+✔ expired server replies: close watch, keep=undefined (1286.398713ms)
+✔ expired server replies: close watch, keep=false (1266.33903ms)
+✔ expired server replies: close watch, keep=true (1284.021159ms)
+✔ expired server replies: close client, keep=undefined (1264.647324ms)
+✔ expired server replies: close client, keep=false (1269.146226ms)
+✔ expired server replies: close client, keep=true (1268.20845ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (285.174025ms)
+✔ expired warm server answer withdraws before retry, keep=false (294.929766ms)
+✔ expired warm server answer withdraws before retry, keep=true (245.107998ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (28.106042ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.89131ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.659414ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (8.355563ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (451.481308ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (61.870254ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (61.43405ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (50.728266ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (102.97032ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (101.193097ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (98.608013ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (99.170375ms)
+✔ wasm: acquired unknown apply footprint withdraws and refreshes every owner (82.186742ms)
+✔ process: acquired unknown apply footprint withdraws and refreshes every owner (121.323615ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14138.735865

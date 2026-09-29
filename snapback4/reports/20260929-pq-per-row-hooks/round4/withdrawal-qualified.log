@@ -1,0 +1,143 @@
+✔ wasm: apply revocation, keep=undefined, held (507.691056ms)
+✔ wasm: admit revocation, keep=undefined, held (94.876648ms)
+✔ wasm: transfer revocation, keep=undefined, held (1092.839769ms)
+✔ wasm: remount revocation, keep=undefined, held (95.587563ms)
+✔ wasm: apply revocation, keep=undefined, throw (1130.450647ms)
+✔ wasm: admit revocation, keep=undefined, throw (68.730836ms)
+✔ wasm: transfer revocation, keep=undefined, throw (91.397402ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (1080.147013ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (132.231441ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (89.092086ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (234.293279ms)
+✖ wasm: admit revocation, keep=undefined, retryExhausted (82.428718ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (242.791248ms)
+✔ wasm: apply revocation, keep=false, held (80.86181ms)
+✔ wasm: admit revocation, keep=false, held (88.583856ms)
+✔ wasm: transfer revocation, keep=false, held (1090.73314ms)
+✔ wasm: remount revocation, keep=false, held (1093.010774ms)
+✔ process: apply revocation, keep=undefined, held (1134.378262ms)
+✔ process: admit revocation, keep=undefined, held (1132.801348ms)
+✔ process: transfer revocation, keep=undefined, held (1125.394165ms)
+✔ process: remount revocation, keep=undefined, held (1137.965258ms)
+✔ process: apply revocation, keep=undefined, throw (1168.370494ms)
+✔ process: admit revocation, keep=undefined, throw (118.529793ms)
+✔ process: transfer revocation, keep=undefined, throw (1217.927049ms)
+✔ process: apply revocation, keep=undefined, unavailable (2205.900341ms)
+✔ process: admit revocation, keep=undefined, unavailable (2069.495554ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1169.742278ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1350.514511ms)
+✖ process: admit revocation, keep=undefined, retryExhausted (1132.151871ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (7737.121371ms)
+✔ process: apply revocation, keep=false, held (2522.442398ms)
+✔ process: admit revocation, keep=false, held (1120.747964ms)
+✔ process: transfer revocation, keep=false, held (1117.16309ms)
+✔ process: remount revocation, keep=false, held (1128.671131ms)
+✔ online: revoked data, keep=undefined, held (67.905859ms)
+✔ online: revoked data, keep=undefined, retryExhausted (238.22419ms)
+✔ online: revoked data, keep=undefined, unavailable (65.141806ms)
+✔ online: revoked data, keep=undefined, throw (65.663427ms)
+✔ online: revoked data, keep=false, held (65.47806ms)
+✔ online: revoked data, keep=false, retryExhausted (64.034055ms)
+✔ online: revoked data, keep=false, unavailable (51.878855ms)
+✔ online: revoked data, keep=false, throw (58.312298ms)
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (430.230915ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (23.728739ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (17.126913ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (10.74049ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (10.304346ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (11.569983ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (57.741853ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (54.261777ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (45.929357ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (44.055227ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (45.319393ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (47.356597ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (37.179261ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (30.051857ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (25.935957ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (19.255994ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (14.358714ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (13.70264ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (64.203279ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (61.822009ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (57.048073ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (54.412062ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (46.814324ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (46.06508ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (37.515735ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (29.218588ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (16.439913ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (13.969129ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (12.782621ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (12.932035ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (65.330008ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (81.35597ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (43.680556ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (43.75647ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (44.895598ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (48.631417ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (906.864396ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (1931.427549ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4153.672444ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661383481,"lastStart":1790661385508,"wallIsReal":true}
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5491.42337ms)
+ℹ {"tier":"worker","loading":1000,"calls":2005,"revalidated":1000,"firstStart":1790661388699,"lastStart":1790661390907,"wallIsReal":true}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (7683.183195ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661396167,"lastStart":1790661398492,"wallIsReal":true}
+ℹ tests 83
+ℹ suites 0
+ℹ pass 80
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37617.835916
+
+✖ failing tests:
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ wasm: admit revocation, keep=undefined, retryExhausted (82.428718ms)
+  AssertionError [ERR_ASSERTION]: the bound starts with the attempt, after queue wait
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:165:16)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ process: admit revocation, keep=undefined, retryExhausted (1132.151871ms)
+  AssertionError [ERR_ASSERTION]: the bound starts with the attempt, after queue wait
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:165:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5491.42337ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  1000 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1000,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

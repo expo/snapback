@@ -1,0 +1,46 @@
+✖ request abort listeners are removed after success (1.345657ms)
+✖ request abort listeners are removed after rejection (0.461412ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82.46459
+
+✖ failing tests:
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-work.test.mjs:14:49
+✖ request abort listeners are removed after success (1.345657ms)
+  AssertionError [ERR_ASSERTION]: attempt listener removed
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-work.test.mjs:30:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-work.test.mjs:14:49
+✖ request abort listeners are removed after rejection (0.461412ms)
+  AssertionError [ERR_ASSERTION]: attempt listener removed
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-work.test.mjs:30:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -25,6 +25,8 @@ fn shipped_files() -> BTreeSet<String> {
 const APP_FILES: &[&str] = &[
     "snapback/schema.q", "snapback/social.q", "snapback/jobs.q", "snapback/*.q",
     "snapback/server.ts", "snapback/worker.ts", "snapback/worker.mts",
+    "snapback/workers/<service>.mjs", "snapback/workers/push.mjs",
+    "snapback/workers/notifications.mjs", "/durable/path/effects.sqlite",
     "snapback/generated/api.ts", "snapback/generated/server.ts",
     "snapback/generated/native.rs", "snapback/generated/native.wasm",
     "snapback/generated/package.json", "snapback/generated/residency.json",

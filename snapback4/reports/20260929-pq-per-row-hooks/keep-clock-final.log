@@ -1,0 +1,153 @@
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (836.265612ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (101.011525ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (372.984662ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (124.756279ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (329.448319ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (90.205271ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (342.387389ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (97.092983ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (369.701522ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (117.158683ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (372.483361ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (122.193378ms)
+✖ wasm keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (108.869691ms)
+✖ process keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (144.580457ms)
+✖ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (109.963881ms)
+✖ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (106.136786ms)
+✖ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (143.68795ms)
+✖ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (142.631096ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (59.290652ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (85.805898ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (113.54648ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (54.196769ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (76.227504ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (140.692681ms)
+✔ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (98.430687ms)
+✔ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (140.690207ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (54.284681ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (92.472809ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (134.002575ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (59.206837ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (83.755195ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (122.484414ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (active) (86.022753ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (79.452798ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (active) (125.318882ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (lingering) (117.172775ms)
+✔ wasm keep: a direct replacement installs its newer deadline before the former one expires (56.890386ms)
+✔ process keep: a direct replacement installs its newer deadline before the former one expires (96.753163ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.78096ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.215553ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.537075ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 35
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6056.753478
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (108.869691ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (144.580457ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (109.963881ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (106.136786ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (143.68795ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (142.631096ms)
+  AssertionError [ERR_ASSERTION]: older response metadata cannot shorten the current deadline
+
+  undefined !== 'B'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:199:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

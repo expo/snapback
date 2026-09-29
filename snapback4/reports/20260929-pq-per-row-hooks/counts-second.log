@@ -1,0 +1,58 @@
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (14.360596ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.173919ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.262032ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (386.202233ms)
+✖ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (216.114588ms)
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1239.413773ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1952.122175
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-work.test.mjs:80:41
+✖ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (216.114588ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:16416:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async cachedWasm (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/web-wasm.js:28:29)
+      at async Object.open (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/web.js:43:13)
+      at async Object.open (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:93:18)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:139:18)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:92:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    [cause]: Error: not implemented... yet...
+        at makeNetworkError (node:internal/deps/undici/undici:10705:35)
+        at schemeFetch (node:internal/deps/undici/undici:12251:34)
+        at mainFetch (node:internal/deps/undici/undici:12099:30)
+        at fetching (node:internal/deps/undici/undici:12068:7)
+        at fetch (node:internal/deps/undici/undici:11934:20)
+        at fetch (node:internal/deps/undici/undici:16414:10)
+        at fetch (node:internal/bootstrap/web/exposed-window-or-worker:83:12)
+        at cachedWasm (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/web-wasm.js:28:35)
+        at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        at async Object.open (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/web.js:43:13)
+  }
+
+test at packages/snapback4/test/per-row-work.test.mjs:80:41
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1239.413773ms)
+  AssertionError [ERR_ASSERTION]: one reevaluation per distinct table-dependent observation
+
+  1032 !== 1000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:117:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1032,
+    expected: 1000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

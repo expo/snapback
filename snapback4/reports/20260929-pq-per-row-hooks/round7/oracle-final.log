@@ -1,0 +1,16 @@
+✔ reference rejects transient empty member answers and sign-out loading (0.960239ms)
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (81210.118955ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 81216.739398
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:1:1
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (81210.118955ms)
+  'test failed'

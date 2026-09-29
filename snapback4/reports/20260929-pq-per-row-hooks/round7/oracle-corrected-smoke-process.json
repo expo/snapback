@@ -1,0 +1,500 @@
+[
+  {
+    "host": "process",
+    "seed": 1,
+    "failures": []
+  },
+  {
+    "host": "process",
+    "seed": 2,
+    "failures": [
+      "Error: injected replacement failure"
+    ],
+    "trace": [
+      [
+        "fixture-commit",
+        1,
+        1790671618323
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790671618323
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790671618323
+      ],
+      [
+        "notification",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "fixture-commit",
+        2,
+        1790671618323
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "removal-withdrawn",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-before-sync-failure",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-after-sync-failure",
+        "notified",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "loading": true
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "denied": {
+            "code": "APP_DENIED",
+            "family": "rule",
+            "guide": "programs",
+            "message": "the program refused with APP_DENIED",
+            "rule": "APP_DENIED",
+            "site": "schema.q:33:3"
+          }
+        }
+      ],
+      [
+        "generation-notification",
+        "recover",
+        {
+          "denied": {
+            "code": "APP_DENIED",
+            "family": "rule",
+            "guide": "programs",
+            "message": "the program refused with APP_DENIED",
+            "rule": "APP_DENIED",
+            "site": "schema.q:33:3"
+          }
+        }
+      ],
+      [
+        "generation-adopted",
+        "recover",
+        {
+          "denied": {
+            "code": "APP_DENIED",
+            "family": "rule",
+            "guide": "programs",
+            "message": "the program refused with APP_DENIED",
+            "rule": "APP_DENIED",
+            "site": "schema.q:33:3"
+          }
+        }
+      ],
+      [
+        "notification-path",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "old-replica-complete",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification-deadline",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "failed-sync",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "applied-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790671621099,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790671620573,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790671621099,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790671620573,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790671621099,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790671620573,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790671621099,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790671620573,
+          "revalidating": true
+        }
+      ]
+    ]
+  },
+  {
+    "host": "process",
+    "seed": 3,
+    "failures": [
+      "visibility after membership removal at 4, now 1790671622099, allowed until 1790671622099",
+      "AssertionError [ERR_ASSERTION]: held removal replacement withdraws at fixture deadline\n+ actual - expected\n\n+ undefined\n- true\n",
+      "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'plain offline ephemeral metadata differs from fixture'\n+ ]\n- []\n"
+    ]
+  }
+]

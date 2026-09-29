@@ -1,0 +1,42 @@
+✖ wasm: acquired unknown apply footprint withdraws and refreshes every owner (491.168232ms)
+✖ process: acquired unknown apply footprint withdraws and refreshes every owner (102.922831ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4707.149213
+
+✖ failing tests:
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:108:41
+✖ wasm: acquired unknown apply footprint withdraws and refreshes every owner (491.168232ms)
+  AssertionError [ERR_ASSERTION]: the apply itself queues replacement evaluations
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:129:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:108:41
+✖ process: acquired unknown apply footprint withdraws and refreshes every owner (102.922831ms)
+  AssertionError [ERR_ASSERTION]: the apply itself queues replacement evaluations
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:129:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

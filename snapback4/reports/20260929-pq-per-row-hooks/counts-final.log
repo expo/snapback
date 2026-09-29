@@ -1,0 +1,35 @@
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (13.841151ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.315381ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.288853ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (371.485765ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (2092.826269ms)
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (438.323501ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3058.14271
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-work.test.mjs:80:41
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (438.323501ms)
+  AssertionError [ERR_ASSERTION]: empty apply does no query work
+
+  171 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:113:10)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 171,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

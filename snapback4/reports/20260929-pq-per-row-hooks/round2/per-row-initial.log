@@ -1,0 +1,69 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (26.518919ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.425302ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.299776ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (8.372559ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (449.436314ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (62.10493ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (60.892542ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (65.155542ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (102.863713ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (93.930473ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (95.722409ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (84.249722ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (90.448825ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (135.454764ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (918.93668ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (16.733682ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.12131ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.88084ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.139688ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.269815ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (2.872545ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (344.346603ms)
+✖ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (995.693711ms)
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (785.120091ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.988742ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 23
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5373.614478
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/per-row-work.test.mjs:152:41
+✖ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (995.693711ms)
+  AssertionError [ERR_ASSERTION]: one reevaluation per distinct table-dependent observation
+
+  1001 !== 1000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:193:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1001,
+    expected: 1000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-work.test.mjs:152:41
+✖ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (785.120091ms)
+  AssertionError [ERR_ASSERTION]: one reevaluation per distinct table-dependent observation
+
+  1001 !== 1000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:193:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1001,
+    expected: 1000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

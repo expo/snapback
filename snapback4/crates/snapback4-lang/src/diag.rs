@@ -174,6 +174,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "DIGEST_CHAT_BOUND" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" | "E_JOB_SWEEP" => "jobs",
         "E_REPLAY_DEV_ONLY" | "E_SQL_READ_ONLY" | "E_SQL_INTERNAL" | "E_RATE_LIMIT" => "personas",
         "E_AUTH" => "services",
+        "E_WORKER_REFRESH" => "effects",
         "E_SERVER_REQUIRED" => "actions",
         "E_OFFLINE" => "residency",
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" => "refusals",

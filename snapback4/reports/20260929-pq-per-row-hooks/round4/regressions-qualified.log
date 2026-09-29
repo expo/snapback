@@ -1,0 +1,43 @@
+✔ wasm: an unrelated replicated write preserves online-only memory offline (454.760438ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (119.264257ms)
+✔ apply: remembered dependencies with footprint [] (0.296645ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.133631ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.081973ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.067962ms)
+✔ apply: remembered dependencies with footprint undefined (0.061663ms)
+✔ admit: remembered dependencies with footprint [] (0.04016ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.051477ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.065127ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.042313ms)
+✔ admit: remembered dependencies with footprint undefined (0.029304ms)
+✔ settle: remembered dependencies with footprint [] (0.028302ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.042824ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.0266ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.030115ms)
+✔ settle: remembered dependencies with footprint undefined (0.024887ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.026611ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.021152ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.023124ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.02648ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.024196ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.471918ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.196354ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.21351ms)
+✔ queued observation still withdraws at row expiry (0.658378ms)
+✔ queued observation still withdraws at reset (0.271107ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (104.985392ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (131.448481ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (101.140796ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (97.724573ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (95.156251ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (111.642296ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (112.834313ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (127.449753ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1597.642408

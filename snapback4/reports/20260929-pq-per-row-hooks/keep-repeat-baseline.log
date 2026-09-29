@@ -1,0 +1,71 @@
+iteration 1
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (505.938356ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 624.127312
+iteration 2
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (508.729308ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 626.381871
+iteration 3
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (535.759796ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 650.443179
+iteration 4
+KEEP_DIAGNOSTIC {
+  watch: {
+    data: { body: 'private answer', id: 'private', room: 'room' },
+    complete: true,
+    cut: null,
+    fresh: false,
+    next: null,
+    revalidating: true,
+    since: 1790648902602
+  },
+  idle: { loading: true },
+  requests: 10,
+  holding: false
+}
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11744.285355ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11861.283208
+
+✖ failing tests:
+
+test at snapback4/target/pq-keep-baseline.test.mjs:130:51
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11744.285355ms)
+  AssertionError [ERR_ASSERTION]: second key ready
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-keep-baseline.test.mjs:22:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-keep-baseline.test.mjs:181:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

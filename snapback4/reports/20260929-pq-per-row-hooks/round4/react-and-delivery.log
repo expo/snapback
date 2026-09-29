@@ -1,0 +1,16 @@
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (885.60245ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (2459.916786ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4141.983415ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790660519334,"lastStart":1790660521370,"wallIsReal":true}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5193.844759ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790660524477,"lastStart":1790660526585,"wallIsReal":true}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (4265.079179ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790660528603,"lastStart":1790660530847,"wallIsReal":true}
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17084.903192

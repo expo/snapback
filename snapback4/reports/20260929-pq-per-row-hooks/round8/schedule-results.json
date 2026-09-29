@@ -1,0 +1,14 @@
+[
+  {
+    "host": "process",
+    "seeds": 300,
+    "failedSeeds": 0,
+    "failures": []
+  },
+  {
+    "host": "wasm",
+    "seeds": 300,
+    "failedSeeds": 0,
+    "failures": []
+  }
+]

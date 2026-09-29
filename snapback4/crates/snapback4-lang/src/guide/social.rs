@@ -24,6 +24,15 @@ one ordinary query per scope, combining current server and retained device
 hits online. `usePage` accumulates by message ID; only `complete: false` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
 
+## Background notifications
+
+`snapback/workers/notifications.mjs` declares a supervised worker for dev and
+serve, with `ledger: true` and an injected service token. Connect its provider
+handler and pass `meta.idempotencyKey`; the completion ledger cannot close the
+crash window after provider I/O but before its commit. The starter declares
+`notify` but emits nothing until you wire that behavior. `guide effects` shows
+the provider call and `doctor` shows the worker's state.
+
 ## Typing on the online arm
 
 `createApp` owns the session and replica. This arm borrows its current bearer

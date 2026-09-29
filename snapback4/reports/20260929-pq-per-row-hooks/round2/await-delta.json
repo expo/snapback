@@ -1,0 +1,7 @@
+[
+  {
+    "index": 9,
+    "prior": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)#1",
+    "current": "local.ts:sendPost:withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode))#1"
+  }
+]

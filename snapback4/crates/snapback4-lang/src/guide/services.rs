@@ -55,8 +55,9 @@ for this exchange. Public listeners still refuse remote minting. Keep that file 
 Readiness for dev and serve is the first stdout line: the listening URL,
 emitted after store and native-module setup. Wait for that line before sending
 requests; lifecycle logs and the store banner use stderr.
-With an application worker, dev also prints its one-time `service:worker`
-token on stdout after the URL, labelled "printed once"; it stays out of stderr logs.
+Declared `snapback/workers/<service>.mjs` entries receive their own service
+token through the environment in both dev and serve (guide effects).
+Automatically injected tokens are never printed; child logs redact them.
 Rules name it
 like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation

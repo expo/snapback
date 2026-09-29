@@ -1,0 +1,44 @@
+✔ online: kept typing survives member commits and expires during a held re-read (7660.302205ms)
+ℹ burst: 22 default loading publications; 24 kept publications, all visible
+ℹ expiry: server deadline 1790664850859, visible at 1790664850858, withdrawn at 1790664850859; 21 member commits, no renewal
+✔ wasm: kept typing survives member commits and expires during a held re-read (5747.589053ms)
+ℹ burst: 64 default loading publications; 65 kept publications, all visible
+ℹ expiry: server deadline 1790664858683, visible at 1790664858682, withdrawn at 1790664858683; 21 member commits, no renewal
+✔ process: kept typing survives member commits and expires during a held re-read (6288.264632ms)
+ℹ burst: 64 default loading publications; 65 kept publications, all visible
+ℹ expiry: server deadline 1790664864395, visible at 1790664864394, withdrawn at 1790664864395; 21 member commits, no renewal
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (695.914051ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (185.24909ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (196.380687ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (226.840872ms)
+✔ process keep=false: a full queue cannot postpone the change transition (215.841321ms)
+✔ process keep=true: a full queue cannot postpone the change transition (222.325352ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (171.270362ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (414.567926ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (173.838873ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (411.358965ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (169.983283ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (400.850711ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (208.378434ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (454.036555ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (214.366331ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (444.063475ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (216.959328ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (457.813677ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (596.978909ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (190.88608ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (203.76005ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (230.676401ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (223.266843ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (228.835101ms)
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (244.407657ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (238.04573ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (264.327861ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19809.170529

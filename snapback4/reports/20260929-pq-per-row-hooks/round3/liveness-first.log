@@ -1,0 +1,25 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (26.534227ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.162156ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.130672ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.746941ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (466.368857ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (63.606436ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (60.819621ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (63.225056ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (104.029149ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (91.876816ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (108.842713ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (102.029522ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (81.088597ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (118.845774ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (49.004212ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (75.591589ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (96.992553ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5416.411545

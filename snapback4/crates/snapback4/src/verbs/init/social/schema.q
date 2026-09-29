@@ -2,6 +2,9 @@
 use identity
 use personas alice, bob, carol
 
+-- The declared worker is ready when you add a provider and emit notifications.
+effect notify
+
 table conversations:
   title: text 1..50 ?
   creatorId: principal

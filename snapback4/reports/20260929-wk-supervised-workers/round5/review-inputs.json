@@ -1,0 +1,11 @@
+{
+  "astra": {
+    "path": "/home/ccheever/sb4-intent/reviews/wk-r4.astra.md",
+    "sha256": "64c01facbbc5b32f24079a2b39eec107070035b311c4b3af810887481c8d60bf"
+  },
+  "grok": {
+    "path": "/home/ccheever/sb4-intent/reviews/wk-r4.grok.md",
+    "sha256": "23e4d068d909e37af5864b2c155d0338d13a0e63f6c8d7c8e8f10d51a45a5e29",
+    "status": "complete: READY WITH CHANGES; findings addressed in round 5"
+  }
+}

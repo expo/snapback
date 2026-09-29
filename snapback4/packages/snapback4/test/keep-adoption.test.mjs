@@ -19,8 +19,7 @@ const parked = signal => new Promise((_, reject) => {
 for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "process"]) for (const callback of ["inspect", "close", "remount"]) {
   test(`${tier} keep=${keep}: adopting watch's loading response resets everyone before a peer can ${callback}`, async t => {
     const { url, dir } = await ephemeralServer(t), gate = Promise.withResolvers();
-    const clock = new ServerClock(() => 1000); let liveClock = clock;
-    const fork = clock.fork.bind(clock); clock.fork = () => liveClock = fork();
+    const clock = new ServerClock(() => 1000);
     let holding = false, adopted = false, captured, remount, callbacks = 0;
     const options = { url, persona: "bob", device: tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "device") }),
       fetch: clock.wrap(async (input, init) => {
@@ -34,7 +33,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
           return Response.json({ loading: true, tables: ["typing"], seq: json.seq, ephemeral: { incarnation: "B", epoch: 1 } });
         }
         if (holding) await gate.promise;
-        return Response.json({ ...json, nextExpiry: null, data: [{ principal: adopted ? "B" : "A" }], ephemeral: { incarnation: adopted ? "B" : "A", epoch: 1 } });
+        return Response.json({ ...json, refresh: 100, nextExpiry: null, data: [{ principal: adopted ? "B" : "A" }], ephemeral: { incarnation: adopted ? "B" : "A", epoch: 1 } });
       }) };
     const client = tier === "online" ? createClient(options) : await createLocalClient(options);
     t.after(async () => { holding = false; gate.resolve(); await client.close(); });
@@ -53,7 +52,8 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
       if (callback === "remount") { remount = open("owner"); captured.push(remount.getSnapshot()); }
     });
     holding = true;
-    liveClock.sample(2000, 1000, 1000, "clock:1");
+    // The server-requested presence refresh triggers the adopting watch.
+    // A clock sample without a due deadline correctly performs no query work.
     await until(() => captured, "the owner's response must adopt B and notify its peer");
     for (const snapshot of captured) assert.deepEqual(snapshot, { loading: true }, "all snapshots reset before the first callback");
     assert.deepEqual(owner.getSnapshot(), { loading: true }, "the loading owner cannot keep incarnation A");
