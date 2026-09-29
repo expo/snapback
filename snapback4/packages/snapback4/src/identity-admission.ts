@@ -75,7 +75,9 @@ export class IdentityAdmissions {
     if (existing) {
       if (!sameInput(existing.entry, entry)) return { denied: { code: "E_WRITE_ID_REUSE", family: "input", message: "write id already belongs to different input; retry the original input or use a new id", guide: "writes" } };
       const queued = check(yield { op: "queued" }) as Queued[];
-      return { ok: queued.find(e => e.id === entry.id) ?? this.view(existing) };
+      const admitted = queued.find(e => e.id === entry.id);
+      if (admitted && !sameInput(admitted, entry)) return { denied: { code: "E_WRITE_ID_REUSE", family: "input", message: "write id already belongs to different input; retry the original input or use a new id", guide: "writes" } };
+      return { ok: admitted ?? this.view(existing) };
     }
     if (!captured && state.store_id && !records.some(r => !r.admitted && !r.why)) return yield { op: "admit", entry };
     // Validate operation kind with the ordinary interpreter before deferring
@@ -94,11 +96,11 @@ export class IdentityAdmissions {
     yield* this.save(records);
     return { ok: this.view(record) };
   }
-  *queued(): JournalPlan<JournalReply> {
+  *queued(request: Record<string, unknown> = { op: "queued" }): JournalPlan<JournalReply> {
     const records = yield* this.load();
-    if (!records.length) return yield { op: "queued" };
+    if (!records.length) return yield request;
     const state = check(yield { op: "sync_state", capture: false }) as StoreCapture;
-    let actual = check(yield { op: "queued" }) as Queued[];
+    let actual = check(yield request) as Queued[];
     let changed = false;
     for (const record of records) {
       if (record.admitted || record.why) continue;
@@ -119,9 +121,11 @@ export class IdentityAdmissions {
       // A native process may have committed admission before dying during
       // this metadata handoff. Recover that exact outbox entry, never re-mint.
       const existing = actual.find(e => e.id === record.entry.id);
-      const reply = existing ? { ok: existing } : yield { op: "admit", entry: record.entry, identity_backend: record.identity.backend, identity_store: record.store };
+      const reply = existing && !sameInput(existing, record.entry)
+        ? { denied: { code: "E_WRITE_ID_REUSE", family: "input", message: "write id already belongs to different input; retry the original input or use a new id", guide: "writes" } }
+        : yield { op: "admit", entry: record.entry, identity_backend: record.identity.backend, identity_store: record.store };
       if (reply.denied?.retryable || ["E_STORE", "E_PREDICT", "E_GENERATION"].includes(reply.denied?.code)) break;
-      if (reply.denied) record.why = reply.denied;
+      if (reply.denied) record.why = reply.denied.code === "E_ADMISSION_STORE" ? identityRefusal(false) : reply.denied;
       else { record.admitted = true; record.store = state.store_id; actual.push(reply.ok); }
       changed = true;
     }

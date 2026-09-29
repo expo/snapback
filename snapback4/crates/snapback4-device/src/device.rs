@@ -21,6 +21,8 @@ use std::collections::{BTreeMap, BTreeSet};
 mod predictions;
 mod delivery;
 mod deferred;
+#[cfg(not(target_arch = "wasm32"))]
+mod identity_admission;
 mod media;
 mod snapshot;
 mod history;
@@ -1031,6 +1033,12 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;
         // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(original) = identity_admission::entries(tx.meta("client:identity-admissions")?.as_deref())?.into_iter().find(|original| original.id == entry.id) {
+            identity_admission::same_input(&original, &entry)?;
+            // Custody already owns minted row ids, order and the original clock.
+            entry = original;
+        }
         if let Some(data) = tx.outbox_get(&entry.id)? {
             let original: Queued = decoded(&data)?;
             if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
@@ -1167,6 +1175,15 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         let key = "client:identity-admissions";
         if tx.meta(key)?.as_deref() != expected { tx.rollback()?; return Ok(false); }
+        // Either kind of custody may win first. Compare both under this
+        // writer transaction, before accepting a new deferred record.
+        let previous = identity_admission::entries(expected)?;
+        for entry in identity_admission::entries(Some(value))? {
+            if previous.iter().any(|old| old.id == entry.id && identity_admission::same_input(old, &entry).is_ok()) { continue; }
+            if let Some(data) = tx.outbox_get(&entry.id)? {
+                identity_admission::same_input(&decoded(&data)?, &entry)?;
+            }
+        }
         tx.set_meta(key, value)?;
         tx.commit()?;
         Ok(true)

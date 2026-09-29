@@ -1,0 +1,52 @@
+✔ native state reads cannot replace another admission attempt CAS token (46.367279ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (32.874885ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (30.626405ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (29.677063ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (30.481949ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (31.000295ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (32.997199ms)
+✔ online expiry recovers a peer outcome (settled=false) (11.692315ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.282011ms)
+✔ deferred journal admission advances an idle client immediately after backend adoption (381.440293ms)
+✔ a returned admission timestamp raises the clock even without host notifications (1006.965478ms)
+✔ reload at a held orphan commit cannot replay a waiting journal before its floor (7.2593ms)
+✔ rejected save at a held orphan commit cannot replay a waiting journal before its floor (5.08347ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (36.830936ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (26.590867ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (15.233413ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.716883ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.713869ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.498606ms)
+✔ composition publishes at both deadlines, device first (2.632276ms)
+✔ composition publishes at both deadlines, server first (2.083323ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.648421ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.929864ms)
+✔ freshness is clamped at publication after wall time rolls back (1.508771ms)
+✔ useNow catches deadline between render and effect installation (33.268134ms)
+✔ useNow catches correction between render and effect installation (4.570221ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.863031ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.25499ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.795832ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (4.252404ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.475922ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (2.385005ms)
+✔ wire stamps successes and refusals on sync, changes, query, mutation and session endpoints (255.026433ms)
+✔ web: a legacy admission keeps its floor through upgrade, retirement and rollback (425.32454ms)
+(node:3380673) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: a legacy admission keeps its floor through upgrade, retirement and rollback (46.372146ms)
+✔ web orphan recovery after attachment preserves its admission floor through settlement and rollback (5.96474ms)
+✔ a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries (249.877726ms)
+✔ native offline reopen restores legacy offset without issuedOffset or admissions and retains the session (1167.98749ms)
+✔ a real held heartbeat poll learns clock advance from its final body (25176.363845ms)
+✔ native JSON bridge shares device time and restores offline (+25h) (1217.602337ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses) (4220.713042ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last) (4226.320677ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39495.47612

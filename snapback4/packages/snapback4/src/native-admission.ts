@@ -11,15 +11,21 @@ export function nativeAdmission(core: DeviceCore): DeviceCore {
   const listeners = new Set<(floor?: number) => void>();
   const pending = new IdentityAdmissions(() => { for (const notify of listeners) notify(); });
   let chain: Promise<unknown> = Promise.resolve();
-  let expected: string | null = null, identified = false, empty = false, store: string | undefined, protocolChecked = false;
+  let identified = false, empty = false, store: string | undefined, protocolChecked = false;
   const conflict = new Error("another native owner changed deferred custody");
-  const invoke = async (request: Record<string, unknown>, committed?: Parameters<DeviceCore["call"]>[1]) => {
-    const saving = request.op === "set_meta" && request.key === IDENTITY_ADMISSIONS;
-    const reply = await core.call(saving ? { op: "compare_identity_admissions", expected, value: request.value } : request, committed);
-    if (saving && !reply.denied && reply.ok === false) throw conflict;
-    if (!reply.denied && saving) { expected = request.value as string; pending.remember(expected); empty = !expected || JSON.parse(expected).length === 0; }
-    if (!reply.denied && request.op === "meta" && request.key === IDENTITY_ADMISSIONS) { expected = reply.ok as string | null; pending.remember(expected); empty = !expected || JSON.parse(expected).length === 0; }
-    return reply;
+  const remember = (value: string | null) => { pending.remember(value); empty = !value || JSON.parse(value).length === 0; };
+  const attempt = () => {
+    // The compare token belongs to this plan, never to an overlapping state read.
+    let expected: string | null = null;
+    return async (request: Record<string, unknown>, committed?: Parameters<DeviceCore["call"]>[1]) => {
+      const saving = request.op === "set_meta" && request.key === IDENTITY_ADMISSIONS;
+      const reply = await core.call(saving ? { op: "compare_identity_admissions", expected, value: request.value } : request, committed);
+      if (saving && !reply.denied && reply.ok === false) throw conflict;
+      if (saving && reply.denied) throw reply;
+      if (!reply.denied && saving) { expected = request.value as string; remember(expected); }
+      if (!reply.denied && request.op === "meta" && request.key === IDENTITY_ADMISSIONS) { expected = reply.ok as string | null; remember(expected); }
+      return reply;
+    };
   };
   return {
     ...core,
@@ -37,23 +43,33 @@ export function nativeAdmission(core: DeviceCore): DeviceCore {
       if (request.op === "sync_state") return core.call(request, committed).then(async reply => {
         store = (reply.ok as { store_id?: string } | undefined)?.store_id;
         identified = !!store;
-        await invoke({ op: "meta", key: IDENTITY_ADMISSIONS });
+        const metadata = await core.call({ op: "meta", key: IDENTITY_ADMISSIONS });
+        if (!metadata.denied) remember(metadata.ok as string | null);
         return reply;
       });
       if (!["admit", "queued", "settle", "dequeue"].includes(String(request.op))) return core.call(request, committed);
       const work = chain.then(async () => {
         let notified = false;
         const notify: NonNullable<Parameters<DeviceCore["call"]>[1]> = reply => { notified = true; committed?.(reply); };
-        const planCall = (next: Record<string, unknown>) => invoke(next, request.op === next.op ? notify : undefined);
         for (;;) {
+          const invoke = attempt();
+          const planCall = (next: Record<string, unknown>) => invoke(next, request.op === next.op ? notify : undefined);
           try {
             const reply = request.op === "admit" ? await runJournalAsync(pending.admit(request.entry as Queued, undefined, request.expected_store as string | undefined), planCall)
-              : request.op === "queued" ? await runJournalAsync(pending.queued(), planCall)
+              : request.op === "queued" ? await runJournalAsync(pending.queued(request), planCall)
               : request.op === "settle" || request.op === "dequeue" ? await runJournalAsync(pending.settle(request), planCall)
               : await core.call(request, notify);
             if (!notified) notify(reply);
             return reply;
-          } catch (error) { if (error !== conflict) throw error; }
+          } catch (error) {
+            if (error === conflict) continue;
+            if (error && typeof error === "object" && "denied" in error) {
+              const reply = error as Awaited<ReturnType<DeviceCore["call"]>>;
+              if (!notified) notify(reply);
+              return reply;
+            }
+            throw error;
+          }
         }
       });
       chain = work.catch(() => {});

@@ -1,0 +1,52 @@
+{"tier":"wasm","replacementOutcome":{"state":"sent","id":"01M3P2V5J1W23TA30SS23QTWB9","seq":2,"result":{"id":"01M3P2V5J1W23TA30SS23QTWBA"}},"posts":[{"id":"01M3P2V5J1W23TA30SS23QTWB9","args":{"body":"draft belongs to schema store","conversationId":"c1"},"newIds":["01M3P2V5J1W23TA30SS23QTWBA"],"store_id":"bacf86889a5c07143da120758937a4c5"}]}
+✖ schema binding wins over a staged replacement snapshot (wasm) (1710.110991ms)
+{"tier":"Worker","replacementOutcome":{"state":"sent","id":"01M3P2V6WZ3JSMX5MZB0BTA2ND","seq":2,"result":{"id":"01M3P2V6X0RQJVBSS1QNV55DAE"}},"posts":[{"id":"01M3P2V6WZ3JSMX5MZB0BTA2ND","args":{"body":"draft belongs to schema store","conversationId":"c1"},"newIds":["01M3P2V6X0RQJVBSS1QNV55DAE"],"store_id":"b9bcd6edace794960b14ede55f29d4f7"}]}
+✖ schema binding wins over a staged replacement snapshot (Worker) (1484.541501ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3354.487661
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:146:3
+✖ schema binding wins over a staged replacement snapshot (wasm) (1710.110991ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:173:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:146:3
+✖ schema binding wins over a staged replacement snapshot (Worker) (1484.541501ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:173:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

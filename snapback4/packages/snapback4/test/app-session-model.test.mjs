@@ -9,9 +9,17 @@ test("identity custody: offline first save remains pending while a peer recovers
   { op: "reopen", app: 1, account: 1, hold: false, fault: { kind: "set", at: 11 }, holdDispatch: false },
 ], {}, "online"));
 
-for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
-  const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
-  for (let seed = 1; seed <= count; seed++) {
+for (const [name, schedule] of [["native state-read overlap", 0], ["deferred/ordinary exact-input race", 1], ["peer dispatch before expiry", 2]]) {
+  test(`identity custody session schedule: ${name}`, () => execute([{ op: "identityCustody", schedule, variant: 0 }]));
+}
+
+// Keep the full 5,000 seeds per tier and the existing per-test timeout. Native
+// process schedules add real host work; five serial slices keep it bounded.
+const custodyCoverage = { online: {}, local: {} };
+for (const tier of ["online", "local"]) for (let slice = 0; slice < 5; slice++) test(`${tier} session state machine preserves I1–I13 and custody (slice ${slice + 1}/5)`, { timeout: 240_000 }, async t => {
+  const coverage = custodyCoverage[tier], count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
+  const first = Math.floor(count * slice / 5) + 1, last = Math.floor(count * (slice + 1) / 5);
+  for (let seed = first; seed <= last; seed++) {
     t.signal.throwIfAborted();
     const sequence = generate(seed);
     try { await execute(sequence, coverage, tier); }
@@ -21,22 +29,23 @@ for (const tier of ["online", "local"]) test(`${tier} session state machine pres
       assert.fail(`tier=${tier} seed=${seed}: ${error.message}\nminimal sequence=${JSON.stringify(minimal)}`);
     }
   }
-  if (count >= 5000) for (const event of ["write.outcome", "write.outcomeAfterFence", "write.unknownAtClose", "write.knownAtDelivery", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
-  if (count >= 5000) {
+  if (count >= 5000 && slice === 4) for (const name of ["read-overlap", "dedup", "expiry"]) assert.ok(coverage[`custody.${name}`] >= 1666, `exercised ${name}`);
+  if (count >= 5000 && slice === 4) for (const event of ["write.outcome", "write.outcomeAfterFence", "write.unknownAtClose", "write.knownAtDelivery", "global.attempt", "global.attemptRefused", "global.ackWithLaterToken", "global.newerAccountEpoch", "retirement.removed", "wire.retirementOffline", "handle.resultSettled", "held.dispatch/auth/signup", "held.dispatch/auth/login", "held.dispatch/auth/guest"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000 && slice === 4) {
     for (const op of operations) assert.ok(coverage[`op.${op}`] > 0, `generated ${op}`);
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
     for (const path of ["signup", "login", "guest", "refresh", "logout", "logout-all"]) assert.ok(coverage[`held./auth/${path}`] > 0, `held committed ${path} response`);
   }
-  if (count >= 5000) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden", "server.externalSibling", "global.peerPersistedRotation", "global.peerHeldRotation", "global.rotatedBearer", "global.externalSiblingRevoked"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
-  if (count >= 5000) for (const event of ["write.outcome.sent", "write.outcome.failed", "write.outcomeAfterFence.sent", "write.outcomeAfterFence.failed", `open.${tier}`]) assert.ok(coverage[event] > 0, `exercised ${event}`);
-  if (tier === "local" && count >= 5000) for (const path of ["/schema", "/sync"]) assert.ok(coverage[`wire.${path}`] > 0, `local client used ${path}`);
-  if (count >= 5000) {
+  if (count >= 5000 && slice === 4) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden", "server.externalSibling", "global.peerPersistedRotation", "global.peerHeldRotation", "global.rotatedBearer", "global.externalSiblingRevoked"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000 && slice === 4) for (const event of ["write.outcome.sent", "write.outcome.failed", "write.outcomeAfterFence.sent", "write.outcomeAfterFence.failed", `open.${tier}`]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (tier === "local" && count >= 5000 && slice === 4) for (const path of ["/schema", "/sync"]) assert.ok(coverage[`wire.${path}`] > 0, `local client used ${path}`);
+  if (count >= 5000 && slice === 4) {
     for (const state of ["sent", "failed"]) for (const source of ["mutate", "write", "onWrite"])
       assert.ok(coverage[`consistent.${source}.${state}`] > 0, `I13 ${source} ${state}`);
     assert.ok(coverage["consistent.writeDuringReceiptFailure"] > 0, "looked up known outcomes during persistent failure");
     assert.ok(coverage["fault.receiptSave"] > 0, "kept receipt saves failing on this tier");
   }
-  t.diagnostic(`tier=${tier} sequences=${count} seed=1..${count} coverage=${JSON.stringify(coverage)}`);
+  t.diagnostic(`tier=${tier} sequences=${last - first + 1} seed=${first}..${last} coverage=${JSON.stringify(coverage)}`);
 });
 
 for (const tier of ["online", "local"]) for (const refuse of [false, true]) {

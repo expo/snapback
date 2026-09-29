@@ -7,6 +7,7 @@ import { devServer, binary } from '../../../witness/lib.mjs';
 import { guest, memorySessionStore } from '../dist/auth.js';
 import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
+import { nativeAdmission } from '../dist/native-admission.js';
 import { ServerClock } from '../dist/clock.js';
 import { changeFeed } from '../dist/changes.js';
 import { modelBackend } from './helpers/app-model-device.mjs';
@@ -61,10 +62,11 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
   for (const path of ['/auth/signup', '/auth/login']) stamped((await post(f.api, path, { email: 'clock@example.com', password: 'clock-password' })).response);
 });
 
-for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
+for (const tier of ['web', 'native', 'native-custody']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const persist = memoryPersistence();
-  const device = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
+  const raw = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
+  const device = tier === 'native-custody' ? { async open(...args) { return nativeAdmission(await raw.open(...args)); } } : raw;
   let wall = 1_004_000, core = await device.open('legacy-clock', { initial_backend: modelBackend });
   t.after(() => core.close());
   await core.close();

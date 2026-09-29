@@ -188,9 +188,30 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           while (deadline !== undefined && !dispatchIdentity(raw) && active && !storeRefusal) {
             const remaining = deadline - Date.now();
             if (remaining <= 0) {
-              const write = { state: "failed" as const, id, why: identityRefusal(true) };
-              try { await settle(write); } catch (error) { retain(write, error); }
-              return write;
+              // Expiry and dispatch race under the same journal lock. Only
+              // current, undispatched custody can justify an unsent refusal.
+              try {
+                const write = await change<Write>(journal => {
+                  const receipt = journal.receipts.find(write => write.id === id);
+                  if (receipt) return receipt;
+                  const intent = journal.pending.find(intent => intent.id === id);
+                  if (!intent) return retiredReceipt(journal, id) ?? { state: "pending", id };
+                  if (intent.dispatched || intent.admissionDeadline === undefined || intent.admissionDeadline > Date.now()) return { state: "pending", id };
+                  const expired: Terminal = { state: "failed", id, why: identityRefusal(true) };
+                  journal.pending = journal.pending.filter(intent => intent.id !== id);
+                  journal.receipts.push(receiptOf(expired));
+                  keepReceipts(journal, new Set([id]), false);
+                  return expired;
+                }, true);
+                if (terminal(write)) notify(write);
+                return write as Write<R>;
+              } catch (error) {
+                // A failed custody read/save cannot prove the intent unsent.
+                report(error);
+                waitForIdentity();
+                await new Promise(resolve => setTimeout(resolve, 250));
+                continue;
+              }
             }
             let timer: ReturnType<typeof setTimeout> | undefined;
             try { await Promise.race([identifyDispatch(raw), new Promise<void>(resolve => { timer = setTimeout(resolve, remaining); })]); }

@@ -76183,3 +76183,47 @@ Canonical wasm: 2,040,529 B raw / 592,974 B gzip; 745 B below the unchanged
 `reports/20260929-ea-admit-before-identity/REPORT.md` and `FAILURES.md`.
 Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 Nothing pushed or published; calibration app left unchanged.
+
+
+## 2026-09-29 — Lane EA round 1: deferred custody across overlapping owners
+
+Addressed all three Astra Highs and Grok's High/Low from the round 0 reviews.
+Reproduced before fixing: unrelated native state reads replaced a plan's CAS
+expectation and erased accepted custody; an online deadline overwrote a peer's
+executed outcome with an unsent timeout; deferred/ordinary admission accepted
+conflicting input under one ID. Each native attempt now owns its comparison;
+SQLite compares operation, arguments and viewer across both custody forms;
+recovery validates exact input and incarnation. Online expiry adjudicates current
+custody/receipts under the journal lock and never expires dispatched intent.
+
+Grok's two-server scenario executed a click on a replacement during initial
+snapshot staging, on both wasm and Worker. Capture now prefers `/schema`'s
+identity; both tests refuse without a POST. Native identity refusals now expose
+the same actionable value through onWrite and lookup. Added a same-generation
+native incarnation handoff test alongside the generation-change test.
+LLP 3000.007 §20.4 and the E_ADMISSION guide record the repaired constraints.
+
+Final affected admission tests: 32/32; existing online/native custody: 31/31;
+delivery matrix: 319/319; whole guide: 98/98. Extended session model: all 10,000
+sequences pass (5,000 per tier; every sequence includes one of the three custody
+schedules). Full model stage: 91/91 tests, including the existing online model.
+Typecheck and ref-check pass. Counts, timeouts and the wasm cap were not raised.
+
+Ran scripts/test.sh once. Exact summary: `== 1 failure(s) in 1983 s` —
+`client tests`. Client counts: 4604 tests, 4593 pass, 1 fail, 0 cancelled,
+10 skipped. The sole failure is ours, inherited from round 0:
+`web: a legacy admission keeps its floor through upgrade, retirement and rollback`.
+The deferred wrapper dropped `restore_clock_floor`. It also failed in isolation;
+forwarding the original queue request fixes it on web and native. Corrected
+clock/custody tests pass 42/42 plus the new native-wrapper regression 1/1; the
+final matrix and admission runs above include the correction. The full run
+retains its red pre-correction snapshot. No failure is labelled baseline or
+environmental; the report also records every negative control and fixture error.
+
+Wasm: 2,040,529 B raw / 592,974 B gzip, 745 B below the unchanged 593,719 B cap.
+Fetched and merged origin/main at entry and before the full run: already up to
+date at b7d05baff. No conflicts or discarded lane changes. Grok's completed review
+was read and rechecked before completion. Report and failure ledger:
+`reports/20260929-ea-admit-before-identity/round1/REPORT.md` and `FAILURES.md`.
+Co-author trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing pushed or published.

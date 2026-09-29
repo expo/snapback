@@ -210,7 +210,7 @@ export class AdmissionJournal {
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId ?? "")}:${entry.id}`;
-      const identity = this.storeId ? undefined : { backend: this.backendId!, store: this.transferId ?? (typeof request.expected_store === "string" ? request.expected_store : undefined), deadline: Date.now() + IDENTITY_WAIT_MS };
+      const identity = this.storeId ? undefined : { backend: this.backendId!, store: (typeof request.expected_store === "string" && request.expected_store ? request.expected_store : undefined) ?? this.transferId, deadline: Date.now() + IDENTITY_WAIT_MS };
       const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId ?? "", identity, entry, authority: this.authority?.capture() })) as AdmissionRecord;
       const text = JSON.stringify(record);
       if (bytes(text) > RECORD_BYTES) return refuse("mutation admission exceeds 64 KiB; reduce the arguments before retrying");
@@ -370,7 +370,7 @@ export class AdmissionJournal {
   }
   callWith(call: JournalInvoke, request: Record<string, unknown>): Promise<Record<string, unknown>> { return runJournalAsync(this.operation(request), call); }
   private *operation(request: Record<string, unknown>): JournalPlan<Record<string, unknown>> {
-    if (request.op === "queued") return yield* this.identity.queued();
+    if (request.op === "queued") return yield* this.identity.queued(request);
     if (request.op === "settle" || request.op === "dequeue") return yield* this.identity.settle(request);
     return yield request;
   }

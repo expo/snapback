@@ -143,6 +143,38 @@ for (const worker of [false, true]) {
     assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), [primary.id, ...orphaned.map(w => w.id)]);
     assert.ok((await f.page.evaluate(() => events)).every(w => w.state === 'sent'));
   });
+  test(`schema binding wins over a staged replacement snapshot (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker), replacement = await devServer({ seed });
+    t.after(() => replacement.close());
+    const replacementSchema = await (await fetch(`${replacement.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json();
+    const staged = await f.page.evaluate(async store => {
+      const backend = (await core.call({ op: 'backend' })).ok;
+      const result = await core.call({ op: 'observe_store', page: {
+        generation: backend.generation, snapshot: true, events: [], watermark: 0, images_at: 0,
+        committed_above: {}, more: true, store_id: store,
+      } });
+      if (result.denied) throw Error(JSON.stringify(result));
+      return (await core.call({ op: 'sync_state', capture: false })).ok;
+    }, replacementSchema.store_id);
+    assert.equal(staged.store_id, null);
+    assert.equal(staged.transfer_store_id, replacementSchema.store_id);
+    const write = await f.page.evaluate(() => save('draft belongs to schema store'));
+    assert.equal(write.state, 'pending');
+    // All later requests reach a real same-schema replacement server. A leaked
+    // POST would execute there, rather than be refused by the original store.
+    await f.page.route(`${f.api}/**`, async route => {
+      if (new URL(route.request().url()).pathname === '/changes') return route.abort();
+      const response = await route.fetch({ url: route.request().url().replace(f.api, replacement.api) });
+      await route.fulfill({ response });
+    });
+    await f.page.evaluate(() => start());
+    await f.page.waitForFunction(() => events.length === 1);
+    const outcome = await f.page.evaluate(() => events[0]);
+    console.log(JSON.stringify({ tier, replacementOutcome: outcome, posts: await f.page.evaluate(() => posts) }));
+    assert.equal(outcome.why?.code, 'E_ADMISSION_STORE');
+    assert.equal(await f.page.evaluate(() => posts.length), 0);
+    assert.equal((await f.page.evaluate(id => client.write(id), write.id)).why.code, 'E_ADMISSION_STORE');
+  });
   for (const failure of ["timeout", "adoption", "incarnation"]) test(`identification ${failure} settles visibly without sending (${tier})`, { timeout: 90_000 }, async t => {
     const f = await browser(t, worker);
     if (failure === "timeout") await f.page.clock.install();
@@ -261,7 +293,7 @@ if (!baseline) test("two native owners compare deferred custody without losing o
   assert.deepEqual(events.map(w => w.id), pending.map(w => w.id));
 });
 
-if (!baseline) test("native adoption between identity validation and admission refuses the original write unsent", { timeout: 90_000 }, async t => {
+for (const replacement of ["generation", "incarnation"]) if (!baseline) test(`native ${replacement} between identity validation and admission refuses the original write unsent`, { timeout: 90_000 }, async t => {
   const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), 'sb4-identity-race-')), posts = [];
   const opener = processDevice({ dir, binary: binary() });
   let raced = false, client;
@@ -271,7 +303,9 @@ if (!baseline) test("native adoption between identity validation and admission r
     return { ...core, async call(request, committed) {
       if (request.identity_backend && !raced) {
         raced = true;
-        const backend = (await core.call({ op: 'backend' })).ok; backend.generation++;
+        const backend = (await core.call({ op: 'backend' })).ok;
+        if (replacement === 'generation') backend.generation++;
+        else assert.ok(!(await core.call({ op: 'observe_store', page: { generation: backend.generation, snapshot: false, events: [], watermark: 0, images_at: 0, committed_above: {}, more: false, store_id: 'same-generation-replacement' } })).denied);
         assert.ok(!(await core.call({ op: 'adopt', backend })).denied);
       }
       return core.call(request, committed);
@@ -284,6 +318,11 @@ if (!baseline) test("native adoption between identity validation and admission r
   await prepared.start(); await until(() => events.length === 1, 'adoption refusal');
   assert.ok(raced); assert.equal(events[0].id, write.id);
   assert.equal(events[0].why.code, 'E_ADMISSION_STORE'); assert.match(events[0].why.message, /new attempt/);
+  assert.equal(events[0].why.family, 'store');
+  assert.equal(events[0].why.site, 'client.mutate');
+  assert.equal(events[0].why.guide, 'writes');
+  assert.match(events[0].why.rewrite, /new write id/);
+  assert.deepEqual((await client.write(write.id)).why, events[0].why);
   assert.equal(posts.length, 0); assert.equal((await client.pendingWrites()).length, 0);
 });
 

@@ -16,7 +16,8 @@ refuses `E_ADMISSION_TIMEOUT`, without sending. A suspended/closed runtime check
 the deadline when it resumes/reopens. Reconnect or reload the current backend,
 review the draft and submit a new id. `createApp`'s online journal likewise takes
 custody before its first identity probe. These deadlines never expire a write
-whose dispatch may already have executed.
+whose dispatch may already have executed, including dispatch by another runtime.
+Expiry recovers a shared terminal receipt; it never replaces that outcome.
 
 `E_ADMISSION_STORE` means the backend changed before admission. The write was
 not sent. Reload the current backend, review the draft and submit with a new id.
