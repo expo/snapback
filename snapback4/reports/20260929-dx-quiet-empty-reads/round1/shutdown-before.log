@@ -1,0 +1,75 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 1.00s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-8e2e84704490be50)
+
+running 3 tests
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... FAILED
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... FAILED
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... FAILED
+
+failures:
+
+---- shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held stdout ----
+
+thread 'shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held' (2987752) panicked at crates/snapback4/tests/dev_refusals/shutdown.rs:48:5:
+assertion `left == right` failed: signal 2, worker false: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:36791  (schema: snapback/, types: /tmp/sb4-mp-refusal-2987751-0/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGINT signal=2
+
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held stdout ----
+
+thread 'shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held' (2987754) panicked at crates/snapback4/tests/dev_refusals/shutdown.rs:48:5:
+assertion `left == right` failed: signal 15, worker false: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:39913  (schema: snapback/, types: /tmp/sb4-mp-refusal-2987751-3/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+
+  left: 0
+ right: 1
+
+---- shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held stdout ----
+
+thread 'shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held' (2987753) panicked at crates/snapback4/tests/dev_refusals/shutdown.rs:48:5:
+assertion `left == right` failed: signal 15, worker true: snapback4 host: HTTP connections=128; uploads=2; file descriptors (this process): soft=1024 hard=1048576
+snapback4 dev: http://127.0.0.1:46881  (schema: snapback/, types: /tmp/sb4-mp-refusal-2987751-2/snapback/generated/api.ts)
+store: temporary — discarded on exit
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 worker: /tmp/sb4-mp-refusal-2987751-2/snapback/worker.mjs (pid 2987798)
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="worker" reason="shutdown"
+
+  left: 0
+ right: 1
+
+
+failures:
+    shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held
+    shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held
+    shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p snapback4 --test dev_refusals`

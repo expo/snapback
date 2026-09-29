@@ -1802,8 +1802,9 @@ step.
   `SNAPBACK4_EXIT` for returned errors/stops, `SNAPBACK4_PANIC` for panics on any thread (including abort
   builds), `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher or maintenance thread
   stops. An unexpected background stop ends the server. Generation `0` means this process has not served yet.
-  `SIGINT`, `SIGTERM` and `SIGHUP` report immediately; with an application worker they clean it up and exit
-  `128 + signal`. Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
+  `SIGINT`, `SIGTERM` and `SIGHUP` report immediately; dev flushes its refusal writer and cleans up any
+  application worker, then exits `128 + signal`. Serve cleans up a configured worker the same way.
+  Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
   signal status. `SIGKILL`, power loss and an unwritable stderr cannot be reported from inside the process.
   `snapback4 why SNAPBACK4_SIGNAL` explains the code.
 - **Development clock:** `snapback4 dev --clock-offset +25h` starts 25 hours ahead; `snapback4 clock advance
@@ -2094,11 +2095,35 @@ Query sites belong to their reader's generation; capture exhaustion points to
 `read through`, even before an insert rule runs.
 Visibility filtering in sync and reads is not recorded: inspect `snapback4 why TABLE`
 for read rules and sync residency, and `snapback4 guide rules`. Empty/null query
-answers without a known cause use local EMPTY_READ, also within composed results;
-this does not prove a rule denial. Each record describes only its named request
+answers without a known cause are silent and unrecorded by default, including
+empty fields in composed results. Opt in with `snapback4 dev --trace-empty` to
+record local EMPTY_READ evidence in `why recent`, still without console notices.
+`snapback4 why EMPTY_READ` (also `snapback4 guide EMPTY_READ`) gives exact commands
+to inspect the read rule, sync coverage and horizon; an empty answer does not
+prove denial. The stream identifies this opt-in with `traceEmpty: true`. Each record describes only its named request
 or job at that time, never the outcome of a later sync or read. `why recent`
 rejects a snapshot while its latest refusal is pending or dropped, until the
-writer catches up or you reproduce it.
+writer catches up or you reproduce it. Empty successes do not advance that
+watermark or replace the last refusal unless tracing was requested.
+Tracing shares the same 32-record stream and queue with real refusals. Use one
+quiet reproduction and inspect promptly: polling empties can evict older
+refusals, and a dropped latest record makes `why recent` refuse the snapshot
+until a newer record is saved. Restart without `--trace-empty` when finished.
+
+Each remaining dev refusal console line combines identical operation, code and
+cause (table, clause, phase, source/execution site and generation) for a fixed
+one-second window beginning when the writer receives the first record. It prints
+once at the window's end with `count N` and the first request/job identity and
+time. Repeats do not extend the window; idle windows still flush. The console
+holds at most 32 distinct groups and prints the oldest early on overflow. Counts
+cover accepted writer records; dropped evidence remains reported separately.
+Individual `why recent` records and its 32-record limit are unchanged. Save
+errors also use counted console windows. Lines include phase and generation
+alongside both source sites. Normal dev shutdown (`SIGINT`, `SIGTERM`, `SIGHUP`)
+drains accepted records and flushes these windows even with held polls and no
+application worker. It waits up to two seconds for acknowledgement. A stalled
+writer or abrupt termination can still lose queued records and unprinted
+windows; requests completing after shutdown starts are not covered.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 

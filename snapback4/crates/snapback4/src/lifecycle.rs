@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 static DEV: AtomicBool = AtomicBool::new(false);
 static SIGNAL: AtomicI32 = AtomicI32::new(0);
-static WORKER_CLEANUP: AtomicBool = AtomicBool::new(false);
+static MANAGED_CLEANUP: AtomicBool = AtomicBool::new(false);
 
 struct Line<const N: usize> { bytes: [u8; N], len: usize }
 impl<const N: usize> Line<N> {
@@ -45,7 +45,7 @@ impl<const N: usize> Write for Line<N> {
 
 pub(crate) fn generation(next: u64) { GENERATION.store(next, Ordering::Release); }
 pub(crate) fn stopping() -> bool { SIGNAL.load(Ordering::Acquire) != 0 }
-pub(crate) fn worker_cleanup() { WORKER_CLEANUP.store(true, Ordering::Release); }
+pub(crate) fn managed_cleanup() { MANAGED_CLEANUP.store(true, Ordering::Release); }
 
 fn signal_name(signal: i32) -> &'static str {
     match signal {
@@ -84,7 +84,7 @@ extern "C" fn signal_received(signal: libc::c_int) {
     let _ = line.write_str(" signal=");
     line.number(signal as u64);
     line.send();
-    if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) && WORKER_CLEANUP.load(Ordering::Acquire) {
+    if matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) && MANAGED_CLEANUP.load(Ordering::Acquire) {
         SIGNAL.store(signal, Ordering::Release);
     } else {
         // Terminate immediately when there is no cleanup, and preserve fatal

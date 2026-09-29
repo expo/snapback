@@ -1,0 +1,18 @@
+{
+  "astra": {
+    "source": "/home/ccheever/sb4-intent/reviews/dx-r0.astra.md",
+    "bytes": 2827,
+    "sha256": "9dec252791aab7729b5b041f605fe589e837f41064736550d0e110643acfc9e4",
+    "checked_at": "2026-09-29T06:07:13.743936+00:00",
+    "final_checked_at": "2026-09-29T06:14:35.733151+00:00",
+    "retained_path": "input-astra-review.txt.gz"
+  },
+  "grok": {
+    "source": "/home/ccheever/sb4-intent/reviews/dx-r0.grok.md",
+    "bytes": 6129,
+    "sha256": "5a8a9fcd337eecc95442ba56c777c249a66f3f5b12cb7e7d1b9302c50c7de3fb",
+    "checked_at": "2026-09-29T06:07:13.744042+00:00",
+    "final_checked_at": "2026-09-29T06:14:35.733209+00:00",
+    "retained_path": "input-grok-review.txt.gz"
+  }
+}

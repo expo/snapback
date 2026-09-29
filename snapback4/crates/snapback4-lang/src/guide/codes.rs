@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("EMPTY_READ", "optional local evidence of an empty query answer, not proof of denial. Use dev --trace-empty and why recent; inspect why TABLE and check --residency. guide rules."),
     ("RUNS_FULL", "the receipts reporter cannot record another disjoint run: 64 are already held for this member. Keep the owed interval and retry after a merge frees a slot. A successful delivered call always records coverage. guide receipts."),
     ("E_DELIVERY_BINDING", "the report names a changed or removed delivery binding. Drop that binding’s debt and collect under the current fingerprint; do not retry the old report. guide receipts."),
     ("E_DELIVERY_CLAUSE", "reports delivery requires a mutation with exactly a group reference and two int arguments, immutable group/position columns and their unique key. Declare one reporter per tracked table. Success promises coverage of every position; refuse what cannot be recorded. The located diagnostic gives the rewrite. guide receipts."),
@@ -122,7 +123,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_LIVE_MAINTAIN_PROBE", "a rule cannot compare the value of a view over an expiring source. Read the view in the program; its live value cannot be probed at one unit. Existence probes still cost one unit; guide expire."),
     ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),
     ("SNAPBACK4_PANIC", "a Rust panic on any host thread; stderr names the thread, serving generation, reason, source location and abort/unwind action. guide refusals."),
-    ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow worker cleanup; fatal signals retain their OS status. guide refusals."),
+    ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow dev evidence and worker cleanup; fatal signals retain their OS status. guide refusals."),
     ("SNAPBACK4_THREAD_EXIT", "the watcher or maintenance thread stopped; stderr names the thread, serving generation and reason. An unexpected stop ends dev/serve instead of silently losing background work. guide refusals."),
     ("E_ACTION_AUTHORITY", "family action — the authority that admitted this action was revoked or has expired; the request fails terminally and no delegated session is minted (guide actions)."),
     ("E_ID_REUSED", "family input — this id already admitted another operation or different arguments; resend the original operation and arguments, or mint a new id (guide actions, writes)."),
