@@ -1,0 +1,106 @@
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling cpufeatures v0.2.17
+   Compiling cfg-if v1.0.4
+   Compiling libm v0.2.16
+   Compiling foldhash v0.2.0
+   Compiling bitflags v2.13.2
+   Compiling tinyvec_macros v0.1.1
+   Compiling base64ct v1.8.3
+   Compiling rand_core v0.6.4
+   Compiling itoa v1.0.18
+   Compiling smallvec v1.16.1
+   Compiling fallible-iterator v0.3.0
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling spin v0.9.9
+   Compiling memchr v2.8.3
+   Compiling zeroize v1.9.0
+   Compiling opaque-debug v0.3.1
+   Compiling chunked_transfer v1.5.0
+   Compiling ascii v1.1.0
+   Compiling log v0.4.34
+   Compiling httpdate v1.0.3
+   Compiling serde_core v1.0.229
+   Compiling libc v0.2.189
+   Compiling wasmparser v0.228.0
+   Compiling wasmi_ir v2.0.0
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling wasmi v2.0.0
+   Compiling tinyvec v1.13.2
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling getrandom v0.3.4
+   Compiling libsqlite3-sys v0.38.2
+   Compiling hashbrown v0.17.1
+   Compiling password-hash v0.5.0
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-dx/snapback4/vendor/tiny_http)
+   Compiling unicode-normalization v0.1.25
+   Compiling hashlink v0.12.2
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling wasmi_core v2.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling universal-hash v0.5.1
+   Compiling cipher v0.4.4
+   Compiling aead v0.5.2
+   Compiling digest v0.10.7
+   Compiling poly1305 v0.8.0
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling argon2 v0.5.3
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 47.15s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-8e2e84704490be50)
+
+running 16 tests
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... FAILED
+
+failures:
+
+---- uninstrumented_refusals_replays_and_empty_reads_replace_older_causes stdout ----
+
+thread 'uninstrumented_refusals_replays_and_empty_reads_replace_older_causes' (623649) panicked at crates/snapback4/tests/dev_refusals.rs:34:4:
+writer did not persist absent: {"address":"127.0.0.1:35771","dropped":0,"instance":"01M3NR7FVE1X890PQGXPEDZK1G","pid":623657,"records":[{"at":1790657675120,"clause":"insert rule","code":"E_RULE","executionSite":"add:3","generation":1,"operation":"add","phase":"insert rule","readRuleSite":"schema.q:4:3","requestId":1,"responseSequence":1,"site":"schema.q:5:3","table":"rows"},{"at":1790657675121,"clause":"cause not instrumented","code":"NOT_FOUND","generation":1,"operation":"injected","requestId":2,"responseSequence":2},{"at":1790657675122,"clause":"cause not instrumented","code":"NOT_FOUND","generation":1,"operation":"injectedWrite","requestId":3,"responseSequence":3},{"at":1790657675123,"clause":"cause not instrumented","code":"NOT_FOUND","generation":null,"operation":"injectedWrite","requestId":4,"responseSequence":4},{"at":1790657675134,"clause":"cause not instrumented","code":"NOT_FOUND","generation":1,"operation":"missing","requestId":5,"responseSequence":5}],"scope":"Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause are silent and unrecorded by default; dev --trace-empty records EMPTY_READ only in this stream, which does not prove denial. Inspect `snapback4 why EMPTY_READ`. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.","startedAt":1790657675118,"storeId":"3a53e39fb082cf16ed3960c9c529f0f8","traceEmpty":false}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    uninstrumented_refusals_replays_and_empty_reads_replace_older_causes
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.06s
+
+error: test failed, to rerun pass `-p snapback4 --test dev_refusals`
