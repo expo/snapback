@@ -1,0 +1,117 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3P0SJBDEN8MGQC09QGQS9S9","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P0SJDC3X11J3TF6BVCAH10","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1635.284087ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1521.355952ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1510.961355ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1790.837669ms)
+✔ identification timeout settles visibly without sending (wasm) (1550.349888ms)
+✔ identification adoption settles visibly without sending (wasm) (1739.632589ms)
+✔ identification incarnation settles visibly without sending (wasm) (1553.555994ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3P0SX69Q03QF28B9Q1Y6SXW","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P0SX8TB07DHRVBF4BZFT4W","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1578.704856ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1851.68779ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1720.190274ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2348.25145ms)
+✔ identification timeout settles visibly without sending (Worker) (1862.937824ms)
+✔ identification adoption settles visibly without sending (Worker) (1868.031178ms)
+✔ identification incarnation settles visibly without sending (Worker) (1619.194283ms)
+✔ process device persists immediate writes before identity and resumes in order (379.726142ms)
+✔ online app takes custody before a held identity probe, including reload (1211.59608ms)
+✔ two native owners compare deferred custody without losing or replacing writes (506.505729ms)
+✔ native adoption between identity validation and admission refuses the original write unsent (258.216544ms)
+✔ expired identification deadline survives reopen (process) (261.853524ms)
+✔ expired identification deadline survives reopen (online) (171.902303ms)
+(node:1831583) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online reconnect requires the authenticated GET /probe contract (6217.050661ms)
+✔ online pending writes emit their terminal outcome exactly once (559.724446ms)
+✔ online auth refusal settles writes that were queued behind the refused request (12.78475ms)
+✔ local pending writes emit once with the kept device identity (74.253455ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.469904ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (5052.071994ms)
+✔ local startup releases a device when initialization after the protocol probe fails (1.423263ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (15.887451ms)
+✔ local observations skip idle polls and rerun after a committed page (34.804111ms)
+✔ local generation adoption reruns observations whose dependencies changed (47.842011ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (47.462583ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (5.655256ms)
+✔ local observations rerun when the device-reported visible lifetime expires (215.660303ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (14.234533ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (7.338428ms)
+✔ every local prediction invalidates observations, including unrelated tables (23.529595ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (277.962506ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2683.36753ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (203.019848ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (216.801975ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (188.055552ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (220.930832ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (206.904251ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (305.044304ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (201.109957ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (654.841741ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (202.428713ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (191.761536ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2349.320063ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (231.696277ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (299.062019ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1129.265128ms)
+✔ native: a sync started before admission finishes before that write can be sent (216.508965ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (246.106564ms)
+✔ native: sync before a lost write reply does not apply an increment twice (257.002844ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (443.074903ms)
+✔ native: population growth cannot mint new IDs during prediction replay (226.805207ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (773.94821ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (224.422666ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (270.381115ms)
+✔ close cancels online write callers without aborting committed delivery (162.808564ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (47.197415ms)
+✖ device compatibility rejects old and malformed protocols before online or offline startup (11.213196ms)
+✔ device compatibility closes the core and preserves operational startup errors (2.223212ms)
+✔ device compatibility accepts the current core online and on an offline reopen (202.481753ms)
+✔ online serialization failures retain the minted id without scheduling network retries (1.459057ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (223.712561ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (249.652689ms)
+✔ W13b fallback boundary: cursorless (1003.339903ms)
+✔ W13b fallback boundary: meter (1000.696121ms)
+✔ W13b fallback boundary: words (1002.140506ms)
+✔ W13b fallback boundary: missing fact (1003.309498ms)
+✔ W13b fallback boundary: presence (1003.03069ms)
+✔ W13b fallback boundary: offline missing fact (1002.732514ms)
+✔ W13b fallback boundary: held (1002.30904ms)
+✔ W13b fallback boundary: retained (1002.442019ms)
+✔ W13b fallback boundary: pending predictable write (1003.999574ms)
+ℹ tests 77
+ℹ suites 0
+ℹ pass 76
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34669.716331
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:1239:1
+✖ device compatibility rejects old and malformed protocols before online or offline startup (11.213196ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_DEVICE_VERSION:.*rebuild.*native binary/. Input:
+  
+  "TypeError: Cannot read properties of null (reading 'ok')"
+  
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1255:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot read properties of null (reading 'ok')
+        at file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/native-admission.js:48:41
+        at async requireSyncProtocol (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local-sync.js:58:19)
+        at async createLocalClient (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local.js:159:9)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1255:5)
+        at async Test.run (node:internal/test_runner/test:1110:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:785:7),
+    expected: /E_DEVICE_VERSION:.*rebuild.*native binary/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

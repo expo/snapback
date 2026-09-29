@@ -1,0 +1,40 @@
+✔ wasm: known sent survives keep_write failure; close=false (2594.57899ms)
+✔ wasm: known sent survives keep_write failure; close=true (1102.573485ms)
+✔ wasm: known failed survives keep_write failure; close=false (1094.622857ms)
+✔ wasm: known failed survives keep_write failure; close=true (1083.008658ms)
+✔ native: known sent survives keep_write failure; close=false (2256.669437ms)
+✔ native: known sent survives keep_write failure; close=true (1246.29996ms)
+✔ native: known failed survives keep_write failure; close=false (1255.084817ms)
+✔ native: known failed survives keep_write failure; close=true (1255.743865ms)
+✔ committed admission survives notification from a closing owner (21.937443ms)
+✔ committed admission survives notification from a closed channel (2.965595ms)
+✔ committed admission survives notification from a throwing listener (2.273638ms)
+✔ unsaved online hold stays visible through failed retries in shared journal order (1784.885387ms)
+✔ asynchronous settlement bounds online argument reservations, including another owner's retirement (931.852506ms)
+✔ online custody keeps sent from mutate consistent while receipt saves fail (2.736833ms)
+✔ online custody keeps sent from lookup consistent while receipt saves fail (1.487369ms)
+✔ online custody keeps sent from background consistent while receipt saves fail (2.326888ms)
+✔ online custody keeps failed from mutate consistent while receipt saves fail (1.305527ms)
+✔ online custody keeps failed from lookup consistent while receipt saves fail (1.126278ms)
+✔ online custody keeps failed from background consistent while receipt saves fail (2.685525ms)
+✔ CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal (2.539126ms)
+✔ CCP mutation waits use the action clamp and preserve omitted defaults (0.337416ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (2.927288ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=0) (2.44824ms)
+✔ CCP two createApp instances recover the known receipt when journal saves fail (29.837624ms)
+ℹ shared journal: 1 execution, recovered=sent, replayed=true
+✔ the native module follows the server, predicts, queues, and starts cold offline (5356.713063ms)
+✔ createLocalClient receives E_STORE_BUSY from a process device with an exclusively held ownership sidecar (39.9755ms)
+✔ a process device names a live server's published address in E_STORE_BUSY (23.184131ms)
+✔ createLocalClient preserves a process device's bad backend code: malformed JSON (35.155315ms)
+✔ createLocalClient preserves a process device's bad backend code: missing file (36.583135ms)
+✔ createLocalClient preserves a process device's bad backend code: unsupported capability (36.924918ms)
+✔ device usage and invalid store failures each emit a denial before exiting 2 (12.633005ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20634.228937

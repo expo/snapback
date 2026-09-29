@@ -1,0 +1,21 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NXQ5SM0RDEM7QDRZXRKJHT","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NXQ5VKTSJVYZGFEKYV8RG2","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (wasm) (2086.573456ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1482.60335ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1330.735116ms)
+✔ identification timeout settles visibly without sending (wasm) (1310.728453ms)
+✔ identification adoption settles visibly without sending (wasm) (1472.336754ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NXQCHP6XSM5JZWZXT39QC1","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NXQCKQW4D8JJ764VBNNTQ3","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (Worker) (1451.319397ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1706.851101ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1593.039583ms)
+✔ identification timeout settles visibly without sending (Worker) (1510.205089ms)
+✔ identification adoption settles visibly without sending (Worker) (1731.462618ms)
+✔ process device persists immediate writes before identity and resumes in order (355.433387ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16184.091791

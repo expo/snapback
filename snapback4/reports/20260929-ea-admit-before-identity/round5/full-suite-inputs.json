@@ -1,0 +1,16 @@
+{
+  "started_utc": "2026-09-29T13:00:25.622748+00:00",
+  "head": "c815da6450957542d6ad831529a5c900f2097dc4",
+  "modified_inputs": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "28c37a6b43537ca5ff7b89d18981e485f5a2305ced880b61747b2691c2814174",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "18455a53b7de40f0fc5de005d1e4bea3f07de341477f4bf4c74d5d6ff942d65a",
+    "snapback4/packages/snapback4/src/identity-admission.ts": "03339710f576f0b3a9c19093e622b3c8339a514cfda3bea40fd362b49bf165c7",
+    "snapback4/packages/snapback4/src/web-journal.ts": "fc0a566ea09dce13af21b08d1d261f221c09ec56f779a92b4f5af0692f74fcb9",
+    "snapback4/packages/snapback4/src/web-worker-device.ts": "b985228055d42bd3154494b0c53b4023063bee46637a2972e032004e506643e7",
+    "snapback4/packages/snapback4/src/web.ts": "5a80ba6a3e99e6b415c20f699ca59cc6a7354e145f737b0aa66f65438e425a5c",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "e0adba6e46ba8faf2494de15d46055caf02b7fda80aca342f1436ba4710ebfa2",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "4497e230ef22916b0173f13a1197a2b1086626e86a216cffd1e2bdc76a1a1c37",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "e76f2feb88cbe2aaa9ce8db130c2bd3818ad1bda9a8144842e7f3f4a1c42813d"
+  },
+  "suite_invocations": 1
+}

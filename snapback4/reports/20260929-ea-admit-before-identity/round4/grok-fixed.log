@@ -1,0 +1,138 @@
+TAP version 13
+# Subtest: waiting calls pin first identity across store replacement
+ok 1 - waiting calls pin first identity across store replacement
+  ---
+  duration_ms: 293.669147
+  type: 'test'
+  ...
+# Subtest: waiting calls pin first identity across backend replacement
+ok 2 - waiting calls pin first identity across backend replacement
+  ---
+  duration_ms: 275.132704
+  type: 'test'
+  ...
+# Subtest: final identity recheck hang produces a public unsent refusal
+ok 3 - final identity recheck hang produces a public unsent refusal
+  ---
+  duration_ms: 234.290175
+  type: 'test'
+  ...
+# Subtest: final identity recheck reject produces a public unsent refusal
+ok 4 - final identity recheck reject produces a public unsent refusal
+  ---
+  duration_ms: 233.778409
+  type: 'test'
+  ...
+# Subtest: final identity I/O keeps only the remaining deadline (queued=false)
+ok 5 - final identity I/O keeps only the remaining deadline (queued=false)
+  ---
+  duration_ms: 2.71091
+  type: 'test'
+  ...
+# Subtest: final identity I/O keeps only the remaining deadline (queued=true)
+ok 6 - final identity I/O keeps only the remaining deadline (queued=true)
+  ---
+  duration_ms: 1.510802
+  type: 'test'
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=false)
+not ok 7 - adoption-required store waits before any custody (reopen=false)
+  ---
+  duration_ms: 347.615912
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:423:37'
+  failureType: 'testCodeFailure'
+  error: |-
+    no ordinary admission before adoption
+    + actual - expected
+    
+    + {
+    +   id: '01M3PGKPCTFSTQD2KJM9X0C8XS',
+    +   state: 'pending'
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    state: 'pending'
+    id: '01M3PGKPCTFSTQD2KJM9X0C8XS'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:432:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=true)
+not ok 8 - adoption-required store waits before any custody (reopen=true)
+  ---
+  duration_ms: 339.79481
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:423:37'
+  failureType: 'testCodeFailure'
+  error: |-
+    no ordinary admission before adoption
+    + actual - expected
+    
+    + {
+    +   id: '01M3PGKPQS6TME1DFYG5PFZA9F',
+    +   state: 'pending'
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    state: 'pending'
+    id: '01M3PGKPQS6TME1DFYG5PFZA9F'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:432:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: temporary unreadiness after first identification continues the bounded wait
+ok 9 - temporary unreadiness after first identification continues the bounded wait
+  ---
+  duration_ms: 1.437343
+  type: 'test'
+  ...
+# Subtest: native admission fences backend-required after the final read
+not ok 10 - native admission fences backend-required after the final read
+  ---
+  duration_ms: 223.635378
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:460:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"state":"pending","id":"01M3PGKQ1KS3296HJ7PBA4J0EZ"}
+    + actual - expected
+    
+    + undefined
+    - 'E_ADMISSION_STORE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_ADMISSION_STORE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:471:40)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: empty browser capture reports a public identity refusal
+ok 11 - empty browser capture reports a public identity refusal
+  ---
+  duration_ms: 4.64688
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 8
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2077.341372

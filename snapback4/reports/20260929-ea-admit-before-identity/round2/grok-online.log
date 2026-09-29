@@ -1,0 +1,19 @@
+✔ native state reads cannot replace another admission attempt CAS token (52.255237ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (33.661069ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (38.726951ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (37.268575ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (36.262928ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (39.471236ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (36.881185ms)
+✔ online expiry recovers a peer outcome (settled=false) (26.64946ms)
+✔ online expiry recovers a peer outcome (settled=true) (5.132172ms)
+✔ online successful late probe preserves peer dispatch (original-store) (3.969279ms)
+✔ online successful late probe preserves peer dispatch (replacement-store) (3.600146ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 421.731408

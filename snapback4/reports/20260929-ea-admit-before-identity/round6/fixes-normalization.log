@@ -1,0 +1,24 @@
+✔ waiting admission after restored backend refresh: native descriptor (7.526651ms)
+✔ waiting admission after restored backend refresh: schema (2.539496ms)
+✔ waiting admission after restored backend refresh: programs (1.133468ms)
+✔ suspended runtime refuses late initial identity before timer delivery (1.122532ms)
+✔ suspended runtime refuses late final identity before timer delivery (0.558157ms)
+✔ offline cached backend to real /schema refresh preserves waiting admission (820.116385ms)
+ℹ {"schemas":1,"nativeInstalls":1,"admissions":1,"posts":1}
+▶ backend comparison preserves interpreter semantics while normalizing representation
+  ✔ name (0.32008ms)
+  ✔ kind (0.231077ms)
+  ✔ args (0.250325ms)
+  ✔ body (0.27377ms)
+  ✔ native (0.204336ms)
+  ✔ read_time_granularity_ms (0.197907ms)
+  ✔ returned_shapes (0.22717ms)
+✔ backend comparison preserves interpreter semantics while normalizing representation (3.705794ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 959.895621

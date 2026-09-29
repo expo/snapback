@@ -1,0 +1,74 @@
+✖ browser transaction rejects backend replacement after synchronous capture (wasm) (1324.746853ms)
+✖ browser transaction rejects backend replacement after synchronous capture (Worker) (1215.464471ms)
+✖ FIFO wait behind identity I/O consumes the identity budget (2.197433ms)
+✔ browser transaction checks generation independently of backend (wasm) (1057.05667ms)
+✔ browser transaction checks generation independently of backend (Worker) (1100.482075ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 2
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4857.313211
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:507:37
+✖ browser transaction rejects backend replacement after synchronous capture (wasm) (1324.746853ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:543:10)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:507:37
+✖ browser transaction rejects backend replacement after synchronous capture (Worker) (1215.464471ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:543:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:552:1
+✖ FIFO wait behind identity I/O consumes the identity budget (2.197433ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_TIMEOUT'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:567:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_TIMEOUT',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

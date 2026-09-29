@@ -1,0 +1,50 @@
+✖ FIFO wait behind identity I/O consumes the identity budget (4.751172ms)
+✖ FIFO deadline counts identity gaps between ordinary admissions (3.686716ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 111.636427
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:552:1
+✖ FIFO wait behind identity I/O consumes the identity budget (4.751172ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_TIMEOUT'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:567:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_TIMEOUT',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:598:1
+✖ FIFO deadline counts identity gaps between ordinary admissions (3.686716ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_TIMEOUT'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:624:47)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_TIMEOUT',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

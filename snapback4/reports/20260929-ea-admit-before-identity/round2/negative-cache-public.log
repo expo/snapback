@@ -1,0 +1,40 @@
+✖ native cached empty cannot bypass FIFO (1336.387039ms)
+✖ native cached empty cannot bypass captured binding (1347.321676ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2791.441709
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:54:42
+✖ native cached empty cannot bypass FIFO (1336.387039ms)
+  AssertionError [ERR_ASSERTION]: deferred FIRST must precede SECOND
+  + actual - expected
+  
+  + '01M3P6WX5MZDWD58EA3H5TFWC9'
+  - '01M3P6WX4HZ5V1BDYMH6PESGFD'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:67:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '01M3P6WX5MZDWD58EA3H5TFWC9',
+    expected: '01M3P6WX4HZ5V1BDYMH6PESGFD',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:54:42
+✖ native cached empty cannot bypass captured binding (1347.321676ms)
+  TypeError: Cannot read properties of undefined (reading 'code')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:63:51)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

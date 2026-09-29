@@ -1,0 +1,60 @@
+{"worker":false,"beforeIdentity":[{"state":"failed","id":"01M3NX3W8DWXC05KKB97VTV5E5","why":{"code":"E_OP","family":"op","message":"E_OP: unknown operation newConversation"}},{"state":"failed","id":"01M3NX3W9CTX8AXCXCMS50VV0P","why":{"code":"E_OP","family":"op","message":"E_OP: unknown operation newConversation"}}]}
+✖ immediate mounted form before identity (wasm) (1871.406874ms)
+{"worker":true,"beforeIdentity":[{"state":"failed","id":"01M3NX3X862E13PC2VTCCXKP6W","why":{"code":"E_OP","family":"op","message":"E_OP: unknown operation newConversation"}},{"state":"failed","id":"01M3NX3XA5VP457VDBEPCAXRQ5","why":{"code":"E_OP","family":"op","message":"E_OP: unknown operation newConversation"}}]}
+✖ immediate mounted form before identity (Worker) (1063.376073ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3039.950744
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:6:37
+✖ immediate mounted form before identity (wasm) (1871.406874ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'E_OP',
+  +   'E_OP'
+  -   'E_ADMISSION',
+  -   'E_ADMISSION'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:29:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'E_OP', 'E_OP' ],
+    expected: [ 'E_ADMISSION', 'E_ADMISSION' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:6:37
+✖ immediate mounted form before identity (Worker) (1063.376073ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   'E_OP',
+  +   'E_OP'
+  -   'E_ADMISSION',
+  -   'E_ADMISSION'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:29:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'E_OP', 'E_OP' ],
+    expected: [ 'E_ADMISSION', 'E_ADMISSION' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

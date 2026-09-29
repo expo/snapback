@@ -1,0 +1,33 @@
+{
+  "time_utc": "2026-09-29T12:32:06.385763+00:00",
+  "full_script_invocations": 1,
+  "full_script_exit": 0,
+  "summary": "== 0 failure(s) in 1297 s",
+  "frozen_input_differences": [],
+  "sources": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "e971d89bde4c2c890cfa4f82de66f48e00fb0eac1f4e4ea7681cce074e4ec0b0",
+    "snapback4/crates/snapback4-device/src/call.rs": "4c95fda6d95fe4ebd1c5341df58aeac8a6b7f146da216e98f8e5646c1e8d725c",
+    "snapback4/crates/snapback4-device/src/device.rs": "9c02664fdf6d219b80fa135d852b3f4e4106cf7452c5a418f8ba78b2fbb24db1",
+    "snapback4/crates/snapback4-lang/src/guide/client.md": "509c5089a694284365931773e68306fe5a3be17f8907ca1c0de37d21b74989ab",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "8dfdebc9bf232db6b524be9f4300e75c8c3f4bff8630e2c3218d4f802efe32ba",
+    "snapback4/crates/snapback4-lang/src/guide/why/E_ADMISSION.md": "491687106213612ed7b37a9deb842df479c287b3f54dd0e3e32b812bff032eaf",
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs": "74c42fc911a21ebb89011f698a2f96d86d0199db77ea4fd196b77edae6d190ff",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "7b78b9b3a6b88299c990278515d102cbfc403bb6380a022d3bf7d8f5f36235bd",
+    "snapback4/packages/snapback4/src/admission.ts": "23a5910a48f7f4193161963972b74209def4ee24adad0d4b3b764466ac13c733",
+    "snapback4/packages/snapback4/src/identity-admission.ts": "9dcc412eaf513509415667dd94f718b7d75379acb7d737a9d991821ea2b31a9f",
+    "snapback4/packages/snapback4/src/local.ts": "ffc6a8241a0df105db3a65a1017ea73eb764c9bec3675e5cae4c09a51cdb60e7",
+    "snapback4/packages/snapback4/src/web-journal.ts": "19c1640db4761063a10c81704a0799d619f27dc40d65b7b60844e1aff2d8356d",
+    "snapback4/packages/snapback4/src/writes.ts": "6c3e512a496b3daebef8ed80184aa00e1e88ea4bc49f17237817d3ca58eb8ef5",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "055e461d9d116faddf7dff25852666b7ad6d2899ec389ff1f7cfb9bd8fee7729",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "69c73a77f731398421fda96893fdb09ee0442b9c7ab83d95473bbf8d13d54da9",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "3549b8798137cfdb3b4662ee2d997f58f61a1edbb3283e78719fb4a45a00ecb0"
+  },
+  "wasm": {
+    "raw_bytes": 2040531,
+    "gzip_bytes": 592979,
+    "gzip_command": "gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+    "sha256": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95",
+    "cap_gzip_bytes": 593719,
+    "headroom_gzip_bytes": 740
+  }
+}

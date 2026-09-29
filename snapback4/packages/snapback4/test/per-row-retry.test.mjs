@@ -13,6 +13,8 @@ import { ReadWork } from '../dist/read-work.js';
 import { server, binary, until } from './helpers/app-server.mjs';
 const parked = signal => new Promise((_, reject) => signal.addEventListener('abort', () => reject(Error('closed')), { once: true }));
 const pause = () => new Promise(resolve => setImmediate(resolve));
+// Mocking setTimeout also holds undici's zero-delay timers on some hosts (macOS),
+// so wait by advancing only zero-delay timers while real I/O completes.
 async function pump(t, predicate, label) {
   const end = performance.now() + 5000;
   while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await pause(); }
@@ -60,13 +62,13 @@ for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined,
     if (client.sync) await client.sync(); else await client.query(op, { id: 'warm' });
     t.mock.timers.enable({ apis: ['setTimeout'] }); armed = true;
     const watch = client.observe(op, { id: 'r' }, { keep }); watch.subscribe(() => {}); t.after(() => watch.close());
-    await until(() => owner, 'newer answer published in the continuation gap');
+    await pump(t, () => owner, 'newer answer published in the continuation gap');
     for (let i = 0; i < 60; i++) await pause();
     assert.equal(owner.resetVersion, 0);
     assert.equal(watch.getSnapshot().data?.value, 8, 'the due attempt cannot publish synthetic loading over a newer answer');
     assert.equal(queries, 1, 'retry is paced');
     t.mock.timers.tick(25);
-    await until(() => watch.getSnapshot().data === null, 'paced retry publishes the current answer');
+    await pump(t, () => watch.getSnapshot().data === null, 'paced retry publishes the current answer');
     assert.equal(queries, 2);
   });
 }

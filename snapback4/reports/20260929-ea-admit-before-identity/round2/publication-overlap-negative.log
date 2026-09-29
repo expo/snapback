@@ -1,0 +1,38 @@
+✖ native expiry transaction rechecks a peer identity publication (54.580762ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 160.994308
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-publication.test.mjs:5:1
+✖ native expiry transaction rechecks a peer identity publication (54.580762ms)
+  AssertionError [ERR_ASSERTION]: expiry commit rechecks the peer publication under custody lock
+  + actual - expected
+  
+  + {
+  +   code: 'E_ADMISSION_TIMEOUT',
+  +   family: 'store',
+  +   guide: 'writes',
+  +   message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.',
+  +   rewrite: 'check the connection and backend URL, then submit with a new write id',
+  +   site: 'client.mutate'
+  + }
+  - undefined
+  
+      at TestContext.nativePublicationOverlapSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:152:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_ADMISSION_TIMEOUT', family: 'store', site: 'client.mutate', guide: 'writes', message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.', rewrite: 'check the connection and backend URL, then submit with a new write id' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

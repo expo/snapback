@@ -1,0 +1,15 @@
+{
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "head": "c815da6450957542d6ad831529a5c900f2097dc4",
+  "origin_main": "b9a4051494eae2d437eb1b0534cdd4c3f5277013",
+  "cwd": "/home/ccheever/sb4-intent/lane-ea",
+  "branch": "sb4-intent/ea-admit-before-identity",
+  "original_reviews": {
+    "snapback4/reports/20260929-ea-admit-before-identity/round5/astra-r4.md": "325f9bc3d97d4a212cebc32307010f5d01d9d1d27b403db922b4cad796df405f",
+    "snapback4/reports/20260929-ea-admit-before-identity/round5/grok-r4-initial.md": "60df2088b19275eb786d61390527ee28e87e4a5643ccfdb15fc092e7d9c16699"
+  }
+}

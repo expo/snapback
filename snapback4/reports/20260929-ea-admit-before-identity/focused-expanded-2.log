@@ -1,0 +1,121 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NXK4Q235P5FS1M83M54VR1","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NXK4S35BC8P65ZQN0VCX5K","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (wasm) (1684.640117ms)
+✖ deferred burst, prediction, ids and reload (wasm) (1495.593418ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1548.222402ms)
+✔ identification timeout settles visibly without sending (wasm) (1492.514263ms)
+✔ identification adoption settles visibly without sending (wasm) (1773.275524ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NXKC8QZMTV7NMCN9WCZV0G","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NXKCB70TMVHE8JZKN15VF6","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (Worker) (1589.247937ms)
+✖ deferred burst, prediction, ids and reload (Worker) (1653.694823ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1672.542288ms)
+✔ identification timeout settles visibly without sending (Worker) (1604.532185ms)
+✔ identification adoption settles visibly without sending (Worker) (1867.145047ms)
+✔ process device persists immediate writes before identity and resumes in order (424.94172ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16979.104596
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:91:3
+✖ deferred burst, prediction, ids and reload (wasm) (1495.593418ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        '01M3NXK5ZWM95EBDD8EJ00NEVD',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVE',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVF',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVG',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVH',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVJ',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVK',
+  -     '01M3NXK5ZWM95EBDD8EJ00NEVM'
+      ],
+      [
+        '01M3NXK5ZXK98NERJ0Q19DYXYC',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYD',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYE',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYF',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYG',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYH',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYJ',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYK'
+      ],
+      [
+        '01M3NXK5ZXK98NERJ0Q19DYXYN',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYP',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYQ',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYR',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYS',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYT',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYV',
+  -     '01M3NXK5ZXK98NERJ0Q19DYXYW'
+      ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:110:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ '01M3NXK5ZWM95EBDD8EJ00NEVD' ], [ '01M3NXK5ZXK98NERJ0Q19DYXYC' ], [ '01M3NXK5ZXK98NERJ0Q19DYXYN' ] ],
+    expected: [ [ '01M3NXK5ZWM95EBDD8EJ00NEVD', '01M3NXK5ZWM95EBDD8EJ00NEVE', '01M3NXK5ZWM95EBDD8EJ00NEVF', '01M3NXK5ZWM95EBDD8EJ00NEVG', '01M3NXK5ZWM95EBDD8EJ00NEVH', '01M3NXK5ZWM95EBDD8EJ00NEVJ', '01M3NXK5ZWM95EBDD8EJ00NEVK', '01M3NXK5ZWM95EBDD8EJ00NEVM' ], [ '01M3NXK5ZXK98NERJ0Q19DYXYC', '01M3NXK5ZXK98NERJ0Q19DYXYD', '01M3NXK5ZXK98NERJ0Q19DYXYE', '01M3NXK5ZXK98NERJ0Q19DYXYF', '01M3NXK5ZXK98NERJ0Q19DYXYG', '01M3NXK5ZXK98NERJ0Q19DYXYH', '01M3NXK5ZXK98NERJ0Q19DYXYJ', '01M3NXK5ZXK98NERJ0Q19DYXYK' ], [ '01M3NXK5ZXK98NERJ0Q19DYXYN', '01M3NXK5ZXK98NERJ0Q19DYXYP', '01M3NXK5ZXK98NERJ0Q19DYXYQ', '01M3NXK5ZXK98NERJ0Q19DYXYR', '01M3NXK5ZXK98NERJ0Q19DYXYS', '01M3NXK5ZXK98NERJ0Q19DYXYT', '01M3NXK5ZXK98NERJ0Q19DYXYV', '01M3NXK5ZXK98NERJ0Q19DYXYW' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:91:3
+✖ deferred burst, prediction, ids and reload (Worker) (1653.694823ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        '01M3NXKDSSBBT70D5Q5B6J5B2Y',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B2Z',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B30',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B31',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B32',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B33',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B34',
+  -     '01M3NXKDSSBBT70D5Q5B6J5B35'
+      ],
+      [
+        '01M3NXKDSTK0421A7PDC79VM69',
+  -     '01M3NXKDSTK0421A7PDC79VM6A',
+  -     '01M3NXKDSTK0421A7PDC79VM6B',
+  -     '01M3NXKDSTK0421A7PDC79VM6C',
+  -     '01M3NXKDSTK0421A7PDC79VM6D',
+  -     '01M3NXKDSTK0421A7PDC79VM6E',
+  -     '01M3NXKDSTK0421A7PDC79VM6F',
+  -     '01M3NXKDSTK0421A7PDC79VM6G'
+      ],
+      [
+        '01M3NXKDSTK0421A7PDC79VM6J',
+  -     '01M3NXKDSTK0421A7PDC79VM6K',
+  -     '01M3NXKDSTK0421A7PDC79VM6M',
+  -     '01M3NXKDSTK0421A7PDC79VM6N',
+  -     '01M3NXKDSTK0421A7PDC79VM6P',
+  -     '01M3NXKDSTK0421A7PDC79VM6Q',
+  -     '01M3NXKDSTK0421A7PDC79VM6R',
+  -     '01M3NXKDSTK0421A7PDC79VM6S'
+      ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:110:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ '01M3NXKDSSBBT70D5Q5B6J5B2Y' ], [ '01M3NXKDSTK0421A7PDC79VM69' ], [ '01M3NXKDSTK0421A7PDC79VM6J' ] ],
+    expected: [ [ '01M3NXKDSSBBT70D5Q5B6J5B2Y', '01M3NXKDSSBBT70D5Q5B6J5B2Z', '01M3NXKDSSBBT70D5Q5B6J5B30', '01M3NXKDSSBBT70D5Q5B6J5B31', '01M3NXKDSSBBT70D5Q5B6J5B32', '01M3NXKDSSBBT70D5Q5B6J5B33', '01M3NXKDSSBBT70D5Q5B6J5B34', '01M3NXKDSSBBT70D5Q5B6J5B35' ], [ '01M3NXKDSTK0421A7PDC79VM69', '01M3NXKDSTK0421A7PDC79VM6A', '01M3NXKDSTK0421A7PDC79VM6B', '01M3NXKDSTK0421A7PDC79VM6C', '01M3NXKDSTK0421A7PDC79VM6D', '01M3NXKDSTK0421A7PDC79VM6E', '01M3NXKDSTK0421A7PDC79VM6F', '01M3NXKDSTK0421A7PDC79VM6G' ], [ '01M3NXKDSTK0421A7PDC79VM6J', '01M3NXKDSTK0421A7PDC79VM6K', '01M3NXKDSTK0421A7PDC79VM6M', '01M3NXKDSTK0421A7PDC79VM6N', '01M3NXKDSTK0421A7PDC79VM6P', '01M3NXKDSTK0421A7PDC79VM6Q', '01M3NXKDSTK0421A7PDC79VM6R', '01M3NXKDSTK0421A7PDC79VM6S' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: waiting calls pin first identity across store replacement
+ok 1 - waiting calls pin first identity across store replacement
+  ---
+  duration_ms: 295.649561
+  type: 'test'
+  ...
+# Subtest: waiting calls pin first identity across backend replacement
+ok 2 - waiting calls pin first identity across backend replacement
+  ---
+  duration_ms: 274.406542
+  type: 'test'
+  ...
+# Subtest: final identity recheck hang produces a public unsent refusal
+ok 3 - final identity recheck hang produces a public unsent refusal
+  ---
+  duration_ms: 231.731331
+  type: 'test'
+  ...
+# Subtest: final identity recheck reject produces a public unsent refusal
+ok 4 - final identity recheck reject produces a public unsent refusal
+  ---
+  duration_ms: 229.422994
+  type: 'test'
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=false)
+ok 5 - adoption-required store waits before any custody (reopen=false)
+  ---
+  duration_ms: 374.589523
+  type: 'test'
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=true)
+ok 6 - adoption-required store waits before any custody (reopen=true)
+  ---
+  duration_ms: 353.631361
+  type: 'test'
+  ...
+# Subtest: temporary unreadiness after first identification continues the bounded wait
+ok 7 - temporary unreadiness after first identification continues the bounded wait
+  ---
+  duration_ms: 2.261097
+  type: 'test'
+  ...
+# Subtest: native admission fences backend-required after the final read
+ok 8 - native admission fences backend-required after the final read
+  ---
+  duration_ms: 227.008307
+  type: 'test'
+  ...
+# Subtest: empty browser capture reports a public identity refusal
+ok 9 - empty browser capture reports a public identity refusal
+  ---
+  duration_ms: 4.64631
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2113.588809

@@ -89,7 +89,7 @@ A Write queued without a row before acquisition carries
 says `queued without a row: local data does not justify prediction`.
 Predicted rows carry pending; a pending Write has no predicted result.
 
-`await client.pendingWrites()` lists admitted, unsettled writes oldest first:
+`await client.pendingWrites()` lists custodied, unsettled writes oldest first:
 `{ id, op, args, state, reason?, predicted }`. `op` is the mutation name and
 `predicted` names its rows as `table/id`; a write without a prediction still
 appears. `state` is `queued` before dispatch, `sent` after dispatch starts with
@@ -130,8 +130,8 @@ answers `client.write(id)` once that sync completes, not at the moment it opens.
 Recovery and new admissions take submission numbers from the same device counter;
 already-queued writes precede recovered orphan records. A matching orphan waiting
 for backend adoption installs the destination's authenticated backend first. An
-orphan missing its kept backend or store identity is skipped with its journal
-intact until a later matching open can establish ownership; a broken orphan does
+orphan missing its kept backend is skipped with its journal intact until a
+later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
@@ -141,7 +141,7 @@ device store, and 64 KiB per record. A browser call that cannot synchronously
 keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent
 is accepted. Its promise is already fulfilled with `failed`, and exposes
 `state`, `id` and `why` in the calling stack. Missing restored identity,
-unknown backend identity, unavailable/full storage, an exhausted journal, or
+unavailable/full storage, an exhausted journal, or
 an app without a durable web device therefore cannot silently lose a click.
 Use `webDevice()` and `localStorageSessionStore()`, wait for readiness or repair
 storage, then retry the original id. Browser storage clearing after admission
@@ -156,7 +156,7 @@ Recovered executable records keep successful predictions, but local refusals
 queue for the server to decide, so stale rows cannot permanently cancel them.
 For programmatic navigation, `await client.mutate(...)` before navigating
 is the strongest durable boundary; handle a `failed` outcome before leaving.
-`pending` means IndexedDB admission is durable and the server outcome still
+`pending` means IndexedDB custody is durable and the server outcome still
 needs confirmation. A write-specific admission refusal returns the ordinary failed
 outcome and removes its journal record, replaces it with a non-executable
 cancellation, or acknowledges it in IndexedDB. If both stores reject cancellation,
@@ -165,6 +165,8 @@ later recovery can admit it if the authored condition changes. The returned
 refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
+
+Identification: 15 seconds without custody; `why E_ADMISSION`.
 
 ## A constraint across rows you cannot read
 

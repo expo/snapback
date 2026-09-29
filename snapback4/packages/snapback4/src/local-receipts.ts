@@ -123,3 +123,16 @@ export async function readQueued(call: (request: Record<string, unknown>) => Pro
   history.retainEmissions([...entries.map(entry => entry.id), ...settling]);
   return entries;
 }
+
+// Close cannot report unknown custody after sync already proved execution.
+// Read after in-flight device work drains, before resolving remaining callers.
+export async function resolveClosingWrites(queued: () => Promise<Queued[]>, history: WriteHistory,
+  waiting: ReadonlyMap<string, { resolve(write: Write): void }>): Promise<void> {
+  if (!waiting.size) return;
+  const entries = await queued().catch(() => []);
+  for (const [id, { resolve }] of waiting) {
+    const entry = entries.find(entry => entry.id === id), seq = successSequence(entry);
+    const known = await (seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined);
+    resolve(known ?? (seq === undefined ? { state: "pending", id } : { state: "sent", id, seq, replayed: true }));
+  }
+}

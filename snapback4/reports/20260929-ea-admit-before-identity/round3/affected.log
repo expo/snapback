@@ -1,0 +1,535 @@
+✔ W5R1x: terminal history is bounded independently of unresolved writes (4.089461ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (4752.428215ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✖ W5R1x wasm: opener returns an offline unacquired client on network loss (17084.052963ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1255.96651ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1186.125649ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (7979.366832ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✖ W5R1x process: opener returns an offline unacquired client on network loss (17128.346881ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1312.22596ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1236.195211ms)
+✔ wasm: schema alone is not acquisition; unadmitted writes disappear on close (2104.739618ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6154.848454ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1171.590257ms)
+✔ process: schema alone is not acquisition; unadmitted writes disappear on close (2156.754476ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6300.453439ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1214.436405ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (3321.591776ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✖ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (30187.813463ms)
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (3515.411117ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✖ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (30091.5897ms)
+✔ receipt custody retains the first sent outcome across repeated save failures (0.90042ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.112148ms)
+✔ acknowledgement drops an unsaved replacement refusal before any persistence retry (0.210126ms)
+✔ a legacy acknowledgement returns a known authored refusal without saving success (0.131548ms)
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (14271.027585ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (7100.831775ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (7251.799542ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (9287.877952ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1409.35409ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1354.159083ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ sequence by wasm: two offline Write results remain pending until settled (1176.560424ms)
+✔ sequence by process: two offline Write results remain pending until settled (1178.271159ms)
+✔ sequence by wasm: provisional rule refusal queues for the server (4214.577749ms)
+✔ sequence by wasm: provisional require refusal queues for the server (4234.621298ms)
+✔ sequence by wasm: provisional constraint refusal queues for the server (5107.162875ms)
+✔ sequence by wasm: provisional named constraint refusal queues for the server (4219.964064ms)
+✔ sequence by wasm: provisional postcondition refusal queues for the server (4234.826506ms)
+✔ sequence by wasm: provisional sequence key refusal queues for the server (4215.183149ms)
+✔ sequence by wasm: provisional old refusal queues for the server (4215.882418ms)
+✔ sequence by wasm: provisional empty index refusal queues for the server (4210.275333ms)
+✔ sequence by wasm: provisional cap group refusal queues for the server (4214.84139ms)
+✔ sequence by wasm: provisional upsert index refusal queues for the server (4241.127807ms)
+✔ sequence by wasm: provisional postcondition index refusal queues for the server (4211.837188ms)
+✔ sequence by wasm: point preserves prediction metadata and authority (178.753614ms)
+✔ sequence by wasm: page preserves prediction metadata and authority (176.300257ms)
+✔ sequence by wasm: short circuit preserves prediction metadata and authority (178.135809ms)
+✔ sequence by wasm: unique independent preserves prediction metadata and authority (172.637917ms)
+✔ sequence by wasm: cap independent preserves prediction metadata and authority (173.649843ms)
+✔ committed admission survives notification from a closing owner (21.355938ms)
+✔ committed admission survives notification from a closed channel (2.787249ms)
+✔ committed admission survives notification from a throwing listener (2.157494ms)
+✔ unsaved online hold stays visible through failed retries in shared journal order (1779.67649ms)
+✔ asynchronous settlement bounds online argument reservations, including another owner's retirement (899.416334ms)
+✔ online custody keeps sent from mutate consistent while receipt saves fail (3.907449ms)
+✔ online custody keeps sent from lookup consistent while receipt saves fail (1.477174ms)
+✔ online custody keeps sent from background consistent while receipt saves fail (2.426449ms)
+✔ online custody keeps failed from mutate consistent while receipt saves fail (1.289213ms)
+✔ online custody keeps failed from lookup consistent while receipt saves fail (1.319519ms)
+✔ online custody keeps failed from background consistent while receipt saves fail (1.750174ms)
+✔ CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal (4.420558ms)
+✔ CCP mutation waits use the action clamp and preserve omitted defaults (0.336805ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (1.395212ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=0) (0.937515ms)
+✔ CCP two createApp instances recover the known receipt when journal saves fail (25.946061ms)
+ℹ shared journal: 1 execution, recovered=sent, replayed=true
+✖ settle pins E_STORE_REPLACED, then compacts its id across normal receipt churn and reopen (15008.534741ms)
+✖ settle pins E_STORE_RESTORE, then compacts its id across normal receipt churn and reopen (15004.283921ms)
+✔ bulk retirement larger than the receipt window preserves every id on reopen (207.850459ms)
+✖ retirement saturation fences new admissions durably; displaced sent id: false (15011.265365ms)
+✖ retirement saturation fences new admissions durably; displaced sent id: true (15015.210273ms)
+✖ a saturated journal recovers an already-admitted intent as pending while its delivery is held (15012.06852ms)
+✔ online app reopens after replacement; replacement accepts session: true (41.090986ms)
+✔ online app reopens after replacement; replacement accepts session: false (17.393137ms)
+✔ logout cancels replacement verification without restoring the old account (7.286174ms)
+✔ close cancels replacement verification without restoring the old account (6.461087ms)
+✔ login cancels replacement verification without restoring the old account (7.836639ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: false (39.742735ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: true (33.713636ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (19.548428ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (21.386925ms)
+✔ W6d: caller id reservations preserve synchronous journal custody without duplicate prediction (1541.671723ms)
+ℹ caller_id_journal_records=1 durable_entries=1 applied=1
+journal dedupe: retired=false; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (queued) (1348.752775ms)
+journal dedupe: retired=true; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (retired receipt) (273.194971ms)
+✔ pre-admission journal: prediction refusal is removed and a valid successor applies (216.690065ms)
+✔ pre-admission journal: validation refusal is removed and a valid successor applies (244.638588ms)
+✔ pre-admission journal: a known refusal survives an IDB outage (211.659834ms)
+✔ pre-admission journal: persisted identity mismatch never sends a recovered write (219.283473ms)
+✔ pre-admission journal: server identity mismatch never sends a recovered write (255.85961ms)
+✔ pre-admission journal: offline then server identity mismatch never sends a recovered write (234.707688ms)
+✔ pre-admission journal: quota falls back to ordinary admission without throwing (196.264532ms)
+✔ pre-admission journal: accessor falls back to ordinary admission without throwing (247.988209ms)
+✔ pre-admission journal: disabled falls back to ordinary admission without throwing (204.392688ms)
+✔ pre-admission journal: arguments are captured before the caller changes them (207.587378ms)
+journal bounds: record bytes; captured=1; writes=2; bytes=56783; largestRecord=56637
+✔ pre-admission journal: record bytes bounds capture and ordinary admission still works (262.545484ms)
+journal bounds: journal bytes; captured=4; writes=5; bytes=227132; largestRecord=56637
+✔ pre-admission journal: journal bytes bounds capture and ordinary admission still works (306.023379ms)
+journal bounds: record count; captured=32; writes=33; bytes=25079; largestRecord=638
+✔ pre-admission journal: record count bounds capture and ordinary admission still works (597.951975ms)
+✔ pre-admission journal: the next device adopts a closed tab's writes in order (315.461469ms)
+✔ pre-admission journal: a live tab's journal is never adopted (256.887672ms)
+✔ pre-admission journal: a failed save recovers the predecessor before a surviving page's next admission (235.87671ms)
+pre-admission journal: count=1; timing=same turn; applications=1; order=1; duplicates=0; replayMs=42; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive same turn teardown (240.869375ms)
+pre-admission journal: count=1; timing=held save; applications=1; order=1; duplicates=0; replayMs=39; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive held save teardown (244.204436ms)
+pre-admission journal: count=2; timing=same turn; applications=2; order=12; duplicates=0; replayMs=32; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive same turn teardown (240.248194ms)
+pre-admission journal: count=2; timing=held save; applications=2; order=12; duplicates=0; replayMs=42; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive held save teardown (259.558486ms)
+navigation model: writes=1; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=29
+✔ navigation model: 1 unawaited writes, ordinary aborted before delivery (230.672327ms)
+navigation model: writes=2; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=34
+✔ navigation model: 2 unawaited writes, ordinary aborted before delivery (227.93948ms)
+navigation model: writes=1; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=35
+✔ navigation model: 1 unawaited writes, ordinary applied with lost reply (226.376997ms)
+navigation model: writes=2; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=44
+✔ navigation model: 2 unawaited writes, ordinary applied with lost reply (254.655484ms)
+navigation model late commit: exitRequests=1; rows=1; state=pending
+✔ navigation model: admission finishing after pagehide sends only after its commit (4200.091855ms)
+navigation model slow sync: beforeFirstSync=1; sends=1
+✔ navigation model: reopen before slow first sync (same store) (1246.193662ms)
+✔ navigation model: reopen before slow first sync (different store) (1239.204251ms)
+✔ navigation model: reopen before slow first sync (missing store) (1244.503215ms)
+✔ navigation model: reopen before slow first sync (restored store) (1205.490723ms)
+W4R1 A: submissions=1,2,3; applications=3; order=123; duplicates=0
+✔ W4R1 A: deferred recovery allocates before an offline successor, then applies ABC (315.626183ms)
+✔ W4R1 B1: a matching orphan installs the destination backend before recovery (283.079838ms)
+✔ W4R1 B2: empty orphan cannot fail open or hide a healthy orphan (323.1814ms)
+✔ W4R1 B2: missing identity orphan cannot fail open or hide a healthy orphan (301.637029ms)
+✔ W4R1 B2: broken backend orphan cannot fail open or hide a healthy orphan (343.115035ms)
+W4R1 C: cancellation=localStorage; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and localStorage cancellation (260.735528ms)
+W4R1 C: cancellation=IDB; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and IDB cancellation (272.267187ms)
+W4R1 C: cancellation=neither; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and neither cancellation (291.935164ms)
+✔ W4R1 C: an orphan journal does not settle against its stale authored condition (273.497971ms)
+✔ W4R1 D: single-context persistence supplies exclusive ownership without Web Locks (254.952558ms)
+✔ durable IndexedDB and custom persistence cannot silently open without ownership (1.217576ms)
+✔ custom persistence rejects arbitrary alternate before opening (0.407571ms)
+✔ custom persistence rejects unrecoverable alternate before opening (0.199269ms)
+✔ custom persistence rejects an inexact orphan claim before opening (194.644069ms)
+✔ W4R1 E: one malformed journal key does not hide a real closed tab journal (278.71279ms)
+W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0
+✔ W4R1 missing: queued primary precedes two orphan journals with one application each (1249.467652ms)
+✖ an unidentified Node device defers both transports until its first store binding (2198.144562ms)
+✔ W5c a reloaded secondary tab recovers its terminal receipt by id (275.372712ms)
+✔ W11R1a: A adopts B before C opens (sent) (265.832218ms)
+ℹ forced_adoption_before_reopen=1 recovered_sent=1 applications=1
+✔ W11R1a: A adopts B before C opens (failed) (248.632281ms)
+ℹ forced_adoption_before_reopen=1 recovered_failed=1 applications=0
+✔ W11R1a: lock release after foreground retries recovers without a backend write (279.258647ms)
+ℹ foreground_lock_misses=5 post_release_backend_writes=0 applications=1
+✖ W11R1a: background outbox adoption keeps one sender and never takes a live owner (11161.056059ms)
+✔ W11R1a: shared persistence failure leaves the source recoverable (1291.656089ms)
+✔ W11R1a: the shared window is bounded, immutable and does not refresh on reads (368.752177ms)
+ℹ shared_receipts=256 inserted_receipts=257 shared_records=1 evicted=1
+✔ W11R1a: competing adopters serialize shared receipts without holding up an opener (325.853141ms)
+ℹ competing_adopters=2 shared_receipts=2 applications=2
+✔ W6R1 web: two live tabs admit the same new caller ID and apply once (1155.26836ms)
+ℹ live_web_tabs=2 journal_records=2 posts=2 applications=1
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=false) (273.270116ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=false
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=true) (1274.287256ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=true
+✔ W6R1 journal: an evicted guarded caller ID survives failed admission persistence and reopen (2205.038478ms)
+ℹ evicting_writes=256 recovered_replay_candidates=1 correlated_receipts=1 replay_posts=0 duplicate_rows=0
+✔ device close model: cancelled callers retain their ids across offline and online reopen (48606.455437ms)
+ℹ device_close_sequences=32 seed=0x14c105e coverage={"unreached":9,"committed":12,"delivered":11,"late":20,"early":12}
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=false (40.426608ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=true (17.930371ms)
+✔ a persisted terminal receipt never reposts on reopen (3.834659ms)
+✔ the first fresh write after replacement binds B even when the pending journal is empty (16.639977ms)
+✔ retrying the first fresh replacement id recovers its receipt without retiring or executing it twice (5.702068ms)
+✔ failed intent identity persistence refuses admission before any dispatch (3.324174ms)
+✖ close detaches a held first-store probe and preserves the pending intent for reopen (12.182605ms)
+✔ intent without an identity: first observed store; dispatched=undefined (12.63975ms)
+✔ intent without an identity: first observed store; dispatched=false (12.165579ms)
+✔ intent without an identity: same first store; dispatched=undefined (12.223616ms)
+✔ intent without an identity: same first store; dispatched=false (11.964587ms)
+✔ intent without an identity: replacement; dispatched=undefined (12.152749ms)
+✔ intent without an identity: replacement; dispatched=false (11.484207ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=undefined (12.420902ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=false (12.097556ms)
+✔ store precondition prevents execution when the endpoint changes after the probe (5.745393ms)
+✔ unpersisted receipt notifications survive the ordinary 256-receipt history window (357.626158ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (21.289508ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (10.370978ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (3.686437ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.973748ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.930164ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.691366ms)
+✔ composition publishes at both deadlines, device first (2.816482ms)
+✔ composition publishes at both deadlines, server first (5.519726ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.706638ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (1.237895ms)
+✔ freshness is clamped at publication after wall time rolls back (2.129643ms)
+✔ useNow catches deadline between render and effect installation (33.303669ms)
+✔ useNow catches correction between render and effect installation (5.005354ms)
+✔ useNow catches correction-before-deadline between render and effect installation (4.201048ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.916322ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.965607ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (5.119485ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.702783ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.929422ms)
+file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/native-admission.js:2
+import { IdentityAdmissions, IDENTITY_ADMISSIONS } from "./identity-admission.js";
+                             ^^^^^^^^^^^^^^^^^^^
+SyntaxError: The requested module './identity-admission.js' does not provide an export named 'IDENTITY_ADMISSIONS'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.13.1
+✖ packages/snapback4/test/server-clock-wire.test.mjs (81.857101ms)
+✔ ten explicit calls during one round share exactly one follow-up (22.54552ms)
+✔ a call during the follow-up waits for its own newer round (4.731133ms)
+✔ a wake-driven round is not doubled (2.951335ms)
+✔ explicit sync during a held wake-driven round observes the newer head (2.055582ms)
+✔ a wake during an explicit round coalesces without an extra round (1.910304ms)
+✔ explicit sync waits for the follow-up's offline fetch (1.840379ms)
+✔ explicit sync waits for the follow-up's device rejection (4.067769ms)
+✔ an older round returning false after network error cannot skip the explicit follow-up (1.714951ms)
+✔ an older round returning false after HTTP 500 cannot skip the explicit follow-up (1.693439ms)
+✔ a failed older round cannot skip the explicit follow-up attempt (1.432438ms)
+✔ the legacy refusal constant matches the published 0.2.32 capture (1.583814ms)
+✔ wasm: early generation adoption preserves unsent writes, known and lost acknowledgements (907.065765ms)
+✔ process: early generation adoption preserves unsent writes, known and lost acknowledgements (559.774882ms)
+✔ legacy fallback returns the distinct successful retry and latches only its origin and transport (3.92885ms)
+✔ legacy fallback does not latch on same E_INPUT (0.981451ms)
+✔ legacy fallback does not latch on throw (1.595001ms)
+✔ legacy fallback does not latch on 503 (0.670976ms)
+✔ legacy fallback does not latch on 429 (0.642644ms)
+✔ legacy fallback does not latch on 401 (0.570626ms)
+✔ legacy fallback does not latch on 408 (0.649434ms)
+✔ legacy fallback captures each overlapping attempt and waits for successful retry before latching (4.356712ms)
+✔ legacy fallback ignores other refusals and never retries an attempt without generation (2.204265ms)
+✔ legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals (248.708006ms)
+✔ legacy fallback accepts relative URL /api/sync with document base without rewriting fetch (1.792097ms)
+✔ legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch (0.870496ms)
+✔ legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch (1.219798ms)
+✔ legacy fallback accepts relative URL /api/sync with location base without rewriting fetch (0.822243ms)
+✔ legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch (0.833129ms)
+✔ legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch (0.781682ms)
+✔ legacy fallback accepts relative URL /api/sync with none base without rewriting fetch (0.890265ms)
+✔ legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch (0.727039ms)
+✔ legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch (0.666039ms)
+﹣ new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract (0.107822ms) # set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+✔ wasm: early generation head preserves restore evidence from deferred stream (296.257663ms)
+✔ wasm: early generation head preserves restore evidence from staged snapshot (290.483377ms)
+✔ process: early generation head preserves restore evidence from deferred stream (333.626557ms)
+✔ process: early generation head preserves restore evidence from staged snapshot (331.413699ms)
+✔ wasm: early head 20 and ordinary page decide deferred stream evidence identically (510.516292ms)
+✔ wasm: early head 25 and ordinary page decide deferred stream evidence identically (514.690901ms)
+✔ wasm: missing early watermark preserves deferred stream evidence until a headed retry (420.776092ms)
+✔ wasm: early head 20 and ordinary page decide staged snapshot evidence identically (513.91763ms)
+✔ wasm: early head 25 and ordinary page decide staged snapshot evidence identically (509.264304ms)
+✔ wasm: missing early watermark preserves staged snapshot evidence until a headed retry (427.354614ms)
+✔ process: early head 20 and ordinary page decide deferred stream evidence identically (625.508599ms)
+✔ process: early head 25 and ordinary page decide deferred stream evidence identically (626.351772ms)
+✔ process: missing early watermark preserves deferred stream evidence until a headed retry (495.123043ms)
+✔ process: early head 20 and ordinary page decide staged snapshot evidence identically (624.475199ms)
+✔ process: early head 25 and ordinary page decide staged snapshot evidence identically (664.241246ms)
+✔ process: missing early watermark preserves staged snapshot evidence until a headed retry (501.039483ms)
+✔ wasm: invalid early heads are retryable and never reach observation or adoption (173.109687ms)
+✔ process: invalid early heads are retryable and never reach observation or adoption (221.228276ms)
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (453.452188ms)
+  ✔ stream overflow preserves generation and store identity (628.168373ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (623.948847ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (13007.060956ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (14739.327364ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (4655.073225ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (5689.282788ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (66692.189695ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (5602.79274ms)
+  ✔ process replaces the old store before shrinking (6642.31326ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (14377.184168ms)
+✔ wasm a new replica recovers its oversized first commit (7118.540824ms)
+ℹ {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ process a new replica recovers its oversized first commit (8261.324403ms)
+ℹ {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":10000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":5000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":625,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":312,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":156,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":78,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":0,"stream":false,"limit":39,"snapshot":true},{"from":1,"stream":true,"limit":39,"snapshot":false}]}
+✔ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (14895.161681ms)
+✔ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (16628.38924ms)
+✔ wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (39582.760551ms)
+✔ process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (41356.280249ms)
+✔ wasm: many ordinary commits recover by halving without snapshot (9750.58542ms)
+✔ process: many ordinary commits recover by halving without snapshot (10684.528344ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm a snapshot continuation overflow keeps its cursor and terminates at limit one (225.849518ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process a snapshot continuation overflow keeps its cursor and terminates at limit one (283.647553ms)
+✔ wasm bare refusals retain held rows beyond the horizon and allow a later sync retry (199.938505ms)
+✔ process bare refusals retain held rows beyond the horizon and allow a later sync retry (264.559779ms)
+✔ live fallback receives consecutive sends and deletion while snapshot publication is blocked (3559.870787ms)
+✔ an unpublished 503 refresh keeps acquisition polling alive (1194.103608ms)
+✔ an unpublished prediction refresh keeps acquisition polling alive (1185.492497ms)
+✔ an unpublished expiry refresh keeps acquisition polling alive (933.099179ms)
+✔ removing the watch stops cold-acquisition refreshes (1450.97123ms)
+ℹ tests 256
+ℹ suites 0
+ℹ pass 242
+ℹ fail 11
+ℹ cancelled 2
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 317191.979445
+
+✖ failing tests:
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ W5R1x wasm: opener returns an offline unacquired client on network loss (17084.052963ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/acquisition.test.mjs:198:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ W5R1x process: opener returns an offline unacquired client on network loss (17128.346881ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/acquisition.test.mjs:198:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (30187.813463ms)
+  'test timed out after 30000ms'
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (30091.5897ms)
+  'test timed out after 30000ms'
+
+test at packages/snapback4/test/app-retirement.test.mjs:26:61
+✖ settle pins E_STORE_REPLACED, then compacts its id across normal receipt churn and reopen (15008.534741ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_ADMISSION_TIMEOUT'
+  - 'E_STORE_REPLACED'
+       ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-retirement.test.mjs:32:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_ADMISSION_TIMEOUT',
+    expected: 'E_STORE_REPLACED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-retirement.test.mjs:26:61
+✖ settle pins E_STORE_RESTORE, then compacts its id across normal receipt churn and reopen (15004.283921ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_ADMISSION_TIMEOUT'
+  - 'E_STORE_RESTORE'
+       ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-retirement.test.mjs:32:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_ADMISSION_TIMEOUT',
+    expected: 'E_STORE_RESTORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-retirement.test.mjs:66:42
+✖ retirement saturation fences new admissions durably; displaced sent id: false (15011.265365ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_ADMISSION_TIMEOUT'
+  - 'E_WRITE_RECEIPT_EXPIRED'
+       ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-retirement.test.mjs:78:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_ADMISSION_TIMEOUT',
+    expected: 'E_WRITE_RECEIPT_EXPIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-retirement.test.mjs:66:42
+✖ retirement saturation fences new admissions durably; displaced sent id: true (15015.210273ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_ADMISSION_TIMEOUT'
+  - 'E_WRITE_RECEIPT_EXPIRED'
+       ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-retirement.test.mjs:78:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_ADMISSION_TIMEOUT',
+    expected: 'E_WRITE_RECEIPT_EXPIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-retirement.test.mjs:87:1
+✖ a saturated journal recovers an already-admitted intent as pending while its delivery is held (15012.06852ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'E_ADMISSION_TIMEOUT'
+  - 'E_WRITE_RECEIPT_EXPIRED'
+       ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-retirement.test.mjs:102:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'E_ADMISSION_TIMEOUT',
+    expected: 'E_WRITE_RECEIPT_EXPIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/navigation-model.test.mjs:741:1
+✖ an unidentified Node device defers both transports until its first store binding (2198.144562ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(await until(async () => (await client.write(pending.id))?.state === "sent"))
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/navigation-model.test.mjs:762:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/navigation-model.test.mjs:841:1
+✖ W11R1a: background outbox adoption keeps one sender and never takes a live owner (11161.056059ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(await until(() => posts.length > 0, 5000))
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/navigation-model.test.mjs:859:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/online-intent-store.test.mjs:131:1
+✖ close detaches a held first-store probe and preserves the pending intent for reopen (12.182605ms)
+  TypeError: Cannot read properties of null (reading 'pending')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/online-intent-store.test.mjs:135:36)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/server-clock-wire.test.mjs:1:1
+✖ packages/snapback4/test/server-clock-wire.test.mjs (81.857101ms)
+  'test failed'

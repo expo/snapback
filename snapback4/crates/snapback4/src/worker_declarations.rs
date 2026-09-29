@@ -167,7 +167,13 @@ impl Snapshot {
         type Dependency = (PathBuf, Option<(String, String)>);
         let dependencies: Vec<Dependency> = serde_json::from_slice(&graph).map_err(io::Error::other)?;
         for (path, state) in dependencies {
-            let Ok(relative) = path.strip_prefix(project_root) else { continue; };
+            // The checker records paths as it resolved them, possibly through a
+            // symlinked ancestor (macOS /var is /private/var). Canonicalize only
+            // the parent: the final component is still opened without following.
+            let located = path.parent().zip(path.file_name())
+                .and_then(|(parent, name)| parent.canonicalize().ok().map(|parent| parent.join(name)))
+                .unwrap_or_else(|| path.clone());
+            let Ok(relative) = located.strip_prefix(project_root) else { continue; };
             if state.is_none() || relative.starts_with("snapback") || relative.components().any(|part| part.as_os_str() == "node_modules") { continue; }
             let mut source = root.try_clone()?;
             for component in relative.components() {

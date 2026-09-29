@@ -1,0 +1,129 @@
+✔ journal storage listener belongs to the last shared owner (1.696082ms)
+▶ React hooks and reference-app lifetimes
+  ✔ the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself (11.406206ms)
+  ✔ the receipts card leaves delivery to the SDK and reports only visible settled rows (4.619393ms)
+  ✔ the receipts card retains seen retries and scope without delivery reporting (3.445304ms)
+  ✔ the receipts card keeps seen retry debt through loading, hiding and remounts with viewer isolation (9.811706ms)
+  ✔ useNow hides a server-answered row at its deadline and after a clock advance (8.765908ms)
+  ✔ AppProvider switches real clients, resets account state and routes existing mutation/query hooks (44.520548ms)
+  ✔ failed receipt saves settle pending-write hooks and stay settled after remount (20.760296ms)
+  ✔ two online owners notify both pending-write hooks when the shared journal settles once (279.623915ms)
+  ✔ useQuery owns observations through Strict Mode, equivalent arguments and unmount (2.867327ms)
+  ✔ useMutation passes admission options and saved identity; custody clears inFlight (3.221698ms)
+  ✔ useMutation survives replay, rejection, concurrent writes and an obsolete lifetime (6.081465ms)
+  ✔ useMutation preserves fresh null and direct, queued and early replay receipts (2.331764ms)
+  ✔ W5c acquisition and pending writes survive remount, receipt races and client replacement (7.831188ms)
+  ✔ useAction tracks concurrent results, retry ids and obsolete lifetimes (5.028947ms)
+  ✔ useViewer subscribes and useAsset has empty and failed outcomes (5.715726ms)
+  ✔ usePage rebinds insertion, deletion and reorder boundaries and aggregates read state (5.33734ms)
+  ✔ usePage keeps the oldest stale timestamp across fresh and stale pages (4.289599ms)
+  ✔ keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset (66.439981ms)
+  ✔ online observations clear pages during fetches and on unavailable settlement, refusal and close (59.66068ms)
+  ✔ usePage treats every non-array ready value as loading and keeps the earlier pages (11.680878ms)
+  ✔ usePage keeps the ready prefix while replacing an in-flight suffix (3.481749ms)
+  ✔ usePage keeps loaded pages while another loads and withdraws them on a first-page reset (6.649056ms)
+  ✔ web app closes asynchronous opens before/after cleanup and ignores obsolete failures (9.406889ms)
+  ✔ Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures (10.032226ms)
+  ✔ web sign-out reports completion only after durable clearing and offers retry on failure (18.18731ms)
+  ✔ useQuery lingering remount has data in its first committed render (11.564944ms)
+  ✔ useQuery lingering remount has data in its first committed render through the app facade (6.705921ms)
+  ✔ usePage lingering remount has data in its first committed render (9.690214ms)
+  ✔ usePage lingering remount has data in its first committed render through the app facade (6.827263ms)
+  ✔ useQuery createApp remount first commits the lingering answer during a held re-read (22.365952ms)
+  ✔ usePage createApp remount first commits the lingering answer during a held re-read (22.59753ms)
+  ✔ web composer preserves edits, immediate failure and offline admission (40.06474ms)
+  ✔ Expo composer preserves edits, immediate failure and offline admission (30.783589ms)
+  ✔ web submit owns a fresh field and storage failure keeps the draft (5.091461ms)
+  ✔ Expo submit owns a fresh field and storage failure keeps the draft (10.493648ms)
+  ✔ Expo observes every saved ID across reload, late refusal, unknown receipt and account switch (27.82826ms)
+  ✔ Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete (15.181565ms)
+  ✔ web composer fences old account callbacks and preserves saved write identities (3.563381ms)
+  ✔ receipt notifications read one pending list for ten thousand message hooks (380.38667ms)
+  ✔ pending-write lists filter, update, fence old reads, and release StrictMode subscriptions (3.60966ms)
+  ✔ web receipt labels separate admission, restoration and unknown; late refusal offers text (5.138782ms)
+  ✔ Expo receipt labels separate admission, restoration and unknown; late refusal offers text (6.100403ms)
+  ✔ saved write restoration ends on reject or live outcome and restarts for another id (2.377794ms)
+  ✔ web room loading keeps the same input and legacy intents disclose missing text (7.233592ms)
+  ✔ shared online journal updates A's hook on B's admission and settlement after remount (26.452327ms)
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ shared online journal invalidates pending hooks across browser tabs (320.098489ms)
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ closing the last journal owner during admission still invalidates another tab (252.169906ms)
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+11:49:02 AM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+  ✔ clearing localStorage in another tab invalidates the journal hook (188.837774ms)
+✔ React hooks and reference-app lifetimes (3003.280417ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 50
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3456.72605

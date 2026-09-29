@@ -1,4 +1,5 @@
 import { failedAdmission } from "./admission.ts";
+import { identityRefusal } from "./identity-admission.ts";
 import type { Write } from "./contract.ts";
 
 type Terminal = Exclude<Write, { state: "pending" }>;
@@ -97,7 +98,11 @@ export class MutationIds {
     held.running = running;
     void running.then(write => {
       delete held.running;
-      if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
+      if (write.state === "failed" && write.why.code === "E_ADMISSION") {
+        // Waiting for identity wraps the synchronous refusal marker. The
+        // fulfilled refusal still proves no admission and allows same-id retry.
+        this.seen.delete(id); this.submissions.delete(id); this.terminal.delete(id);
+      } else if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
         // Another owner won durable admission. This reservation never owned
         // the id; the next call must recover/compare the original input.
         this.seen.delete(id); this.submissions.delete(id);
@@ -109,6 +114,7 @@ export class MutationIds {
 
 // @ref LLP 3000.007#17 — recovering by id confirms execution, never historical result values.
 function receipt(write: Terminal): Terminal {
+  if (write.state === "failed" && ["E_ADMISSION_TIMEOUT", "E_ADMISSION_STORE"].includes(write.why.code)) return { state: "failed", id: write.id, why: identityRefusal(write.why.code === "E_ADMISSION_TIMEOUT") };
   return write.state === "sent"
     ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
     : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };

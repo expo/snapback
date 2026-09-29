@@ -1,0 +1,27 @@
+✔ online: a deadline behind the issued floor does not loop server refetches (37.415192ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (26.568484ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (15.313112ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.584493ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.662682ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.456323ms)
+✔ composition publishes at both deadlines, device first (2.516892ms)
+✔ composition publishes at both deadlines, server first (1.985656ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.360059ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (1.175182ms)
+✔ freshness is clamped at publication after wall time rolls back (1.472377ms)
+✔ useNow catches deadline between render and effect installation (33.267234ms)
+✔ useNow catches correction between render and effect installation (4.514647ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.842419ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.26832ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.736873ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (3.972494ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.54056ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (2.377314ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 566.859811

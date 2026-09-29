@@ -1,0 +1,53 @@
+✖ native state reads cannot replace another admission attempt CAS token (44.702192ms)
+✖ deferred admission compares ordinary outbox input atomically (30.746575ms)
+✔ online expiry recovers a peer outcome (settled=false) (11.303002ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.455961ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 189.575587
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:3:1
+✖ native state reads cannot replace another admission attempt CAS token (44.702192ms)
+  AssertionError [ERR_ASSERTION]: accepted custody must survive an unrelated state read
+  + actual - expected
+  
+  + Set(1) {
+  - Set(2) {
+      '01M3P2BJ5REE532Z050V2VZDJR',
+  -   '01M3P2BJ5SGQ3PK6HM2GANQ7N8'
+    }
+  
+      at nativeCustodySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:36:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Set(1) { '01M3P2BJ5REE532Z050V2VZDJR' },
+    expected: Set(2) { '01M3P2BJ5REE532Z050V2VZDJR', '01M3P2BJ5SGQ3PK6HM2GANQ7N8' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:4:1
+✖ deferred admission compares ordinary outbox input atomically (30.746575ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_GENERATION","family":"generation","message":"E_GENERATION: snapshot is finished or belongs to another device sync; restart at its first page"}}
+      at ok (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:14:30)
+      at nativeCustodySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:41:7)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

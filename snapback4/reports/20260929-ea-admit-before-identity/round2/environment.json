@@ -1,0 +1,12 @@
+{
+  "branch": "sb4-intent/ea-admit-before-identity",
+  "merge_head": "95c718c362a877a52c272e238bd0aed9f4e77e15",
+  "merged_origin_main": "398552255dab53ad9aa2e347f47bded11d65aad0",
+  "host": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "available_cpus": "96",
+  "wasm_sha256": "3d4de100e2acf705583f345b9902a911713899c8227ac656a223b2ba641ba2ab",
+  "binary_sha256": "02bcbe3d19f1c66a7cc9bc210a220c064cc00864bf1f906c132fed8549d49f29"
+}

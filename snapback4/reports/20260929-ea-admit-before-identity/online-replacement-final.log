@@ -1,0 +1,96 @@
+✔ committed admission survives notification from a closing owner (21.744967ms)
+✔ committed admission survives notification from a closed channel (2.910823ms)
+✔ committed admission survives notification from a throwing listener (2.282672ms)
+✔ unsaved online hold stays visible through failed retries in shared journal order (1780.096054ms)
+✔ asynchronous settlement bounds online argument reservations, including another owner's retirement (979.904584ms)
+✔ online custody keeps sent from mutate consistent while receipt saves fail (1.345026ms)
+✔ online custody keeps sent from lookup consistent while receipt saves fail (0.748322ms)
+✔ online custody keeps sent from background consistent while receipt saves fail (2.147289ms)
+✔ online custody keeps failed from mutate consistent while receipt saves fail (0.560521ms)
+✔ online custody keeps failed from lookup consistent while receipt saves fail (0.537195ms)
+✔ online custody keeps failed from background consistent while receipt saves fail (1.967579ms)
+✔ CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal (1.949763ms)
+✔ CCP mutation waits use the action clamp and preserve omitted defaults (0.203675ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (3.107649ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=0) (2.897754ms)
+✔ CCP two createApp instances recover the known receipt when journal saves fail (18.937107ms)
+ℹ shared journal: 1 execution, recovered=sent, replayed=true
+✖ online app reopens after replacement; replacement accepts session: true (3120.239977ms)
+✖ online app reopens after replacement; replacement accepts session: false (3114.894953ms)
+✔ logout cancels replacement verification without restoring the old account (15.012424ms)
+✔ close cancels replacement verification without restoring the old account (12.031766ms)
+✔ login cancels replacement verification without restoring the old account (12.373338ms)
+✖ replacement waits for durable retirement of admitted writes; persistence fails: false (3095.713165ms)
+✖ replacement waits for durable retirement of admitted writes; persistence fails: true (3082.960427ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (27.922827ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (22.212967ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 21
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12606.537698
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:14:39
+✖ online app reopens after replacement; replacement accepts session: true (3120.239977ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:46:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:14:39
+✖ online app reopens after replacement; replacement accepts session: false (3114.894953ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:46:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:96:35
+✖ replacement waits for durable retirement of admitted writes; persistence fails: false (3095.713165ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:126:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:96:35
+✖ replacement waits for durable retirement of admitted writes; persistence fails: true (3082.960427ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:126:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

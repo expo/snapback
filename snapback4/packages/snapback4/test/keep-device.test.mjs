@@ -133,6 +133,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
 for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount lifetime, isolation, last subscriber and sign-out`, { timeout: 30_000 }, async t => {
   const { directory, url } = await fixture(t);
   const held = deferred(); let holding = false, requests = 0;
+  const initialChange = deferred();
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
   const device = { async open(...args) {
     const core = await opener.open(...args);
@@ -143,15 +144,30 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   } };
   const options = { url, persona: "bob", device, fetch: async (url, init) => {
     if (new URL(url).pathname.startsWith("/q/")) { requests++; if (holding) await held.promise; }
-    return fetch(url, init);
+    const response = await fetch(url, init);
+    if (tier === "online" && new URL(url).pathname === "/changes") await initialChange.promise;
+    return response;
   } };
   const client = tier === "online" ? createClient(options) : await createLocalClient(options);
-  t.after(async () => { held.resolve(); await client.close(); });
+  t.after(async () => { initialChange.resolve(); held.resolve(); await client.close(); });
+  if (tier !== "online") await client.sync();
   let watch = client.observe(query, {}, { keep: true });
   const stop = watch.subscribe(() => {}), sibling = client.observe(query, {}, { keep: true });
   const stopSibling = sibling.subscribe(() => {});
   await until(() => watch.getSnapshot().data?.body === "private answer", "initial answer");
+  if (tier === "online") {
+    // @ref LLP 3000.023#10 — remount resumes cancelled work, so establish an idle answer first.
+    // Deliver the seed's initial change-feed wake after the first query settles.
+    // Otherwise it can dirty that query, leaving a second read active at unsubscribe.
+    const first = watch.getSnapshot();
+    initialChange.resolve();
+    await until(() => {
+      const read = watch.getSnapshot();
+      return read !== first && read.data?.body === "private answer" && !read.revalidating;
+    }, "initial change-feed replacement settled");
+  }
   const originalSnapshot = watch.getSnapshot();
+  assert.equal(originalSnapshot.revalidating, undefined, "the remount starts from a settled answer");
   stop(); watch.close();
   assert.equal(sibling.getSnapshot().data.body, "private answer", "one subscriber leaving does not close the shared watch");
   stopSibling(); // No close(): the last unsubscribe begins the keep window.
@@ -161,6 +177,9 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   assert.equal(watch.getSnapshot().data?.body, "private answer");
   assert.equal(watch.getSnapshot(), originalSnapshot, "joins the current observation with unchanged fresh/since");
   assert.equal(requests, before, "joining does not start another read");
+  await delay(0); // Give queued observation work a turn to reach the counting adapters.
+  assert.equal(requests, before, "joining does not queue another read either");
+  assert.equal(watch.getSnapshot(), originalSnapshot, "the idle answer stays identical after queued work runs");
   for (const [op, args, options] of [[query, {}, undefined], [query, { other: true }, { keep: true }], [{ ...query, name: "different" }, {}, { keep: true }]]) {
     const other = client.observe(op, args, options);
     assert.deepEqual(other.getSnapshot(), { loading: true }, "option, operation and arguments isolate keys");

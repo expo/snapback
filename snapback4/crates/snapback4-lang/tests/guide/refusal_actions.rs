@@ -210,6 +210,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_SIMULATOR", &["boot the intended dedicated device, and pass its exact `--udid`", "do not let the witness choose someone else's device"]),
     ("E_WITNESS_STEP", &["Await `w.step('offline-done', ...)`, then `w.waitFor('reconnect')`, then `w.step('done', ...)`", "skipping the assertion does not establish the promised scenario"]),
     ("E_WITNESS_TIMEOUT", &["Inspect the last receipt and app log, repair the missing step or connection, and retry", "Increase `--timeout` only after measuring a slow but progressing run"]),
+    ("E_ADMISSION_STORE", &["The write was not sent.", "Reload the current backend, review the draft and submit with a new id"]),
+    ("E_ADMISSION_TIMEOUT", &["was not sent.", "Check the connection and backend URL, then submit with a new id"]),
     ("E_ADMISSION", &["Use `webDevice()` and `localStorageSessionStore()`", "retry the original id", "Browser storage clearing after admission can still erase the journal"]),
     ("E_WRITE_ID", &["Mint once and keep the id with the intent", "It identifies the write, not a row"]),
     ("E_WRITE_ID_REUSE", &["Use a new id for a new intent", "This refusal does not replace the original write or emit a terminal event for it"]),

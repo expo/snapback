@@ -1,0 +1,32 @@
+✖ waiting admission after restored backend refresh: native descriptor (26.844601ms)
+✔ waiting admission after restored backend refresh: schema (2.832114ms)
+✔ waiting admission after restored backend refresh: programs (1.060169ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.02321
+
+✖ failing tests:
+
+test at ../../../../tmp/ea-r5-native-descriptor.test.mjs:4:67
+✖ waiting admission after restored backend refresh: native descriptor (26.844601ms)
+  AssertionError [ERR_ASSERTION]: {"state":"failed","id":"original-write","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed or could not be revalidated before admission. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}}
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at TestContext.<anonymous> (file:///tmp/ea-r5-native-descriptor.test.mjs:47:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

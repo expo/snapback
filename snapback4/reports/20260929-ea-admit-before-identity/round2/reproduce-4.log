@@ -1,0 +1,48 @@
+✖ native cached empty cannot bypass FIFO (6437.127758ms)
+✔ native cached empty cannot bypass captured binding (1323.076517ms)
+✖ native late capture cannot expire a peer execution (settled=false) (8428.664908ms)
+✖ packages/snapback4/test/identity-handoffs.test.mjs (82012.394806ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82017.149009
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass FIFO (6437.127758ms)
+  AssertionError [ERR_ASSERTION]: timed out: first POST
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:65:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=false) (8428.664908ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:87:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:1:1
+✖ packages/snapback4/test/identity-handoffs.test.mjs (82012.394806ms)
+  'Promise resolution is still pending but the event loop has already resolved'

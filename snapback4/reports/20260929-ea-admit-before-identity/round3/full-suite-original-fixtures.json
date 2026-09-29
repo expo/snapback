@@ -1,0 +1,6 @@
+{
+  "packages/snapback4/test/app-storage.test.mjs": "1ab90318b0379dc0e97e0124e3216fdfc65cfda30a7dba6ca35ec466d3d31d55",
+  "packages/snapback4/test/app.test.mjs": "af055a51421fbca88724238bfe894d4d15d7589b007183e60edb99e75bf61255",
+  "packages/snapback4/test/client-lifecycle.test.mjs": "c7439cbd1f572ff72590ba69562bd7b32f9f7b7333d1328890c8842c1d03c20a",
+  "packages/snapback4/test/web-admission-review.test.mjs": "074c7d9c48c189c7aad71562352d98ba0d9a68c8d82ae2db0c2786da1515c26d"
+}

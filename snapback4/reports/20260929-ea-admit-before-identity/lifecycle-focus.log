@@ -1,0 +1,48 @@
+(node:1119762) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ local pending writes emit once with the kept device identity (5028.481232ms)
+✖ local pending writes emit once with their original binding ahead of a newer device identity (5007.462367ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (712.836129ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (234.156076ms)
+✖ native: sync before a delayed write reply does not apply an increment twice (12097.34573ms)
+✖ native: sync before a lost write reply does not apply an increment twice (215.149825ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 3
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23449.992239
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:152:60
+✖ local pending writes emit once with the kept device identity (5028.481232ms)
+  'test timed out after 5000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:152:60
+✖ local pending writes emit once with their original binding ahead of a newer device identity (5007.462367ms)
+  'test timed out after 5000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:988:5
+✖ native: sync before a delayed write reply does not apply an increment twice (12097.34573ms)
+  'test timed out after 12000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:988:5
+✖ native: sync before a lost write reply does not apply an increment twice (215.149825ms)
+  AssertionError [ERR_ASSERTION]: a correlated terminal outcome is never reported as pending
+  
+  'pending' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1029:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'pending',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

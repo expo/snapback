@@ -1,0 +1,17 @@
+(node:1015354) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: sync before a delayed write reply does not apply an increment twice (410.462797ms)
+✔ native: sync before a lost write reply does not apply an increment twice (361.33832ms)
+✔ close cancels online write callers without aborting committed delivery (187.653965ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (48.556335ms)
+✔ device compatibility closes the core and preserves operational startup errors (1.500729ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (701.282975ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (329.456095ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2193.258914
