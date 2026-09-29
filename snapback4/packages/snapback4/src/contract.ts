@@ -74,19 +74,23 @@ export interface ReadyMetadata {
   readonly next?: Cursor | null;
   readonly meter?: ReadMeter;
 }
-type Present<T> = { readonly presence: "present"; readonly data: T };
-type Partial<T> = { readonly presence: "partial"; readonly data: T };
-type Absent<T> = { readonly presence: "absent"; readonly data: T };
-// Keep the arms explicit so generic isReady callers still see data: T.
-// Intersections narrow nullable points; unknown remains the erased SDK carrier.
-export type Ready<T> = ReadyMetadata & (
-  Present<T & (unknown extends T ? unknown : null extends T ? NonNullable<unknown> : unknown)>
-  | Partial<T>
-  | (Absent<T> & (unknown extends T ? unknown
-    : [T] extends [readonly unknown[]] ? unknown
-    : null extends T ? { readonly data: T & null; readonly complete: true; readonly cut: null }
-    : never))
-);
+// @ref LLP 3000.031#3 — named arms preserve generic covariance.
+// Every arm retains T; absent additionally proves null or an empty array.
+interface Present<out T> extends ReadyMetadata {
+  readonly presence: "present";
+  readonly data: T & ({} | undefined);
+}
+interface Partial<out T> extends ReadyMetadata {
+  readonly presence: "partial";
+  readonly data: T;
+}
+interface Absent<out T> extends ReadyMetadata {
+  readonly presence: "absent";
+  readonly data: T & (null | []);
+  readonly complete: true;
+  readonly cut: null;
+}
+export type Ready<T> = Present<T> | Partial<T> | Absent<T>;
 export type Read<T> =
   | Ready<T>
   | { readonly loading: true }

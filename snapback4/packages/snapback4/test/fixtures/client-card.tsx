@@ -66,7 +66,7 @@ if (isReady(point)) {
   const before: Row | null = point.data;
   if (point.presence === "present") { const row: Row = point.data; }
   if (point.presence === "absent") {
-    const row: null = point.data, complete: true = point.complete, cut: null = point.cut;
+    const row: null | (Row & []) = point.data, complete: true = point.complete, cut: null = point.cut;
   }
   if (point.presence === "partial") { const row: Row | null = point.data; }
 }
@@ -74,7 +74,7 @@ declare const scalar: Read<boolean>;
 if (isReady(scalar)) {
   const value: boolean = scalar.data;
 }
-// @ts-expect-error scalar reads have no absent arm
+// @ts-expect-error a scalar value cannot be absent
 const scalarAbsence: Read<boolean> = { presence: "absent", data: false, complete: true, cut: null, fresh: true };
 declare const array: Ready<readonly Row[]>;
 if (array.presence === "absent") { const rows: readonly Row[] = array.data; }
