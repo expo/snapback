@@ -1,0 +1,182 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 6.60s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 79 tests
+test w13b_near_ceiling_requires_more_than_half_and_reports_each_counter ... ok
+test guide_prediction_is_a_stdout_card ... ok
+test guide_unknown_word_suggests_cards_on_stdout ... ok
+test w13b_cut_log_suppresses_per_operation_and_site_with_a_count ... ok
+test b2_why_fanout_keeps_its_example_with_bounded_card_context ... ok
+test check_explains_held_dispatch_and_generates_the_client_marker ... FAILED
+test w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean ... FAILED
+test why_rule_distinguishes_readable_and_unreadable_collision_targets ... ok
+test w11_expiry_synthesizes_sweep_indexes_without_source_repairs ... ok
+test w10r2_repeated_unknown_prints_its_section_under_the_first_site ... ok
+test w9c_check_validates_unique_refusal_codes_like_require ... ok
+test horizon_check_and_why_keep_the_same_advice_across_checks ... FAILED
+test b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied ... FAILED
+test w11r2_generic_application_refusals_do_not_claim_the_feed_recipe ... ok
+test guide_lists_aliases_and_resolves_them_on_stdout ... ok
+test w10c_check_keeps_independent_errors_and_other_operations ... ok
+test w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap ... FAILED
+test w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic ... ok
+test fixture_test_reports_cursorless_top_n_complete ... ok
+test w10r2_why_emit_in_query_has_its_own_section ... ok
+test w9a_check_states_held_source_coverage_only_without_horizons ... FAILED
+test w10r1_multiple_job_prelude_statements_keep_the_independent_repair ... ok
+test w10r2_why_syntax_has_its_own_section ... ok
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+test w10r1_empty_job_keeps_its_independent_repair ... ok
+test w10r1_nested_job_prelude_keeps_its_independent_repair ... ok
+test b2_every_check_summarizes_zero_one_and_three_never_mutations ... ok
+test w10r2_why_unknown_has_its_own_section ... ok
+test w10r2_why_placement_has_its_own_section ... ok
+test w9r1b_why_wide_merge_opens_the_notes_card ... ok
+test audience_bounds::job_cost_advice_uses_the_pinned_groups_query_ceiling ... ok
+test w10a_inline_sections_have_a_check_wide_bound_and_stable_order ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+test w13c_cost_reports_meter_domains_and_prefix_existence_as_scans ... ok
+test r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds ... ok
+test w9b_why_prints_a_codes_card_paragraph ... ok
+test b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text ... ok
+test w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded ... ok
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test er_expiry_cost_names_backlog_attempt_and_atomic_refusal ... ok
+test w10c_check_hides_only_the_redundant_operation_cascade ... ok
+test upsert_insert_proof_and_service_grants_reach_check_and_why ... ok
+test w10a_repeated_refusals_explain_once_and_preserve_json ... ok
+test audience_bounds::unrelated_job_costs_keep_visibility_without_digest_advice ... ok
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... ok
+test w10r1_correcting_equality_still_requires_a_job_chunk ... ok
+test w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store ... ok
+test audience_bounds::builder_why_names_inherited_horizon_and_the_jobs_actual_meter ... ok
+test notes_stay_short_and_verbose_explains_each_code_once ... ok
+test w13c_check_fix_parenthesizes_an_inner_matching_read ... ok
+test natural_forms_diagnostics_are_authored_in_plain_verbose_and_json ... ok
+test w13b_starter_has_no_near_ceiling_summary ... ok
+test w11r1c_help_describes_residency_without_query_meters ... ok
+test column_trending_cost_has_one_merge_and_derived_bounds ... ok
+test check_adoption::w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store ... ok
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+test w8r1b_release_from_a_used_dev_store_never_returns_read_meters ... ok
+test w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary ... ok
+test inspection_materializes_required_literals_but_not_optional_defaults ... ok
+test changed_default_rechecks_unchanged_cap ... ok
+test check_accepts_contextual_defaults_for_an_empty_dev_table ... ok
+test check_without_a_store_and_additive_or_fitting_adoption_are_quiet ... ok
+test w9b_new_maintains_share_one_note_without_pre_adoption_counts ... ok
+test check_reports_all_narrowing_sites_in_text_and_json_without_adopting ... FAILED
+test check_uses_explicit_store_and_locates_index_and_table_refusals ... ok
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... FAILED
+test changed_default_rechecks_unchanged_unique_index ... ok
+test check_preserves_database_and_wal_bytes_with_live_and_stopped_dev ... ok
+test maintained_column_inspection_is_public_and_missing_storage_reads_zero ... ok
+test changed_default_that_still_fits_existing_groups_is_adoptable ... ok
+test w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema ... ok
+test row_view_check_matches_engine_chunk_size_and_commit_count ... ok
+test r2_n4_inspection_defaults_equal_stored_values_and_group_together ... ok
+test check_adoption::w8c_watching_host_reopens_after_external_adoption_while_cli_refuses ... ok
+test w11r1c_toolchain_why_explains_node_start_failure_too ... ok
+test w11_why_every_registered_code_returns_its_dedicated_section ... ok
+test check_adoption::w8c_startup_waits_for_the_adoption_lock_to_clear ... ok
+test check_adoption::w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save ... ok
+
+failures:
+
+---- check_explains_held_dispatch_and_generates_the_client_marker stdout ----
+
+thread 'check_explains_held_dispatch_and_generates_the_client_marker' (2919185) panicked at crates/snapback4/tests/check.rs:961:5:
+assertion failed: String::from_utf8_lossy(&checked.stdout).contains("heldValue: runs: device (held; server refuses E_QUERY_HELD; no server fallback)")
+
+---- w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean stdout ----
+
+thread 'w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean' (2919241) panicked at crates/snapback4/tests/check.rs:353:9:
+assertion `left == right` failed: language: []
+  left: 0
+ right: 2
+
+---- horizon_check_and_why_keep_the_same_advice_across_checks stdout ----
+
+thread 'horizon_check_and_why_keep_the_same_advice_across_checks' (2919206) panicked at crates/snapback4/tests/check.rs:879:9:
+assertion `left == right` failed
+  left: 0
+ right: 1
+
+---- b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied stdout ----
+check: 1 problem
+schema.q:1:1 — E_NOT_PREDICTABLE: mutation dispatch asserts predicts, but author marked this mutation : server
+  rewrite: remove : server to allow prediction when every site is held
+  guide: prediction
+
+
+
+thread 'b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied' (2919173) panicked at crates/snapback4/tests/check.rs:911:5:
+assertion failed: String::from_utf8_lossy(&output.stdout).contains("1 mutations never predict: dispatch")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap stdout ----
+check: ok — 1 tables (0 synced), 1 operations, no problems, 1 note, 1.0 ms
+note: schema.q:4:1 — N_NO_CURSOR: query all returns a page of 10 messages rows with no cursor, so the page cannot continue
+check --verbose for notes, rewrites and execution details; why <op> for one operation
+
+
+thread 'w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap' (2919234) panicked at crates/snapback4/tests/check.rs:1064:5:
+check: ok — 1 tables (0 synced), 1 operations, no problems, 1 note, 1.0 ms
+note: schema.q:4:1 — N_NO_CURSOR: query all returns a page of 10 messages rows with no cursor, so the page cannot continue
+check --verbose for notes, rewrites and execution details; why <op> for one operation
+
+
+---- w9a_check_states_held_source_coverage_only_without_horizons stdout ----
+
+thread 'w9a_check_states_held_source_coverage_only_without_horizons' (2919262) panicked at crates/snapback4/tests/check.rs:1029:13:
+assertion `left == right` failed: ["check"]: check: ok — 2 tables (2 synced), 2 operations, no problems, 2 notes, 1.2 ms
+note: schema.q:5:1 — N_NO_HORIZON: table labels: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+note: schema.q:1:1 — N_NO_HORIZON: table messages: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+check --verbose for notes, rewrites and execution details; why <op> for one operation
+
+  left: 0
+ right: 1
+
+---- check_reports_all_narrowing_sites_in_text_and_json_without_adopting stdout ----
+
+thread 'check_reports_all_narrowing_sites_in_text_and_json_without_adopting' (2919190) panicked at crates/snapback4/tests/check.rs:561:5:
+assertion `left == right` failed
+  left: "check: 1 problem\nschema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n"
+ right: "schema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\ncheck: 1 problem\n"
+
+---- b2_maintain_note_points_to_the_measured_cold_snapshot stdout ----
+
+thread 'b2_maintain_note_points_to_the_measured_cold_snapshot' (2919172) panicked at crates/snapback4/tests/check.rs:839:5:
+check: ok — 3 tables (3 synced), 3 operations, no problems, 2 notes, 2.1 ms
+note: schema.q:1:1 — N_NO_HORIZON: table likes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 1000 by postId` bounds the rows per postId, not what a device acquires — `sync public` delivers every postId's rows to every device; measure what it costs with `check --residency`
+note: schema.q:10:1 — N_MAINTAIN_SYNCED: 2 synced maintains:
+check --verbose for notes, rewrites and execution details; why <op> for one operation
+
+
+
+failures:
+    b2_maintain_note_points_to_the_measured_cold_snapshot
+    b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied
+    check_explains_held_dispatch_and_generates_the_client_marker
+    check_reports_all_narrowing_sites_in_text_and_json_without_adopting
+    horizon_check_and_why_keep_the_same_advice_across_checks
+    w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap
+    w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean
+    w9a_check_states_held_source_coverage_only_without_horizons
+
+test result: FAILED. 71 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.63s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

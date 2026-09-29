@@ -10,6 +10,7 @@ const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquer
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
 #[path = "check/audience_bounds.rs"] mod audience_bounds;
+#[path = "check/first_paste.rs"] mod first_paste;
 
 #[test]
 fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
@@ -199,8 +200,8 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             assert_eq!(text.matches("note: ").count(), count);
-            assert_eq!(text.matches("  guide: reads").count(), count);
-            assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), count);
+            assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
+            assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
             let excerpts = usize::from(verbose);
             assert_eq!(text.matches("Full card: snapback4 guide reads").count(), excerpts, "{text}");
             if verbose {
@@ -256,7 +257,7 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
     let text = String::from_utf8(output.stderr).unwrap();
     assert_eq!(text.matches("Full card: snapback4 guide ").count(), 3, "{text}");
     assert!(!text.contains("No dedicated section"), "{text}");
-    let mut expected = String::new();
+    let mut expected = format!("check: {} problems\n", bound.diagnostics.len());
     let mut shown = std::collections::BTreeSet::new();
     let mut added_bytes = 0;
     for d in &bound.diagnostics {
@@ -268,7 +269,6 @@ fn w10a_inline_sections_have_a_check_wide_bound_and_stable_order() {
             expected.push_str(&format!("{explanation}\n\n"));
         }
     }
-    expected.push_str(&format!("check: {} problems\n", bound.diagnostics.len()));
     assert_eq!(text, expected);
     assert!(added_bytes <= 3 * 4097);
     println!("W10a refusal bound: repeated kinds=4, inline sections=3, added bytes={added_bytes}, maximum added bytes=12291");
@@ -335,7 +335,7 @@ fn why_rule_distinguishes_readable_and_unreadable_collision_targets() {
 fn w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean() {
     let p = Project::new();
     let cases = [
-        ("language", "E_QUARRY_UNSUPPORTED", "", "query NAME():\n  items = [1, 2]\n  return len(items)\n", "query NAME():\n  items = [1, 2]\n  return count(items)\n"),
+        ("language", "E_QUARRY_UNSUPPORTED", "", "query NAME():\n  item = { value: 1 }\n  return item?.value\n", "query NAME():\n  item = { value: 1 }\n  return item.value\n"),
         ("programs", "E_OP_RESERVED", "", "mutation NAME():\n  require true else E_AUTH\n", "mutation NAME():\n  require true else NOT_MEMBER\n"),
         ("sync", "E_QUARRY_RETAIN", "", "table NAME:\n  body: text <=100\n  retain forever\n", "table NAME:\n  body: text <=100\n  retain delivered-history\n"),
         ("native", "E_NATIVE", "", "mutation NAME(): native\n", "mutation NAME():\n  return 1\n"),
@@ -558,7 +558,7 @@ fn check_reports_all_narrowing_sites_in_text_and_json_without_adopting() {
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     let text = String::from_utf8(output.stderr).unwrap();
-    assert_eq!(text, "schema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\ncheck: 1 problem\n");
+    assert_eq!(text, "check: 1 problem\nschema.q:3:3 — E_ADOPT: column messages.at is added as required with default now; existing rows would read the adoption's clock\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n");
     println!("{text}");
     assert_eq!(e.store().meta("generation").unwrap().as_deref(), Some("1"));
     assert_eq!(e.store().rows("messages").unwrap().len(), 3);
@@ -874,7 +874,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
         let next = parsed(&next);
         assert_eq!(next["notes"], first["notes"]);
         assert_eq!(next["predictionSummary"], first["predictionSummary"]);
-        let text = p.run(&["check"]);
+        let text = p.run(&["check", "--verbose"]);
         assert!(text.status.success(), "{text:?}");
         assert_eq!(String::from_utf8_lossy(&text.stdout).matches(summary).count(), 1);
         let why = p.run(&["why", "chat.send"]);
@@ -908,7 +908,9 @@ fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("schema.q:1:1 — E_NOT_PREDICTABLE"));
-    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutations never predict: dispatch"));
+    assert!(output.stdout.is_empty());
+    let verbose = p.run(&["check", "--verbose"]);
+    assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutations never predict: dispatch"));
     p.source(&source.replace(": server", ":"));
     let output = p.run(&["check", "--json"]);
     assert!(output.status.success(), "{output:?}");
@@ -956,7 +958,7 @@ mod check_adoption;
 fn check_explains_held_dispatch_and_generates_the_client_marker() {
     let p = Project::new();
     p.source("query heldValue() held:\n  return [1, 2]\n");
-    let checked = p.run(&["check"]);
+    let checked = p.run(&["check", "--verbose"]);
     assert!(checked.status.success(), "{}", String::from_utf8_lossy(&checked.stderr));
     assert!(String::from_utf8_lossy(&checked.stdout).contains("heldValue: runs: device (held; server refuses E_QUERY_HELD; no server fallback)"));
     let api = fs::read_to_string(p.0.join("snapback/generated/api.ts")).unwrap();
@@ -1022,7 +1024,7 @@ fn w9a_check_states_held_source_coverage_only_without_horizons() {
     let positive = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits";
     for horizon in [false, true] {
         p.source(&if horizon { source.replacen("  sync\n", "  sync last 20 by byId\n", 1) } else { source.into() });
-        for args in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
+        for args in [vec!["check", "--verbose"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
             let output = p.run(&args);
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8_lossy(&output.stdout);
@@ -1057,14 +1059,14 @@ fn w9c_check_validates_unique_refusal_codes_like_require() {
 fn w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap() {
     let p = Project::new();
     p.source(SOURCE);
-    let checked = p.run(&["check"]);
+    let checked = p.run(&["check", "--verbose"]);
     assert!(checked.status.success());
     let text = String::from_utf8(checked.stdout).unwrap();
     println!("{text}");
     assert!(text.contains("N_NO_CURSOR") && text.contains("if the screen pages"), "{text}");
     assert!(!text.contains("or declare `cap"), "{text}");
     p.source(&SOURCE.replace("query all():", "query all(c: cursor ?):").replace("messages[] first", "messages[] after c first"));
-    assert!(!String::from_utf8_lossy(&p.run(&["check"]).stdout).contains("N_NO_CURSOR"));
+    assert!(!String::from_utf8_lossy(&p.run(&["check", "--verbose"]).stdout).contains("N_NO_CURSOR"));
 }
 
 #[test]

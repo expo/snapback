@@ -95,10 +95,9 @@ impl Binder<'_> {
         let job = format!("the system job caller(s) {}", jobs.join(", "));
         let authored = self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| self.catalog.source.expression(&A::Read(read.clone())));
         let rule = if missing.is_empty() { "read rule".into() } else { format!("{}-based read rule", missing.join(", ")) };
-        let context = format!("; viewer query caller chain: {chain}. `{authored}` does not decide its {rule}; a helper grants no system authority");
+        let context = format!("; viewer query caller chain: {chain}. `{authored}` does not decide its {rule}; a helper grants no system authority. The replacement is for the entire unused viewer query `{}`, not this loop. Keep the complete scheduled job. A separately named paged preview needs its own cursor; `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, pin {}. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total", self.call_chain[0].0, leading.join(", "));
         Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
-            format!("use `first N` only for a separately named paged preview: `{}` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE). Or, if this viewer query is unused, remove `{}` and keep the complete scheduled job: this loop is permitted under {job}'s chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs",
-                self.catalog.source.expression(&A::Read(page)), leading.join(", "), self.call_chain[0].0)).guide("bounds"))
+            format!("-- {} removed: keep the complete helper under {job}'s chunk meter.", self.call_chain[0].0)).guide("bounds"))
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.

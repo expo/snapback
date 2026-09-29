@@ -3,9 +3,7 @@
     "name": "len",
     "origin": "cal20 M4 diary: len(...) retained; surrounding query reconstructed",
     "source": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(x: text):\n  return len(x)\n",
-    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(x: text):\n  return count(x)\n",
-    "code": "E_QUARRY_UNSUPPORTED",
-    "repair": "count(x)"
+    "repaired": "table conversations:\n  kind: enum('dm', 'group')\n  disappearing: enum('off', '24h', '7d')\n  public\ntable members:\n  conversation: conversations\n  principal: principal\n  active: bool\n  unique conversation, principal\n  cap 50 by conversation\n  public\nquery guess(x: text):\n  return count(x)\n"
   },
   {
     "name": "qualified-helper",

@@ -351,7 +351,7 @@ names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page s
 its page size. Descending reads keep `last N`.
 
 When a helper is shared with a job, its viewer-query callers inherit query bounds and viewer authority.
-The non-uniform meter refusal stays at the failed loop and names the caller chain. Pinning a
+The non-uniform meter refusal stays at the failed loop and names the caller chain. If the viewer preview is unused, its printed replacement is a comment to paste over that entire query declaration; the complete job and helper stay intact. This removal is a product choice, so `check --fix` does not apply it. Pinning a
 principal in a membership loop does not decide a conversation-based read rule.
 `first 50` is a partial preview, not an equivalent complete digest: use a
 separately named paged per-chat preview with `c: cursor ?` and follow its

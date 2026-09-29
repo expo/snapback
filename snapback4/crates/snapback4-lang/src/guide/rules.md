@@ -366,3 +366,9 @@ principal retains its existing rule bypass.
 Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.
+
+Rules do not follow arbitrary references such as `.message.conversation`.
+Use `read through .message` on the child and let parent-key aggregates inherit
+that rule. A diagnostic never suggests dropping the parent hop. An aggregate
+read line proved identical to the parent's rule has a whole-line repair;
+additional conditions remain a modeling choice and are not removed by `--fix`.

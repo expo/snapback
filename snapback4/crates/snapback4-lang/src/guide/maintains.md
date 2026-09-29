@@ -827,12 +827,16 @@ Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.
 
+Aggregate views also accept `public` (optionally followed by a reason), with
+the same read authority as `read <- allow`. This never changes inherited sync
+or bypasses aggregate disclosure checks. Use it only for intentionally public totals.
+
 ## A page of messages with each message's reaction totals
 
 Pin the parent inside the message page. Each nested read authorizes that
 message before enumerating its emoji groups. A complete group-key lookup,
 `reactionTotals[message, emoji]`, returns one scalar; a parent prefix returns
-aggregate rows whose count is `.value`. The source's cap of 50 bounds its
+aggregate rows whose count is `.value` or `.count`; `{ emoji, count }` is shorthand. A declared group column named `count` keeps its own meaning. The source's cap of 50 bounds its
 number of emoji groups. Without such a cap, use a bounded page and cursor.
 
 ```quarry
@@ -857,14 +861,14 @@ table reactions:
 view reactionTotals: count reactions by .message, .emoji
 fn reactionSummary(message: messages):
   own = reactions[message.id, viewer].emoji
-  return reactionTotals[message = message.id] by .emoji { emoji, count: .value, mine: own = .emoji }
+  return reactionTotals where .message = message.id { emoji, count, mine: own = .emoji }
 query messagesWithTotals(c: cursor ?):
   return messages[owner = viewer] last 20 by .at after c { *, reactions: reactionSummary(.) }
 ```
 
 Keep the original parent page's audience key, predicates, order and cursor.
 The nested aggregate inherits the parent's read rule; do not add a separate
-read rule. An unpinned aggregate scan still refuses `E_READ_THROUGH_SCAN`.
+read rule. Writing `exists members[.message.conversation, viewer]` repeats a parent traversal, not a local field: when it exactly repeats the parent rule, `check --fix` replaces that whole read line with an inheritance comment. Dropping `.message` would change its meaning. An unpinned aggregate scan still refuses `E_READ_THROUGH_SCAN`.
 The aggregate group-key index lives on the server: this nested page uses server
 fallback on devices, even if they hold all child rows. Complete-key scalar totals
 can still recount held children locally. The builder's separate raw-reaction

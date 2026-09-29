@@ -29,6 +29,18 @@ fn durable_schema_and_types_keep_base_bytes() {
     // with the round-0 compiler at e1d84ebe7, before merging ephemeral tables.
     let p1: BTreeMap<String, (String, String)> = serde_json::from_str(include_str!("fixtures/ephemeral-compat-p1.json")).unwrap();
     for (name, bytes) in p1 { assert!(expected.insert(name, bytes).is_none()); }
+    // LLP 3000.007 §23 repairs human advice, not schema/runtime semantics.
+    // Pin the exact old and new strings; retain all other historical bytes.
+    let record = &mut expected.get_mut("read-through-device.q").unwrap().0;
+    let old_reason = "upsert on a read-through child queues without a row";
+    let new_reason = format!("{old_reason}; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon");
+    let old_rewrite = "use a plain insert with a new id when prediction is needed";
+    let new_rewrite = "(update comments[id] { task, body: 'upsert', at: 1 }) if exists comments[id = id] else (insert comments { task, body: 'upsert', at: 1, id: id })";
+    for (old, new) in [(old_reason, new_reason.as_str()), (old_rewrite, new_rewrite)] {
+        let old = serde_json::to_string(old).unwrap();
+        assert_eq!(record.matches(&old).count(), 1);
+        *record = record.replace(&old, &serde_json::to_string(new).unwrap());
+    }
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     for (name, (schema, types)) in actual {
         assert_eq!(schema, expected[&name].0, "schema bytes: {name}");

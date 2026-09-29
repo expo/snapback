@@ -75898,3 +75898,57 @@ size and 146 B below the unchanged 593,719 B cap. SHA-256
 No tool installation, push or publication. Report:
 reports/20260928-lv-hook-retention/round11/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — AG round 0: Quarry first paste
+
+From f56e8048a on sb4-intent/ag-first-paste, replayed cal23–25 and the
+comparative builder's first attempts before editing. MP already admits the
+parent-pinned `(message, emoji)` aggregate scan. Added the count-row `count`
+alias, len/length aliases with unchanged count meters, aggregate public, and
+null fallthrough for effect helpers. Read-through upsert summaries now report
+the real reason and offer a source-specific update/insert alternative when its
+insert image is complete. The alternative remains manual: extra read authority
+and held coverage are required. Aggregate parent-rule repairs remove only a
+proved redundant traversal; shape-on repairs replace the exact tokens. These
+unambiguous cases work with check --fix. Digest-query refusal keeps job authority
+and offers removal of the entire unused preview. Nonunique title advice prints
+the exact held query, preserving duplicates and requiring acquired coverage.
+Decisions and deliberate refusals are recorded in LLP 3000.007 §23.
+
+The original cal25 check falls from 111 to 20 lines, verdict first. Plain output
+has no ephemeral $intent: names; verbose and JSON keep full detail, and explicit
+cost/residency reports remain. No client package or runtime implementation was
+changed. All new first-attempt tests execute intent or the literal printed repair:
+8 language tests, 2 memory/SQLite device tests, CLI mechanical-fix/output checks.
+Final check/fix tests pass 79+27; all 98 guide tests pass; the lowering differential
+passes all 11 tests without changing historical IR hashes. Three newly admitted
+census programs are pinned separately. Updated the guide cards and both stale
+length-spelling fact-home entries. Ref-check passes. Root check-inventories has
+unchanged Snapback 1 inventory/guide drift and missing generated demo artifacts;
+the report attributes every item rather than modifying another fence.
+
+Ran scripts/test.sh exactly once. Its exact summary is:
+
+```text
+== 2 failure(s) in 1299 s
+   cargo test
+   client tests
+```
+
+All 16 Rust failures were this lane's stale spelling/advice/output expectations;
+fixed and rerun green. The client stage had five failures: two receipt/retention
+races pass in isolation with both base and current binaries, whose fixture schema
+and executable-program activation digests match; one missing --cost detail was
+fixed and its unchanged client test passes. Two client-owned expectations still
+need len acceptance / verbose-detail updates. The no-client-edits boundary is
+preserved: the exact unapplied patch is in the report, validated 2/2 in an isolated
+copy. The full suite is not claimed green. Its 79 client model tests and all other
+script stages passed. Every failure, including local development failures and
+root inventory failures, is listed in the report's FAILURES.md.
+
+Fresh wasm: 2,042,203 B raw / 593,573 B gzip, 146 B below the unchanged
+593,719 B cap; SHA-256
+75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+Report: reports/20260929-ag-first-paste/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

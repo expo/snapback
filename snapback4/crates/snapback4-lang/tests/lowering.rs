@@ -11,7 +11,9 @@ use std::collections::BTreeMap;
 
 // The six wildcard replacements were refused by the historical compiler.
 // Pin their newly admitted IR separately; preserve every original digest.
-const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"));
+// LLP 3000.007 §23 adds three corpus programs (fallthrough helper and a
+// document previously rejected by len); none changes an existing digest.
+const GOLDEN: &str = concat!(include_str!("lowering/ce15819ad.sha256"), include_str!("lowering/intent-shape-overrides.sha256"), include_str!("lowering/first-paste-admissions.sha256"));
 
 fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
     let schema = snapback4_lang::bind::schema::bind_schema(catalog, diagnostics);

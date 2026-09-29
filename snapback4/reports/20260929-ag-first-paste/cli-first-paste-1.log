@@ -1,0 +1,73 @@
+   Compiling inout v0.1.4
+   Compiling zeroize v1.9.0
+   Compiling universal-hash v0.5.1
+   Compiling opaque-debug v0.3.1
+   Compiling aead v0.5.2
+   Compiling chunked_transfer v1.5.0
+   Compiling log v0.4.34
+   Compiling httpdate v1.0.3
+   Compiling ascii v1.1.0
+   Compiling hmac v0.12.1
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling poly1305 v0.8.0
+   Compiling cipher v0.4.4
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-ag/snapback4/vendor/tiny_http)
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 7.34s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 3 tests
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... FAILED
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+
+failures:
+
+---- first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented stdout ----
+
+thread 'first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented' (2831645) panicked at crates/snapback4/tests/check/first_paste.rs:14:13:
+check: ok — 1 tables (0 synced), 2 operations, no problems, 1 note, 1.2 ms
+  typing: ephemeral 4s: server memory, never on a device
+  setTyping: ephemeral, renews; fails offline and is not queued
+    Server: typing is online only (site schema.q:11:3); fails offline and is not queued
+    Server: write typing by byId: online only (site schema.q:11:3 (upsert typing)); fails offline and is not queued
+note: schema.q:12:1 — N_EPHEMERAL_SERVER: typingIn runs on the server because it reads an ephemeral table
+  rewrite: split the ephemeral read into its own query and render it next to the device-held one
+  guide: ephemeral
+  why: snapback4 why N_EPHEMERAL_SERVER
+
+N_EPHEMERAL_SERVER: this query runs on the server because it reads ephemeral state. Split the ephemeral read into its own query and render it next to the device-held one; guide ephemeral.
+
+# Ephemeral tables: typing and presence in a room
+
+Keep the ordinary chats-list query device-held. Observe `typingInMyRooms`
+separately with `{ keep: true }` and render its room hints beside that list: never join an
+ephemeral table into a query that must work offline.
+A query reading ephemeral rows runs on the server; `N_EPHEMERAL_SERVER`
+explains this and suggests splitting it from device-held data.
+
+Full card: snapback4 guide ephemeral
+
+scale: 1 of 2 operations are constant; 1 constant once background cleanup catches up (typingIn); 0 grow with data — `check --cost` gives the certificate
+1 mutations never predict: setTyping (writes online-only table typing); 1 mutation has insert arms that never predict: setTyping (typing is online only) — snapback4 why <op>
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

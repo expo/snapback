@@ -95,7 +95,6 @@ fn qualification_checks_the_declaration_file_and_cannot_change_placement() {
 #[test]
 fn foreign_spellings_are_refused_and_canonical_repairs_compile() {
     for (source, repair) in [
-        ("query bad(x: text):\n  return len(x)\n", "count(x)"),
         ("query bad(x: text):\n  return x.length\n", "count(x)"),
         ("query bad():\n  return count(*)\n", "count(members)"),
         ("query bad(c: cursor ?):\n  return members where .principal = viewer limit 20\n", "first 20"),

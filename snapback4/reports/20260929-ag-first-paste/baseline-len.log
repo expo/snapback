@@ -1,0 +1,6 @@
+schema.q:2:10 — E_QUARRY_UNSUPPORTED: len is not part of Snapback 4
+  rewrite: count(text) — check --fix applies it
+  guide: language
+
+check: 1 problem
+check: 1 redundant cascade diagnostic(s) hidden; use --verbose to show them

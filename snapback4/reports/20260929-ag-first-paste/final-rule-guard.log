@@ -1,0 +1,9 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.56s
+     Running tests/first_paste.rs (snapback4/target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s

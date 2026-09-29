@@ -123,3 +123,14 @@ of the old and new JSON proved that each difference is exactly one
 with the identical table, index, key, provenance and lookup site; no other IR
 changed. Only those 16 digests were updated. Ownership-on/off IR, admission,
 results, all meters and refusal comparisons remain enforced without exclusions.
+
+LLP 3000.007 §23 first-paste authoring (2026-09-29): the parser now admits
+`len` and a block helper falling through with a null return. Three census
+programs therefore become bindable: `12f736…:q` (the no-return helper) and
+`b4fdb0…:choose`/`:member` (their document previously failed parsing at an
+unrelated `len` call). `first-paste-admissions.sha256` pins only these three
+new identities; no historical digest or census source changes. Reproduce
+with `generate.rs` and the same returned-shape stripping described above.
+The ordinary ownership-on/off differential executes their results, admissions
+and all meters with the existing harness. The first-paste regression separately
+executes aliases through the full compile pipeline and checks equal meters.

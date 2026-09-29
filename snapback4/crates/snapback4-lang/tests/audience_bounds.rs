@@ -85,7 +85,8 @@ fn helper_refusal_finds_a_transitive_job_caller() {
     clean(&source);
     let d = refusal(&bound(&(source + PREVIEW)), "E_QUARRY_BOUND");
     contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts"]);
-    contains(&d.rewrite, &["system job caller(s) digest", "partial preview", "if this viewer query is unused, remove `digestPreview`"]);
+    contains(&d.message, &["partial preview", "entire unused viewer query `digestPreview`"]);
+    contains(&d.rewrite, &["system job caller(s) digest"]);
 }
 
 #[test]
@@ -124,7 +125,8 @@ fn job_bound_helpers_require_a_query_ineligible_prefix() {
             if query_ineligible {
                 let d = refusal(&preview, "E_QUARRY_BOUND");
                 contains(&d.message, &["viewer query caller chain: preview", "-> total"]);
-                contains(&d.rewrite, &["system job caller(s) sweep", "partial preview"]);
+                contains(&d.rewrite, &["system job caller(s) sweep"]);
+                contains(&d.message, &["partial preview"]);
             } else {
                 assert!(preview.diagnostics.is_empty(), "{:?}", preview.diagnostics);
             }
@@ -142,7 +144,8 @@ fn query_refusal_stays_at_helper_loop_with_transitive_callers_and_job_context() 
         contains(&d.message, &["viewer query caller chain: digestPreview", "-> digestCounts", "members[principal = reader]", "conversation-based read rule", "no system authority"]);
         if wrapper { contains(&d.message, &["-> wrapped", "-> digestCounts"]); }
         assert_eq!(d.site.line, BUILDER.lines().position(|s| s.contains("for member in members[principal = reader]")).unwrap() as u32 + 1);
-        contains(&d.rewrite, &["first 50", "partial preview", "not an equivalent complete total", "cursor", "system job caller(s) digest", "Inner recipient work must fit one chunk", "parks with E_BOUND"]);
+        contains(&d.message, &["first 50", "partial preview", "not an equivalent complete total", "cursor", "Inner recipient work must fit one chunk", "parks with E_BOUND"]);
+        contains(&d.rewrite, &["system job caller(s) digest"]);
         assert_eq!(b.programs.iter().find(|p| p.program.name == "digest").unwrap().program,
             original.programs.iter().find(|p| p.program.name == "digest").unwrap().program);
     }

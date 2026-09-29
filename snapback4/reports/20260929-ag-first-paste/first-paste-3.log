@@ -1,0 +1,31 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.81s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 8 tests
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... FAILED
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+test cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update ... ok
+
+failures:
+
+---- comparative_public_view_and_cal24_effect_helper_first_attempts_execute stdout ----
+
+thread 'comparative_public_view_and_cal24_effect_helper_first_attempts_execute' (2798273) panicked at crates/snapback4-lang/tests/first_paste.rs:124:5:
+assertion `left == right` failed
+  left: Int(0)
+ right: Int(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    comparative_public_view_and_cal24_effect_helper_first_attempts_execute
+
+test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

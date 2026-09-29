@@ -1,0 +1,18 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+error: cannot find macro `json` in this scope
+   --> crates/snapback4-lang/tests/guide.rs:587:120
+    |
+587 |     assert_eq!(wire::to_json(&engine.query("familiarLengths", Context::new(alice, Default::default())).unwrap().data), json!({"char...
+    |                                                                                                                        ^^^^
+
+error[E0433]: cannot find module or crate `wire` in this scope
+   --> crates/snapback4-lang/tests/guide.rs:587:16
+    |
+587 |     assert_eq!(wire::to_json(&engine.query("familiarLengths", Context::new(alice, Default::default())).unwrap().data), json!({"char...
+    |                ^^^^ use of unresolved module or unlinked crate `wire`
+    |
+    = help: if you wanted to use a crate named `wire`, use `cargo add wire` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `snapback4-lang` (test "guide") due to 2 previous errors

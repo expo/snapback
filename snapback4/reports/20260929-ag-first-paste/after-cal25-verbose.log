@@ -1,0 +1,319 @@
+check: ok — 30 tables (17 synced), 59 operations, no problems, 17 notes, 37.0 ms
+  typing: ephemeral 4s: server memory, never on a device
+  chat.setTyping: ephemeral, renews; fails offline and is not queued
+    Server: typing is online only (site chat.q:235:3); fails offline and is not queued
+    Server: write typing by byId: online only (site chat.q:235:3 (upsert typing)); fails offline and is not queued
+    Held: rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon (site chat.q:231:3 (typing update rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)); fails offline and is not queued
+    Held: rule members by $intent:byConversationPrincipal:4ee87294c2cbfa28: held, no horizon (site chat.q:230:3 (typing insert rule: members by $intent:byConversationPrincipal:4ee87294c2cbfa28)); fails offline and is not queued
+  chat.stopTyping: ephemeral; fails offline and is not queued
+    Server: point typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only; selected $intent:byConversationPrincipal:4ee87294c2cbfa28 (conversation = conversation, principal = viewer); result: exists; only declared unique key of this arity (site chat.q:237:13 (typing[conversation, viewer])); fails offline and is not queued
+    Server: write target typing by $intent:byConversationPrincipal:4ee87294c2cbfa28: online only (site chat.q:238:5 (delete typing)); fails offline and is not queued
+    Server: write typing by byId: online only (site chat.q:238:5 (delete typing)); fails offline and is not queued
+note: chat.q:239:1 — N_EPHEMERAL_SERVER: chat.typingIn runs on the server because it reads an ephemeral table
+  rewrite: split the ephemeral read into its own query and render it next to the device-held one
+  guide: ephemeral
+  why: snapback4 why N_EPHEMERAL_SERVER
+
+N_EPHEMERAL_SERVER: this query runs on the server because it reads ephemeral state. Split the ephemeral read into its own query and render it next to the device-held one; guide ephemeral.
+
+# Ephemeral tables: typing and presence in a room
+
+Keep the ordinary chats-list query device-held. Observe `typingInMyRooms`
+separately with `{ keep: true }` and render its room hints beside that list: never join an
+ephemeral table into a query that must work offline.
+A query reading ephemeral rows runs on the server; `N_EPHEMERAL_SERVER`
+explains this and suggests splitting it from device-held data.
+
+Full card: snapback4 guide ephemeral
+
+note: chat.q:241:1 — N_EPHEMERAL_SERVER: chat.typingInMyRooms runs on the server because it reads an ephemeral table
+  rewrite: split the ephemeral read into its own query and render it next to the device-held one
+  guide: ephemeral
+  why: snapback4 why N_EPHEMERAL_SERVER
+
+note: chat.q:280:1 — N_NO_HORIZON: table reactions: `sync to members[.$message.conversation]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 50 by message` bounds the rows per message, not what a device acquires — `sync to members[.$message.conversation]` delivers every message's rows to every device; measure what it costs with `check --residency`
+  rewrite: sync to members[.$message.conversation] last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+N_NO_HORIZON: a note, not an error — a synced table with no `last N by .at` horizon delivers every row of every group a device holds, and keeps delivering as the table grows. Suppression is reader-dependent, even for an uncapped `sync public` table. Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size. Silent when whole-partition reads or insert proofs of eligible mutations depend on that absence of a horizon. For eligible mutations with ascending pages or pages on a different index, names the prediction a horizon would cost instead of recommending it. Otherwise declare `sync ... last 500 by .at` (older rows remain online; local reads past them say `complete: false`), or bound the group with a `cap`. Inspect `check --residency`.
+
+# Sync: the viewer's partition is the unit of sync
+
+A synced table with no horizon delivers every row of
+every group a device holds, at every cold start, as the table grows;
+`check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
+group, or a `cap` over the group), or its whole partition supplies an eligible
+mutation's reads or insert proof (`guide prediction`). For an eligible mutation's
+ascending page or a page on a different index, the note names the prediction
+that a horizon would cost instead of recommending that horizon.
+Suppression is reader-dependent, even for an uncapped `sync public` table.
+Eligible mutations that require whole-partition coverage can suppress this
+advice. An absent note does not certify bounded acquisition or a safe
+cold-start size.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`.
+A snapshot arrives in pages the client
+asks for 10,000 events at a time (2,000 by default on the wire, 10,000 at
+most), each applied in its own transaction. `POST /sync` takes JSON
+`{ from, limit, after, stream, pending, store_id?, generation? }`: up to 256 pending write IDs of
+1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
+Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
+fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
+`stream: true` follows the log even from zero. There is no GET sync route.
+The client sends its device generation. A mismatch returns HTTP 200
+`E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
+the current numeric `watermark`, before building a snapshot or stream page. A
+head-read failure fails the request. The client adopts `/schema` only when that
+watermark is a finite, nonnegative integer at or above its retained image-head
+evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
+or invalid head is a retryable failure that neither adopts nor clears the evidence.
+For a confirmed restore, stop the client and use a fresh device store and outbox
+for that restored backend; retry and adoption do not repair a regressed store identity.
+After adopting, it retries from the device's resulting position with its pending
+IDs intact. This refusal is never applied
+as a delivered page: its watermark is head evidence, not delivered progress, and
+never moves the cursor. Retry only from the position adoption produced.
+Omitting `generation` preserves ordinary page behavior.
+Against 0.2.32, the client retries without the field once on that server's exact
+HTTP 400 sync-input refusal. This transport omits `generation` for that server
+origin only after a stripped retry returns a successful (2xx) response.
+Anything else leaves discovery enabled, so the next attempt probes again;
+another origin or transport still sends the field.
+An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
+`store_id` and `watermark` from that page. The client checks identity before
+shrinking its limit; a refusal's watermark is never applied as delivered data.
+At limit 1 an oversized stream reply adds `snapshot: true`, instructing the
+client to restart at
+[excerpt truncated]
+
+Full card: snapback4 guide sync
+
+note: chat.q:215:1 — N_NO_CURSOR: query chat.groupByTitle returns a page of 1 conversations rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in chat.groupByTitle and append `after c` to this conversations page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+N_NO_CURSOR: a note, not an error — a returned page without a cursor cannot continue. If the screen pages, declare `c: cursor ?` and page with `after c`, preserving its predicate, direction and order. Filling first N or last N is complete without next. Composed fields omit the note, as do pages covering a group cap that fits the examined ceiling. Meter cuts, undecided read-rule prefixes and missing device coverage still make answers incomplete. guide reads.
+
+# Reads
+
+N_NO_CURSOR: a returned page cannot continue. If the screen pages,
+declare `c: cursor ?` and page with `after c`, preserving its predicate and order.
+
+Filling `first N` or `last N` is complete without `next`. Composed fields
+omit this note. Meter cuts, undecided authorization and missing device
+coverage still apply (`guide reads`).
+
+Full card: snapback4 guide reads
+
+note: chat.q:215:1 — N_NEVER_COMPLETE: query chat.groupByTitle: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required
+  rewrite: query groupByTitle(title: text 1..50) held:
+  return conversations where .title = title and .kind = 'group' first 1 by .id
+  guide: reads
+  why: snapback4 why N_NEVER_COMPLETE
+
+N_NEVER_COMPLETE: a note, not an error — a page whose read rule reads a column the scan does not pin is complete: false on the server whatever it finds. Pin that column with a where equality. For membership search, use messages matching q where exists members[.roomId, viewer] last 20 by .at after c; or read held rows on the device. guide reads, search.
+
+# Reads
+
+The first read examples use the language card's tables. A page's read rule is checked
+once when the prefix decides it, else per row, and a page whose rule still depends
+on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
+the missing equality columns and an existing compatible index when one is
+available). Keep the current equality prefix when adding those pins; choosing
+a conversation narrows the answer to that scope. This is author guidance,
+not a `check --fix` repair, and it does not change the read rule. With a total unique `(chatKey, principal)`
+key on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by
+the chat alone because the row is its own witness, so a roster page pinned
+by the chat is complete and no second table is needed. An aborting mutation
+page costs one examined unit before its verdict, plus its rule probes on
+both true and false verdicts; a true verdict then examines candidates.
+A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
+A point read reserves that same static allowance before its lookup, equally
+for a readable row, a hidden row and a miss. If it cannot pay, authorization
+has no verdict and the answer remains incomplete. A device's trusted held
+row needs no authorization probes.
+A read states its predicate, search text, page size, order and continuation:
+`t where predicate matching q last 20 by .at after c`. Omit parts the read
+does not need. `first` ascends; `last` descends; id breaks ties. Predicates run
+after the source rule. Parenthesize a nested read with its own modifiers:
+`exists (messages[roomId = .roomId] matching q)`. The named inner key binds
+the outer row's room; inside a predicate, `.` denotes that predicate's row.
+
+A lookup by title does not prove that title unique. Do not add a uniqueness
+constraint unless the product requires it, or pin an id you do not have.
+For a synced table whose read rule depends on its id, the note can print the
+same complete query declaration with `held` added. Paste it over that query
+only if device-only lookup fits the screen: its predicate, order and duplicate
+matches stay the same, but it requires acquired coverage and has no server
+fallback. Otherwise keep the server query and its incomplete absence verdict.
+
+Full card: snapback4 guide reads
+
+note: schema.q:81:1 — N_MAINTAIN_SYNCED: 2 synced maintains:
+  maintain replyCounts: sync public inherited from posts, no horizon; one value row per parentId reaches every device; no currently eligible mutation reads it (site schema.q:81:1)
+  maintain repostCounts: sync public inherited from reposts, no horizon; one value row per postId reaches every device; no currently eligible mutation reads it (site schema.q:80:1)
+  rewrite: keep inherited sync for local readers and offline absence coverage, or add `online only` and lose that offline coverage; measure cold rows with `snapback4 test --residency`; guide maintains; guide offline-interactions
+  guide: residency
+  why: snapback4 why N_MAINTAIN_SYNCED
+
+N_MAINTAIN_SYNCED: maintains inherit sync with no horizon: public or a group audience with unbounded recipients or multiple values per group. One grouped note retains every source site and names mutations that stop predicting with online only, which loses offline aggregate/absence coverage. snapback4 test --residency measures cold rows.
+
+## Operations
+
+N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
+with unbounded recipients or multiple values per group. It names mutations
+that would stop predicting if the view goes online only. Inherited sync has no
+horizon; `online only` also loses offline aggregate/absence coverage. See
+`guide maintains` and `guide offline-interactions` for the replica census. Repeats share one
+note with a line and source location for every view. Check prints these
+facts without pre-adoption counts: a new view has no stored rows yet. Run
+`test --residency --fixture dir --as alice` to measure cold rows and compact
+JSON row bytes. The default report shows the eight costliest table/persona
+pairs by bytes (then rows), one summed remainder and reconciled totals.
+`check --residency --fixture dir --as alice` prints the same bounded report.
+Without a fixture, check measures the active dev-store schema read-only;
+it never adopts current source for measurement. With no store it says not
+measured and names the fixture command. Add `--verbose` for every table,
+facts and notes (and on test, query meters and aggregate row counts).
+Measurements exclude transport framing, are not process RSS, and are not
+estimates for another fixture.
+
+Full card: snapback4 guide residency
+
+note: chat.q:352:1 — N_MAINTAIN_DELTA: maintain unread may disclose the delta of a hidden messages row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: conversation, ordinal, sender, tombstone
+  rewrite: treat the view as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+  why: snapback4 why N_MAINTAIN_DELTA
+
+N_MAINTAIN_DELTA: a readable aggregate view declares an insert/delete/update delta channel, including filter/key/value dependencies; restrict its read audience or source write authority if the delta is private.
+
+# Rules
+
+A hidden collision on ordinary insert or `insert ... if absent` stays
+`E_RULE`; a readable collision names its index (if-absent returns null).
+An update or upsert-patch colliding with a different hidden row returns generic
+`E_RULE` when its target is readable and `NOT_FOUND` when its target is unreadable.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
+write another principal's row. Success discloses the admitted row's existence
+and the update rule predicates. It grants no extra stream or snapshot row.
+A condition belongs on `update`; an upsert inserts or patches. A condition
+needs a row you can read; a blind patch needs none. On a row you cannot read,
+immutable columns in a patch are ignored. A readable immutable mismatch still
+names the column. Before target lookup, the engine reserves room for the rule
+probes and the largest merged image allowed by the schema and supplied patch;
+if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
+A readable aggregate view over a hidden source is a declared read channel: its
+delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
+wider update authority under a separately readable aggregate view. Restrict its
+read audience or source write authority if that delta is private.
+
+Full card: snapback4 guide rules
+
+note: schema.q:43:3 — N_MAINTAINED_COLUMN_STREAM: posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change
+  rewrite: use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use a view with online only
+  guide: maintains
+  why: snapback4 why N_MAINTAINED_COLUMN_STREAM
+
+N_MAINTAINED_COLUMN_STREAM: each contributing commit streams the whole parent image per destination partition. Consider the parent's size and update frequency; a hot counter can stay a separate online-only view. guide maintains.
+
+## Maintained columns
+
+A contributing commit streams the whole parent image to each parent
+partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost
+on the parent's sync line. Use a column for a count readers want with the
+row; use `view …` with `online only` when the counter changes far more often
+than the row is read. Include the parent's size in that choice: a 4,000-byte
+parent costs every holder about 4 KB per contributing commit.
+
+Full card: snapback4 guide maintains
+
+note: chat.q:320:10 — N_SYNC_ORDER: query chat.inChat `messages[conversation = conversation] matching q last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+N_SYNC_ORDER: a note, not an error — a device-capable query pages a windowed table on another index (including a calendar index) or oldest first. Whole-domain aggregates and word indexes have separate coverage requirements and are outside this ordering advice. Its acquisition boundary proves only newest-first pages on the window's own index, within that boundary. The note names both orders and the source site. A paste-ready page uses last N on the window index, audience equalities in bracket keys, and the original predicates and cursor. It requires a cursor, a cap covering the whole group, or the same ordered columns already read newest first. A cursorless partial page in another order gets words because reordering could select different rows. Restart pagination when changing order; the full traversal keeps the same rows. Only scope-independent range endpoints can move into residual filters. Outer-row endpoints, generated membership lanes, explicit merges and projected views get the window order and index in words without a paste-ready replacement; one lane is not the whole read. Capped pages get last N from their bound scan. Otherwise the ordinary query needs the server; offline coverage is unknown. A held query stays on the device and reports incomplete coverage without server fallback. online only currently applies to tables and views, not query headers. guide sync.
+
+# Sync: the viewer's partition is the unit of sync
+
+Ascending reads and other indexes have unknown coverage.
+N_SYNC_ORDER notes these query orders at their source sites and names the
+window's order for ordinary pages, including calendar-index pages. A printed
+page repair keeps audience equalities in bracket keys, every other predicate,
+and the cursor. It is printed only when the query has a cursor, a cap proves
+the page covers the whole group, or the query already reads newest first on
+the same ordered columns. A cursorless partial page in another order gets
+words: changing its order could select different rows. After changing the
+order, restart pagination; the full traversal keeps the same rows.
+A window index fully pinned by its audience also gets words: its point read
+would change the page's result type.
+A range can move to a filter only with the same meaning;
+outer-row endpoints, generated membership lanes and merges get words naming
+the window order and index instead of a paste-ready replacement. This also
+applies to projected views: one branch is not the whole result. Whole-domain
+aggregates and word searches have separate coverage requirements; this
+ordering note does not cover them.
+Use `last N by .at, .id` for the example above, keeping the
+audience predicate and cursor. A query on the window's own index, newest first,
+can answer offline within the acquired boundary, including timestamp ties.
+Other orders need the server; a held query stays local with incomplete coverage.
+`online only` currently applies to tables and views, not query headers.
+
+Full card: snapback4 guide sync
+
+note: chat.q:322:10 — N_SYNC_ORDER: query chat.searchNewest `messages matching q where exists members[.conversation, viewer] last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: chat.q:333:12 — N_SYNC_ORDER: query chat.searchMessages `messages[conversation = conversation] matching q last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: chat.q:334:10 — N_SYNC_ORDER: query chat.searchMessages `messages matching q where exists members[.conversation, viewer] last 20 by .at after c` reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: insights.q:19:10 — N_SYNC_ORDER: query insights.trending `posts where .parentId = null and not .removed and .at > now - 86400000 and .at <= now last 10 by .likeCount, .at after c` reads posts by .likeCount, .at, .id, newest first (index [parentId, removed, hour(at), likeCount, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:24:10 — N_SYNC_ORDER: query people `profiles matching q first 20 by .handle after c` reads profiles by .handle, .id, oldest first (index [handle]); its sync window is last 1200 by .id, newest first (index byId [id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:88:10 — N_SYNC_ORDER: query global `activity last 20 by .at after c` reads posts by .at, .id, newest first (index [parentId, removed, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:92:10 — N_SYNC_ORDER: query userPosts `posts where .authorId = author and .parentId = null last 20 by .at after c` reads posts by .at, .id, newest first (index [authorId, parentId, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+note: schema.q:96:10 — N_SYNC_ORDER: query replies `posts where .parentId = parent first 20 by .at after c` reads posts by .at, .id, oldest first (index [parentId, at, id]); its sync window is last 1000 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown
+  rewrite: The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context
+  guide: sync
+  why: snapback4 why N_SYNC_ORDER
+
+scale: 38 of 59 operations are constant; 6 constant once background cleanup catches up (home, chat.history, chat.messageReceipts, chat.stopTyping, chat.setReaction, chat.messageReactions); 15 grow with data (people, chat.progress, chat.delivered, chat.groupByTitle, chat.typingIn, chat.typingInMyRooms, chat.dmFor, chat.inChat, chat.searchNewest, chat.searchHeld, chat.searchMessages, chat.apiHistory, chat.unreadInboxes, digest.daily, insights.trending); 1 job(s) assessed per chunk — `check --cost` gives the certificate
+  N_SEARCH_WORDS at programs.people.0: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return profiles matching q after c first 20 by .handle, .id where (public) (guide search)
+  N_SEARCH_WORDS at programs.searchNewest.2: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at, .id } (guide search)
+  N_SEARCH_OPEN at programs.searchNewest.0: every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at, .id } (guide search)
+  N_SEARCH_WORDS at programs.searchHeld.0: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return messages matching q after c last 20 by .at, .id where (exists members[.conversation, viewer]) (guide search)
+  N_SEARCH_WORDS at programs.searchMessages.4: first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. Compact server membership reads rescan words on refill and charge repeated work.; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at, .id } (guide search)
+  N_SEARCH_OPEN at programs.searchMessages.2: every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads; rewrite: return members[principal = viewer] after c first 20 by .conversation, .id where exists (messages[conversation = .conversation] matching q by .at, .id) { conversation, hits: messages[conversation = .conversation] matching q last 3 by .at, .id } (guide search)
+6 mutations never predict: chat.createDM (reads online-only table dmKeys), chat.delivered (author marked this mutation : server), chat.setReaction (upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon), chat.setTyping (writes online-only table typing), chat.stopTyping (reads online-only table typing), setFollow (reads online-only table follows); 6 mutations have insert arms that never predict: chat.setTyping (typing is online only), publish (posts has horizon last 1000 by $intent:byAt:31b7451344e6727f (at, id)), saveProfile (profiles has horizon last 1200 by byId (id)), setFollow (follows is online only), setLike (likes has horizon last 1000 by $intent:byAt:31b7451344e6727f (at, id)), setRepost (reposts has horizon last 1000 by $intent:byAt:31b7451344e6727f (at, id)); 10 mutations eligible, but these reads queue without a row past a horizon: chat.add (profiles[principal = principal] (chat.q:128:18)), chat.createGroup (profiles[principal = other] (chat.q:199:18)), chat.deleteMessage (messages by byId (chat.q:279:3), messages[message] (chat.q:276:7)), chat.editMessage (messages by byId (chat.q:274:3), messages[message] (chat.q:268:7)), chat.send (messages[quote] (chat.q:118:14), profiles[principal = viewer] (chat.q:337:12)), chat.sendMedia (messages[quote] (chat.q:261:14), profiles[principal = viewer] (chat.q:337:12)), placeAvatar (profiles by $intent:byPrincipal:8097d97fddadb304 (schema.q:28:3)), publish (insert posts (schema.q:115:10), posts[parentId] (schema.q:114:20)), setLike (delete likes (schema.q:121:5), insert likes (schema.q:119:5), likes[postId, viewer] (schema.q:120:18), posts[postId] (schema.q:117:18)), setRepost (delete reposts (schema.q:128:5), insert reposts (schema.q:126:5), posts by byId (insert reposts: posts/byId), posts[postId] (schema.q:123:7), reposts by byId (delete reposts: reposts/byId), reposts[viewer, postId] (schema.q:127:18)) — snapback4 why <op>
+  view unread: key messages.conversation = members.conversation; one value per members row; source fanout <= 50; writer recount <= 1024 examined source rows within remaining meter, then pending/background chunks <= 256
+    device range: .ordinal > member.seenOrdinal and .ordinal > member.joinedOrdinal; index $view:conversation:ordinal; horizon 500 by byConversationOrdinal; greatest encoded lower bound; strict wins equal values; null is weakest; whole group when every range operand is null; Whole keeps the live-basis scan
+  chat.searchHeld: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+    Horizon: scan messages by $intent:byWordsTextAt:df5e66bc6ca34a39: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byWordsTextAt:df5e66bc6ca34a39 (); result: page; synthesized; explicit by; read: messages matching q last 20 by .at after c; when q absent: selected $intent:byAt:31b7451344e6727f (); result: page; synthesized; explicit by; read: messages matching q last 20 by .at after c (site chat.q:324:10 (messages matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Horizon: scan messages by $intent:byAt:31b7451344e6727f: sync to members[.conversation] last 500 by byConversationOrdinal; when q present: selected $intent:byWordsTextAt:df5e66bc6ca34a39 (); result: page; synthesized; explicit by; read: messages matching q last 20 by .at after c; when q absent: selected $intent:byAt:31b7451344e6727f (); result: page; synthesized; explicit by; read: messages matching q last 20 by .at after c (site chat.q:324:10 (messages matching q last 20 by .at after c)); incomplete past the horizon; no server fallback
+      rewrite: remove a redundant guard, or read a synced fact without a horizon

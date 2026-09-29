@@ -93,7 +93,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
                 if let Some(parent) = &definition.through {
                     if kind != "insert" {
                         fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
-                            reason: format!("{kind} on a read-through child queues without a row"), rewrite: "use a plain insert with a new id when prediction is needed".into() });
+                            reason: format!("{kind} on a read-through child queues without a row"), rewrite: String::new() });
                     }
                     fact.sites.push(site(schema,&format!("{kind} {table}"),&parent.parent,"byId","read through capture"));
                     rule_sites(schema,&schema.tables[&parent.parent].rules.read,&format!("{kind} {table} parent rule"),&mut fact.sites,&mut BTreeSet::new());
@@ -202,6 +202,12 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
         else {
             for location in locations {
                 let mut copy = site.clone();
+                if copy.kind == "upsert" && let Some((source_site, _)) = program.sources.values()
+                    .find(|(source_site, name)| location == format!("{source_site} ({name})"))
+                    && let Some(rewrite) = super::first_paste::upsert(catalog, source_site) {
+                    copy.rewrite = rewrite;
+                    copy.reason.push_str("; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon");
+                }
                 copy.site = location;
                 if !located.contains(&copy) { located.push(copy); }
             }
@@ -347,13 +353,22 @@ fn event_site(schema: &Schema, location: &str, table: &str, index: &str, kind: &
 
 /// A single human reason for the first site that prevents prediction.
 pub fn prediction_reason(schema: &Schema, site: &ResidencySite) -> String {
-    if matches!(site.kind.as_str(), "presence" | "dispatch" | "native") { return site.reason.clone(); }
+    if matches!(site.kind.as_str(), "presence" | "dispatch" | "native" | "upsert" | "insert-if-absent")
+        || schema.tables.get(&site.table).is_some_and(|table| table.sync.is_some()) { return site.reason.clone(); }
     let verb = match site.kind.as_str() { "write" | "write target" | inserts::UPSERT_BLOCKED | inserts::ABSENT_BLOCKED => "writes", "rule" => "a write rule reads", _ => "reads" };
     let noun = if schema.maintain_for(&site.table).is_some() { "maintain" } else { "table" };
     format!("{verb} online-only {noun} {}", site.table)
 }
 
 pub fn prediction_summary(bound: &Bound) -> Option<String> {
+    prediction_report(bound, true)
+}
+
+pub fn prediction_overview(bound: &Bound) -> Option<String> {
+    prediction_report(bound, false)
+}
+
+fn prediction_report(bound: &Bound, detailed: bool) -> Option<String> {
     let mut never = Vec::new();
     let mut inserts = Vec::new();
     let mut horizons = Vec::new();
@@ -372,8 +387,8 @@ pub fn prediction_summary(bound: &Bound) -> Option<String> {
     }
     let mut parts = Vec::new();
     if !never.is_empty() { parts.push(format!("{} mutations never predict: {}", never.len(), never.join(", "))); }
-    if !inserts.is_empty() { parts.push(format!("{} {} insert arms that never predict: {}", inserts.len(), if inserts.len() == 1 { "mutation has" } else { "mutations have" }, inserts.join(", "))); }
-    if !horizons.is_empty() { parts.push(format!("{} {} eligible, but these reads queue without a row past a horizon: {}", horizons.len(), if horizons.len() == 1 { "mutation" } else { "mutations" }, horizons.join(", "))); }
+    if !inserts.is_empty() { parts.push(if detailed { format!("{} {} insert arms that never predict: {}", inserts.len(), if inserts.len() == 1 { "mutation has" } else { "mutations have" }, inserts.join(", ")) } else { format!("{} mutations have insert arms that may queue", inserts.len()) }); }
+    if !horizons.is_empty() { parts.push(if detailed { format!("{} {} eligible, but these reads queue without a row past a horizon: {}", horizons.len(), if horizons.len() == 1 { "mutation" } else { "mutations" }, horizons.join(", ")) } else { format!("{} eligible mutations may queue past a horizon", horizons.len()) }); }
     (!parts.is_empty()).then(|| format!("{} — snapback4 why <op>", parts.join("; ")))
 }
 

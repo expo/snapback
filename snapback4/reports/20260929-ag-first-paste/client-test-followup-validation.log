@@ -1,0 +1,12 @@
+(node:3529353) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ check --fix repairs every remaining guessed spelling and the repaired program runs (55.415048ms)
+✔ check enumerates every range candidate and its fallback in text and JSON (71.972857ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 425.133192

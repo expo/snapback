@@ -1,0 +1,8 @@
+check: ok — 5 tables (4 synced), 1 operations, no problems, 1 note, 4.6 ms
+note: schema.q:18:1 — N_NO_HORIZON: table reactions: `sync to members[.$message.conversation]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 50 by message` bounds the rows per message, not what a device acquires — `sync to members[.$message.conversation]` delivers every message's rows to every device; measure what it costs with `check --residency`
+  rewrite: sync to members[.$message.conversation] last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+scale: 1 of 1 operations are constant; 0 grow with data — `check --cost` gives the certificate
+1 mutations never predict: setReaction (reads online-only table reactions) — snapback4 why <op>

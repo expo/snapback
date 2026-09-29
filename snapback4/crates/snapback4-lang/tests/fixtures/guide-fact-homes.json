@@ -561,7 +561,7 @@
     "id": "language-17",
     "card": "language",
     "home": "E_QUARRY_UNSUPPORTED",
-    "text": "- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`."
+    "text": "- Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`."
   },
   {
     "id": "language-18",
@@ -579,7 +579,7 @@
     "id": "language-20",
     "card": "language",
     "home": "E_QUARRY_UNSUPPORTED",
-    "text": "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form.\nFor example, `return len(items)` must be `return count(items)`. The\nreported rewrite names the accepted spelling; `snapback4 check --fix`\napplies it when marked mechanical. For a different algorithm, use the\nlanguage card's bounded loop, helper or native-job idiom. Accepting a\nrewrite does not add an alias to the language."
+    "text": "E_QUARRY_UNSUPPORTED means the guessed construct is not a Quarry form.\nFor example, `a?.b` uses Quarry's null-propagating `a.b`. The\nreported rewrite names the accepted spelling; `snapback4 check --fix`\napplies it when marked mechanical. For a different algorithm, use the\nlanguage card's bounded loop, helper or native-job idiom. Accepting a\nrewrite does not add an alias to the language. `len(x)` and `length(x)`\nare accepted aliases of `count(x)` and need no rewrite."
   },
   {
     "id": "language-21",
