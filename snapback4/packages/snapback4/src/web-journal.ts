@@ -333,17 +333,18 @@ export class AdmissionJournal {
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
-  admit(device: JournalDevice, entry: unknown, storeId?: string, generation?: number): Record<string, unknown> {
-    return runJournal(this.admission(entry, storeId, generation), request => invoke(device, request));
+  admit(device: JournalDevice, entry: unknown, storeId?: string, generation?: number, backend?: string): Record<string, unknown> {
+    return runJournal(this.admission(entry, storeId, generation, backend), request => invoke(device, request));
   }
 
-  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, generation?: number): Promise<Record<string, unknown>> {
-    return runJournalAsync(this.admission(entry, storeId, generation), call);
+  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, generation?: number, backend?: string): Promise<Record<string, unknown>> {
+    return runJournalAsync(this.admission(entry, storeId, generation, backend), call);
   }
 
-  private *admission(entry: unknown, storeId?: string, generation?: number): JournalPlan<Record<string, unknown>> {
+  private *admission(entry: unknown, storeId?: string, generation?: number, backend?: string): JournalPlan<Record<string, unknown>> {
     const state = yield { op: "sync_state", capture: false };
     if (generation !== undefined && (state.ok?.generation !== generation || state.ok?.restore_refusal || state.ok?.backend_required)) return { denied: identityRefusal(false) };
+    if (backend !== undefined && state.ok?.adoption_capture?.["device:backend-identity"] !== backend) return { denied: identityRefusal(false) };
     const binding = journalStoreBinding(storeId, state.ok?.store_id);
     if (binding !== "allow") return { denied: bindingRefusal(binding) };
     const next = yield { op: "next_submission" };

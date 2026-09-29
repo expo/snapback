@@ -1,0 +1,51 @@
+✔ waiting admission after restored backend refresh: native descriptor (24.286407ms)
+✖ waiting admission after restored backend refresh: schema (2.675399ms)
+✖ waiting admission after restored backend refresh: programs (1.682792ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.374621
+
+✖ failing tests:
+
+test at ../../../../tmp/ea-r5-native-descriptor.test.mjs:4:67
+✖ waiting admission after restored backend refresh: schema (2.675399ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///tmp/ea-r5-native-descriptor.test.mjs:50:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at ../../../../tmp/ea-r5-native-descriptor.test.mjs:4:67
+✖ waiting admission after restored backend refresh: programs (1.682792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///tmp/ea-r5-native-descriptor.test.mjs:50:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

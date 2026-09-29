@@ -502,3 +502,178 @@ async function rewindProcess(invoke) {
   assert.equal(after.generation, state.generation);
   assert.equal(after.adoption_capture['device:backend-identity'], state.adoption_capture['device:backend-identity']);
 }
+
+// Round 5: review reproductions cross synchronous capture into the serialized transaction.
+for (const worker of [false, true]) test(`browser transaction rejects backend replacement after synchronous capture (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+  const f = await browser(t, worker);
+  await f.page.evaluate(async () => {
+    const invoke = core.call.bind(core);
+    const originalBackend = (await invoke({ op: 'backend' })).ok;
+    window.admissions = []; window.captures = [];
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('snapback4-admission:')) captures.push(JSON.parse(value));
+      return setItem.call(this, key, value);
+    };
+    core.call = async (request, committed) => {
+      if (request.op === 'admit' && request.expected_generation !== undefined) {
+        admissions.push(request);
+        if (!request.expected_backend) throw Error('call must pin the identified backend');
+        const backend = structuredClone(originalBackend);
+        backend.programs[0].name += '_replaced';
+        const adopting = invoke({ op: 'adopt', backend });
+        const admitting = invoke(request, committed);
+        const adopted = await adopting;
+        if (adopted.denied) throw Error(JSON.stringify(adopted));
+        window.adoptedState = (await invoke({ op: 'sync_state', capture: false })).ok;
+        return admitting;
+      }
+      return invoke(request, committed);
+    };
+    window.writing = save('old program');
+  });
+  await f.page.evaluate(() => start());
+  const result = await f.page.evaluate(() => writing);
+  const [requests, captured, state] = await f.page.evaluate(() => [admissions, captures, adoptedState]);
+  assert.equal(requests.length, 1); assert.equal(captured.length, 1, 'synchronous capture passed before adoption');
+  assert.equal(state.store_id, requests[0].expected_store);
+  assert.equal(state.generation, requests[0].expected_generation);
+  assert.equal(state.backend_required, false);
+  assert.notEqual(state.adoption_capture['device:backend-identity'], requests[0].expected_backend);
+  assert.equal(result.why?.code, 'E_ADMISSION_STORE');
+  assert.deepEqual(await f.page.evaluate(async () => (await core.call({op:'queued'})).ok), []);
+  assert.equal(await f.page.evaluate(() => posts.length), 0);
+  assert.deepEqual(await f.page.evaluate(() => events), [result]);
+  assert.deepEqual(await f.page.evaluate(() => client.pendingWrites()), []);
+  assert.equal(await f.page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:')).length), 0);
+  assert.deepEqual(await f.page.evaluate(id => client.write(id), result.id), result);
+});
+
+test('FIFO wait behind identity I/O consumes the identity budget', async t => {
+  const { IdentityWait } = await import('../dist/identity-admission.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  const waiter = new IdentityWait(() => {}), held = Promise.withResolvers();
+  t.after(() => { waiter.close(); held.resolve(false); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  let firstOutcome, secondOutcome, firstReads=0, secondReads=0, admits=0;
+  const refusal = why => ({state:'failed',id:'fixture',why});
+  const admit = async release => { admits++; release(); return {state:'pending',id:'fixture'}; };
+  void waiter.run({id:'first',op:'send',args:{}}, () => ++firstReads===1 ? Promise.resolve(true) : held.promise, admit, refusal).then(w => firstOutcome=w);
+  void waiter.run({id:'second',op:'send',args:{}}, () => ++secondReads===1 ? Promise.resolve(true) : held.promise, admit, refusal).then(w => secondOutcome=w);
+  await tick();
+  t.mock.timers.tick(15_000); await tick();
+  assert.equal(firstOutcome?.why?.code, 'E_ADMISSION_TIMEOUT');
+  assert.equal(admits,0);
+  assert.equal(secondOutcome?.why?.code,'E_ADMISSION_TIMEOUT');
+  assert.deepEqual(waiter.pending(), []);
+  held.resolve(true); await tick(); assert.equal(admits, 0, 'late identity cannot admit expired calls');
+});
+
+for (const worker of [false, true]) test(`browser transaction checks generation independently of backend (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+  const f = await browser(t, worker); await f.page.evaluate(() => start());
+  const result = await f.page.evaluate(async () => {
+    const state = (await core.call({ op: 'sync_state', capture: false })).ok;
+    const setItem = Storage.prototype.setItem; let captured = 0;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('snapback4-admission:')) captured++;
+      return setItem.call(this, key, value);
+    };
+    try {
+      // Exactly one stale pin: backend hashes also contain generation, so an
+      // adoption alone would mask missing expected_generation forwarding.
+      const reply = await core.call({ op: 'admit', expected_generation: state.generation + 1,
+        expected_store: state.store_id, expected_backend: state.adoption_capture['device:backend-identity'],
+        entry: { id: mintId(), op: 'send', args: { conversationId: 'c1', body: 'stale generation' },
+          seq: 1, viewer: 'dev:alice', now: Date.now(), new_ids: [mintId()], predictable: false, predicted: [] } });
+      return { reply, captured };
+    } finally { Storage.prototype.setItem = setItem; }
+  });
+  assert.equal(result.captured, 1, 'capture passed; the transaction must reject the stale generation');
+  assert.equal(result.reply.denied?.code, 'E_ADMISSION_STORE');
+  assert.deepEqual(await f.page.evaluate(async () => (await core.call({ op: 'queued' })).ok), []);
+  assert.equal(await f.page.evaluate(() => posts.length), 0);
+  assert.equal(await f.page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:')).length), 0);
+});
+
+test('FIFO deadline counts identity gaps between ordinary admissions', async t => {
+  const { IdentityWait } = await import('../dist/identity-admission.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  const waiter = new IdentityWait(() => {}), reads = [0, 0, 0], outcomes = [], releases = [], admissions = [];
+  const identities = Array.from({ length: 3 }, () => Promise.withResolvers());
+  const receipts = Array.from({ length: 2 }, () => Promise.withResolvers());
+  t.after(() => { waiter.close(); identities.forEach(g => g.resolve(false)); receipts.forEach(g => g.resolve({ state: 'pending', id: '' })); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  for (let i = 0; i < 3; i++) {
+    void waiter.run({ id: String(i), op: 'send', args: {} }, () => ++reads[i] === 1 ? Promise.resolve(true) : identities[i].promise,
+      release => { releases[i] = release; admissions.push(i); return receipts[i].promise; },
+      why => ({ state: 'failed', id: String(i), why })).then(w => { outcomes[i] = w; });
+  }
+  await tick(); assert.deepEqual(reads, [2, 1, 1]);
+  t.mock.timers.tick(2_000); identities[0].resolve(true); await tick();
+  assert.deepEqual(admissions, [0]);
+  t.mock.timers.tick(60_000); await tick(); assert.equal(outcomes[2], undefined);
+  releases[0](); await tick(); assert.deepEqual(reads, [2, 2, 1]);
+  t.mock.timers.tick(3_000); identities[1].resolve(true); await tick();
+  assert.deepEqual(admissions, [0, 1]);
+  // A's later receipt/finally must not end B's ordinary-admission interval.
+  receipts[0].resolve({ state: 'sent', id: '0', seq: 1 }); await tick();
+  t.mock.timers.tick(60_000); await tick(); assert.equal(outcomes[2], undefined);
+  releases[1](); receipts[1].resolve({ state: 'pending', id: '1' }); await tick();
+  assert.deepEqual(reads, [2, 2, 2]);
+  t.mock.timers.tick(9_999); await tick(); assert.equal(outcomes[2], undefined);
+  t.mock.timers.tick(1); await tick(); assert.equal(outcomes[2]?.why?.code, 'E_ADMISSION_TIMEOUT');
+  identities[2].resolve(true); await tick(); assert.deepEqual(admissions, [0, 1]);
+  assert.deepEqual(waiter.pending(), []);
+});
+
+// Grok round 4: descriptor enrichment is not a store replacement.
+for (const change of ['native descriptor', 'schema', 'programs']) test(`waiting admission after restored backend refresh: ${change}`, async t => {
+  const { IdentityWait, localAdmissionIdentity } = await import('../dist/identity-admission.js');
+  const { nativeInstaller } = await import('../dist/local-native.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  // A device-restored backend has the native program, but no server descriptor.
+  let backend = { generation: 1, schema: { tables: {}, operations: {} }, programs: [
+    { name: 'nativeRead', kind: 'Query', args: {}, body: [], native: true },
+  ] }, link = 'offline';
+  const state = { generation: 1, store_id: 'A', backend_required: false,
+    adoption_capture: { 'device:backend-identity': 'kept-backend' } };
+  const identity = localAdmissionIdentity(backend, 1), waiter = new IdentityWait(() => {});
+  const finalRead = Promise.withResolvers(); let checks = 0, admissions = 0, outcome;
+  t.after(() => { waiter.close(); finalRead.resolve(); });
+  const requests = [], installed = [];
+  const install = nativeInstaller(() => ({ backend, generation: 1, link, closed: false }), next => { backend = next; },
+    async request => {
+      if (request.op === 'state') return { ok: { native: null } };
+      assert.equal(request.op, 'install_native'); installed.push(request); return { ok: true };
+    }, async url => {
+      requests.push(url);
+      if (url.endsWith('/native.wasm')) return new Response(new Uint8Array([0, 97, 115, 109]));
+      assert.equal(url, 'https://native.invalid/schema');
+      const refreshed = structuredClone(backend);
+      refreshed.native = { digest: 'module-digest', jobs: [], reads: ['nativeRead'] };
+      if (change === 'schema') refreshed.schema.operations.nativeRead = { held: true };
+      if (change === 'programs') refreshed.programs[0].name += 'Changed';
+      return Response.json(refreshed);
+    }, 'https://native.invalid', () => ({ headers: {} }));
+  assert.equal(await install(), false); assert.deepEqual(requests, []);
+  const writing = waiter.run({ id: 'original-write', op: 'send', args: {} }, async () => {
+    if (++checks === 2) await finalRead.promise;
+    return identity.check(state, backend, 1, null);
+  }, async release => { admissions++; release(); return { state: 'pending', id: 'original-write' }; },
+  why => ({ state: 'failed', id: 'original-write', why }));
+  void writing.then(w => { outcome = w; });
+  await tick(); assert.equal(checks, 2); assert.equal(outcome, undefined);
+  assert.equal(identity.fields().expected_backend, 'kept-backend');
+  link = 'online'; assert.equal(await install(), true);
+  assert.equal(installed.length, 1); assert.equal(backend.native.digest, 'module-digest');
+  // The real installer has called setBackend; store/generation/device digest
+  // did not change. Only server descriptor enrichment is identity-neutral.
+  finalRead.resolve(); const write = await writing;
+  if (change === 'native descriptor') {
+    assert.equal(write.state, 'pending', JSON.stringify(write));
+    assert.equal(write.id, 'original-write'); assert.equal(admissions, 1);
+  } else {
+    assert.equal(write.why?.code, 'E_ADMISSION_STORE'); assert.equal(admissions, 0);
+  }
+  assert.deepEqual(waiter.pending(), []);
+});

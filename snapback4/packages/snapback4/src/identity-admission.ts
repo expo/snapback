@@ -17,6 +17,8 @@ const reason = "waiting for backend identification; not yet admitted";
 export class IdentityWait {
   private calls = new Map<string, PendingWrite>();
   private tail: Promise<void> = Promise.resolve();
+  private admitting = false;
+  private admissionListeners = new Set<() => void>();
   private stopped = new AbortController();
   constructor(private readonly notify: () => void) {}
   get size(): number { return this.calls.size; }
@@ -35,7 +37,16 @@ export class IdentityWait {
     let deadline = Date.now() + IDENTITY_WAIT_MS;
     const previous = this.tail;
     let release!: () => void;
-    const admitted = new Promise<void>(resolve => { release = () => { this.calls.delete(entry.id); this.notify(); resolve(); }; });
+    let ordinary = false, released = false;
+    const admitted = new Promise<void>(resolve => { release = () => {
+      if (released) return;
+      released = true;
+      if (ordinary) {
+        this.admitting = false;
+        for (const changed of this.admissionListeners) changed();
+      }
+      this.calls.delete(entry.id); this.notify(); resolve();
+    }; });
     this.tail = previous.then(() => admitted);
     this.calls.set(entry.id, { ...entry, args: JSON.parse(JSON.stringify(entry.args)), state: "held", predicted: [], reason });
     queueMicrotask(this.notify);
@@ -51,24 +62,40 @@ export class IdentityWait {
         this.stopped.signal.addEventListener("abort", stop, { once: true });
         if (this.stopped.signal.aborted) stop();
       });
-      const clear = () => { clearTimeout(timer); clearTimeout(wake); this.stopped.signal.removeEventListener("abort", stop); };
+      let waitingForTurn = false, pausedAt: number | undefined;
+      const admissionChanged = () => {
+        if (waitingForTurn && this.admitting) {
+          if (pausedAt === undefined) { pausedAt = Date.now(); clearTimeout(timer); }
+        } else if (pausedAt !== undefined) {
+          deadline += Date.now() - pausedAt; pausedAt = undefined;
+          timer = setTimeout(() => interrupt(identityRefusal(true)), Math.max(0, deadline - Date.now()));
+        }
+      };
+      this.admissionListeners.add(admissionChanged);
+      const clear = () => {
+        clearTimeout(timer); clearTimeout(wake); this.admissionListeners.delete(admissionChanged);
+        this.stopped.signal.removeEventListener("abort", stop);
+      };
       try {
         for (;;) {
           const ready = await Promise.race([check().catch(() => false), interrupted]);
           if (typeof ready !== "boolean") return refused(ready);
           if (Date.now() >= deadline) return refused(identityRefusal(true));
           if (ready) {
-            // Only the FIFO wait is exempt: identity I/O before and after it shares the remaining budget.
-            clearTimeout(timer);
-            const waitingAt = Date.now();
+            // The queue can contain identity reads as well as ordinary admissions.
+            // Only the actual admission intervals pause a ready caller's budget.
+            waitingForTurn = true; admissionChanged();
             const prior = await Promise.race([previous, interrupted]);
+            waitingForTurn = false; admissionChanged();
             if (prior) return refused(prior);
-            deadline += Date.now() - waitingAt;
-            timer = setTimeout(() => interrupt(identityRefusal(true)), Math.max(0, deadline - Date.now()));
             const current = await Promise.race([check().catch(() => identityRefusal(false)), interrupted]);
             if (Date.now() >= deadline) return refused(identityRefusal(true));
             if (typeof current !== "boolean") return refused(current);
-            if (current) { clear(); return await admit(release); }
+            if (current) {
+              clear(); ordinary = true; this.admitting = true;
+              for (const changed of this.admissionListeners) changed();
+              return await admit(release);
+            }
           }
           const timeout = await Promise.race([new Promise<void>(resolve => { wake = setTimeout(resolve, 25); }), interrupted]);
           if (timeout) return refused(timeout);
@@ -90,7 +117,8 @@ export function checkLocalIdentity(state: StoreCapture | undefined, generation: 
 
 /** Pin the first successful read, even when the cached backend has no store id. */
 export function localAdmissionIdentity(captured: BackendJson | null, generation: number) {
-  const key = (backend: BackendJson | null) => JSON.stringify([backend?.schema, backend?.programs, backend?.native]);
+  // Native descriptors can be filled in after an offline open without replacing the backend.
+  const key = (backend: BackendJson | null) => JSON.stringify([backend?.schema, backend?.programs]);
   const capturedKey = key(captured), expectedStore = captured?.store_id;
   let pinned: { store: string; backend: string | undefined } | undefined;
   return {

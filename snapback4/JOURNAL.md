@@ -77706,3 +77706,47 @@ Canonical wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged
 Report: reports/20260929-ea-admit-before-identity/round4/REPORT.md. The local
 commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — EA round 5: pins inside browser admission, deadlines across identity work
+
+Merged origin/main b9a4051494 into lane EA before editing (merge c815da6450,
+no conflicts). Read the prior prompts/reports, Astra's round-4 NOT READY review,
+and Grok's completed round-4 READY review when it arrived. Addressed both Astra
+findings, its generation-forwarding coverage gap, and Grok's Low plus surviving
+backend-comparison mutation. Round 3's memory-only wait remains; no deferred
+custody machinery returns.
+
+Wasm and Worker forward the pinned backend fingerprint into the serialized
+journal admission plan, which checks current metadata before any submission or
+outbox admission. Both queued-adoption reproductions now return E_ADMISSION_STORE
+with an empty outbox, cleaned synchronous journal and zero mutation POSTs.
+Independent generation controls catch missing generation forwarding even though
+the backend fingerprint also includes generation. Both forwarding deletions fail
+both browser controls. IdentityWait pauses only during actual predecessor
+ordinary admission; predecessor identity reads consume the same 15-second
+budget. Fake-clock controls catch both the 15-to-30-second extension and identity
+gaps between ordinary admissions. Admission release is idempotent across a later
+receipt/finally. Grok's final Low is fixed by excluding a server-only native
+descriptor from the JS backend comparison; real installer callback tests permit
+descriptor enrichment while still refusing changed schema or programs.
+
+Broad affected checks passed 202/202, whole guide 99/99, delivery matrix 321/321.
+Ran scripts/test.sh exactly once, exit 0: `== 0 failure(s) in 1232 s`.
+Rust passed 4,331 with 33 declared ignores; clients passed 5,152 with ten declared
+skips and no cancellations; fixture wrappers passed 9/9; models passed 79/79,
+including 10,000 session sequences and 3,000 online-client sequences. All other
+stages passed. Full-run failures: ours 0, baseline 0, environmental 0. The
+inherited 60-second suite budget is still missed; no budget/count was relaxed.
+
+The full run's source/test hashes stayed unchanged. Grok arrived during that
+run; its final one-line comparator repair, three detecting tests and doc
+clarifications were applied afterward. Final affected checks passed 83/83,
+including all 48 identity cases; final delivery matrix passed 321/321 and package
+build/typecheck passed. The single full-suite result therefore predates only
+that final Grok delta; no final-revision full-inventory claim is made.
+
+Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged 593,719 B cap.
+LLP 3000.007 §20.4 and the operations manual describe the repaired boundaries.
+Report, review snapshots, all negative controls and exact results:
+reports/20260929-ea-admit-before-identity/round5/REPORT.md. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

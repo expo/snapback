@@ -82,7 +82,8 @@ export function instrument(destination) {
 
 // identity-admission.ts waits before custody/transport. Its final read and FIFO
 // wait are covered by admit-before-identity: replacement, rejection, deadline,
-// remaining budget after a prior admission, and late completion without custody.
+// remaining budget across predecessor identity/admission intervals, and late completion
+// without custody. Browser transaction pins are tested after synchronous capture.
 // Ordinary admission and delivery retain the required sites below.
 // Conservative boundary seal: any new/changed await anywhere in the client must
 // be reviewed for delivery reachability, even in a new module or helper owner.

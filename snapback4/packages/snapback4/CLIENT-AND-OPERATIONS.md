@@ -1009,10 +1009,14 @@ mounted form can retry normally. `onWrite` reports terminal outcomes; already
 admitted writes retain their ordinary durable recovery.
 
 Identity revalidation shares the 15-second identification budget; waiting behind
-an earlier ordinary admission is excluded. The first successful identification
-pins each call's store and backend fingerprint. A published store ID still
+an earlier ordinary admission is excluded; predecessor identity checks still
+consume it. The first successful identification
+pins each call's store and backend fingerprint. Filling a missing native
+descriptor after an offline open preserves that identity; changing schema or
+programs does not. A published store ID still
 requiring adoption stays unready; temporary unreadiness resumes bounded polling. The final read must match those
-pins: an incompatible or unreadable identity returns `E_ADMISSION_STORE` through
+pins, which the browser rechecks inside its serialized admission transaction:
+an incompatible or unreadable identity returns `E_ADMISSION_STORE` through
 `onWrite`, and stalled identity I/O returns `E_ADMISSION_TIMEOUT`. No custody or
 POST exists at this boundary. After identity, a storage `E_ADMISSION` still
 permits repairing storage and retrying the original ID, including when the
