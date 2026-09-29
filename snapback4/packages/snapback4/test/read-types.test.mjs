@@ -32,6 +32,11 @@ test('Astra nullable consumer: absent arrays cannot be assigned to null', () => 
 test('Read is covariant and every narrowed arm retains its result type', () => {
   const result = check(`import { isReady, type Read } from './src/contract.ts';
 type Row = { id: string };
+// A structural row can also be an empty array. This is why absent point
+// narrowing must retain Row & [] when all subtype widening remains valid.
+const arrayWithId: Row & [] = Object.assign([] as [], { id: 'empty' });
+const emptySubtype: Read<Row & []> = { data: arrayWithId, existence: 'absent', complete: true, cut: null, fresh: true };
+const structuralPoint: Read<Row | null> = emptySubtype;
 function widen<U, T extends U>(read: Read<T>): Read<U> { return read; }
 function nullable<T>(read: Read<T>): Read<T | null> { return read; }
 function unknown<T>(read: Read<T>): Read<unknown> { return read; }
