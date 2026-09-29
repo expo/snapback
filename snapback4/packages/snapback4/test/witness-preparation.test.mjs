@@ -90,7 +90,12 @@ test('native Xcode sources, resources and build inputs outside covered roots ref
     // A group path, search path, file list and custom shell phase each bypassed a directory hash.
     for (const objects of [
       { g: { isa: 'PBXGroup', path: '../SharedNative', children: ['f'] }, f: { isa: 'PBXFileReference', path: 'Foo.swift' } },
+      { c: { buildSettings: { CONFIGURATION_BUILD_DIR: '/other/Products' } } },
+      { c: { buildSettings: { OBJROOT: '/other/Objects' } } },
+      { c: { buildSettings: { SYMROOT: '/other/Symbols' } } },
       { c: { buildSettings: { HEADER_SEARCH_PATHS: '$(SRCROOT)/../SharedNative' } } },
+      { c: { buildSettings: { SWIFT_INCLUDE_PATHS: '$(SRCROOT)/../SharedNative' } } },
+      { c: { buildSettings: { 'SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]': '/opt/shared-native' } } },
       { c: { buildSettings: { 'HEADER_SEARCH_PATHS[sdk=iphonesimulator*]': '/opt/shared-native' } } },
       { c: { buildSettings: { OTHER_SWIFT_FLAGS: '-I/opt/shared-native' } } },
       { c: { buildSettings: { OTHER_LDFLAGS: '@/opt/shared-native/response' } } },
@@ -111,9 +116,20 @@ test('native Xcode sources, resources and build inputs outside covered roots ref
     assert.throws(() => nativeReferences(dir, { objects: {
       f: { isa: 'PBXFileReference', path: 'build.config' }, c: { baseConfigurationReference: 'f' },
     } }, 'App'), /E_WITNESS_NATIVE_COMPAT/);
+    for (const source of ['# include \"../SharedNative/Foo.swift\"\n', '#include \"/opt/shared-native/header.h\"\n']) {
+      fs.writeFileSync(path.join(dir, 'ios/import.h'), source);
+      assert.throws(() => nativeReferences(dir, { objects: {} }, 'App'), /E_WITNESS_NATIVE_COMPAT/);
+    }
     fs.writeFileSync(path.join(dir, 'ios/import.h'), '#include </opt/shared-native/header.h>\n');
     assert.throws(() => nativeReferences(dir, { objects: {} }, 'App'), /E_WITNESS_NATIVE_COMPAT/);
     fs.unlinkSync(path.join(dir, 'ios/import.h'));
+    for (const ext of ['pch', 'hh', 'hxx', 'metal']) {
+      const f = path.join(dir, 'ios/import.' + ext); fs.writeFileSync(f, '# include \"../SharedNative/Foo.swift\"\n');
+      assert.throws(() => nativeReferences(dir, { objects: {} }, 'App'), /E_WITNESS_NATIVE_COMPAT/); fs.unlinkSync(f);
+    }
+    const modulemap = path.join(dir, 'ios/module.modulemap');
+    fs.writeFileSync(modulemap, 'module External { header \"../SharedNative/Foo.swift\" }');
+    assert.throws(() => nativeReferences(dir, { objects: {} }, 'App'), /E_WITNESS_NATIVE_COMPAT/); fs.unlinkSync(modulemap);
     fs.mkdirSync(path.join(dir, 'ios/Images.xcassets'));
     fs.writeFileSync(path.join(dir, 'ios/Images.xcassets/Contents.json'), JSON.stringify({ images: [{ filename: '../../SharedNative/image.png' }] }));
     assert.throws(() => nativeReferences(dir, { objects: {} }, 'App'), /E_WITNESS_NATIVE_COMPAT/);
@@ -138,7 +154,15 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
     write(path.join(project, 'ios/Pods/hermes-engine/destroot/bin/hermesc'), 'compiler');
     write(path.join(project, 'ios/Podfile.lock'), 'lock');
     write(path.join(project, 'ios/Podfile.properties.json'), {});
-    write(path.join(project, 'ios/App.xcodeproj/project.pbxproj'), { objects: {} });
+    const graph = (name, source) => ({ rootObject: 'project', objects: {
+      project: { isa: 'PBXProject' }, target: { isa: 'PBXNativeTarget', name, buildPhases: ['phase'] },
+      phase: { isa: 'PBXSourcesBuildPhase', files: ['build'] }, build: { isa: 'PBXBuildFile', fileRef: 'file' },
+      file: { isa: 'PBXFileReference', path: source },
+    } });
+    write(path.join(project, 'ios/App.xcodeproj/project.pbxproj'), graph('App', 'App.c'));
+    write(path.join(project, 'ios/Pods/Pods.xcodeproj/project.pbxproj'), graph('Pod', '../App.c'));
+    write(path.join(project, 'ios/App.c'), 'int app = 1;');
+    write(path.join(root, 'SharedNative.h'), 'external header');
     fs.mkdirSync(path.join(project, 'ios/App.xcworkspace'));
     write(path.join(app, 'Info.plist'), { CFBundleExecutable: 'App', CFBundleIdentifier: 'test.app', UIApplicationSceneManifest: {} });
     write(path.join(app, 'Expo.plist'), {});
@@ -156,6 +180,13 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
       });
       return { ...result, out };
     };
+    for (const [fault, expected] of [['output-escape', /Pod: output CONFIGURATION_BUILD_DIR escapes private workspace/],
+      ['missing-dependencies', /missing compiler dependency coverage/], ['external-dependency', /native input outside covered roots:.*SharedNative.h/]]) {
+      const bad = run('build', fault, fault);
+      assert.equal(bad.status, 1, bad.stderr); assert.match(bad.stderr, expected);
+      assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
+      if (fault === 'output-escape') assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
+    }
     const badBuild = run('build', 'bad-build', 'build-hbc');
     assert.equal(badBuild.status, 1, badBuild.stderr);
     assert.match(badBuild.stderr, /E_WITNESS_HERMES: bundle and installed compiler HBC versions differ/);
@@ -163,6 +194,13 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
     const base = run('build', 'base');
     assert.equal(base.status, 0, base.stderr);
     const receipt = path.join(base.out, 'build.json');
+    const built = JSON.parse(fs.readFileSync(receipt));
+    assert.notEqual(built.inputs.pods.sha256, built.sourceInputs.pods.sha256, 'the key must describe post-resolution bytes');
+    assert.notEqual(built.inputs.pods.sha256, built.preparedInputs.pods.sha256, 'Xcode-produced bytes have a separate inventory');
+    const changedResolved = run('repack', 'changed-resolved', 'resolved-pod', receipt);
+    assert.equal(changedResolved.status, 1, changedResolved.stderr);
+    assert.match(changedResolved.stderr, /E_WITNESS_NATIVE_COMPAT: input differences in pods/);
+    assert.equal(fs.existsSync(path.join(changedResolved.out, 'repack.log')), false);
     const good = run('repack', 'good', '', receipt); assert.equal(good.status, 0, good.stderr);
     const bad = run('repack', 'bad-repack', 'repack-hbc', receipt);
     assert.equal(bad.status, 1, bad.stderr);
@@ -201,5 +239,101 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
     assert.equal(mismatch.status, 1, mismatch.stderr);
     assert.match(mismatch.stderr, /E_WITNESS_HERMES: base\/repack Hermes compiler or bytecode changed/);
     assert.equal(fs.existsSync(path.join(mismatch.out, 'repack.json')), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('compiler records cover spaced and macro includes, transitive dependencies and missing coverage', async () => {
+  const { compilerClosure, dependencies } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-closure-'))), cache = root + '/private', source = root + '/ios/App.c';
+  const records = cache + '/DerivedData/Build/Intermediates.noindex';
+  try {
+    fs.mkdirSync(root + '/ios'); fs.mkdirSync(records, { recursive: true });
+    fs.writeFileSync(root + '/ios/good.h', '#define ANSWER 1\n');
+    fs.writeFileSync(source, '#include "good.h"\nint answer = ANSWER;\n');
+    const record = records + '/App.d';
+    fs.writeFileSync(record, `output: ${source} ${root}/ios/good.h\n`);
+    assert.equal(compilerClosure(root, cache, [], [source]).inputs.length, 2);
+    assert.deepEqual(dependencies('out: /a\\ b.h \\\n /c.h\n/c.h:\n'), ['/a b.h', '/c.h']);
+    for (const text of [`# include "${root}/Shared.h"\n`, `#define CONFIG "${root}/Shared.h"\n# include CONFIG\n`]) {
+      fs.writeFileSync(source, text); fs.writeFileSync(root + '/Shared.h', 'int native;');
+      fs.writeFileSync(record, `output: ${source} ${root}/Shared.h\n`);
+      for (const value of ['one', 'two']) {
+        fs.writeFileSync(root + '/Shared.h', value);
+        assert.throws(() => compilerClosure(root, cache, [], [source]), /native input outside covered roots:.*Shared.h/);
+      }
+    }
+    fs.unlinkSync(record);
+    assert.throws(() => compilerClosure(root, cache, [], [source]), /missing compiler dependency coverage/);
+    fs.writeFileSync(record, `output: ${root}/ios/good.h\n`);
+    assert.throws(() => compilerClosure(root, cache, [], [source]), /missing compiler dependency coverage/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('all target outputs and symlink parents must stay private', async () => {
+  const { validateOutputs } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-outputs-'))), cache = root + '/private';
+  try {
+    fs.mkdirSync(cache); fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');
+    const s = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
+    validateOutputs([{ target: 'App', buildSettings: s }], cache);
+    for (const key of ['CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH']) {
+      for (const value of [root + '/shared', cache + '/link/new']) assert.throws(() => validateOutputs([
+        { target: 'App', buildSettings: s }, { target: 'Pod', buildSettings: { ...s, [key]: value } },
+      ], cache), /Pod: output .* escapes private workspace/);
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Pods graph audit refuses external search paths, config includes, phase lists and scripts', async () => {
+  const { auditNativeProject } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-pods-audit-'))), cache = root + '/private';
+  const dir = root + '/ios/Pods';
+  try {
+    fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(cache);
+    const graph = { rootObject: 'project', objects: { project: { isa: 'PBXProject' }, target: { isa: 'PBXNativeTarget', name: 'Pod', buildPhases: [] } } };
+    const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
+    const audit = (g = graph, extra = {}) => auditNativeProject(g, dir, [{ target: 'Pod', buildSettings: { ...settings, ...extra } }], root, cache, [], 'App');
+    assert.equal(audit().sources.length, 0);
+    for (const key of ['HEADER_SEARCH_PATHS', 'FRAMEWORK_SEARCH_PATHS', 'LIBRARY_SEARCH_PATHS', 'SWIFT_INCLUDE_PATHS', 'SWIFT_OBJC_BRIDGING_HEADER']) {
+      assert.throws(() => audit(graph, { [key]: root + '/SharedNative' }), /outside covered roots/);
+    }
+    for (const flag of ['-include ' + root + '/SharedNative/config.h', '-ivfsoverlay ' + root + '/SharedNative/overlay.yaml', '@' + root + '/SharedNative/flags']) {
+      assert.throws(() => audit(graph, { OTHER_CFLAGS: flag }), /outside covered roots|unsupported native flag/);
+    }
+    fs.writeFileSync(dir + '/config.xcconfig', '# include "../../SharedNative/config.xcconfig"\n');
+    const g = structuredClone(graph);
+    Object.assign(g.objects, { configFile: { isa: 'PBXFileReference', path: 'config.xcconfig' },
+      config: { isa: 'XCBuildConfiguration', name: 'Release', baseConfigurationReference: 'configFile' },
+      list: { isa: 'XCConfigurationList', buildConfigurations: ['config'] } });
+    g.objects.target.buildConfigurationList = 'list';
+    assert.throws(() => audit(g), /outside covered roots/);
+    g.objects.target.buildConfigurationList = undefined;
+    g.objects.target.buildPhases = ['phase'];
+    g.objects.phase = { isa: 'PBXResourcesBuildPhase', inputFileListPaths: ['inputs.xcfilelist'] };
+    fs.writeFileSync(dir + '/inputs.xcfilelist', root + '/SharedNative/image.png\n');
+    assert.throws(() => audit(g), /outside covered roots/);
+    g.objects.phase = { isa: 'PBXShellScriptBuildPhase', shellPath: '/bin/sh', shellScript: 'cat /external/file', name: 'Generated-looking name' };
+    assert.throws(() => audit(g), /unsupported native script Pod/);
+    g.objects.phase = { isa: 'PBXCopyFilesBuildPhase', dstSubfolderSpec: 0, dstPath: '' };
+    assert.throws(() => audit(g), /unknown native phase PBXCopyFilesBuildPhase/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('linker records require products and refuse external frameworks including missing probes', async () => {
+  const { compilerClosure } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-linker-'))), cache = root + '/private';
+  const dir = cache + '/DerivedData/Build/Intermediates.noindex', source = root + '/ios/App.c', product = cache + '/DerivedData/App';
+  try {
+    fs.mkdirSync(root + '/ios'); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(source, 'int native;');
+    fs.writeFileSync(dir + '/App.d', `out: ${source}\n`); fs.writeFileSync(product, 'executable');
+    assert.throws(() => compilerClosure(root, cache, [], [source], [product]), /missing linker dependency coverage/);
+    const file = dir + '/App_dependency_info.dat', baseline = '\x00test\x00\x40' + product + '\x00';
+    fs.writeFileSync(file, Buffer.from(baseline));
+    assert.equal(compilerClosure(root, cache, [], [source], [product]).products[0], product);
+    fs.writeFileSync(root + '/External.framework', 'native bytes');
+    for (const tag of ['\x10', '\x11']) {
+      fs.writeFileSync(file, Buffer.from(baseline + tag + root + '/External.framework\x00'));
+      assert.throws(() => compilerClosure(root, cache, [], [source], [product]), /outside covered roots:.*External.framework/);
+    }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -96,6 +96,9 @@ new HBC/assets through the same three smoke segments; its proof is labeled
 `application-release-repack`. Compiler-declared server-only reads record
 expected offline unavailability and must answer online. A completed preparation
 alone is not a smoke pass or an M6/M8 application qualification.
+Repack also requires complete app/Pods compiler and linker dependency evidence
+and the qualified native script/tool dependency tree. Uncovered inputs or custom
+output paths refuse; use `--build` after a compatibility change.
 
 ```ts
 // src/client.ts

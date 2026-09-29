@@ -74,7 +74,10 @@ This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0,
 Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
 `app.json`. Use your existing generated iOS project with its native customizations
-and UIScene lifecycle ready for iOS 27. Native sources/resources and build
+and UIScene lifecycle ready for iOS 27. Products, intermediates and module caches
+are pinned to the private workspace; every app/Pods target's resolved output
+paths are checked before compilation. Custom output-directory overrides refuse.
+Native sources/resources and build
 inputs must resolve inside the inventoried iOS/dependency roots; external Xcode
 references, custom build scripts/Podfile/environment hooks, and scheme actions
 are refused. The adapter accepts only its pinned generated build phases.
@@ -119,8 +122,20 @@ Install and lock `@expo/repack-app` 0.10.3 in the app before the base build.
 This tool is not a Snapback package dependency. `--repack` and `--build` are
 exclusive; repack requires `--app-project` and the same static-config project,
 locked dependencies, native helper, toolchain and fingerprint. The complete
-source Pods tree, its generated iOS header target tree, and links into the inventoried dependencies,
-is also compared; hand-edited pod bytes require rebuilding. Native/config
+source Pods tree, the full generated-input tree, and dependency-link targets
+are also compared after private CocoaPods/codegen resolution on both routes.
+The receipt separately records live inputs, post-Pods/codegen inputs and
+Xcode's later generated changes. Repack must reproduce the same post-Pods stage.
+The base must have compiler dependency records for every
+source unit and linker records for every compiled target; missing coverage,
+uncovered includes/frameworks or unsupported scripts refuse reuse. Both the
+app and Pods search paths, config includes, resource and phase inputs are audited.
+Unqualified copy phases also refuse, including absolute destination selectors.
+Old receipts without that coverage require a new --build. Reuse of shell/Node
+phases and compiler plug-ins is restricted to the exactly qualified installed
+dependency tree; another tree can use --build but is not a repack qualification.
+This includes local helper patches in the recorded qualification. Package version
+equality alone is insufficient; hand-edited native/tool bytes require rebuilding. Native/config
 changes refuse with `--build` recovery. Both routes exclude expo-updates.
 Repack uses supported `--js-bundle-only` and a fresh export:embed, not a prior
 `dist` export. It checks HBC/compiler, exact native and metadata bytes, and

@@ -86,6 +86,9 @@ export function nativeReferences(root, project, appName) {
   function settings(values) {
     for (const [rawKey, raw] of Object.entries(values)) {
       const key = rawKey.replace(/\[[^\]]+\]/g, '');
+      if (/(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT|FOLDER_PATH|EXECUTABLE_PATH)$/.test(key)
+        || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key)
+        || ['SYMROOT', 'OBJROOT', 'DSTROOT', 'CCHROOT', 'SHARED_PRECOMPS_DIR', 'DERIVED_DATA_DIR', 'DERIVED_FILE_DIR', 'DERIVED_FILES_DIR', 'DERIVED_SOURCES_DIR', 'INDEX_DATA_STORE_DIR'].includes(key)) reject(`custom output ${key}: ${raw}`);
       // Flags can load response files, compiler plug-ins and undeclared inputs.
       // This adapter accepts only the generated template's flag vocabulary.
       if (/^(?:OTHER_.*FLAGS|COMPILER_FLAGS|GCC_PREPROCESSOR_DEFINITIONS)(?:\[|$)/.test(key)) {
@@ -97,7 +100,7 @@ export function nativeReferences(root, project, appName) {
       if (/^(?:CC|CXX|LD|LDPLUSPLUS|SWIFT_EXEC|TOOLCHAINS|SDKROOT)(?:\[|$)/.test(key)
         && !(key === 'SDKROOT' && ['iphoneos', 'iphonesimulator'].includes(raw))) reject(`custom tool ${key}`);
       if (['PODFILE_DIR', 'REACT_NATIVE_PATH'].includes(key)) { input(raw); continue; }
-      if (!/(?:SEARCH_PATHS|BRIDGING_HEADER|PREFIX_HEADER|MODULEMAP_FILE|INFOPLIST_FILE|ENTITLEMENTS)$/.test(key)) continue;
+      if (!/(?:SEARCH_PATHS|INCLUDE_PATHS|BRIDGING_HEADER|PREFIX_HEADER|MODULEMAP_FILE|INFOPLIST_FILE|ENTITLEMENTS)$/.test(key)) continue;
       for (const v of (Array.isArray(raw) ? raw : [raw])) {
         for (const token of String(v).match(/"[^"]*"|'[^']*'|\S+/g) ?? []) {
           const value = token.replace(/^["']|["']$/g, '');
@@ -143,9 +146,12 @@ export function nativeReferences(root, project, appName) {
       if (entry.isDirectory() && !['Pods', 'build', 'xcuserdata'].includes(entry.name)) scan(file);
       if (!entry.isFile()) continue;
       if (file.endsWith('.xcscheme') && /<ExecutionAction\b/.test(fs.readFileSync(file, 'utf8'))) reject('scheme execution action');
-      if (/\.(?:h|hpp|c|cc|cpp|m|mm)$/.test(file)) {
-        for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*#(?:include|import)\s+"([^"]+)"/gm)) input(match[1], path.dirname(file));
-        for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*#(?:include|import)\s+<((?:\/|\.\.\/)[^>]+)>/gm)) input(match[1], path.dirname(file));
+      if (/\.(?:h|hh|hpp|hxx|pch|c|cc|cpp|m|mm|metal)$/.test(file)) {
+        for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*#\s*(?:include|import)\s+"([^"]+)"/gm)) input(match[1], path.dirname(file));
+        for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\s*#\s*(?:include|import)\s+<((?:\/|\.\.\/)[^>]+)>/gm)) input(match[1], path.dirname(file));
+      }
+      if (entry.name.endsWith('.modulemap')) {
+        for (const match of fs.readFileSync(file, 'utf8').matchAll(/\b(?:header|umbrella)\s+"([^"]+)"/g)) input(match[1], path.dirname(file));
       }
       if (entry.name === 'Contents.json' && file.includes('.xcassets/')) {
         function assets(value) {

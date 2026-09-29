@@ -81,3 +81,6 @@ After an own base build, `witness ios --repack <build.json> --app-project .
 lock @expo/repack-app 0.10.3 before building the base. Repack has distinct proof
 and artifact names; native/config changes require a new own build. See the
 witness card for exact pins, source-helper requirements and smoke limits.
+Repack also requires complete app/Pods compiler and linker dependency evidence
+and the qualified native script/tool dependency tree. Uncovered inputs or custom
+output paths refuse; use `--build` after a compatibility change.

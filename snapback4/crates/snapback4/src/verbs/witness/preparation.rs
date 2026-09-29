@@ -81,6 +81,9 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("native-inputs.mjs"), include_str!("native-inputs.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs"))] {
+        fs::write(options.artifacts.join(name), contents).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+    }
     let mode = if options.build.is_some() { "build" } else { "repack" };
     let origin = format!("http://127.0.0.1:{}", options.port);
     node(options, &[helper.to_str().unwrap(), mode, project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin,

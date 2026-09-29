@@ -204,7 +204,7 @@ rechecked native compatibility.
 | runtime-dev | Runtime global __DEV__ true emitted durable launched:failed / E_WITNESS_PROOF; app exit prevented pass. |
 | stale-runs / stale-held | Kept residency mismatch in prime; each failure receipt has queries: []. |
 | external-native | Equal Expo fingerprints across external Swift edit, then E_WITNESS_NATIVE_COMPAT before install. |
-| pod-link | An actual Pods symlink to an uncovered SharedNative header refused before installation. |
+| pod-link | **Inconclusive (corrected in round 3).** The attempt refused the ordinary generated RCTAppDependencyProvider.h target before reaching the injected SharedNative link. Its prefix-only assertion did not establish the claimed negative. The separate unit test still supplied coverage. |
 | generated-pod | Editing a standard generated Pod header target refused as podsGenerated input difference before install; source restored. |
 | pod-input | Edited hermesc bytes refused as Pods input difference before repack; exact restoration recorded by later positive checks. |
 | interrupted-preparation | Recorded driver PID received SIGINT. SIGTERM-resistant child stopped, project lease remained held during cleanup, then became available; owned PIDs were absent afterwards. |

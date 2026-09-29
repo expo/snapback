@@ -76249,3 +76249,30 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — NP-mac round 3: close native inputs and private outputs
+
+Merged origin/main first (b65817c6b7), retaining both journal sides. Read Astra's
+round-2 NOT READY review and Grok's later review in full. Closed their native
+input and output-directory findings with all-target app/Pods graph checks,
+compiler/linker coverage, actual dependency hashes, strict script/tool pins,
+private Xcode output roots and conservative copy-phase refusal. Fixed the
+additional wrong-stage baseline: both routes compare complete post-Pods/codegen
+inputs, separately from live provenance and Xcode-generated changes.
+
+Corrected round 2's Pods-link control to inconclusive. The replacement final
+control follows a passing unmodified repack and asserts the exact injected link
+and target in its refusal. Real arm64 compiler controls, ten killed guard
+mutations, all §11 bounded controls and independent artifact verification pass.
+Affected tests: 32 helper/preparation, 28 driver, 10 witness unit, 98 guide.
+
+Final own A 114,943 ms; five complete repacks 54,618, 53,454, 53,430, 53,260, 53,090 ms;
+median/p95 53,430/54,618 ms; warm own B 112,343 ms. All three smoke segments
+pass. Retained all earlier attempts, including load-affected slow successes and
+wrong-stage refusals. LLP 3000.030 remains Accepted for this narrow qualification.
+Published client/native-core bytes and the disclosed round-2 helper patch are
+unchanged; no client/query/smoke relaxation, wasm change or budget increase.
+Report: reports/20260929-np-macos-slice/round3/REPORT.md. Only the owned simulator
+was used and removed. Nothing pushed or published. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
