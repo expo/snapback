@@ -5,7 +5,7 @@ set -u
 cd "$(dirname "$0")/.."
 failures=()
 child_pids=()
-client_test_serial=0
+client_test_concurrency=1
 parallel_dir=$(mktemp -d "${TMPDIR:-/tmp}/snapback4-test.XXXXXX")
 
 cleanup() {
@@ -80,7 +80,7 @@ stop_client_commands() {
 }
 
 run_client_tests() {
-  local client_status=0 count path pid shard target
+  local client_status=0 path pid
   local client_files=()
   local client_pids=()
   trap 'stop_client_commands INT 130' INT
@@ -88,29 +88,12 @@ run_client_tests() {
   for path in packages/snapback4/test/*.test.mjs; do
     case "$(basename "$path")" in
       app-session-model.test.mjs|online-client-model.test.mjs) ;;
-      acquisition.test.mjs|server-e2e.test.mjs)
-        if [ "$client_test_serial" = 1 ]; then client_files+=("$path"); fi ;;
       *) client_files+=("$path") ;;
     esac
   done
-  if [ "$client_test_serial" = 1 ]; then
-    echo "-- loaded host: client test files run serially"
-    node --test --test-concurrency=1 "${client_files[@]}" &
-    client_pids+=("$!")
-  else
-    node --test "${client_files[@]}" &
-    client_pids+=("$!")
-    for target in acquisition:4 server-e2e:3; do
-      count=${target#*:}
-      target=${target%:*}
-      shard=0
-      while [ "$shard" -lt "$count" ]; do
-        SNAPBACK4_TEST_SHARD="$shard/$count" node --test "packages/snapback4/test/$target.test.mjs" &
-        client_pids+=("$!")
-        shard=$((shard + 1))
-      done
-    done
-  fi
+  echo "-- client test files: ${#client_files[@]}; concurrency: $client_test_concurrency"
+  node --test --test-concurrency="$client_test_concurrency" "${client_files[@]}" &
+  client_pids+=("$!")
   for pid in "${client_pids[@]}"; do
     wait "$pid" || client_status=1
   done
@@ -164,13 +147,18 @@ collect "cargo-test" "cargo test"
 collect "chat-typecheck" "chat app typecheck"
 collect "expo-typecheck" "expo app typecheck"
 collect "fixture-tests" "fixture wrapper tests"
-# Rust's compiler and test processes can starve short client/server startup
-# deadlines on shared hosts. Select client concurrency after that work settles.
-if [ "${SNAPBACK4_TEST_SERIAL_CLIENT_FILES:-0}" = 1 ]; then
-  client_test_serial=1
-elif node -e 'const os = require("node:os"); const load = os.loadavg()[0], cpus = os.cpus().length; console.log(`-- host load: ${load.toFixed(2)} across ${cpus} CPUs`); process.exit(load >= cpus ? 0 : 1)'; then
-  client_test_serial=1
+# @ref LLP 3000#publication-suite-on-small-hosts — a file also owns servers,
+# device processes and browser renderers. Budget three available CPUs per slot;
+# every client file shares this pool, with no extra shards outside the limit.
+# availableParallelism respects affinity; host-wide load does not describe it.
+# Rust's compiler and test processes have already drained before clients start.
+client_test_cpus=$(node -p 'require("node:os").availableParallelism()')
+if [ "${SNAPBACK4_TEST_SERIAL_CLIENT_FILES:-0}" != 1 ]; then
+  client_test_concurrency=$((client_test_cpus / 3))
+  if [ "$client_test_concurrency" -lt 1 ]; then client_test_concurrency=1; fi
+  if [ "$client_test_concurrency" -gt 24 ]; then client_test_concurrency=24; fi
 fi
+echo "-- available CPUs: $client_test_cpus; client file concurrency: $client_test_concurrency"
 (run_logged "client-tests" "client tests" run_client_tests) &
 child_pids+=("$!")
 wait "${child_pids[0]}" || true
