@@ -77652,3 +77652,57 @@ unchanged 593,719 B cap; SHA-256
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-wk-supervised-workers/round5/REPORT.md. Local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — EA round 4: pin and bound identity through admission
+
+Read all prior EA prompts/reports and the complete Astra and Grok round-3
+reviews; rechecked both review hashes after final validation. First fetched and
+merged origin/main in 57e90132f4, preserving both append-only journal histories
+and the landed PQ, AV and WK changes. Regenerated the conflicted delivery await
+inventory on merged sources; the final inventory covers all 160 sites, with
+49 required and 111 optional classifications and no missing or removed sites.
+
+Round 3's memory-only identity wait remains. Each waiting call now pins its
+first successful store identity and backend fingerprint, including a cached,
+never-identified offline reopen. Every later check and ordinary admission uses
+those pins. Final identity I/O shares the remaining 15-second deadline; only
+waiting behind an earlier ordinary admission pauses that budget. Read rejection
+and timeout use public refusals and onWrite, and temporary unreadiness resumes
+polling. Async E_ADMISSION releases the unadmitted mutation-ID reservation so
+wasm and Worker callers can retry the same ID after storage repair.
+
+Grok's completed review also produced repairs: every readiness publication
+requires completed adoption, native waited admission checks backend-required
+under its writer transaction, and missing browser identity uses the public
+E_ADMISSION_STORE refusal. The tests exercise real legacy-rewind adoption state.
+All eight Astra controls and five Grok controls detect their reviewed defects;
+deleting the final identity check now fails both replacement controls because
+an extra ordinary admission occurs. LLP 3000.007, client/refusal cards, defining
+sentence pins and the operations manual co-evolve. Existing admission modules
+hold the helper and unchanged entry builder; local.ts meets its 1,500-line cap.
+
+Final identity tests pass 39/39, delivery matrix 321/321, whole guide 99/99,
+and TypeScript build/typecheck pass. Reference validation covers 523 LLPs and
+9,916 refs, with zero errors or unchecked refs. Ran scripts/test.sh exactly
+once, exit 0: `== 0 failure(s) in 1297 s`. Rust passed 4,331 with 33 declared
+ignores; clients passed 5,146 with ten existing skips, zero failures and zero
+cancellations; fixture wrappers passed 9/9; final models passed 79/79, including
+10,000 session sequences and 3,000 online-client sequences. All other stages
+passed. Full-run failure attribution: ours 0, baseline 0, environmental 0.
+Frozen source and test hashes remained unchanged through the full run. The
+inherited 60-second process budget remains missed; no ceilings, deadlines or
+model counts were relaxed.
+
+Exploratory failures and negative controls remain in the report's failure
+ledger. An intermediate Node 24.13.1 bundled HTTP parser timer exception was
+environmental, observed in two checks after their individual assertions passed;
+the test fixture now uses the SDK's existing pinned defaultFetch dispatcher.
+The corrected identity run and complete run are green. All other exploratory
+failures are ours; none is attributed to baseline.
+
+Canonical wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged
+593,719 B cap; SHA-256
+76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95.
+Report: reports/20260929-ea-admit-before-identity/round4/REPORT.md. The local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

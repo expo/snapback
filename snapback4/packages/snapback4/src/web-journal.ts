@@ -200,7 +200,7 @@ export class AdmissionJournal {
     try {
       const store = storage();
       if (!store) return refuse("localStorage is unavailable; mutation was not admitted");
-      if (!this.storeId) return refuse("the backend store is not identified yet; mutation was not admitted");
+      if (!this.storeId) throw new AdmissionError(identityRefusal(false));
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;

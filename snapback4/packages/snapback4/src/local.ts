@@ -2,7 +2,7 @@ import { matchingReads } from "./read-key.ts";
 import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
-import { deliveryCommit } from "./local-device.ts";
+import { deliveryCommit, type LocalOptions, type LocalClient } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
 import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
 import { publishDelivery } from "./local-publication.ts";
@@ -13,8 +13,8 @@ import { localReadDeadlines, withdrawnLocalResult } from "./local-read-deadlines
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
-import { admitNow, failedAdmission } from "./admission.ts";
-import { IdentityWait, identityRefusal, checkLocalIdentity } from "./identity-admission.ts";
+import { admitNow, failedAdmission, mutationEntry } from "./admission.ts";
+import { IdentityWait, identityRefusal, localAdmissionIdentity } from "./identity-admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
 import { readResidency } from "./residency.ts";
@@ -43,14 +43,13 @@ import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, t
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
-import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
   refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
-import type { LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
@@ -93,16 +92,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
-  let sessionDead = false;
-  let credentialRevision = 0;
-  let rotating = false;
+  let sessionDead = false, credentialRevision = 0, rotating = false;
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   let history!: WriteHistory;
   const mutationIds = new MutationIds();
-  const pending = pendingChanges();
-  const identification = new IdentityWait(pending.notify);
+  const pending = pendingChanges(), identification = new IdentityWait(pending.notify);
   let holds!: ReturnType<typeof localPendingHolds>;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
@@ -132,8 +128,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!startupRefusal || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(startupRefusal.denied.code)) link = "offline";
   }
   const active = new Set<Promise<unknown>>();
-  let closed = false;
-  let closing: Promise<void> | undefined;
+  let closed = false, closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
   const downloads = assetQueue();
@@ -144,8 +139,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let flushRecovered: (() => void) | undefined;
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined;
-  let deliveryQueue: ReturnType<typeof localDelivery> | undefined;
-  let deliveryWitness = false;
+  let deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
   const queued = () => readQueued(call, mutationIds, history, settling);
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
@@ -182,10 +176,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     networkTail = result.catch(() => {});
     return result;
   }
-  let seq = 0;
-  // Number admissions synchronously, before concurrent prediction can reorder them,
-  // continuing from the module's outbox.
-  let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1;
+  // Number admissions synchronously before prediction, continuing the durable outbox counter.
+  let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1, seq = 0;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
@@ -206,9 +198,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
-  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; restore_refusal?: Refusal };
+  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; backend_required?: boolean; restore_refusal?: Refusal };
   let storeIdentity = initialSync?.store_id ?? undefined;
-  let identified = !!storeIdentity;
+  let identified = !!storeIdentity && !initialSync?.backend_required;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
   const progress = acquisitionProgress();
@@ -602,7 +594,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           requestedStore = transfer_store_id ?? store_id;
           publishedStore = store_id;
           observeIncarnation(store_id ?? undefined, backendRequired && partitionCurrent);
-          storeIdentity = store_id ?? undefined; identified = !!storeIdentity;
+          storeIdentity = store_id ?? undefined; identified = !!storeIdentity && !backendRequired;
           pageIncarnation = incarnation;
           const snapshotRequest = restartingSnapshot || after !== undefined;
           watermark = snapshotRequest ? 0 : transfer_watermark ?? capturedWatermark;
@@ -663,9 +655,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             replacedStore = true;
             const observedRead = await call({ op: "sync_state", capture: false });
             if (observedRead.denied) return false;
-            const observedState = observedRead.ok as { store_id?: string | null } | undefined;
+            const observedState = observedRead.ok as { store_id?: string | null; backend_required?: boolean } | undefined;
             publishedStore = observedState?.store_id;
-            storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity;
+            storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !observedState?.backend_required;
             await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
             for (const watch of watches.values()) void scheduleRead(watch);
           }
@@ -729,10 +721,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
-          const publishedState = publishedRead.ok as { store_id?: string | null; watermark: number } | undefined;
+          const publishedState = publishedRead.ok as { store_id?: string | null; backend_required?: boolean; watermark: number } | undefined;
           publishedStore = publishedState?.store_id;
           observeIncarnation(publishedStore ?? undefined);
-          storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity;
+          storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !publishedState?.backend_required;
           watermark = publishedState?.watermark ?? watermark;
           if (publishedState) answers.applied(watches.values(), publishedState.watermark);
         }
@@ -1219,16 +1211,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         return failedAdmission<R>(id, unavailableWhy);
       }
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
-        const capturedBackend = backend, capturedGeneration = generation; let admissionBackend: string | undefined;
         const waiting = !identified || identification.size > 0;
+        const identity = waiting ? localAdmissionIdentity(backend, generation) : undefined;
         const submit = (release = () => {}): Promise<Write<R>> => {
-        const submission = ++submissions;
-        const newIds: string[] = [];
-        for (let n = 0; n < 8; n++) newIds.push(mintId());
-        const schema = backend!.schema;
-        const program = backend!.programs.find((p) => p.name === op.name);
-        const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
-        const request = { op: "admit", ...(waiting ? { expected_store: storeIdentity, expected_generation: capturedGeneration, expected_backend: admissionBackend } : {}), entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
+        const request = { op: "admit", ...(waiting ? identity!.fields() : {}),
+          entry: mutationEntry(id, ++submissions, op.name, args, principal, clock.issuedDeviceNow(), backend!, options?.id !== undefined) };
         const denied = admitNow(core, request);
         if (denied) { release(); if (denied.code === "E_ADMISSION_STORE") emitLocalFailure({ state: "failed", id, why: denied }); return failedAdmission<R>(id, denied); }
         return (async () => {
@@ -1270,9 +1257,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (!waiting) return submit();
         return identification.run<R>({ id, op: op.name, args }, async () => {
           const state = (await call({ op: "sync_state", capture: false })).ok as StoreCapture | undefined;
-          const ready = checkLocalIdentity(state, capturedGeneration, capturedBackend?.store_id,
-            JSON.stringify([backend?.schema, backend?.programs, backend?.native]) !== JSON.stringify([capturedBackend?.schema, capturedBackend?.programs, capturedBackend?.native]) || generation !== capturedGeneration, unavailable() ?? partitionDenied);
-          if (ready === true) { storeIdentity = state!.store_id!; admissionBackend = state!.adoption_capture?.["device:backend-identity"] ?? undefined; identified = true; }
+          const ready = identity!.check(state, backend, generation, unavailable() ?? partitionDenied);
+          if (ready === true) { storeIdentity = state!.store_id!; identified = true; }
           return ready;
         }, submit, why => emitLocalFailure({ state: "failed", id, why }));
       });

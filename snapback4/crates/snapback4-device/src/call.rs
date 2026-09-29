@@ -164,12 +164,16 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0), &request["home"])?,
             "admit" => {
                 #[cfg(not(target_arch = "wasm32"))]
+                let identified = request.get("expected_generation").and_then(Json::as_u64).is_some();
+                #[cfg(target_arch = "wasm32")]
+                let identified = false;
+                #[cfg(not(target_arch = "wasm32"))]
                 if let Some(generation) = request.get("expected_generation").and_then(Json::as_u64) {
                     device.require_admission_identity(generation, text(&request, "expected_store")?, request.get("expected_backend").and_then(Json::as_str))?;
                 }
                 let entry = take(&mut request, "entry")?;
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
-                encoded(&device.admit_with_replay(queued_entry(entry)?, replay)?)?
+                encoded(&device.admit_checked(queued_entry(entry)?, replay, identified)?)?
             }
             "settle" => {
                 device.settle(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;

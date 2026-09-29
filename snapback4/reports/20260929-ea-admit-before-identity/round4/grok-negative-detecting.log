@@ -1,0 +1,167 @@
+TAP version 13
+# Subtest: adoption-required store waits before any custody (reopen=false)
+not ok 1 - adoption-required store waits before any custody (reopen=false)
+  ---
+  duration_ms: 361.349917
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:423:37'
+  failureType: 'testCodeFailure'
+  error: |-
+    no ordinary admission before adoption
+    + actual - expected
+    
+    + {
+    +   id: '00000000000000000000000001',
+    +   reason: 'queued without a row: not acquired yet',
+    +   state: 'pending'
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    state: 'pending'
+    id: '00000000000000000000000001'
+    reason: 'queued without a row: not acquired yet'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:432:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=true)
+not ok 2 - adoption-required store waits before any custody (reopen=true)
+  ---
+  duration_ms: 340.340236
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:423:37'
+  failureType: 'testCodeFailure'
+  error: |-
+    no ordinary admission before adoption
+    + actual - expected
+    
+    + {
+    +   id: '00000000000000000000000001',
+    +   reason: 'queued without a row: not acquired yet',
+    +   state: 'pending'
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    state: 'pending'
+    id: '00000000000000000000000001'
+    reason: 'queued without a row: not acquired yet'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:432:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: temporary unreadiness after first identification continues the bounded wait
+not ok 3 - temporary unreadiness after first identification continues the bounded wait
+  ---
+  duration_ms: 4.32574
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:444:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + {
+    +   id: 'temporary',
+    +   state: 'failed',
+    +   why: {
+    +     code: 'E_ADMISSION_STORE',
+    +     family: 'store',
+    +     guide: 'writes',
+    +     message: 'The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.',
+    +     rewrite: 'reload the current backend and review the draft before submitting with a new write id',
+    +     site: 'client.mutate'
+    +   }
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    state: 'failed'
+    id: 'temporary'
+    why:
+      code: 'E_ADMISSION_STORE'
+      family: 'store'
+      site: 'client.mutate'
+      guide: 'writes'
+      message: 'The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.'
+      rewrite: 'reload the current backend and review the draft before submitting with a new write id'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:454:35)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: native admission fences backend-required after the final read
+not ok 4 - native admission fences backend-required after the final read
+  ---
+  duration_ms: 226.830416
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:460:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"state":"pending","id":"00000000000000000000000001","reason":"queued without a row: not acquired yet"}
+    + actual - expected
+    
+    + undefined
+    - 'E_ADMISSION_STORE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_ADMISSION_STORE'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:471:40)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: empty browser capture reports a public identity refusal
+not ok 5 - empty browser capture reports a public identity refusal
+  ---
+  duration_ms: 4.633911
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:475:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'E_ADMISSION'
+    - 'E_ADMISSION_STORE'
+                  ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'E_ADMISSION_STORE'
+  actual: 'E_ADMISSION'
+  operator: 'strictEqual'
+  stack: |-
+    Object.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:483:12)
+    expectedException (node:assert:578:17)
+    expectsError (node:assert:703:21)
+    strict.throws (node:assert:759:3)
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:482:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 0
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1052.544517

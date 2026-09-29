@@ -1,0 +1,5 @@
+{
+  "node": "v24.13.1",
+  "host": "function onParserTimeout(parser) {\n      const { socket, timeoutType, client, paused } = parser.deref();\n      if (timeoutType === TIMEOUT_HEADERS) {\n        if (!socket[kWriting] || socket.writableNeedDrain || client[kRunning] > 1) {\n     ",
+  "pinned": "function onParserTimeout (parserWeakRef) {\n  const parser = parserWeakRef.deref()\n  if (!parser) {\n    return\n  }\n\n  const { socket, timeoutType, client, paused } = parser\n\n  if (timeoutType === TIMEOUT_HEADERS) {\n    if (!socket[kWriting] "
+}

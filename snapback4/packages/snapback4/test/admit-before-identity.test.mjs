@@ -8,6 +8,7 @@ import { launch, devServer, root, binary } from "../../../witness/lib.mjs";
 import { prepareClient } from "../dist/client-start.js";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { defaultFetch as nodeFetch } from "../dist/node-fetch.js";
 import { until } from "./helpers/app-server.mjs";
 
 const require = createRequire(`${root}/packages/snapback4/package.json`);
@@ -62,7 +63,7 @@ for (const worker of [false, true]) {
     await f.page.waitForFunction(() => hookWrites?.length === 1);
     assert.match(await f.page.evaluate(() => hookWrites[0].reason), /not yet admitted/);
     assert.deepEqual(await f.page.evaluate(async () => (await core.call({ op: 'queued' })).ok), []);
-    assert.equal(await f.page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snapback4:admission:')).length), 0);
+    assert.equal(await f.page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('snapback4-admission:')).length), 0);
     const begin = performance.now(); await f.page.evaluate(() => start());
     await f.page.waitForFunction(() => events.length === 1 && saves.length === 1);
     t.diagnostic(JSON.stringify({ tier, identityAndFirstSaveMs: performance.now() - begin }));
@@ -148,23 +149,25 @@ async function nodeFixture(t, online = false, held = true) {
   const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), 'sb4-identity-'));
   const clients = [], posts = [], values = new Map(), probes = [];
   const store = { async get(k) { return values.get(k) ?? null; }, async set(k, v) { values.set(k, v); }, async remove(k) { values.delete(k); } };
-  let hold = held;
+  let hold = held, syncHeld;
   t.after(async () => { hold = false; probes.splice(0).forEach(f => f()); for (const c of clients) await c.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); });
   const { createClient } = await import('../dist/client.js'); const { onlineCustody } = await import('../dist/app-online.js');
-  const open = async () => {
+  const open = async (offline = false) => {
     let core; const opener = processDevice({ dir, binary: binary() });
     const options = { url: server.api, persona: 'alice', device: { async open(...args) { return core = await opener.open(...args); } }, fetch: async (url, init) => {
+      if (offline) throw new TypeError('offline fixture');
       if (String(url).endsWith('/probe') && hold) await new Promise((resolve, reject) => {
         probes.push(resolve); init.signal?.addEventListener('abort', () => reject(Error('closed')), { once: true });
       });
+      if (String(url).endsWith('/sync') && syncHeld) { syncHeld.entered = true; await syncHeld.promise; }
       if (String(url).includes('/m/')) posts.push(JSON.parse(init.body));
-      return fetch(url, init);
+      return nodeFetch(url, init);
     } };
     const prepared = online ? await onlineCustody(createClient(options), server.api, store, () => {}, false)
       : await prepareClient(options, () => createLocalClient(options));
     clients.push(prepared.client); return { ...prepared, core };
   };
-  return { open, posts, values, release() { hold = false; probes.splice(0).forEach(f => f()); } };
+  return { open, posts, values, api: server.api, holdSync() { syncHeld = { ...Promise.withResolvers(), entered: false }; return syncHeld; }, release() { hold = false; probes.splice(0).forEach(f => f()); } };
 }
 for (const online of [false, true]) {
   const tier = online ? 'online' : 'process';
@@ -278,3 +281,224 @@ test('web capture fences a replacement in the gap after the identity read', asyn
       error => error.why?.code === 'E_ADMISSION_STORE', 'no synchronous journal record may be captured for the replacement');
   }
 });
+
+// Round 4: cross the first-identification/final-recheck boundary.
+async function identifyProcess(p, store) {
+  const backend = (await p.core.call({ op: 'backend' })).ok;
+  const reply = await p.core.call({ op: 'apply', first: true, page: { generation: backend.generation,
+    snapshot: true, events: seed.map(({ table, row }) => ({ table, id: row.id, kind: 'put', data: row })),
+    watermark: 10, images_at: 10, committed_above: {}, more: false, store_id: store } });
+  assert.ok(!reply.denied, JSON.stringify(reply));
+}
+for (const replacement of ['store', 'backend']) test(`waiting calls pin first identity across ${replacement} replacement`, { timeout: 60_000 }, async t => {
+  const held = Promise.withResolvers(); t.after(() => held.resolve());
+  const f = await nodeFixture(t), initial = await f.open();
+  const cached = (await initial.core.call({ op: 'backend' })).ok;
+  assert.equal(cached.store_id, undefined, 'cached backend was never identified');
+  await initial.client.close();
+  const p = await f.open(true), invoke = p.core.call, admissions = [], events = [];
+  p.client.onWrite(w => events.push(w));
+  let checks = 0;
+  await identifyProcess(p, 'A');
+  p.core.call = async (request, committed) => {
+    if (request.op === 'sync_state' && request.capture === false) {
+      const result = await invoke(request, committed); checks++; return result;
+    }
+    if (request.op === 'admit') { admissions.push(request); if (admissions.length === 1) await held.promise; }
+    return invoke(request, committed);
+  };
+  const first = p.client.mutate(op, args('first'), { waitSeconds: 0 });
+  const second = p.client.mutate(op, args('second'), { waitSeconds: 0 });
+  await until(() => admissions.length === 1 && checks >= 2, 'both calls identified A; first ordinary admission held');
+  await new Promise(resolve => setImmediate(resolve));
+  if (replacement === 'store') {
+    const reply = await invoke({ op: 'observe_store', page: { generation: cached.generation,
+      snapshot: false, events: [], watermark: 0, images_at: 0, committed_above: {}, more: false, store_id: 'B' } });
+    assert.ok(!reply.denied, JSON.stringify(reply));
+    assert.ok(!(await invoke({ op: 'adopt', backend: cached })).denied);
+    await identifyProcess(p, 'B');
+  } else {
+    const changed = structuredClone(cached);
+    changed.programs[0].name += '_replaced';
+    assert.ok(!(await invoke({ op: 'adopt', backend: changed })).denied);
+  }
+  held.resolve();
+  const results = await Promise.all([first, second]);
+  assert.deepEqual(results.map(w => w.why?.code), ['E_ADMISSION_STORE', 'E_ADMISSION_STORE']);
+  assert.equal(admissions.length, 1, 'final recheck refuses the second call before ordinary admission');
+  assert.equal(f.posts.length, 0);
+  assert.deepEqual((await invoke({ op: 'queued' })).ok, []);
+  assert.deepEqual(events.map(w => w.why.code), ['E_ADMISSION_STORE', 'E_ADMISSION_STORE']);
+  assert.deepEqual(await p.client.pendingWrites(), []);
+});
+
+for (const failure of ['hang', 'reject']) test(`final identity recheck ${failure} produces a public unsent refusal`, { timeout: 60_000 }, async t => {
+  const held = Promise.withResolvers(); t.after(() => { held.resolve(); t.mock.timers.reset(); });
+  const f = await nodeFixture(t), p = await f.open(), invoke = p.core.call, events = [];
+  const store = (await (await nodeFetch(`${f.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json()).store_id;
+  await identifyProcess(p, store);
+  let checks = 0, admits = 0, outcome;
+  p.client.onWrite(w => events.push(w));
+  p.core.call = async (request, committed) => {
+    if (request.op === 'admit') admits++;
+    if (request.op === 'sync_state' && request.capture === false && ++checks === 2) {
+      if (failure === 'reject') throw new Error('private device failure');
+      await held.promise;
+    }
+    return invoke(request, committed);
+  };
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const writing = p.client.mutate(op, args('held check'), { waitSeconds: 0 });
+  void writing.then(w => { outcome = w; }, error => { outcome = { rejected: String(error) }; });
+  await until(() => checks === 2, 'final check entered');
+  t.mock.timers.tick(15_001);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(outcome?.state, 'failed', JSON.stringify(outcome));
+  assert.equal(outcome.why.code, failure === 'hang' ? 'E_ADMISSION_TIMEOUT' : 'E_ADMISSION_STORE');
+  assert.ok(outcome.why.site && outcome.why.guide && outcome.why.rewrite);
+  assert.deepEqual(events, [outcome]);
+  assert.deepEqual((await p.client.write(outcome.id)).why, outcome.why);
+  assert.deepEqual(await p.client.pendingWrites(), []);
+  held.resolve(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(admits, 0, 'late completion cannot admit an expired call');
+  assert.equal(f.posts.length, 0);
+  assert.deepEqual((await invoke({ op: 'queued' })).ok, []);
+  t.mock.timers.reset();
+});
+
+for (const worker of [false, true]) test(`waiting E_ADMISSION releases the same-id reservation (${worker ? 'Worker' : 'wasm'})`, { timeout: 90_000 }, async t => {
+  const f = await browser(t, worker);
+  await f.page.evaluate(() => {
+    window.id = mintId(); window.writing = save('repair storage', id);
+    window.originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('snapback4-admission:')) throw new DOMException('fixture full', 'QuotaExceededError');
+      return originalSetItem.call(this, key, value);
+    };
+  });
+  await f.page.evaluate(() => start());
+  const failed = await f.page.evaluate(() => writing);
+  assert.equal(failed.why.code, 'E_ADMISSION'); assert.match(failed.why.rewrite, /same id/);
+  assert.equal(await f.page.evaluate(() => posts.length), 0);
+  assert.deepEqual(await f.page.evaluate(async () => (await core.call({ op: 'queued' })).ok), []);
+  await f.page.evaluate(() => { Storage.prototype.setItem = originalSetItem; });
+  const retried = await f.page.evaluate(() => save('repair storage', id));
+  assert.equal(retried.state, 'pending', JSON.stringify(retried));
+  await f.page.waitForFunction(() => events.some(w => w.id === id && w.state === 'sent'));
+  assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), [failed.id]);
+  const receipt = await f.page.evaluate(() => client.write(id));
+  assert.equal(receipt.state, 'sent');
+  assert.equal((await f.page.evaluate(() => save('different input', id))).why.code, 'E_WRITE_ID_REUSE');
+});
+
+for (const queued of [false, true]) test(`final identity I/O keeps only the remaining deadline (queued=${queued})`, async t => {
+  const { IdentityWait } = await import('../dist/identity-admission.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  const waiter = new IdentityWait(() => {}), initial = Promise.withResolvers(), final = Promise.withResolvers();
+  const predecessor = Promise.withResolvers(); let releasePrior, checks = 0, outcome, admitted = false;
+  t.after(() => { waiter.close(); initial.resolve(false); final.resolve(false); predecessor.resolve({ state: 'pending', id: 'prior' }); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const refused = why => ({ state: 'failed', id: 'timed', why });
+  if (queued) {
+    void waiter.run({ id: 'prior', op: 'send', args: {} }, async () => true, release => {
+      releasePrior = release; return predecessor.promise;
+    }, refused);
+    await tick();
+  }
+  const writing = waiter.run({ id: 'timed', op: 'send', args: {} }, () => ++checks === 1 ? initial.promise : final.promise,
+    async release => { admitted = true; release(); return { state: 'pending', id: 'timed' }; }, refused);
+  void writing.then(w => { outcome = w; });
+  t.mock.timers.tick(10_000); initial.resolve(true); await tick();
+  if (queued) {
+    t.mock.timers.tick(60_000); await tick(); assert.equal(outcome, undefined);
+    releasePrior(); predecessor.resolve({ state: 'pending', id: 'prior' }); await tick();
+  }
+  assert.equal(checks, 2);
+  t.mock.timers.tick(4_999); await tick(); assert.equal(outcome, undefined);
+  t.mock.timers.tick(1); await tick(); assert.equal(outcome?.why?.code, 'E_ADMISSION_TIMEOUT');
+  final.resolve(true); await tick(); assert.equal(admitted, false);
+  assert.deepEqual(waiter.pending(), []);
+});
+
+
+for (const reopen of [false, true]) test(`adoption-required store waits before any custody (reopen=${reopen})`, { timeout: 60_000 }, async t => {
+  let sync; t.after(() => sync?.resolve());
+  const f = await nodeFixture(t); let p = await f.open(); f.release(); await p.start();
+  await rewindProcess(p.core.call);
+  if (reopen) { await p.client.close(); p = await f.open(true); }
+  else { sync = f.holdSync(); void p.client.sync(); await until(() => sync.entered); }
+  let result; const writing = p.client.mutate(op, args('during adoption'), { waitSeconds: 0, id: '00000000000000000000000001' });
+  void writing.then(w => { result = w; });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(result, undefined, 'no ordinary admission before adoption');
+  const pending = await p.client.pendingWrites(); assert.equal(pending.length, 1);
+  assert.match(pending[0].reason, /not yet admitted/);
+  assert.deepEqual((await p.core.call({ op: 'queued' })).ok, []); assert.equal(f.posts.length, 0);
+  if (reopen) {
+    const backend = (await p.core.call({ op: 'backend' })).ok;
+    assert.ok(!(await p.core.call({ op: 'adopt', backend })).denied);
+  } else sync.resolve();
+  const write = await writing; assert.equal(write.state, 'pending', JSON.stringify(write));
+  assert.equal(write.id, pending[0].id);
+});
+
+test('temporary unreadiness after first identification continues the bounded wait', async t => {
+  const { IdentityWait } = await import('../dist/identity-admission.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  const waiter = new IdentityWait(() => {}); t.after(() => waiter.close());
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  let checks = 0, ready = false, outcome, admits = 0;
+  const writing = waiter.run({ id: 'temporary', op: 'send', args: {} }, async () => ++checks === 1 || ready,
+    async release => { admits++; release(); return { state: 'pending', id: 'temporary' }; },
+    why => ({ state: 'failed', id: 'temporary', why }));
+  void writing.then(w => { outcome = w; }); await tick();
+  assert.equal(checks, 2); assert.equal(outcome, undefined);
+  t.mock.timers.tick(14_000); await tick(); assert.equal(outcome, undefined);
+  ready = true; t.mock.timers.tick(25); await tick();
+  assert.equal((await writing).state, 'pending'); assert.equal(admits, 1);
+});
+
+test('native admission fences backend-required after the final read', { timeout: 60_000 }, async t => {
+  const f = await nodeFixture(t), p = await f.open(), invoke = p.core.call;
+  const store = (await (await nodeFetch(`${f.api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json()).store_id;
+  await identifyProcess(p, store); let injected = false;
+  p.core.call = async (request, committed) => {
+    if (request.op === 'admit' && request.expected_generation !== undefined) {
+      injected = true; await rewindProcess(invoke);
+    }
+    return invoke(request, committed);
+  };
+  const write = await p.client.mutate(op, args('boundary'), { waitSeconds: 0, id: '00000000000000000000000001' });
+  assert.equal(injected, true); assert.equal(write.why?.code, 'E_ADMISSION_STORE', JSON.stringify(write));
+  assert.deepEqual((await invoke({ op: 'queued' })).ok, []); assert.equal(f.posts.length, 0);
+});
+
+test('empty browser capture reports a public identity refusal', async t => {
+  const { AdmissionJournal } = await import('../dist/web-journal.js');
+  const before = Object.fromEntries(['window', 'localStorage'].map(k => [k, Object.getOwnPropertyDescriptor(globalThis, k)]));
+  t.after(() => { for (const [k, descriptor] of Object.entries(before)) { if (descriptor) Object.defineProperty(globalThis, k, descriptor); else delete globalThis[k]; } });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { location: {} } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {} });
+  const journal = new AdmissionJournal('empty', true);
+  assert.throws(() => journal.capture({ entry: {} }), error => {
+    assert.equal(error.why.code, 'E_ADMISSION_STORE');
+    assert.ok(error.why.site && error.why.guide && error.why.rewrite);
+    assert.doesNotMatch(error.why.message, /store is not identified yet/); return true;
+  });
+});
+
+
+// Drive the real legacy-rewind transition; set_meta is intentionally client-namespaced.
+async function rewindProcess(invoke) {
+  const state = (await invoke({ op: 'sync_state', capture: false })).ok;
+  assert.ok(state.watermark > 0, 'rewind needs a published head');
+  const observed = await invoke({ op: 'observe_store', page: { generation: state.generation,
+    snapshot: false, events: [], watermark: 0, more: false,
+    requested_watermark: state.watermark, captured_watermark: state.watermark } });
+  assert.equal(observed.ok?.reset, true, JSON.stringify(observed));
+  const after = (await invoke({ op: 'sync_state', capture: false })).ok;
+  assert.equal(after.backend_required, true);
+  assert.equal(after.store_id, state.store_id);
+  assert.equal(after.generation, state.generation);
+  assert.equal(after.adoption_capture['device:backend-identity'], state.adoption_capture['device:backend-identity']);
+}

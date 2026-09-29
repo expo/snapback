@@ -98,7 +98,11 @@ export class MutationIds {
     held.running = running;
     void running.then(write => {
       delete held.running;
-      if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
+      if (write.state === "failed" && write.why.code === "E_ADMISSION") {
+        // Waiting for identity wraps the synchronous refusal marker. The
+        // fulfilled refusal still proves no admission and allows same-id retry.
+        this.seen.delete(id); this.submissions.delete(id); this.terminal.delete(id);
+      } else if (write.state === "failed" && write.why.code === "E_WRITE_ID_REUSE" && write.why.family === "input") {
         // Another owner won durable admission. This reservation never owned
         // the id; the next call must recover/compare the original input.
         this.seen.delete(id); this.submissions.delete(id);

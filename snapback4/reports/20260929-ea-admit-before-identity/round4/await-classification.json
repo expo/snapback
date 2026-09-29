@@ -1,0 +1,10 @@
+{
+  "total": 160,
+  "classified": 160,
+  "missing": [],
+  "removed": [],
+  "counts": {
+    "required": 49,
+    "optional": 111
+  }
+}

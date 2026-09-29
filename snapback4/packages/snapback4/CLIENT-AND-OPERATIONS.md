@@ -628,8 +628,8 @@ The test-only `memoryPersistence()` provider also refuses browser mutations:
 transferring custody to memory cannot preserve a write across page restarts.
 No new intent is admitted in those cases. The returned promise is already
 fulfilled with a failed write and exposes `state: "failed"`, `id` and `why`
-in the calling stack. Before backend identification, the call instead waits up to
-15 seconds without custody (see the pending-write section). Awaiting it uses the ordinary Write API:
+in the calling stack. Before backend identification, the call instead allows
+15 seconds of identity I/O without custody (see the pending-write section). Awaiting it uses the ordinary Write API:
 
 ```ts
 import { createApp } from "snapback4/app";
@@ -654,8 +654,8 @@ An observed epoch mismatch refuses the call immediately, then checks under the
 session lock. A confirmed mismatch also withdraws the old scope's observations;
 a transient observation during a session commit does not retire that scope.
 Restoration does not queue an intent for whichever account might sign in later.
-Before the first store identification the caller retries after readiness, using
-the same id. A bare `createClient()` in a browser has no synchronous journal
+Before store identification, the call waits in memory. After an ordinary
+`E_ADMISSION` storage refusal, repair storage and retry the same id. A bare `createClient()` in a browser has no synchronous journal
 and refuses mutations with `E_ADMISSION`; use the app with a web device for
 browser writes. Node and native online clients retain their existing behavior.
 Clearing browser storage after admission can still erase its bytes.
@@ -998,7 +998,7 @@ that queues without a row reports `reason: "queued without a row: not acquired y
 Other missing local evidence reports `reason: "queued without a row: local data does not justify prediction"`.
 A predicted write has no such reason; predictions remain visible on rows.
 Writes require no acquisition gate after session readiness. Before identification,
-`mutate()` keeps its promise pending for up to 15 seconds, including with
+`mutate()` allows 15 seconds of identity I/O, excluding prior admissions, including with
 `waitSeconds: 0`. `usePendingWrites()` reports “waiting for backend identification;
 not yet admitted”. This is memory only: reload loses the unadmitted call. Keep
 an editable draft while the call is in flight. After identification, concurrent
@@ -1007,6 +1007,16 @@ calls enter ordinary admission in call order, with normal prediction and custody
 the connection/current backend, review the draft and submit a new id. The same
 mounted form can retry normally. `onWrite` reports terminal outcomes; already
 admitted writes retain their ordinary durable recovery.
+
+Identity revalidation shares the 15-second identification budget; waiting behind
+an earlier ordinary admission is excluded. The first successful identification
+pins each call's store and backend fingerprint. A published store ID still
+requiring adoption stays unready; temporary unreadiness resumes bounded polling. The final read must match those
+pins: an incompatible or unreadable identity returns `E_ADMISSION_STORE` through
+`onWrite`, and stalled identity I/O returns `E_ADMISSION_TIMEOUT`. No custody or
+POST exists at this boundary. After identity, a storage `E_ADMISSION` still
+permits repairing storage and retrying the original ID, including when the
+refusal arrived asynchronously through the waiting promise.
 
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";

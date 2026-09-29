@@ -1,0 +1,44 @@
+TAP version 13
+# Subtest: waiting calls pin first identity across store replacement
+not ok 1 - waiting calls pin first identity across store replacement
+  ---
+  duration_ms: 5289.370192
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:291:49'
+  failureType: 'testCodeFailure'
+  error: 'timed out: both calls identified A; first ordinary admission held'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:308:3)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: waiting calls pin first identity across backend replacement
+not ok 2 - waiting calls pin first identity across backend replacement
+  ---
+  duration_ms: 5278.083468
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:291:49'
+  failureType: 'testCodeFailure'
+  error: 'timed out: both calls identified A; first ordinary admission held'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:308:3)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10686.30305
