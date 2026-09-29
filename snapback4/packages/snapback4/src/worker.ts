@@ -139,9 +139,7 @@ export function runWorker(options: WorkerOptions): Worker {
   const base = options.url.replace(/\/$/, "");
   const headers = { "content-type": "application/json", authorization: `Bearer ${options.token}` };
   const effects = options.effects ?? {};
-  // Load Node storage only for callers opting into the ledger.
-  const ledger = options.ledger === undefined ? undefined : import("./worker-ledger.ts").then(({ WorkerLedger }) => new WorkerLedger(options.ledger === true ? process.env.SNAPBACK_WORKER_LEDGER ?? "" : options.ledger!));
-  void ledger?.catch(() => {});
+  let ledger: import("./worker-ledger.ts").WorkerLedger | undefined;
   const actions = options.actions ?? {};
   const stop = new AbortController();
   const abort = () => stop.abort();
@@ -186,9 +184,15 @@ export function runWorker(options: WorkerOptions): Worker {
     }
     try {
       const perform = async () => handler(effect.payload as never, meta);
-      const result = ledger ? await (await ledger).run(meta.idempotencyKey, perform, stop.signal) : await perform();
+      const result = ledger ? await ledger.run(meta.idempotencyKey, perform, stop.signal) : await perform();
       await settle(effect, { result: result === undefined ? null : result });
     } catch (error) {
+      if (ledger?.isUnavailable(error)) {
+        if (!stop.signal.aborted) report(error);
+        stop.abort();
+        return;
+      }
+      if (ledger && stop.signal.aborted) return;
       let recorded = false;
       try { recorded = await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
       finally { if (!recorded) report(error); }
@@ -280,7 +284,22 @@ export function runWorker(options: WorkerOptions): Worker {
       return { path: "/actions/claim-set", filter, wait: chunks.length > 1 ? Math.min(options.wait ?? 25, 1) : options.wait ?? 25 };
     })];
   };
-  const done = Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]).then(() => {}).finally(async () => { options.signal?.removeEventListener("abort", abort); (await ledger)?.close(); });
+  const done = (async () => {
+    // @ref LLP 3000.009#5.2 — storage failures must not spend delivery attempts.
+    if (options.ledger !== undefined) {
+      try {
+        const { WorkerLedger } = await import("./worker-ledger.ts");
+        ledger = await WorkerLedger.open(options.ledger === true ? process.env.SNAPBACK_WORKER_LEDGER ?? "" : options.ledger, stop.signal);
+      } catch (error) {
+        if (stop.signal.aborted) return;
+        report(new Error(`worker ledger initialization failed; polling suspended: ${message(error)}`));
+        // Stay stopped until the owner aborts/restarts us after repairing storage.
+        if (!stop.signal.aborted) await new Promise<void>(resolve => stop.signal.addEventListener("abort", () => resolve(), { once: true }));
+        return;
+      }
+    }
+    await Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]);
+  })().finally(() => { options.signal?.removeEventListener("abort", abort); ledger?.close(); });
   return { done, principal: () => principal };
 }
 

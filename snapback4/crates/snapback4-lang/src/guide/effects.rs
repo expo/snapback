@@ -40,13 +40,17 @@ Put each worker at `snapback/workers/<service>.mjs` (also `.mts` or `.ts`).
 For example, `snapback/workers/push.mjs` declares the `service:push` worker.
 Both `snapback4 dev` and `snapback4 serve` start it, inject its service token,
 prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
-stop it with the server. Tokens are never printed. `snapback4 doctor` shows
+stop its process group with the server, including abrupt server death. A failed
+token retirement stops the worker and suspends replacement until retirement
+succeeds. Tokens are never printed. `snapback4 doctor` shows
 all workers and their last reported states, starts, restarts and crashes.
 `deploy` copies the workers source subtree; put helpers in subdirectories and
-install package dependencies on the deployment host. This is ordinary Node 24.
+install package dependencies on the deployment host. Symlinks at any level and
+non-regular source files are refused. This is ordinary Node 24.
 
 ```js
 // snapback/workers/push.mjs
+// snapback4 secrets: PUSH_API_KEY
 import { runWorker } from "snapback4/worker";
 const stop = new AbortController();
 process.once("SIGTERM", () => stop.abort());
@@ -58,6 +62,7 @@ await runWorker({
   effects: { notify: async (payload, meta) => {
     const response = await fetch("https://push.example.com/send", {
       method: "POST",
+      signal: AbortSignal.timeout(30_000),
       headers: { "content-type": "application/json", "idempotency-key": meta.idempotencyKey },
       body: JSON.stringify(payload),
     });
@@ -73,14 +78,30 @@ keys. It identifies one admitted effect: use `emit ... once [...]` below to
 prevent repeated admission of the same digest period.
 
 `ledger: true` uses the supervisor's durable SQLite completion file beside the
-backend store. Successful JSON results commit before acknowledgement; redelivery
+opened backend store, namespaced by its identity. `dev --fresh` uses a private
+temporary ledger; replacing the store cannot reuse old completions. Successful
+JSON results commit before acknowledgement; redelivery
 replays the result without repeating the handler. Keep the ledger with the store
 across releases and backups. There is no automatic pruning. It serializes
 opted-in handlers sharing that local file, including across processes; hosts
 with separate disks do not share deduplication. Failures record no completion.
+One hung provider call therefore stalls all handlers sharing that file; set a
+provider timeout, as above. Keeping the lock prevents simultaneous duplicate
+calls for one key. This is a shared-file serialization tradeoff.
 Delivery remains **at least once**: a crash after the external call but before
 the ledger write/commit can repeat the action. Provider idempotency covers that
 remaining window. Losing/deleting the ledger also loses its completions.
+The worker validates ledger storage before claiming work. Initialization errors
+are reported once and suspend polling without consuming attempts. Repair the
+file/permissions and restart the worker to resume.
+Later storage/commit failures close the ledger and stop polling without settling
+claimed work as a handler failure; its ordinary lease can expire for redelivery.
+
+Named entries receive no declared secrets by default. List just the names the
+entry needs with `// snapback4 secrets: PUSH_API_KEY, OTHER_KEY`; each must also
+be declared by an effect, action or route. The conventional generated server
+still receives its full registry's secrets. This narrows environment injection;
+service seats remain trusted deployment credentials, not per-effect ACLs.
 
 Standalone `runWorker` still accepts explicit `url` and `token` (mint with
 `token --service push`). Use `ledger: "/durable/path/effects.sqlite"` there,

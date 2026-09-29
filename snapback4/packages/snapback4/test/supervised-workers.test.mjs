@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
+import { createHash } from "node:crypto";
 import { runWorker } from "../dist/worker.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -58,6 +59,7 @@ setInterval(() => {}, 1000);
   await until(() => starts("push").length === 1 && starts("digest").length === 1);
   const db = new DatabaseSync(join(mode === "dev" ? join(dir, ".snapback4") : release, "store.sqlite"), { readOnly: true });
   assert.deepEqual(db.prepare("SELECT DISTINCT principal FROM _sessions WHERE kind = 'service' ORDER BY principal").all().map(row => row.principal), ["service:digest", "service:push"]);
+  const storeIdentity = db.prepare("SELECT value FROM _meta WHERE key = 'store_id'").get().value;
   db.close();
   assert.match(stdout.trim(), /^http:\/\/127\.0\.0\.1:\d+$/);
   for (const name of ["push", "digest"]) {
@@ -72,7 +74,7 @@ setInterval(() => {}, 1000);
   const doctor = command(dir, ["doctor", ...(mode === "serve" ? ["--release", release] : [])]);
   assert.match(doctor, /"name":"push".*"restarts":1/);
   assert.match(doctor, /"name":"digest".*"restarts":0/);
-  const expectedLedger = join(mode === "dev" ? join(dir, ".snapback4") : release, "worker-ledger.sqlite");
+  const expectedLedger = join(mode === "dev" ? join(dir, ".snapback4") : release, `worker-ledger-${createHash('sha256').update(storeIdentity).digest('hex')}.sqlite`);
   assert.ok(stderr.includes(`ledger:${expectedLedger}`));
   child.kill("SIGTERM"); await exited;
   for (const name of ["push", "digest"]) assert.throws(() => process.kill(starts(name).at(-1).pid, 0), { code: "ESRCH" });
@@ -139,16 +141,22 @@ test("two standalone processes sharing a ledger perform one action, then replay 
 import { appendFileSync } from 'node:fs';
 import { runWorker } from ${JSON.stringify(new URL("../dist/worker.js", import.meta.url).href)};
 const stop = new AbortController();
+let completed = false;
 await runWorker({ url: 'http://test', token: 'test-seat', ledger: 'completions.sqlite', signal: stop.signal,
   effects: { notify: async () => {
     appendFileSync('actions', 'performed\\n');
     await new Promise(resolve => setTimeout(resolve, 200));
     return 'provider-receipt';
   } },
-  fetch: async url => {
+  fetch: async (url, init) => {
     if (url.endsWith('/claim')) return Response.json({ effects: [{ id: 'one-delivery', effect: 'notify', payload: {}, attempt: 1, seq: 1, at: 0 }] });
     stop.abort();
-    if (url.endsWith('/done')) throw Error('lost acknowledgement');
+    if (url.endsWith('/done')) {
+      completed = true;
+      appendFileSync('receipts', JSON.stringify(JSON.parse(init.body).result)+'\\n');
+      throw Error('lost acknowledgement');
+    }
+    if (!completed) process.exitCode = 1;
     throw Error('server unreachable');
   }, onError() {},
 }).done;
@@ -163,4 +171,5 @@ await runWorker({ url: 'http://test', token: 'test-seat', ledger: 'completions.s
   await Promise.all([start(), start()]);
   await start();
   assert.equal(readFileSync(join(dir, "actions"), "utf8"), "performed\n");
+  assert.deepEqual(readFileSync(join(dir, 'receipts'), 'utf8').trim().split('\n').map(JSON.parse), Array(3).fill('provider-receipt'));
 });

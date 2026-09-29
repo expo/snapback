@@ -1594,19 +1594,36 @@ have succeeded. Actions never enter a device outbox or predict rows.
 Declare each worker as `snapback/workers/<service>.mjs` (or `.mts` or `.ts`).
 Both dev and serve supervise it with an injected `service:<service>` token,
 name-prefixed redacted logs, bounded restart backoff and shutdown with the host.
+Each worker has a process group; its watchdog kills remaining group members on
+worker exit or server death, including SIGKILL. Failed token retirement keeps
+the worker stopped until revocation commits; a replacement never bypasses it.
 Deploy packages this source subtree; helpers belong in subdirectories. Install
-its package dependencies on the deployment host. Doctor reports each worker.
+its package dependencies on the deployment host. Symlinks at every level and
+non-regular source files are refused. Doctor reports each worker.
+Named workers start with no declared secrets. A source line such as
+`// snapback4 secrets: PUSH_API_KEY` opts into named schema-declared secrets.
+The conventional generated runtime retains the full registry's secret set;
+service credentials remain trusted and are not per-effect ACLs.
 
 `ledger: true` uses `SNAPBACK_WORKER_LEDGER`, a durable SQLite file beside the
-backend store, shared by the supervised workers and retained across releases.
+opened backend store, shared by its supervised workers and retained across
+releases. The store's identity namespaces the file; fresh temporary stores and
+replacement stores cannot replay another store's completions.
 Completion commits before acknowledgement; redelivery replays the JSON result.
 `meta.idempotencyKey` equals `meta.id`, stable across attempts and restarts.
 A crash after the external call but before the ledger commit can still repeat
 it: pass that key to providers that accept idempotency keys. Delivery remains
 at least once. Handlers sharing the file serialize, including across processes.
+One hung provider stalls every handler sharing that file; give provider calls
+a timeout (for fetch, `signal: AbortSignal.timeout(30_000)`).
 Keep this file in backups and do not prune completions while effects may replay.
 Different disks do not share this protection. The ledger is for low-level effects;
 actions and generated `ctx.step` keep their existing contracts.
+Storage is validated before any claim. An initialization error is reported once
+and suspends polling without spending attempts; repair storage and restart the
+worker to resume.
+Later ledger storage failures close it and stop polling without a failed-effect
+settlement; unacknowledged claims can expire under their ordinary leases.
 Standalone workers still take explicit url/token; opt in with
 `ledger: "/durable/path/effects.sqlite"` or omit the option.
 

@@ -4,6 +4,20 @@ use std::{collections::{BTreeMap, BTreeSet}, io::{Read, Write}};
 
 pub(crate) fn validate_environment(schema: &Schema) -> Result<(), String> { values(schema).map(|_| ()) }
 
+// @ref LLP 3000.009#5.3 — named entries opt into individual declared secrets;
+// the conventional generated runtime still hosts the complete registry.
+pub(super) fn for_entry(source: &std::path::Path, declared: &BTreeMap<String, String>) -> Result<BTreeMap<String, String>, String> {
+    let text = std::fs::read_to_string(source).map_err(|e| format!("worker secrets: {e}"))?;
+    let mut selected = BTreeMap::new();
+    for names in text.lines().filter_map(|line| line.trim().strip_prefix("// snapback4 secrets:")) {
+        for name in names.split(|c: char| c.is_whitespace() || c == ',').filter(|s| !s.is_empty()) {
+            let value = declared.get(name).ok_or_else(|| format!("worker secrets: {name} is not a declared action, effect or route secret"))?;
+            selected.insert(name.to_owned(), value.clone());
+        }
+    }
+    Ok(selected)
+}
+
 pub(super) fn values(schema: &Schema) -> Result<BTreeMap<String, String>, String> {
     let names: BTreeSet<_> = schema.action_specs.values().flat_map(|spec| &spec.work.secrets)
         .chain(schema.routes.values().flat_map(|spec| &spec.work.secrets))

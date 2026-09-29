@@ -76040,3 +76040,48 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — Lane WK round 1: retire tokens and bind worker lifetime
+
+Merged origin/main first, preserving both journal entries. Addressed Astra's
+five findings and Grok's complete streamed review. Failed token retirement
+retains family custody and stops replacement minting until commit; locked-writer
+restart and expiry-independent rotation refuse the retired bearer. Removing
+the named-family DELETE kills both tests. Descriptor-relative no-follow opens
+reject schema/root/entry/helper symlinks and non-regular sources; regular helper
+bytes and permissions survive deployment. Ledger files follow the opened store,
+including --fresh, and are namespaced by store identity so reused effect IDs
+cannot replay an unrelated backend's completion.
+
+A pipe-owned watchdog gives each worker a process group, killing remaining
+members on worker exit or abrupt host death. Shutdown starts all grace periods
+together. Named entries receive no schema secrets unless their source names a
+subset with `// snapback4 secrets: KEY`; conventional generated runtimes retain
+the registry environment and all declared values remain redacted. All startup
+failure paths use increasing bounded backoff. Ledger validation precedes claims;
+corrupt storage suspends polling, while runtime storage/commit/rollback failures
+close storage and stop without failed-effect settlement. Deterministic contention
+kills Grok's surviving busy-retry mutation; all concurrent waiters must receive
+the original receipt. The shared-file lock remains intentional and documented:
+a hung provider stalls its peers, so the guide supplies a provider timeout.
+No change to core effect ordering/retries/meters/authority or native jobs.
+
+Final affected checks 62/62; whole guide 98/98; package build/typecheck, await
+census and reference audit pass. scripts/test.sh ran once, exit 1, exact summary:
+`== 1 failure(s) in 1319 s`. Its only failed stage was Cargo: three existing
+worker/adoption fixtures failed because our traversal rejected an absent schema
+directory. Restored the optional-declaration behavior and corrected test-harness
+watchdog launching; the exact rerun passes 3/3. These are ours, retained in the
+original full-run log. Clients 4,587 pass / zero fail / ten declared skips;
+models 79/79. No baseline/environmental full-run test failures; the standing
+60-second process budget remains a baseline miss, with no ceiling increase.
+The late Grok changes carry final affected evidence, not an atomic final-source
+full-battery claim. Every expected control and intermediate failure is recorded.
+
+Canonical wasm 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Linux execution only; no macOS or real-provider execution claim. Report and both
+review dispositions: reports/20260929-wk-supervised-workers/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
