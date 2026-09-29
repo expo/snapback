@@ -322,29 +322,34 @@ export type AssetState = { readonly status: "empty" } | { readonly status: "load
  * which is the feature. Pass `null` to show nothing. */
 export function useAsset(id: string | null | undefined): AssetState {
   const client = useClient();
-  const [state, setState] = useState<AssetState>({ status: "loading" });
+  const signedOut = useLink() === "signed-out";
+  // @ref LLP 3000.008.002.000#6 — a display handle belongs to this client, principal and asset id, including the render before effect cleanup.
+  // A raw online client can have a bearer before discovering its viewer.
+  // That discovery is not an account change and must not consume a second view.
+  const owner = useMemo(() => ({ client, signedOut, id }), [client, signedOut, id]);
+  const [resolved, setResolved] = useState<{ owner: typeof owner; state: AssetState }>();
   useEffect(() => {
-    if (!id) {
-      setState({ status: "empty" });
-      return;
-    }
+    const { client, signedOut, id } = owner;
+    if (!id || signedOut) return;
     let live = true;
     let read: AssetRead | null = null;
-    setState({ status: "loading" });
+    const publish = (state: AssetState) => setResolved({ owner, state });
     void client.asset(id).then((result) => {
       read = result;
       if (!live) {
         if ("url" in result) result.revoke();
         return;
       }
-      setState("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
+      publish("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
     }).catch((error) => {
-      if (live) setState({ status: "denied", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
+      if (live) publish({ status: "denied", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
     });
     return () => {
       live = false;
       if (read && "url" in read) read.revoke();
     };
-  }, [client, id]);
-  return id ? state : { status: "empty" };
+  }, [owner]);
+  if (!id) return { status: "empty" };
+  if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
+  return resolved?.owner === owner ? resolved.state : { status: "loading" };
 }

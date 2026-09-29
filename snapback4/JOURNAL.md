@@ -76045,3 +76045,44 @@ duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-s
 Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — Lane AV: author avatars and asset-handle ownership
+
+Calibration #26 d-02's permanent-loading claim did not reproduce. The builder's
+seven-file Quarry program and exact profileById → useAsset pattern paint all
+20 DM, 20 group, 20 feed and two inbox avatars on online, process and wasm,
+using both published 0.4.8 and this checkout. The supplied frozen Expo export
+also paints every avatar; instrumented hooks reach ready, and an uninstrumented
+control passes. Its missing wasm was restored with the exact published bytes
+matching the baked filename hash. The original failing browser/backend state
+remains necessary; the open d-02 ticket preserves that gap. The app was not
+edited, and the separate fix below is not claimed as d-02's cause or closure.
+
+Proved and fixed useAsset exposing an old ready URL in a render after changing
+id/client, reviving a cleared id's revoked handle, and retaining a raw client's
+handle after sign-out. Outcomes now belong to the current selection and explicit
+signed-out boundary; unknown-viewer bearer discovery does not consume another
+one-view fetch. Added the complete author-avatar recipe to the media card and
+recorded the decision in LLP 3000.008.002.000 §6. Authorization, retention,
+private-media membership revocation and one-view rules are unchanged.
+
+Final affected tests: 56 passed; complete guide: 98 passed; existing media
+lifecycle checks: 72 passed, one macOS-only skip. Published lifecycle controls
+pass on all three tiers, including replacement, independent handles, revoked
+ids, one-view consumption and sign-out. The single full-suite run's exact
+summary was `== 2 failure(s) in 1380 s`: cargo test and client tests. Its two
+guide failures were ours (unbounded-sync example and refusal-definition order),
+both corrected and verified by the complete guide rerun. Its ordinary/exit
+orphan-binding response waits timed out at 5,000 ms: baseline intermittent
+failures, both passing unchanged in isolation, with an open follow-up ticket.
+No environmental test exemption. Full-run totals: 4,297 Rust passed / two failed
+/ 33 ignored; 4,564 clients passed / three failed including their parent /
+ten skipped; 79 models and nine fixture-wrapper tests passed. The 60-second
+target remains missed. No second full run or relaxed assertion/timeout.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report, provenance and every failed diagnostic execution:
+[Lane AV report](./reports/20260929-av-asset-resolution/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

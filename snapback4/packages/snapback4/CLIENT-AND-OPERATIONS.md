@@ -1390,6 +1390,12 @@ For one-view photos, own the handle above the list: `snapback4 guide client`'s v
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. A client-side fetch or blob-URL failure returns a typed
 `denied` state.
+For sender avatars inside DM/group messages, `snapback4 guide media` shows the
+complete `profileById(message.sender)` → `useAsset(profile.avatar.id)` recipe,
+including profile loading and asset refusals. The profile remains the asset's
+home; a conversation reference is no extra grant. Ordinary avatars may mount
+independently in bubbles and feeds. An id, client or principal change hides the
+old handle immediately; sign-out returns `denied` with `E_AUTH` for a non-null id.
 
 An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,

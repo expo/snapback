@@ -469,7 +469,55 @@ deleting the row releases all.
 Stored list ids from before list placement are not backfilled, and rewriting
 the cell with the same ids does not claim them. Readers still get
 E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
-claims fresh uploads in the cell."##,
+claims fresh uploads in the cell.
+
+## Author avatars inside message rows
+
+Keep the avatar on its profile. Read that profile by the message's sender,
+then pass the returned avatar id to `useAsset`, just as in a feed or chat list.
+The profile's read rule authorizes the bytes; a message reference neither
+grants nor removes that authority. Do not place the same upload on each message.
+
+```quarry
+table profiles:
+  principal: principal
+  displayName: text <=50
+  avatar: image <=10000000 ?
+  unique principal
+  public 'Profiles are discoverable'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync public last 500 by .id
+query profileById(principal: principal):
+  return profiles[principal = principal]
+```
+
+```tsx
+import { useAsset, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+// In each DM/group bubble: <AuthorAvatar sender={message.sender} />
+export function AuthorAvatar({ sender }: { sender: string }) {
+  const profile = useQuery(api.profileById, { principal: sender });
+  const author = "data" in profile ? profile.data : null;
+  const avatar = useAsset(author?.avatar?.id ?? null);
+  if ("denied" in profile) return <span role="alert">{profile.denied.message}</span>;
+  if ("loading" in profile) return <span>Loading author…</span>;
+  if (avatar.status === "denied") return <span role="alert">{avatar.why.message}</span>;
+  if (avatar.status === "loading") return <span>Loading avatar…</span>;
+  return avatar.status === "ready"
+    ? <img src={avatar.url} alt={author?.displayName ?? "Author"} />
+    : <span>{author?.displayName ?? "Unknown author"}</span>;
+}
+```
+
+`null` means `empty`, not a failed download. Inspect the profile read and the
+asset's `denied.why` separately; an initials placeholder must not hide a refusal.
+Repeated ordinary avatars may mount independently. Replacing the avatar id,
+client or principal retires the previous handle; a signed-out hook reports
+`E_AUTH`. A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
+an offline asset without retained bytes reports `E_OFFLINE`. A loading profile
+has not supplied an asset id yet. One-view photos use the explicit-open viewer
+in `guide client`, never this automatically fetched avatar pattern."##,
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,
         "reads" => reads::CARD,

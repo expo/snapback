@@ -666,6 +666,7 @@ const cases = {
     check(viewer === "dev:test" && asset.status === "empty" && calls === 0, "null asset is empty and performs no fetch");
     await act(async () => client.setViewer(null));
     check(viewer === null, "viewer change re-renders without another hook");
+    await act(async () => client.setViewer("dev:test"));
     await render(h(Probe, { id: "broken" }), client);
     await act(async () => {});
     check(asset.status === "denied" && asset.why.code === "E_CLIENT", "asset rejection becomes a typed hook outcome");
@@ -675,6 +676,64 @@ const cases = {
     await render(h(Probe, { id: null }), client);
     check(asset.status === "empty" && revoked === 1, "clearing the id revokes the old object URL");
     await unmount();
+  },
+  async "useAsset never commits a previous id, client or principal's handle"() {
+    const client = controlled(), replacement = controlled(), waiting = new Map(), commits = [];
+    const links = new Set(); let signedOut = false;
+    replacement.link = () => signedOut ? "signed-out" : "online";
+    replacement.onLink = listener => { links.add(listener); return () => links.delete(listener); };
+    let revoked = 0, calls = 0;
+    client.asset = id => { calls++; const result = deferred(); waiting.set(id, result); return result.promise; };
+    replacement.asset = client.asset;
+    function Probe({ id }) {
+      const asset = useAsset(id);
+      useLayoutEffect(() => { commits.push({ id, ...asset }); });
+      return null;
+    }
+    const handle = id => ({ url: "blob:" + id, type: "image/png", bytes: 1, revoke: () => { revoked++; } });
+    await mount(h(Probe, { id: null }), client);
+    await render(h(Probe, { id: "old" }), client);
+    await act(async () => waiting.get("old").resolve(handle("old")));
+    check(commits.at(-1).status === "ready", "initial asset ready");
+    commits.length = 0;
+    await render(h(Probe, { id: "new" }), client);
+    check(commits.every(s => s.status === "loading"), "new id must not commit the old ready URL");
+    check(revoked === 1, "replacement releases old handle");
+    const oldRequest = waiting.get("new");
+    commits.length = 0;
+    await render(h(Probe, { id: "new" }), replacement);
+    await act(async () => oldRequest.resolve(handle("late-old-client")));
+    check(commits.every(s => s.status === "loading"), "late old-client response is never exposed");
+    check(revoked === 2, "late obsolete response released");
+    await act(async () => waiting.get("new").resolve(handle("new")));
+    check(commits.at(-1).url === "blob:new", "current client ready");
+    await render(h(Probe, { id: null }), replacement);
+    check(revoked === 3, "clearing releases the current handle");
+    commits.length = 0;
+    await render(h(Probe, { id: "new" }), replacement);
+    check(commits.every(s => s.status === "loading"), "reselecting an id cannot revive its revoked handle");
+    await act(async () => waiting.get("new").resolve(handle("new-again")));
+    commits.length = 0;
+    const before = calls;
+    await act(async () => { signedOut = true; replacement.setViewer(null); for (const listener of links) listener("signed-out"); });
+    check(commits.length > 0 && commits.every(s => s.status === "denied" && s.why.code === "E_AUTH"), "in-place sign-out immediately hides the handle");
+    check(calls === before && revoked === 4, "signed-out hook performs no fetch and releases its URL");
+    await render(h(Probe, { id: null }), replacement);
+    check(commits.at(-1).status === "empty", "missing id is still empty while signed out");
+    await unmount();
+  },
+  async "useAsset with a bearer before viewer discovery fetches only once"() {
+    const client = controlled(); client.setViewer(null);
+    let asset, calls = 0, revoked = 0;
+    client.asset = async () => { calls++; return { url: "blob:once", type: "image/png", bytes: 1, revoke: () => { revoked++; } }; };
+    function Probe({ id }) { const viewer = useViewer(); asset = useAsset(id); return null; }
+    await mount(h(Probe, { id: null }), client);
+    await render(h(Probe, { id: "once" }), client);
+    check(asset.status === "ready" && calls === 1, "unknown viewer with an online bearer can resolve an asset");
+    await act(async () => client.setViewer("user:discovered"));
+    check(asset.status === "ready" && calls === 1 && revoked === 0, "viewer discovery neither revokes nor consumes a second view");
+    await unmount();
+    check(revoked === 1, "the one handle is released once");
   },
   async "usePage rebinds insertion, deletion and reorder boundaries and aggregates read state"() {
     const pages = new Map([[null, ready(["a", "b"], "b")], ["b", ready(["c", "d"], "d")], ["a", ready(["b", "c"], "c")], ["c", ready(["d", "e"], "e")]]);
