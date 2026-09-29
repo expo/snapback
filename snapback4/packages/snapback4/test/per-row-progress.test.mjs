@@ -23,9 +23,9 @@ function heartbeat(signal) {
   }));
 }
 
-for (const host of ['process', 'wasm']) for (const keep of [undefined, true, false]) {
-  test(`${host}: omitted change tables recover a disjoint local profile, keep=${keep}`, async t => {
-    const f = await fixture(t, source.replace('  online only', '  sync public'));
+for (const host of ['process', 'wasm']) for (const keep of [undefined, true, false]) for (const heldQuery of [false, true]) {
+  test(`${host}: omitted change tables recover a disjoint local profile, keep=${keep}${heldQuery ? ", held" : ""}`, async t => {
+    const f = await fixture(t, source.replace('  online only', '  sync public').replace('query profile():', heldQuery ? 'query profile() held:' : 'query profile():'));
     const change = Promise.withResolvers(), sync = Promise.withResolvers();
     const device = opener(host, join(f.dir, host));
     let evidence, delivered = false, held = false, reads = 0;
@@ -66,18 +66,23 @@ for (const host of ['process', 'wasm']) for (const keep of [undefined, true, fal
     const receipt = await f.post('/m/edit', { id: 'edit', args: { body: 'image-2' } });
     evidence = { seq: receipt.seq }; // No tables field: all watches acquire a pending cut.
     held = true; change.resolve();
-    await until(() => owner.waitingForSync && !owner.running, 'pending replica parks without occupying a slot');
+    await until(() => owner.waitingForSync && !owner.running, 'pending replica awaits its cut outside a work slot');
     assert.equal(owner.changeCut, receipt.seq);
     const deadline = episodeDeadline(profile.getSnapshot());
-    await delay(120); // Neither sampling nor retry is needed while this cut is held.
-    assert.equal(reads, 0, 'pending replica performs no obsolete work');
+    await delay(120); // Ordinary retries stay paced; only held queries park.
+    if (heldQuery) assert.equal(reads, 0, 'held replica performs no obsolete work');
+    else assert.ok(reads > 0 && reads <= 5, `pending cut spun ${reads} profile reads`);
     sync.resolve();
     await until(() => item.getSnapshot().data?.body === 'image-2', 'messages sync applied');
     assert.deepEqual([...new Set(applied)], ['messages'], 'sync does not reschedule profiles by footprint');
     await until(() => profile.getSnapshot().data?.name === 'Bob' && !profile.getSnapshot().revalidating,
       'disjoint profile settles after its pending cut clears');
     assert.ok(reads > 0, 'sync publication resumes the disjoint pending owner');
-    assert.deepEqual(retries, [], 'event-driven resumption needs no retry timer');
+    if (heldQuery) assert.deepEqual(retries, [], 'held resumption needs no retry timer');
+    else {
+      assert.ok(retries.length > 0, 'ordinary pending-cut rejection keeps fallback retries');
+      assert.deepEqual(retries, retries.map((_, n) => Math.min(25 * 2 ** n, 1000)), 'ordinary retries stay paced');
+    }
     if (deadline !== undefined) {
       t.mock.method(Date, 'now', () => deadline + 1);
       assert.equal(profile.getSnapshot().data?.name, 'Bob', 'the retired episode cannot later strand the profile in loading');

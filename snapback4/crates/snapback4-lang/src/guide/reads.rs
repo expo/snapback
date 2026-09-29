@@ -119,8 +119,8 @@ chats list. The expiring-rows recipe above is for durable disappearing messages.
 ## Measure live propagation
 
 Mounted reads wake from `/changes`, sync and re-evaluate affected queries, including parent and authorization dependencies.
-2026-09-29 loopback measurements (20 repetitions/flow, 20 mounted message rows, Linux debug server): commit-to-answer p95 24–67 ms with Chromium wasm, 33–84 ms with the process device.
-Four CPUs plus three busy workers: 31–66 ms and 47–119 ms. This reduced chat fixture is not a service guarantee.
+2026-09-29 round-1 loopback measurements (20 repetitions/flow, 20 mounted message rows, Linux debug server): commit-to-answer p95 24–75 ms with Chromium wasm, 39–128 ms with the process device.
+Four CPUs plus three busy workers: 32–74 ms and 50–181 ms. This reduced chat fixture is not a service guarantee.
 Measure two signed-in clients with queries mounted: record sender invocation, `sent` acknowledgement, changed `observe` snapshot, React `useLayoutEffect` and image `onLoad` separately.
 Acknowledgement follows commit; `waitSeconds: 0` measures custody. Inspect `/changes`, `/sync` and query requests in Network to separate transport from application work.
 Measure media upload, download and decoding separately. Repeat at least 20 times, idle and under CPU contention on your target.

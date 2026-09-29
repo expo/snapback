@@ -78307,3 +78307,50 @@ Report and every failure/control disposition:
 reports/20260929-sr-starter-routes/round2/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — LL round 1: keep fallback and terminal refusals live
+
+Merged `origin/main` at `38abb89b8e` first (`02a6fe70dc`), preserving SR, KR,
+publication test fixes and both guide/journal edits. Astra's two round-0
+regressions are fixed. Only a current `held` declaration proves that the next
+query cannot obtain a server fallback, so only held queries park before
+execution. Ordinary queries evaluate through the existing routing procedure,
+including when `now >= cutoff` changes a formerly local query into an
+online-only profile read. Terminal session, change-feed and partition refusals
+bypass parking and publish through the existing checkpoints. Every acquired
+pending-cut watch still resumes on sync publication, including disjoint final
+footprints. LLP 3000.023 §10 records the correction; no freshness, coverage,
+authorization, prediction, retention or publication fence was removed.
+
+Six process/wasm regressions fail against round 0 and pass after the fixes,
+including a terminal `E_STORE` arriving after a held watch parks. The causal
+suite covers ordinary evaluation and held parking, and now explicitly checks
+known disjoint dependencies stay quiet. Five mutation controls fail assertions;
+the transition control passes twice unmodified before failing twice with only
+the old routing rule restored. The first affected run had 707 passes and eight
+failures, all ours: two fixture waits crossed the change-feed silence watchdog,
+and six assertions still required ordinary queries to park. Corrected those
+fixtures/assertions, added six held variants, then passed all 24 affected
+correction cases. Both 300-history mixed-evidence hosts report zero failed seeds.
+The complete failure ledger preserves the preliminary harness errors too.
+
+Repeated the unchanged public-SDK two-session harness: 640 actions, 20 per flow
+and configuration, zero timeouts; no LL build/test overlapped measurement. The
+full round-0 gains are not retained. Maximum flow p95 commit-to-answer is now
+74.913 ms wasm / 127.304 ms process idle and 73.260 / 180.047 ms under four-CPU,
+three-worker contention. Idle process reaction-add rose 44.975 → 80.995 ms
+(+36.020); its original baseline was 141.598 ms. All measured row p95 values
+remain below 300 ms; process photo bytes still exceed that bound. Every flow's
+exact round-to-round cost, stage distribution, operation counts, raw traces and
+hashes are in `reports/20260929-ll-live-latency/round1/`. Retained media still
+performs zero home rechecks for disjoint reaction writes. The reads card gives
+the revised ranges without growing its 236 lines; client stays at 130 lines.
+
+Ran `scripts/test.sh` exactly once with the packaged SQLite build flag:
+`== 0 failure(s) in 1290 s`, exit 0. Rust: 4,323 passes, 33 declared ignores;
+client tests: 5,245 passes, 10 existing skips, zero cancellations; final serial
+client models: 79/79. No full-suite failure (ours, baseline or environmental).
+The whole guide separately passed 99/99; SDK build/typecheck and docs budgets
+pass. `awaitBoundary()` matches without regeneration; there was no merge
+conflict in that record. Wasm remains 2,040,727 B raw / 592,959 B gzip, 760 B
+below the unchanged 593,719 B cap. No push or publication.

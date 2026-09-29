@@ -66,11 +66,9 @@ export async function notificationSchedule({ createLocalClient, answerObservatio
     await oldEntered.promise;
     if (rand(2)) { old.resolve(); for (let n = 0; n < 3; n++) await turn(); }
     phase = 'notified'; change.resolve(); await entered.promise; old.resolve();
-    const pendingOwner = answerObservation(watch.getSnapshot());
-    await until(() => pendingOwner.waitingForSync && !pendingOwner.running, 'notified local answer waits for sync publication');
-    assert.equal(reads, 0, 'the known older replica performs no doomed evaluations');
+    await until(() => reads > 0);
     for (let n = 0; n < 5 + rand(5); n++) await turn();
-    capture('pending-cut-parked');
+    capture('old-replica-complete');
     clock.set(model.deadline); capture('notification-deadline');
     sync.resolve();
     await until(() => client.link() === 'offline');

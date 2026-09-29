@@ -1,4 +1,4 @@
-import type { Query } from "./contract.ts";
+import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
@@ -34,7 +34,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
-  /** A previously local answer is waiting for its notified cut to apply. */
+  /** Resume at sync publication even when its final footprint is disjoint. */
   waitingForSync?: boolean;
   answerRevision?: number;
   expiredRetries?: number;
@@ -165,14 +165,16 @@ export class LocalReads {
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
-  // @ref LLP 3000.023#10 — start the episode but release work below its pending cut.
-  // Sync publication resumes local answers, including disjoint applied footprints.
-  // Server-backed reads can qualify immediately and keep their existing path.
-  deferUntilSync(watch: LocalWatch, acquired: boolean): boolean {
+  // @ref LLP 3000.023#10 — only held queries forbid every future server fallback.
+  // Previous routing cannot prove the next branch or coverage. Terminal
+  // refusals must reach runLocal's checkpoint even after a watch has parked.
+  deferUntilSync(watch: LocalWatch, acquired: boolean, backend: BackendJson, denied: Refusal | null): boolean {
     if (watch.kept) watch.reload();
-    if (acquired && watch.changeCut !== undefined && watch.serverRead === false) {
+    const program = backend.programs.find(program => program.name === watch.op.name);
+    const held = backend.schema.operations?.[watch.op.name]?.held ?? program?.held ?? watch.op.held ?? false;
+    if (!denied && acquired && watch.changeCut !== undefined) {
       watch.waitingForSync = true;
-      return true;
+      return held;
     }
     delete watch.waitingForSync;
     return false;

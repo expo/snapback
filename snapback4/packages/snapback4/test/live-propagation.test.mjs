@@ -26,10 +26,10 @@ async function eventTurns(t, predicate, label) {
   assert.ok(predicate(), label);
 }
 const cases = ['child-add', 'child-replace', 'child-remove', 'parent', 'joined-profile', 'authorization', 'unknown-footprint'].map(scenario => ({ scenario }));
-cases.push({ scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-add', expire: true }, { scenario: 'child-add', keep: true, expire: true });
-for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire } of cases) {
-  test(`${tier}: ${scenario} keep=${keep} expire=${!!expire} drives mounted reads from change through apply without elapsed timers`, async t => {
-    const { url, dir } = await server(t, '', fixture);
+cases.push({ scenario: 'child-add', held: true }, { scenario: 'unknown-footprint', held: true }, { scenario: 'child-add', keep: false }, { scenario: 'child-add', keep: true }, { scenario: 'child-add', expire: true }, { scenario: 'child-add', keep: true, expire: true });
+for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire, held } of cases) {
+  test(`${tier}: ${scenario} keep=${keep} expire=${!!expire}${held ? ' held=true' : ''} drives mounted reads from change through apply without elapsed timers`, async t => {
+    const { url, dir } = await server(t, '', held ? fixture.replace('query decorated(message: messages, c: cursor ?):', 'query decorated(message: messages, c: cursor ?) held:').replace('query reactionRows(message: messages, c: cursor ?):', 'query reactionRows(message: messages, c: cursor ?) held:') : fixture);
     const post = async (path, body) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
     const rows = [
       { table: 'profiles', row: { id: 'alice', principal: 'dev:alice', name: 'Alice' } },
@@ -78,9 +78,11 @@ for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire } of
     if (keep === false) assert.equal(decorated.getSnapshot().loading, true);
     else assert.equal(decorated.getSnapshot().revalidating, true);
     if (scenario !== 'joined-profile' && scenario !== 'authorization') assert.equal(reactions.getSnapshot().revalidating, true);
-    // Known local answers cannot qualify below the notified cut. Park their
-    // evaluations until publication, retaining the already-started episode.
-    assert.equal(queries, previousQueries, 'no doomed old-replica evaluations before apply');
+    if (scenario === 'joined-profile') assert.equal(reactions.getSnapshot().revalidating, undefined, 'known disjoint dependencies stay quiet');
+    // Only held queries forbid fallback regardless of the next branch/coverage.
+    if (held) assert.equal(queries, previousQueries, 'held reads park before apply');
+    else await eventTurns(t, () => queries > previousQueries, 'ordinary reads retain their fallback evaluation');
+    const beforeApply = queries;
     if (expire) {
       t.mock.timers.tick(1000);
       assert.equal(decorated.getSnapshot().loading, true, 'waiting for sync keeps the one-second bound');
@@ -93,7 +95,7 @@ for (const tier of ['process', 'wasm']) for (const { scenario, keep, expire } of
       return scenario.startsWith('child') ? (scenario === 'child-remove' ? read.data.reactions.length === 0 : read.data.reactions[0]?.emoji === 'new')
         : scenario === 'parent' ? read.data.text === 'changed' : read.data.author === 'Changed';
     }, 'apply re-evaluates and publishes the dependent observation');
-    assert.ok(queries > previousQueries, 'publication is caused by a new evaluation');
+    assert.ok(queries > beforeApply, 'publication is caused by a new evaluation');
     assert.equal(decorated.getSnapshot().loading, undefined);
     if (scenario === 'unknown-footprint') await eventTurns(t, () => !reactions.getSnapshot().revalidating, 'unknown notification wakes a parked disjoint watch after its cut applies');
     t.mock.timers.reset();

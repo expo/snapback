@@ -986,7 +986,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion, startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
-      if (answers.deferUntilSync(watch, acquired)) return;
+      if (answers.deferUntilSync(watch, acquired, backend!, unavailable() ?? changesStopped ?? partitionDenied)) return;
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
