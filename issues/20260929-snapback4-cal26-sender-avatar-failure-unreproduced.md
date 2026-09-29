@@ -1,6 +1,6 @@
 # Calibration #26 d-02: obtain the failing sender-avatar state
 
-Status: Open — reported defect not reproduced; not closed by the AV hook fix.
+Status: Open — transient-failure mechanism reproduced and repaired in AV round 1; original grader cause not proven.
 Owner: Snapback 4, lane AV.
 Date: 2026-09-29.
 
@@ -29,3 +29,13 @@ DIV root: count loaded descendant images and `data-source-uri`, and inspect the
 hook outcome, before classifying it as an initials fallback.
 
 Evidence: [AV report](../snapback4/reports/20260929-av-asset-resolution/REPORT.md).
+
+Round 1: injected resets and admission 503s on published 0.4.8 reproduce
+permanent non-ready hooks on online, process and wasm; hung requests remain
+loading after 31 seconds. Current main retries isolated admission refusals but
+not resets/hangs. The builder suppresses denied states as initials, so a
+settled reset need not produce literal loading. Bounded ranged retries, error
+states, refocus/reconnect recovery and six-transfer admission repair the
+mechanism without replaying ambiguous once downloads. The original session
+still lacks failed-request evidence; this ticket remains open for attribution.
+See [round-1 report](../snapback4/reports/20260929-av-asset-resolution/round1/REPORT.md).

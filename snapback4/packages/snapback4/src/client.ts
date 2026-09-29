@@ -26,6 +26,7 @@ import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
+import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
@@ -171,6 +172,7 @@ export function createClient(options: ClientOptions): Client {
   let closed = false;
   let delivery: ReturnType<typeof onlineDelivery> | undefined;
   const aborter = new AbortController();
+  const downloads = assetQueue();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
@@ -992,7 +994,7 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal);
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };

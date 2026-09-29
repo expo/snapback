@@ -76178,3 +76178,52 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — Lane AV round 1: bounded asset recovery
+
+First fetched and merged origin/main (b7d05baff), preserving both appended
+journal entries; merge b0e693b31. Read both completed round-0 reviews and
+addressed their findings. The supervisor's d-02 mechanism reproduces on published
+0.4.8: one reset/503 leaves a hook denied for its selection, while a hung fetch
+stays loading after 31 seconds. The builder hides both as initials. Actual
+122-socket pressure against the unchanged 128 cap leaves only 4/40 online and
+3/40 process/wasm downloads ready on 0.4.8. FU recovers a short 503 burst on main,
+but resets/hangs and sustained concurrency still expose permanent non-readiness.
+The original grading session's transport cause remains unproven; attribution
+stays open separately from the reproduced and repaired mechanism.
+
+Full-file Range requests allow safe ordinary retries; once assets refuse Range
+before the one non-range transfer. Never replay ambiguous once downloads or
+terminal refusals. Four attempts, exponential backoff/jitter, Retry-After,
+five-second attempt and thirty-second overall transfer deadlines, ten seconds
+backoff and six concurrent transfers per client. Exhaustion becomes a coded
+hook error; reconnect/refocus retries only safe failures. Complete 206 bodies
+retain under existing home receipts; partial bodies never retain. Local expiry
+runs before network backoff. Late native buffers close without creating URLs.
+
+Review fixes add effect-lifetime ownership for Activity, microtask dispatch for
+initial StrictMode replay, reverse-completion coverage and independently
+unmounted hooks. Guide wording now names client/id/signed-out ownership exactly.
+The media card and governing LLPs describe recovery and error states.
+
+Final affected groups pass: 66 asset/lifecycle tests, 55 React tests, 83 final
+cleanup/session/Blob tests; complete guide 98/98. All three tiers recover injected
+reset/503/timeout and forty-call bursts, expose error after four resets, and
+recover on reconnect/refocus. The fixed client also passes 8/8 against the
+published 0.4.8 host, including once and revocation controls.
+
+scripts/test.sh ran once: `== 1 failure(s) in 1334 s`, stage `client tests`.
+Rust 4,311 passed / 33 ignored; clients 4,591 passed / five failed / ten skipped;
+models 79/79 and fixture wrapper 9/9. All five failures are ours, corrected and
+rerun: the ordinary-media request count, await fingerprint classification, and
+three late-native-response cleanup assertions. No baseline/environmental
+exemption; no second full run or green-full-suite claim after corrections.
+No timeout, model count or size ceiling was relaxed; the 60-second target is
+still exceeded. Every failure is recorded in the report.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-av-asset-resolution/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

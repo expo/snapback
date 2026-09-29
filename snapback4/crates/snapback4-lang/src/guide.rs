@@ -502,7 +502,7 @@ export function AuthorAvatar({ sender }: { sender: string }) {
   const avatar = useAsset(author?.avatar?.id ?? null);
   if ("denied" in profile) return <span role="alert">{profile.denied.message}</span>;
   if ("loading" in profile) return <span>Loading author…</span>;
-  if (avatar.status === "denied") return <span role="alert">{avatar.why.message}</span>;
+  if (avatar.status === "denied" || avatar.status === "error") return <span role="alert">{avatar.why.message}</span>;
   if (avatar.status === "loading") return <span>Loading avatar…</span>;
   return avatar.status === "ready"
     ? <img src={avatar.url} alt={author?.displayName ?? "Author"} />
@@ -511,11 +511,31 @@ export function AuthorAvatar({ sender }: { sender: string }) {
 ```
 
 `null` means `empty`, not a failed download. Inspect the profile read and the
-asset's `denied.why` separately; an initials placeholder must not hide a refusal.
-Repeated ordinary avatars may mount independently. Replacing the avatar id,
-client or principal retires the previous handle; a signed-out hook reports
-`E_AUTH`. A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
-an offline asset without retained bytes reports `E_OFFLINE`. A loading profile
+asset's `denied.why` or `error.why` separately; an initials placeholder must not hide a refusal.
+Transient transport failures report `status: "error"` with `why.code` (for
+example `E_OFFLINE`, `E_HTTP_RESPONSE` or exhausted `E_RATE_LIMIT`) and a
+message. Authorization, missing/revoked assets and consumed views remain
+`status: "denied"`. The hook retries safe transport errors on reconnect,
+window refocus or return to a visible document, honoring Retry-After; it never
+refetches a ready handle or automatically retries a refused/revoked asset.
+
+Ordinary downloads use a full-file Range request, which cannot consume a
+one-view grant. They retry resets, timeouts and transient HTTP failures with
+backoff and jitter: at most four attempts, five seconds per network attempt,
+ten seconds total backoff, and a thirty-second deadline including queue wait.
+At most six asset transfers run per client, including their response bodies.
+A once asset refuses Range before consumption; the SDK then requests it without
+Range. A lost once response returns an explained error and is never replayed;
+only explicit admission refusals can retry that transfer. Raw `client.asset`
+returns `{ denied: why }` on exhaustion; call it again after connectivity
+returns. Native `assetSource` delegates transfers to the host image view.
+Repeated ordinary avatars may mount independently. Replacing the avatar id
+or client retires the previous handle. Account switches replace the client;
+raw sign-out retires it through the signed-out state. Viewer discovery alone
+does not fetch again. A signed-out hook with a non-null id reports `E_AUTH`.
+A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
+a fetch while offline without retained bytes reports `E_OFFLINE`; an already
+ready handle is not refetched just because the link drops. A loading profile
 has not supplied an asset id yet. One-view photos use the explicit-open viewer
 in `guide client`, never this automatically fetched avatar pattern."##,
         "client" => include_str!("guide/client.md"),

@@ -453,3 +453,18 @@ test("a foreign once receipt checks the entry after serialized writes and never 
   const retained = await reopened.cache.read("photo");
   assert.ok("url" in retained); retained.revoke();
 });
+
+for (const [range, keeps] of [['bytes 0-1/2', true], ['bytes 0-0/2', false], ['bytes 1-2/3', false], ['bytes 0-9/10', false], ['bytes */2', false], ['', false]]) {
+  test(`a ranged body retains only the entire ordinary file: ${range || 'missing range'}`, async t => {
+    installReader(t); installUrls(t);
+    const files = await deviceFiles(t); files.homes.set('photo', home('image/png'));
+    const { cache } = await files.open();
+    const blob = nativeBlob([1, 2]), reply = response(blob);
+    reply.status = 206; reply.headers.set('content-range', range);
+    const result = await cache.viewed('photo', blob, reply);
+    assert.equal(!!result, keeps);
+    if (result) result.revoke();
+    assert.deepEqual(files.writes, keeps ? ['photo'] : []);
+    blob.close();
+  });
+}

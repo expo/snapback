@@ -17,7 +17,7 @@ import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
 
-test("message authors and feed avatars share ordinary home-row authority", { timeout: 120_000 }, async t => {
+test("message authors and feed avatars share ordinary home-row authority", { timeout: 180_000 }, async t => {
   const fixture = await avatarFixture(t);
   const require = createRequire(join(root, "packages/snapback4/package.json"));
   const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
@@ -51,7 +51,23 @@ test("message authors and feed avatars share ordinary home-row authority", { tim
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => window.start);
     const signedIn = await login(fixture.url, "bob@avatars.test", "password-avatars"); assert.equal(signedIn.ok, true);
-    await page.evaluate(options => window.start(options), { tier, url: fixture.url, session: signedIn.session, dm: fixture.dm, group: fixture.group });
+    await page.evaluate(options => window.start(options), { tier, url: fixture.url, session: signedIn.session, dm: fixture.dm, group: fixture.group, faultControl: !!process.env.AV_FAULT_CONTROL });
+    {
+      await page.waitForFunction(() => ["dm", "group", "feed", "inbox"].every(scope => window.diagnostics().counts.find(c => c.scope === scope).ready === (scope === "inbox" ? 2 : 20)));
+      const faultId = await page.evaluate(principal => window.images(principal).id, fixture.users.alice.session.principal);
+      for (const mode of ["reset", "overload", "timeout", "burst", ...(process.env.AV_FAULT_CONTROL ? [] : ["exhaust"])]) {
+        const state = await page.evaluate(({ id, mode }) => window.faultProbe(id, mode), { id: faultId, mode });
+        t.diagnostic(JSON.stringify({ tier, mode, ...state }));
+        if (!process.env.AV_FAULT_CONTROL) {
+          if (mode === "burst") { assert.equal(state.ready, 40); assert.equal(state.peak, 6); assert.equal(state.rejected, 0); }
+          else if (mode === "exhaust") {
+            assert.equal(state.state.status, "error"); assert.equal(state.state.why.code, "E_OFFLINE"); assert.equal(state.calls, 4);
+            assert.equal((await page.evaluate(() => window.recoverProbe())).status, "ready", "exhausted hook recovers on reconnect/refocus");
+          } else { assert.equal(state.state.status, "ready"); assert.equal(state.calls, 2); }
+        }
+      }
+      if (process.env.AV_FAULT_CONTROL) { await page.evaluate(() => window.finish()); return; }
+    }
     try {
       await page.waitForFunction(() => ["dm", "group", "feed", "inbox"].every(scope => {
         const nodes = [...document.querySelectorAll(`[data-scope="${scope}"]`)];
@@ -112,7 +128,7 @@ import { webDevice } from "snapback4/web";
 const q = name => ({ kind: "query", name });
 const profileById = q("profileById"), history = q("messaging.history"), global = q("social.global"), inbox = q("messaging.inbox");
 const snapshots = {}, requests = [];
-let app, root, config;
+let app, root, config, fault, inFlight = 0, peak = 0, rejected = 0, faultCalls = 0;
 function Avatar({ scope, id, principal, supplied }) {
   const a = useQuery(profileById, { principal });
   const author = supplied ?? ("data" in a ? a.data : null);
@@ -145,8 +161,18 @@ window.start = async options => {
   const device = options.tier === "wasm" ? webDevice() : options.tier === "process" ? {
     async open(name, backend) { const index = await window.deviceOpen(name, backend); return { call: request => window.deviceCall(index, request), close: () => window.deviceClose(index) }; }
   } : undefined;
-  const clientOptions = { url: options.url, sessionStore: sessions, device, assets: { keep: "viewed", maxBytes: 67108864 },
-    fetch: async (input, init) => { const response = await fetch(input, init); if (new URL(input).pathname.startsWith("/assets/")) requests.push({ path: new URL(input).pathname, status: response.status }); return response; } };
+  const clientOptions = { url: options.url, sessionStore: sessions, device, assets: { keep: "none", maxBytes: 0 },
+    fetch: async (input, init) => {
+      const asset = new URL(input).pathname.startsWith("/assets/");
+      if (!asset || !fault) return fetch(input, init);
+      faultCalls++;
+      if (fault === "exhaust" || fault === "reset" && faultCalls === 1) throw new TypeError("injected ECONNRESET");
+      if (fault === "timeout" && faultCalls === 1) return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("injected timeout")), { once: true }));
+      if (fault === "overload" && faultCalls === 1 || fault === "burst" && inFlight >= 6) { rejected++; return Response.json({ denied: { code: "E_RATE_LIMIT", family: "limit", message: "injected six-connection cap", retryable: true } }, { status: 503, headers: { "Retry-After": "0.1" } }); }
+      inFlight++; peak = Math.max(peak, inFlight);
+      try { if (fault === "burst") await new Promise(r => setTimeout(r, 100)); return await fetch(input, init); }
+      finally { inFlight--; }
+    } };
   if (options.tier === "process") {
     const client = await createLocalClient({ ...clientOptions, session: options.session });
     app = { client, close: () => client.close() };
@@ -157,6 +183,30 @@ window.start = async options => {
   root = createRoot(document.getElementById("root"));
   const content = <><Chat scope="dm" conversation={options.dm} /><Chat scope="group" conversation={options.group} /><Feed /><Inbox /><Probe /></>;
   root.render(options.tier === "process" ? <SnapbackProvider client={app.client}>{content}</SnapbackProvider> : <AppProvider app={app}>{content}</AppProvider>);
+};
+window.faultProbe = async (id, mode) => {
+  window.probe(null); if (app.client.sync) await app.client.sync();
+  await new Promise(r => setTimeout(r, 100));
+  fault = mode; faultCalls = peak = rejected = 0;
+  if (mode === "burst") {
+    const results = await Promise.all(Array.from({ length: 40 }, () => window.readAsset(id)));
+    fault = null; return { ready: results.filter(r => r.ready).length, denied: results.filter(r => r.denied).map(r => r.denied.code), calls: faultCalls, peak, rejected };
+  }
+  window.probe(id);
+  if (config.faultControl) await new Promise(r => setTimeout(r, mode === "timeout" ? 31000 : 3000));
+  else {
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) { await new Promise(r => setTimeout(r, 20)); if (window.probeState.status === (mode === "exhaust" ? "error" : "ready")) break; }
+  }
+  const state = window.probeState; fault = null; if (mode !== "exhaust") window.probe(null);
+  return { state, calls: faultCalls };
+};
+window.recoverProbe = async () => {
+  if (app.client.sync) await app.client.sync();
+  window.dispatchEvent(new Event("focus"));
+  const deadline = Date.now() + 10000;
+  while (window.probeState.status !== "ready" && Date.now() < deadline) await new Promise(r => setTimeout(r, 20));
+  const state = window.probeState; window.probe(null); return state;
 };
 window.diagnostics = () => ({ tier: config.tier, requests, snapshots, counts: ["dm", "group", "feed", "inbox"].map(scope => ({ scope, ready: [...document.querySelectorAll('[data-scope="' + scope + '"]')].filter(n => n.dataset.status === "ready").length })) });
 window.images = principal => {

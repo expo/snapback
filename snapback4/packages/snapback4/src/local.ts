@@ -39,6 +39,7 @@ export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
@@ -130,6 +131,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
+  const downloads = assetQueue();
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
   // Web mutations can arrive after publication but before startup validation.
@@ -1301,10 +1303,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     async asset(id) {
       const denied = unavailable();
       if (denied) return { denied };
+      await media!.reconcile(); // @ref LLP 3000.008.002.000#6 — retire expired handles before network backoff.
+      if (unavailable()) return { denied: unavailable()! };
       if (link !== "online") return media!.read(id);
       const request = requestCredentials();
       const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
-        unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response));
+        unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response), aborter.signal,
+        () => !unavailable() && request.revision === credentialRevision, downloads);
       if ("denied" in read) {
         await refusedSession(read.denied, request.revision);
         if (read.denied.code === "E_OFFLINE" && !unavailable()) {

@@ -236,12 +236,12 @@ test("online session: a refresh rejects principal changes and never adopts an un
 
 test("online assets revoke late credential-bound URLs across rotation, sign-out and close", async t => {
   const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
-  let serial = 0;
+  let serial = 0, blobSerial = 0;
   const revoked = [];
   const closed = [];
   function assetResponse(bytes) {
     const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
-    const id = `blob:asset-${serial + 1}`;
+    const id = `response-${++blobSerial}`;
     blob.close = () => closed.push(id);
     return { ok: true, headers: new Headers(), blob: async () => blob };
   }
@@ -264,8 +264,9 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
     const result = await reading;
     assert.equal(result.denied?.code, "E_CLOSED");
   }
-  assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2"]);
-  assert.deepEqual(closed, revoked, "obsolete response Blobs are released with their URLs");
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(revoked, [], "aborted responses never allocate display URLs");
+  assert.deepEqual(closed, ["response-1", "response-2"], "buffered native responses are closed even without a stream");
 
   const oldEntered = deferred(), oldRelease = deferred();
   const bearers = [];
@@ -284,8 +285,8 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   const result = await reading;
   assert.deepEqual(bearers, ["Bearer old"]);
   assert.equal(result.denied.code, "E_AUTH");
-  assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2", "blob:asset-3"]);
-  assert.deepEqual(closed, revoked, "the old response is released without consuming another view");
+  assert.deepEqual(revoked, ["blob:asset-1"]);
+  assert.deepEqual(closed, ["response-1", "response-2", "response-3"], "the old response is released without consuming another view");
 });
 
 test("mintId keeps burst and rollback ids monotonic without advancing their timestamp", () => {
