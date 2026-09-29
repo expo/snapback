@@ -76,11 +76,9 @@ loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
 must answer online in prime and restart. Conditional native-module queries
 require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
 
-After an own base build, `witness ios --repack <build.json> --app-project .
---smoke` qualifies JS/assets-only edits on the same native binary. The app must
-lock @expo/repack-app 0.10.3 before building the base. Repack has distinct proof
-and artifact names; native/config changes require a new own build. See the
-witness card for exact pins, source-helper requirements and smoke limits.
-Repack also requires complete app/Pods compiler and linker dependency evidence
-and the qualified native script/tool dependency tree. Uncovered inputs or custom
-output paths refuse; use `--build` after a compatibility change.
+After JS/assets edits, repeat `witness ios --build . --smoke` with the same
+dedicated simulator and a fresh artifacts directory. Warm Xcode intermediates
+are reused; each run builds the current app and seals a new receipt. Repack
+is withdrawn. Five complete warm build-plus-smoke runs on the shared M5 Pro mini
+measured 172.045 s median / 199.870 s nearest-rank p95, all passing; cold native preparation was about six minutes, with smoke and setup
+additional. See `guide witness` for pins, scope and exact invocation.

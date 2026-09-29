@@ -9,11 +9,13 @@ fn witness_cli_refuses_missing_bundle_with_a_recipe() {
 }
 
 #[test]
-fn preparation_selectors_are_exclusive_and_repack_requires_its_project() {
+fn preparation_selectors_are_exclusive_and_repack_is_withdrawn() {
     for (flags, reason) in [
         (vec!["--bundle-id", "app.test", "--build", "."], "select exactly one"),
-        (vec!["--repack", "build.json"], "--repack requires --app-project"),
-        (vec!["--build", ".", "--app-project", "."], "--repack requires --app-project"),
+        (vec!["--repack=build.json"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--repack", "build.json", "--app-project", ".", "--smoke"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--repack", "build.json"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--build", ".", "--app-project", "."], "repack is withdrawn; use witness ios --build"),
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "ios"]).args(flags).output().unwrap();
         assert!(!output.status.success());

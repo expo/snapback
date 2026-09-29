@@ -1,4 +1,4 @@
-// @ref LLP 3000.030#4 — reuse requires a closed native dependency graph, not a source regex.
+// @ref LLP 3000.030#3 — private build outputs and recorded native inputs, never repack eligibility.
 import fs from 'node:fs';
 import path from 'node:path';
 import { hash, fail } from './payload.mjs';
@@ -33,7 +33,11 @@ export function privateBuildFlags(cache) {
     SWIFT_MODULE_CACHE_PATH: `${d}/ModuleCache.noindex`, SDK_STAT_CACHE_DIR: d,
     INDEX_DATA_STORE_DIR: `${d}/Index.noindex/DataStore` }).map(([k, v]) => `${k}=${v}`);
 }
-const outputKey = key => /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
+// Xcode 27 Ld.xcspec: map, dependency info, LTO and SDK-import side outputs
+// bypass SYMROOT/OBJROOT when explicitly set. Install-name and runtime search
+// settings are metadata, not file destinations. Unknown linker flags refuse.
+export const linkerOutputKey = key => ['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].includes(key);
+const outputKey = key => linkerOutputKey(key) || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
   || ['SYMROOT', 'OBJROOT', 'DSTROOT', 'CCHROOT', 'SHARED_PRECOMPS_DIR', 'DERIVED_DATA_DIR', 'DERIVED_FILE_DIR', 'DERIVED_FILES_DIR', 'DERIVED_SOURCES_DIR', 'INDEX_DATA_STORE_DIR', 'CLANG_MODULE_CACHE_PATH', 'SWIFT_MODULE_CACHE_PATH', 'INSTALL_ROOT', 'TARGET_BUILD_DIR'].includes(key);
 export function validateOutputs(rows, cache) {
   if (!Array.isArray(rows) || !rows.length) refuse('missing resolved target settings');

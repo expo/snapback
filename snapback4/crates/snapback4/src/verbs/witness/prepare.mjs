@@ -1,15 +1,15 @@
 // @ref LLP 3000.030#3 — private own-project preparation; never launch through Expo CLI.
 import fs from 'node:fs';
-import { qualifiedScriptTooling } from './native-scripts.mjs';
 import { nativeReferences } from './native-inputs.mjs';
 import { privateBuildFlags, validateOutputs, auditNativeProject, compilerClosure } from './native-closure.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
-import { isDeepStrictEqual } from 'node:util';
-import { hash, fail, readJSON, seal, inventory, hbc, nativeFiles, differences, shellQuote, repackAssets } from './payload.mjs';
+import { hash, fail, readJSON, seal, inventory, hbc, nativeFiles, differences, shellQuote } from './payload.mjs';
 
-const [mode, projectArg, artifactsArg, udid, origin, receiptArg] = process.argv.slice(2);
+const [mode, projectArg, artifactsArg, udid, origin] = process.argv.slice(2);
+// Refuse before resolving projects, creating caches, or invoking any tool.
+if (mode !== 'build') fail('E_WITNESS_INPUT', 'repack is withdrawn; use witness ios --build <project> --smoke with fresh artifacts');
 const out = path.resolve(artifactsArg), project = fs.realpathSync(projectArg);
 const adapter = hash(fs.readFileSync(new URL('./prepare.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-inputs.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-closure.mjs', import.meta.url))) + hash(fs.readFileSync(new URL('./native-scripts.mjs', import.meta.url)));
 const started = Date.now(), deadline = started + 900_000, phases = [];
@@ -96,7 +96,7 @@ try {
   }
   if (inputs.config.expo?.newArchEnabled !== true || (inputs.config.expo?.jsEngine && inputs.config.expo.jsEngine !== 'hermes')) fail('E_WITNESS_BUILD', 'this adapter requires New Architecture and Hermes');
   // An embedded-bundle hash cannot attest an Updates-selected cached bundle.
-  if (fs.existsSync(path.join(project, 'node_modules/expo-updates'))) fail('E_WITNESS_NATIVE_COMPAT', 'linked expo-updates is outside both prepared proof routes; use manual installed-app mode');
+  if (fs.existsSync(path.join(project, 'node_modules/expo-updates'))) fail('E_WITNESS_NATIVE_COMPAT', 'linked expo-updates is outside own-build preparation; use manual installed-app mode');
   const fingerprintOptions = { platforms: ['ios'], silent: true, sourceSkips: 0 };
   // Use a clean child environment for config/plugin evaluation, not ambient secrets.
   const fpScript = `const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),${JSON.stringify(fingerprintOptions)}).then(x=>console.log(JSON.stringify(x)))`;
@@ -106,22 +106,7 @@ try {
     runtime: JSON.parse(command('runtime', 'xcrun', ['simctl', 'list', 'runtimes', '--json'], project)).runtimes.map(({ identifier, version, buildversion }) => ({ identifier, version, buildversion })), architecture: 'arm64' };
   const nativeFingerprint = { version: '0.20.13', options: fingerprintOptions, fingerprint };
   if (!toolchain.xcode.startsWith('Xcode 27.0\n') || toolchain.sdk !== '27.0') fail('E_WITNESS_BUILD', 'this adapter is qualified for Xcode 27.0 / iOS simulator SDK 27.0 only; use installed-app mode');
-  let base = null, nativeClosure = null;
-  if (mode === 'repack') {
-    base = readJSON(receiptArg);
-    if (base.format !== 1 || base.project !== project || base.proofKind !== 'application-release') fail('E_WITNESS_NATIVE_COMPAT', 'receipt is not an own-build base for this project; use --build');
-    const baseApp = path.join(path.dirname(path.resolve(receiptArg)), 'base.app');
-    if (inventory(baseApp).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'immutable base bytes changed; use --build');
-    if (!base.sourceInputs?.ios) fail('E_WITNESS_NATIVE_COMPAT', 'repack requires an existing inventoried iOS project; use --build');
-    sameInputs(base.sourceInputs, inputs);
-    if (JSON.stringify(base.toolchain) !== JSON.stringify(toolchain) || base.nativeFingerprint.fingerprint.hash !== fingerprint.hash) fail('E_WITNESS_NATIVE_COMPAT', 'toolchain or Expo fingerprint changed; use --build');
-    if (version('@expo/repack-app') !== '0.10.3') fail('E_WITNESS_REPACK', 'repack requires installed @expo/repack-app 0.10.3; use --build');
-    if (base.nativeClosure?.format !== 1 || base.nativeClosure?.adapter !== adapter || !base.nativeClosure.compiler?.records?.length || !base.nativeClosure.compiler?.sources?.length) fail('E_WITNESS_NATIVE_COMPAT', 'base has no complete native dependency coverage; use --build');
-    for (const input of base.nativeClosure.compiler.inputs) if (input.kind === 'toolchain' && (input.missing ? fs.existsSync(input.path) : !fs.existsSync(input.path) || hash(fs.readFileSync(input.path)) !== input.sha256)) fail('E_WITNESS_NATIVE_COMPAT', `compiler toolchain input changed: ${input.path}; use --build`);
-    if (base.nativeClosure.graphs.some(g => g.phases.length) && inputs.dependencies.sha256 !== qualifiedScriptTooling) fail('E_WITNESS_NATIVE_COMPAT', 'unqualified native script/tool dependency tree; use --build');
-    base.sourceApp = baseApp;
-    nativeClosure = base.nativeClosure;
-  }
+  let nativeClosure = null;
   // Stable private path permits warm Xcode intermediates. A project lease in
   // the Rust parent excludes competing writers; each run retains its inputs.
   fs.mkdirSync(snapshot, { recursive: true });
@@ -132,7 +117,7 @@ try {
   seal(path.join(out, 'source-inputs.json'), source);
   const expoCLI = path.join(snapshot, 'node_modules/expo/bin/cli');
   const publicConfig = JSON.parse(command('public-config', process.execPath, [expoCLI, 'config', '--type', 'public', '--json']));
-  let app, transformation = null, settings = null;
+  let app, settings = null;
   if (!fs.existsSync(path.join(snapshot, 'ios'))) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
   fs.writeFileSync(path.join(snapshot, 'ios/.xcode.env.local'), `export NODE_BINARY=${shellQuote(process.execPath)}\n`);
   command('pods', 'pod', ['install'], path.join(snapshot, 'ios'));
@@ -140,7 +125,7 @@ try {
   // products. The separate closure records the inputs actually consumed by Xcode.
   const resolvedInputs = nativeInput(snapshot);
   seal(path.join(out, 'resolved-native.json'), resolvedInputs);
-  if (mode === 'build') {
+  {
     const workspaces = fs.readdirSync(path.join(snapshot, 'ios')).filter(n => n.endsWith('.xcworkspace'));
     if (workspaces.length !== 1) fail('E_WITNESS_BUILD', 'no unique iOS workspace; use installed-app mode');
     const workspace = path.join(snapshot, 'ios', workspaces[0]);
@@ -172,15 +157,6 @@ try {
     app = fs.realpathSync(app);
     command('preserve-app', '/bin/cp', ['-cR', app, path.join(out, 'base.app')]);
     app = path.join(out, 'base.app');
-  } else {
-    // Compare the actual post-pod/codegen stage that produced the immutable base.
-    sameInputs(base.inputs, resolvedInputs);
-    const pkg = readJSON(path.join(snapshot, 'node_modules/@expo/repack-app/package.json'));
-    const cli = path.join(snapshot, 'node_modules/@expo/repack-app', typeof pkg.bin === 'string' ? pkg.bin : Object.values(pkg.bin)[0]);
-    app = path.join(out, 'repacked.app');
-    command('repack', process.execPath, [cli, '--platform', 'ios', '--js-bundle-only', '--source-app', base.sourceApp, '--output', app, '--working-directory', path.join(out, 'repack-work'), '--skip-working-dir-cleanup']);
-    transformation = { tool: '@expo/repack-app', version: '0.10.3', integrity: readJSON(path.join(snapshot, 'package-lock.json')).packages['node_modules/@expo/repack-app'].integrity,
-      exportedAssets: repackAssets(app, path.join(out, 'repack-work/bundles/assets')), source: base.executedApp.inventory.sha256, changes: differences(base.executedApp.inventory.files, inventory(app).files) };
   }
   const executedApp = appInfo(app);
   if (!executedApp.info.UIApplicationSceneManifest) fail('E_WITNESS_BUILD', 'iOS 27 requires UIScene; migrate the project native lifecycle before --build; see guide witness');
@@ -190,19 +166,6 @@ try {
   if (hash(fs.readFileSync(podCompiler)) !== compiler.sha256) fail('E_WITNESS_HERMES', 'CocoaPods and JS export resolve different Hermes compilers');
   const hbcVersion = Number(compiler.version.match(/HBC bytecode version:\s*(\d+)/)?.[1]);
   if (executedApp.javascript.version !== hbcVersion) fail('E_WITNESS_HERMES', 'bundle and installed compiler HBC versions differ');
-  if (base) {
-    if (JSON.stringify(executedApp.native) !== JSON.stringify(base.executedApp.native)) fail('E_WITNESS_REPACK', 'native Mach-O bytes changed; use --build');
-    if (executedApp.javascript.version !== base.executedApp.javascript.version || JSON.stringify(compiler) !== JSON.stringify(base.compiler)) fail('E_WITNESS_HERMES', 'base/repack Hermes compiler or bytecode changed');
-    if (!isDeepStrictEqual(executedApp.info, base.executedApp.info)) fail('E_WITNESS_REPACK', 'Info.plist semantics changed; use --build');
-    for (const row of transformation.changes) {
-      if (!(row.path === 'main.jsbundle' || row.path.startsWith('assets/'))) fail('E_WITNESS_REPACK', `unclassified changed resource ${row.path}; use --build`);
-    }
-    if (JSON.stringify(publicConfig) !== JSON.stringify(base.publicConfig)) fail('E_WITNESS_REPACK', 'public config changed');
-    if (!isDeepStrictEqual(readJSON(path.join(app, 'EXConstants.bundle/app.config')), readJSON(path.join(base.sourceApp, 'EXConstants.bundle/app.config')))) fail('E_WITNESS_REPACK', 'embedded public config changed; use --build');
-    if (!isDeepStrictEqual(plist(path.join(app, 'Expo.plist')), plist(path.join(base.sourceApp, 'Expo.plist')))) fail('E_WITNESS_REPACK', 'Expo.plist semantics changed; use --build');
-    if (inventory(base.sourceApp).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'base changed during repack');
-    if (executedApp.javascript.sha256 === base.executedApp.javascript.sha256) fail('E_WITNESS_REPACK', 'repack did not produce changed JavaScript');
-  }
   const after = nativeInput(project);
   sameInputs(inputs, after, 'E_WITNESS_PROOF');
   if (inventory(project, sourceOmit).sha256 !== source.sha256) fail('E_WITNESS_PROOF', 'live source changed during preparation');
@@ -210,13 +173,12 @@ try {
   const fpAfter = JSON.parse(command('fingerprint-after', process.execPath, ['-e', fpScript], project));
   if (fpAfter.hash !== fingerprint.hash) fail('E_WITNESS_PROOF', 'native fingerprint changed during preparation');
   const preparedInputs = nativeInput(snapshot);
-  if (base) sameInputs(base.inputs, preparedInputs, 'E_WITNESS_PROOF');
-  const result = { format: 1, proofKind: base ? 'application-release-repack' : 'application-release', project, startedAt: started, durationMs: Date.now() - started,
-    sourceInputs: inputs, inputs: resolvedInputs, preparedInputs, nativeFingerprint, nativeClosure, source, publicConfig, toolchain, compiler, settings, executedApp, transformation, phases, origin,
-    buildResult: base ? null : inventory(path.join(out, 'build.xcresult')),
-    nativeBase: base ? { app: base.executedApp.inventory.sha256, build: hash(fs.readFileSync(receiptArg)), fingerprint: base.nativeFingerprint.fingerprint.hash } : null,
+  const result = { format: 1, proofKind: 'application-release', project, startedAt: started, durationMs: Date.now() - started,
+    sourceInputs: inputs, inputs: resolvedInputs, preparedInputs, nativeFingerprint, nativeClosure, source, publicConfig, toolchain, compiler, settings, executedApp, transformation: null, phases, origin,
+    buildResult: inventory(path.join(out, 'build.xcresult')),
+    nativeBase: null,
     resolvedNative: hash(fs.readFileSync(path.join(out, 'resolved-native.json'))) };
-  seal(path.join(out, base ? 'repack.json' : 'build.json'), result);
+  seal(path.join(out, 'build.json'), result);
 } catch (error) {
   seal(path.join(out, 'preparation-failure.json'), { startedAt: started, durationMs: Date.now() - started, error: String(error), phases });
   console.error(String(error)); process.exitCode = 1;

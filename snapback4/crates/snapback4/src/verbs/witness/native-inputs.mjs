@@ -1,7 +1,8 @@
-// @ref LLP 3000.030#4 — the bounded adapter refuses native inputs outside its inventories.
+// @ref LLP 3000.030#3 — the bounded build adapter keeps supported inputs and outputs private.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fail, hash } from './payload.mjs';
+import { linkerOutputKey } from './native-closure.mjs';
 
 // Generated Expo 57.0.22 / CocoaPods 1.17 phases, with only the target name
 // normalized. Custom scripts can read arbitrary undeclared inputs: refuse them.
@@ -86,7 +87,7 @@ export function nativeReferences(root, project, appName) {
   function settings(values) {
     for (const [rawKey, raw] of Object.entries(values)) {
       const key = rawKey.replace(/\[[^\]]+\]/g, '');
-      if (/(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT|FOLDER_PATH|EXECUTABLE_PATH)$/.test(key)
+      if (linkerOutputKey(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT|FOLDER_PATH|EXECUTABLE_PATH)$/.test(key)
         || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key)
         || ['SYMROOT', 'OBJROOT', 'DSTROOT', 'CCHROOT', 'SHARED_PRECOMPS_DIR', 'DERIVED_DATA_DIR', 'DERIVED_FILE_DIR', 'DERIVED_FILES_DIR', 'DERIVED_SOURCES_DIR', 'INDEX_DATA_STORE_DIR'].includes(key)) reject(`custom output ${key}: ${raw}`);
       // Flags can load response files, compiler plug-ins and undeclared inputs.

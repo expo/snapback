@@ -17,40 +17,43 @@ fn tick() -> Result<()> {
 struct Options {
     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
     port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
-    build: Option<PathBuf>, repack: Option<PathBuf>, app_project: Option<PathBuf>,
+    build: Option<PathBuf>,
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
         if args.first().map(String::as_str) != Some("ios") { return Err(error("E_WITNESS_INPUT", "use snapback4 witness ios --smoke --bundle-id <id> --artifacts <dir> [--udid <id>] [--port 4400] [--prime] [--relaunch] [--timeout 120]")); }
+        if args.iter().any(|a| matches!(a.as_str(), "--repack" | "--app-project") || a.starts_with("--repack=") || a.starts_with("--app-project=")) {
+            return Err(error("E_WITNESS_INPUT", "repack is withdrawn; use witness ios --build <project> --smoke with a fresh --artifacts directory"));
+        }
         let mut flags = BTreeMap::new();
         let mut iter = args.iter().skip(1);
         while let Some(flag) = iter.next() {
             let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", format!("unexpected argument {flag}"))); };
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build", "repack", "app-project"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
             };
             if flags.insert(key, value).is_some() { return Err(error("E_WITNESS_INPUT", format!("duplicate --{key}"))); }
         }
         let required = |key| flags.get(key).filter(|s| !s.is_empty()).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} is required; see snapback4 guide witness")));
-        let selectors = ["bundle-id", "build", "repack"].iter().filter(|k| flags.contains_key(**k)).count();
+        let selectors = ["bundle-id", "build"].iter().filter(|k| flags.contains_key(**k)).count();
         if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
-        if selectors != 1 || flags.contains_key("app-project") != flags.contains_key("repack") { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id, --build or --repack; --repack requires --app-project")); }
+        if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
         let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "invalid bundle identifier")); }
         let smoke = flags.contains_key("smoke");
-        if !smoke && (flags.contains_key("build") || flags.contains_key("repack")) {
+        if !smoke && flags.contains_key("build") {
             return Err(error("E_WITNESS_INPUT", "prepared proof currently requires --smoke; application scenarios use installed-app mode"));
         }
         if smoke && ["segment", "prime", "relaunch"].iter().any(|key| flags.contains_key(key)) {
             return Err(error("E_WITNESS_INPUT", "--smoke owns prime, offline and restart; omit --segment, --prime and --relaunch"));
         }
-        let segment = if smoke { if flags.contains_key("repack") { "repack-smoke".into() } else { "smoke".into() } } else { required("segment")? };
+        let segment = if smoke { "smoke".into() } else { required("segment")? };
         if !name(&segment) || segment == "prime" { return Err(error("E_WITNESS_INPUT", "--segment uses letters, digits, hyphens or underscores; prime is reserved")); }
         let artifacts = PathBuf::from(required("artifacts")?);
         let port = flags.get("port").map_or(Ok(4400), |s| s.parse::<u16>()).ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from), repack: flags.get("repack").map(PathBuf::from), app_project: flags.get("app-project").map(PathBuf::from) })
+        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
     }
 }
 
@@ -460,7 +463,6 @@ pub fn run(args: &[String]) -> i32 {
         result?; saved?;
         let label = match (run.options.smoke, run.manifest["proofKind"].as_str()) {
             (true, Some("application-release")) => "Own Release smoke passed",
-            (true, Some("application-release-repack")) => "Repacked own-app smoke passed",
             (true, _) => "Installed-app smoke passed (preparation unknown)",
             _ => "Installed-app scenario complete (preparation unknown)",
         };
@@ -483,8 +485,8 @@ mod naming_tests {
             assert_eq!(o.segment, segment, "application protocol stays unchanged");
             assert_eq!(artifact_segment(&o), format!("installed-{segment}"));
         }
-        let o = options(&["ios", "--repack", "build.json", "--app-project", ".", "--smoke", "--artifacts", "unused"]);
-        assert_eq!(artifact_segment(&o), "repack-smoke");
+        let o = options(&["ios", "--build", ".", "--smoke", "--artifacts", "unused"]);
+        assert_eq!(artifact_segment(&o), "smoke");
     }
     #[test]
     fn prepared_scenario_scope_is_explicit() {

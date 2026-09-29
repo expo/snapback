@@ -88,17 +88,16 @@ The bounded Expo 57.0.22 / RN 0.86.3 / Xcode 27 adapter installs and launches
 without GUI automation or Metro, retaining immutable build and execution proofs.
 Read `npx snapback4 guide witness` for its exact pins, native helper and session
 requirements, installed-app mode (`--bundle-id ID`), and deeper scenarios.
-For JS/assets-only edits, use `--repack artifacts/native-smoke/build.json`
-with `--app-project .`, the same simulator and a fresh artifacts directory.
-The app must lock `@expo/repack-app` 0.10.3 before its base build. Native/config
-changes require `--build`. Repack retains the native binary and qualifies its
-new HBC/assets through the same three smoke segments; its proof is labeled
-`application-release-repack`. Compiler-declared server-only reads record
-expected offline unavailability and must answer online. A completed preparation
-alone is not a smoke pass or an M6/M8 application qualification.
-Repack also requires complete app/Pods compiler and linker dependency evidence
-and the qualified native script/tool dependency tree. Uncovered inputs or custom
-output paths refuse; use `--build` after a compatibility change.
+After a JS or asset edit, run `--build` again with a fresh artifacts directory;
+the private Xcode cache keeps the native intermediates warm. Five complete warm
+runs with smoke on the shared M5 Pro mini measured **172.045 s median / 199.870 s
+p95** (about 2.9 / 3.3 minutes), all passing. Cold native
+preparation was about six minutes, with smoke and tool/dependency setup additional;
+these pinned-app observations are not a general timing guarantee. Repack is withdrawn.
+Compiler-declared server-only reads record expected offline unavailability and
+must answer online. A build receipt alone is not a smoke pass or an M6/M8
+application qualification. Custom output paths, including linker map and dependency
+files, refuse before compilation; all target outputs must stay in the private cache.
 
 ```ts
 // src/client.ts

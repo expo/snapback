@@ -303,7 +303,6 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_BACKEND", "E_WITNESS_BACKEND means the owned backend failed to become ready, exited early, or did not leave its port refusing connections after stop."),
     ("E_WITNESS_BUILD", "E_WITNESS_BUILD means own Release preparation failed or is outside the bounded adapter."),
     ("E_WITNESS_NATIVE_COMPAT", "E_WITNESS_NATIVE_COMPAT means the requested inputs cannot support the recorded preparation claim."),
-    ("E_WITNESS_REPACK", "E_WITNESS_REPACK means repack changed native bytes, configuration or resources"),
     ("E_WITNESS_HERMES", "E_WITNESS_HERMES means the embedded bundle is not the expected Hermes bytecode or its compiler/version differs."),
     ("E_WITNESS_PROOF", "E_WITNESS_PROOF means recorded bytes or native startup identity did not match."),
     ("E_WITNESS_ORIGIN", "E_WITNESS_ORIGIN means the smoke client used a different backend origin."),

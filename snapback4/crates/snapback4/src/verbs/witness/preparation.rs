@@ -74,7 +74,7 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
 }
 
 pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Value>> {
-    let Some(project) = options.build.as_ref().or(options.app_project.as_ref()) else { return Ok(None); };
+    let Some(project) = options.build.as_ref() else { return Ok(None); };
     let project = fs::canonicalize(project).map_err(|e| error("E_WITNESS_BUILD", e))?;
     let _project_lease = lease(&project.join(".snapback4-witness/owner.lock"))?;
     let helper = options.artifacts.join("prepare.mjs");
@@ -84,11 +84,9 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
     for (name, contents) in [("native-closure.mjs", include_str!("native-closure.mjs")), ("native-scripts.mjs", include_str!("native-scripts.mjs"))] {
         fs::write(options.artifacts.join(name), contents).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     }
-    let mode = if options.build.is_some() { "build" } else { "repack" };
     let origin = format!("http://127.0.0.1:{}", options.port);
-    node(options, &[helper.to_str().unwrap(), mode, project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin,
-        options.repack.as_ref().and_then(|p| p.to_str()).unwrap_or("")], "preparation")?;
-    let receipt = options.artifacts.join(if mode == "build" { "build.json" } else { "repack.json" });
+    node(options, &[helper.to_str().unwrap(), "build", project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin], "preparation")?;
+    let receipt = options.artifacts.join("build.json");
     let prepared: Value = serde_json::from_slice(&fs::read(&receipt).map_err(|e| error("E_WITNESS_PROOF", e))?).map_err(|e| error("E_WITNESS_PROOF", e))?;
     options.bundle = prepared["executedApp"]["info"]["CFBundleIdentifier"].as_str().ok_or_else(|| error("E_WITNESS_BUILD", "prepared app has no bundle identifier"))?.to_owned();
     if app_pid(&simctl(&["spawn", udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
@@ -114,7 +112,7 @@ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Va
             "authentication": "normal application flow; driver provides no credentials/session",
             "reset": "one install before prime, existing data/keychain preserved; no reset or reinstall between segments",
             "limits": "Native smoke only; authentication and nonempty fixture are application responsibilities. No M6/M8 admission." } });
-    if mode == "build" { proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] }); }
+    { proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] }); }
     let path = options.artifacts.join("proof.json");
     let mut file = OpenOptions::new().create_new(true).write(true).open(&path).map_err(|e| error("E_WITNESS_PROOF", e))?;
     file.write_all(&serde_json::to_vec_pretty(&proof).unwrap()).map_err(|e| error("E_WITNESS_PROOF", e))?;

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { inventory, hbc, nativeFiles, differences, seal, installedInventory, shellQuote, repackAssets } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
+import { inventory, hbc, nativeFiles, differences, seal, installedInventory, shellQuote } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
 
 test('Xcode shell environment keeps executable paths literal', () => {
   const value = "/a path/with'quotes/$HOME/$(printf wrong)/`printf wrong`/node";
@@ -56,22 +56,6 @@ test('source, truncated and wrong magic bundles cannot masquerade as HBC', () =>
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('repack assets must be exactly the new bundle export resource graph', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'np-assets-'));
-  try {
-    for (const side of ['app', 'export']) {
-      fs.mkdirSync(path.join(dir, side, 'assets'), { recursive: true });
-      fs.writeFileSync(path.join(dir, side, 'assets/image.png'), 'B');
-    }
-    assert.ok(repackAssets(path.join(dir, 'app'), path.join(dir, 'export')).sha256);
-    fs.writeFileSync(path.join(dir, 'app/assets/image.png'), 'A');
-    assert.throws(() => repackAssets(path.join(dir, 'app'), path.join(dir, 'export')), /E_WITNESS_REPACK/);
-    fs.writeFileSync(path.join(dir, 'app/assets/image.png'), 'B');
-    fs.writeFileSync(path.join(dir, 'app/assets/unreferenced.png'), 'extra');
-    assert.throws(() => repackAssets(path.join(dir, 'app'), path.join(dir, 'export')), /E_WITNESS_REPACK/);
-  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
-});
-
 test('native Xcode sources, resources and build inputs outside covered roots refuse', async () => {
   const { nativeReferences } = await import('../../../crates/snapback4/src/verbs/witness/native-inputs.mjs');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'np-native-inputs-'));
@@ -93,6 +77,7 @@ test('native Xcode sources, resources and build inputs outside covered roots ref
       { c: { buildSettings: { CONFIGURATION_BUILD_DIR: '/other/Products' } } },
       { c: { buildSettings: { OBJROOT: '/other/Objects' } } },
       { c: { buildSettings: { SYMROOT: '/other/Symbols' } } },
+      ...['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].map(k => ({ c: { buildSettings: { [k + '[sdk=iphonesimulator*]']: '/other/sentinel' } } })),
       { c: { buildSettings: { HEADER_SEARCH_PATHS: '$(SRCROOT)/../SharedNative' } } },
       { c: { buildSettings: { SWIFT_INCLUDE_PATHS: '$(SRCROOT)/../SharedNative' } } },
       { c: { buildSettings: { 'SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]': '/opt/shared-native' } } },
@@ -139,15 +124,15 @@ test('native Xcode sources, resources and build inputs outside covered roots ref
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('preparation rejects wrong HBC versions on own-build and repack before issuing a receipt', () => {
+test('preparation rejects wrong HBC versions and escaping outputs before issuing a build receipt', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'np-prepare-hbc-'));
   const project = path.join(root, 'project'), app = path.join(root, 'fixture.app');
   const write = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof value === 'object' && !Buffer.isBuffer(value) ? JSON.stringify(value) : value); };
   try {
     write(path.join(project, 'package.json'), {});
     write(path.join(project, 'app.json'), { expo: { newArchEnabled: true } });
-    write(path.join(project, 'package-lock.json'), { packages: { 'node_modules/@expo/repack-app': { integrity: 'test' } } });
-    for (const [name, version] of Object.entries({ expo: '57.0.22', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.13', '@expo/repack-app': '0.10.3', 'hermes-compiler': 'test' })) {
+    write(path.join(project, 'package-lock.json'), { packages: {} });
+    for (const [name, version] of Object.entries({ expo: '57.0.22', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.13', 'hermes-compiler': 'test' })) {
       write(path.join(project, 'node_modules', name, 'package.json'), { version, bin: 'cli.js' });
     }
     write(path.join(project, 'node_modules/hermes-compiler/hermesc/osx-bin/hermesc'), 'compiler');
@@ -187,6 +172,16 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
       assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
       if (fault === 'output-escape') assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
     }
+    const sentinel = path.join(root, 'outside-sentinel');
+    fs.writeFileSync(sentinel, 'another owner');
+    for (const key of ['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
+      const bad = run('build', key, key);
+      assert.equal(bad.status, 1, bad.stderr);
+      assert.match(bad.stderr, new RegExp('Pod: output ' + key + ' escapes private workspace'));
+      assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
+      assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
+      assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
+    }
     const badBuild = run('build', 'bad-build', 'build-hbc');
     assert.equal(badBuild.status, 1, badBuild.stderr);
     assert.match(badBuild.stderr, /E_WITNESS_HERMES: bundle and installed compiler HBC versions differ/);
@@ -197,22 +192,6 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
     const built = JSON.parse(fs.readFileSync(receipt));
     assert.notEqual(built.inputs.pods.sha256, built.sourceInputs.pods.sha256, 'the key must describe post-resolution bytes');
     assert.notEqual(built.inputs.pods.sha256, built.preparedInputs.pods.sha256, 'Xcode-produced bytes have a separate inventory');
-    const changedResolved = run('repack', 'changed-resolved', 'resolved-pod', receipt);
-    assert.equal(changedResolved.status, 1, changedResolved.stderr);
-    assert.match(changedResolved.stderr, /E_WITNESS_NATIVE_COMPAT: input differences in pods/);
-    assert.equal(fs.existsSync(path.join(changedResolved.out, 'repack.log')), false);
-    const good = run('repack', 'good', '', receipt); assert.equal(good.status, 0, good.stderr);
-    const bad = run('repack', 'bad-repack', 'repack-hbc', receipt);
-    assert.equal(bad.status, 1, bad.stderr);
-    assert.match(bad.stderr, /E_WITNESS_HERMES: bundle and installed compiler HBC versions differ/);
-    assert.equal(fs.existsSync(path.join(bad.out, 'repack.json')), false);
-    const podSource = path.join(project, 'ios/Pods/hermes-engine/destroot/bin/hermesc');
-    fs.writeFileSync(podSource, 'patched native pod bytes');
-    const changedPod = run('repack', 'changed-pod', '', receipt);
-    assert.equal(changedPod.status, 1, changedPod.stderr);
-    assert.match(changedPod.stderr, /E_WITNESS_NATIVE_COMPAT: input differences in pods/);
-    assert.equal(fs.existsSync(path.join(changedPod.out, 'repack.log')), false);
-    fs.writeFileSync(podSource, 'compiler');
     write(path.join(project, 'SharedNative/Foo.h'), 'external native input');
     const podLink = path.join(project, 'ios/Pods/external.h');
     fs.symlinkSync('../../SharedNative/Foo.h', podLink);
@@ -226,19 +205,13 @@ test('preparation rejects wrong HBC versions on own-build and repack before issu
     fs.symlinkSync('../build/generated/ios/Foo.h', podLink);
     const generatedBase = run('build', 'generated-base');
     assert.equal(generatedBase.status, 0, generatedBase.stderr);
-    write(generatedHeader, 'changed generated native input');
-    const changedGenerated = run('repack', 'changed-generated', '', path.join(generatedBase.out, 'build.json'));
-    assert.equal(changedGenerated.status, 1, changedGenerated.stderr);
-    assert.match(changedGenerated.stderr, /E_WITNESS_NATIVE_COMPAT: input differences in podsGenerated/);
-    fs.unlinkSync(podLink);
-    fs.rmSync(path.join(project, 'ios/build'), { recursive: true });
-    // Independently kill the base/repack version comparison mutation too.
-    const value = JSON.parse(fs.readFileSync(receipt)); value.executedApp.javascript.version = 97;
-    const stale = path.join(base.out, 'stale-build.json'); write(stale, value);
-    const mismatch = run('repack', 'base-hbc', '', stale);
-    assert.equal(mismatch.status, 1, mismatch.stderr);
-    assert.match(mismatch.stderr, /E_WITNESS_HERMES: base\/repack Hermes compiler or bytecode changed/);
-    assert.equal(fs.existsSync(path.join(mismatch.out, 'repack.json')), false);
+    // A removed route cannot create a cache or artifact even via the JS entrypoint.
+    for (const mode of ['repack', 'unknown', '']) {
+      const rejected = run(mode, 'withdrawn-' + (mode || 'empty'));
+      assert.equal(rejected.status, 1);
+      assert.match(rejected.stderr, /repack is withdrawn; use witness ios --build/);
+      assert.deepEqual(fs.readdirSync(rejected.out), []);
+    }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -276,7 +249,7 @@ test('all target outputs and symlink parents must stay private', async () => {
     fs.mkdirSync(cache); fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');
     const s = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
     validateOutputs([{ target: 'App', buildSettings: s }], cache);
-    for (const key of ['CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH']) {
+    for (const key of ['CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
       for (const value of [root + '/shared', cache + '/link/new']) assert.throws(() => validateOutputs([
         { target: 'App', buildSettings: s }, { target: 'Pod', buildSettings: { ...s, [key]: value } },
       ], cache), /Pod: output .* escapes private workspace/);

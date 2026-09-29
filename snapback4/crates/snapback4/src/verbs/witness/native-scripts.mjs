@@ -1,5 +1,5 @@
 // @ref LLP 3000.030#4 — exact generated Expo 57 / RN 0.86 / CocoaPods 1.17 script forms.
-// Unknown scripts need an own build; a name alone never grants repack eligibility.
+// Unknown scripts require manual installed-app preparation.
 export const phaseHashes = new Set([
   "00ae9f1f54878059fe8373fd4b06cbf0c93dbadb949d9fdafff9441d2c189f70", // [CP-User] [Expo] Resolve ExpoFont dSYM source maps
   "040ad4446562a62eb8aac582bc2aa20f0887630b8f8bcc377271782a14aa4f5b", // Copy generated compatibility header
@@ -72,8 +72,3 @@ export const supportHashes = new Set([
   "de5e1d9af3832515c6d4cdd892020fdd4c12ecca4d17b6a75337493c1dd1b9b8", // ios/Pods/Target Support Files/ExpoFont/ExpoFont-xcframeworks.sh
   "e736a5641e823b1882a2030a6e7211bc0eebbc5d85338ea715db707091df6f4b", // ios/Pods/Target Support Files/hermes-engine/hermes-engine-xcframeworks.sh
 ]);
-
-// Shell/Node phases and the Swift macro executable can read undeclared inputs.
-// Reuse with those tools is limited to this qualified installed dependency tree;
-// changing it still permits --build, but needs a new adapter qualification for repack.
-export const qualifiedScriptTooling = '80ff62f08d660ed17c8ac842a765ef96dbc11ad73635996d9c395494f74b1856';

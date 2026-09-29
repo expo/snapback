@@ -76,11 +76,14 @@ Hermes, an installed npm dependency tree with `package-lock.json`, and static
 `app.json`. Use your existing generated iOS project with its native customizations
 and UIScene lifecycle ready for iOS 27. Products, intermediates and module caches
 are pinned to the private workspace; every app/Pods target's resolved output
-paths are checked before compilation. Custom output-directory overrides refuse.
-Native sources/resources and build
-inputs must resolve inside the inventoried iOS/dependency roots; external Xcode
-references, custom build scripts/Podfile/environment hooks, and scheme actions
-are refused. The adapter accepts only its pinned generated build phases.
+paths are checked before compilation. Custom output-directory and linker side-output overrides refuse, including
+`LD_MAP_FILE_PATH`, `LD_DEPENDENCY_INFO_FILE`, LTO objects and SDK imports.
+Resolved destinations for every target must stay in the private cache, including
+through symlink parents.
+The adapter audits supported Xcode references and resolved output destinations;
+uncovered references, custom build scripts/Podfile/environment hooks, and scheme
+actions are refused. Its native inventories are provenance, not a complete
+compatibility key: Xcode is invoked for every build. The adapter accepts only its pinned generated build phases.
 Dynamic config, fingerprint overrides,
 local workspaces/modules/plugins and linked `expo-updates` are refused; prepare
 those projects yourself and use installed-app mode. The witness makes no
@@ -111,45 +114,23 @@ The per-project cache and simulator leases preserve concurrent owners.
 Preparation retains the unreaped process-group leader through bounded cleanup;
 SIGTERM-resistant group members receive SIGKILL before its lease is released.
 
-After a successful base build, JS/assets-only edits can reuse its native binary:
+After a JS or asset edit, run the same `--build` command with a fresh artifacts
+directory. The stable private Xcode cache supplies warm intermediates, while
+Xcode builds the current application and each run gets a new `build.json`.
+The repack route is withdrawn: its native compatibility key was incomplete.
+No credentials, signing settings or native identity are changed.
 
-```sh
-npx snapback4 witness ios --repack artifacts/native-smoke/build.json \
-  --app-project . --udid "$UDID" --smoke --artifacts artifacts/native-edit
-```
-
-Install and lock `@expo/repack-app` 0.10.3 in the app before the base build.
-This tool is not a Snapback package dependency. `--repack` and `--build` are
-exclusive; repack requires `--app-project` and the same static-config project,
-locked dependencies, native helper, toolchain and fingerprint. The complete
-source Pods tree, the full generated-input tree, and dependency-link targets
-are also compared after private CocoaPods/codegen resolution on both routes.
-The receipt separately records live inputs, post-Pods/codegen inputs and
-Xcode's later generated changes. Repack must reproduce the same post-Pods stage.
-The base must have compiler dependency records for every
-source unit and linker records for every compiled target; missing coverage,
-uncovered includes/frameworks or unsupported scripts refuse reuse. Both the
-app and Pods search paths, config includes, resource and phase inputs are audited.
-Unqualified copy phases also refuse, including absolute destination selectors.
-Old receipts without that coverage require a new --build. Reuse of shell/Node
-phases and compiler plug-ins is restricted to the exactly qualified installed
-dependency tree; another tree can use --build but is not a repack qualification.
-This includes local helper patches in the recorded qualification. Package version
-equality alone is insufficient; hand-edited native/tool bytes require rebuilding. Native/config
-changes refuse with `--build` recovery. Both routes exclude expo-updates.
-Repack uses supported `--js-bundle-only` and a fresh export:embed, not a prior
-`dist` export. It checks HBC/compiler, exact native and metadata bytes, and
-bundled assets against that export's resource graph before installation.
-
-`repack.json` and the sealed `proof.json` bind the immutable base, new output,
-changed-file list and tool integrity. Repack smoke uses `repack-smoke-ios-*`
-artifacts and `application-release-repack` proof kind. Each cold launch binds
-the selected HBC/native executable again. A warm `--build` always makes
-a new own-build receipt and remains the fallback. No credentials or signing
-settings are changed, and no native identity is rewritten.
+Five complete warm `--build` runs with smoke on the M5 Pro mini measured
+**172.045 s median / 199.870 s nearest-rank p95** (about 2.9 / 3.3 minutes).
+Every run passed, with installed dependencies/tools, a booted simulator and a
+warm private cache; shared-host load varied. Cold native build/install measured
+359 s in the earlier setup, with smoke and setup additional; its final GUI
+activation failed. That is about six minutes of native preparation, not a
+measured cold end-to-end smoke result. Xcode/runtime and dependency installation
+are separate costs. These pinned-app observations are not a general SDK guarantee.
 
 Qualification is limited to the recorded cal25 shape and pinned toolchain.
-A build or repack receipt alone is not a passing smoke result. The unchanged
+A build receipt alone is not a passing smoke result. The unchanged
 published 0.4.7 client's offline ephemeral loading is recorded as expected
 server-only unavailability from compiler facts, with online answers required.
 This qualifies native smoke only, not M6/M8, physical devices or publication.
@@ -275,7 +256,7 @@ npx snapback4 witness ios --bundle-id com.example.chat --udid "$UDID" \
 ```
 
 Legacy `--segment m6` / `m8` use `installed-m6` / `installed-m8` artifact
-prefixes: preparation is unknown, including after manually installing a repack.
+prefixes: preparation is unknown for a manually installed app.
 They cannot emit the reserved frozen native benchmark filenames. No smoke run
 proves M6/M8 application assertions or changes an external benchmark status.
 
@@ -410,10 +391,3 @@ For example, an app bundled for port 4400 cannot attest the witness on 49371.
 Use the app's matching --port or rebundle the app to consume the preparation
 EXPO_PUBLIC_SNAPBACK_URL value. The witness will not stop someone else's backend
 or accept an unrelated server's session and store as its own proof.
-
-
-E_WITNESS_REPACK means repack changed native bytes, configuration or resources
-outside the pinned export. For example, an unexpected metadata or asset file
-cannot be justified by a successful repack command. Preserve the output and
-logs, then use --build with a fresh artifacts directory. The witness compares
-all Mach-O bytes and requires bundled assets to match export:embed output.
