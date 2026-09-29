@@ -1,0 +1,306 @@
+CLOSE_TRACE 94 open begin
+CLOSE_TRACE 215 open begin
+CLOSE_TRACE 233 open end
+CLOSE_TRACE 233 call begin sync_state 
+CLOSE_TRACE 235 call end sync_state 
+CLOSE_TRACE 236 call begin state 
+CLOSE_TRACE 237 call end state 
+CLOSE_TRACE 237 call begin meta server-clock
+CLOSE_TRACE 238 call end meta server-clock
+CLOSE_TRACE 238 call begin queued 
+CLOSE_TRACE 239 call end queued 
+CLOSE_TRACE 239 call begin meta server-clock-floor
+CLOSE_TRACE 240 call end meta server-clock-floor
+CLOSE_TRACE 241 call begin set_meta server-clock
+CLOSE_TRACE 241 call end set_meta server-clock
+CLOSE_TRACE 242 call begin meta media:manifest
+CLOSE_TRACE 242 call end meta media:manifest
+CLOSE_TRACE 242 call begin state 
+CLOSE_TRACE 243 call end state 
+CLOSE_TRACE 243 call begin next_submission 
+CLOSE_TRACE 244 call end next_submission 
+CLOSE_TRACE 244 call begin meta syncedAt:wall:1
+CLOSE_TRACE 244 call end meta syncedAt:wall:1
+CLOSE_TRACE 244 call begin sync_state 
+CLOSE_TRACE 245 call end sync_state 
+CLOSE_TRACE 245 call begin sync_state 
+CLOSE_TRACE 245 call end sync_state 
+CLOSE_TRACE 246 call begin queued 
+CLOSE_TRACE 247 call end queued 
+CLOSE_TRACE 247 call begin queued 
+CLOSE_TRACE 247 call end queued 
+CLOSE_TRACE 248 call begin meta write-history
+CLOSE_TRACE 248 call end meta write-history
+CLOSE_TRACE 248 call begin state 
+CLOSE_TRACE 248 call end state 
+CLOSE_TRACE 249 call begin meta delivery-active
+CLOSE_TRACE 249 call end meta delivery-active
+CLOSE_TRACE 251 call begin state 
+CLOSE_TRACE 251 call end state 
+CLOSE_TRACE 251 call begin sync_state 
+CLOSE_TRACE 252 call end sync_state 
+CLOSE_TRACE 257 call begin set_meta server-clock
+CLOSE_TRACE 257 call begin observe_store 
+CLOSE_TRACE 259 call end set_meta server-clock
+CLOSE_TRACE 261 call end observe_store 
+CLOSE_TRACE 262 call begin apply 
+CLOSE_TRACE 264 call end apply 
+CLOSE_TRACE 264 call begin meta delivery-active
+CLOSE_TRACE 264 call begin sync_state 
+CLOSE_TRACE 264 call end meta delivery-active
+CLOSE_TRACE 265 call end sync_state 
+CLOSE_TRACE 270 call begin observe_store 
+CLOSE_TRACE 272 call end observe_store 
+CLOSE_TRACE 272 call begin apply 
+CLOSE_TRACE 276 call end apply 
+CLOSE_TRACE 276 call begin meta delivery-active
+CLOSE_TRACE 276 call begin sync_state 
+CLOSE_TRACE 277 call end meta delivery-active
+CLOSE_TRACE 278 call end sync_state 
+CLOSE_TRACE 278 call begin sync_state 
+CLOSE_TRACE 281 call end sync_state 
+CLOSE_TRACE 281 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 282 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 283 call begin sync_state 
+CLOSE_TRACE 284 call begin queued 
+CLOSE_TRACE 290 call begin admit 
+CLOSE_TRACE 290 call end sync_state 
+CLOSE_TRACE 291 call end queued 
+CLOSE_TRACE 291 call begin queued 
+CLOSE_TRACE 296 call end admit 
+CLOSE_TRACE 298 call end queued 
+CLOSE_TRACE 298 call begin queued 
+CLOSE_TRACE 299 call end queued 
+CLOSE_TRACE 299 call begin queued 
+CLOSE_TRACE 301 call end queued 
+CLOSE_TRACE 301 call begin meta write-history
+CLOSE_TRACE 303 call end meta write-history
+CLOSE_TRACE 303 call begin begin_send 
+CLOSE_TRACE 305 call end begin_send 
+CLOSE_TRACE 317 call begin observe_store 
+CLOSE_BEGIN mutation 581.383625
+CLOSE_TRACE 319 call end observe_store 
+CLOSE_TRACE 319 core close begin
+CLOSE_TRACE 343 core close end
+CLOSE_END mutation 608.826625
+CLOSE_TRACE 349 open begin
+CLOSE_TRACE 365 open end
+CLOSE_TRACE 366 call begin sync_state 
+CLOSE_TRACE 368 call end sync_state 
+CLOSE_TRACE 369 call begin state 
+CLOSE_TRACE 370 call end state 
+CLOSE_TRACE 370 call begin backend 
+CLOSE_TRACE 372 call end backend 
+CLOSE_TRACE 372 call begin meta server-clock
+CLOSE_TRACE 372 call end meta server-clock
+CLOSE_TRACE 372 call begin queued 
+CLOSE_TRACE 373 call end queued 
+CLOSE_TRACE 373 call begin meta server-clock-floor
+CLOSE_TRACE 374 call end meta server-clock-floor
+CLOSE_TRACE 375 call begin set_meta server-clock
+CLOSE_TRACE 378 call end set_meta server-clock
+CLOSE_TRACE 378 call begin meta media:manifest
+CLOSE_TRACE 381 call end meta media:manifest
+CLOSE_TRACE 381 call begin state 
+CLOSE_TRACE 381 call end state 
+CLOSE_TRACE 381 call begin next_submission 
+CLOSE_TRACE 384 call end next_submission 
+CLOSE_TRACE 384 call begin meta syncedAt:wall:1
+CLOSE_TRACE 385 call end meta syncedAt:wall:1
+CLOSE_TRACE 385 call begin sync_state 
+CLOSE_TRACE 387 call end sync_state 
+CLOSE_TRACE 387 call begin sync_state 
+CLOSE_TRACE 390 call end sync_state 
+CLOSE_TRACE 391 call begin queued 
+CLOSE_TRACE 392 call end queued 
+CLOSE_TRACE 392 call begin queued 
+CLOSE_TRACE 398 call end queued 
+CLOSE_TRACE 398 call begin meta write-history
+CLOSE_TRACE 404 call end meta write-history
+CLOSE_TRACE 404 call begin state 
+CLOSE_TRACE 408 call end state 
+CLOSE_TRACE 408 call begin meta delivery-active
+CLOSE_TRACE 409 call end meta delivery-active
+CLOSE_TRACE 410 call begin queued 
+CLOSE_TRACE 410 call begin state 
+CLOSE_TRACE 412 call begin queued 
+CLOSE_TRACE 413 call end queued 
+CLOSE_TRACE 416 call end state 
+CLOSE_TRACE 416 call begin sync_state 
+CLOSE_TRACE 418 call end queued 
+CLOSE_TRACE 419 call begin meta write-history
+CLOSE_TRACE 423 call end sync_state 
+CLOSE_TRACE 423 call begin queued 
+CLOSE_TRACE 428 call end meta write-history
+CLOSE_TRACE 432 call end queued 
+CLOSE_TRACE 432 call begin meta write-history
+CLOSE_TRACE 433 call end meta write-history
+CLOSE_TRACE 433 call begin begin_send 
+CLOSE_TRACE 434 call end begin_send 
+CLOSE_TIMEOUT mutation 1082.498625
+CLOSE_TRACE 1425 core close begin
+CLOSE_TRACE 1427 core close end
+CLOSE_TRACE 1445 open begin
+CLOSE_TRACE 1462 open end
+CLOSE_TRACE 1462 call begin sync_state 
+CLOSE_TRACE 1463 call end sync_state 
+CLOSE_TRACE 1463 call begin state 
+CLOSE_TRACE 1464 call end state 
+CLOSE_TRACE 1464 call begin meta server-clock
+CLOSE_TRACE 1465 call end meta server-clock
+CLOSE_TRACE 1465 call begin queued 
+CLOSE_TRACE 1466 call end queued 
+CLOSE_TRACE 1466 call begin meta server-clock-floor
+CLOSE_TRACE 1466 call end meta server-clock-floor
+CLOSE_TRACE 1466 call begin set_meta server-clock
+CLOSE_TRACE 1467 call end set_meta server-clock
+CLOSE_TRACE 1467 call begin meta media:manifest
+CLOSE_TRACE 1468 call end meta media:manifest
+CLOSE_TRACE 1468 call begin state 
+CLOSE_TRACE 1469 call end state 
+CLOSE_TRACE 1469 call begin next_submission 
+CLOSE_TRACE 1470 call end next_submission 
+CLOSE_TRACE 1470 call begin meta syncedAt:wall:1
+CLOSE_TRACE 1473 call end meta syncedAt:wall:1
+CLOSE_TRACE 1473 call begin sync_state 
+CLOSE_TRACE 1475 call end sync_state 
+CLOSE_TRACE 1475 call begin sync_state 
+CLOSE_TRACE 1476 call end sync_state 
+CLOSE_TRACE 1476 call begin queued 
+CLOSE_TRACE 1477 call end queued 
+CLOSE_TRACE 1477 call begin queued 
+CLOSE_TRACE 1478 call end queued 
+CLOSE_TRACE 1478 call begin meta write-history
+CLOSE_TRACE 1479 call end meta write-history
+CLOSE_TRACE 1479 call begin state 
+CLOSE_TRACE 1480 call end state 
+CLOSE_TRACE 1480 call begin meta delivery-active
+CLOSE_TRACE 1480 call end meta delivery-active
+CLOSE_TRACE 1481 call begin state 
+CLOSE_TRACE 1482 call end state 
+CLOSE_TRACE 1482 call begin sync_state 
+CLOSE_TRACE 1485 call end sync_state 
+CLOSE_TRACE 1488 call begin set_meta server-clock
+CLOSE_TRACE 1489 call begin observe_store 
+CLOSE_TRACE 1490 call end set_meta server-clock
+CLOSE_TRACE 1490 call end observe_store 
+CLOSE_TRACE 1491 call begin apply 
+CLOSE_TRACE 1494 call end apply 
+CLOSE_TRACE 1494 call begin meta delivery-active
+CLOSE_TRACE 1494 call begin sync_state 
+CLOSE_TRACE 1495 call end meta delivery-active
+CLOSE_TRACE 1497 call end sync_state 
+CLOSE_TRACE 1504 call begin observe_store 
+CLOSE_TRACE 1506 call end observe_store 
+CLOSE_TRACE 1506 call begin apply 
+CLOSE_TRACE 1509 call end apply 
+CLOSE_TRACE 1509 call begin meta delivery-active
+CLOSE_TRACE 1509 call begin sync_state 
+CLOSE_TRACE 1510 call end meta delivery-active
+CLOSE_TRACE 1511 call end sync_state 
+CLOSE_TRACE 1511 call begin sync_state 
+CLOSE_TRACE 1511 call end sync_state 
+CLOSE_TRACE 1511 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 1514 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 1516 call begin sync_state 
+CLOSE_TRACE 1516 call begin queued 
+CLOSE_TRACE 1517 call begin queued 
+CLOSE_TRACE 1519 call end sync_state 
+CLOSE_TRACE 1520 call end queued 
+CLOSE_TRACE 1521 call begin meta write-history
+CLOSE_TRACE 1521 call end queued 
+CLOSE_TRACE 1522 call begin meta write-history
+CLOSE_TRACE 1524 call end meta write-history
+CLOSE_TRACE 1525 call begin keep_write 
+CLOSE_TRACE 1527 call end meta write-history
+CLOSE_TRACE 1528 call begin query 
+CLOSE_TRACE 1530 call end keep_write 
+CLOSE_TRACE 1530 call begin settle 
+CLOSE_TRACE 1530 call end query 
+CLOSE_TRACE 1534 call end settle 
+CLOSE_TRACE 1534 call begin meta delivery-active
+CLOSE_TRACE 1534 call begin queued 
+CLOSE_TRACE 1535 call end meta delivery-active
+CLOSE_TRACE 1536 call end queued 
+CLOSE_TRACE 2646 core close begin
+CLOSE_TRACE 2648 core close end
+✔ local close cancels a mutation caller without aborting its committed response (2738.709625ms)
+CLOSE_TRACE 9 open begin
+CLOSE_TRACE 242 open begin
+CLOSE_TRACE 352 open end
+CLOSE_TRACE 352 call begin sync_state 
+CLOSE_TRACE 353 call end sync_state 
+CLOSE_TRACE 353 call begin state 
+CLOSE_TRACE 353 call end state 
+CLOSE_TRACE 353 call begin meta server-clock
+CLOSE_TRACE 354 call end meta server-clock
+CLOSE_TRACE 354 call begin queued 
+CLOSE_TRACE 355 call end queued 
+CLOSE_TRACE 355 call begin meta server-clock-floor
+CLOSE_TRACE 355 call end meta server-clock-floor
+CLOSE_TRACE 355 call begin set_meta server-clock
+CLOSE_TRACE 359 call end set_meta server-clock
+CLOSE_TRACE 360 call begin meta media:manifest
+CLOSE_TRACE 360 call end meta media:manifest
+CLOSE_TRACE 360 call begin state 
+CLOSE_TRACE 361 call end state 
+CLOSE_TRACE 361 call begin next_submission 
+CLOSE_TRACE 361 call end next_submission 
+CLOSE_TRACE 362 call begin meta syncedAt:wall:1
+CLOSE_TRACE 362 call end meta syncedAt:wall:1
+CLOSE_TRACE 362 call begin sync_state 
+CLOSE_TRACE 363 call end sync_state 
+CLOSE_TRACE 363 call begin sync_state 
+CLOSE_TRACE 363 call end sync_state 
+CLOSE_TRACE 363 call begin queued 
+CLOSE_TRACE 363 call end queued 
+CLOSE_TRACE 364 call begin queued 
+CLOSE_TRACE 364 call end queued 
+CLOSE_TRACE 364 call begin meta write-history
+CLOSE_TRACE 364 call end meta write-history
+CLOSE_TRACE 364 call begin state 
+CLOSE_TRACE 365 call end state 
+CLOSE_TRACE 365 call begin meta delivery-active
+CLOSE_TRACE 365 call end meta delivery-active
+CLOSE_TRACE 366 call begin state 
+CLOSE_TRACE 371 call end state 
+CLOSE_TRACE 372 call begin sync_state 
+CLOSE_TRACE 377 call end sync_state 
+CLOSE_TRACE 381 call begin observe_store 
+CLOSE_TRACE 386 call end observe_store 
+CLOSE_TRACE 386 call begin apply 
+CLOSE_TRACE 389 call end apply 
+CLOSE_TRACE 390 call begin meta delivery-active
+CLOSE_TRACE 390 call begin sync_state 
+CLOSE_TRACE 390 call end meta delivery-active
+CLOSE_TRACE 391 call end sync_state 
+CLOSE_TRACE 395 call begin observe_store 
+CLOSE_TRACE 397 call end observe_store 
+CLOSE_TRACE 397 call begin apply 
+CLOSE_TRACE 401 call end apply 
+CLOSE_TRACE 401 call begin meta delivery-active
+CLOSE_TRACE 401 call begin sync_state 
+CLOSE_TRACE 403 call end meta delivery-active
+CLOSE_TRACE 403 call end sync_state 
+CLOSE_TRACE 403 call begin sync_state 
+CLOSE_TRACE 406 call end sync_state 
+CLOSE_TRACE 406 call begin set_meta syncedAt:wall:1
+CLOSE_TRACE 409 call end set_meta syncedAt:wall:1
+CLOSE_TRACE 410 call begin sync_state 
+CLOSE_TRACE 410 call begin queued 
+CLOSE_BEGIN upload 3402.6295
+CLOSE_TRACE 425 call end sync_state 
+CLOSE_TRACE 427 call end queued 
+CLOSE_TRACE 427 core close begin
+CLOSE_TRACE 432 core close end
+CLOSE_END upload 3415.114459
+✔ local close cancels a upload caller without aborting its committed response (630.321458ms)
+CLOSE_TIMEOUT upload 3905.270209
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3952.553125

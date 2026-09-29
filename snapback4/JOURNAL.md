@@ -76910,3 +76910,74 @@ and passes after it (one intact refusal and one lifecycle line). All four
 console aggregation unit tests pass. Counts, windows, queue bounds, shutdown
 acknowledgement and quiet-empty policy are unchanged. LLP 3000.031 §1.2 records
 this qualification repair; no device-core code changed.
+
+Reference audit including the console repair:
+`./ref-check --verbose`: `ref-check: ok — 524 LLP docs, 9894 refs in 29160 files, 0 errors, 0 unchecked`.
+
+The second complete command ended `== 1 failure(s) in 5222 s` (cargo test,
+the shutdown line above). Its client pool passed 4,786 checks with 0 failures
+and 9 optional skips; all 79 final model checks passed. Its log is preserved
+separately from the final repaired-source qualification.
+
+The repaired live refusal/shutdown suite passes all 21 tests, including the
+exact SIGINT case from the second run (`dev-refusals-after.log`).
+
+The third complete run ended `== 1 failure(s) in 6300 s`: client checks were
+4,783 pass / 3 fail / 9 skipped; all 79 final model checks passed. Both
+local-close cases missed their existing 500 ms deadline. A diagnostic trace
+reproduced one miss inside native process close (807 ms), after the device
+calls had finished; the held response did not block entry into device close.
+The HMAC route fixture separately timed out waiting for its host to listen,
+before issuing a request or checking a signature. The exact-case repeats
+passed; whole-app traces include both passes and the one process-close miss.
+The temporary trace source was removed, and its patch and logs are retained
+in the correction report. No close semantics, timeout or readiness limit was
+changed. A fourth complete run uses the same product/test commit 6812b3b5e4.
+
+The fourth complete run ended `== 1 failure(s) in 6941 s`: all Rust targets
+and 79 final model checks passed; clients had 4,785 pass / 0 fail / 1 cancelled /
+9 skipped. The native 300-history mixed-evidence test crossed its unchanged
+240-second timeout. Its unfinished continuation logged 43 mismatches after
+cancellation; the wasm batch logged zero. Those observations remain in the
+report, together with the mocked-clock cleanup caveat. An isolated repeat
+passed all 300 native histories in 144267.468542 ms with zero mismatches;
+each history is recorded in mixed-native-repeat-process.json. Both local-close
+cases and the HMAC case passed in the fourth run with their original limits.
+No timeout, count or client behavior was changed. The fifth complete run
+continues to qualify the same product/test commit 6812b3b5e4.
+
+Final round-2 qualification passed at product/test commit
+6812b3b5e4dd7aa94f14cb220c114f05c8e8b716, with Node v24.18.0 explicitly selected
+from /Users/ccheever/.volta/tools/image/node/24.18.0/bin and all Cargo flags
+exported as required. Exact command:
+
+```sh
+cd snapback4 && env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+
+Exact result: `== 0 failure(s) in 5348 s`, exit 0. All Rust targets,
+fixture/build/type checks, 4,786 client checks and 79 final model checks passed.
+There were no cancellations. Nine existing opt-in historical/managed tests
+skipped because their pinned binaries, tarball caches or private scratch inputs
+were not supplied; optional-skips.txt records each requirement. All task
+regressions ran, including the native and wasm held-admission case, all type
+checks and the generated nullable-array runtime case. Both 300-history
+mixed-evidence batches passed. No timeout or count was relaxed.
+
+The final suite's wasm rebuild is byte-identical to the starting artifact:
+`wasm 2040781 B raw, 592916 B gzip (budget 593719: ok)`, with the budget
+unchanged and zero raw/gzip delta. SHA-256 remains
+7bd5b13fcdbd8a496f6f2710fb252c588ee51eed32626d040a7e0e114ff548a9.
+
+The correction report and complete failed/successful qualification evidence
+are in reports/20260929-presence-fix-2/. The requested final report is exported
+to /Users/ccheever/projects/snapback-sb5-program/presence-fix-2.final.md.
+All commits remain on sb4/presence; no push, stash, other worktree/machine,
+spawned agent or amendment was used. The only requested type promise left out
+is exact null-only narrowing for every structural point result; LLP §3 records
+the permitted covariance-first fallback and its Row & [] witness.
+
+Final reference audit, including the staged correction evidence:
+`./ref-check --verbose`: `ref-check: ok — 524 LLP docs, 9894 refs in 29168 files, 0 errors, 0 unchecked`.
+The original journal bytes remain an exact prefix; every journal change is
+an append.

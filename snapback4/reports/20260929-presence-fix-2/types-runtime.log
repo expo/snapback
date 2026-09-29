@@ -1,0 +1,41 @@
+✖ generated nullable array: absent admits both [] and null, present keeps the array (27.54125ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (314.393875ms)
+✔ ready literals require the discriminant (193.623041ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (189.403584ms)
+✔ Read is covariant and every narrowed arm retains its result type (201.495667ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1072.233417
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-nullable-array.test.mjs:18:1
+✖ generated nullable array: absent admits both [] and null, present keeps the array (27.54125ms)
+  AssertionError [ERR_ASSERTION]: schema.q:7:34 — E_QUARRY_SYNTAX: expected the end of the line, got "10"
+    rewrite: end this statement here; put the next statement on its own line at the same indentation
+    guide: language
+  
+  snapback4 dev: 1 redundant cascade diagnostic(s) hidden; use --verbose to show them
+  SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+  
+  
+  1 !== null
+  
+      at file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-dm-20260927/snapback4/packages/snapback4/test/read-nullable-array.test.mjs:19:24)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

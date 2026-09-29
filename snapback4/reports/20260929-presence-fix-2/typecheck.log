@@ -1,0 +1,294 @@
+$ tsc -p tsconfig.json --noEmit
+src/app-client.ts(77,30): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(93,9): error TS2322: Type 'Read<R>' is not assignable to type 'Read<unknown> | undefined'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown> | undefined'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(101,36): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(106,49): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(115,55): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(115,78): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(124,35): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(134,48): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(134,73): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(135,52): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(150,39): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(151,31): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(184,44): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(187,31): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(187,56): error TS2345: Argument of type 'Ready<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(199,7): error TS2322: Type 'Read<R>' is not assignable to type 'Read<unknown> | undefined'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown> | undefined'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/app-client.ts(206,70): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/client.ts(924,30): error TS2345: Argument of type 'Read<R>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/local-query.ts(202,46): error TS2345: Argument of type '() => Promise<{ read: Read<R>; result: Result<R>; origin: "local" | "server" | "remembered" | "composed"; }>' is not assignable to parameter of type '() => Promise<{ read: Read<unknown>; transportOffline?: boolean; }>'.
+  Type 'Promise<{ read: Read<R>; result: Result<R>; origin: "server" | "local" | "remembered" | "composed"; }>' is not assignable to type 'Promise<{ read: Read<unknown>; transportOffline?: boolean; }>'.
+    Type '{ read: Read<R>; result: Result<R>; origin: "local" | "server" | "remembered" | "composed"; }' is not assignable to type '{ read: Read<unknown>; transportOffline?: boolean; }'.
+      Types of property 'read' are incompatible.
+        Type 'Read<R>' is not assignable to type 'Read<unknown>'.
+          Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+            Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+              Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+                Types of property 'data' are incompatible.
+                  Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+                    Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/local-query.ts(203,5): error TS2322: Type 'Candidate<R> | ({ read: Read<unknown>; transportOffline?: boolean; } & { retryExhausted?: boolean; })' is not assignable to type 'Candidate<R>'.
+  Type '{ read: Read<unknown>; transportOffline?: boolean; } & { retryExhausted?: boolean; }' is missing the following properties from type 'Candidate<R>': result, origin
+src/local-query.ts(343,77): error TS2375: Type 'Ready<R>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/local-search.ts(252,43): error TS2322: Type 'Ready<never[]>' is not assignable to type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<never[]>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<never[]>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<never[]>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'never[] & []' is not assignable to type 'never'.
+src/local-search.ts(331,14): error TS2322: Type 'Ready<Row[]>' is not assignable to type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<Row[]>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<Row[]>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<Row[]>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'Row[] & []' is not assignable to type 'never'.
+src/local.ts(1204,26): error TS2379: Argument of type '{ incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined; transportOffline?: boolean; retryExhausted?: boolean; presenceTables?: Set<string> | null; searchAttempt?: true; ... 15 more ...; seq?: number | undefined; }' is not assignable to parameter of type '{ incarnation: number; authority: number; controlCurrent: (() => boolean) | undefined; transportOffline?: boolean; retryExhausted?: boolean; presenceTables?: Set<string> | null; searchAttempt?: true; ... 15 more ...; seq?: number | undefined; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'read' are incompatible.
+    Type 'Read<R>' is not assignable to type 'Read<unknown>'.
+      Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Read<unknown>'.
+        Type 'ReadyMetadata & Absent<R>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+          Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+            Types of property 'data' are incompatible.
+              Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+                Type 'R & Extract<R, null>' is not assignable to type 'never'.
+src/react-pages.ts(122,31): error TS2379: Argument of type 'Ready<R>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<R>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<R>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'R & (Extract<R, null> | (Extract<R, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'R & Extract<R, readonly unknown[]> & []' is not assignable to type 'never'.
+src/read-observation.ts(14,18): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(14,37): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(15,28): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(16,25): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(17,15): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(26,70): error TS2379: Argument of type 'Ready<T>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(32,130): error TS2379: Argument of type 'Ready<T>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(39,48): error TS2345: Argument of type 'Ready<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(39,82): error TS2379: Argument of type 'Ready<T>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(41,57): error TS2345: Argument of type 'Ready<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(42,69): error TS2379: Argument of type 'Ready<T>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(44,16): error TS2345: Argument of type 'Ready<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(55,16): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(150,22): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(159,71): error TS2345: Argument of type 'Ready<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(184,40): error TS2379: Argument of type 'Ready<T>' is not assignable to parameter of type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Ready<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'data' are incompatible.
+        Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+          Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(186,20): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.
+src/read-observation.ts(187,16): error TS2345: Argument of type 'Read<T>' is not assignable to parameter of type 'Read<unknown>'.
+  Type 'ReadyMetadata & Absent<T>' is not assignable to type 'Read<unknown>'.
+    Type 'ReadyMetadata & Absent<T>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | (ReadyMetadata & Absent<unknown>)'.
+      Type 'ReadyMetadata & Absent<T>' is not assignable to type 'ReadyMetadata & Absent<unknown>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+        Types of property 'data' are incompatible.
+          Type 'T & (Extract<T, null> | (Extract<T, readonly unknown[]> & []))' is not assignable to type 'never'.
+            Type 'T & Extract<T, null>' is not assignable to type 'never'.

@@ -1,0 +1,32 @@
+Analysis of sampling node (pid 92420) every 1 millisecond
+Process:         node [92420]
+Path:            /Users/USER/*/node
+Load Address:    0x10239c000
+Identifier:      node
+Version:         ???
+Code Type:       ARM64
+Parent Process:  bash [60012]
+Target Type:     live task
+
+Date/Time:       2026-09-29 13:32:14.255 -0700
+Launch Time:     2026-09-29 13:32:02.211 -0700
+OS Version:      macOS 26.6.2 (25G83)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         112K
+Physical footprint (peak):  112K
+Idle exit:                  untracked
+----
+
+Call graph:
+    886 Thread_87274438: Main Thread   DispatchQueue_<multiple>
+      886 _dyld_start  (in dyld) + 0  [0x1098709c0]
+
+Total number in stack (recursive counted multiple, when >=5):
+
+Sort by top of stack, same collapsed (when >= 5):
+        _dyld_start  (in dyld)        886
+
+Binary images description not available
+

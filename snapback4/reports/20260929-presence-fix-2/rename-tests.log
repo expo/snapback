@@ -1,0 +1,41 @@
+✔ wasm: real hidden/missing reads match and an admitted insert demotes retained absence (611.268667ms)
+ℹ {"oneShot":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"partial"},"retained":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"partial"},"writeState":"pending","next":{"data":{"id":"01M3PJ89RXJAP3B1582MDB088Y","label":"new","owner":"dev:alice","pending":true},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ native: real hidden/missing reads match and an admitted insert demotes retained absence (282.906041ms)
+ℹ {"oneShot":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"partial"},"retained":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"partial"},"writeState":"pending","next":{"data":{"id":"01M3PJ8A51J6M69BCRXQMPXC6Q","label":"new","owner":"dev:alice","pending":true},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+✔ wasm: real hidden/missing reads match and an admitted insert demotes retained absence (617.0555ms)
+✔ native: real hidden/missing reads match and an admitted insert demotes retained absence (291.591167ms)
+✔ online: same-key row arrival and delete replace absent/present existence (92.056042ms)
+✔ process: same-key row arrival and delete replace absent/present existence (1144.310125ms)
+✔ wasm: same-key row arrival and delete replace absent/present existence (1068.913917ms)
+✔ publication decision table: top level × completeness/cut/next × freshness × pending footprint (15.849375ms)
+✔ whole-union helper and cold pending predicate use the same five words (0.208916ms)
+✔ empty publication cannot prove absence when pending storage fails or the incarnation changes (0.704208ms)
+✔ queued existence cache propagates failure and fences stale results before notifying (0.45225ms)
+✔ pending inserts recompute retained absence, including already revalidating and facade-held answers (0.898125ms)
+✔ facade-held answers keep their own dependency set before replacement approval (0.344791ms)
+✔ usePage publishes existence on the combined read; items alone prove nothing (0.832458ms)
+✔ completed empty page chains use pending facts, not a predecessor cursor partial (0.413375ms)
+✔ two-page existence combines coverage and the final cursor with actual pending predicates (6.110125ms)
+✔ published replacements recompute existence even when a caller spreads the predecessor (0.44875ms)
+✔ generated nullable array: absent admits both [] and null, present keeps the array (216.112458ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (764.624708ms)
+✔ ready literals require the discriminant (295.302ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (252.294791ms)
+✔ Read is covariant and every narrowed arm retains its result type (231.214417ms)
+✔ README TypeScript examples compile and call every public function (2075.719ms)
+ℹ 33 README blocks; 48 public functions; 2069.56 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (7.155083ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (8.129584ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (7.274833ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (6.017ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (17.395708ms)
+✔ client card composer disables only refused or proven absent membership (8.486958ms)
+✔ profile screen waits for proven existence and uses each replacement (1.548791ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3315.29425
