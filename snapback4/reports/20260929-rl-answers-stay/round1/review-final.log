@@ -1,0 +1,45 @@
+✔ apply keeps its bound on held, keep=undefined (1.957343ms)
+✔ apply keeps its bound on throw, keep=undefined (0.590946ms)
+✔ admit keeps its bound on held, keep=undefined (0.268794ms)
+✔ admit keeps its bound on throw, keep=undefined (0.286069ms)
+✔ settle keeps its bound on held, keep=undefined (0.294972ms)
+✔ settle keeps its bound on throw, keep=undefined (0.363956ms)
+✔ apply keeps its bound on held, keep=true (0.22682ms)
+✔ apply keeps its bound on throw, keep=true (0.229054ms)
+✔ admit keeps its bound on held, keep=true (0.26065ms)
+✔ admit keeps its bound on throw, keep=true (0.310365ms)
+✔ settle keeps its bound on held, keep=true (0.191857ms)
+✔ settle keeps its bound on throw, keep=true (0.218338ms)
+✔ process: applied membership removal and held replica replacement (1154.454595ms)
+✔ process: applied membership removal and throw replica replacement (110.124905ms)
+✔ wasm: applied membership removal and held replica replacement (1429.021592ms)
+✔ wasm: applied membership removal and throw replica replacement (79.786212ms)
+✔ online receipt bounds held replacement, keep=undefined (1072.250037ms)
+✔ online receipt bounds offline replacement, keep=undefined (69.012826ms)
+✔ online receipt bounds held replacement, keep=true (1061.66428ms)
+✔ online receipt bounds offline replacement, keep=true (67.378455ms)
+✔ online: ephemeral-only /changes bounds a held replacement (68.732676ms)
+✔ process: ephemeral-only /changes bounds a held replacement (123.261493ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (79.164941ms)
+✔ ephemeral periodic sampling is distinct from change evidence (2.34815ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (1.118626ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (123.695413ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (101.681529ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1110.027827ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1067.712724ms)
+✔ process: ordinary search offline classification (217.567668ms)
+✔ process: ordinary search loading classification (218.014658ms)
+✔ process: ordinary search denied classification (221.472441ms)
+✔ wasm: ordinary search offline classification (187.619182ms)
+✔ wasm: ordinary search loading classification (183.611434ms)
+✔ wasm: ordinary search denied classification (188.959139ms)
+✔ process: pre-change replica completion cannot erase a pending change bound (1102.799112ms)
+✔ wasm: pre-change replica completion cannot erase a pending change bound (1081.864595ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11247.95225

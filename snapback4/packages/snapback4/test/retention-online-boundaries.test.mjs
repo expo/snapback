@@ -40,7 +40,7 @@ for (const keep of [undefined, true]) test(`schema discovery withdraws an overla
   const owner = answerObservation(watch.getSnapshot());
   invalidate.resolve();
   await until(() => watch.getSnapshot().revalidating && reads > 1);
-  assert.equal(episodeDeadline(watch.getSnapshot()), keep === true ? undefined : 2000);
+  assert.equal(episodeDeadline(watch.getSnapshot()), 2000);
   wall = 1500; advertise.resolve();
   await until(() => discovering);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "discovery withdraws instead of copying away the episode");
@@ -51,7 +51,7 @@ for (const keep of [undefined, true]) test(`schema discovery withdraws an overla
 });
 
 for (const keep of [undefined, false, true]) for (const invalidated of [false, true]) {
-  test(`online link loss withdraws a live ${invalidated ? "invalidated" : "settled"} answer immediately, keep=${keep}`, async t => {
+  test(`online link loss follows evidence for a live ${invalidated ? "invalidated" : "settled"} answer immediately, keep=${keep}`, async t => {
     t.mock.method(Date, "now", () => 1000); // The episode cannot expire and mask a broken offline withdrawal.
     const invalidate = Promise.withResolvers(), loss = Promise.withResolvers();
     let polls = 0, reads = 0;
@@ -81,8 +81,9 @@ for (const keep of [undefined, false, true]) for (const invalidated of [false, t
     seen.length = 0; loss.resolve();
     await until(() => client.link() === "offline");
     const loading = watch.getSnapshot();
-    assert.deepEqual(loading, { loading: true }, "link loss must not start or extend retention");
+    if (invalidated || keep === false) assert.deepEqual(loading, { loading: true });
+    else { assert.deepEqual(loading.data, ["private A"]); assert.equal(loading.revalidating, true); assert.equal(loading.fresh, false); }
     assert.equal(watch.getSnapshot(), loading);
-    if (!(invalidated && keep === false)) assert.ok(seen.some(read => read.loading), "withdrawal notifies the live observer");
+    if ((invalidated && keep !== false) || (!invalidated && keep === false)) assert.ok(seen.some(read => read.loading), "withdrawal notifies the live observer");
   });
 }

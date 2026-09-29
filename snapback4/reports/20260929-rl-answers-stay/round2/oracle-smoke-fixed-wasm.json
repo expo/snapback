@@ -1,0 +1,17 @@
+[
+  {
+    "host": "wasm",
+    "seed": 1,
+    "failures": []
+  },
+  {
+    "host": "wasm",
+    "seed": 2,
+    "failures": []
+  },
+  {
+    "host": "wasm",
+    "seed": 3,
+    "failures": []
+  }
+]

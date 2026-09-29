@@ -1,0 +1,257 @@
+▶ process keep=undefined: profile route gate
+  ✖ slow refetch (3037.668264ms)
+  ✖ offline transport (43.995251ms)
+  ✖ retry exhaustion (180.46731ms)
+  ✖ reconnect (84.415124ms)
+✖ process keep=undefined: profile route gate (4285.541386ms)
+6:00:19 AM [vite] (client) [Unhandled error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+ > getRootForUpdatedFiber ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4919:10
+ > enqueueConcurrentRenderForLane ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4883:13
+ > forceStoreRerender ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8643:17
+ > ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8629:10
+ > Pages.notify ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:73:13
+    71 |          }
+    72 |          for (const s of this.subs)
+    73 |              s();
+       |               ^
+    74 |      }
+    75 |      subscribe = (notify) => {
+ > subscribe ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:79:18
+ > subscribeToStore ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8626:13
+ > Object.react_stack_bottom_frame ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:28656:19
+ > runWithFiberInDEV ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:1045:29
+ > commitHookEffectListMount ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:13748:28
+
+▶ process keep=undefined: chat history and membership removal
+  ✖ peer sync (126.846822ms)
+  ✖ own send and settlement (0.685488ms)
+6:00:20 AM [vite] (client) [Unhandled error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+ > getRootForUpdatedFiber ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4919:10
+ > enqueueConcurrentRenderForLane ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4883:13
+ > forceStoreRerender ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8643:17
+ > ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8629:10
+ > Pages.notify ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:73:13
+    71 |          }
+    72 |          for (const s of this.subs)
+    73 |              s();
+       |               ^
+    74 |      }
+    75 |      subscribe = (notify) => {
+ > subscribe ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:79:18
+ > subscribeToStore ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8626:13
+ > Object.react_stack_bottom_frame ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:28656:19
+ > runWithFiberInDEV ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:1045:29
+ > commitHookEffectListMount ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:13748:28
+
+  ✖ edit (61.651976ms)
+  ✖ delete (5144.384956ms)
+6:00:25 AM [vite] (client) [Unhandled error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+ > getRootForUpdatedFiber ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4919:10
+ > enqueueConcurrentRenderForLane ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:4883:13
+ > forceStoreRerender ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8643:17
+ > ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8629:10
+ > Pages.notify ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:73:13
+    71 |          }
+    72 |          for (const s of this.subs)
+    73 |              s();
+       |               ^
+    74 |      }
+    75 |      subscribe = (notify) => {
+ > subscribe ../../home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/dist/react-pages.js:79:18
+ > subscribeToStore ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:8626:13
+ > Object.react_stack_bottom_frame ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:28656:19
+ > runWithFiberInDEV ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:1045:29
+ > commitHookEffectListMount ../../home/ccheever/sb4-intent/lane-rl/snapback4/node_modules/react-dom/cjs/react-dom-client.development.js:13748:28
+
+  ✖ membership removal (68.657326ms)
+✖ process keep=undefined: chat history and membership removal (6960.620914ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 0
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11407.551074
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:71:108
+✖ slow refetch (3037.668264ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":1,"renders":1,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:83:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:71:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:71:108
+✖ offline transport (43.995251ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":1,"renders":1,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654418834},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654418834}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:83:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:71:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:71:108
+✖ retry exhaustion (180.46731ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":1,"renders":1,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:83:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:71:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:71:108
+✖ reconnect (84.415124ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":1,"renders":1,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:83:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:71:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:92:118
+✖ peer sync (126.846822ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":53,"renders":53,"route":""},"reads":[{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654419803},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654419803,"revalidating":true},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  53 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:107:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:92:110)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 53,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:92:118
+✖ own send and settlement (0.685488ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'failed' !== 'sent'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:97:60)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:92:110)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:92:118
+✖ edit (61.651976ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":53,"renders":53,"route":""},"reads":[{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[{"at":1,"body":"image-1","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[{"at":1,"body":"edited","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654419828},{"data":[{"at":1,"body":"edited","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654419828,"revalidating":true},{"data":[{"at":1,"body":"edited","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[{"at":1,"body":"edited","id":"item","room":"room"},{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  53 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:107:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:92:110)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 53,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:92:118
+✖ delete (5144.384956ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:102:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:92:110)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:92:118
+✖ membership removal (68.657326ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":0,"unmounts":0,"loading":53,"renders":53,"route":""},"reads":[{"data":[{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[{"at":2,"body":"peer","id":"01M3NN44V79FJMKK0X5HPQQZ5B","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":[],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654420018},{"data":[],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654420018,"revalidating":true},{"data":[],"complete":true,"cut":null,"fresh":true,"next":null},{"data":[],"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  53 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:52:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:107:42)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:92:110)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 53,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

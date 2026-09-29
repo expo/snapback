@@ -1,0 +1,28 @@
+{"host":"process","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 300 independent histories (103433.017943ms)
+✖ mixed evidence schedule wasm: 300 independent histories (42965.948065ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146637.62593
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:17:41
+✖ mixed evidence schedule wasm: 300 independent histories (42965.948065ms)
+  Error: ENOENT: no such file or directory, open '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm'
+      at Object.openSync (node:fs:559:18)
+      at readFileSync (node:fs:443:35)
+      at opener (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/answers-stay.mjs:75:82)
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:45:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm'
+  }

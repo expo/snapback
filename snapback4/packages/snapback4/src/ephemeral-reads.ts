@@ -5,7 +5,7 @@ interface Interest {
   tables: Set<string>;
   answer?: EphemeralVersion;
   floor?: EphemeralVersion;
-  invalidate(reset: boolean): (() => void) | void;
+  invalidate(reset: boolean, changed: boolean): (() => void) | void;
   incomplete?: ReturnType<typeof setInterval>;
 }
 export function ephemeralVersion(value: unknown): EphemeralVersion | undefined {
@@ -66,7 +66,7 @@ export class EphemeralReads {
       delete interest.answer;
       interest.floor = version;
       if (interest.tables.size) {
-        const notify = interest.invalidate(true);
+        const notify = interest.invalidate(true, true);
         if (notify) delivery.push(notify);
       }
     }
@@ -95,7 +95,7 @@ export class EphemeralReads {
       const tables = new Set((value as EphemeralVersion & { tables?: string[] }).tables ?? []);
       for (const interest of this.interests.values()) if ([...interest.tables].some(table => tables.has(table))) {
         if (interest.floor?.incarnation !== version.incarnation || interest.floor.epoch < version.epoch) interest.floor = version;
-        interest.invalidate(false)?.();
+        interest.invalidate(false, true)?.();
       }
     }
     return true;
@@ -106,7 +106,7 @@ export class EphemeralReads {
     if (!incomplete) { clearInterval(interest.incomplete); delete interest.incomplete; }
     else if (!interest.incomplete) {
       // Fixed cadence, independent of response contents or their hidden expiry.
-      interest.incomplete = setInterval(() => interest.invalidate(false)?.(), 1000);
+      interest.incomplete = setInterval(() => interest.invalidate(false, false)?.(), 1000);
       (interest.incomplete as { unref?: () => void }).unref?.();
     }
   }

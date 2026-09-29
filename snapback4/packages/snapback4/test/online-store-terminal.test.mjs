@@ -60,7 +60,11 @@ for (const source of ['query', 'mutation', 'changes', 'probe']) for (const repla
     await delay(50);
     assert.equal(total, before, 'terminal clients make no later request, including queued sends');
     assert.equal(writes, 1); assert.equal(settled.length, 4, 'late receipts do not emit a second settlement');
-    assert.ok(seen.every(read => !('data' in read)));
+    const terminal = seen.findIndex(read => read.denied?.code === code);
+    assert.ok(terminal >= 0, 'the reset publishes its terminal denial');
+    assert.ok(seen.slice(terminal).every(read => !('data' in read)), 'no answer follows the detected reset');
+    if (source !== 'probe') assert.ok(seen.every(read => !('data' in read)));
+    else assert.ok(seen.slice(0, terminal).every(read => !('data' in read) || read.revalidating), 'the outage preceding the probe may retain its answer');
     assert.equal(probes, source === 'probe' ? 1 : 0);
     assert.ok(queryCount <= (['changes', 'probe', 'query'].includes(source) ? 2 : 1));
   });

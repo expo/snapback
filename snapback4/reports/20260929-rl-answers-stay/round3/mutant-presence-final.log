@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: process: quiet presence cannot publish below a pending durable cut
+not ok 1 - process: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 438.429604
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:116:41'
+  failureType: 'testCodeFailure'
+  error: |-
+    older sample cannot settle pending evidence
+    + actual - expected
+
+    + undefined
+    - true
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:154:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: wasm: quiet presence cannot publish below a pending durable cut
+not ok 2 - wasm: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 786.486536
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:116:41'
+  failureType: 'testCodeFailure'
+  error: |-
+    older sample cannot settle pending evidence
+    + actual - expected
+
+    + undefined
+    - true
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:154:10)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1363.701701

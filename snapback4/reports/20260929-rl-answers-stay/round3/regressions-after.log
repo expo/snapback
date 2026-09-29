@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=undefined
+ok 1 - process: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2458.457519
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=true
+ok 2 - process: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2452.330822
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=false
+ok 3 - process: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2441.496271
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=undefined
+ok 4 - process: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2444.309645
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=true
+ok 5 - process: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2442.883676
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=false
+ok 6 - process: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2439.470947
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=undefined
+ok 7 - process: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2450.552248
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=true
+ok 8 - process: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2436.357579
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=false
+ok 9 - process: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2448.052447
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=undefined
+ok 10 - wasm: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2899.30595
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=true
+ok 11 - wasm: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2440.917669
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=false
+ok 12 - wasm: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2439.834294
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=undefined
+ok 13 - wasm: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2440.266679
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=true
+ok 14 - wasm: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2450.775299
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=false
+ok 15 - wasm: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2444.157859
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=undefined
+ok 16 - wasm: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2448.510072
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=true
+ok 17 - wasm: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2441.724888
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=false
+ok 18 - wasm: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2442.009243
+  type: 'test'
+  ...
+# Subtest: process: generation boundary clears remembered answers and a held server completion
+ok 19 - process: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1443.734319
+  type: 'test'
+  ...
+# Subtest: wasm: generation boundary clears remembered answers and a held server completion
+ok 20 - wasm: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1439.685389
+  type: 'test'
+  ...
+# Subtest: process: quiet presence cannot publish below a pending durable cut
+ok 21 - process: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1424.146205
+  type: 'test'
+  ...
+# Subtest: wasm: quiet presence cannot publish below a pending durable cut
+ok 22 - wasm: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1384.789968
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50282.204159

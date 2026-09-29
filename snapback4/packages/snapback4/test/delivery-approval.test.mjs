@@ -45,7 +45,7 @@ for (const tier of ['online', 'local']) {
     if (deadline === 'episode') {
       // Begin the real raw watch's retention episode without delivering its timer.
       // The delayed approval must consult the same identity's deadline latch.
-      owner.reload();
+      owner.reload(true);
       assert.equal(answerIdentity(owner.snapshot), answerIdentity(read));
     }
     await delay(deadline === 'episode' ? 1050 : 550);

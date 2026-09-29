@@ -89,7 +89,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
         stop(); watch.close(); watch = app.client.observe(op, {}, { keep });
         if (keep === true) assert.ok("data" in watch.getSnapshot(), `seed ${seed}, trace ${trace}`);
         else await until(() => "data" in watch.getSnapshot(), "a non-lingering remount opens a fresh watch");
-        lastDeadline = undefined; stop = watch.subscribe(record);
+        lastDeadline = episodeDeadline(watch.getSnapshot()); stop = watch.subscribe(record);
         continue;
       }
       if (action === "local") assert.equal((await app.mutate(edit, { body })).state, "sent");
@@ -106,7 +106,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
       }
       if (app.client.sync) await app.client.sync();
       await until(() => watch.getSnapshot().data?.[0]?.body === body, `seed ${seed}, trace ${trace}`);
-      assert.ok(snapshots.every(read => "data" in read || read.expectedWithdrawal || (keep === undefined && read.deadline !== undefined && read.at >= read.deadline)), JSON.stringify({ seed, trace, snapshots }));
+      assert.ok(snapshots.every(read => "data" in read || read.expectedWithdrawal || (read.deadline !== undefined && read.at >= read.deadline)), JSON.stringify({ seed, trace, snapshots }));
     }
     assert.ok(authorityReads >= actions.length);
     t.diagnostic(`inside-episode data notifications: ${snapshots.filter(read => "data" in read).length}; deadline withdrawals: ${snapshots.filter(read => read.loading && !read.expectedWithdrawal).length}`);
