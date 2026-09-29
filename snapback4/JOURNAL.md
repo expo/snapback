@@ -78652,3 +78652,68 @@ Report, per-site audit and complete failure ledger:
 reports/20260929-wd-wasm-headroom/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published; Grok's pending review belongs to a later round.
+
+
+### 2026-09-29 — HV round 4: locked portable Binaryen fits both host families
+
+Merged origin/main 4226fc9733 in d08c43ed6a, preserving WD's small_map and
+ObjectFields capacity correction, HV's compact representation and every earlier
+correctness fix. Both journal sides remain; the identical folding stage is
+consolidated. Merged no-Binaryen wasm is 2,005,435 B raw / 596,818 B gzip,
+3,099 B over the fixed 593,719 B cap. A clipped shared index iterator trial saves
+522 B but still misses by 2,577 B; discarded. No HV runtime source changes.
+
+Selected the user's authorized toolchain alternative: exact binaryen 132.0.0
+workspace devDependency and lockfile integrity. Build and measurement invoke its
+portable Node executable from node_modules, never PATH; missing/mismatched
+installation and optimizer failure refuse. Measurement now uses both passes
+and includes manifest/lockfile changes in its dirty-input check. The existing
+build-script test poisons PATH and detects missing, mismatched and failed tools.
+README/AGENTS and LLP 3000.002 record the build precondition and trade.
+
+Clean frozen installation and repeated Linux builds yield 1,978,828 B raw /
+593,295 B gzip, 424 B under, byte-identical with and without native wasm-opt on
+PATH and to the merged native-Binaryen control. A fresh arm64 M4 Mac build with
+Node 24.13.1, Rust 1.97.0 and wasm-bindgen 0.2.127 yields 1,979,135 B /
+593,652 B gzip, 67 B under; both repeats and a third build with a failing PATH
+optimizer are byte-identical. The installed Command Line Tools resolve the
+Mac's unaccepted-Xcode-license setup error without changing global settings.
+
+This does not close the existing cross-host Rust reproducibility issue. A common
+wasm-bindgen input optimizes identically on both hosts, while Cargo output already
+differs. Diagnostic path remapping removes host paths but not all codegen
+variation, so it is discarded. The bindgen installations also carry walrus
+0.26.4/0.26.5 producer metadata despite the same CLI version. Appended this
+evidence to the existing ticket. GNU and Apple gzip differ too: Apple's gzip
+prices the Linux artifact at 593,714 B, only 5 B below the cap. Every measured
+combination fits; no complete cross-host byte identity or fleet-wide physical
+host survey is claimed. No budget changed.
+
+Binaryen adds 23,273,804 B download / 108,542,397 B unpacked files to development,
+no runtime package dependency. Three alternating warm-cache clean installs have
+median 0.505760 s baseline / 0.508821 s pinned; apparent node_modules grows by
+108,542,628 B. One isolated empty-cache Binaryen install takes 0.626116 s here.
+The real workspace clean frozen install takes 0.50 s from cache; Mac's fresh
+workspace takes 17.16 s. These are disclosed host/cache samples, not install-time
+promises.
+
+Affected core 171 pass plus one ignore (its detecting child also passes), device
+1,391 pass plus five ignores, whole guide 99/99, build/codec 28/28. The generated
+6,000-row regression exactly retains round 3's 20,551,766 B peak / 15,029,122 B
+retained (54.5% of old retained allocation), 302,739 B maximum bridge string and
+complete offline restore. No new heavy-account timing claim. Documentation
+budgets and ref-check pass (524 LLPs / 9,953 refs, zero errors/unchecked).
+
+Ran scripts/test.sh exactly once, exit 0:
+
+    == 0 failure(s) in 1634 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,355 passes
+including 17 doctests, 33 ignores; clients 5,250 passes, ten skips; fixture
+wrappers 9/9; serial models 79/79 with unchanged 10,000/3,000 sequence counts.
+The source bindings before/after the suite match. Earlier setup errors and the
+discarded trials remain in the complete failure ledger; no count, assertion,
+timeout or runtime contract is relaxed. The nominal 60-second suite bar remains
+missed. Report, hashes, remote scripts, clean-install measurements and unedited
+logs: reports/20260929-hv-heavy-acquisition/round4/REPORT.md.
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -65,6 +65,11 @@ What exists, by week (LLP 3000 §5):
 Gotchas you cannot derive from the code:
 
 - Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`. Node 24.x (`engines`): run the suite with the pinned runtime on PATH, not the ambient Homebrew node.
+- Web builds require `bun install --frozen-lockfile` first. Binaryen 132.0.0 is
+  an exact workspace devDependency; build/measurement invoke its portable
+  `node_modules/binaryen/bin/wasm-opt` through Node, never a PATH optimizer.
+  Missing/mismatched dependencies and optimizer failures refuse the build.
+  See README's web-device build instructions and HV round 4 for host parity.
 - The suite schedules client files in one pool: `max(1, min(24,
   floor(os.availableParallelism() / 3)))` slots (3 on 10 CPUs, 24 on 96).
   This counts Linux CPU affinity and leaves room for each file's servers,
