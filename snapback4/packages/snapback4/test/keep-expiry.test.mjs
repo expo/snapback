@@ -39,7 +39,7 @@ for (const tier of ["wasm", "process"]) for (const deadline of ["row", "episode"
     let wall = 1000;
     t.mock.method(Date, "now", () => wall);
     t.mock.timers.enable({ apis: ["setTimeout"] });
-    if (deadline === "episode") answerObservation(watch.getSnapshot()).reload();
+    if (deadline === "episode") answerObservation(watch.getSnapshot()).reload(true);
     watch.close();
     assert.equal(watch.getSnapshot().data.body, "private answer", "the non-resetting close preserves the last snapshot");
     if (deadline === "row") f.expire();
@@ -136,12 +136,12 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const mode of tier === "online" ? ["loading", "failure"] : ["failure"]) {
-    test(`${tier} keep: a ${mode} re-read withdraws before the displayed deadline`, async t => {
+    test(`${tier} keep: a ${mode} re-read after change evidence withdraws before expiry`, async t => {
       const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change("apply", mode);
       await until(() => f.failed() > 0);
-      await until(() => watch.getSnapshot().loading, "failed whole re-read withdraws immediately");
+      await until(() => watch.getSnapshot().loading, "change evidence withdraws on failure or explicit loading");
       f.hold(true); f.expire();
       await until(() => watch.getSnapshot().loading, "failed/loading re-read left the old deadline armed");
     });

@@ -1,0 +1,162 @@
+✖ process: real generation-only adoption retires readable replica answers, keep=undefined (463.65131ms)
+✖ process: real generation-only adoption retires readable replica answers, keep=true (452.54445ms)
+✖ process: real generation-only adoption retires readable replica answers, keep=false (451.17719ms)
+✖ process: real generation-only adoption retires throw replica answers, keep=undefined (451.384641ms)
+✖ process: real generation-only adoption retires throw replica answers, keep=true (448.509991ms)
+✖ process: real generation-only adoption retires throw replica answers, keep=false (447.267008ms)
+✖ process: real generation-only adoption retires held replica answers, keep=undefined (438.270552ms)
+✖ packages/snapback4/test/answers-stay-round3.test.mjs (62691.539854ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 7
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62696.04647
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires readable replica answers, keep=undefined (463.65131ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires readable replica answers, keep=true (452.54445ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires readable replica answers, keep=false (451.17719ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires throw replica answers, keep=undefined (451.384641ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires throw replica answers, keep=true (448.509991ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires throw replica answers, keep=false (447.267008ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:14:3
+✖ process: real generation-only adoption retires held replica answers, keep=undefined (438.270552ms)
+  AssertionError [ERR_ASSERTION]: generation notification must retire the displayed answer immediately
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:63:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round3.test.mjs:1:1
+✖ packages/snapback4/test/answers-stay-round3.test.mjs (62691.539854ms)
+  'Promise resolution is still pending but the event loop has already resolved'

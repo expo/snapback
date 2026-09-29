@@ -1,0 +1,12 @@
+{"host":"process","seeds":3,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 3 independent histories (3680.215318ms)
+{"host":"wasm","seeds":3,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 3 independent histories (3760.405913ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7563.95923

@@ -1,0 +1,15 @@
+✔ W8R1a dev withholds hidden population cuts (782.94904ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (740.052054ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online server-run observations keep explicit withdrawal during a replacing fetch (416.400224ms)
+✔ W8R1a native server-run observations keep explicit withdrawal during a replacing fetch (527.002684ms)
+✔ W8R1a web server-run observations keep explicit withdrawal during a replacing fetch (841.782378ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3449.76271

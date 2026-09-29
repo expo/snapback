@@ -1,0 +1,2132 @@
+✖ online: kept typing survives member commits and expires during a held re-read (4892.138888ms)
+ℹ burst: 3 default loading publications; 27 kept publications, all visible
+✖ wasm: kept typing survives member commits and expires during a held re-read (2662.638366ms)
+ℹ burst: 24 default loading publications; 88 kept publications, all visible
+✖ process: kept typing survives member commits and expires during a held re-read (5703.603837ms)
+ℹ burst: 24 default loading publications; 88 kept publications, all visible
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (127.435823ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can close (93.986211ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can remount (91.545162ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (606.081846ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can close (153.42943ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can remount (115.125693ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (159.270835ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can close (169.421728ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can remount (176.160458ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can inspect (94.449415ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can close (93.088135ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can remount (84.202196ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can inspect (131.549587ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can close (121.433056ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can remount (118.053731ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can inspect (212.179671ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can close (162.921226ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can remount (177.776971ms)
+✔ online keep=undefined: first schema installation resets pre-discovery watches before callbacks (41.795671ms)
+✔ online keep=true: first schema installation resets pre-discovery watches before callbacks (42.098715ms)
+✔ createApp wasm keep=undefined: held expiry fences late HTTP memory before rollback, preserving newer B (645.39094ms)
+✔ createApp wasm keep=true: held expiry fences late HTTP memory before rollback, preserving newer B (295.572514ms)
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11238.337747ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (12985.551387ms)
+ℹ inside-episode data notifications: 29; deadline withdrawals: 3
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (12432.97744ms)
+ℹ inside-episode data notifications: 31; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (35054.493054ms)
+ℹ inside-episode data notifications: 91; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (34372.994307ms)
+ℹ inside-episode data notifications: 91; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (34398.407844ms)
+ℹ inside-episode data notifications: 92; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (34660.293106ms)
+ℹ inside-episode data notifications: 93; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (34651.861315ms)
+ℹ inside-episode data notifications: 93; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (34658.433555ms)
+ℹ inside-episode data notifications: 92; deadline withdrawals: 0
+✖ createApp keep=true property: online, seed 23, 50ms authority (9728.377682ms)
+✖ createApp keep=true property: online, seed 44, 50ms authority (3040.150708ms)
+✖ createApp keep=true property: online, seed 445, 50ms authority (4959.594617ms)
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (34238.815956ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 0
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (34205.830886ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 0
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (34117.71081ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 23, 50ms authority (34354.529351ms)
+ℹ inside-episode data notifications: 91; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 44, 50ms authority (34589.782419ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 445, 50ms authority (35153.190957ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 0
+✔ createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (5327.669692ms)
+✖ createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (2630.391045ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=undefined (7.720632ms)
+✔ replacement authority refusal announces one denial, keep=undefined (8.2066ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=false (4.686624ms)
+✔ replacement authority refusal announces one denial, keep=false (7.914852ms)
+✔ facade fence announces its denial after an unchanged approved answer, keep=true (5.409888ms)
+✔ replacement authority refusal announces one denial, keep=true (6.896767ms)
+✔ opening remount joins before withdrawal and is notified on shared reapproval, keep=undefined (6.67905ms)
+✔ opening remount joins after withdrawal and is notified on shared reapproval, keep=undefined (6.973522ms)
+✔ closing an opening facade captures its last shared answer, keep=undefined (9.683053ms)
+✔ closing an waiting facade captures its last shared answer, keep=undefined (14.316396ms)
+✔ one shared approval survives 100 replacements, keep=undefined (221.391417ms)
+✔ opening remount getter and notifications follow shared replacements, keep=undefined (9.286278ms)
+✔ rejection clears the shared approval and notifies all live facades once, keep=undefined (13.695676ms)
+✔ a live waiting facade holds A until its peer approves shared B, keep=undefined (10.167569ms)
+✔ opening authority refusal announces one denial to the remount and its peer, keep=undefined (7.967001ms)
+✔ opening remount joins before withdrawal and is notified on shared reapproval, keep=true (7.32636ms)
+✔ opening remount joins after withdrawal and is notified on shared reapproval, keep=true (6.331029ms)
+✔ closing an opening facade captures its last shared answer, keep=true (10.829391ms)
+✔ closing an waiting facade captures its last shared answer, keep=true (14.372761ms)
+✔ one shared approval survives 100 replacements, keep=true (218.883808ms)
+✔ opening remount getter and notifications follow shared replacements, keep=true (8.537455ms)
+✔ rejection clears the shared approval and notifies all live facades once, keep=true (15.14626ms)
+✔ a live waiting facade holds A until its peer approves shared B, keep=true (10.630653ms)
+✔ opening authority refusal announces one denial to the remount and its peer, keep=true (8.221662ms)
+✔ opening remount receives the revalidating mark during reload, keep=undefined (4.540996ms)
+✔ opening remount receives the revalidating mark during replacement, keep=undefined (4.996077ms)
+✔ opening remount receives the revalidating mark during reload, keep=true (4.954635ms)
+✔ opening remount receives the revalidating mark during replacement, keep=true (4.986694ms)
+✔ facade holds A until its device deadline (timer), including a lingering remount (7.25971ms)
+✔ facade holds A until its device deadline (correction), including a lingering remount (6.61225ms)
+✔ facade holds A until its server deadline (timer), including a lingering remount (7.445338ms)
+✔ facade holds A until its server deadline (correction), including a lingering remount (6.329637ms)
+✔ held server data ignores a device reobservation wakeup, even when device time is ahead (7.57366ms)
+✔ a replacement's earlier deadline withdraws the shared approved answer (4.366144ms)
+✔ all facade deadlines withdraw before a subscriber rolls the clock back (5.921054ms)
+✔ held approval ends on scope (5.244721ms)
+✔ held approval ends on denied (4.927875ms)
+✔ held approval ends on authority (7.074943ms)
+✔ held approval ends on fence (3.891943ms)
+✔ held approval ends on linger (5.970639ms)
+✔ a remount's initial authority error withdraws the held answer for every subscriber (6.406892ms)
+✔ held device deadline is latched by snapshot before timer delivery (5.596528ms)
+✔ held device deadline is latched by peek before timer delivery (4.261647ms)
+✔ held server deadline is latched by snapshot before timer delivery (4.092944ms)
+✔ held server deadline is latched by peek before timer delivery (4.966634ms)
+✔ opening remount is notified on reset (5.34403ms)
+✔ opening remount is notified on denied (4.88409ms)
+✔ opening remount is notified on retire (5.031491ms)
+✔ independent authority completions preserve the newest check: B-first (7.403445ms)
+✔ independent authority completions preserve the newest check: C-refuses (7.111399ms)
+✔ an early expiry timer rearm preserves the held-answer memory fence (1.611686ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (898.824569ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (151.351986ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (541.260976ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (313.976898ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (392.999442ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (182.843414ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (403.430174ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (180.143828ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (506.780389ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (286.289772ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (514.156543ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (305.13753ms)
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6097.196606ms)
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6279.126301ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6092.402503ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6105.877649ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6219.256915ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6215.677402ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (140.683737ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (130.162708ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (246.33596ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (122.478712ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (130.872021ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (261.889009ms)
+✖ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (6116.913481ms)
+✖ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (6224.039365ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (66.629499ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (98.552582ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (155.194423ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (66.698923ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (96.552034ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (148.741272ms)
+✖ wasm keep: expired remembered answer never returns after rollback and released reads (active) (6057.405097ms)
+✖ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (6097.477606ms)
+✖ process keep: expired remembered answer never returns after rollback and released reads (active) (6109.073397ms)
+✖ process keep: expired remembered answer never returns after rollback and released reads (lingering) (6118.077934ms)
+✖ wasm keep: an older displayed deadline preserves a newer unexpired remembered answer (6060.18347ms)
+✖ process keep: an older displayed deadline preserves a newer unexpired remembered answer (6128.330845ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.584155ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.13325ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.237676ms)
+✔ wasm: keep=undefined across apply publishes no loading and replaces the old answer (860.165138ms)
+✔ wasm: keep=undefined across admit publishes no loading and replaces the old answer (406.958653ms)
+✔ wasm: keep=undefined across settle publishes no loading and replaces the old answer (513.525778ms)
+✔ wasm: keep=undefined across revoke publishes no loading and replaces the old answer (1178.451314ms)
+✔ wasm: keep=undefined across leave publishes no loading and replaces the old answer (599.250286ms)
+✔ wasm: keep=undefined across refusal publishes no loading and replaces the old answer (1202.395098ms)
+✔ process: keep=undefined across apply publishes no loading and replaces the old answer (308.471507ms)
+✔ process: keep=undefined across admit publishes no loading and replaces the old answer (376.847023ms)
+✔ process: keep=undefined across settle publishes no loading and replaces the old answer (332.791395ms)
+✔ process: keep=undefined across revoke publishes no loading and replaces the old answer (1305.485882ms)
+✔ process: keep=undefined across leave publishes no loading and replaces the old answer (1344.104692ms)
+✔ process: keep=undefined across refusal publishes no loading and replaces the old answer (250.303838ms)
+✔ wasm: keep=true across apply publishes no loading and replaces the old answer (1174.373629ms)
+✔ wasm: keep=true across admit publishes no loading and replaces the old answer (598.325268ms)
+✔ wasm: keep=true across settle publishes no loading and replaces the old answer (1510.180623ms)
+✔ wasm: keep=true across revoke publishes no loading and replaces the old answer (1183.113027ms)
+✔ wasm: keep=true across leave publishes no loading and replaces the old answer (605.337938ms)
+✔ wasm: keep=true across refusal publishes no loading and replaces the old answer (1188.555403ms)
+✔ process: keep=true across apply publishes no loading and replaces the old answer (1352.749716ms)
+✔ process: keep=true across admit publishes no loading and replaces the old answer (1310.162378ms)
+✔ process: keep=true across settle publishes no loading and replaces the old answer (1359.902875ms)
+✔ process: keep=true across revoke publishes no loading and replaces the old answer (1302.857559ms)
+✔ process: keep=true across leave publishes no loading and replaces the old answer (1714.938977ms)
+✔ process: keep=true across refusal publishes no loading and replaces the old answer (1323.97664ms)
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (151.783653ms)
+✔ process: keep remount lifetime, isolation, last subscriber and sign-out (281.398679ms)
+✔ online: keep remount lifetime, isolation, last subscriber and sign-out (132.815514ms)
+✔ wasm: keep=undefined never publishes an evaluation captured before a newer commit (1174.561798ms)
+✔ process: keep=undefined never publishes an evaluation captured before a newer commit (1307.661969ms)
+✔ wasm: keep=true never publishes an evaluation captured before a newer commit (1197.204352ms)
+✔ process: keep=true never publishes an evaluation captured before a newer commit (1316.982657ms)
+✔ wasm: a closed raw local observation still latches its row deadline (769.780345ms)
+✖ wasm: a closed raw local observation still latches its episode deadline (134.224657ms)
+✔ process: a closed raw local observation still latches its row deadline (245.22715ms)
+✖ process: a closed raw local observation still latches its episode deadline (224.662058ms)
+✔ wasm keep=undefined: expiry withdraws across apply with the replacement held (156.763005ms)
+✔ wasm keep=undefined: expiry withdraws across admit with the replacement held (171.572612ms)
+✔ wasm keep=undefined: expiry withdraws across settle with the replacement held (158.523143ms)
+✔ wasm keep=true: expiry withdraws across apply with the replacement held (149.610857ms)
+✔ wasm keep=true: expiry withdraws across admit with the replacement held (164.972229ms)
+✔ wasm keep=true: expiry withdraws across settle with the replacement held (158.262973ms)
+✖ wasm keep: a failure re-read withdraws before the displayed deadline (6105.090106ms)
+✔ wasm keep: remount keeps the lingering watch's deadline (124.952771ms)
+✔ wasm keep: remount rejects an expired answer (119.671675ms)
+✔ process keep=undefined: expiry withdraws across apply with the replacement held (334.427897ms)
+✔ process keep=undefined: expiry withdraws across admit with the replacement held (245.436823ms)
+✔ process keep=undefined: expiry withdraws across settle with the replacement held (338.841412ms)
+✔ process keep=true: expiry withdraws across apply with the replacement held (257.434515ms)
+✔ process keep=true: expiry withdraws across admit with the replacement held (297.413121ms)
+✔ process keep=true: expiry withdraws across settle with the replacement held (277.833057ms)
+✖ process keep: a failure re-read withdraws before the displayed deadline (6414.20969ms)
+✔ process keep: remount keeps the lingering watch's deadline (220.923805ms)
+✔ process keep: remount rejects an expired answer (253.687589ms)
+✔ online keep=undefined: expiry withdraws across notification with the replacement held (132.330116ms)
+✔ online keep=true: expiry withdraws across notification with the replacement held (152.229771ms)
+✔ online keep: a loading re-read withdraws before the displayed deadline (116.897057ms)
+✖ online keep: a failure re-read withdraws before the displayed deadline (5311.624565ms)
+✔ online keep: remount keeps the lingering watch's deadline (131.172001ms)
+✔ online keep: remount rejects an expired answer (106.809979ms)
+✔ wasm keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (897.354749ms)
+✔ process keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (316.243573ms)
+✔ online keep=undefined: ephemeral incarnation retires lingering snapshots before active callbacks (148.185129ms)
+✔ wasm keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (151.333458ms)
+✔ process keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (332.603632ms)
+✔ online keep=true: ephemeral incarnation retires lingering snapshots before active callbacks (113.631202ms)
+✔ wasm keep=undefined: a local read started before refreshSession never publishes its payload (42.905995ms)
+✔ process keep=undefined: a local read started before refreshSession never publishes its payload (146.553083ms)
+✔ wasm keep=false: a local read started before refreshSession never publishes its payload (28.212052ms)
+✔ process keep=false: a local read started before refreshSession never publishes its payload (149.981681ms)
+✔ wasm keep=true: a local read started before refreshSession never publishes its payload (28.459404ms)
+✔ process keep=true: a local read started before refreshSession never publishes its payload (136.133217ms)
+✔ online default: token-only first query discovers viewer and reaches an answer (11.860396ms)
+✔ online default: token-only first query discovers viewer and reaches an answer (11.233146ms)
+✔ online keep: token-only first query discovers viewer and reaches an answer (11.028819ms)
+✔ online keep=undefined: live viewer discovery resets active and idle answers and retries in-flight observations (33.462681ms)
+✔ online keep=false: live viewer discovery resets active and idle answers and retries in-flight observations (35.10335ms)
+✔ online keep=true: live viewer discovery resets active and idle answers and retries in-flight observations (35.425944ms)
+✔ signed-out observations settle without a reset retry loop (1108.460318ms)
+✔ peeking a lingering watch neither acquires it nor changes its timer or expiry boundary (4.097311ms)
+✔ app peek reuses only a live authorized snapshot and cannot cross withdrawal or retirement (17.95503ms)
+✔ facade approval follows freshness identity but never a new publication or reset (14.022146ms)
+✔ local keep: apply fences in-flight answers and keeps active and lingering data (179.046512ms)
+✔ local keep: admit fences in-flight answers and keeps active and lingering data (175.911322ms)
+✔ local keep: settle fences in-flight answers and keeps active and lingering data (177.831281ms)
+✔ local keep: clear_rows fences in-flight answers and drops active and lingering data (0.678266ms)
+✔ local keep: settle_exit fences in-flight answers and drops active and lingering data (0.402363ms)
+✔ local keep: adopt fences in-flight answers and drops active and lingering data (0.284276ms)
+✔ local keep: observe_store fences in-flight answers and drops active and lingering data (0.358017ms)
+✔ keep carries original freshness through reload, and every published result replaces it (0.536925ms)
+✔ rejoining at 29 seconds cancels the old close and gives the next unsubscribe a full window (1.341501ms)
+✔ lingering watches close on the 30-second timer and cannot return after clock rollback (6.095275ms)
+✔ online keep: mutation waits without loading, then publishes next (50.829079ms)
+✔ online keep: mutation waits without loading, then publishes denied (18.18221ms)
+✔ online keep: notification waits without loading, then publishes next (21.343057ms)
+✔ online keep: notification waits without loading, then publishes denied (22.071449ms)
+✔ online keep: adoption clears active and lingering answers (21.132431ms)
+✔ online keep: replacement clears active and lingering answers (16.493539ms)
+✔ online keep: regression clears active and lingering answers (19.195589ms)
+✔ online keep: credentials clears active and lingering answers (18.875379ms)
+✔ online keep: viewer clears active and lingering answers (12.957129ms)
+✔ online keep: sign-out clears active and lingering answers (14.386621ms)
+✔ online keep: close clears active and lingering answers (11.386134ms)
+✔ online keep: an in-flight answer read before a newer commit never replaces the kept answer (42.593066ms)
+✔ the app client forwards keep while its lifetime fence still withdraws data (26.760296ms)
+✔ createApp forwards source expiry while sessionStore.get is held (32.515241ms)
+✔ createApp keeps a superseded answer while replacement authority is held (277.766286ms)
+✔ createApp keeps a superseded answer while replacement authority is held (277.873446ms)
+✔ createApp withdraws a superseded answer while replacement authority is held (278.682899ms)
+✔ app facade forwards loading synchronously but gates replacement data (14.069506ms)
+✔ app facade forwards denied synchronously but gates replacement data (10.891303ms)
+✔ online keep preserves the existing expiry withdrawal before a held refetch (109.278999ms)
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (728.068856ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (45.074714ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (23.434662ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (20.086725ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (24.109684ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (18.283552ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (1032.012283ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (169.486083ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (146.414365ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (119.831865ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (113.328908ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (130.458552ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (33.513708ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (41.205546ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (33.939436ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (21.906462ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (16.182624ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (18.859255ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (177.658922ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (169.346204ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (164.957095ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (166.029242ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (174.843342ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (128.020397ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (42.176431ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (31.147642ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (19.506074ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (16.570385ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (17.133778ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (15.603185ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (154.052422ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (171.898599ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (159.221749ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (146.607325ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (110.972998ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (108.647733ms)
+✔ online keep:false reruns publish loading instead of keeping a previous answer (54.821522ms)
+✔ online query discards a response older than observed write (30.645249ms)
+✔ online query discards a response older than observed changes (38.350036ms)
+✔ online observation discards a response older than observed write (28.31754ms)
+✔ online observation discards a response older than observed changes (32.688601ms)
+✔ a generation reset between fetch publication and its caller continuation cannot republish the old answer (25.785154ms)
+✔ direct online reads fence a generation change even when its sequence does not advance (38.155284ms)
+✔ direct query rechecks replacement after fetch accepts its answer (2.796351ms)
+✔ direct query rechecks regression after fetch accepts its answer (1.50793ms)
+✔ direct query rechecks revoke after fetch accepts its answer (1.69449ms)
+✔ direct query rechecks close after fetch accepts its answer (0.837665ms)
+✔ direct query rechecks sign-out after fetch accepts its answer (1.50788ms)
+✔ replayed mutation cannot lower the query floor (62.511027ms)
+✔ replayed mutation cannot lower the observation floor (31.27331ms)
+✔ closing while a stale HTTP body is in flight prevents publication and refetch (258.782994ms)
+✔ same-store head regression reports E_STORE_RESTORE and stops polling and reading (112.5757ms)
+✔ a change response captured before a write is not evidence of a same-store restore (13.273804ms)
+✔ direct stale reads back off and stop after four requests (430.104328ms)
+✔ observed stale reads back off and stop after four requests (434.635008ms)
+✔ closing the last owner during backoff cancels the next stale-response request (254.713455ms)
+✔ closing one of two subscribed owners does not cancel their shared fetch (28.012373ms)
+✔ a buffered first identity reply cannot lower a newer write floor (33.595611ms)
+✔ first poll after a completed write refuses a lower head (new identity) (60.889246ms)
+✔ first poll after a completed write refuses a lower head (known identity) (55.861812ms)
+✔ first identity discovery remembers the acknowledged receipt for later heads (13.875676ms)
+✖ replacement completes and clears revalidation: keep=undefined, "B" (4.816298ms)
+✖ replacement completes and clears revalidation: keep=undefined, null (0.391026ms)
+✖ replacement completes and clears revalidation: keep=undefined, [] (0.345288ms)
+✖ replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.283825ms)
+✖ hard withdrawals replace retained data: keep=undefined, throw (1.420208ms)
+✖ hard withdrawals replace retained data: keep=undefined, transportOffline (0.446789ms)
+✖ hard withdrawals replace retained data: keep=undefined, retryExhausted (175.935128ms)
+✔ hard withdrawals replace retained data: keep=undefined, retain:false (0.652127ms)
+✔ hard withdrawals replace retained data: keep=undefined, loading (0.310135ms)
+✔ replacement completes and clears revalidation: keep=true, "B" (0.665268ms)
+✔ replacement completes and clears revalidation: keep=true, null (0.458016ms)
+✔ replacement completes and clears revalidation: keep=true, [] (0.236154ms)
+✔ replacement completes and clears revalidation: keep=true, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.167722ms)
+✖ hard withdrawals replace retained data: keep=true, throw (0.621402ms)
+✖ hard withdrawals replace retained data: keep=true, transportOffline (0.506439ms)
+✖ hard withdrawals replace retained data: keep=true, retryExhausted (176.926424ms)
+✔ hard withdrawals replace retained data: keep=true, retain:false (0.545057ms)
+✔ hard withdrawals replace retained data: keep=true, loading (0.116085ms)
+✔ replacement completes and clears revalidation: keep=false, "B" (0.191026ms)
+✔ replacement completes and clears revalidation: keep=false, null (0.158267ms)
+✔ replacement completes and clears revalidation: keep=false, [] (0.123695ms)
+✔ replacement completes and clears revalidation: keep=false, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.111887ms)
+✔ hard withdrawals replace retained data: keep=false, throw (0.131117ms)
+✔ hard withdrawals replace retained data: keep=false, transportOffline (0.090886ms)
+✔ hard withdrawals replace retained data: keep=false, retryExhausted (181.597195ms)
+✔ hard withdrawals replace retained data: keep=false, retain:false (0.274101ms)
+✔ hard withdrawals replace retained data: keep=false, loading (0.108242ms)
+✖ one stable episode withdrawal at the deadline via snapshot, late success still lands (1.639147ms)
+✖ one stable episode withdrawal at the deadline via peek, late success still lands (0.50716ms)
+✖ one stable episode withdrawal at the deadline via timer, late success still lands (0.472488ms)
+✖ successful fallback and held composition keep the same episode: keep=undefined (0.430245ms)
+✔ successful fallback and held composition keep the same episode: keep=true (0.124907ms)
+✔ three watch keys and lifetimes in acquisition order ,false,true (1.865015ms)
+✔ three watch keys and lifetimes in acquisition order true,false, (0.221272ms)
+✔ clear_rows resets every retention policy and fences old reads (0.470675ms)
+✔ settle_exit resets every retention policy and fences old reads (0.939318ms)
+✔ adopt resets every retention policy and fences old reads (0.968211ms)
+✔ observe_store resets every retention policy and fences old reads (0.191196ms)
+✔ facade and opening remount share source expiry, keep=undefined (12.152784ms)
+✔ facade and opening remount share source loading, keep=undefined (4.238953ms)
+✖ facade and opening remount share source transportOffline, keep=undefined (10.026227ms)
+✔ facade and opening remount share source retain:false, keep=undefined (6.359391ms)
+✔ facade and opening remount share source reset, keep=undefined (6.435274ms)
+✔ facade and opening remount share source denied, keep=undefined (5.441475ms)
+✔ facade and opening remount share source expiry, keep=true (5.507535ms)
+✔ facade and opening remount share source loading, keep=true (8.008112ms)
+✖ facade and opening remount share source transportOffline, keep=true (5.925631ms)
+✔ facade and opening remount share source retain:false, keep=true (7.354683ms)
+✔ facade and opening remount share source reset, keep=true (4.492063ms)
+✔ facade and opening remount share source denied, keep=true (5.668766ms)
+✖ facade inherits A's episode timestamp from the invalidation, through B and C authority (5.255227ms)
+✖ an early episode timer rearms to the original deadline without accessor help (0.832267ms)
+✖ facade withdrawal notifies once, including an opening remount, keep=undefined (9.642722ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=false (6.561754ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=true (4.425322ms)
+✔ closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer (0.761071ms)
+✖ an episode due inside a grouped commit waits until the settled peer is revalidating (0.747841ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=undefined (64.336262ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=false (4.992412ms)
+✔ online guard: closed facade honors row expiry, live peer=false, keep=true (4.007236ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=undefined (5.301826ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=false (5.874394ms)
+✔ online guard: closed facade honors row expiry, live peer=true, keep=true (7.460351ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=undefined (11.971522ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=false (5.593563ms)
+✔ online createApp: closed facade honors row expiry, live peer=false, keep=true (5.854885ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=undefined (10.084173ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=false (13.362968ms)
+✔ online createApp: closed facade honors row expiry, live peer=true, keep=true (5.676046ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=undefined (627.449755ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=false (16.200821ms)
+✔ wasm guard: closed facade honors row expiry, live peer=false, keep=true (16.169724ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=undefined (18.533877ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=false (17.646337ms)
+✔ wasm guard: closed facade honors row expiry, live peer=true, keep=true (22.696986ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=undefined (17.545336ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=false (18.9759ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=false, keep=true (35.325724ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=undefined (17.566217ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=false (15.965358ms)
+✔ wasm createApp: closed facade honors row expiry, live peer=true, keep=true (14.44523ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=false (5.99155ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=false (5.623949ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=undefined (7.047572ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=undefined (6.264689ms)
+✔ online guard: closed facade withdraws when peer republishes private B, keep=true (6.087313ms)
+✔ online guard: closed facade withdraws when peer republishes private A, keep=true (7.136125ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=false (7.120902ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=false (9.389513ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=undefined (9.049422ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=undefined (10.410352ms)
+✔ online createApp: closed facade withdraws when peer republishes private B, keep=true (9.492887ms)
+✔ online createApp: closed facade withdraws when peer republishes private A, keep=true (7.435083ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=false (19.903009ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=false (19.085864ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=undefined (27.4767ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=undefined (21.99901ms)
+✔ wasm guard: closed facade withdraws when peer republishes private B, keep=true (21.149448ms)
+✔ wasm guard: closed facade withdraws when peer republishes private A, keep=true (27.712092ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=false (26.973436ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=false (27.076811ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=undefined (24.27391ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=undefined (24.386739ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private B, keep=true (28.776638ms)
+✔ wasm createApp: closed facade withdraws when peer republishes private A, keep=true (27.198323ms)
+✔ online: closing a standalone withdrawing facade releases its raw owner and callbacks (50.813225ms)
+✔ wasm: closing a standalone withdrawing facade releases its raw owner and callbacks (15.565449ms)
+✔ online: client close keeps one denial past its row deadline, keep=undefined (3.680016ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=undefined (3.228368ms)
+✔ online: client close keeps one denial past its row deadline, keep=false (2.08196ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=false (2.142982ms)
+✔ online: client close keeps one denial past its row deadline, keep=true (3.126385ms)
+✔ online detached handle: client close keeps one denial past its row deadline, keep=true (3.245944ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=undefined (12.878972ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=undefined (12.772473ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=false (11.048679ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=false (12.437311ms)
+✔ wasm: client close keeps one denial past its row deadline, keep=true (9.003294ms)
+✔ wasm detached handle: client close keeps one denial past its row deadline, keep=true (9.782812ms)
+✔ wasm: resubscription delivers saved row expiry without an accessor, keep=undefined (15.170977ms)
+✔ wasm: resubscription delivers saved row expiry without an accessor, keep=false (14.1251ms)
+✔ wasm: closed handle expiry fences memory across rollback (17.242783ms)
+✔ wasm: live handle expiry fences memory across rollback (13.493072ms)
+✔ wasm: closed A expiry preserves newer unexpired B in memory across rollback (14.284128ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined (7.465079ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=false (10.797742ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=true (8.025798ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined (7.057047ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false (9.845355ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=true (9.897113ms)
+✔ online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=false (8.68052ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined (8.289383ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=false (6.821534ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=true (6.761043ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined (7.824647ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false (7.999079ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=true (7.965007ms)
+✔ online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=false (7.823656ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=undefined (7.286881ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=false (10.183322ms)
+✔ online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=true (7.001233ms)
+✖ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (8.738536ms)
+✔ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=false (12.282117ms)
+✖ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (8.356995ms)
+✖ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (10.477573ms)
+✖ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (7.774992ms)
+✖ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (6.624348ms)
+✖ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (6.70552ms)
+✖ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (7.168523ms)
+✔ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=false (7.772689ms)
+✖ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.733461ms)
+✖ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (8.755993ms)
+✖ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (10.3955ms)
+✖ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (7.827631ms)
+✖ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (7.012169ms)
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (6.629596ms)
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (7.604007ms)
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.826721ms)
+✔ online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (6.668945ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=false (4.757059ms)
+✔ online raw: close withdraws both peers before every callback, keep=true, peerKeep=true (5.893463ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined (5.876657ms)
+✔ online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false (6.049197ms)
+✔ online raw: close withdraws both peers before every callback, keep=false, peerKeep=true (5.492942ms)
+✔ online raw: close withdraws both peers before every callback, keep=true, peerKeep=false (5.041385ms)
+✔ online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (4.088067ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=false (3.918974ms)
+✔ online guard: close withdraws both peers before every callback, keep=true, peerKeep=true (3.894307ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined (5.019272ms)
+✔ online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false (6.536566ms)
+✔ online guard: close withdraws both peers before every callback, keep=false, peerKeep=true (5.151691ms)
+✔ online guard: close withdraws both peers before every callback, keep=true, peerKeep=false (4.098712ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined (4.009138ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false (5.199202ms)
+✔ online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true (5.119903ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (7.487912ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (6.301074ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (5.263279ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (5.080735ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (6.107834ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (8.617826ms)
+✔ online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (5.176678ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (4.23025ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (6.363076ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (5.299353ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (4.910119ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (5.004951ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (4.067946ms)
+✔ online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (6.445ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined (5.4112ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (6.303227ms)
+✔ online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (5.13778ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1017.568154ms)
+✔ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=false (1016.406263ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (1019.994129ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1018.760009ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1016.917337ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (1021.273055ms)
+✖ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (1018.540119ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1017.235484ms)
+✔ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=false (1022.293564ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (1023.828234ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1015.87898ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1013.973694ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (1041.072908ms)
+✖ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (1009.778416ms)
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (1015.965489ms)
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (1017.102583ms)
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (1016.255863ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (15.151548ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=false (14.114824ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=true (14.408675ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined (14.425419ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false (13.472291ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=true (13.46486ms)
+✔ wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=false (12.105803ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined (13.640493ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=false (12.094135ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=true (12.294426ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined (10.74276ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false (10.457292ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=true (7.921512ms)
+✔ wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=false (8.003825ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined (8.092548ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false (8.019148ms)
+✔ wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true (8.150385ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (9.495601ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (8.362683ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (9.522922ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (8.376213ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (7.302184ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (9.287149ms)
+✔ wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (8.215172ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined (8.457224ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false (8.374311ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (8.316804ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined (8.445508ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false (8.297606ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true (10.769371ms)
+✔ wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (8.143314ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined (8.055533ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false (9.229412ms)
+✔ wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true (8.308403ms)
+✔ schema discovery withdraws an overlapping invalidation: keep=undefined (39.193269ms)
+✖ schema discovery withdraws an overlapping invalidation: keep=true (8.456623ms)
+✖ online link loss withdraws a live settled answer immediately, keep=undefined (5.512051ms)
+✔ online link loss withdraws a live invalidated answer immediately, keep=undefined (10.529321ms)
+✔ online link loss withdraws a live settled answer immediately, keep=false (5.379572ms)
+✔ online link loss withdraws a live invalidated answer immediately, keep=false (7.313791ms)
+✖ online link loss withdraws a live settled answer immediately, keep=true (8.061612ms)
+✔ online link loss withdraws a live invalidated answer immediately, keep=true (8.555152ms)
+✖ usePage checks first page deadline before cached return without timer delivery (5.368646ms)
+✖ usePage checks second page deadline before cached return without timer delivery (0.888421ms)
+✔ usePage clears a later page's revalidating mark on replacement and replaces loaded cursors (0.642633ms)
+✔ usePage search repeats keep one newest image by ID through page refresh (0.783735ms)
+✔ usePage history repeats keep one newest image by ID through page refresh (2.156452ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (48.12763ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=false (7.695013ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (5.797699ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined (5.644039ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false (6.857948ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=true (6.150518ms)
+✔ guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (4.897921ms)
+✔ guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (14.028735ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=false (4.746584ms)
+✔ guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true (5.318661ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined (5.061406ms)
+✔ guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false (4.251722ms)
+✔ guard: restore withdraws every peer before callbacks, keep=false, peerKeep=true (5.363779ms)
+✔ guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false (5.896638ms)
+✔ app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (17.066207ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=false (11.259014ms)
+✔ app: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (7.621693ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined (12.843569ms)
+✔ app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false (6.927182ms)
+✔ app: replacement withdraws every peer before callbacks, keep=false, peerKeep=true (10.119397ms)
+✔ app: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (7.257497ms)
+✔ app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined (7.634502ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=false (10.363532ms)
+✔ app: restore withdraws every peer before callbacks, keep=true, peerKeep=true (11.942288ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined (10.090233ms)
+✔ app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false (7.282274ms)
+✔ app: restore withdraws every peer before callbacks, keep=false, peerKeep=true (8.102133ms)
+✔ app: restore withdraws every peer before callbacks, keep=true, peerKeep=false (8.357546ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=undefined (7.315464ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false (5.328817ms)
+✔ lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true (5.262607ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=undefined (5.132392ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false (5.275076ms)
+✔ lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true (5.450208ms)
+ℹ tests 599
+ℹ suites 0
+ℹ pass 518
+ℹ fail 81
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 469019.688556
+
+✖ failing tests:
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ online: kept typing survives member commits and expires during a held re-read (4892.138888ms)
+  AssertionError [ERR_ASSERTION]: keep spans the held replacement
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:146:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ wasm: kept typing survives member commits and expires during a held re-read (2662.638366ms)
+  AssertionError [ERR_ASSERTION]: keep spans the held replacement
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:146:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/ephemeral-keep.test.mjs:45:51
+✖ process: kept typing survives member commits and expires during a held re-read (5703.603837ms)
+  AssertionError [ERR_ASSERTION]: keep spans the held replacement
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/ephemeral-keep.test.mjs:146:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-app-model.test.mjs:33:3
+✖ createApp keep=true property: online, seed 23, 50ms authority (9728.377682ms)
+  AssertionError [ERR_ASSERTION]: {"seed":23,"trace":["local","local","remount","remote","burst","burst","remote","local","local","remote","remote","remount","remount","remount","burst"],"snapshots":[{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654949382,"action":"local","expectedWithdrawal":false},{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654949384,"deadline":1790654950384,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-3381888629","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654950185,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-3381888629","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"at":1790654950488,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-3381888629","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654950594,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-3381888629","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654950595,"deadline":1790654951595,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-2465341883","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654951402,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-2465341883","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654951413,"deadline":1790654952413,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"3-remote-196438806","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"at":1790654952006,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"3-remote-196438806","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654952018,"deadline":1790654953018,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"4-burst-2083059677","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654952721,"deadline":1790654953424,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"5-burst-2819926061","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654953222,"deadline":1790654953926,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"6-remote-1746744915","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654953724,"deadline":1790654954427,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"6-remote-1746744915","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"at":1790654954128,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-remote-1746744915","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654954235,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-remote-1746744915","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654954237,"deadline":1790654955237,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-338761272","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654955042,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-338761272","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"at":1790654955344,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-338761272","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654955451,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-338761272","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654955451,"deadline":1790654956451,"action":"local","expectedWithdrawal":false},{"data":[{"body":"8-local-3895960867","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654956260,"action":"local","expectedWithdrawal":false},{"data":[{"body":"8-local-3895960867","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654956265,"deadline":1790654957265,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"9-remote-2397742634","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654956863,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"9-remote-2397742634","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654956870,"deadline":1790654957870,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"10-remote-2682186909","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":382,"indexEntries":0,"outputBytes":134,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654957467,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"10-remote-2682186909","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":382,"indexEntries":0,"outputBytes":134,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654957472,"deadline":1790654958472,"action":"burst","expectedWithdrawal":false},{"loading":true,"at":1790654958472,"deadline":1790654958472,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"14-burst-3280080449","id":"private","owner":"guest:01M3NNM9NRGPNSPZCT0T996GHQ"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":381,"indexEntries":0,"outputBytes":133,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654958677,"action":"burst","expectedWithdrawal":false}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-app-model.test.mjs:109:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-app-model.test.mjs:33:3
+✖ createApp keep=true property: online, seed 44, 50ms authority (3040.150708ms)
+  AssertionError [ERR_ASSERTION]: {"seed":44,"trace":["local","remote","burst"],"snapshots":[{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654959097,"action":"local","expectedWithdrawal":false},{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654959098,"deadline":1790654960098,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2946569781","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654959905,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2946569781","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654959912,"deadline":1790654960912,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"1-remote-563732550","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654960509,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"1-remote-563732550","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654960515,"deadline":1790654961515,"action":"burst","expectedWithdrawal":false},{"loading":true,"at":1790654961515,"deadline":1790654961515,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"2-burst-2947874638","id":"private","owner":"guest:01M3NNMK5FRWB4YQHW1SJXSSDC"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654961718,"action":"burst","expectedWithdrawal":false}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-app-model.test.mjs:109:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-app-model.test.mjs:33:3
+✖ createApp keep=true property: online, seed 445, 50ms authority (4959.594617ms)
+  AssertionError [ERR_ASSERTION]: {"seed":445,"trace":["local","local","remount","local","burst"],"snapshots":[{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654962137,"action":"local","expectedWithdrawal":false},{"data":[{"body":"initial","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":369,"indexEntries":0,"outputBytes":121,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654962138,"deadline":1790654963138,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1626985791","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654962944,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1626985791","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"at":1790654963246,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1626985791","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654963352,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1626985791","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654963352,"deadline":1790654964352,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-295508496","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654964159,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-295508496","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"at":1790654964560,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-295508496","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654964667,"action":"local","expectedWithdrawal":false},{"data":[{"body":"1-local-295508496","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":379,"indexEntries":0,"outputBytes":131,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654964668,"deadline":1790654965668,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2554172269","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654965472,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2554172269","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654965486,"deadline":1790654966486,"action":"burst","expectedWithdrawal":false},{"loading":true,"at":1790654966486,"deadline":1790654966486,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"4-burst-1616178917","id":"private","owner":"guest:01M3NNMP4F3FXPKNNX3X2312B5"}],"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":380,"indexEntries":0,"outputBytes":132,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true,"at":1790654966678,"action":"burst","expectedWithdrawal":false}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-app-model.test.mjs:109:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-authority-react.test.mjs:11:39
+✖ createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal (2630.391045ms)
+  AssertionError [ERR_ASSERTION]: query replacement 1: [{"kind":"query","read":{"loading":true},"at":468.7999997138977},{"kind":"page","read":{"loading":true},"at":471.7999997138977},{"kind":"query","read":{"loading":true},"at":482.59999990463257},{"kind":"page","read":{"loading":true},"at":482.69999980926514},{"kind":"query","read":{"loading":true},"at":490},{"kind":"page","read":{"loading":true},"at":491.2999997138977},{"kind":"query","read":{"data":[0],"complete":true,"cut":null,"fresh":true,"next":"cursor-0"},"at":495.09999990463257},{"kind":"page","read":{"data":[0],"complete":true,"cut":null,"fresh":true,"next":"cursor-0"},"at":497.59999990463257},{"kind":"page","read":{"data":[0],"complete":true,"cut":null,"fresh":true,"next":"cursor-0"},"at":505.19999980926514},{"kind":"page","read":{"data":[0],"complete":true,"cut":null,"fresh":true,"next":"cursor-0"},"at":506.59999990463257},{"kind":"page","read":{"data":[0,1000],"complete":true,"cut":null,"fresh":true,"next":null},"at":508.59999990463257},{"kind":"query","read":{"data":[0],"complete":true,"cut":null,"fresh":true,"next":"cursor-0","revalidating":true},"at":559.1999998092651},{"kind":"page","read":{"data":[0,1000],"complete":true,"cut":null,"fresh":true,"revalidating":true,"next":null},"at":559.5},{"kind":"query","read":{"loading":true},"at":1559.0999999046326},{"kind":"page","read":{"loading":true},"at":1560.0999999046326},{"kind":"query","read":{"data":[1],"complete":true,"cut":null,"fresh":true,"next":"cursor-1"},"at":1673.2999997138977},{"kind":"page","read":{"data":[1],"complete":true,"cut":null,"fresh":true,"next":"cursor-1"},"at":1775},{"kind":"page","read":{"data":[1],"complete":true,"cut":null,"fresh":true,"next":"cursor-1"},"at":1977.5999999046326},{"kind":"page","read":{"data":[1,1001],"complete":true,"cut":null,"fresh":true,"next":null},"at":2183}]
+
+  '' !== 'query draft'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-authority-react.test.mjs:46:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'query draft',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6097.196606ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6279.126301ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6092.402503ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6105.877649ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6219.256915ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6215.677402ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:194:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:223:41
+✖ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (6116.913481ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:228:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:223:41
+✖ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (6224.039365ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:228:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:291:3
+✖ wasm keep: expired remembered answer never returns after rollback and released reads (active) (6057.405097ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:296:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:291:3
+✖ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (6097.477606ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:296:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:291:3
+✖ process keep: expired remembered answer never returns after rollback and released reads (active) (6109.073397ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:296:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:291:3
+✖ process keep: expired remembered answer never returns after rollback and released reads (lingering) (6118.077934ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:296:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:327:41
+✖ wasm keep: an older displayed deadline preserves a newer unexpired remembered answer (6060.18347ms)
+  AssertionError [ERR_ASSERTION]: timed out: the newer answer is still recoverable
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:340:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:327:41
+✖ process keep: an older displayed deadline preserves a newer unexpired remembered answer (6128.330845ms)
+  AssertionError [ERR_ASSERTION]: timed out: the newer answer is still recoverable
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-clock.test.mjs:340:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-expiry.test.mjs:36:3
+✖ wasm: a closed raw local observation still latches its episode deadline (134.224657ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     body: 'private answer',
+  +     expiresAt: 1790654778826,
+  +     id: 'private'
+  +   },
+  +   fresh: true,
+  +   next: null,
+  +   revalidating: true
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-expiry.test.mjs:48:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { body: 'private answer', expiresAt: 1790654778826, id: 'private' }, complete: true, cut: null, fresh: true, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-expiry.test.mjs:36:3
+✖ process: a closed raw local observation still latches its episode deadline (224.662058ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     body: 'private answer',
+  +     expiresAt: 1790654779207,
+  +     id: 'private'
+  +   },
+  +   fresh: true,
+  +   next: null,
+  +   revalidating: true
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-expiry.test.mjs:48:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { body: 'private answer', expiresAt: 1790654779207, id: 'private' }, complete: true, cut: null, fresh: true, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-expiry.test.mjs:139:5
+✖ wasm keep: a failure re-read withdraws before the displayed deadline (6105.090106ms)
+  AssertionError [ERR_ASSERTION]: timed out: failed whole re-read withdraws immediately
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-expiry.test.mjs:144:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-expiry.test.mjs:139:5
+✖ process keep: a failure re-read withdraws before the displayed deadline (6414.20969ms)
+  AssertionError [ERR_ASSERTION]: timed out: failed whole re-read withdraws immediately
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-expiry.test.mjs:144:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-expiry.test.mjs:139:5
+✖ online keep: a failure re-read withdraws before the displayed deadline (5311.624565ms)
+  AssertionError [ERR_ASSERTION]: timed out: failed whole re-read withdraws immediately
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/keep-expiry.test.mjs:144:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:17:56
+✖ replacement completes and clears revalidation: keep=undefined, "B" (4.816298ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:27:14)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:17:56
+✖ replacement completes and clears revalidation: keep=undefined, null (0.391026ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:27:14)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:17:56
+✖ replacement completes and clears revalidation: keep=undefined, [] (0.345288ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:27:14)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:17:56
+✖ replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.283825ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:27:14)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=undefined, throw (1.420208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=undefined, transportOffline (0.446789ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=undefined, retryExhausted (175.935128ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=true, throw (0.621402ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=true, transportOffline (0.506439ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:36:5
+✖ hard withdrawals replace retained data: keep=true, retryExhausted (176.926424ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:45:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:51:53
+✖ one stable episode withdrawal at the deadline via snapshot, late success still lands (1.639147ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:71:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:51:53
+✖ one stable episode withdrawal at the deadline via peek, late success still lands (0.50716ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:71:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:51:53
+✖ one stable episode withdrawal at the deadline via timer, late success still lands (0.472488ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:71:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:80:39
+✖ successful fallback and held composition keep the same episode: keep=undefined (0.430245ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:90:24)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:135:3
+✖ facade and opening remount share source transportOffline, keep=undefined (10.026227ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(!("data" in watch.getSnapshot()))
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:154:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:135:3
+✖ facade and opening remount share source transportOffline, keep=true (5.925631ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(!("data" in watch.getSnapshot()))
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:154:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:162:1
+✖ facade inherits A's episode timestamp from the invalidation, through B and C authority (5.255227ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:173:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:184:1
+✖ an early episode timer rearms to the original deadline without accessor help (0.832267ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: 'A',
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 500
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:194:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: 'A', complete: true, cut: null, fresh: false, since: 500, next: null, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:198:46
+✖ facade withdrawal notifies once, including an opening remount, keep=undefined (9.642722ms)
+  AssertionError [ERR_ASSERTION]: one facade callback for one withdrawal
+  + actual - expected
+
+  + []
+  - [
+  -   {
+  -     loading: true
+  -   }
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:220:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { denied: [Object] } ],
+    expected: [ { loading: true } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-episode.test.mjs:245:1
+✖ an episode due inside a grouped commit waits until the settled peer is revalidating (0.747841ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + []
+  - [
+  -   {
+  -     first: {
+  -       loading: true
+  -     },
+  -     peer: {
+  -       complete: true,
+  -       cut: null,
+  -       data: 'B',
+  -       fresh: false,
+  -       next: null,
+  -       revalidating: true,
+  -       since: 500
+  -     },
+  -     phase: 'after'
+  -   }
+  - ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-episode.test.mjs:262:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ { phase: 'after', first: [Object], peer: [Object] } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (8.738536ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750837,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (8.356995ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750859,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (10.477573ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750872,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (7.774992ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750878,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (6.624348ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750887,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (6.70552ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750892,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (7.168523ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750899,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.733461ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750914,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (8.755993ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750923,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (10.3955ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750930,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (7.827631ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750944,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (7.012169ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750948,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (6.629596ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750955,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (7.604007ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750962,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (6.826721ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654750969,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1017.568154ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654751172,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true (1019.994129ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654753209,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1018.760009ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654754232,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1016.917337ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654755247,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true (1021.273055ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654756271,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false (1018.540119ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654757284,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined (1017.235484ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654758304,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true (1023.828234ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654760348,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined (1015.87898ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654761369,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false (1013.973694ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654762382,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true (1041.072908ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654763425,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false (1009.778416ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654764432,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined (1015.965489ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654765447,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false (1017.102583ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654766466,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-lifecycle.test.mjs:256:5
+✖ wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true (1016.255863ms)
+  AssertionError [ERR_ASSERTION]: first callback must see every peer withdrawn: {"data":"private A","complete":true,"cut":null,"fresh":false,"next":null,"since":1790654767481,"revalidating":true}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-lifecycle.test.mjs:294:18)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-online-boundaries.test.mjs:19:39
+✖ schema discovery withdraws an overlapping invalidation: keep=true (8.456623ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 2000
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs:43:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2000,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-online-boundaries.test.mjs:54:3
+✖ online link loss withdraws a live settled answer immediately, keep=undefined (5.512051ms)
+  AssertionError [ERR_ASSERTION]: link loss must not start or extend retention
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: [
+  +     'private A'
+  +   ],
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 1000
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs:84:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { data: [ 'private A' ], complete: true, cut: null, fresh: false, next: null, since: 1000, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-online-boundaries.test.mjs:54:3
+✖ online link loss withdraws a live settled answer immediately, keep=true (8.061612ms)
+  AssertionError [ERR_ASSERTION]: link loss must not start or extend retention
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: [
+  +     'private A'
+  +   ],
+  +   fresh: false,
+  +   next: null,
+  +   revalidating: true,
+  +   since: 1000
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs:84:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { data: [ 'private A' ], complete: true, cut: null, fresh: false, next: null, since: 1000, revalidating: true },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-pages.test.mjs:23:38
+✖ usePage checks first page deadline before cached return without timer delivery (5.368646ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be reference-equal to "expected":
+
+  {
+    hasMore: false,
+    items: [
+      'a',
+      'b'
+    ],
+    read: {
+      complete: true,
+      cut: null,
+      data: [
+        'a',
+        'b'
+      ],
+      fresh: true,
+      next: null,
+      revalidating: true
+    }
+  }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-pages.test.mjs:33:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { items: [ 'a', 'b' ], hasMore: false, read: { data: [Array], complete: true, cut: null, fresh: true, revalidating: true, next: null } },
+    expected: { items: [ 'a', 'b' ], hasMore: false, read: { data: [Array], complete: true, cut: null, fresh: true, revalidating: true, next: null } },
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retention-pages.test.mjs:23:38
+✖ usePage checks second page deadline before cached return without timer delivery (0.888421ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be reference-equal to "expected":
+
+  {
+    hasMore: false,
+    items: [
+      'a',
+      'b'
+    ],
+    read: {
+      complete: true,
+      cut: null,
+      data: [
+        'a',
+        'b'
+      ],
+      fresh: true,
+      next: null,
+      revalidating: true
+    }
+  }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/retention-pages.test.mjs:33:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { items: [ 'a', 'b' ], hasMore: false, read: { data: [Array], complete: true, cut: null, fresh: true, revalidating: true, next: null } },
+    expected: { items: [ 'a', 'b' ], hasMore: false, read: { data: [Array], complete: true, cut: null, fresh: true, revalidating: true, next: null } },
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

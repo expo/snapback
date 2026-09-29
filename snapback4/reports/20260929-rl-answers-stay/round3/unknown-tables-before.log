@@ -1,0 +1,102 @@
+TAP version 13
+# Subtest: online: missing tables, keep=undefined, failed=false
+not ok 1 - online: missing tables, keep=undefined, failed=false
+  ---
+  duration_ms: 5099.667358
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:160:3'
+  failureType: 'testCodeFailure'
+  error: 'timed out: missing tables refreshes every watch'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:182:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: online: missing tables, keep=undefined, failed=true
+not ok 2 - online: missing tables, keep=undefined, failed=true
+  ---
+  duration_ms: 5073.304199
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:160:3'
+  failureType: 'testCodeFailure'
+  error: 'timed out: missing tables refreshes every watch'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:182:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: online: missing tables, keep=true, failed=false
+not ok 3 - online: missing tables, keep=true, failed=false
+  ---
+  duration_ms: 5074.038919
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:160:3'
+  failureType: 'testCodeFailure'
+  error: 'timed out: missing tables refreshes every watch'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:182:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: online: missing tables, keep=true, failed=true
+not ok 4 - online: missing tables, keep=true, failed=true
+  ---
+  duration_ms: 5067.812733
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:160:3'
+  failureType: 'testCodeFailure'
+  error: 'timed out: missing tables refreshes every watch'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'fail'
+  stack: |-
+    until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round3.test.mjs:182:7)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=false
+ok 5 - online: empty tables, keep=undefined, failed=false
+  ---
+  duration_ms: 1122.334094
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=true
+ok 6 - online: empty tables, keep=undefined, failed=true
+  ---
+  duration_ms: 1122.888395
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=false
+ok 7 - online: empty tables, keep=true, failed=false
+  ---
+  duration_ms: 1123.223047
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=true
+ok 8 - online: empty tables, keep=true, failed=true
+  ---
+  duration_ms: 1121.955066
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 4
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 24905.699509

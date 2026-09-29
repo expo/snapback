@@ -1,0 +1,4494 @@
+TAP version 13
+# Subtest: online evidence while already revalidating: keep=undefined, late answer
+ok 1 - online evidence while already revalidating: keep=undefined, late answer
+  ---
+  duration_ms: 2.195361
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, throw
+ok 2 - online evidence while already revalidating: keep=undefined, throw
+  ---
+  duration_ms: 0.511136
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, offline
+ok 3 - online evidence while already revalidating: keep=undefined, offline
+  ---
+  duration_ms: 0.326639
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, exhausted
+ok 4 - online evidence while already revalidating: keep=undefined, exhausted
+  ---
+  duration_ms: 175.755611
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, late answer
+ok 5 - online evidence while already revalidating: keep=true, late answer
+  ---
+  duration_ms: 0.469143
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, throw
+ok 6 - online evidence while already revalidating: keep=true, throw
+  ---
+  duration_ms: 0.318247
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, offline
+ok 7 - online evidence while already revalidating: keep=true, offline
+  ---
+  duration_ms: 0.293059
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, exhausted
+ok 8 - online evidence while already revalidating: keep=true, exhausted
+  ---
+  duration_ms: 175.586377
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=undefined, failed=false
+ok 9 - actual /changes bounds the online answer: keep=undefined, failed=false
+  ---
+  duration_ms: 1054.343108
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=undefined, failed=true
+ok 10 - actual /changes bounds the online answer: keep=undefined, failed=true
+  ---
+  duration_ms: 32.504154
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=true, failed=false
+ok 11 - actual /changes bounds the online answer: keep=true, failed=false
+  ---
+  duration_ms: 1024.662956
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=true, failed=true
+ok 12 - actual /changes bounds the online answer: keep=true, failed=true
+  ---
+  duration_ms: 30.990896
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3048.184878
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 61.033621
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 204.527309
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 113.893038
+      type: 'test'
+      ...
+    1..4
+ok 13 - process keep=undefined: profile route gate
+  ---
+  duration_ms: 4330.122244
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 30.090777
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 27.717809
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 19.358029
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 20.502434
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 19.672429
+      type: 'test'
+      ...
+    1..5
+ok 14 - process keep=undefined: chat history and membership removal
+  ---
+  duration_ms: 1622.310579
+  type: 'test'
+  ...
+# Subtest: process keep=true: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3052.544089
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 60.031799
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 203.747781
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 110.940001
+      type: 'test'
+      ...
+    1..4
+ok 15 - process keep=true: profile route gate
+  ---
+  duration_ms: 3991.658445
+  type: 'test'
+  ...
+# Subtest: process keep=true: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 38.242236
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 38.629146
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 22.222652
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 24.167718
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 22.826838
+      type: 'test'
+      ...
+    1..5
+ok 16 - process keep=true: chat history and membership removal
+  ---
+  duration_ms: 1663.341292
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3050.957156
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 60.986409
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 203.223284
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 112.567781
+      type: 'test'
+      ...
+    1..4
+ok 17 - wasm keep=undefined: profile route gate
+  ---
+  duration_ms: 4346.7117
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 48.00521
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 40.036575
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 18.157568
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 18.726011
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 21.304165
+      type: 'test'
+      ...
+    1..5
+ok 18 - wasm keep=undefined: chat history and membership removal
+  ---
+  duration_ms: 1648.627454
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3032.640105
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 60.191158
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 203.262423
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 110.091679
+      type: 'test'
+      ...
+    1..4
+ok 19 - wasm keep=true: profile route gate
+  ---
+  duration_ms: 3938.257556
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 35.566154
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 31.156594
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 20.083116
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 20.288793
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 24.423851
+      type: 'test'
+      ...
+    1..5
+ok 20 - wasm keep=true: chat history and membership removal
+  ---
+  duration_ms: 1605.339242
+  type: 'test'
+  ...
+# Subtest: online keep=undefined: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3032.070647
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 37.329006
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 195.067298
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 70.847792
+      type: 'test'
+      ...
+    1..4
+ok 21 - online keep=undefined: profile route gate
+  ---
+  duration_ms: 3869.001055
+  type: 'test'
+  ...
+# Subtest: online keep=undefined: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 28.039231
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 24.571263
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 19.323156
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 18.027163
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 16.549368
+      type: 'test'
+      ...
+    1..5
+ok 22 - online keep=undefined: chat history and membership removal
+  ---
+  duration_ms: 636.30688
+  type: 'test'
+  ...
+# Subtest: online keep=true: profile route gate
+    # Subtest: slow refetch
+    ok 1 - slow refetch
+      ---
+      duration_ms: 3033.601749
+      type: 'test'
+      ...
+    # Subtest: offline transport
+    ok 2 - offline transport
+      ---
+      duration_ms: 43.102271
+      type: 'test'
+      ...
+    # Subtest: retry exhaustion
+    ok 3 - retry exhaustion
+      ---
+      duration_ms: 196.021639
+      type: 'test'
+      ...
+    # Subtest: reconnect
+    ok 4 - reconnect
+      ---
+      duration_ms: 71.642212
+      type: 'test'
+      ...
+    1..4
+ok 23 - online keep=true: profile route gate
+  ---
+  duration_ms: 3846.422946
+  type: 'test'
+  ...
+# Subtest: online keep=true: chat history and membership removal
+    # Subtest: peer sync
+    ok 1 - peer sync
+      ---
+      duration_ms: 27.745721
+      type: 'test'
+      ...
+    # Subtest: own send and settlement
+    ok 2 - own send and settlement
+      ---
+      duration_ms: 20.816053
+      type: 'test'
+      ...
+    # Subtest: edit
+    ok 3 - edit
+      ---
+      duration_ms: 14.873145
+      type: 'test'
+      ...
+    # Subtest: delete
+    ok 4 - delete
+      ---
+      duration_ms: 13.816431
+      type: 'test'
+      ...
+    # Subtest: membership removal
+    ok 5 - membership removal
+      ---
+      duration_ms: 13.166187
+      type: 'test'
+      ...
+    1..5
+ok 24 - online keep=true: chat history and membership removal
+  ---
+  duration_ms: 588.220437
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on held, keep=undefined
+ok 25 - apply keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 1.950163
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on throw, keep=undefined
+ok 26 - apply keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.591297
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on held, keep=undefined
+ok 27 - admit keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 0.270375
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on throw, keep=undefined
+ok 28 - admit keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.316214
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on held, keep=undefined
+ok 29 - settle keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 0.318307
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on throw, keep=undefined
+ok 30 - settle keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.298588
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on held, keep=true
+ok 31 - apply keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.248722
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on throw, keep=true
+ok 32 - apply keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.2405
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on held, keep=true
+ok 33 - admit keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.231046
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on throw, keep=true
+ok 34 - admit keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.32635
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on held, keep=true
+ok 35 - settle keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.169985
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on throw, keep=true
+ok 36 - settle keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.193089
+  type: 'test'
+  ...
+# Subtest: process: applied membership removal and held replica replacement
+ok 37 - process: applied membership removal and held replica replacement
+  ---
+  duration_ms: 1144.253596
+  type: 'test'
+  ...
+# Subtest: process: applied membership removal and throw replica replacement
+ok 38 - process: applied membership removal and throw replica replacement
+  ---
+  duration_ms: 175.848951
+  type: 'test'
+  ...
+# Subtest: wasm: applied membership removal and held replica replacement
+ok 39 - wasm: applied membership removal and held replica replacement
+  ---
+  duration_ms: 1497.867197
+  type: 'test'
+  ...
+# Subtest: wasm: applied membership removal and throw replica replacement
+ok 40 - wasm: applied membership removal and throw replica replacement
+  ---
+  duration_ms: 90.833461
+  type: 'test'
+  ...
+# Subtest: online receipt bounds held replacement, keep=undefined
+ok 41 - online receipt bounds held replacement, keep=undefined
+  ---
+  duration_ms: 1066.74008
+  type: 'test'
+  ...
+# Subtest: online receipt bounds offline replacement, keep=undefined
+ok 42 - online receipt bounds offline replacement, keep=undefined
+  ---
+  duration_ms: 68.43195
+  type: 'test'
+  ...
+# Subtest: online receipt bounds held replacement, keep=true
+ok 43 - online receipt bounds held replacement, keep=true
+  ---
+  duration_ms: 1048.210784
+  type: 'test'
+  ...
+# Subtest: online receipt bounds offline replacement, keep=true
+ok 44 - online receipt bounds offline replacement, keep=true
+  ---
+  duration_ms: 64.78273
+  type: 'test'
+  ...
+# Subtest: online: ephemeral-only /changes bounds a held replacement
+ok 45 - online: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 53.837694
+  type: 'test'
+  ...
+# Subtest: process: ephemeral-only /changes bounds a held replacement
+ok 46 - process: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 99.61871
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral-only /changes bounds a held replacement
+ok 47 - wasm: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 67.93775
+  type: 'test'
+  ...
+# Subtest: ephemeral periodic sampling is distinct from change evidence
+ok 48 - ephemeral periodic sampling is distinct from change evidence
+  ---
+  duration_ms: 1.400199
+  type: 'test'
+  ...
+# Subtest: held approved A gets offline metadata from B with A identity, confirmation and deadlines
+ok 49 - held approved A gets offline metadata from B with A identity, confirmation and deadlines
+  ---
+  duration_ms: 0.828542
+  type: 'test'
+  ...
+# Subtest: process: plain offline server watch with failed recovery keeps honest metadata
+ok 50 - process: plain offline server watch with failed recovery keeps honest metadata
+  ---
+  duration_ms: 122.455363
+  type: 'test'
+  ...
+# Subtest: wasm: plain offline server watch with failed recovery keeps honest metadata
+ok 51 - wasm: plain offline server watch with failed recovery keeps honest metadata
+  ---
+  duration_ms: 81.656405
+  type: 'test'
+  ...
+# Subtest: process: change evidence retires remembered membership answer before failed sync
+ok 52 - process: change evidence retires remembered membership answer before failed sync
+  ---
+  duration_ms: 1102.066084
+  type: 'test'
+  ...
+# Subtest: wasm: change evidence retires remembered membership answer before failed sync
+ok 53 - wasm: change evidence retires remembered membership answer before failed sync
+  ---
+  duration_ms: 1082.588747
+  type: 'test'
+  ...
+# Subtest: process: ordinary search offline classification
+ok 54 - process: ordinary search offline classification
+  ---
+  duration_ms: 619.929213
+  type: 'test'
+  ...
+# Subtest: process: ordinary search loading classification
+ok 55 - process: ordinary search loading classification
+  ---
+  duration_ms: 212.688784
+  type: 'test'
+  ...
+# Subtest: process: ordinary search denied classification
+ok 56 - process: ordinary search denied classification
+  ---
+  duration_ms: 213.438227
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search offline classification
+ok 57 - wasm: ordinary search offline classification
+  ---
+  duration_ms: 188.35097
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search loading classification
+ok 58 - wasm: ordinary search loading classification
+  ---
+  duration_ms: 189.299923
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search denied classification
+ok 59 - wasm: ordinary search denied classification
+  ---
+  duration_ms: 186.037914
+  type: 'test'
+  ...
+# Subtest: process: pre-change replica completion cannot erase a pending change bound
+ok 60 - process: pre-change replica completion cannot erase a pending change bound
+  ---
+  duration_ms: 1127.793719
+  type: 'test'
+  ...
+# Subtest: wasm: pre-change replica completion cannot erase a pending change bound
+ok 61 - wasm: pre-change replica completion cannot erase a pending change bound
+  ---
+  duration_ms: 1074.617907
+  type: 'test'
+  ...
+# Subtest: pending change requires published sync or a whole server answer at its cut
+ok 62 - pending change requires published sync or a whole server answer at its cut
+  ---
+  duration_ms: 1.070275
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=undefined
+ok 63 - process: item notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1161.951114
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=true
+ok 64 - process: item notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1168.602765
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=false
+ok 65 - process: item notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1129.458847
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=undefined
+ok 66 - process: item notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1128.327301
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=true
+ok 67 - process: item notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1115.002887
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=false
+ok 68 - process: item notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1116.340362
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=undefined
+ok 69 - process: mixed notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1389.545009
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=true
+ok 70 - process: mixed notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1209.353689
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=false
+ok 71 - process: mixed notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1129.033999
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=undefined
+ok 72 - process: mixed notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1122.100224
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=true
+ok 73 - process: mixed notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1118.830142
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=false
+ok 74 - process: mixed notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1126.249053
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=undefined
+ok 75 - wasm: item notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1516.790028
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=true
+ok 76 - wasm: item notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1102.758269
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=false
+ok 77 - wasm: item notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1095.756733
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=undefined
+ok 78 - wasm: item notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1098.078914
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=true
+ok 79 - wasm: item notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1096.139687
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=false
+ok 80 - wasm: item notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1100.394795
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=undefined
+ok 81 - wasm: mixed notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1096.751864
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=true
+ok 82 - wasm: mixed notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1084.318636
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=false
+ok 83 - wasm: mixed notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1074.090353
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=undefined
+ok 84 - wasm: mixed notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1093.080751
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=true
+ok 85 - wasm: mixed notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1099.35852
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=false
+ok 86 - wasm: mixed notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1103.986978
+  type: 'test'
+  ...
+# Subtest: process: only a server answer at the reported cut can replace before sync
+ok 87 - process: only a server answer at the reported cut can replace before sync
+  ---
+  duration_ms: 199.563337
+  type: 'test'
+  ...
+# Subtest: wasm: only a server answer at the reported cut can replace before sync
+ok 88 - wasm: only a server answer at the reported cut can replace before sync
+  ---
+  duration_ms: 172.650876
+  type: 'test'
+  ...
+# Subtest: process: ephemeral offline recovery preserves its classification and expiry
+ok 89 - process: ephemeral offline recovery preserves its classification and expiry
+  ---
+  duration_ms: 4050.223705
+  type: 'test'
+  ...
+# Subtest: process: ephemeral loading recovery preserves its classification and expiry
+ok 90 - process: ephemeral loading recovery preserves its classification and expiry
+  ---
+  duration_ms: 224.438656
+  type: 'test'
+  ...
+# Subtest: process: ephemeral denied recovery preserves its classification and expiry
+ok 91 - process: ephemeral denied recovery preserves its classification and expiry
+  ---
+  duration_ms: 225.401829
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral offline recovery preserves its classification and expiry
+ok 92 - wasm: ephemeral offline recovery preserves its classification and expiry
+  ---
+  duration_ms: 4045.765999
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral loading recovery preserves its classification and expiry
+ok 93 - wasm: ephemeral loading recovery preserves its classification and expiry
+  ---
+  duration_ms: 200.380412
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral denied recovery preserves its classification and expiry
+ok 94 - wasm: ephemeral denied recovery preserves its classification and expiry
+  ---
+  duration_ms: 193.645667
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=undefined
+ok 95 - process: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2451.736092
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=true
+ok 96 - process: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2450.231456
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=false
+ok 97 - process: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2443.895567
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=undefined
+ok 98 - process: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2485.325159
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=true
+ok 99 - process: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2437.77579
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=false
+ok 100 - process: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2444.786668
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=undefined
+ok 101 - process: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2442.197256
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=true
+ok 102 - process: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2462.802792
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=false
+ok 103 - process: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2443.385073
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=undefined
+ok 104 - wasm: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2843.447009
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=true
+ok 105 - wasm: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2440.784552
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=false
+ok 106 - wasm: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2446.868711
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=undefined
+ok 107 - wasm: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2448.096501
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=true
+ok 108 - wasm: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2439.116718
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=false
+ok 109 - wasm: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2443.040809
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=undefined
+ok 110 - wasm: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2442.132826
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=true
+ok 111 - wasm: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2438.456183
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=false
+ok 112 - wasm: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2446.322634
+  type: 'test'
+  ...
+# Subtest: process: generation boundary clears remembered answers and a held server completion
+ok 113 - process: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1441.518876
+  type: 'test'
+  ...
+# Subtest: wasm: generation boundary clears remembered answers and a held server completion
+ok 114 - wasm: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1450.144916
+  type: 'test'
+  ...
+# Subtest: process: quiet presence cannot publish below a pending durable cut
+ok 115 - process: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1409.932096
+  type: 'test'
+  ...
+# Subtest: wasm: quiet presence cannot publish below a pending durable cut
+ok 116 - wasm: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1375.603718
+  type: 'test'
+  ...
+# Subtest: createApp online: false authority refusal never collects delivery
+ok 117 - createApp online: false authority refusal never collects delivery
+  ---
+  duration_ms: 742.46627
+  type: 'test'
+  ...
+# Subtest: createApp online: throw authority refusal never collects delivery
+ok 118 - createApp online: throw authority refusal never collects delivery
+  ---
+  duration_ms: 695.764783
+  type: 'test'
+  ...
+# Subtest: createApp online: superseded answer never reports; approved successor reports exactly once
+ok 119 - createApp online: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 864.19978
+  type: 'test'
+  ...
+# Subtest: createApp online: episode expiry before approval never collects
+ok 120 - createApp online: episode expiry before approval never collects
+  ---
+  duration_ms: 1420.729987
+  type: 'test'
+  ...
+# Subtest: createApp online: row expiry before approval never collects
+ok 121 - createApp online: row expiry before approval never collects
+  ---
+  duration_ms: 916.988199
+  type: 'test'
+  ...
+# Subtest: createApp online: peer approval shares one collection of the exact manifest
+ok 122 - createApp online: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 963.841764
+  type: 'test'
+  ...
+# Subtest: createApp online: temporary session-store failure at raw publication cannot report unseen 41
+ok 123 - createApp online: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 365.160481
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can approve the same answer after storage recovers
+ok 124 - createApp online: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 1270.441972
+  type: 'test'
+  ...
+# Subtest: createApp online: a new peer can refuse the same answer after storage recovers
+ok 125 - createApp online: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 1073.867583
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final approve check before accepting delivery
+ok 126 - createApp online: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 662.425386
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final false check before accepting delivery
+ok 127 - createApp online: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 684.038013
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final throw check before accepting delivery
+ok 128 - createApp online: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 682.266888
+  type: 'test'
+  ...
+# Subtest: createApp online: query waits for final expired check before accepting delivery
+ok 129 - createApp online: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 907.146765
+  type: 'test'
+  ...
+# Subtest: createApp online: background-only delivery waits for facade approval with changes held
+ok 130 - createApp online: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 861.154262
+  type: 'test'
+  ...
+# Subtest: createApp local: false authority refusal never collects delivery
+ok 131 - createApp local: false authority refusal never collects delivery
+  ---
+  duration_ms: 1100.379573
+  type: 'test'
+  ...
+# Subtest: createApp local: throw authority refusal never collects delivery
+ok 132 - createApp local: throw authority refusal never collects delivery
+  ---
+  duration_ms: 727.17205
+  type: 'test'
+  ...
+# Subtest: createApp local: superseded answer never reports; approved successor reports exactly once
+ok 133 - createApp local: superseded answer never reports; approved successor reports exactly once
+  ---
+  duration_ms: 885.683131
+  type: 'test'
+  ...
+# Subtest: createApp local: episode expiry before approval never collects
+ok 134 - createApp local: episode expiry before approval never collects
+  ---
+  duration_ms: 1443.624603
+  type: 'test'
+  ...
+# Subtest: createApp local: row expiry before approval never collects
+ok 135 - createApp local: row expiry before approval never collects
+  ---
+  duration_ms: 937.29663
+  type: 'test'
+  ...
+# Subtest: createApp local: peer approval shares one collection of the exact manifest
+ok 136 - createApp local: peer approval shares one collection of the exact manifest
+  ---
+  duration_ms: 995.052446
+  type: 'test'
+  ...
+# Subtest: createApp local: temporary session-store failure at raw publication cannot report unseen 41
+ok 137 - createApp local: temporary session-store failure at raw publication cannot report unseen 41
+  ---
+  duration_ms: 393.963666
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can approve the same answer after storage recovers
+ok 138 - createApp local: a new peer can approve the same answer after storage recovers
+  ---
+  duration_ms: 1283.920503
+  type: 'test'
+  ...
+# Subtest: createApp local: a new peer can refuse the same answer after storage recovers
+ok 139 - createApp local: a new peer can refuse the same answer after storage recovers
+  ---
+  duration_ms: 1113.799629
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final approve check before accepting delivery
+ok 140 - createApp local: query waits for final approve check before accepting delivery
+  ---
+  duration_ms: 650.353898
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final false check before accepting delivery
+ok 141 - createApp local: query waits for final false check before accepting delivery
+  ---
+  duration_ms: 708.375814
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final throw check before accepting delivery
+ok 142 - createApp local: query waits for final throw check before accepting delivery
+  ---
+  duration_ms: 712.925934
+  type: 'test'
+  ...
+# Subtest: createApp local: query waits for final expired check before accepting delivery
+ok 143 - createApp local: query waits for final expired check before accepting delivery
+  ---
+  duration_ms: 925.220686
+  type: 'test'
+  ...
+# Subtest: createApp local: background-only delivery waits for facade approval with changes held
+ok 144 - createApp local: background-only delivery waits for facade approval with changes held
+  ---
+  duration_ms: 887.552711
+  type: 'test'
+  ...
+# Subtest: createApp local: superseding an approved answer fences its delayed collection commit
+ok 145 - createApp local: superseding an approved answer fences its delayed collection commit
+  ---
+  duration_ms: 893.911634
+  type: 'test'
+  ...
+# Subtest: real local fallback accepts before supplementary debt becomes durable
+ok 146 - real local fallback accepts before supplementary debt becomes durable
+  ---
+  duration_ms: 518.617827
+  type: 'test'
+  ...
+# Subtest: a delayed local save never delays query acceptance
+ok 147 - a delayed local save never delays query acceptance
+  ---
+  duration_ms: 76.699043
+  type: 'test'
+  ...
+# Subtest: a failed manifest save leaves the successful local fallback answer intact
+ok 148 - a failed manifest save leaves the successful local fallback answer intact
+  ---
+  duration_ms: 95.186025
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when commit changes before acceptance
+ok 149 - local fallback rejects its manifest when commit changes before acceptance
+  ---
+  duration_ms: 114.296272
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when credential changes before acceptance
+ok 150 - local fallback rejects its manifest when credential changes before acceptance
+  ---
+  duration_ms: 107.453755
+  type: 'test'
+  ...
+# Subtest: local fallback rejects its manifest when expiry changes before acceptance
+ok 151 - local fallback rejects its manifest when expiry changes before acceptance
+  ---
+  duration_ms: 1223.613167
+  type: 'test'
+  ...
+# Subtest: a query below its local restore floor creates no delivery debt
+ok 152 - a query below its local restore floor creates no delivery debt
+  ---
+  duration_ms: 91.101873
+  type: 'test'
+  ...
+# Subtest: a watch publishes before a delayed save, and expiry cannot resurrect that answer
+ok 153 - a watch publishes before a delayed save, and expiry cannot resurrect that answer
+  ---
+  duration_ms: 285.612949
+  type: 'test'
+  ...
+# Subtest: local E_OFFLINE reconnects through the existing link path and retains its attempt id
+ok 154 - local E_OFFLINE reconnects through the existing link path and retains its attempt id
+  ---
+  duration_ms: 2082.126761
+  type: 'test'
+  ...
+# Subtest: a credential change during save withdraws an already accepted watch without republishing it
+ok 155 - a credential change during save withdraws an already accepted watch without republishing it
+  ---
+  duration_ms: 72.363444
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after credential
+ok 156 - a held collection write after query acceptance omits debt after credential
+  ---
+  duration_ms: 88.822316
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after expiry
+ok 157 - a held collection write after query acceptance omits debt after expiry
+  ---
+  duration_ms: 300.771892
+  type: 'test'
+  ...
+# Subtest: a held collection write after query acceptance omits debt after commit
+ok 158 - a held collection write after query acceptance omits debt after commit
+  ---
+  duration_ms: 105.255159
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after credential
+ok 159 - a host save held after its CAS check writes nothing after credential
+  ---
+  duration_ms: 106.875288
+  type: 'test'
+  ...
+# Subtest: a host save held after its CAS check writes nothing after expiry
+ok 160 - a host save held after its CAS check writes nothing after expiry
+  ---
+  duration_ms: 305.202583
+  type: 'test'
+  ...
+# Subtest: durable-only dev adoption answers a held legacy poll with the new generation within 500 ms
+ok 161 - durable-only dev adoption answers a held legacy poll with the new generation within 500 ms
+  ---
+  duration_ms: 442.189179
+  type: 'test'
+  ...
+# Subtest: online: durable-only change requests and answers retain the base wire bytes
+ok 162 - online: durable-only change requests and answers retain the base wire bytes
+  ---
+  duration_ms: 2054.156164
+  type: 'test'
+  ...
+# Subtest: online: adoption replaces mounted ephemeral interests, including removal
+ok 163 - online: adoption replaces mounted ephemeral interests, including removal
+  ---
+  duration_ms: 1259.153531
+  type: 'test'
+  ...
+# Subtest: wasm: durable-only change requests and answers retain the base wire bytes
+ok 164 - wasm: durable-only change requests and answers retain the base wire bytes
+  ---
+  duration_ms: 3472.343266
+  type: 'test'
+  ...
+# Subtest: wasm: adoption replaces mounted ephemeral interests, including removal
+ok 165 - wasm: adoption replaces mounted ephemeral interests, including removal
+  ---
+  duration_ms: 2311.823738
+  type: 'test'
+  ...
+# Subtest: a self-invalidating guard is sent twice and returns its second refusal
+ok 166 - a self-invalidating guard is sent twice and returns its second refusal
+  ---
+  duration_ms: 40.324958
+  type: 'test'
+  ...
+# Subtest: online: a durable mounted watch discovers ephemeral capability on adoption
+ok 167 - online: a durable mounted watch discovers ephemeral capability on adoption
+  ---
+  duration_ms: 619.472288
+  type: 'test'
+  ...
+# Subtest: wasm: a durable mounted watch discovers ephemeral capability on adoption
+ok 168 - wasm: a durable mounted watch discovers ephemeral capability on adoption
+  ---
+  duration_ms: 641.46124
+  type: 'test'
+  ...
+# Subtest: online capability discovery cannot swallow a generation invalidation for durable watches
+ok 169 - online capability discovery cannot swallow a generation invalidation for durable watches
+  ---
+  duration_ms: 22.756242
+  type: 'test'
+  ...
+# Subtest: poll coverage uses the smallest watch answer, and stale revisions precede incarnation checks
+ok 170 - poll coverage uses the smallest watch answer, and stale revisions precede incarnation checks
+  ---
+  duration_ms: 1.209854
+  type: 'test'
+  ...
+# Subtest: online: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+ok 171 - online: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+  ---
+  duration_ms: 668.888995
+  type: 'test'
+  ...
+# Subtest: wasm: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+ok 172 - wasm: stale epochs and delayed queries/polls cannot resurrect a retired incarnation
+  ---
+  duration_ms: 1113.224361
+  type: 'test'
+  ...
+# Subtest: online: kept typing survives member commits and expires during a held re-read
+ok 173 - online: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 6106.461297
+  type: 'test'
+  ...
+# burst: 3 default loading publications; 27 kept publications, all visible
+# expiry: server deadline 1790665265655, visible at 1790665265654, withdrawn at 1790665265655; 21 member commits, no renewal
+# Subtest: wasm: kept typing survives member commits and expires during a held re-read
+ok 174 - wasm: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 3544.740505
+  type: 'test'
+  ...
+# burst: 45 default loading publications; 87 kept publications, all visible
+# expiry: server deadline 1790665271933, visible at 1790665271932, withdrawn at 1790665271933; 21 member commits, no renewal
+# Subtest: process: kept typing survives member commits and expires during a held re-read
+ok 175 - process: kept typing survives member commits and expires during a held re-read
+  ---
+  duration_ms: 5006.138335
+  type: 'test'
+  ...
+# burst: 45 default loading publications; 87 kept publications, all visible
+# expiry: server deadline 1790665275155, visible at 1790665275154, withdrawn at 1790665275155; 21 member commits, no renewal
+# Subtest: online: ephemeral bypasses writes, admission and journals
+ok 176 - online: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 74.127348
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral bypasses writes, admission and journals
+ok 177 - wasm: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 1452.60027
+  type: 'test'
+  ...
+# Subtest: app-online: ephemeral bypasses writes, admission and journals
+ok 178 - app-online: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 124.804153
+  type: 'test'
+  ...
+# Subtest: app-wasm: ephemeral bypasses writes, admission and journals
+ok 179 - app-wasm: ephemeral bypasses writes, admission and journals
+  ---
+  duration_ms: 1072.599363
+  type: 'test'
+  ...
+# Subtest: app-online: session storage waits stay inside the bounded lane
+ok 180 - app-online: session storage waits stay inside the bounded lane
+  ---
+  duration_ms: 57.664751
+  type: 'test'
+  ...
+# Subtest: app-wasm: session storage waits stay inside the bounded lane
+ok 181 - app-wasm: session storage waits stay inside the bounded lane
+  ---
+  duration_ms: 1077.336783
+  type: 'test'
+  ...
+# Subtest: online keep: 1.15 s replies publish on the incomplete 1 s cadence (active)
+ok 182 - online keep: 1.15 s replies publish on the incomplete 1 s cadence (active)
+  ---
+  duration_ms: 2351.179232
+  type: 'test'
+  ...
+# Subtest: online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering)
+ok 183 - online keep: 1.15 s replies publish on the incomplete 1 s cadence (lingering)
+  ---
+  duration_ms: 2322.286789
+  type: 'test'
+  ...
+# Subtest: online: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+ok 184 - online: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+  ---
+  duration_ms: 4335.435734
+  type: 'test'
+  ...
+# mutation reply 6.7 ms; publication after reply 2.4 ms; old elapsed 16.3 ms
+# Subtest: online: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+ok 185 - online: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+  ---
+  duration_ms: 4268.911939
+  type: 'test'
+  ...
+# request cadence 1000.4 ms; delayed response gap 100.0 ms
+# Subtest: wasm: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+ok 186 - wasm: mounting interest reissues a held poll, invalidates without sync, and refetches at expiry
+  ---
+  duration_ms: 5742.105087
+  type: 'test'
+  ...
+# mutation reply 6.9 ms; publication after reply 1.9 ms; old elapsed 16.4 ms
+# Subtest: wasm: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+ok 187 - wasm: incomplete ephemeral answers refresh on a fixed 1 s cadence without a change
+  ---
+  duration_ms: 4301.686199
+  type: 'test'
+  ...
+# request cadence 1000.7 ms; delayed response gap 110.0 ms
+# Subtest: wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands
+ok 188 - wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 446.934731
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands
+ok 189 - wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 22.163523
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands
+ok 190 - wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 13.360077
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands
+ok 191 - wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 11.734521
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands
+ok 192 - wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 10.302163
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands
+ok 193 - wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 10.507992
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands
+ok 194 - process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 59.810136
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands
+ok 195 - process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 64.953516
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands
+ok 196 - process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 52.740389
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands
+ok 197 - process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 45.158012
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands
+ok 198 - process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 47.649347
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=false: close drops active and lingering answers before a held read lands
+ok 199 - process keep=undefined facade=false: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 46.256058
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands
+ok 200 - wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 32.809992
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands
+ok 201 - wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 30.156014
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands
+ok 202 - wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 24.82295
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands
+ok 203 - wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 17.642267
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands
+ok 204 - wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 14.242981
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands
+ok 205 - wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 13.600377
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands
+ok 206 - process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 63.059127
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands
+ok 207 - process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 64.190673
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands
+ok 208 - process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 58.621494
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands
+ok 209 - process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 49.669586
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands
+ok 210 - process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 46.372032
+  type: 'test'
+  ...
+# Subtest: process keep=undefined facade=true: close drops active and lingering answers before a held read lands
+ok 211 - process keep=undefined facade=true: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 46.125352
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands
+ok 212 - wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 36.464861
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands
+ok 213 - wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 25.352323
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands
+ok 214 - wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 11.790334
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands
+ok 215 - wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 10.753319
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands
+ok 216 - wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 9.089725
+  type: 'test'
+  ...
+# Subtest: wasm keep=true facade=false: close drops active and lingering answers before a held read lands
+ok 217 - wasm keep=true facade=false: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 8.966081
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: adoption drops active and lingering answers before a held read lands
+ok 218 - process keep=true facade=false: adoption drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 61.865247
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: replacement drops active and lingering answers before a held read lands
+ok 219 - process keep=true facade=false: replacement drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 57.935216
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: credentials drops active and lingering answers before a held read lands
+ok 220 - process keep=true facade=false: credentials drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 51.781391
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: viewer drops active and lingering answers before a held read lands
+ok 221 - process keep=true facade=false: viewer drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 46.192032
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: sign-out drops active and lingering answers before a held read lands
+ok 222 - process keep=true facade=false: sign-out drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 45.663461
+  type: 'test'
+  ...
+# Subtest: process keep=true facade=false: close drops active and lingering answers before a held read lands
+ok 223 - process keep=true facade=false: close drops active and lingering answers before a held read lands
+  ---
+  duration_ms: 49.66624
+  type: 'test'
+  ...
+# Subtest: composed wasm: a retained field beside presence keeps refreshing
+ok 224 - composed wasm: a retained field beside presence keeps refreshing
+  ---
+  duration_ms: 5485.884995
+  type: 'test'
+  ...
+# Subtest: composed process: a retained field beside presence keeps refreshing
+ok 225 - composed process: a retained field beside presence keeps refreshing
+  ---
+  duration_ms: 5145.802941
+  type: 'test'
+  ...
+# Subtest: online: a live online mark follows the principal it reads
+ok 226 - online: a live online mark follows the principal it reads
+  ---
+  duration_ms: 20098.156476
+  type: 'test'
+  ...
+# {"tier":"online","cameOnlineMs":5020,"wentAwayAfterCloseMs":8698}
+# Subtest: native: a live online mark follows the principal it reads
+ok 227 - native: a live online mark follows the principal it reads
+  ---
+  duration_ms: 20153.8226
+  type: 'test'
+  ...
+# {"tier":"native","cameOnlineMs":4998,"wentAwayAfterCloseMs":8729}
+# Subtest: web: a live online mark follows the principal it reads
+ok 228 - web: a live online mark follows the principal it reads
+  ---
+  duration_ms: 20539.442226
+  type: 'test'
+  ...
+# {"tier":"web","cameOnlineMs":4999,"wentAwayAfterCloseMs":8734}
+# Subtest: wasm: a failed background refresh keeps the answer and the link
+ok 229 - wasm: a failed background refresh keeps the answer and the link
+  ---
+  duration_ms: 1095.418896
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted loading is published, and recovery never brings back the answer it replaced
+ok 230 - wasm: an accepted loading is published, and recovery never brings back the answer it replaced
+  ---
+  duration_ms: 2050.371721
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted refusal is published, and recovery never brings back the answer it replaced
+ok 231 - wasm: an accepted refusal is published, and recovery never brings back the answer it replaced
+  ---
+  duration_ms: 2048.918722
+  type: 'test'
+  ...
+# Subtest: wasm: an overtaken background reply changes neither the answer, the interval, nor what recovery shows
+ok 232 - wasm: an overtaken background reply changes neither the answer, the interval, nor what recovery shows
+  ---
+  duration_ms: 3063.619939
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted background reply does not replace a newer answer another read remembered
+ok 233 - wasm: an accepted background reply does not replace a newer answer another read remembered
+  ---
+  duration_ms: 2049.583777
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted background reply is what a later recovery shows
+ok 234 - wasm: an accepted background reply is what a later recovery shows
+  ---
+  duration_ms: 2050.743844
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted background reply replaces an older read's answer that landed while it ran
+ok 235 - wasm: an accepted background reply replaces an older read's answer that landed while it ran
+  ---
+  duration_ms: 2058.082835
+  type: 'test'
+  ...
+# Subtest: wasm: an older read's refusal that lands after an accepted background reply does not erase it
+ok 236 - wasm: an older read's refusal that lands after an accepted background reply does not erase it
+  ---
+  duration_ms: 2046.580111
+  type: 'test'
+  ...
+# Subtest: wasm: a refusal read at a later store cut outranks an answer remembered before it landed
+ok 237 - wasm: a refusal read at a later store cut outranks an answer remembered before it landed
+  ---
+  duration_ms: 2056.358869
+  type: 'test'
+  ...
+# Subtest: wasm: a read retried after its store changed takes a new place in the order
+ok 238 - wasm: a read retried after its store changed takes a new place in the order
+  ---
+  duration_ms: 2102.724541
+  type: 'test'
+  ...
+# Subtest: wasm: forgetting an expired answer leaves the next server answer free to be remembered
+ok 239 - wasm: forgetting an expired answer leaves the next server answer free to be remembered
+  ---
+  duration_ms: 5057.411706
+  type: 'test'
+  ...
+# Subtest: wasm: a reply that names no store cut is ordered by when its read began
+ok 240 - wasm: a reply that names no store cut is ordered by when its read began
+  ---
+  duration_ms: 2068.084352
+  type: 'test'
+  ...
+# Subtest: wasm: an accepted background reply does not undo a newer read's deletion of an absent answer
+ok 241 - wasm: an accepted background reply does not undo a newer read's deletion of an absent answer
+  ---
+  duration_ms: 2059.404279
+  type: 'test'
+  ...
+# Subtest: process: a failed background refresh keeps the answer and the link
+ok 242 - process: a failed background refresh keeps the answer and the link
+  ---
+  duration_ms: 721.29833
+  type: 'test'
+  ...
+# Subtest: process: an accepted loading is published, and recovery never brings back the answer it replaced
+ok 243 - process: an accepted loading is published, and recovery never brings back the answer it replaced
+  ---
+  duration_ms: 2082.606939
+  type: 'test'
+  ...
+# Subtest: process: an accepted refusal is published, and recovery never brings back the answer it replaced
+ok 244 - process: an accepted refusal is published, and recovery never brings back the answer it replaced
+  ---
+  duration_ms: 2079.371278
+  type: 'test'
+  ...
+# Subtest: process: an overtaken background reply changes neither the answer, the interval, nor what recovery shows
+ok 245 - process: an overtaken background reply changes neither the answer, the interval, nor what recovery shows
+  ---
+  duration_ms: 3096.391394
+  type: 'test'
+  ...
+# Subtest: process: an accepted background reply does not replace a newer answer another read remembered
+ok 246 - process: an accepted background reply does not replace a newer answer another read remembered
+  ---
+  duration_ms: 2082.532324
+  type: 'test'
+  ...
+# Subtest: process: an accepted background reply is what a later recovery shows
+ok 247 - process: an accepted background reply is what a later recovery shows
+  ---
+  duration_ms: 2084.744158
+  type: 'test'
+  ...
+# Subtest: process: an accepted background reply replaces an older read's answer that landed while it ran
+ok 248 - process: an accepted background reply replaces an older read's answer that landed while it ran
+  ---
+  duration_ms: 2096.898016
+  type: 'test'
+  ...
+# Subtest: process: an older read's refusal that lands after an accepted background reply does not erase it
+ok 249 - process: an older read's refusal that lands after an accepted background reply does not erase it
+  ---
+  duration_ms: 2095.101942
+  type: 'test'
+  ...
+# Subtest: process: a refusal read at a later store cut outranks an answer remembered before it landed
+ok 250 - process: a refusal read at a later store cut outranks an answer remembered before it landed
+  ---
+  duration_ms: 2094.485618
+  type: 'test'
+  ...
+# Subtest: process: a read retried after its store changed takes a new place in the order
+ok 251 - process: a read retried after its store changed takes a new place in the order
+  ---
+  duration_ms: 2146.56206
+  type: 'test'
+  ...
+# Subtest: process: forgetting an expired answer leaves the next server answer free to be remembered
+ok 252 - process: forgetting an expired answer leaves the next server answer free to be remembered
+  ---
+  duration_ms: 5103.741983
+  type: 'test'
+  ...
+# Subtest: process: a reply that names no store cut is ordered by when its read began
+ok 253 - process: a reply that names no store cut is ordered by when its read began
+  ---
+  duration_ms: 2103.80962
+  type: 'test'
+  ...
+# Subtest: process: an accepted background reply does not undo a newer read's deletion of an absent answer
+ok 254 - process: an accepted background reply does not undo a newer read's deletion of an absent answer
+  ---
+  duration_ms: 2094.798892
+  type: 'test'
+  ...
+# Subtest: a presence answer re-runs in the background after its server's interval, never showing loading
+ok 255 - a presence answer re-runs in the background after its server's interval, never showing loading
+  ---
+  duration_ms: 318.472113
+  type: 'test'
+  ...
+# Subtest: unguarded background refresh reports a newly accepted delivery coordinate with changes held
+ok 256 - unguarded background refresh reports a newly accepted delivery coordinate with changes held
+  ---
+  duration_ms: 509.255169
+  type: 'test'
+  ...
+# Subtest: an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops
+ok 257 - an answer that reads no presence does not re-run, a successful one without refresh stops it, and a closed watch stops
+  ---
+  duration_ms: 2722.629111
+  type: 'test'
+  ...
+# Subtest: a refresh that fails keeps the interval, and a refused presence query keeps refreshing
+ok 258 - a refresh that fails keeps the interval, and a refused presence query keeps refreshing
+  ---
+  duration_ms: 905.65066
+  type: 'test'
+  ...
+# Subtest: an invalidation during a background refresh withdraws at once, and the late refresh is discarded
+ok 259 - an invalidation during a background refresh withdraws at once, and the late refresh is discarded
+  ---
+  duration_ms: 522.028476
+  type: 'test'
+  ...
+# Subtest: an interval a timer cannot hold is clamped, not wrapped to an immediate refresh
+ok 260 - an interval a timer cannot hold is clamped, not wrapped to an immediate refresh
+  ---
+  duration_ms: 101.30665
+  type: 'test'
+  ...
+# Subtest: a background reply that a newer read overtook leaves the newer interval alone
+ok 261 - a background reply that a newer read overtook leaves the newer interval alone
+  ---
+  duration_ms: 664.165701
+  type: 'test'
+  ...
+# Subtest: an accepted loading answer is published, and a background failure keeps the answer and the link
+ok 262 - an accepted loading answer is published, and a background failure keeps the answer and the link
+  ---
+  duration_ms: 913.940726
+  type: 'test'
+  ...
+# Subtest: a background reply older than a commit the client observed is not published
+ok 263 - a background reply older than a commit the client observed is not published
+  ---
+  duration_ms: 710.172655
+  type: 'test'
+  ...
+# Subtest: a read that settles after the credentials end arms no refresh timer
+ok 264 - a read that settles after the credentials end arms no refresh timer
+  ---
+  duration_ms: 71.770345
+  type: 'test'
+  ...
+# Subtest: replacing fetch outcome: answer
+ok 265 - replacing fetch outcome: answer
+  ---
+  duration_ms: 5.031762
+  type: 'test'
+  ...
+# Subtest: replacing fetch outcome: loading
+ok 266 - replacing fetch outcome: loading
+  ---
+  duration_ms: 0.216024
+  type: 'test'
+  ...
+# Subtest: replacing fetch outcome: denied
+ok 267 - replacing fetch outcome: denied
+  ---
+  duration_ms: 0.154522
+  type: 'test'
+  ...
+# Subtest: replacing fetch outcome: failure
+ok 268 - replacing fetch outcome: failure
+  ---
+  duration_ms: 0.42104
+  type: 'test'
+  ...
+# Subtest: reset during a fetch clears its answer immediately and fences the returned publication
+ok 269 - reset during a fetch clears its answer immediately and fences the returned publication
+  ---
+  duration_ms: 0.222964
+  type: 'test'
+  ...
+# Subtest: composition retains the previous answer through successful HTTP settlement
+ok 270 - composition retains the previous answer through successful HTTP settlement
+  ---
+  duration_ms: 0.242664
+  type: 'test'
+  ...
+# Subtest: a reset during stale-response backoff prevents the next request
+ok 271 - a reset during stale-response backoff prevents the next request
+  ---
+  duration_ms: 25.045173
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=undefined, "B"
+ok 272 - replacement completes and clears revalidation: keep=undefined, "B"
+  ---
+  duration_ms: 2.113528
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=undefined, null
+ok 273 - replacement completes and clears revalidation: keep=undefined, null
+  ---
+  duration_ms: 0.197997
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=undefined, []
+ok 274 - replacement completes and clears revalidation: keep=undefined, []
+  ---
+  duration_ms: 0.131667
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+ok 275 - replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+  ---
+  duration_ms: 0.127291
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=undefined, throw
+ok 276 - failure policy and explicit withdrawals: keep=undefined, throw
+  ---
+  duration_ms: 0.439438
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=undefined, transportOffline
+ok 277 - failure policy and explicit withdrawals: keep=undefined, transportOffline
+  ---
+  duration_ms: 0.194422
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=undefined, retryExhausted
+ok 278 - failure policy and explicit withdrawals: keep=undefined, retryExhausted
+  ---
+  duration_ms: 176.134217
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=undefined, retain:false
+ok 279 - failure policy and explicit withdrawals: keep=undefined, retain:false
+  ---
+  duration_ms: 0.358497
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=undefined, loading
+ok 280 - failure policy and explicit withdrawals: keep=undefined, loading
+  ---
+  duration_ms: 0.128142
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=true, "B"
+ok 281 - replacement completes and clears revalidation: keep=true, "B"
+  ---
+  duration_ms: 0.225108
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=true, null
+ok 282 - replacement completes and clears revalidation: keep=true, null
+  ---
+  duration_ms: 0.156464
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=true, []
+ok 283 - replacement completes and clears revalidation: keep=true, []
+  ---
+  duration_ms: 0.110606
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=true, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+ok 284 - replacement completes and clears revalidation: keep=true, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+  ---
+  duration_ms: 0.079479
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=true, throw
+ok 285 - failure policy and explicit withdrawals: keep=true, throw
+  ---
+  duration_ms: 0.078668
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=true, transportOffline
+ok 286 - failure policy and explicit withdrawals: keep=true, transportOffline
+  ---
+  duration_ms: 0.052939
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=true, retryExhausted
+ok 287 - failure policy and explicit withdrawals: keep=true, retryExhausted
+  ---
+  duration_ms: 175.545484
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=true, retain:false
+ok 288 - failure policy and explicit withdrawals: keep=true, retain:false
+  ---
+  duration_ms: 0.312969
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=true, loading
+ok 289 - failure policy and explicit withdrawals: keep=true, loading
+  ---
+  duration_ms: 0.155814
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=false, "B"
+ok 290 - replacement completes and clears revalidation: keep=false, "B"
+  ---
+  duration_ms: 0.265978
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=false, null
+ok 291 - replacement completes and clears revalidation: keep=false, null
+  ---
+  duration_ms: 0.229985
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=false, []
+ok 292 - replacement completes and clears revalidation: keep=false, []
+  ---
+  duration_ms: 0.178868
+  type: 'test'
+  ...
+# Subtest: replacement completes and clears revalidation: keep=false, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+ok 293 - replacement completes and clears revalidation: keep=false, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}}
+  ---
+  duration_ms: 0.14726
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=false, throw
+ok 294 - failure policy and explicit withdrawals: keep=false, throw
+  ---
+  duration_ms: 0.289384
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=false, transportOffline
+ok 295 - failure policy and explicit withdrawals: keep=false, transportOffline
+  ---
+  duration_ms: 0.102384
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=false, retryExhausted
+ok 296 - failure policy and explicit withdrawals: keep=false, retryExhausted
+  ---
+  duration_ms: 175.561519
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=false, retain:false
+ok 297 - failure policy and explicit withdrawals: keep=false, retain:false
+  ---
+  duration_ms: 0.288242
+  type: 'test'
+  ...
+# Subtest: failure policy and explicit withdrawals: keep=false, loading
+ok 298 - failure policy and explicit withdrawals: keep=false, loading
+  ---
+  duration_ms: 0.134181
+  type: 'test'
+  ...
+# Subtest: one stable episode withdrawal at the deadline via snapshot, late success still lands
+ok 299 - one stable episode withdrawal at the deadline via snapshot, late success still lands
+  ---
+  duration_ms: 2.527569
+  type: 'test'
+  ...
+# Subtest: one stable episode withdrawal at the deadline via peek, late success still lands
+ok 300 - one stable episode withdrawal at the deadline via peek, late success still lands
+  ---
+  duration_ms: 0.650825
+  type: 'test'
+  ...
+# Subtest: one stable episode withdrawal at the deadline via timer, late success still lands
+ok 301 - one stable episode withdrawal at the deadline via timer, late success still lands
+  ---
+  duration_ms: 0.683614
+  type: 'test'
+  ...
+# Subtest: successful fallback and held composition keep the same episode: keep=undefined
+ok 302 - successful fallback and held composition keep the same episode: keep=undefined
+  ---
+  duration_ms: 0.487972
+  type: 'test'
+  ...
+# Subtest: successful fallback and held composition keep the same episode: keep=true
+ok 303 - successful fallback and held composition keep the same episode: keep=true
+  ---
+  duration_ms: 0.180761
+  type: 'test'
+  ...
+# Subtest: three watch keys and lifetimes in acquisition order ,false,true
+ok 304 - three watch keys and lifetimes in acquisition order ,false,true
+  ---
+  duration_ms: 2.387088
+  type: 'test'
+  ...
+# Subtest: three watch keys and lifetimes in acquisition order true,false,
+ok 305 - three watch keys and lifetimes in acquisition order true,false,
+  ---
+  duration_ms: 0.362573
+  type: 'test'
+  ...
+# Subtest: clear_rows resets every retention policy and fences old reads
+ok 306 - clear_rows resets every retention policy and fences old reads
+  ---
+  duration_ms: 0.721171
+  type: 'test'
+  ...
+# Subtest: settle_exit resets every retention policy and fences old reads
+ok 307 - settle_exit resets every retention policy and fences old reads
+  ---
+  duration_ms: 0.271416
+  type: 'test'
+  ...
+# Subtest: adopt resets every retention policy and fences old reads
+ok 308 - adopt resets every retention policy and fences old reads
+  ---
+  duration_ms: 0.269334
+  type: 'test'
+  ...
+# Subtest: observe_store resets every retention policy and fences old reads
+ok 309 - observe_store resets every retention policy and fences old reads
+  ---
+  duration_ms: 0.248302
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source expiry, keep=undefined
+ok 310 - facade and opening remount share source expiry, keep=undefined
+  ---
+  duration_ms: 15.507186
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source loading, keep=undefined
+ok 311 - facade and opening remount share source loading, keep=undefined
+  ---
+  duration_ms: 5.468277
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source transportOffline, keep=undefined
+ok 312 - facade and opening remount share source transportOffline, keep=undefined
+  ---
+  duration_ms: 5.504932
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source retain:false, keep=undefined
+ok 313 - facade and opening remount share source retain:false, keep=undefined
+  ---
+  duration_ms: 5.539384
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source reset, keep=undefined
+ok 314 - facade and opening remount share source reset, keep=undefined
+  ---
+  duration_ms: 4.327567
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source denied, keep=undefined
+ok 315 - facade and opening remount share source denied, keep=undefined
+  ---
+  duration_ms: 5.236139
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source expiry, keep=true
+ok 316 - facade and opening remount share source expiry, keep=true
+  ---
+  duration_ms: 5.222879
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source loading, keep=true
+ok 317 - facade and opening remount share source loading, keep=true
+  ---
+  duration_ms: 5.067736
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source transportOffline, keep=true
+ok 318 - facade and opening remount share source transportOffline, keep=true
+  ---
+  duration_ms: 4.464132
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source retain:false, keep=true
+ok 319 - facade and opening remount share source retain:false, keep=true
+  ---
+  duration_ms: 5.362218
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source reset, keep=true
+ok 320 - facade and opening remount share source reset, keep=true
+  ---
+  duration_ms: 4.402208
+  type: 'test'
+  ...
+# Subtest: facade and opening remount share source denied, keep=true
+ok 321 - facade and opening remount share source denied, keep=true
+  ---
+  duration_ms: 5.027927
+  type: 'test'
+  ...
+# Subtest: facade inherits A's episode timestamp from the invalidation, through B and C authority
+ok 322 - facade inherits A's episode timestamp from the invalidation, through B and C authority
+  ---
+  duration_ms: 8.154363
+  type: 'test'
+  ...
+# Subtest: an early episode timer rearms to the original deadline without accessor help
+ok 323 - an early episode timer rearms to the original deadline without accessor help
+  ---
+  duration_ms: 0.677705
+  type: 'test'
+  ...
+# Subtest: facade withdrawal notifies once, including an opening remount, keep=undefined
+ok 324 - facade withdrawal notifies once, including an opening remount, keep=undefined
+  ---
+  duration_ms: 5.226475
+  type: 'test'
+  ...
+# Subtest: facade withdrawal notifies once, including an opening remount, keep=false
+ok 325 - facade withdrawal notifies once, including an opening remount, keep=false
+  ---
+  duration_ms: 5.292123
+  type: 'test'
+  ...
+# Subtest: facade withdrawal notifies once, including an opening remount, keep=true
+ok 326 - facade withdrawal notifies once, including an opening remount, keep=true
+  ---
+  duration_ms: 4.301678
+  type: 'test'
+  ...
+# Subtest: closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer
+ok 327 - closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer
+  ---
+  duration_ms: 1.031206
+  type: 'test'
+  ...
+# Subtest: an episode due inside a grouped commit waits until the settled peer is revalidating
+ok 328 - an episode due inside a grouped commit waits until the settled peer is revalidating
+  ---
+  duration_ms: 0.965598
+  type: 'test'
+  ...
+# Subtest: online change bounds an older facade hold through later source replacements, keep=undefined
+ok 329 - online change bounds an older facade hold through later source replacements, keep=undefined
+  ---
+  duration_ms: 7.395316
+  type: 'test'
+  ...
+# Subtest: online change bounds an older facade hold through later source replacements, keep=true
+ok 330 - online change bounds an older facade hold through later source replacements, keep=true
+  ---
+  duration_ms: 6.71114
+  type: 'test'
+  ...
+# Subtest: local apply retains within a change episode, keep=undefined
+ok 331 - local apply retains within a change episode, keep=undefined
+  ---
+  duration_ms: 0.697796
+  type: 'test'
+  ...
+# Subtest: local admit retains within a change episode, keep=undefined
+ok 332 - local admit retains within a change episode, keep=undefined
+  ---
+  duration_ms: 0.768982
+  type: 'test'
+  ...
+# Subtest: local settle retains within a change episode, keep=undefined
+ok 333 - local settle retains within a change episode, keep=undefined
+  ---
+  duration_ms: 0.401492
+  type: 'test'
+  ...
+# Subtest: local apply retains within a change episode, keep=true
+ok 334 - local apply retains within a change episode, keep=true
+  ---
+  duration_ms: 0.344236
+  type: 'test'
+  ...
+# Subtest: local admit retains within a change episode, keep=true
+ok 335 - local admit retains within a change episode, keep=true
+  ---
+  duration_ms: 0.384717
+  type: 'test'
+  ...
+# Subtest: local settle retains within a change episode, keep=true
+ok 336 - local settle retains within a change episode, keep=true
+  ---
+  duration_ms: 0.322614
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=false, keep=undefined
+ok 337 - online guard: closed facade honors row expiry, live peer=false, keep=undefined
+  ---
+  duration_ms: 31.008442
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=false, keep=false
+ok 338 - online guard: closed facade honors row expiry, live peer=false, keep=false
+  ---
+  duration_ms: 2.789212
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=false, keep=true
+ok 339 - online guard: closed facade honors row expiry, live peer=false, keep=true
+  ---
+  duration_ms: 2.642471
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=true, keep=undefined
+ok 340 - online guard: closed facade honors row expiry, live peer=true, keep=undefined
+  ---
+  duration_ms: 4.577292
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=true, keep=false
+ok 341 - online guard: closed facade honors row expiry, live peer=true, keep=false
+  ---
+  duration_ms: 3.630852
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade honors row expiry, live peer=true, keep=true
+ok 342 - online guard: closed facade honors row expiry, live peer=true, keep=true
+  ---
+  duration_ms: 3.570682
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=false, keep=undefined
+ok 343 - online createApp: closed facade honors row expiry, live peer=false, keep=undefined
+  ---
+  duration_ms: 6.350259
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=false, keep=false
+ok 344 - online createApp: closed facade honors row expiry, live peer=false, keep=false
+  ---
+  duration_ms: 3.694678
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=false, keep=true
+ok 345 - online createApp: closed facade honors row expiry, live peer=false, keep=true
+  ---
+  duration_ms: 4.900776
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=true, keep=undefined
+ok 346 - online createApp: closed facade honors row expiry, live peer=true, keep=undefined
+  ---
+  duration_ms: 6.108166
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=true, keep=false
+ok 347 - online createApp: closed facade honors row expiry, live peer=true, keep=false
+  ---
+  duration_ms: 6.818521
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade honors row expiry, live peer=true, keep=true
+ok 348 - online createApp: closed facade honors row expiry, live peer=true, keep=true
+  ---
+  duration_ms: 5.008057
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=false, keep=undefined
+ok 349 - wasm guard: closed facade honors row expiry, live peer=false, keep=undefined
+  ---
+  duration_ms: 441.997629
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=false, keep=false
+ok 350 - wasm guard: closed facade honors row expiry, live peer=false, keep=false
+  ---
+  duration_ms: 8.982906
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=false, keep=true
+ok 351 - wasm guard: closed facade honors row expiry, live peer=false, keep=true
+  ---
+  duration_ms: 8.59201
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=true, keep=undefined
+ok 352 - wasm guard: closed facade honors row expiry, live peer=true, keep=undefined
+  ---
+  duration_ms: 10.296215
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=true, keep=false
+ok 353 - wasm guard: closed facade honors row expiry, live peer=true, keep=false
+  ---
+  duration_ms: 10.452929
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade honors row expiry, live peer=true, keep=true
+ok 354 - wasm guard: closed facade honors row expiry, live peer=true, keep=true
+  ---
+  duration_ms: 11.812747
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=false, keep=undefined
+ok 355 - wasm createApp: closed facade honors row expiry, live peer=false, keep=undefined
+  ---
+  duration_ms: 9.36624
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=false, keep=false
+ok 356 - wasm createApp: closed facade honors row expiry, live peer=false, keep=false
+  ---
+  duration_ms: 9.638147
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=false, keep=true
+ok 357 - wasm createApp: closed facade honors row expiry, live peer=false, keep=true
+  ---
+  duration_ms: 10.270686
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=true, keep=undefined
+ok 358 - wasm createApp: closed facade honors row expiry, live peer=true, keep=undefined
+  ---
+  duration_ms: 10.845327
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=true, keep=false
+ok 359 - wasm createApp: closed facade honors row expiry, live peer=true, keep=false
+  ---
+  duration_ms: 9.803385
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade honors row expiry, live peer=true, keep=true
+ok 360 - wasm createApp: closed facade honors row expiry, live peer=true, keep=true
+  ---
+  duration_ms: 9.739369
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private B, keep=false
+ok 361 - online guard: closed facade withdraws when peer republishes private B, keep=false
+  ---
+  duration_ms: 5.244402
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private A, keep=false
+ok 362 - online guard: closed facade withdraws when peer republishes private A, keep=false
+  ---
+  duration_ms: 5.246194
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private B, keep=undefined
+ok 363 - online guard: closed facade withdraws when peer republishes private B, keep=undefined
+  ---
+  duration_ms: 5.647675
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private A, keep=undefined
+ok 364 - online guard: closed facade withdraws when peer republishes private A, keep=undefined
+  ---
+  duration_ms: 5.527606
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private B, keep=true
+ok 365 - online guard: closed facade withdraws when peer republishes private B, keep=true
+  ---
+  duration_ms: 5.570781
+  type: 'test'
+  ...
+# Subtest: online guard: closed facade withdraws when peer republishes private A, keep=true
+ok 366 - online guard: closed facade withdraws when peer republishes private A, keep=true
+  ---
+  duration_ms: 5.47055
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private B, keep=false
+ok 367 - online createApp: closed facade withdraws when peer republishes private B, keep=false
+  ---
+  duration_ms: 5.627877
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private A, keep=false
+ok 368 - online createApp: closed facade withdraws when peer republishes private A, keep=false
+  ---
+  duration_ms: 6.589147
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private B, keep=undefined
+ok 369 - online createApp: closed facade withdraws when peer republishes private B, keep=undefined
+  ---
+  duration_ms: 7.079693
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private A, keep=undefined
+ok 370 - online createApp: closed facade withdraws when peer republishes private A, keep=undefined
+  ---
+  duration_ms: 7.862506
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private B, keep=true
+ok 371 - online createApp: closed facade withdraws when peer republishes private B, keep=true
+  ---
+  duration_ms: 6.777058
+  type: 'test'
+  ...
+# Subtest: online createApp: closed facade withdraws when peer republishes private A, keep=true
+ok 372 - online createApp: closed facade withdraws when peer republishes private A, keep=true
+  ---
+  duration_ms: 7.767693
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private B, keep=false
+ok 373 - wasm guard: closed facade withdraws when peer republishes private B, keep=false
+  ---
+  duration_ms: 12.6216
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private A, keep=false
+ok 374 - wasm guard: closed facade withdraws when peer republishes private A, keep=false
+  ---
+  duration_ms: 11.874821
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private B, keep=undefined
+ok 375 - wasm guard: closed facade withdraws when peer republishes private B, keep=undefined
+  ---
+  duration_ms: 12.756021
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private A, keep=undefined
+ok 376 - wasm guard: closed facade withdraws when peer republishes private A, keep=undefined
+  ---
+  duration_ms: 12.786708
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private B, keep=true
+ok 377 - wasm guard: closed facade withdraws when peer republishes private B, keep=true
+  ---
+  duration_ms: 13.96217
+  type: 'test'
+  ...
+# Subtest: wasm guard: closed facade withdraws when peer republishes private A, keep=true
+ok 378 - wasm guard: closed facade withdraws when peer republishes private A, keep=true
+  ---
+  duration_ms: 11.551225
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private B, keep=false
+ok 379 - wasm createApp: closed facade withdraws when peer republishes private B, keep=false
+  ---
+  duration_ms: 14.001408
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private A, keep=false
+ok 380 - wasm createApp: closed facade withdraws when peer republishes private A, keep=false
+  ---
+  duration_ms: 13.626216
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private B, keep=undefined
+ok 381 - wasm createApp: closed facade withdraws when peer republishes private B, keep=undefined
+  ---
+  duration_ms: 14.543842
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private A, keep=undefined
+ok 382 - wasm createApp: closed facade withdraws when peer republishes private A, keep=undefined
+  ---
+  duration_ms: 15.205934
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private B, keep=true
+ok 383 - wasm createApp: closed facade withdraws when peer republishes private B, keep=true
+  ---
+  duration_ms: 17.859001
+  type: 'test'
+  ...
+# Subtest: wasm createApp: closed facade withdraws when peer republishes private A, keep=true
+ok 384 - wasm createApp: closed facade withdraws when peer republishes private A, keep=true
+  ---
+  duration_ms: 41.108522
+  type: 'test'
+  ...
+# Subtest: online: closing a standalone withdrawing facade releases its raw owner and callbacks
+ok 385 - online: closing a standalone withdrawing facade releases its raw owner and callbacks
+  ---
+  duration_ms: 5.519915
+  type: 'test'
+  ...
+# Subtest: wasm: closing a standalone withdrawing facade releases its raw owner and callbacks
+ok 386 - wasm: closing a standalone withdrawing facade releases its raw owner and callbacks
+  ---
+  duration_ms: 9.734001
+  type: 'test'
+  ...
+# Subtest: online: client close keeps one denial past its row deadline, keep=undefined
+ok 387 - online: client close keeps one denial past its row deadline, keep=undefined
+  ---
+  duration_ms: 1.728522
+  type: 'test'
+  ...
+# Subtest: online detached handle: client close keeps one denial past its row deadline, keep=undefined
+ok 388 - online detached handle: client close keeps one denial past its row deadline, keep=undefined
+  ---
+  duration_ms: 2.621219
+  type: 'test'
+  ...
+# Subtest: online: client close keeps one denial past its row deadline, keep=false
+ok 389 - online: client close keeps one denial past its row deadline, keep=false
+  ---
+  duration_ms: 2.626777
+  type: 'test'
+  ...
+# Subtest: online detached handle: client close keeps one denial past its row deadline, keep=false
+ok 390 - online detached handle: client close keeps one denial past its row deadline, keep=false
+  ---
+  duration_ms: 1.584606
+  type: 'test'
+  ...
+# Subtest: online: client close keeps one denial past its row deadline, keep=true
+ok 391 - online: client close keeps one denial past its row deadline, keep=true
+  ---
+  duration_ms: 2.582321
+  type: 'test'
+  ...
+# Subtest: online detached handle: client close keeps one denial past its row deadline, keep=true
+ok 392 - online detached handle: client close keeps one denial past its row deadline, keep=true
+  ---
+  duration_ms: 2.680638
+  type: 'test'
+  ...
+# Subtest: wasm: client close keeps one denial past its row deadline, keep=undefined
+ok 393 - wasm: client close keeps one denial past its row deadline, keep=undefined
+  ---
+  duration_ms: 7.493814
+  type: 'test'
+  ...
+# Subtest: wasm detached handle: client close keeps one denial past its row deadline, keep=undefined
+ok 394 - wasm detached handle: client close keeps one denial past its row deadline, keep=undefined
+  ---
+  duration_ms: 7.021234
+  type: 'test'
+  ...
+# Subtest: wasm: client close keeps one denial past its row deadline, keep=false
+ok 395 - wasm: client close keeps one denial past its row deadline, keep=false
+  ---
+  duration_ms: 6.551661
+  type: 'test'
+  ...
+# Subtest: wasm detached handle: client close keeps one denial past its row deadline, keep=false
+ok 396 - wasm detached handle: client close keeps one denial past its row deadline, keep=false
+  ---
+  duration_ms: 5.616099
+  type: 'test'
+  ...
+# Subtest: wasm: client close keeps one denial past its row deadline, keep=true
+ok 397 - wasm: client close keeps one denial past its row deadline, keep=true
+  ---
+  duration_ms: 6.650269
+  type: 'test'
+  ...
+# Subtest: wasm detached handle: client close keeps one denial past its row deadline, keep=true
+ok 398 - wasm detached handle: client close keeps one denial past its row deadline, keep=true
+  ---
+  duration_ms: 5.537541
+  type: 'test'
+  ...
+# Subtest: wasm: resubscription delivers saved row expiry without an accessor, keep=undefined
+ok 399 - wasm: resubscription delivers saved row expiry without an accessor, keep=undefined
+  ---
+  duration_ms: 7.243347
+  type: 'test'
+  ...
+# Subtest: wasm: resubscription delivers saved row expiry without an accessor, keep=false
+ok 400 - wasm: resubscription delivers saved row expiry without an accessor, keep=false
+  ---
+  duration_ms: 5.735126
+  type: 'test'
+  ...
+# Subtest: wasm: closed handle expiry fences memory across rollback
+ok 401 - wasm: closed handle expiry fences memory across rollback
+  ---
+  duration_ms: 6.99091
+  type: 'test'
+  ...
+# Subtest: wasm: live handle expiry fences memory across rollback
+ok 402 - wasm: live handle expiry fences memory across rollback
+  ---
+  duration_ms: 6.547485
+  type: 'test'
+  ...
+# Subtest: wasm: closed A expiry preserves newer unexpired B in memory across rollback
+ok 403 - wasm: closed A expiry preserves newer unexpired B in memory across rollback
+  ---
+  duration_ms: 6.974685
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 404 - online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 6.573914
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=false
+ok 405 - online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 6.472562
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+ok 406 - online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.244851
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 407 - online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 7.314185
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 408 - online raw: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 7.418951
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=true
+ok 409 - online raw: discovery withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 6.389287
+  type: 'test'
+  ...
+# Subtest: online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+ok 410 - online raw: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.803468
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 411 - online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 7.092232
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=false
+ok 412 - online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 7.707824
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+ok 413 - online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 7.433223
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 414 - online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 6.49742
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 415 - online guard: discovery withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 5.609508
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=true
+ok 416 - online guard: discovery withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 6.721185
+  type: 'test'
+  ...
+# Subtest: online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+ok 417 - online guard: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.775986
+  type: 'test'
+  ...
+# Subtest: online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 418 - online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 6.929387
+  type: 'test'
+  ...
+# Subtest: online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+ok 419 - online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.703207
+  type: 'test'
+  ...
+# Subtest: online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+ok 420 - online opening remount: discovery withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 7.309858
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 421 - online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 7.061024
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=false, peerKeep=false
+ok 422 - online raw: offline withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 7.233934
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 423 - online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 7.163348
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 424 - online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 6.25755
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 425 - online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 6.758001
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true
+ok 426 - online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 6.193333
+  type: 'test'
+  ...
+# Subtest: online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 427 - online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.188806
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 428 - online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 7.332491
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=false, peerKeep=false
+ok 429 - online guard: offline withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 6.244911
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 430 - online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.254906
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 431 - online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 6.317009
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 432 - online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 6.308136
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true
+ok 433 - online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 6.212302
+  type: 'test'
+  ...
+# Subtest: online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 434 - online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 6.35081
+  type: 'test'
+  ...
+# Subtest: online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 435 - online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 6.239122
+  type: 'test'
+  ...
+# Subtest: online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 436 - online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 6.173795
+  type: 'test'
+  ...
+# Subtest: online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 437 - online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.545191
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 438 - online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 4.895919
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=false, peerKeep=false
+ok 439 - online raw: close withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 4.586475
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 440 - online raw: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.613064
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 441 - online raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 5.618933
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 442 - online raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 4.590311
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=false, peerKeep=true
+ok 443 - online raw: close withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 5.145674
+  type: 'test'
+  ...
+# Subtest: online raw: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 444 - online raw: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.964983
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 445 - online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 5.202559
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=false, peerKeep=false
+ok 446 - online guard: close withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 5.147486
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 447 - online guard: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 4.087367
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 448 - online guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 6.25745
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 449 - online guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 5.39671
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=false, peerKeep=true
+ok 450 - online guard: close withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 4.250732
+  type: 'test'
+  ...
+# Subtest: online guard: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 451 - online guard: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 5.219715
+  type: 'test'
+  ...
+# Subtest: online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 452 - online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 5.214086
+  type: 'test'
+  ...
+# Subtest: online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 453 - online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.252564
+  type: 'test'
+  ...
+# Subtest: online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 454 - online opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.378361
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 455 - online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 5.691141
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+ok 456 - online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 5.205362
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 457 - online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.238372
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 458 - online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 5.4371
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 459 - online raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 5.184001
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+ok 460 - online raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 5.255148
+  type: 'test'
+  ...
+# Subtest: online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 461 - online raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 5.286115
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 462 - online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 5.591081
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+ok 463 - online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 4.555029
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 464 - online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 4.688157
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 465 - online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 5.509279
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 466 - online guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 4.553215
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+ok 467 - online guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 5.701517
+  type: 'test'
+  ...
+# Subtest: online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 468 - online guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 5.750981
+  type: 'test'
+  ...
+# Subtest: online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 469 - online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 5.549859
+  type: 'test'
+  ...
+# Subtest: online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 470 - online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.510872
+  type: 'test'
+  ...
+# Subtest: online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 471 - online opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.428176
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 472 - wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 1017.31192
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=false
+ok 473 - wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 1017.283699
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 474 - wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 1018.321304
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 475 - wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 1019.211198
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 476 - wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 1017.33229
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true
+ok 477 - wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 1018.463415
+  type: 'test'
+  ...
+# Subtest: wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 478 - wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 1017.104097
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 479 - wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 1017.347003
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=false
+ok 480 - wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 1016.703086
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 481 - wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 1016.475746
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 482 - wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 1013.061978
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 483 - wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 1016.32568
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true
+ok 484 - wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 1049.847029
+  type: 'test'
+  ...
+# Subtest: wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 485 - wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 1011.008058
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 486 - wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 1015.253242
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false
+ok 487 - wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 1014.532261
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true
+ok 488 - wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 1016.415713
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 489 - wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 14.025414
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=false
+ok 490 - wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 13.380979
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 491 - wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 13.807477
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 492 - wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 14.227437
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 493 - wasm raw: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 13.062291
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=true
+ok 494 - wasm raw: close withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 11.03409
+  type: 'test'
+  ...
+# Subtest: wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 495 - wasm raw: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 11.193319
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 496 - wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 11.379869
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=false
+ok 497 - wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 11.321371
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 498 - wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 11.19389
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 499 - wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 11.911275
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 500 - wasm guard: close withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 14.041458
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=true
+ok 501 - wasm guard: close withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 10.331467
+  type: 'test'
+  ...
+# Subtest: wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 502 - wasm guard: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.910849
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 503 - wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 8.036617
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false
+ok 504 - wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.954414
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true
+ok 505 - wasm opening remount: close withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 7.971809
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 506 - wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 8.355465
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+ok 507 - wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 8.035735
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 508 - wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 8.652711
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 509 - wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 7.985891
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 510 - wasm raw: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 9.081403
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+ok 511 - wasm raw: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 8.203647
+  type: 'test'
+  ...
+# Subtest: wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 512 - wasm raw: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 8.104158
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+ok 513 - wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 8.347232
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+ok 514 - wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=false
+  ---
+  duration_ms: 8.301093
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 515 - wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 8.23251
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+ok 516 - wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 8.33257
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+ok 517 - wasm guard: sign-out withdraws both peers before every callback, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 8.178049
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+ok 518 - wasm guard: sign-out withdraws both peers before every callback, keep=false, peerKeep=true
+  ---
+  duration_ms: 10.78073
+  type: 'test'
+  ...
+# Subtest: wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 519 - wasm guard: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 7.995966
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined
+ok 520 - wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 7.983237
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+ok 521 - wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=false
+  ---
+  duration_ms: 8.017267
+  type: 'test'
+  ...
+# Subtest: wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+ok 522 - wasm opening remount: sign-out withdraws both peers before every callback, keep=true, peerKeep=true
+  ---
+  duration_ms: 8.018139
+  type: 'test'
+  ...
+# Subtest: schema discovery withdraws an overlapping invalidation: keep=undefined
+ok 523 - schema discovery withdraws an overlapping invalidation: keep=undefined
+  ---
+  duration_ms: 24.091102
+  type: 'test'
+  ...
+# Subtest: schema discovery withdraws an overlapping invalidation: keep=true
+ok 524 - schema discovery withdraws an overlapping invalidation: keep=true
+  ---
+  duration_ms: 6.200564
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=undefined
+ok 525 - online link loss follows evidence for a live settled answer immediately, keep=undefined
+  ---
+  duration_ms: 5.747486
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=undefined
+ok 526 - online link loss follows evidence for a live invalidated answer immediately, keep=undefined
+  ---
+  duration_ms: 6.699152
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=false
+ok 527 - online link loss follows evidence for a live settled answer immediately, keep=false
+  ---
+  duration_ms: 4.225695
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=false
+ok 528 - online link loss follows evidence for a live invalidated answer immediately, keep=false
+  ---
+  duration_ms: 6.686453
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=true
+ok 529 - online link loss follows evidence for a live settled answer immediately, keep=true
+  ---
+  duration_ms: 5.115608
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=true
+ok 530 - online link loss follows evidence for a live invalidated answer immediately, keep=true
+  ---
+  duration_ms: 7.502266
+  type: 'test'
+  ...
+# Subtest: usePage checks first page deadline before cached return without timer delivery
+ok 531 - usePage checks first page deadline before cached return without timer delivery
+  ---
+  duration_ms: 2.77532
+  type: 'test'
+  ...
+# Subtest: usePage checks second page deadline before cached return without timer delivery
+ok 532 - usePage checks second page deadline before cached return without timer delivery
+  ---
+  duration_ms: 0.498427
+  type: 'test'
+  ...
+# Subtest: usePage clears a later page's revalidating mark on replacement and replaces loaded cursors
+ok 533 - usePage clears a later page's revalidating mark on replacement and replaces loaded cursors
+  ---
+  duration_ms: 0.435573
+  type: 'test'
+  ...
+# Subtest: usePage search repeats keep one newest image by ID through page refresh
+ok 534 - usePage search repeats keep one newest image by ID through page refresh
+  ---
+  duration_ms: 0.49344
+  type: 'test'
+  ...
+# Subtest: usePage history repeats keep one newest image by ID through page refresh
+ok 535 - usePage history repeats keep one newest image by ID through page refresh
+  ---
+  duration_ms: 1.536603
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+ok 536 - guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 24.120477
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=false
+ok 537 - guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=false
+  ---
+  duration_ms: 4.942969
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 538 - guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 3.781047
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined
+ok 539 - guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 4.760917
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false
+ok 540 - guard: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 4.606385
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=true
+ok 541 - guard: replacement withdraws every peer before callbacks, keep=false, peerKeep=true
+  ---
+  duration_ms: 4.474737
+  type: 'test'
+  ...
+# Subtest: guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 542 - guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.375138
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+ok 543 - guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 4.472784
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=false, peerKeep=false
+ok 544 - guard: restore withdraws every peer before callbacks, keep=false, peerKeep=false
+  ---
+  duration_ms: 4.358594
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 545 - guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.335478
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined
+ok 546 - guard: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 4.123261
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false
+ok 547 - guard: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 4.118213
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=false, peerKeep=true
+ok 548 - guard: restore withdraws every peer before callbacks, keep=false, peerKeep=true
+  ---
+  duration_ms: 4.084703
+  type: 'test'
+  ...
+# Subtest: guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 549 - guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.1626
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+ok 550 - app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 9.380391
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=false, peerKeep=false
+ok 551 - app: replacement withdraws every peer before callbacks, keep=false, peerKeep=false
+  ---
+  duration_ms: 6.88465
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 552 - app: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.059163
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined
+ok 553 - app: replacement withdraws every peer before callbacks, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 7.521996
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false
+ok 554 - app: replacement withdraws every peer before callbacks, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 6.056619
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=false, peerKeep=true
+ok 555 - app: replacement withdraws every peer before callbacks, keep=false, peerKeep=true
+  ---
+  duration_ms: 5.608988
+  type: 'test'
+  ...
+# Subtest: app: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 556 - app: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 5.593885
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+ok 557 - app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=undefined
+  ---
+  duration_ms: 6.284691
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=false, peerKeep=false
+ok 558 - app: restore withdraws every peer before callbacks, keep=false, peerKeep=false
+  ---
+  duration_ms: 5.644912
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 559 - app: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 6.789367
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined
+ok 560 - app: restore withdraws every peer before callbacks, keep=false, peerKeep=undefined
+  ---
+  duration_ms: 5.591632
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false
+ok 561 - app: restore withdraws every peer before callbacks, keep=undefined, peerKeep=false
+  ---
+  duration_ms: 6.382097
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=false, peerKeep=true
+ok 562 - app: restore withdraws every peer before callbacks, keep=false, peerKeep=true
+  ---
+  duration_ms: 4.913255
+  type: 'test'
+  ...
+# Subtest: app: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 563 - app: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 6.204351
+  type: 'test'
+  ...
+# Subtest: lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=undefined
+ok 564 - lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 4.560326
+  type: 'test'
+  ...
+# Subtest: lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 565 - lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 5.311522
+  type: 'test'
+  ...
+# Subtest: lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 566 - lingering guard: replacement withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.231282
+  type: 'test'
+  ...
+# Subtest: lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=undefined
+ok 567 - lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=undefined
+  ---
+  duration_ms: 4.16972
+  type: 'test'
+  ...
+# Subtest: lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+ok 568 - lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=false
+  ---
+  duration_ms: 4.158794
+  type: 'test'
+  ...
+# Subtest: lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+ok 569 - lingering guard: restore withdraws every peer before callbacks, keep=true, peerKeep=true
+  ---
+  duration_ms: 5.324381
+  type: 'test'
+  ...
+# Subtest: R2 item 1: changes with a foreign identity returns before its production wait
+ok 570 - R2 item 1: changes with a foreign identity returns before its production wait
+  ---
+  duration_ms: 214.787539
+  type: 'test'
+  ...
+# foreign identity wait=25: 3 ms
+# Subtest: R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+ok 571 - R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25)
+  ---
+  duration_ms: 4702.513119
+  type: 'test'
+  ...
+# wasm: same-store restart syncs=0
+# wasm: wait=25, replacement=2169 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+ok 572 - R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20)
+  ---
+  duration_ms: 4328.663951
+  type: 'test'
+  ...
+# process: same-store restart syncs=0
+# process: wait=20, replacement=2167 ms, stale fresh snapshots=0, idle syncs=0
+# Subtest: R2 item 4: wasm replacement while a snapshot after request is in flight
+ok 573 - R2 item 4: wasm replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 130.934472
+  type: 'test'
+  ...
+# wasm: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 4: process replacement while a snapshot after request is in flight
+ok 574 - R2 item 4: process replacement while a snapshot after request is in flight
+  ---
+  duration_ms: 153.696672
+  type: 'test'
+  ...
+# process: A staged rows=2/5, B final rows=3, old rows=0
+# Subtest: R2 item 3: restoring the same store at a lower head halts reads and retries
+ok 575 - R2 item 3: restoring the same store at a lower head halts reads and retries
+  ---
+  duration_ms: 1358.733361
+  type: 'test'
+  ...
+# restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+# restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+# Subtest: R3 finding 5: server idle poll after populated maintain adoption stays healthy
+ok 576 - R3 finding 5: server idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 454.104737
+  type: 'test'
+  ...
+# maintain: acquired=4, idle notice=4
+# Subtest: R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+ok 577 - R3 finding 5: wasm idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 477.907817
+  type: 'test'
+  ...
+# wasm: acquired=4, idle notice=4, restore=none
+# Subtest: R3 finding 5: process idle poll after populated maintain adoption stays healthy
+ok 578 - R3 finding 5: process idle poll after populated maintain adoption stays healthy
+  ---
+  duration_ms: 506.087188
+  type: 'test'
+  ...
+# process: acquired=4, idle notice=4, restore=none
+# Subtest: R4: wasm a same-identity head below acquisition halts as a restore
+ok 579 - R4: wasm a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2053.147461
+  type: 'test'
+  ...
+# wasm: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R4: process a same-identity head below acquisition halts as a restore
+ok 580 - R4: process a same-identity head below acquisition halts as a restore
+  ---
+  duration_ms: 2109.818731
+  type: 'test'
+  ...
+# process: lower head=0 below acquisition → E_STORE_RESTORE; list empty, outbox preserved
+# Subtest: R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+ok 581 - R3 finding 5: concurrent commits and an older receipt retry keep the actual head
+  ---
+  duration_ms: 1449.379578
+  type: 'test'
+  ...
+# commits=1,2; replay=1; acquired=2; idle head=2
+# Subtest: review: reset delivery retains a prior emission across concurrent lookup
+ok 582 - review: reset delivery retains a prior emission across concurrent lookup
+  ---
+  duration_ms: 464.030446
+  type: 'test'
+  ...
+# Subtest: review: acknowledged success retirement retains prior emission across lookup
+ok 583 - review: acknowledged success retirement retains prior emission across lookup
+  ---
+  duration_ms: 10.513019
+  type: 'test'
+  ...
+# Subtest: review: pre-dispatch receipt recovery survives post-commit host failure
+ok 584 - review: pre-dispatch receipt recovery survives post-commit host failure
+  ---
+  duration_ms: 7.663078
+  type: 'test'
+  ...
+# Subtest: review: pending subscriber triggers duplicate successful recovery without a host delay
+ok 585 - review: pending subscriber triggers duplicate successful recovery without a host delay
+  ---
+  duration_ms: 9.856015
+  type: 'test'
+  ...
+# Subtest: replacement cannot duplicate a success still in an older flush snapshot
+ok 586 - replacement cannot duplicate a success still in an older flush snapshot
+  ---
+  duration_ms: 33.229632
+  type: 'test'
+  ...
+# Subtest: a delayed queue snapshot protects emissions until its entries can own delivery
+ok 587 - a delayed queue snapshot protects emissions until its entries can own delivery
+  ---
+  duration_ms: 0.174011
+  type: 'test'
+  ...
+# Subtest: a failed queue snapshot releases emission cleanup
+ok 588 - a failed queue snapshot releases emission cleanup
+  ---
+  duration_ms: 0.385528
+  type: 'test'
+  ...
+# Subtest: a retired settlement keeps its emitted refusal across a queue read
+ok 589 - a retired settlement keeps its emitted refusal across a queue read
+  ---
+  duration_ms: 0.123675
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: replacement-first
+ok 590 - overlapping receipt notifications keep their emission marker: replacement-first
+  ---
+  duration_ms: 0.657285
+  type: 'test'
+  ...
+# Subtest: overlapping receipt notifications keep their emission marker: acknowledgement-first
+ok 591 - overlapping receipt notifications keep their emission marker: acknowledgement-first
+  ---
+  duration_ms: 0.097406
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after settle throws
+ok 592 - receipt emission protection releases after settle throws
+  ---
+  duration_ms: 0.179219
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after publish throws
+ok 593 - receipt emission protection releases after publish throws
+  ---
+  duration_ms: 0.07998
+  type: 'test'
+  ...
+# Subtest: receipt emission protection releases after replacement-publish throws
+ok 594 - receipt emission protection releases after replacement-publish throws
+  ---
+  duration_ms: 0.099028
+  type: 'test'
+  ...
+# Subtest: a queued send follows a settled receipt without waiting for an intermediate sync
+ok 595 - a queued send follows a settled receipt without waiting for an intermediate sync
+  ---
+  duration_ms: 12.179227
+  type: 'test'
+  ...
+# Subtest: a success followed by a terminal refusal syncs the committed write before the batch finishes
+ok 596 - a success followed by a terminal refusal syncs the committed write before the batch finishes
+  ---
+  duration_ms: 14.24243
+  type: 'test'
+  ...
+# Subtest: an early flush exit syncs an earlier success when another owner retires the tail
+ok 597 - an early flush exit syncs an earlier success when another owner retires the tail
+  ---
+  duration_ms: 9.704227
+  type: 'test'
+  ...
+# Subtest: repeating media failure cannot gate an already queued send and retries stay bounded
+ok 598 - repeating media failure cannot gate an already queued send and retries stay bounded
+  ---
+  duration_ms: 30.551087
+  type: 'test'
+  ...
+# Subtest: a committed admission still sends when media housekeeping keeps failing
+ok 599 - a committed admission still sends when media housekeeping keeps failing
+  ---
+  duration_ms: 12.972446
+  type: 'test'
+  ...
+# Subtest: repeating post-commit receipt-save failure cannot gate an already queued send
+ok 600 - repeating post-commit receipt-save failure cannot gate an already queued send
+  ---
+  duration_ms: 18.582015
+  type: 'test'
+  ...
+# Subtest: the observation catch schedules the only retry that can publish an earlier success
+ok 601 - the observation catch schedules the only retry that can publish an earlier success
+  ---
+  duration_ms: 11.789984
+  type: 'test'
+  ...
+# Subtest: a durable refusal still completes when its observation queue read fails
+ok 602 - a durable refusal still completes when its observation queue read fails
+  ---
+  duration_ms: 10.222734
+  type: 'test'
+  ...
+# Subtest: receipt-save retry preserves refusal notification deduplication through observation
+ok 603 - receipt-save retry preserves refusal notification deduplication through observation
+  ---
+  duration_ms: 11.35466
+  type: 'test'
+  ...
+# Subtest: the final flush sync publishes an earlier success when the tail retires before its queue lookup
+ok 604 - the final flush sync publishes an earlier success when the tail retires before its queue lookup
+  ---
+  duration_ms: 9.316345
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit media failure
+ok 605 - recovered refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 6.300604
+  type: 'test'
+  ...
+# Subtest: recovered refusal delivery survives post-commit host failure
+ok 606 - recovered refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 5.780686
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit state failure
+ok 607 - replacement retired-success delivery survives post-commit state failure
+  ---
+  duration_ms: 1004.813795
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit metadata failure
+ok 608 - replacement retired-success delivery survives post-commit metadata failure
+  ---
+  duration_ms: 1006.27136
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit media failure
+ok 609 - replacement retired-success delivery survives post-commit media failure
+  ---
+  duration_ms: 1006.223097
+  type: 'test'
+  ...
+# Subtest: replacement retired-success delivery survives post-commit host failure
+ok 610 - replacement retired-success delivery survives post-commit host failure
+  ---
+  duration_ms: 1006.196487
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit media failure
+ok 611 - keepalive refusal delivery survives post-commit media failure
+  ---
+  duration_ms: 1012.045404
+  type: 'test'
+  ...
+# Subtest: keepalive refusal delivery survives post-commit host failure
+ok 612 - keepalive refusal delivery survives post-commit host failure
+  ---
+  duration_ms: 1012.691492
+  type: 'test'
+  ...
+# Subtest: receipt head observations do not rescan retained media until publication or replacement
+ok 613 - receipt head observations do not rescan retained media until publication or replacement
+  ---
+  duration_ms: 70.614431
+  type: 'test'
+  ...
+# Subtest: R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+ok 614 - R2 item 2: getSnapshot is cleared after validated reset and before backend adoption
+  ---
+  duration_ms: 18.110107
+  type: 'test'
+  ...
+# Subtest: FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+ok 615 - FF1: committed reset invalidates watches and acquisition before a denied sync_state read
+  ---
+  duration_ms: 14.489189
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: observe_store invalidates before fallible media reconciliation
+ok 616 - FF1 boundary: observe_store invalidates before fallible media reconciliation
+  ---
+  duration_ms: 37.921104
+  type: 'test'
+  ...
+# Subtest: FF1 boundary: adopt invalidates before fallible media reconciliation
+ok 617 - FF1 boundary: adopt invalidates before fallible media reconciliation
+  ---
+  duration_ms: 12.990644
+  type: 'test'
+  ...
+# Subtest: FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+ok 618 - FF1 adoption audit: committed generation invalidates before a thrown sync_state read
+  ---
+  duration_ms: 10.136554
+  type: 'test'
+  ...
+# Subtest: FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+ok 619 - FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up
+  ---
+  duration_ms: 8.013522
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+ok 620 - HH1/II1: snapshot publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1017.221702
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with media recovery
+ok 621 - HH1/II1: snapshot publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1014.49151
+  type: 'test'
+  ...
+# Subtest: HH1/II1: snapshot publication preserves watch invalidation with host recovery
+ok 622 - HH1/II1: snapshot publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1037.150096
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with healthy recovery
+ok 623 - HH1/II1: stream publication preserves watch invalidation with healthy recovery
+  ---
+  duration_ms: 1030.823772
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with media recovery
+ok 624 - HH1/II1: stream publication preserves watch invalidation with media recovery
+  ---
+  duration_ms: 1029.104344
+  type: 'test'
+  ...
+# Subtest: HH1/II1: stream publication preserves watch invalidation with host recovery
+ok 625 - HH1/II1: stream publication preserves watch invalidation with host recovery
+  ---
+  duration_ms: 1032.066604
+  type: 'test'
+  ...
+# Subtest: R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+ok 626 - R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head
+  ---
+  duration_ms: 5.836209
+  type: 'test'
+  ...
+# Subtest: finding 1: failed same-generation backend adoption survives retry and offline reopen
+ok 627 - finding 1: failed same-generation backend adoption survives retry and offline reopen
+  ---
+  duration_ms: 14.504302
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed server answer cannot escape its incarnation
+ok 628 - finding 2: delayed server answer cannot escape its incarnation
+  ---
+  duration_ms: 10.289183
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed horizon answer cannot escape its incarnation
+ok 629 - finding 2: delayed horizon answer cannot escape its incarnation
+  ---
+  duration_ms: 18.484158
+  type: 'test'
+  ...
+# Subtest: finding 2: delayed watch answer cannot escape its incarnation
+ok 630 - finding 2: delayed watch answer cannot escape its incarnation
+  ---
+  duration_ms: 9.665489
+  type: 'test'
+  ...
+# Subtest: finding 2: changes observation drops freshness while a mutation holds the network queue
+ok 631 - finding 2: changes observation drops freshness while a mutation holds the network queue
+  ---
+  duration_ms: 10.881121
+  type: 'test'
+  ...
+# Subtest: finding 3: orphan import retires foreign receipts and disables unknown predictions
+ok 632 - finding 3: orphan import retires foreign receipts and disables unknown predictions
+  ---
+  duration_ms: 6.322707
+  type: 'test'
+  ...
+# Subtest: legacy clock-less predictable orphan imports without local rows and survives replay
+ok 633 - legacy clock-less predictable orphan imports without local rows and survives replay
+  ---
+  duration_ms: 6.450209
+  type: 'test'
+  ...
+# Subtest: finding 2: a delayed device read is retried before returning
+ok 634 - finding 2: a delayed device read is retried before returning
+  ---
+  duration_ms: 10.029935
+  type: 'test'
+  ...
+# Subtest: orphan provenance survives an unidentified destination and resolves on sync
+ok 635 - orphan provenance survives an unidentified destination and resolves on sync
+  ---
+  duration_ms: 5.743369
+  type: 'test'
+  ...
+# Subtest: same-store orphan adoption preserves receipts, order and row IDs without predictions
+ok 636 - same-store orphan adoption preserves receipts, order and row IDs without predictions
+  ---
+  duration_ms: 4.146616
+  type: 'test'
+  ...
+# Subtest: replacement receipts use ordinary transport without replaying known writes
+ok 637 - replacement receipts use ordinary transport without replaying known writes
+  ---
+  duration_ms: 1006.424407
+  type: 'test'
+  ...
+# Subtest: replacement receipts use exit transport without replaying known writes
+ok 638 - replacement receipts use exit transport without replaying known writes
+  ---
+  duration_ms: 1006.038117
+  type: 'test'
+  ...
+# Subtest: finding 2: a rerun started by replacement observation cannot publish the old partition
+ok 639 - finding 2: a rerun started by replacement observation cannot publish the old partition
+  ---
+  duration_ms: 15.723449
+  type: 'test'
+  ...
+# Subtest: generation discovery clears retained answers even when backend adoption cannot start
+ok 640 - generation discovery clears retained answers even when backend adoption cannot start
+  ---
+  duration_ms: 6.032823
+  type: 'test'
+  ...
+# Subtest: review extra: repeating acknowledged-observation failure cannot strand queued tail
+ok 641 - review extra: repeating acknowledged-observation failure cannot strand queued tail
+  ---
+  duration_ms: 33.111414
+  type: 'test'
+  ...
+# Subtest: wasm: persisted device reacquires after two backend replacements and preserves an unsent write
+ok 642 - wasm: persisted device reacquires after two backend replacements and preserves an unsent write
+  ---
+  duration_ms: 2679.811431
+  type: 'test'
+  ...
+# reset observed: A={"generation":1,"native":null,"watermark":3}, B={"generation":1,"native":null,"watermark":0}, local={"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true}}, queue=[{"args":{"body":"unsent"},"id":"01M3NZFWKEYDQB0CKMZQBKNCXV","new_ids":["01M3NZFWKF0FC09J7Z6JAH1VY7"],"now":1790665290351,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice","store_id":"c47f7e6c67bba28a99b753dc121d1c68"}], reply={"request":{"generation":1,"from":3,"limit":10000,"after":null,"stream":false,"pending":["01M3NZFWKEYDQB0CKMZQBKNCXV"],"store_id":"821b12eea8d8b500ff277477b812cbdd"},"reply":{"acknowledged":{},"events":[],"generation":1,"images_at":1,"joined":{},"more":false,"now":1790665290416,"snapshot":false,"store_id":"c47f7e6c67bba28a99b753dc121d1c68","watermark":1}}
+# reacquired: B rows=2, C rows=2, pending POSTs=1, resets=2
+# Subtest: sync store identity survives a server restart; a live client detects an equal-watermark replacement
+ok 643 - sync store identity survives a server restart; a live client detects an equal-watermark replacement
+  ---
+  duration_ms: 2164.605622
+  type: 'test'
+  ...
+# server: identity length=32, restart IDs=1, replacement IDs=2, equal watermark=3
+# Subtest: wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID
+ok 644 - wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID
+  ---
+  duration_ms: 1148.873591
+  type: 'test'
+  ...
+# receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true
+# Subtest: wasm: a replacement reloads backend programs even when the generation number repeats
+ok 645 - wasm: a replacement reloads backend programs even when the generation number repeats
+  ---
+  duration_ms: 1069.925015
+  type: 'test'
+  ...
+# Subtest: the legacy refusal constant matches the published 0.2.32 capture
+ok 646 - the legacy refusal constant matches the published 0.2.32 capture
+  ---
+  duration_ms: 1.592838
+  type: 'test'
+  ...
+# Subtest: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 647 - wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 585.630625
+  type: 'test'
+  ...
+# Subtest: process: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 648 - process: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 202.63399
+  type: 'test'
+  ...
+# Subtest: legacy fallback returns the distinct successful retry and latches only its origin and transport
+ok 649 - legacy fallback returns the distinct successful retry and latches only its origin and transport
+  ---
+  duration_ms: 1.796573
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on same E_INPUT
+ok 650 - legacy fallback does not latch on same E_INPUT
+  ---
+  duration_ms: 0.488933
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on throw
+ok 651 - legacy fallback does not latch on throw
+  ---
+  duration_ms: 0.676604
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 503
+ok 652 - legacy fallback does not latch on 503
+  ---
+  duration_ms: 0.301371
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 429
+ok 653 - legacy fallback does not latch on 429
+  ---
+  duration_ms: 0.257316
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 401
+ok 654 - legacy fallback does not latch on 401
+  ---
+  duration_ms: 0.234462
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 408
+ok 655 - legacy fallback does not latch on 408
+  ---
+  duration_ms: 0.271898
+  type: 'test'
+  ...
+# Subtest: legacy fallback captures each overlapping attempt and waits for successful retry before latching
+ok 656 - legacy fallback captures each overlapping attempt and waits for successful retry before latching
+  ---
+  duration_ms: 2.690023
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores other refusals and never retries an attempt without generation
+ok 657 - legacy fallback ignores other refusals and never retries an attempt without generation
+  ---
+  duration_ms: 0.894871
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+ok 658 - legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+  ---
+  duration_ms: 111.278567
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+ok 659 - legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.757054
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+ok 660 - legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.86098
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+ok 661 - legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.073079
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+ok 662 - legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.88717
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+ok 663 - legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.783084
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+ok 664 - legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.766589
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+ok 665 - legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.728763
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+ok 666 - legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.715043
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+ok 667 - legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.612919
+  type: 'test'
+  ...
+# Subtest: new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract
+ok 668 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+  ---
+  duration_ms: 0.091728
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from deferred stream
+ok 669 - wasm: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 102.920579
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from staged snapshot
+ok 670 - wasm: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 105.797231
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from deferred stream
+ok 671 - process: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 131.608593
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from staged snapshot
+ok 672 - process: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 140.608563
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide deferred stream evidence identically
+ok 673 - wasm: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 259.289758
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide deferred stream evidence identically
+ok 674 - wasm: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 233.466068
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves deferred stream evidence until a headed retry
+ok 675 - wasm: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 206.595248
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 676 - wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 240.923015
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 677 - wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 258.369077
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 678 - wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 206.389089
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide deferred stream evidence identically
+ok 679 - process: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 344.599808
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide deferred stream evidence identically
+ok 680 - process: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 329.867203
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves deferred stream evidence until a headed retry
+ok 681 - process: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 280.089576
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 682 - process: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 296.861808
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 683 - process: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 295.691053
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 684 - process: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 214.113378
+  type: 'test'
+  ...
+# Subtest: wasm: invalid early heads are retryable and never reach observation or adoption
+ok 685 - wasm: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 99.483406
+  type: 'test'
+  ...
+# Subtest: process: invalid early heads are retryable and never reach observation or adoption
+ok 686 - process: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 136.655067
+  type: 'test'
+  ...
+1..686
+# tests 740
+# suites 0
+# pass 739
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 79084.123538

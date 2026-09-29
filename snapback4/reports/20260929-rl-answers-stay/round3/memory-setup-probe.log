@@ -1,0 +1,346 @@
+TAP version 13
+# sync-start process 0
+# await-initial process 0
+# hold-start process 0
+# held-arrived process 0
+# before-read-done process 0
+# notifying process 0
+# sync-arrived process 0
+# await-pending process 0
+# Subtest: process 0: generation boundary clears remembered answers and a held server completion
+ok 1 - process 0: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1452.005777
+  type: 'test'
+  ...
+# sync-start wasm 0
+# await-initial wasm 0
+# hold-start wasm 0
+# held-arrived wasm 0
+# before-read-done wasm 0
+# notifying wasm 0
+# sync-arrived wasm 0
+# await-pending wasm 0
+# Subtest: wasm 0: generation boundary clears remembered answers and a held server completion
+ok 2 - wasm 0: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1845.37075
+  type: 'test'
+  ...
+# sync-start process 1
+# await-initial process 1
+# hold-start process 1
+# held-arrived process 1
+# before-read-done process 1
+# notifying process 1
+# sync-arrived process 1
+# await-pending process 1
+# Subtest: process 1: generation boundary clears remembered answers and a held server completion
+ok 3 - process 1: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1446.229591
+  type: 'test'
+  ...
+# sync-start wasm 1
+# await-initial wasm 1
+# hold-start wasm 1
+# held-arrived wasm 1
+# before-read-done wasm 1
+# notifying wasm 1
+# sync-arrived wasm 1
+# await-pending wasm 1
+# Subtest: wasm 1: generation boundary clears remembered answers and a held server completion
+ok 4 - wasm 1: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1445.883063
+  type: 'test'
+  ...
+# sync-start process 2
+# await-initial process 2
+# hold-start process 2
+# held-arrived process 2
+# before-read-done process 2
+# notifying process 2
+# sync-arrived process 2
+# await-pending process 2
+# Subtest: process 2: generation boundary clears remembered answers and a held server completion
+ok 5 - process 2: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1437.435273
+  type: 'test'
+  ...
+# sync-start wasm 2
+# await-initial wasm 2
+# hold-start wasm 2
+# held-arrived wasm 2
+# before-read-done wasm 2
+# notifying wasm 2
+# sync-arrived wasm 2
+# await-pending wasm 2
+# Subtest: wasm 2: generation boundary clears remembered answers and a held server completion
+ok 6 - wasm 2: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1443.385982
+  type: 'test'
+  ...
+# sync-start process 3
+# await-initial process 3
+# hold-start process 3
+# held-arrived process 3
+# before-read-done process 3
+# notifying process 3
+# sync-arrived process 3
+# await-pending process 3
+# Subtest: process 3: generation boundary clears remembered answers and a held server completion
+ok 7 - process 3: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1445.982624
+  type: 'test'
+  ...
+# sync-start wasm 3
+# await-initial wasm 3
+# hold-start wasm 3
+# held-arrived wasm 3
+# before-read-done wasm 3
+# notifying wasm 3
+# sync-arrived wasm 3
+# await-pending wasm 3
+# Subtest: wasm 3: generation boundary clears remembered answers and a held server completion
+ok 8 - wasm 3: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1444.16466
+  type: 'test'
+  ...
+# sync-start process 4
+# await-initial process 4
+# hold-start process 4
+# held-arrived process 4
+# before-read-done process 4
+# notifying process 4
+# sync-arrived process 4
+# await-pending process 4
+# Subtest: process 4: generation boundary clears remembered answers and a held server completion
+ok 9 - process 4: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1448.582872
+  type: 'test'
+  ...
+# sync-start wasm 4
+# await-initial wasm 4
+# hold-start wasm 4
+# held-arrived wasm 4
+# before-read-done wasm 4
+# notifying wasm 4
+# sync-arrived wasm 4
+# await-pending wasm 4
+# Subtest: wasm 4: generation boundary clears remembered answers and a held server completion
+ok 10 - wasm 4: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1446.962034
+  type: 'test'
+  ...
+# sync-start process 5
+# await-initial process 5
+# hold-start process 5
+# held-arrived process 5
+# before-read-done process 5
+# notifying process 5
+# sync-arrived process 5
+# await-pending process 5
+# Subtest: process 5: generation boundary clears remembered answers and a held server completion
+ok 11 - process 5: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1451.559965
+  type: 'test'
+  ...
+# sync-start wasm 5
+# await-initial wasm 5
+# hold-start wasm 5
+# held-arrived wasm 5
+# before-read-done wasm 5
+# notifying wasm 5
+# sync-arrived wasm 5
+# await-pending wasm 5
+# Subtest: wasm 5: generation boundary clears remembered answers and a held server completion
+ok 12 - wasm 5: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1442.714941
+  type: 'test'
+  ...
+# sync-start process 6
+# await-initial process 6
+# hold-start process 6
+# held-arrived process 6
+# before-read-done process 6
+# notifying process 6
+# sync-arrived process 6
+# await-pending process 6
+# Subtest: process 6: generation boundary clears remembered answers and a held server completion
+ok 13 - process 6: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1448.286821
+  type: 'test'
+  ...
+# sync-start wasm 6
+# await-initial wasm 6
+# hold-start wasm 6
+# held-arrived wasm 6
+# before-read-done wasm 6
+# notifying wasm 6
+# sync-arrived wasm 6
+# await-pending wasm 6
+# Subtest: wasm 6: generation boundary clears remembered answers and a held server completion
+ok 14 - wasm 6: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1448.526571
+  type: 'test'
+  ...
+# sync-start process 7
+# await-initial process 7
+# hold-start process 7
+# held-arrived process 7
+# before-read-done process 7
+# notifying process 7
+# sync-arrived process 7
+# await-pending process 7
+# Subtest: process 7: generation boundary clears remembered answers and a held server completion
+ok 15 - process 7: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1440.255566
+  type: 'test'
+  ...
+# sync-start wasm 7
+# await-initial wasm 7
+# hold-start wasm 7
+# held-arrived wasm 7
+# before-read-done wasm 7
+# notifying wasm 7
+# sync-arrived wasm 7
+# await-pending wasm 7
+# Subtest: wasm 7: generation boundary clears remembered answers and a held server completion
+ok 16 - wasm 7: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1448.42443
+  type: 'test'
+  ...
+# sync-start process 8
+# await-initial process 8
+# hold-start process 8
+# held-arrived process 8
+# before-read-done process 8
+# notifying process 8
+# sync-arrived process 8
+# await-pending process 8
+# Subtest: process 8: generation boundary clears remembered answers and a held server completion
+ok 17 - process 8: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1446.900687
+  type: 'test'
+  ...
+# sync-start wasm 8
+# await-initial wasm 8
+# hold-start wasm 8
+# held-arrived wasm 8
+# before-read-done wasm 8
+# notifying wasm 8
+# sync-arrived wasm 8
+# await-pending wasm 8
+# Subtest: wasm 8: generation boundary clears remembered answers and a held server completion
+ok 18 - wasm 8: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1442.036969
+  type: 'test'
+  ...
+# sync-start process 9
+# await-initial process 9
+# hold-start process 9
+# held-arrived process 9
+# before-read-done process 9
+# notifying process 9
+# sync-arrived process 9
+# await-pending process 9
+# Subtest: process 9: generation boundary clears remembered answers and a held server completion
+ok 19 - process 9: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1442.215747
+  type: 'test'
+  ...
+# sync-start wasm 9
+# await-initial wasm 9
+# hold-start wasm 9
+# held-arrived wasm 9
+# before-read-done wasm 9
+# notifying wasm 9
+# sync-arrived wasm 9
+# await-pending wasm 9
+# Subtest: wasm 9: generation boundary clears remembered answers and a held server completion
+ok 20 - wasm 9: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1441.211863
+  type: 'test'
+  ...
+# sync-start process 10
+# await-initial process 10
+# hold-start process 10
+# held-arrived process 10
+# before-read-done process 10
+# notifying process 10
+# sync-arrived process 10
+# await-pending process 10
+# Subtest: process 10: generation boundary clears remembered answers and a held server completion
+ok 21 - process 10: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1443.541585
+  type: 'test'
+  ...
+# sync-start wasm 10
+# await-initial wasm 10
+# hold-start wasm 10
+# held-arrived wasm 10
+# before-read-done wasm 10
+# notifying wasm 10
+# sync-arrived wasm 10
+# await-pending wasm 10
+# Subtest: wasm 10: generation boundary clears remembered answers and a held server completion
+ok 22 - wasm 10: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1442.112404
+  type: 'test'
+  ...
+# sync-start process 11
+# await-initial process 11
+# hold-start process 11
+# held-arrived process 11
+# before-read-done process 11
+# notifying process 11
+# sync-arrived process 11
+# await-pending process 11
+# Subtest: process 11: generation boundary clears remembered answers and a held server completion
+ok 23 - process 11: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1445.395004
+  type: 'test'
+  ...
+# sync-start wasm 11
+# await-initial wasm 11
+# hold-start wasm 11
+# held-arrived wasm 11
+# before-read-done wasm 11
+# notifying wasm 11
+# sync-arrived wasm 11
+# await-pending wasm 11
+# Subtest: wasm 11: generation boundary clears remembered answers and a held server completion
+ok 24 - wasm 11: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1444.560214
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 35234.029534

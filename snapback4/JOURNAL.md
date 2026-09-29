@@ -75910,6 +75910,83 @@ dependencies also made a mounted history `loading` on every incoming message,
 send and settlement, the friction builders fought in every calibration. The
 retained-answer goal continues as a smaller change to LLP 3000.023's model.
 Lane PQ, which merged LV, will be ported onto this `main`.
+
+
+## 2026-09-29 — RL round 0: plain revalidation keeps mounted answers
+
+Lane RL on `sb4-intent/rl-answers-stay`, based on `ac5c4e21c`. LLP 3000.023
+§10 narrows the episode to online `/changes` evidence: default and true keep
+plain revalidation indefinitely, marked `revalidating`; false still withdraws.
+Offline freshness uses the existing `fresh: false`/`since`. Commits retain and
+replace from the replica; deadlines, resets, denials and ordering remain.
+Held facades inherit the earliest online bound even behind another source.
+Ordered remembered recovery still replaces with newer data or explicit absence;
+retention does not override a later denial. No LV ordering mechanism imported.
+Updated client card, READMEs, operations manual and LLP 3000.019's pointer;
+removed the profile identity/route-latch workaround. No runtime/Rust changes.
+
+React process/wasm/online evidence covers the 3 s profile refetch, offline,
+retry exhaustion and reconnect, history peer sync/send+settlement/edit/delete,
+and direct empty replacement on membership removal. Baseline: 39 pass/27 fail
+(21 leaf failures, six parents); final: all 66 pass with zero loading renders.
+Actual callbacks are replayed individually through React hooks in Chromium;
+this is not an Expo Router/native simulator claim. The independent fixture
+history port of LV's schedule passes 300 seeds/host after; before, every seed
+fails only the no-loading rule, with no older-answer or membership failure.
+It does not claim LV's native-plugin/cutless variants.
+
+Final affected reruns: 134 policy/render/expiry/withdrawal, 64 ordering/reset,
+85 earlier withdrawal/delivery/expiry, three explicit-false seams and one
+await-boundary check pass. Whole guide 98/98; full client models 79/79.
+`scripts/test.sh` ran exactly once: `== 2 failure(s) in 1459 s` (exit 1),
+`cargo test` and `client tests`. All 44 individual failures are ours, fixed
+in scoped reruns: one guide introduction, 43 client cases (including recovery
+and wakeup regressions, obsolete episode expectations and one await checksum).
+No baseline/environmental attribution; no claim of a green final full run.
+Exact titles, intermediate failures and evidence are in the report.
+
+Fresh wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the 593,719 B cap;
+SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: `reports/20260929-rl-answers-stay/REPORT.md`. Local commit only,
+with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push/publication.
+
+## 2026-09-29 — RL round 1: bound revalidation after change evidence
+
+Read both round 0 reviews (Astra and Grok, both NOT READY) and applied the
+clarified rule in LLP 3000.023 §10. Plain same-key revalidation remains
+unbounded. Local `apply`/`admit`/`settle`, acknowledged online receipts,
+durable and ephemeral change notifications, and sync publications retain the
+one-second episode and withdraw on failed replacement or timeout. Immediate
+successful replica replacements still show no loading render. Sampling stays
+plain. Change evidence retires affected remembered answers with the existing
+ticket barrier; the observation version fences a pre-change local completion
+so it cannot erase the new deadline. No new ordering algorithm.
+
+Offline metadata now reaches local server-backed watches and the facade's held
+answer independently of replacement selection, preserving each answer's
+identity, confirmation time and deadlines. Ordinary search carries transport
+failure through final candidate selection; explicit unavailable answers and
+denials still withdraw. Updated the governing LLPs and client documentation.
+Removed the stale execution test of the profile-route workaround deleted in
+round 0; the real mounted React route-gate proof remains.
+
+Evidence: 37 review regressions pass; the saved round 0 SDK fails 31 of the
+original 35 cases (four pin unchanged withdrawals). The independent fixture
+schedule passes 300 seeds each on process and wasm, including held/failed reads
+across membership removal and public sign-out. Removing offline freshness
+fails every sampled seed; removing the pre-change completion fence fails both
+hosts. Whole guide 98/98; wasm 592,975 B gzip, 744 B below the 593,719 B cap.
+
+Ran `scripts/test.sh` exactly once: `== 1 failure(s) in 1231 s`. Client stage:
+4,644 tests, 4,625 passed, nine failed, ten skipped; all nine failures were ours,
+none baseline or environmental. They were stale expiry/remount assertions and
+the removed route example's test, corrected in 32/32 and 6/6 scoped reruns.
+Other stages passed, including 79/79 models. The initial affected run's 17
+stale assertions were corrected and its affected files pass 96/96. The full
+script's red result is retained, not represented as a green final full run.
+Every failure, including test setup errors and intentional mutation checks,
+is recorded under `reports/20260929-rl-answers-stay/round1/`. Local commit with
+the requested co-author trailer; no push or publication.
 ## 2026-09-29 — Lane SQ round 0: live SQLite read-path attribution
 
 Measured both storage hypotheses before choosing a policy. Copied PF's retained
@@ -76094,6 +76171,54 @@ Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
 
+## 2026-09-29 — Lane RL round 2: pending notifications survive old replica reads
+
+Fetched and merged origin/main first (125723c11), preserving both journal sides.
+Read rounds 0–1, Astra's full round 1 review, and Grok's completed NOT READY
+review after its initial progress-only file. Used llp-orient and the current
+client guide. No push or publication.
+
+Every affected local watch now bounds durable notification evidence, including
+locally runnable queries. It keeps the reported cut until published sync reaches
+it; an old replica cannot settle the episode or restore a withdrawn row. A whole
+server answer at/after the cut can replace earlier, while the older replica
+remains ineligible until sync. Existing commit, reset and memory fences remain.
+The eligibility check precedes delivery publication. Plain offline ephemeral
+recovery carries transport classification through the existing failed(true)
+path; held/prediction refusals, explicit loading/denial, expiry and incarnation
+reset remain withdrawals. keep:false withdraws at notification immediately.
+
+Grok's High matches the fixed notification gap. Its model observations led to
+independent checks against transient empty member answers and sign-out loading.
+Its suggested disjoint-commit/receipt relaxation is not adopted: the binding
+round 1 prompt bounds those events absent an existing non-revocation proof;
+this round introduces none. A slow unrelated profile replacement after a
+commit can still reach loading. The report records that policy difference,
+without claiming reviewer approval or elimination of that limitation.
+
+Focused final regressions 33/33; identical behavioral cases on round 1 dist:
+22 fail, ten pass. Expanded affected checks 409/409; final publication and
+delivery follow-up 77/77. Final strengthened schedule: 300 seeds per host,
+process and wasm, zero failures plus its negative reference test. Every seed
+adds notification followed by failed sync on an old replica and plain offline
+ephemeral recovery. Deleting answers.changed fails 2/3 sampled seeds per host;
+removing ephemeral classification fails 3/3. Whole guide 98/98. Wasm:
+2,040,529 B raw / 592,975 B gzip, 744 B below the 593,719 B cap.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1363 s`, stage client
+tests. Client counts: 4,732 tests, 4,720 passed, two failed, ten skipped,
+zero cancelled. Both failures were ours: the obsolete commit-before-all-reruns
+assertion and the missed read-only ephemeral await classification. Corrected;
+whole lifecycle file 57/57 and classification 1/1 afterward. Every other stage
+passed, including 79/79 final models and another 300 seeds per host. The red
+full run is retained; no second full run or final-tree all-green claim. The
+60-second target remains missed; no ceiling or timeout changed. Setup mistakes,
+an interrupted wasm schedule caused by overlapping the full rebuild, before
+comparisons and deliberate mutation failures are all retained and attributed.
+
+Report: reports/20260929-rl-answers-stay/round2/REPORT.md. Updated LLP 3000.023
+§10, the guide, README and operations manual with the implementation. Local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 ## 2026-09-29 — DX round 1: flush real refusals before managed shutdown
 
 Merged origin/main first (1c3982a45), retaining both appended journal entries.
@@ -76138,3 +76263,61 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — Lane RL round 3: program generation retires displayed answers
+
+Fetched and merged origin/main first (merge f5d74035a, main b7d05baff),
+preserving both journal appends. Read all prior prompts/reports, Astra's full
+round 2 NOT READY review and Grok's completed READY review. Used llp-orient.
+Both review files were rechecked after the full suite and matched saved inputs.
+No push or publication.
+
+A local generation mismatch now enters the existing incarnation reset before
+table filtering, even at the same sequence with an empty touched-table list.
+It retires displayed and remembered answers, fences pending evaluations and
+keeps the old replica unavailable until adoption. No sequence floor substitutes
+for that boundary. The quiet-presence guard remains; its new pending-cut test
+fails if the guard is removed. Grok's two low findings are also addressed:
+members-only notification fixtures test intersection, and an omitted online
+table list bounds every watch while an explicit empty list keeps intersection.
+The conservative commit/receipt policy remains; no public type, ordering system,
+engine, budget or publication change. Updated LLP 3000.023 §10 and client docs.
+
+Real process/wasm dev adoption tests add APP_DENIED to item at unchanged sequence
+and tables [], fail sync, cover readable/throwing/held replicas and all keep
+policies, then adopt successfully. Held-server and remembered-answer cases also
+pass. Twenty generation cases fail on the copied round 2 SDK. Removing quiet
+eligibility fails both hosts; changing some to every fails both members-only
+cases. Four omitted-table online cases fail before the fix; four explicit-empty
+controls pin existing behavior. Every schedule seed now replays real generation
+adoption under an independent program-authority reference. Final schedules:
+300 seeds per host, zero failures; deleting the generation fix fails 3/3 per
+host. The full script independently passed another 300 per host.
+
+Affected checks: 739 passed, zero failed, one declared legacy-binary skip;
+Grok follow-up 120/120; final whole guide 98/98. Final round 3 file 30/30 and
+quiet-presence repetition 24/24 after correcting a test scheduling race. Build,
+typecheck, documentation budget and reference checks pass. local.ts stays at
+1,500 lines. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1388 s`, exit 1, stage
+client tests. Counts: 4,754 tests, 4,743 passed, one failed, ten skipped, zero
+cancelled. The sole failure was ours: the new quiet-presence case waited for
+another timer after a deadline could overtake a sample and end that cycle.
+All 20 generation cases had already passed. Terminated only that recorded test
+child and its two fixtures so the full script could finish; no restart. The
+corrected test holds time through the first sample, awaits completion, then
+advances to withdrawal and gates a second sample. Its waits are bounded; its
+removed-guard mutation still fails both hosts. The initial held-server suspicion
+was disproved by buffered output and 24 passing diagnostic repetitions. No
+production change was required for the stall. All other full stages passed,
+including 79/79 final models. Zero baseline or environmental failures. The red
+run is retained with scoped follow-up evidence, not claimed all-green. The
+inherited 60-second target remains missed; no timeout or ceiling increased.
+
+Report: reports/20260929-rl-answers-stay/round3/REPORT.md. Its failure ledger
+includes deliberate controls, the initial lingering-watch setup error, the full
+stall and every correction. Local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
