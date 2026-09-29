@@ -1,0 +1,212 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { launch, devServer, root, binary } from "../../../witness/lib.mjs";
+import { prepareClient } from "../dist/client-start.js";
+import { createLocalClient } from "../dist/local.js";
+import { processDevice } from "../dist/native.js";
+import { until } from "./helpers/app-server.mjs";
+
+const require = createRequire(`${root}/packages/snapback4/package.json`);
+const baseline = process.env.SNAPBACK4_EA_BASELINE === "1";
+const base = "7f540f09467fcbdd73d4faa05db14fce696e9e85";
+const sourceOverrides = baseline ? Object.fromEntries(["web-journal.ts", "web.ts", "web-worker-device.ts", "web-worker-runtime.ts", "local-backend.ts", "local.ts", "local-types.ts", "pending-writes.ts"].map(name =>
+  [`${root}/packages/snapback4/src/${name}`, execFileSync("git", ["show", `${base}:snapback4/packages/snapback4/src/${name}`], { cwd: root, encoding: "utf8" })])) : {};
+const seed = [
+  { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
+  { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
+];
+const op = { kind: "mutation", name: "send" };
+const args = body => ({ conversationId: "c1", body });
+async function browser(t, worker) {
+  const f = await launch({ worker, sourceOverrides, seed, entrySource: `
+    import { prepareClient } from "${root}/packages/snapback4/src/client-start.ts";
+    import { createLocalClient as localClient } from "${root}/packages/snapback4/src/local.ts";
+    import { mintId } from "${root}/packages/snapback4/src/client.ts";
+    import { SnapbackProvider, usePendingWrites } from "${root}/packages/snapback4/src/react.tsx";
+    import { createElement } from "${require.resolve("react")}";
+    import { createRoot } from "${require.resolve("react-dom/client")}";
+    window.openFresh = async url => {
+      const opener = webDevice({ worker: ${worker} });
+      window.posts = []; window.releasePosts = [];
+      const options = { url, persona: 'alice', device: { async open(...args) { return window.core = await opener.open(...args); } }, fetch: async (url, init) => {
+        if (String(url).includes('/m/')) {
+          posts.push(JSON.parse(init.body));
+          if (window.holdPosts) await new Promise(resolve => releasePosts.push(resolve));
+        }
+        return fetch(url, init);
+      } };
+      const prepared = await prepareClient(options, () => localClient(options));
+      window.client = prepared.client; window.start = prepared.start;
+      window.events = []; client.onWrite(w => events.push(w));
+      window.save = (body, id) => client.mutate({ kind: 'mutation', name: 'send' }, { conversationId: 'c1', body }, { waitSeconds: 0, ...(id ? { id } : {}) });
+      window.mintId = mintId;
+      const form = document.createElement('form'); const button = document.createElement('button');
+      button.textContent = 'Save'; form.append(button); document.body.append(form);
+      window.saves = [];
+      form.onsubmit = async e => { e.preventDefault(); saves.push(await save('Immediate')); };
+      function Pending() { window.hookWrites = usePendingWrites(); return null; }
+      const mount = document.createElement('div'); document.body.append(mount);
+      createRoot(mount).render(createElement(SnapbackProvider, { client }, createElement(Pending)));
+    };
+  ` });
+  t.after(() => f.close());
+  await f.page.evaluate(url => openFresh(url), f.api);
+  return f;
+}
+for (const worker of [false, true]) {
+  const tier = worker ? "Worker" : "wasm";
+  test(`immediate mounted form before identity (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    for (let n = 1; n <= 2; n++) {
+      await f.page.click("button");
+      await f.page.waitForFunction(n => saves.length === n, n);
+    }
+    const first = await f.page.evaluate(() => saves);
+    console.log(JSON.stringify({ tier, beforeIdentity: first }));
+    if (baseline) {
+      assert.deepEqual(first.map(w => w.why?.code), ["E_ADMISSION", "E_ADMISSION"]);
+      await f.page.evaluate(() => start());
+      await f.page.click("button"); await f.page.waitForFunction(() => saves.length === 3);
+      assert.equal(await f.page.evaluate(() => saves[2].state), "pending");
+      console.log("same mounted form succeeds after identity without route navigation");
+    } else {
+      assert.deepEqual(first.map(w => w.state), ["pending", "pending"]);
+      await f.page.waitForFunction(() => hookWrites?.length === 2);
+      assert.deepEqual(await f.page.evaluate(() => hookWrites.map(w => w.id)), first.map(w => w.id));
+      assert.equal(await f.page.evaluate(() => posts.length), 0);
+      await f.page.evaluate(() => start());
+      await f.page.waitForFunction(() => events.filter(w => w.state === 'sent').length === 2);
+      assert.deepEqual(await f.page.evaluate(() => events.map(w => w.id)), first.map(w => w.id));
+      assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), first.map(w => w.id));
+      await f.page.click("button"); await f.page.waitForFunction(() => events.length === 3);
+      assert.equal(await f.page.evaluate(() => events[2].state), "sent");
+    }
+  });
+  if (baseline) continue;
+  test(`deferred burst, prediction, ids and reload (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    const before = await f.page.evaluate(async () => {
+      const id = mintId();
+      const a = save('one', id), same = save('one', id), b = save('two'), c = save('three');
+      const bad = await save('different', id);
+      return { writes: await Promise.all([a, b, c]), same: await same, bad, records: JSON.parse((await core.call({ op: 'meta', key: 'identity-admissions' })).ok) };
+    });
+    assert.equal(before.bad.why.code, "E_WRITE_ID_REUSE");
+    assert.equal(before.same.id, before.writes[0].id);
+    assert.equal(before.records.length, 3);
+    await f.reload();
+    await f.page.evaluate(url => openFresh(url), f.api);
+    assert.deepEqual(await f.page.evaluate(async () => (await client.pendingWrites()).map(w => w.id)), before.writes.map(w => w.id));
+    const fourth = await f.page.evaluate(() => save('four'));
+    await f.page.evaluate(() => { window.holdPosts = true; return start(); });
+    await f.page.waitForFunction(() => posts.length === 1);
+    const queued = await f.page.evaluate(async () => (await core.call({ op: 'queued' })).ok);
+    assert.ok(queued.every(e => e.predictable && e.predicted.length), JSON.stringify(queued));
+    assert.deepEqual(queued.slice(0, 3).map(e => e.new_ids), before.records.map(r => r.entry.new_ids.slice(0, 1)));
+    await f.page.evaluate(() => { holdPosts = false; releasePosts.splice(0).forEach(f => f()); });
+    await f.page.waitForFunction(() => events.length === 4);
+    const ids = [...before.writes.map(w => w.id), fourth.id];
+    assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), ids);
+    assert.deepEqual(await f.page.evaluate(() => events.map(w => w.id)), ids);
+    assert.equal(await f.page.evaluate(async () => (await client.pendingWrites()).length), 0);
+  });
+  test(`same-turn navigation before deferred custody commits (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    const id = await f.page.evaluate(() => {
+      const id = mintId(); sessionStorage.setItem('test-id', id); void save('navigation', id); location.reload(); return id;
+    });
+    await f.page.waitForFunction(() => typeof openFresh === 'function' && !window.client);
+    await f.page.evaluate(url => openFresh(url), f.api);
+    const kept = await f.page.evaluate(() => sessionStorage.getItem('test-id'));
+    assert.equal(kept, id);
+    assert.equal((await f.page.evaluate(id => client.write(id), id)).state, "pending");
+    await f.page.evaluate(() => start());
+    await f.page.waitForFunction(() => events.length === 1);
+    assert.equal(await f.page.evaluate(() => events[0].id), id);
+    assert.equal(await f.page.evaluate(() => posts.length), 1);
+  });
+  for (const failure of ["timeout", "adoption"]) test(`identification ${failure} settles visibly without sending (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    if (failure === "timeout") await f.page.clock.install();
+    const write = await f.page.evaluate(() => save('never sent'));
+    if (failure === "timeout") await f.page.clock.fastForward(30_001);
+    else await f.page.evaluate(async () => {
+      const backend = (await core.call({ op: 'backend' })).ok; backend.generation++;
+      const result = await core.call({ op: 'adopt', backend });
+      if (result.denied) throw Error(JSON.stringify(result));
+    });
+    await f.page.waitForFunction(() => events.length === 1);
+    const failed = await f.page.evaluate(() => events[0]);
+    assert.equal(failed.id, write.id);
+    assert.equal(failed.why.code, failure === "timeout" ? "E_ADMISSION_TIMEOUT" : "E_ADMISSION_STORE");
+    assert.match(failed.why.message, /new attempt/);
+    assert.equal(await f.page.evaluate(() => posts.length), 0);
+    await f.reload(); await f.page.evaluate(url => openFresh(url), f.api);
+    assert.equal((await f.page.evaluate(id => client.write(id), write.id)).why.code, failed.why.code);
+    assert.equal(await f.page.evaluate(async () => (await client.pendingWrites()).length), 0);
+  });
+}
+if (!baseline) test("process device persists immediate writes before identity and resumes in order", { timeout: 90_000 }, async t => {
+  const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), "sb4-identity-"));
+  const clients = [], posts = [];
+  t.after(async () => { for (const client of clients) await client.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); });
+  const open = async () => {
+    const options = { url: server.api, persona: "alice", device: processDevice({ dir, binary: binary() }), fetch: (url, init) => {
+      if (String(url).includes('/m/')) posts.push(JSON.parse(init.body));
+      return fetch(url, init);
+    } };
+    const prepared = await prepareClient(options, () => createLocalClient(options));
+    clients.push(prepared.client); return prepared;
+  };
+  const first = await open();
+  const writes = await Promise.all(['one', 'two', 'three'].map(body => first.client.mutate(op, args(body), { waitSeconds: 0 })));
+  assert.deepEqual(writes.map(w => w.state), ['pending', 'pending', 'pending']);
+  assert.equal(posts.length, 0);
+  await first.client.close();
+  const next = await open(), events = [];
+  next.client.onWrite(w => events.push(w));
+  assert.deepEqual((await next.client.pendingWrites()).map(w => w.id), writes.map(w => w.id));
+  const fourth = await next.client.mutate(op, args('four'), { waitSeconds: 0 });
+  await next.start(); await until(() => events.length === 4, 'four ordered settlements');
+  assert.deepEqual(posts.map(w => w.id), [...writes.map(w => w.id), fourth.id]);
+  assert.deepEqual(events.map(w => w.id), posts.map(w => w.id));
+});
+
+if (!baseline) test("online app takes custody before a held identity probe, including reload", { timeout: 90_000 }, async t => {
+  const { createClient } = await import('../dist/client.js');
+  const { onlineCustody } = await import('../dist/app-online.js');
+  const server = await devServer({ seed }), values = new Map(), posts = [], clients = [];
+  const store = { async get(key) { return values.get(key) ?? null; }, async set(key, value) { values.set(key, value); }, async remove(key) { values.delete(key); } };
+  let held = true; const probes = [];
+  t.after(async () => { held = false; probes.splice(0).forEach(f => f()); for (const c of clients) await c.close(); await server.close(); });
+  const open = async () => {
+    const raw = createClient({ url: server.api, persona: 'alice', fetch: async (url, init) => {
+      if (String(url).endsWith('/probe') && held) await new Promise((resolve, reject) => {
+        probes.push(resolve); init.signal?.addEventListener('abort', () => reject(Error('closed')), { once: true });
+      });
+      if (String(url).includes('/m/')) posts.push(JSON.parse(init.body));
+      return fetch(url, init);
+    } });
+    const custody = await onlineCustody(raw, server.api, store, e => { throw e; });
+    clients.push(custody.client); return custody.client;
+  };
+  const first = await open();
+  const writes = await Promise.race([
+    Promise.all(['one', 'two', 'three'].map(body => first.mutate(op, args(body), { waitSeconds: 0 }))),
+    new Promise((_, reject) => setTimeout(() => reject(Error('identity probe blocked custody')), 2000).unref()),
+  ]);
+  assert.deepEqual(writes.map(w => w.state), ['pending', 'pending', 'pending']);
+  assert.deepEqual((await first.pendingWrites()).map(w => w.id), writes.map(w => w.id));
+  assert.equal(posts.length, 0);
+  await first.close();
+  const next = await open(), events = []; next.onWrite(w => events.push(w));
+  const fourth = await next.mutate(op, args('four'), { waitSeconds: 0 });
+  held = false; probes.splice(0).forEach(f => f());
+  await until(() => events.length === 4, 'online recovered settlements');
+  assert.deepEqual(posts.map(w => w.id), [...writes.map(w => w.id), fourth.id]);
+});

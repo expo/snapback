@@ -203,6 +203,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.set_meta(text(&request, "key")?, text(&request, "value")?)?;
                 Json::Null
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            "compare_identity_admissions" => json!(device.compare_identity_admissions(request.get("expected").and_then(Json::as_str), text(&request, "value")?)?),
             "keep_write" => {
                 device.keep_write(text(&request, "value")?)?;
                 Json::Null

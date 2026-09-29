@@ -11,7 +11,7 @@ export const admitNow = (core: DeviceCore, request: Record<string, unknown>) => 
   return capture ? capture(request) : browserAdmission() ? admissionRefusal("the device has no synchronous admission journal", "client.mutate", "open a webDevice() with an exclusive persistence claim before writing") : undefined;
 };
 export const browserAdmission = () => typeof window !== "undefined" && typeof window.location !== "undefined";
-export function admissionRefusal(message: string, site = "client.mutate", rewrite = "wait for app.ready and client.acquired, restore writable localStorage, then retry with the same id"): Refusal {
+export function admissionRefusal(message: string, site = "client.mutate", rewrite = "wait for app.ready, restore writable localStorage, then retry with the same id"): Refusal {
   return { code: "E_ADMISSION", family: "store", message, site, rewrite, guide: "writes" };
 }
 /** A fulfilled failed promise also exposes its refusal in the calling stack.

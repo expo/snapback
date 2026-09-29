@@ -11,6 +11,7 @@ import { journalChanges } from "./journal-changes.ts";
 import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { bindIntentStore, journalReader, keepReceipts, observeJournalStore, retiredReceipt, type Journal, type Terminal } from "./app-journal.ts";
 import { dispatchIdentity, identifyDispatch, ownDispatch } from "./online-dispatch.ts";
+import { IDENTITY_WAIT_MS, identityRefusal } from "./identity-admission.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
 export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true) {
@@ -33,6 +34,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const pending = pendingChanges();
   const stopPending = raw.onPendingWrites?.(pending.notify);
   let writes: Promise<unknown> = Promise.resolve();
+  let admissions: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
   const change = <T>(work: (journal: Journal) => T, recoverExisting = false): Promise<T> => {
     const result = locked(key, async () => {
@@ -60,7 +62,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
   const receiptOf = (write: Terminal): Terminal => write.state === "sent"
     ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+    : { state: "failed", id: write.id, why: ["E_ADMISSION_TIMEOUT", "E_ADMISSION_STORE"].includes(write.why.code) ? identityRefusal(write.why.code === "E_ADMISSION_TIMEOUT") : { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
   const retain = (write: Terminal, error: unknown) => {
     const first = !unpersisted.has(write.id);
     if (active) unpersisted.set(write.id, receiptOf(write));
@@ -95,7 +97,6 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   });
   const initial = await locked(key, read);
   const journalEvents = journalChanges(key, pending.notify);
-  const restoredIds = new Set(initial.pending.map(intent => intent.id));
   ownDispatch(raw, {
     observe: identity => { void change(journal => observeJournalStore(journal, identity)).catch(report); },
     before: (id, identity) => change(journal => {
@@ -151,11 +152,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // intent expired. Every overlapping caller still owns that intent.
         return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
       }, async snapshot => {
-        // Identify before admitting new intent. A reopened journal can name A
-        // while this runtime first connects to B; only recovered unbound
-        // intent belongs to that earlier history. Existing entries keep their
-        // recorded ownership and still pass the strict dispatch guard below.
-        const identity = dispatchIdentity(raw) ?? (restoredIds.has(id) ? undefined : await identifyDispatch(raw));
+        // Take durable custody before waiting for the first identity probe.
+        // Dispatch still uses the journal's original incarnation fence.
+        const identity = dispatchIdentity(raw);
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
@@ -171,7 +170,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id);
           if (receipt) return Promise.resolve(receipt);
           if (identity) observeJournalStore(journal, identity);
-          journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false });
+          journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false,
+            ...(!identity ? { admissionDeadline: Date.now() + IDENTITY_WAIT_MS } : {}) });
           return undefined;
         }, true); } catch (error) {
           return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
@@ -179,8 +179,26 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
-        const dispatch = async (): Promise<Write<R>> => {
-          const result = await raw.mutate(op, snapshot as A, { ...options, id });
+        const dispatch = async (release: () => void): Promise<Write<R>> => {
+          const intent = (await locked(key, read)).pending.find(entry => entry.id === id);
+          const deadline = intent?.admissionDeadline;
+          while (deadline !== undefined && !dispatchIdentity(raw) && active && !storeRefusal) {
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) {
+              const write = { state: "failed" as const, id, why: identityRefusal(true) };
+              try { await settle(write); } catch (error) { retain(write, error); }
+              return write;
+            }
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try { await Promise.race([identifyDispatch(raw), new Promise<void>(resolve => { timer = setTimeout(resolve, remaining); })]); }
+            finally { clearTimeout(timer); }
+            if (!dispatchIdentity(raw) && active && !storeRefusal && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, Math.min(250, deadline - Date.now())));
+          }
+          if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+          if (!active || raw.viewer() !== viewer) return { state: "pending", id };
+          const sending = raw.mutate(op, snapshot as A, { ...options, id });
+          release();
+          const result = await sending;
           if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
           if (terminal(result)) {
             try { await settle(result); }
@@ -190,12 +208,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           }
           return terminal(result) ? result : { state: "pending", id };
         };
+        const previous = admissions;
+        let release!: () => void;
+        // Release the ordered admission lane at dispatch custody, not after
+        // a server receipt. A caller's wait budget cannot reorder intents.
+        admissions = new Promise<void>(resolve => { release = resolve; });
+        const attempt = previous.then(() => dispatch(release)).finally(release);
         if (mutationWaitSeconds(options?.waitSeconds) === 0) {
           // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — the committed journal owns recovery after this return.
-          void dispatch().catch(error => { try { report(error); } catch { /* Reporting must not reject a detached continuation. */ } });
+          void attempt.catch(error => { try { report(error); } catch { /* Reporting must not reject a detached continuation. */ } });
           return { state: "pending", id };
         }
-        return dispatch();
+        return attempt;
       });
     }),
     async write(id) {

@@ -1152,6 +1152,18 @@ impl<S: DeviceStore> Device<S> {
         self.store.set_meta(&format!("client:{key}"), value)
     }
 
+    // @ref LLP 3000.007#20.4 — native owners share SQLite; custody changes
+    // compare under its writer transaction. Web hosts already hold an exclusive claim.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn compare_identity_admissions(&mut self, expected: Option<&str>, value: &str) -> Result<bool, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let key = "client:identity-admissions";
+        if tx.meta(key)?.as_deref() != expected { tx.rollback()?; return Ok(false); }
+        tx.set_meta(key, value)?;
+        tx.commit()?;
+        Ok(true)
+    }
+
     /// Replace the bounded terminal history atomically, also across native owners.
     /// An adopted list precedes the destination window, which wins id collisions.
     /// Unresolved writes live independently in the executable outbox.

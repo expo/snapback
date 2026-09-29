@@ -59,6 +59,7 @@ export interface NativeJson {
 }
 
 export interface BackendJson {
+  store_id?: string;
   generation: number;
   schema: SchemaJson;
   programs: ProgramJson[];

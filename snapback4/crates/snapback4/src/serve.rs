@@ -1045,7 +1045,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 (bound.schema.public_projection(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
             let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
-            respond_timed(request, shared, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));
+            // @ref LLP 3000.007#20.4 — a cold click binds to the backend
+            // that supplied its program, even before replica identification.
+            let store_id = lock(&shared.wake).store_id.clone();
+            respond_timed(request, shared, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native, "store_id": store_id }));
         }
         (Method::Get, "/native.wasm") => {
             // The app's module, for a device to run its native reads over

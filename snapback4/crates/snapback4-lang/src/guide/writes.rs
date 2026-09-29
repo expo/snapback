@@ -141,7 +141,7 @@ device store, and 64 KiB per record. A browser call that cannot synchronously
 keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent
 is accepted. Its promise is already fulfilled with `failed`, and exposes
 `state`, `id` and `why` in the calling stack. Missing restored identity,
-unknown backend identity, unavailable/full storage, an exhausted journal, or
+unavailable/full storage, an exhausted journal, or
 an app without a durable web device therefore cannot silently lose a click.
 Use `webDevice()` and `localStorageSessionStore()`, wait for readiness or repair
 storage, then retry the original id. Browser storage clearing after admission
@@ -156,7 +156,7 @@ Recovered executable records keep successful predictions, but local refusals
 queue for the server to decide, so stale rows cannot permanently cancel them.
 For programmatic navigation, `await client.mutate(...)` before navigating
 is the strongest durable boundary; handle a `failed` outcome before leaving.
-`pending` means IndexedDB admission is durable and the server outcome still
+`pending` means IndexedDB custody is durable and the server outcome still
 needs confirmation. A write-specific admission refusal returns the ordinary failed
 outcome and removes its journal record, replaces it with a non-executable
 cancellation, or acknowledges it in IndexedDB. If both stores reject cancellation,
@@ -165,6 +165,18 @@ later recovery can admit it if the authored condition changes. The returned
 refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
+
+Writes need no acquisition gate. A fresh replica accepts custody before store
+identification; its pending-write view says “waiting for backend identification”.
+It retains input, write/row IDs, order, backend binding and a 30-second wall-clock
+deadline through reload. Once identified, the ordinary outbox admits and predicts
+where eligible, then sends in order. `onWrite` reports terminal outcomes.
+An incompatible backend refuses `E_ADMISSION_STORE`; no identity by the deadline
+refuses `E_ADMISSION_TIMEOUT`, without sending. A suspended/closed runtime checks
+the deadline when it resumes/reopens. Reconnect or reload the current backend,
+review the draft and submit a new id. `createApp`'s online journal likewise takes
+custody before its first identity probe. These deadlines never expire a write
+whose dispatch may already have executed.
 
 ## A constraint across rows you cannot read
 

@@ -16,6 +16,8 @@ export interface Queued {
   receipt_store?: { id?: string | null; success_seq?: number | null };
   viewer?: string;
   now?: number;
+  admission_waiting?: boolean;
+  admission_refusal?: Refusal;
 }
 
 export interface StoreCapture {

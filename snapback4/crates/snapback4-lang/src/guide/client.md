@@ -23,6 +23,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
 ```
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, while `pending` lasts until settlement and must not disable the next send.
+Submit immediately after session readiness: neither `useAcquisition` nor `client.acquired` gates writes. Before store identification, durable custody reports `pending`; `usePendingWrites()` shows “waiting for backend identification”. The same IDs and order survive reload. Identification enables ordinary admission and eligible prediction. `onWrite` reports settlement, including `E_ADMISSION_STORE` for an incompatible backend or `E_ADMISSION_TIMEOUT` after 30 seconds without identification. Review the draft and submit a new attempt after fixing either refusal; remounting the form is unnecessary.
 Clear the field at submit; on refusal, restore it only if still empty, otherwise offer the saved text with Edit (append to a non-empty draft). Text typed meanwhile survives. Predicted rows carry `pending: true`: show “Sending…”.
 For earlier sends and reload, save `{ id: mintId(), args }` in account-and-backend-scoped storage **before** `run(args, { id, waitSeconds: 0 })`.
 Observe each saved id with `usePendingWrite(op, savedId)`; `failed` shows its refusal and saved text to edit. Show “Saving…” during submission and “Checking…” while `restoring` is true; only then is an `undefined` receipt unknown, never failed or automatically resent. Unknown and failed rows show the saved text; only settled lookups offer Dismiss.

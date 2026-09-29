@@ -11,6 +11,7 @@ import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observe
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
 import { admitNow, failedAdmission } from "./admission.ts";
+import { identityQueue } from "./identity-admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
 import { readResidency } from "./residency.ts";
@@ -141,6 +142,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let deliveryQueue: ReturnType<typeof localDelivery> | undefined;
   let deliveryWitness = false;
   try {
+  const queued = identityQueue(() => readQueued(call, mutationIds, history, settling), entry => rerunTables(predictedTables(entry.predicted)));
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
@@ -1040,7 +1042,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  function queued() { return readQueued(call, mutationIds, history, settling); }
   let reconcileNeeded = false; // @ref LLP 3000.019#3.3 — failed housekeeping retries without gating dispatch.
   const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
     committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
@@ -1082,11 +1083,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function flushOnce(acquire = true) {
     const syncUnobserved = (force = false) => syncSettledWrites(queued, syncOnce, () => caughtUp, acquire && !closed, force);
     await exitDone;
-    if (closed || !sendingAllowed) return;
+    if (closed) return;
     if (reconcileNeeded) { reconcileNeeded = false; try { await media?.reconcile(); } catch { reconcileNeeded = true; retryFlush(); } }
     for await (const entry of receiptBatch(queued, history)) {
       await exitDone;
       if (closed) return;
+      if (entry.admission_refusal) {
+        const write = { state: "failed" as const, id: entry.id, why: entry.admission_refusal };
+        await settleReceipt(history, receiptCall, write);
+        completeWrite(write);
+        continue;
+      }
+      if (entry.admission_waiting || !sendingAllowed) { retryFlush(); return; }
       const success = successSequence(entry);
       if (success != null) {
         try { await deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite); } catch { retryFlush(); continue; }
@@ -1220,7 +1228,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const schema = backend!.schema;
         const program = backend!.programs.find((p) => p.name === op.name);
         const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
-        const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
+        const request = { op: "admit", expected_store: backend?.store_id, entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
         const denied = admitNow(core, request);
         if (denied) return failedAdmission<R>(id, denied);
         return (async () => {
@@ -1236,7 +1244,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           const entry = admitted.ok as Queued;
           clock.raiseIssued(entry.now ?? 0);
-          if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
+          if (entry.admission_waiting) Object.assign(pending, { reason: "waiting for backend identification" });
+          else if (!entry.predictable && !entry.predicted.length) Object.assign(pending, { reason: !acquired
             ? "queued without a row: not acquired yet"
             : "queued without a row: local data does not justify prediction" });
           rerunTables(predictedTables(entry.predicted));

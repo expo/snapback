@@ -5,6 +5,8 @@ import { claimStore } from "./web-ownership.ts";
 import { shareReceipts } from "./web-receipts.ts";
 import { WebWorkerHost, type WorkerTransaction } from "./web-worker-host.ts";
 import type { Queued } from "./local-types.ts";
+import { IdentityAdmissions, IDENTITY_ADMISSIONS } from "./identity-admission.ts";
+import { runJournalAsync } from "./web-journal-execution.ts";
 
 // @ref LLP 3000.007#20.4 — orphan outboxes move only under both exclusive
 // claims, with shared receipts committed before source deletion. Source rows
@@ -22,7 +24,7 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
     try {
       if (!stores.has(orphan) && !await persist.has?.(orphan)) continue;
       // Unknown/evicted identity cannot be guessed from a journal key.
-      if (!await persist.read?.(orphan, "m", "device:store_id") || !await persist.read?.(orphan, "m", "device:backend")) continue;
+      if (!await persist.read?.(orphan, "m", "device:backend")) continue;
       const destination = (await tx.invoke({ op: "sync_state", capture: false })).ok;
       source = new WebWorkerHost({ name: claim.name, async release() {} });
       const journal = new AdmissionJournal(orphan, true);
@@ -44,10 +46,15 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
         state = (await src.invoke({ op: "sync_state", capture: false })).ok;
         const entries = (await src.invoke({ op: "queued" })).ok as Queued[];
         const history = (await src.invoke({ op: "meta", key: "write-history" })).ok;
+        const deferred = (await src.invoke({ op: "meta", key: IDENTITY_ADMISSIONS })).ok as string | null;
         const saved = await src.commit(); journal.remember(saved);
-        return { entries, history, state, markers: [...src.journal, ...saved].filter(c => c.s === "j") };
+        return { entries, history, deferred, state, markers: [...src.journal, ...saved].filter(c => c.s === "j") };
       });
       if (recovered.history && !await shareReceipts(persist, name, recovered.history)) { waitForLock(`${name}:receipts`); continue; }
+      if (recovered.deferred) {
+        dirty = true;
+        await runJournalAsync(new IdentityAdmissions().adopt(recovered.deferred), tx.invoke);
+      }
       const entries = recovered.entries.sort((a, b) => a.seq - b.seq);
       const existing = new Set(((await tx.invoke({ op: "queued" })).ok as Queued[]).map(e => e.id));
       const transfers = new Map(recovered.markers.filter(c => c.v !== null).map(c => [c.k, JSON.parse(c.v!)]));
@@ -72,6 +79,7 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
       dirty = false;
       if (unresolved || journalStores(prefix).includes(orphan)) {
         await source.transaction(async src => {
+          if (recovered.deferred) await src.invoke({ op: "set_meta", key: IDENTITY_ADMISSIONS, value: "[]" });
           for (const id of removed) await src.invoke({ op: "dequeue", id });
           await src.commit();
         });
