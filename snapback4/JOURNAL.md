@@ -76005,3 +76005,48 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 Report: reports/20260929-dx-quiet-empty-reads/REPORT.md. Local commit on
 sb4-intent/dx-quiet-empty-reads with Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. Nothing pushed or published.
+## 2026-09-29 — Lane BP round 0: ten-CPU live replay retains scheduling
+
+Ran SQ's actual live replay on base 4fd338de5 with server, replay and probe
+subprocesses confined to CPUs 0–9. All 167,157 scale actions settled with zero
+failures; both checkpoints and final verification passed. Immediate reads used
+existing clients 17/41/11 ms after the last receipts, followed by every one of
+nine warmed batches. All 2,100 measured reads returned complete answers.
+The several-fold Mac growth did not reproduce. Warm full/small p95 ratios:
+history 1.057, Following/500 1.014, search 1.132, Insights 1.592. Warm search
+and trending midpoint rules still fail by 0.482/0.511 ms; every batch remains.
+
+Pending Following work reached 41,389 and stood at 36,569 after full probes.
+Delivery, recounts and jobs already share one maintenance thread: its measured
+CPU was 282.38 seconds across replay/drain, almost all Following. Requests used
+360.95 CPU seconds; warm median request queues stayed near 0.10 ms, maximum
+reader acquisition 0.006 ms. Full-probe drain first observed zero after
+172.278 seconds; three-empty-sample drain after replay returned took 168.269 s.
+Host load, per-thread CPU/affinity, sampled runnable populations, queues and
+paired request timings are retained. Scheduler-delay accounting was disabled;
+no zero-descheduling claim. Ten homogeneous Linux cores, missing browser load
+and the LV-reverted base differ from the Mac/SQ contexts.
+
+Obeyed the conditional stop: no concurrency, priority/QoS, yield, batching,
+meter, durability or operator change. LLP 3000.013 §4 records retention of its
+existing policy. Added a build-free two-binary Mac live-replay handoff. Linux
+components ran; no Mac execution or optimization is claimed. All measurement
+hooks were removed from product sources before validation.
+
+Affected tests: FIFO 8/8, maintenance chunks 5/5, delivery 1/1, scale 2/2;
+whole guide 98/98. Existing sustained-request witness passed on ten CPUs:
+1,339 reads while all 901 copies arrived in 460.272 ms. scripts/test.sh ran
+once, exact summary `== 1 failure(s) in 2129 s`, stage `client tests`.
+Baseline fixture cleanup failed ENOTEMPTY in the process empty-partition
+acquisition case and left its owned children alive. Recorded and terminated
+only that stalled fixture's children/worker to finish the same run, retaining
+its failure; client totals 4,560 pass / 1 fail / ten skips; final models 79/79.
+The exact case then passed alone, with no forced cleanup. Follow-up:
+issues/20260929-snapback4-acquisition-cleanup-enotempty.md. No introduced or
+established environmental test failures. The existing 60-second suite target
+remains missed; no ceiling or timeout changed.
+
+Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
