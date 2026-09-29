@@ -1,0 +1,21 @@
+# AQ round 1 failure ledger
+
+**Full suite: exit 0, `== 0 failure(s) in 1374 s`. No full-suite failures are ours, baseline or environmental.** Classification below covers every observed failed check during development. Nested Node parent failures are aggregates, not additional defects.
+
+| Execution | Failure | Classification / disposition |
+| --- | --- | --- |
+| Initial `git fetch origin && git merge origin/main` | Append-only JOURNAL.md merge conflict | Integration conflict; retained AQ, MT and DX entries verbatim and committed merge 50b66b6a0. |
+| `before-fence.log.gz` | `format three fences the actual pre-AQ adapter and preserves existing stores`: old adapter writes changed the migrated store; 13 pass / 2 fail including parent | **Ours**, reproduced round-0 High. Current version-2 fence fixes it. |
+| `inspection-helper-before.log.gz` | `entry cap, UTF-8 overflow and abort preserve rows, metadata and outbox together`; `an old unbounded bucket is split at load before later bounded updates`: page evaluation lost its context after test inspection opened version 1 | **Ours**, introduced test-helper incompatibility with version 2. Those unhandled open errors stalled inspection; source edits during the running Vite witness caused the reported context destruction. Helpers now inspect the current database version and reject open errors explicitly. 12 pass / 3 fail including parent; corrected run 15/15. Navigation's same inspection spelling was corrected before its run. |
+| `mutant-version.log.gz` | New two-adapter regression: expected `VersionError`, got no error; 13 pass / 2 fail including parent | **Ours, deliberate negative control**. Only DATABASE_VERSION changed 2 → 1 in the witness bundle; ordinary source unchanged. Mutation rejected. |
+| `mutant-durability.log.gz` | Migration regression observed `['relaxed', 'relaxed']` instead of `['strict', 'strict']`; 13 pass / 2 fail including parent | **Ours, deliberate negative control**. Only upgradeBuckets transaction durability changed in the witness bundle. Mutation rejected. |
+| `fallback-fixture-before.log.gz` | `IndexedDB existence fallback` could not settle because its mocked upgrade event omitted `oldVersion`; the pending diagnostic was interrupted through its owned exec session after about 35 s and reported “Promise resolution is still pending but the event loop has already resolved” | **Ours**, introduced fixture incompatibility. Supply the browser’s `{ oldVersion: 0 }` event when simulating database creation. No product fallback or timeout relaxation. |
+| `mutant-migration-default.log.gz` | Migration regression observed `['default', 'default']` instead of `['strict', 'strict']`; 13 pass / 2 fail including parent | **Ours, deliberate negative control** for Grok’s durability mutation. Rejected. |
+| `mutant-base-store.log.gz` | Migration regression’s packed `b` point read returned null instead of `base packed`; 13 pass / 2 fail including parent | **Ours, deliberate negative control** for Grok’s omitted-base packing mutation. Rejected. |
+| Staged whitespace check | Raw Node assertion logs had trailing spaces and the Cargo guide log ended with a blank line | **Ours**, evidence packaging. Stored all logs as gzip without changing their decompressed bytes; final staged whitespace check passes. |
+
+The first 86-test affected run began before the package build and loaded the prior dist for Node-only tests; it is retained as `affected-before-build.log.gz` and is not final qualification. The entire affected set is repeated against the rebuilt package after correcting the event fixture. The correction happened while the full suite was still in its Rust stage, before any full-suite client file started.
+
+Exploratory read errors, not test failures: this lane's llp-orient symlink target was absent (read the populated SQ vendor skill); a guide path was first searched as sync.md rather than sync.rs; a code search included nonexistent web-open.ts (actual opening is web.ts). No tool installation or dependency change.
+
+No unresolved lane-owned failure. No baseline or environmental test failure was observed. The final product passes all affected checks; the late Grok test-only additions pass `web-review-final.log.gz` after the full suite’s client stage.

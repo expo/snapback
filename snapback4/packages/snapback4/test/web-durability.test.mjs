@@ -315,7 +315,7 @@ test("W11R2: IndexedDB existence fallback aborts creation of missing stores", as
       if (names.has(name)) request.onsuccess();
       else {
         request.transaction = { abort() { aborted++; queueMicrotask(() => request.onerror()); } };
-        request.onupgradeneeded();
+        request.onupgradeneeded({ oldVersion: 0 });
       }
     });
     return request;

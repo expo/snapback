@@ -76327,6 +76327,46 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — AQ round 0: faster cold browser acquisition
+
+On eb1000 (EPYC 9454, 96 logical CPUs), five cold u0500 runs on a private
+copy of SQ's retained full-scale store give median 2.255 s Worker / 2.186 s
+default, from 4.436 / 4.898 s. Three sync replies still deliver 3,652,183 B
+and 11,612 rows. Worker strict persistence falls from 2.588 s to 0.501 s in
+five diagnostic runs; server production and wasm apply stay near 0.42/0.40 s.
+The first inbox answer remains near half a second. The heavy account
+(1,000 memberships, 90,500 messages) remains 25.661 s, from 26.606 s.
+
+Format 3 starts packed IndexedDB namespaces with 64 roots and splits full
+roots once into four leaves. The 512-entry / 256 KiB caps, sticky overflow,
+strict atomic row/metadata/outbox save and conditional commit fence remain.
+Formats 1/2 migrate packed and overflow rows atomically; aborted migration
+leaves the old store usable. No wasm, authorization, disclosure, coverage,
+completeness, durability, meter, declared partition or progress relaxation.
+LLP 3000.007 §20.4 records the design. The client and sync guide cards give
+expected times and a public measurement recipe, including heavy accounts.
+Mac planning estimates are 5–8 s probe / 60–90 s heavy, explicitly unmeasured;
+the retained fixture differs from calibration #26 and its 12.9 s is not used
+as a same-fixture speedup denominator.
+
+All 50 official browser runs match every retained row against delivery and
+answer the inbox completely offline. Tests pin request/bucket/strict-commit
+counts, split/migration rollback and complete offline reopening of 12,000
+known rows on both devices. A 256-root mutant is rejected. Affected tests
+241/241; Worker protocol 48/48; whole guide 98/98. scripts/test.sh ran once,
+exact summary `== 0 failure(s) in 1967 s`; client stage 4,565 pass / 0 fail /
+ten skips, final models 79/79. One introduced guide-card length failure was
+corrected without raising its cap; no baseline or environmental product-test
+failures occurred. The existing 60 s suite budget remains missed.
+
+Canonical wasm is unchanged: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the 593,719 B cap. Report, raw samples, phase attribution, host load and failure
+ledger: [AQ report](reports/20260929-aq-fast-acquisition/REPORT.md).
+No push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
 ## 2026-09-29 — Lane MT: the suite on ten CPUs
 
 First fetched and merged origin/main on sb4-intent/mt-ten-core-suite; already
@@ -76571,3 +76611,53 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-ag-first-paste/round4/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — AQ round 1: fence cached clients before format-3 access
+
+First fetched and merged origin/main (b7d05baff), preserving both sides of
+its append-only journal conflict in merge 50b66b6a0. Read the round-0 prompt,
+report and Astra’s NOT READY review. Grok began with progress only; its final
+READY review arrived during verification and both Low coverage findings are
+addressed. Both final files were checked again after the suite.
+
+Format 3 now opens physical IndexedDB version 2. The version upgrade preserves
+existing object stores and records; only a new database creates `changes`.
+The strict bucket migration stays separate. After a migration abort, the
+current adapter can retry the old row representation inside version 2, while
+cached pre-AQ version-1 opens reject with VersionError before reads or writes.
+The sync guide explains the upgrade and updated page/Worker availability for
+offline reopening; clearing storage is not the upgrade procedure. LLP 3000.007
+§20.4 records the fence and durable retry boundary.
+
+A real Chromium regression runs verbatim f9620c815 adapter files beside current
+source: 600 old rows plus watermark, outbox, stage and base survive migration;
+an extra object store survives too. Eight old read/write attempts reject,
+including delete+watermark and direct updates. Current deletes and packed
+updates survive reopening. New stores also fence the old adapter. The test
+fails on round-0 source and the isolated version-1 mutation.
+
+Migration abort and retry now both assert actual strict durability. Relaxed
+and default durability mutants fail. Grok’s additional prediction-base gap is
+covered by packed and overflow `b` images, point reads and overflow updates;
+omitting `b` from packing fails. Bounds inspect all format-1 buckets including
+leaves, and split tests check every key against distinct original values.
+Two inspection helpers and the navigation witness now open the current DB
+version; the Node existence mock supplies oldVersion on its upgrade event.
+
+Final affected checks: 101 passed / 0 failed; real navigation passes; whole
+guide 98/98. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1374 s`. Client stage: 4,566 pass / 0 fail / ten existing
+skips; final full-count models 79/79. No full-suite failures are ours, baseline
+or environmental. Development failures and deliberate controls are classified
+in the report’s ledger. Grok’s final test-only additions arrived after the
+full-suite client stage and passed a separate final 15/15 browser run. Product
+code was unchanged throughout the full suite. The inherited 60-second suite
+budget remains missed; no timeout or count was relaxed.
+
+Rebuilt canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+No acquisition remeasurement or broader performance claim this round.
+Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
