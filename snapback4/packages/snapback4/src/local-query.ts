@@ -22,7 +22,7 @@ import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 //    Local freshness is decided at publication.
 import type { Cursor, Link, Query, Read, ReadCut, Refusal } from "./contract.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
-import { predictedTables, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
+import { queuedPredictions, type ServerAnswer, type LocalWatch as Watch } from "./local-reads.ts";
 import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
@@ -53,6 +53,7 @@ export interface QueryEnvironment {
   signal: AbortSignal;
   unavailable(): Refusal | null;
   queued(): Promise<Queued[]>;
+  pending(tables: Set<string> | null, predictions?: readonly string[] | null): boolean;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
   post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }>;
   searchPost(path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>): ReturnType<QueryEnvironment["post"]>;
@@ -114,13 +115,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   };
   let pendingResult = false;
   const pending = async () => {
-    if (env.coldRead) return pendingResult = env.coldRead.pending(possible);
-    const entries = await env.queued(); checkpoint();
-    return pendingResult = entries.some(entry => {
-      if (entry.observed_seq != null || entry.predictable !== true) return false;
-      if (!entry.predicted) return true; // Legacy missing footprints are unknown.
-      return [...predictedTables(entry.predicted)].some(table => possible === null || possible.has(table));
-    });
+    const predictions = env.coldRead ? undefined : queuedPredictions(await env.queued()); checkpoint();
+    return pendingResult = env.pending(possible, predictions);
   };
   // Rules 3 and 5 share exactly one external-answer gate, at dispatch and delivery.
   const blocked = async (remembered = false) => {

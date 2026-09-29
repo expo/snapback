@@ -11,6 +11,7 @@ import { Pages } from '../dist/react-pages.js';
 import { coldReadControl } from '../dist/device-control.js';
 
 function environment(data, metadata, fresh, predicted) {
+  const reads = new LocalReads();
   return {
     backend: { schema: { tables: {} }, programs: [{ name: 'point', kind: 'Query', body: [{ table: 'rows' }, { table: 'unexecuted' }] }] },
     principal: 'alice', partitionCurrent: true, nativeReady: true, incarnation: 0, authority: 0, credentialRevision: 0,
@@ -20,7 +21,9 @@ function environment(data, metadata, fresh, predicted) {
     call: async () => ({ ok: { data, unknown: false, tables: ['rows'], ...metadata } }),
     post: async () => { throw Error('this answer is locally known'); },
     serverAnswers: new RememberedAnswers().view(), notify: () => {},
+    pending: (tables, predictions) => reads.pending(tables, predictions),
   };
+
 }
 test('publication decision table: top level × completeness/cut/next × freshness × pending footprint', async () => {
   let cases = 0;

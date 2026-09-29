@@ -23,7 +23,7 @@ import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, localWatch, pendingTables, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, localWatch, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
@@ -862,6 +862,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     })();
   }
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
+  // @ref LLP 3000.031#1.1 — one-shot and observed reads share admissions and prediction coverage.
+  const pendingRead = (tables: Set<string> | null, predictions = core[deviceControl]?.()?.predictions) => answers.pending(tables, predictions);
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
     let answerCache = answers.serverAnswers.view();
@@ -884,7 +886,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       get partitionCurrent() { return partitionCurrent; },
       get nativeReady() { return nativeReady; },
       set nativeReady(value: boolean) { nativeReady = value; },
-      principal, signal: aborter.signal, unavailable, queued, call, installNative, notify,
+      principal, signal: aborter.signal, unavailable, queued, pending: pendingRead, call, installNative, notify,
       post: (path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest) => post(path, body, captured, eph, quiet, bypass ? core[deviceControl]?.() : undefined),
       searchPost: (path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>) => post(path, body, undefined, undefined, quiet, undefined, decode),
       refreshSearch: (name: string) => refreshSearchRoots(watches, name, backend?.schema.operations?.[name]?.search?.cursor, notify, rerun),
@@ -1206,10 +1208,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
-        () => localWatch(keep, op as Query<unknown, unknown>, args, key, incarnation, tables => {
-          const control = core[deviceControl]?.();
-          return answers.admissions > 0 || (control ? pendingTables(control.predictions, tables) : answers.pending(tables));
-        }),
+        () => localWatch(keep, op as Query<unknown, unknown>, args, key, incarnation, pendingRead),
         watch => {
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.

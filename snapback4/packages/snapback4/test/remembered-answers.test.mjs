@@ -4,7 +4,7 @@ import { readyRead } from "../dist/read-presence.js";
 // is a new read, and a cut once named stays known.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { RememberedAnswers } from "../dist/local-reads.js";
+import { LocalReads, RememberedAnswers } from "../dist/local-reads.js";
 import { evaluateLocal } from "../dist/local-query.js";
 
 const answer = data => ({ read: readyRead({ data, complete: true, cut: null, fresh: true, next: null }), at: 1, nextExpiry: null, tables: new Set() });
@@ -99,7 +99,7 @@ function reading(answers, { call, reply }) {
     backend: { generation: 1, schema: { tables: {} }, programs: [program] }, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0,
     refreshing: null, link: "online", caughtUp: true, identityChecked: true, lastSyncAt: 1, principal: "alice",
     partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
-    deviceNow: () => 1_000, serverNow: () => 1_000, unavailable: () => null, queued: async () => [],
+    deviceNow: () => 1_000, serverNow: () => 1_000, unavailable: () => null, queued: async () => [], pending: (tables, predictions) => new LocalReads().pending(tables, predictions),
     call, installNative: async () => false, notify: () => {},
     offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: answers.view(),
     post: async () => ({ ok: true, json: reply(), obsoleteAuth: false }),
@@ -203,7 +203,7 @@ test("a refetch after the credentials change takes a new place in the order", as
     backend: { generation: 1, schema: { tables: {} }, programs: [] }, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0,
     refreshing: null, link: "online", caughtUp: true, identityChecked: true, lastSyncAt: 1, principal: "alice",
     partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
-    deviceNow: () => Date.now(), serverNow: () => Date.now(), unavailable: () => null, queued: async () => [],
+    deviceNow: () => Date.now(), serverNow: () => Date.now(), unavailable: () => null, queued: async () => [], pending: (tables, predictions) => new LocalReads().pending(tables, predictions),
     call: async () => ({ ok: { loading: true, unknown: true } }), installNative: async () => false, notify: () => {},
     offline: () => ({ code: "E_OFFLINE", family: "link", message: "offline" }), serverAnswers: cache,
     post: async () => {
@@ -230,7 +230,7 @@ test("an expired device answer re-routed to the server takes a new place in the 
     backend: { generation: 1, schema: { tables: {} }, programs: [program] }, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0,
     refreshing: null, link: "online", caughtUp: true, identityChecked: true, lastSyncAt: 1, principal: "alice",
     partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
-    deviceNow: () => 1_000, serverNow: () => 1_000, unavailable: () => null, queued: async () => [],
+    deviceNow: () => 1_000, serverNow: () => 1_000, unavailable: () => null, queued: async () => [], pending: (tables, predictions) => new LocalReads().pending(tables, predictions),
     // The device answers first with a page whose deadline has passed. While it is asked again, a read
     // begins and remembers an answer; then the device cannot answer, and the re-route goes to the server.
     call: async () => {

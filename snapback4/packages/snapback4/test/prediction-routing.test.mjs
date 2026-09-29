@@ -3,7 +3,7 @@ import { readyRead } from "../dist/read-presence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { evaluateLocal } from "../dist/local-query.js";
-import { RememberedAnswers } from "../dist/local-reads.js";
+import { LocalReads, RememberedAnswers } from "../dist/local-reads.js";
 import { createLocalClient } from "../dist/local.js";
 import { ReadObservation } from "../dist/read-observation.js";
 import { episodeDeadline } from "../dist/read-episode.js";
@@ -21,13 +21,13 @@ function routing() {
   const program = { name: "read", kind: "Query", args: {}, body: [{ table: "posts" }], runs: "device" };
   const backend = { generation: 1, schema: { tables: {}, timelines: [{ name: "feed", posts: ["posts"], reposts: ["reposts"] }] }, programs: [program] };
   let entries = [prediction], outcome = { data: [], speculative: true, held: false, unknown: true, complete: false, tables: ["switches"] };
-  const requests = [];
+  const requests = [], reads = new LocalReads();
   const env = {
     backend, partitionDenied: null, credentialRevision: 0, incarnation: 0, authority: 0, sessionDead: false,
     refreshing: null, link: "online", caughtUp: true, identityChecked: true, lastSyncAt: 1, principal: "alice",
     partitionCurrent: true, nativeReady: true, signal: new AbortController().signal,
     deviceNow: () => Date.now(), serverNow: () => Date.now(),
-    unavailable: () => null, queued: async () => entries,
+    unavailable: () => null, queued: async () => entries, pending: (tables, predictions) => reads.pending(tables, predictions),
     call: async request => { assert.equal(request.op, "query"); return { ok: outcome }; },
     post: async (path, body) => { requests.push({ path, body }); return { ok: true, json: { data: ["server"], tables: ["switches"], complete: true }, obsoleteAuth: false }; },
     installNative: async () => false, notify: () => {},

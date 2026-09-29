@@ -143,13 +143,18 @@ export class RememberedAnswers {
   }
 }
 
+export function queuedPredictions(entries: readonly Queued[]): readonly string[] | null {
+  const predicted = entries.filter(e => e.observed_seq == null && e.predictable === true);
+  return predicted.some(e => !e.predicted) ? null : [...new Set(predicted.flatMap(e => [...predictedTables(e.predicted!)]))];
+}
+
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
   predictions: readonly string[] | null = null;
   admissions = 0;
-  pending(tables: Set<string> | null): boolean {
-    return this.admissions > 0 || pendingTables(this.predictions, tables);
+  pending(tables: Set<string> | null, predictions = this.predictions): boolean {
+    return this.admissions > 0 || pendingTables(predictions, tables);
   }
   async readQueued(run: () => Promise<Queued[]>, watches: Iterable<LocalWatch>): Promise<Queued[]> {
     const revision = this.revision, entries = await run();
@@ -160,8 +165,7 @@ export class LocalReads {
     return entries;
   }
   queued(entries: readonly Queued[]): void {
-    const predicted = entries.filter(e => e.observed_seq == null && e.predictable === true);
-    this.predictions = predicted.some(e => !e.predicted) ? null : [...new Set(predicted.flatMap(e => [...predictedTables(e.predicted!)]))];
+    this.predictions = queuedPredictions(entries);
   }
   readonly serverAnswers = new RememberedAnswers();
 
