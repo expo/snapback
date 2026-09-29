@@ -1,0 +1,166 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Bundle/Application/CE08EB7C-2272-4CFE-A122-02DD21FA193A/Snapback4chat.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 4940018,
+      "path": "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-device.log",
+      "sha256": "a93c9fc6960cd554da342d7edb4f056707584dcbac5d70e7c0685d92d5bd1f41"
+    },
+    "receipts.jsonl": {
+      "bytes": 3250,
+      "path": "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-receipts.jsonl",
+      "sha256": "4107749bff0b7161f973dac10708b4138f17b0f84593149ad295530825fa5168"
+    },
+    "screen.mp4": {
+      "bytes": 4059136,
+      "path": "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-screen.mp4",
+      "sha256": "d6e860b50e8f7764775ebb5bf7263cbe1b94d7c847b4e2ba88696e40da233751"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/projects/snapback-pub-048/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "44441",
+      "--no-watch"
+    ],
+    "cwd": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-BZMR02",
+    "origin": "http://127.0.0.1:44441",
+    "port": 44441,
+    "store": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-BZMR02/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.8",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/81961F7D-DF85-4A7A-B376-20D9073AC101/data/Containers/Data/Application/A9ACB4CE-D86B-41BC-8A38-2A0FF1806C17",
+  "endedAt": 1790640009202,
+  "error": null,
+  "events": [
+    {
+      "at": 1790639997316,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790639997852,
+      "pid": 89934,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790639997852,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790639999112,
+      "step": "primed"
+    },
+    {
+      "at": 1790639999978,
+      "pid": 89934,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790640000034,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790640000251,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790640000893,
+      "pid": 90236,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1790640000893,
+      "step": "waiting-relaunch"
+    },
+    {
+      "at": 1790640003104,
+      "step": "relaunch"
+    },
+    {
+      "at": 1790640003964,
+      "pid": 90236,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790640004493,
+      "pid": 90622,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1790640004493,
+      "step": "offline-relaunched"
+    },
+    {
+      "at": 1790640004493,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790640006702,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790640006809,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790640006809,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790640006809,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790640008172,
+      "step": "done"
+    },
+    {
+      "at": 1790640008286,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790640009143,
+      "pid": 90622,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790640009202,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "installed": null,
+  "mode": "application",
+  "outputs": [
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-run.json",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-screen.mp4",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-receipts.jsonl",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-device.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-video.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-launch.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-backend.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-backend-stdout.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-log-stderr.log",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-prime.png",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-offline.png",
+    "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-restart.png"
+  ],
+  "prime": true,
+  "relaunch": true,
+  "reservation": "/Users/ccheever/projects/snapback-pub-048/snapback4/reports/20260928-expo-0.4.8/restart-ios-reserved",
+  "run": "1790639996889-89689",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "restart",
+  "startedAt": 1790639996889,
+  "timestampUnit": "unix-ms",
+  "udid": "81961F7D-DF85-4A7A-B376-20D9073AC101"
+}

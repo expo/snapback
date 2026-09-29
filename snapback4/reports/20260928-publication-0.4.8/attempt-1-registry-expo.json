@@ -1,0 +1,13 @@
+{
+  "step": "registry-expo",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-pub-048/helpers-0.4.8/registry-verify.py",
+    "expo"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-048/snapback4",
+  "start": 1790644667.274189,
+  "end": 1790644669.500864,
+  "seconds": 2.227,
+  "exit": 0
+}
