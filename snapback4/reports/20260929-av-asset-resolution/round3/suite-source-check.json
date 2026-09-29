@@ -1,0 +1,7 @@
+{
+  "packages/snapback4/src/asset-download.ts": true,
+  "packages/snapback4/test/asset-retry.test.mjs": true,
+  "packages/snapback4/test/asset-buffered.test.mjs": true,
+  "packages/snapback4/test/asset-avatars.test.mjs": true,
+  "crates/snapback4-lang/src/guide.rs": true
+}

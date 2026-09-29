@@ -235,7 +235,7 @@ test("online session: a refresh rejects principal changes and never adopts an un
   }
 });
 
-test("online assets revoke late credential-bound URLs across rotation, sign-out and close", async t => {
+test("online assets survive same-principal rotation and revoke on sign-out or close", async t => {
   const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
   let serial = 0, blobSerial = 0;
   const revoked = [];
@@ -285,9 +285,12 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   oldRelease.resolve();
   const result = await reading;
   assert.deepEqual(bearers, ["Bearer old"]);
-  assert.equal(result.denied.code, "E_AUTH");
+  assert.equal(result.url, "blob:asset-1", "completed bytes remain with the same principal across rotation");
+  assert.deepEqual(revoked, []);
+  assert.deepEqual(closed, ["response-1", "response-2"], "the completed response still belongs to its handle");
+  result.revoke();
   assert.deepEqual(revoked, ["blob:asset-1"]);
-  assert.deepEqual(closed, ["response-1", "response-2", "response-3"], "the old response is released without consuming another view");
+  assert.deepEqual(closed, ["response-1", "response-2", "response-3"]);
 });
 
 test("credential rotation preserves an asset admission refusal and its recovery deadline", async t => {

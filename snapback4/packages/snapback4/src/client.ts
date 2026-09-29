@@ -995,14 +995,15 @@ export function createClient(options: ClientOptions): Client {
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      const revision = credentialRevision;
+      const revision = credentialRevision, assetPrincipal = viewer;
       const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
+      // @ref LLP 3000.008.002.000#6 — completed bytes stay with the same principal; rotation cannot authorize a replay.
       if (revision !== credentialRevision) {
+        if ("url" in read && assetPrincipal !== null && assetPrincipal === viewer) return read;
         if ("denied" in read) {
           // Admission backoff belongs to the transfer, not its bearer. Keep
           // the outcome (including Retry-After) for permitted hook recovery.

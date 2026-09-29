@@ -1,0 +1,15 @@
+{
+  "started": "2026-09-29T08:58:18.018947+00:00",
+  "merge": "8f937a1ee375192d222c29e07db6b195596920b4",
+  "main": "6d8e530674f3cb69179d6784631da25493b0099f",
+  "node": "v24.13.1",
+  "cpu_affinity": 96,
+  "sqlite_flags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "inputs": {
+    "packages/snapback4/src/asset-download.ts": "4316f22d830c957c39a53c04c6238d5c17c4eb16b5b72c7d4387a8ddf6774f60",
+    "packages/snapback4/test/asset-retry.test.mjs": "76712ce460a7cda28ef414b0669793f20d778395ff29c5340eceaf20c773bdd9",
+    "packages/snapback4/test/asset-buffered.test.mjs": "210c14884b345e1f1bea378f1bc69724bb2bffc975556a95f50ed20b22ba7623",
+    "packages/snapback4/test/asset-avatars.test.mjs": "0dbbec1c3f79d0639f83bdbcf6d630631a22d7db907b20b4205478ff7b9eb134",
+    "crates/snapback4-lang/src/guide.rs": "60da3353fbec087bd8b1ed40202bc29df5f54f580be396cf8f6db7be01cec08b"
+  }
+}

@@ -1310,7 +1310,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async asset(id) {
       const denied = unavailable(); if (denied) return { denied };
-      await media!.reconcile(); // @ref LLP 3000.008.002.000#6 — retire expired handles before network backoff.
+      await media!.reconcile(); if (refreshing) await refreshing; // @ref LLP 3000.008.002.000#6 — reconcile expiry, then wait for the active bearer.
       if (unavailable()) return { denied: unavailable()! };
       if (link !== "online") return media!.read(id);
       const request = requestCredentials();
@@ -1328,11 +1328,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const retained = await media!.read(id);
           return "url" in retained ? retained : read;
         }
-        await media!.invalidate(id);
+        if (read.denied.code !== "E_CLIENT") await media!.invalidate(id);
       }
-      if (unavailable() || request.revision !== credentialRevision) {
+      if (unavailable()) {
         if ("url" in read) read.revoke();
-        return unavailable() ? { denied: unavailable()! } : "denied" in read ? read : { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+        return { denied: unavailable()! };
       }
       return read;
     },

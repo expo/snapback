@@ -1,0 +1,35 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "runs": 1,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1404 s",
+  "failed_stages": [],
+  "rust": {
+    "passed": 4329,
+    "failed": 0,
+    "ignored": 33
+  },
+  "failures": [],
+  "clients": {
+    "tests": 4829,
+    "pass": 4819,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "fixture_wrapper": {
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "qualification_scope": "Single full run includes Astra corrections; Grok corrections arrived afterward and have separate affected/guide checks."
+}

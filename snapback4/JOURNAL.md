@@ -76797,3 +76797,53 @@ No acquisition remeasurement or broader performance claim this round.
 Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — AV round 3: buffered transfers, rotation and queue boundaries
+
+Fetched and merged origin/main (6d8e53067) first, preserving both journal and
+LLP revision sides and regenerating the combined client's await fingerprint.
+Merge 8f937a1ee retains both parents' journal lines in order. Read all prior
+prompts/reports and Astra's entire round-2 NOT READY review. Grok completed
+READY WITH CHANGES during finalization; its two Mediums and Low are addressed.
+
+Successful streaming bodies retain a five-second byte-inactivity bound. Buffered
+Blobs allow one minute plus Content-Length at 32 KiB/s, capped using the server's
+64 MiB maximum (35 min 8 s). Before fetch resolves headers, capability and size
+are unknown: completion-only hosts require the same maximum allowance, which
+also delays detecting a never-returning first response. Queue/backoff has a
+separate cumulative thirty-second budget, excluding active body transfers.
+Real six-second HTTP PNGs now reach ready and paint through completion-only
+fetch and streamless Blob adapters, ordinary and once: four images, six requests.
+This fails on merged round-2 source. Empty chunks already did not count as
+progress; the detecting regression requires cancellation and bounded exhaustion.
+
+Grok's additional rotation latch is corrected: completed bytes remain with the
+same known principal without replay, and local requests wait for refresh before
+capturing credentials. Sign-out, close, store and unknown-principal fences stay.
+A queue/SDK timeout is E_CLIENT, preserving the local link and held media; real
+socket failures remain E_OFFLINE with retained-byte fallback. Expiry during
+backoff preserves the preceding refusal and Retry-After. Ordinary post-body
+retention/display errors can recover; once errors remain non-retryable. Updated
+LLP 3000 §7, LLP 3000.008.002.000 §6, media/refusals cards and client manual.
+
+Negative controls detect the empty-chunk guard, refresh wait, local timeout
+classification, cumulative queue bound, ordinary construction retryability and
+real socket-offline transition. Real online/process/wasm rotation and once tests
+pass. The first late-review probe's queue double and result-shape mistakes are
+retained and classified as ours; no environmental exemption. This models buffered
+hosts and does not qualify a physical React Native device.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1404 s`, exit 0.
+Rust 4,329 passed / 33 ignored; clients 4,819 passed / ten skips; final models
+79/79 and fixture wrappers 9/9. Zero full-run failures, whether ours, baseline or
+environmental. That green snapshot includes Astra's fixes and precedes Grok's
+later fixes; it is not a final-tree full-suite claim. Subsequent affected checks:
+352/352, final retention/avatar/pressure/retry 98/98, whole guide 99/99; build,
+typecheck and await classification pass. Initial focused checks also passed.
+The inherited 60-second target remains missed; no count or ceiling changed.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: [AV round 3](reports/20260929-av-asset-resolution/round3/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

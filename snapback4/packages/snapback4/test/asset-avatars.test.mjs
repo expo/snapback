@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { processDevice } from "../dist/native.js";
-import { mintId } from "../dist/client.js";
+import { createClient, mintId } from "../dist/client.js";
 import { login } from "../dist/auth.js";
 import { createLocalClient } from "../dist/local.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
@@ -18,6 +18,101 @@ import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
+
+test('completed ordinary and once bytes survive rotation; new local downloads await its bearer', { timeout: 60000 }, async t => {
+  const f = await avatarFixture(t);
+  for (const tier of ['online', 'process', 'wasm']) await t.test(tier, async t => {
+    const signed = await login(f.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
+    let unblockBody, unblockRefresh, bodyEntered, refreshEntered, holdingBody = false, holdingRefresh = false;
+    let bodyGate, refreshGate; const assetCalls = [];
+    const options = { url: f.url, session: signed.session, assets: { keep: 'viewed', maxBytes: 1000000 }, fetch: async (url, init) => {
+      const path = new URL(url).pathname;
+      if (path.startsWith('/assets/')) assetCalls.push({ path, bearer: new Headers(init.headers).get('authorization'), range: new Headers(init.headers).get('range') });
+      const response = await fetch(url, init);
+      if (holdingBody && path.startsWith('/assets/') && response.ok) { bodyEntered(); await bodyGate; }
+      if (holdingRefresh && path === '/auth/refresh') { refreshEntered(); await refreshGate; }
+      return response;
+    } };
+    const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options,
+      device: tier === 'process' ? processDevice({ binary, dir: join(f.dir, 'completed-rotation') }) : webDevice({ wasm: readFileSync(join(root, 'packages/snapback4/src/wasm/snapback4_device_bg.wasm')), persist: memoryPersistence() }),
+    });
+    t.after(async () => { unblockBody?.(); unblockRefresh?.(); await client.close(); });
+    await client.sync?.();
+    for (const once of [false, true]) {
+      const photo = once ? await f.upload(f.users.alice.client) : f.users.alice.avatar;
+      if (once) await f.write(f.users.alice.client, 'messaging.send', { conversation: f.dm, id: mintId(), text: 'rotate once', quote: null, photo: null, video: null, oncePhoto: { id: photo.id } });
+      const entered = new Promise(resolve => { bodyEntered = resolve; });
+      bodyGate = new Promise(resolve => { unblockBody = resolve; }); holdingBody = true;
+      const start = assetCalls.length, reading = client.asset(photo.id);
+      await entered;
+      let rotation;
+      if (once) {
+        const refreshing = new Promise(resolve => { refreshEntered = resolve; });
+        refreshGate = new Promise(resolve => { unblockRefresh = resolve; }); holdingRefresh = true;
+        rotation = client.refreshSession(); await refreshing;
+      } else assert.equal((await client.refreshSession()).ok, true);
+      holdingBody = false; unblockBody();
+      const read = await reading;
+      if (once) { holdingRefresh = false; unblockRefresh(); assert.equal((await rotation).ok, true); }
+      assert.ok('url' in read, JSON.stringify({ tier, once, read }));
+      assert.ok((await (await fetch(read.url)).arrayBuffer()).byteLength > 0); read.revoke();
+      assert.equal(assetCalls.length - start, once ? 2 : 1, 'completed bytes never require a replay');
+      if (once) assert.equal((await client.asset(photo.id)).denied.code, 'E_ASSET_VIEWED');
+    }
+    if (tier === 'online') return;
+    const held = await client.asset(f.users.alice.avatar.id); assert.ok('url' in held); t.after(() => held.revoke());
+    const before = await (await fetch(held.url)).arrayBuffer();
+    const entered = new Promise(resolve => { refreshEntered = resolve; });
+    refreshGate = new Promise(resolve => { unblockRefresh = resolve; }); holdingRefresh = true;
+    const refresh = client.refreshSession(); await entered;
+    const start = assetCalls.length, reading = client.asset(f.users.alice.avatar.id);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    const sentDuringRefresh = assetCalls.length - start;
+    holdingRefresh = false; unblockRefresh(); assert.equal((await refresh).ok, true);
+    const read = await reading;
+    assert.equal(sentDuringRefresh, 0, 'no old bearer is dispatched while its successor is withheld');
+    assert.ok('url' in read, JSON.stringify(read)); read.revoke();
+    assert.equal(assetCalls.at(-1).bearer, 'Bearer ' + client.session().token);
+    assert.deepEqual(await (await fetch(held.url)).arrayBuffer(), before, 'rotation never invalidates the retained handle');
+  });
+});
+
+test('local queue saturation keeps link and retained media live', { timeout: 60000 }, async t => {
+  const f = await avatarFixture(t);
+  for (const tier of ['process', 'wasm']) await t.test(tier, async t => {
+    const signed = await login(f.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
+    let blockers = 0, failSocket = false; const links = [], streams = [];
+    const client = await createLocalClient({ url: f.url, session: signed.session, assets: { keep: 'viewed', maxBytes: 1000000 },
+      device: tier === 'process' ? processDevice({ binary, dir: join(f.dir, 'queue-link') }) : webDevice({ wasm: readFileSync(join(root, 'packages/snapback4/src/wasm/snapback4_device_bg.wasm')), persist: memoryPersistence() }),
+      fetch: async (url, init) => {
+        if (new URL(url).pathname === '/assets/blocker') { blockers++; return new Response(new ReadableStream({ start(stream) { streams.push(stream); } })); }
+        if (failSocket && new URL(url).pathname.startsWith('/assets/')) throw Object.assign(new Error('connection reset'), { code: 'ECONNRESET' });
+        return fetch(url, init);
+      },
+    });
+    t.after(() => client.close()); await client.sync();
+    const held = await client.asset(f.users.alice.avatar.id); assert.ok('url' in held); t.after(() => held.revoke());
+    const before = await (await fetch(held.url)).arrayBuffer(); client.onLink(link => links.push(link));
+    const pending = Array.from({ length: 6 }, () => client.asset('blocker'));
+    while (blockers !== 6) await new Promise(resolve => setTimeout(resolve, 1));
+    // Compress only the SDK admission timer, keeping real servers/devices and
+    // body timers. Exact thirty-second accounting is checked in asset-retry.
+    const realTimeout = globalThis.setTimeout;
+    const timer = t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => realTimeout(fn, ms === 30000 ? 20 : ms, ...args));
+    const refused = await client.asset(f.users.alice.avatar.id); timer.mock.restore();
+    const observed = { link: client.link(), links: [...links] };
+    assert.equal(observed.link, 'online'); assert.ok(!observed.links.includes('offline'), JSON.stringify(observed));
+    assert.equal(refused.denied.code, 'E_CLIENT'); assert.equal(refused.denied.retryable, true);
+    assert.deepEqual(await (await fetch(held.url)).arrayBuffer(), before);
+    for (const stream of streams) stream.close();
+    for (const read of await Promise.all(pending)) if ('url' in read) read.revoke();
+    failSocket = true;
+    const retained = await client.asset(f.users.alice.avatar.id);
+    assert.ok(links.includes('offline'), 'an actual socket reset still marks transport offline');
+    assert.ok('url' in retained, JSON.stringify(retained)); retained.revoke();
+    await client.close();
+  });
+});
 
 test('queued local avatars survive credential rotation without invalidating retained handles', { timeout: 60000 }, async t => {
   const fixture = await avatarFixture(t);
@@ -214,7 +309,9 @@ window.start = async options => {
       if (!asset || !fault) return fetch(input, init);
       faultCalls++;
       if (fault === "exhaust" || fault === "reset" && faultCalls === 1) throw new TypeError("injected ECONNRESET");
-      if (fault === "timeout" && faultCalls === 1) return new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("injected timeout")), { once: true }));
+      // Headers arrive but the body never progresses. Opaque fetch deadlines
+      // are size-based and exercised with virtual time in asset-retry.test.
+      if (fault === "timeout" && faultCalls === 1) return new Response(new ReadableStream(), { headers: { "content-type": "image/png", "accept-ranges": "bytes" } });
       if (fault === "overload" && faultCalls === 1 || fault === "burst" && inFlight >= 6) { rejected++; return Response.json({ denied: { code: "E_RATE_LIMIT", family: "limit", message: "injected six-connection cap", retryable: true } }, { status: 503, headers: { "Retry-After": "0.1" } }); }
       inFlight++; peak = Math.max(peak, inFlight);
       try { if (fault === "burst") await new Promise(r => setTimeout(r, 100)); return await fetch(input, init); }

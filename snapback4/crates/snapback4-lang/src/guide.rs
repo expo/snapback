@@ -524,12 +524,22 @@ refetches a ready handle or automatically retries a refused/revoked asset.
 Ordinary downloads use a full-file Range request, which cannot consume a
 one-view grant. They retry resets, timeouts and transient HTTP failures with
 backoff and jitter: at most four attempts and ten seconds total backoff.
-Five seconds without response/body progress ends an attempt; body bytes renew
-the thirty-second inactivity deadline including queue wait. A progressing
-stream may take longer. Buffered native fetches expose only completion, so
-their opaque waits still have the five-second bound. Retry-After remains a
-minimum through stalled error bodies, credential rotation and hook recovery.
-At most six asset transfers run per client, including their response bodies.
+After headers, five seconds without bytes ends a streaming attempt; empty
+chunks do not count. A progressing stream has no total-duration deadline.
+Buffered bodies allow one minute plus their Content-Length at 32 KiB/s; an
+unknown length uses the server's 64 MiB ceiling (35 min 8 s). Before fetch
+resolves, headers may be hidden behind a buffered body, so the same unknown-size
+allowance applies. This also delays detecting a host that never returns headers.
+Queue/backoff wait has a separate thirty-second budget, renewed only by bytes;
+body transfer time does not spend it. Refusal bodies still have five seconds.
+Retry-After remains a minimum through stalled error bodies, credential rotation
+and hook recovery.
+At most six asset transfers run per client, including their response bodies. SDK wait deadlines and post-body storage/display failures
+report a client error and do not mark the device offline (`guide refusals`). Ordinary construction
+failures can recover on a later event; ambiguous once failures cannot. A queue
+budget expiring during Retry-After preserves that refusal and minimum.
+Completed bytes survive same-principal bearer rotation without another fetch;
+local downloads starting during refresh wait for the new bearer.
 A once asset refuses Range before consumption; the SDK then requests it without
 Range. A lost once response returns an explained error and is never replayed;
 only explicit admission refusals can retry that transfer. Raw `client.asset`

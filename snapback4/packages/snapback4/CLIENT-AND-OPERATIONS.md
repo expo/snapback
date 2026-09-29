@@ -1409,13 +1409,21 @@ Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. Transport and blob-URL failures return `status: "error"`
 with `why.code` and `why.message`; authorization, revocation and consumed views
 return `status: "denied"`. Display both explanations. Safe downloads make up to
-four attempts with exponential backoff, jitter and Retry-After, with five seconds
-without response/body progress, ten seconds of backoff and thirty seconds without
-body progress including queue wait. Received bytes renew both inactivity timers;
-a progressing stream has no total-duration deadline. Buffered native fetches
-expose only completion, so their opaque waits retain the five-second bound.
-Retry-After survives stalled error bodies and credential rotation. Each client
-admits six transfers. A full-file Range request makes ordinary retries non-consuming; a once asset refuses Range before its one
+four attempts with exponential backoff, jitter and Retry-After, and ten seconds
+of backoff. After headers, a stream stalls after five seconds without bytes;
+empty chunks do not count. Progressing streams have no total-duration deadline.
+A buffered body allows one minute plus Content-Length at 32 KiB/s; unknown size
+uses the server's 64 MiB maximum (35 min 8 s). Before fetch resolves, headers can
+be hidden by buffering, so that same unknown-size allowance applies, including
+to a host that never returns headers. Queue/backoff has a separate thirty-second
+budget renewed only by bytes, excluding transfer time. Refusal bodies keep their
+five-second bound. Retry-After survives stalled error bodies and credential rotation. Each client
+admits six transfers. SDK wait deadlines and post-body storage/display failures
+report E_CLIENT and do not mark the device offline. Ordinary construction
+failures can recover on a later event; ambiguous once failures cannot. A queue
+budget expiring during Retry-After preserves that refusal and minimum.
+Completed bytes survive same-principal bearer rotation without another fetch;
+local downloads starting during refresh wait for the new bearer. A full-file Range request makes ordinary retries non-consuming; a once asset refuses Range before its one
 non-range transfer. An ambiguous once response is never automatically retried.
 The hook retries safe errors on reconnect/refocus/visibility return, never ready
 handles or terminal refusals. An early recovery event schedules one retry after

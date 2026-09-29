@@ -101,9 +101,11 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
 
 export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>): Promise<AssetRead> {
   let release: (() => void) | undefined;
+  let retryable = false;
   try {
     const downloaded = await downloadAsset(assetSource(base, headers, id), doFetch, signal, current, queue);
     if ("denied" in downloaded) return downloaded;
+    retryable = downloaded.retryable;
     const { blob, response } = downloaded;
     release = ownBlob(blob);
     const retained = await viewed?.(blob, response);
@@ -124,7 +126,7 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }
     } };
   } catch (error) {
-    return { denied: { ...offline(error), retryable: false } };
+    return { denied: { code: "E_CLIENT", family: "client", message: `the downloaded asset could not be retained or displayed: ${error instanceof Error ? error.message : String(error)}`, retryable } };
   } finally {
     release?.();
   }

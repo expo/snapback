@@ -171,7 +171,8 @@ for (const outcome of ['ECONNRESET', 'invalid', 'success', 'auth', 'terminal-ove
   assert.equal((await client.refreshSession()).ok, true); release.resolve();
   const result = await read;
   assert.equal(gets, outcome === 'auth' ? 2 : 1);
-  assert.equal(result.denied?.code, { ECONNRESET: 'E_OFFLINE', invalid: 'E_HTTP_RESPONSE', success: 'E_AUTH', auth: 'E_ASSET_VIEWED', 'terminal-overload': 'E_RATE_LIMIT' }[outcome]);
+  if (outcome === 'success') { assert.ok('url' in result, 'rotation does not discard completed bytes or consume another view'); result.revoke(); }
+  else assert.equal(result.denied?.code, { ECONNRESET: 'E_OFFLINE', invalid: 'E_HTTP_RESPONSE', auth: 'E_ASSET_VIEWED', 'terminal-overload': 'E_RATE_LIMIT' }[outcome]);
   if (outcome === 'ECONNRESET') assert.match(result.denied.message, /ECONNRESET/);
 });
 
