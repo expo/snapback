@@ -78164,3 +78164,54 @@ controls remain classified in reports/20260929-sr-starter-routes/round1/REPORT.m
 
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — macOS failures in the 0.4.9 dry run (supervisor)
+
+The black M5's 0.4.9 dry run ran lanes PQ and WK on macOS for the first time and failed with
+`== 1 failure(s) in 5759 s` (client tests; nothing published). There were four causes, none seen on Linux.
+
+- **Worker snapshot imports.** `checked_imports` compared paths recorded by the checker with the
+  canonical project root. When a recorded path passed through a symlinked ancestor (macOS `/var` is
+  `/private/var`), the import was silently left out of the worker's snapshot and the worker never
+  started. The parent directory is now canonicalized; the final component is still opened without
+  following, so a linked helper is still refused. With the change reverted, both `automatic snapshot`
+  regressions fail on the M5; with it, both pass.
+- **Ledger path.** `supervised-workers` compared the printed, canonical ledger path with a
+  non-canonical tmpdir.
+- **Per-row hangs.** `per-row-retry` and `per-row-liveness` waited forever. With `setTimeout` mocked,
+  undici's zero-delay timers on macOS never fire, so real requests stalled. The tests now wait by
+  advancing only zero-delay timers; no deadline, backoff or probe delay moves.
+
+Verified on the M5 (macOS, Node 24.18.0) and eb1000 (Linux, Node 24.13.1): per-row-retry 15/15,
+per-row-liveness 17/17, supervised-workers 5/5, snapshot regressions 2/2. 0.4.9 is re-cut from the
+main that includes this fix.
+
+
+## 2026-09-29 — KR round 0: establish idle keep-remount observations
+
+Reproduced the inherited online snapshot-identity failure on aedd35615a in 7/10
+focused runs. Instrumentation identifies the fixture's own seed `/changes`
+wake: it dirties the in-flight first query, whose successful answer can remain
+visible while the queued reread runs. Last unsubscribe cancels that work;
+remount resumes it with `revalidating: true`, as LLP 3000.023 §10 permits.
+No SDK, engine or contract change is needed.
+
+The existing test now finishes local acquisition, or delivers the initial online
+change-feed response after the first answer and waits for its settled replacement.
+Strict snapshot identity, key isolation, last-subscriber handling, the exact
+30-second boundary and active/idle sign-out withdrawal remain. The no-new-read
+check also runs after a queue turn. An isolated mutation that spuriously queues
+work on every join fails that new assertion from a passing control.
+
+All 50 consecutive focused runs pass all three tiers: 150/150. Retention/client
+checks pass 483/483; queue checks 44/44. Ran scripts/test.sh once, exit 0:
+`== 0 failure(s) in 1386 s`. Full clients pass 5,123 with ten declared skips;
+serial models pass 79/79 at their full counts. No ours, baseline or environmental
+full-suite failure. The inherited nominal 60-second process budget remains
+exceeded. Rebuilt wasm is unchanged: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the unchanged 593,719 B cap.
+
+Report and raw evidence: reports/20260929-kr-keep-remount/REPORT.md. SR's ticket is
+absent on this base; the report records its closure resolution for integration.
+One local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

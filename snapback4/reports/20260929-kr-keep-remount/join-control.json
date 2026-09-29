@@ -1,0 +1,12 @@
+[
+  {
+    "name": "baseline",
+    "exit": 0,
+    "replacement": "if (resume)\n                start(watch);"
+  },
+  {
+    "name": "spurious-join",
+    "exit": 1,
+    "replacement": "queueMicrotask(() => start(watch));"
+  }
+]

@@ -12,6 +12,21 @@ import { server, binary, until } from './helpers/app-server.mjs';
 
 const point = { kind: 'query', name: 'point' };
 const drain = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
+// Mocking setTimeout also holds undici's zero-delay timers on some hosts (macOS).
+// Advance only zero-delay timers while real I/O completes; no deadline or probe moves.
+async function turns(t, work, label) {
+  let done = false;
+  const result = Promise.resolve().then(work).finally(() => { done = true; });
+  const end = performance.now() + 10_000;
+  while (!done && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+  assert.ok(done, label);
+  return result;
+}
+async function settle(t, predicate, label) {
+  const end = performance.now() + 10_000;
+  while (!predicate() && performance.now() < end) { t.mock.timers.tick(0); await new Promise(resolve => setImmediate(resolve)); }
+  assert.ok(predicate(), label);
+}
 const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(Error('closed'));
   else signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
@@ -125,9 +140,9 @@ for (const tier of ['wasm', 'process']) test(`${tier}: acquired unknown apply fo
   assert.equal(client.acquired, true);
   t.mock.timers.enable({ apis: ['setTimeout'] }); // A later background probe must not hide a lost apply refresh.
   omit = true; queries = 0;
-  await edit(); await client.sync(); await drain();
+  await turns(t, async () => { await edit(); await client.sync(); await drain(); }, 'edit and sync');
   assert.ok(queries > 0, 'the apply itself queues replacement evaluations');
-  await until(() => watches.every(w => w.getSnapshot().data?.label === 'changed' && !w.getSnapshot().revalidating), 'unknown-footprint refresh');
+  await settle(t, () => watches.every(w => w.getSnapshot().data?.label === 'changed' && !w.getSnapshot().revalidating), 'unknown-footprint refresh');
   assert.ok(withdrawals > 0, 'keep=false still withdraws during revalidation');
   assert.ok(queries > 0, 'replacement comes from new evaluations');
 });
