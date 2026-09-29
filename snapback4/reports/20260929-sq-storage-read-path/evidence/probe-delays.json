@@ -1,0 +1,23 @@
+{
+  "10%": {
+    "settledActions": 24777,
+    "lastReceiptAtMs": 1790652125530.0,
+    "firstReadAtMs": 1790652125549,
+    "delayFromReceiptMs": 19.0,
+    "delayFromHookMs": 7
+  },
+  "50%": {
+    "settledActions": 88057,
+    "lastReceiptAtMs": 1790652438977.0,
+    "firstReadAtMs": 1790652439040,
+    "delayFromReceiptMs": 63.0,
+    "delayFromHookMs": 4
+  },
+  "full": {
+    "settledActions": 167157,
+    "lastReceiptAtMs": 1790652824785.0,
+    "firstReadAtMs": 1790652824796,
+    "delayFromReceiptMs": 11.0,
+    "delayFromHookMs": 8
+  }
+}

@@ -8,11 +8,9 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
   const q = name => ({ kind: "query", name }), m = name => ({ kind: "mutation", name });
   const apps = [], watches = [], replies = [], requests = [];
   const expiryArmed = new Map();
-  let deadlinePhase = true;
   let offline = false, holdWrite = false, holdInbox = false, releaseInbox, releaseWrite, inboxGate, unmount;
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname.split("/").slice(-2).join("/");
-    const bounded = deadlinePhase && path === "q/inbox";
     requests.push(path);
     if (offline) throw Error("controlled offline link");
     if (holdWrite && path === "m/resetRead") await new Promise((resolve, reject) => {
@@ -25,8 +23,8 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     const response = await fetch(input, init);
     // Give each observation a known authorization deadline without a row
     // commit. A stalled replacement cannot extend the old answer's lifetime.
-    if (bounded) {
-      const nextExpiry = expiryArmed.get(init.body) ?? Date.now() + 2000;
+    if (path === "q/inbox" && !expiryArmed.has(init.body)) {
+      const nextExpiry = Date.now() + 2000;
       expiryArmed.set(init.body, nextExpiry);
       return Response.json({ ...await response.json(), nextExpiry });
     }
@@ -94,7 +92,7 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     const direct = await reader.client.query(q("inbox"), {});
     check(direct.loading, "pending prediction withholds the unavailable total");
     check(requests.filter(path => path === "q/inbox").length === pendingBefore, "prediction fence prevents fallback dispatch");
-    deadlinePhase = false; holdInbox = false; releaseInbox();
+    holdInbox = false; releaseInbox();
     await until(() => replies.length > pendingReplies && inbox.getSnapshot().loading, "withheld rerun after old response");
     check(snapshots.slice(pendingPublications).every(({ read }) => !("data" in read)), "no old server answer replaces the prediction");
     offline = true;

@@ -1,0 +1,26 @@
+{
+  "50%-immediate": {
+    "seconds": 0.21082210540771484,
+    "observations": 21,
+    "versionChangesObserved": 20,
+    "note": "10 ms polling can undercount commits; version changes prove other-connection writes, not their individual count"
+  },
+  "50%-warm": {
+    "seconds": 2.197132110595703,
+    "observations": 215,
+    "versionChangesObserved": 214,
+    "note": "10 ms polling can undercount commits; version changes prove other-connection writes, not their individual count"
+  },
+  "full-immediate": {
+    "seconds": 0.21305608749389648,
+    "observations": 21,
+    "versionChangesObserved": 20,
+    "note": "10 ms polling can undercount commits; version changes prove other-connection writes, not their individual count"
+  },
+  "full-warm": {
+    "seconds": 2.370039463043213,
+    "observations": 224,
+    "versionChangesObserved": 223,
+    "note": "10 ms polling can undercount commits; version changes prove other-connection writes, not their individual count"
+  }
+}

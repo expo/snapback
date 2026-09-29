@@ -1,4 +1,3 @@
-import { assetInvalidated, assetRevoked, onAssetRevoked } from "./asset-lifetime.ts";
 // The React arm: one provider and hooks over the client card.
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
@@ -323,9 +322,7 @@ export type AssetState = { readonly status: "empty" } | { readonly status: "load
  * which is the feature. Pass `null` to show nothing. */
 export function useAsset(id: string | null | undefined): AssetState {
   const client = useClient();
-  const [slot, setSlot] = useState<{ client: Client; id: typeof id; state: AssetState } | null>(null);
-  const currentAsset = useRef<{ client: Client; id: typeof id; read: AssetRead } | null>(null);
-  const setState = (state: AssetState) => setSlot({ client, id, state });
+  const [state, setState] = useState<AssetState>({ status: "loading" });
   useEffect(() => {
     if (!id) {
       setState({ status: "empty" });
@@ -333,7 +330,6 @@ export function useAsset(id: string | null | undefined): AssetState {
     }
     let live = true;
     let read: AssetRead | null = null;
-    let stop = () => {};
     setState({ status: "loading" });
     void client.asset(id).then((result) => {
       read = result;
@@ -341,20 +337,14 @@ export function useAsset(id: string | null | undefined): AssetState {
         if ("url" in result) result.revoke();
         return;
       }
-      currentAsset.current = { client, id, read: result };
-      stop = onAssetRevoked(result, () => { if (live) setState({ status: "denied", why: assetInvalidated }); });
-      if (assetRevoked(result)) { setState({ status: "denied", why: assetInvalidated }); return; }
       setState("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
     }).catch((error) => {
       if (live) setState({ status: "denied", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
     });
     return () => {
-      live = false; stop();
+      live = false;
       if (read && "url" in read) read.revoke();
     };
   }, [client, id]);
-  // A render for different arguments must never return the previous URL,
-  // even before React runs the old effect's cleanup.
-  if (currentAsset.current?.client === client && currentAsset.current.id === id && assetRevoked(currentAsset.current.read)) return { status: "denied", why: assetInvalidated };
-  return !id ? { status: "empty" } : slot?.client === client && slot.id === id ? slot.state : { status: "loading" };
+  return id ? state : { status: "empty" };
 }

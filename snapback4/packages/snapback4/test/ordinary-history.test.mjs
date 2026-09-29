@@ -141,8 +141,7 @@ for (const tier of ["wasm", "process"]) {
     const history = await bob.query(query("history"), { conversation });
     assert.equal(history.data?.[0]?.id, first, JSON.stringify(history));
     assert.ok(f.requests.slice(before).includes("/q/history"), "ordinary fallback fetched the new DM");
-    // A reported cut can bypass this unacquired replica altogether; its raw
-    // unknown result was checked above, and the public answer must be current.
+    assert.ok(f.observations.some(read => read.name === "history" && read.unknown && read.data.length === 0));
     const reply = await sent(alice, "sendText", { id: mintId(), conversation, text: "a quoted reply", quote: first });
     const http = await bobHttp.query(query("history"), { conversation });
     assert.deepEqual(http.data.map(m => m.id), [reply, first]);

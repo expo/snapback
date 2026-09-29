@@ -563,7 +563,7 @@ fn aggregate_denial_cases(mut factory: impl FnMut(&str) -> Box<dyn Backend>, cut
                     assert_eq!(o.unavailable, !enough, "{world}: {o:?}");
                     assert_eq!(
                         o.tables,
-                        vec!["children", "parents", "totals"],
+                        vec!["children", "totals"],
                         "{world}: source dependency is declared even on denial"
                     );
                     assert_eq!(o.next_expiry, None);

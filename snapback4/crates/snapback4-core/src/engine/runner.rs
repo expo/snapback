@@ -355,7 +355,6 @@ impl<'a> Runner<'a> {
             for value in self.context.args.values() { self.meter.heap(value.expression_copy(ExpressionAccess(())))?; }
             self.statements(&program.body, &program.name)
         })();
-        self.complete_read_dependencies(program);
         if let Err(RuntimeError::AuthorizationBudget { table, effect }) = &result {
             self.trace_unlocated_budget(table, *effect);
         }
@@ -389,17 +388,6 @@ impl<'a> Runner<'a> {
 
     /// Logical work charged so far, including a refused transaction.
     pub fn metered(&self) -> crate::meter::Metered { self.meter.used }
-
-    // Run after evaluation so metadata cannot bypass word-read meter charges.
-    pub(crate) fn complete_read_dependencies(&mut self, program: &Program) {
-        if program.kind == ProgramKind::Query {
-            // Legacy/raw programs lack the compiler certificate: all tables is
-            // conservative. Some(empty) is a certified constant, not unknown.
-            if let Some(reads) = self.schema.operations.get(&program.name).and_then(|fact| fact.reads.as_ref()) {
-                self.read_tables.extend(reads.iter().cloned());
-            } else { self.read_tables.extend(self.schema.tables.keys().cloned()); }
-        }
-    }
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {

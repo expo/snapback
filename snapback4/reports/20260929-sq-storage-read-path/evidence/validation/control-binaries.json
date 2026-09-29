@@ -1,0 +1,10 @@
+{
+  "before": {
+    "path": "/home/ccheever/sb4-intent/lane-sq/target/sq/snapback4-before",
+    "sha256": "cd45b5976d604357230ab35c167e60f953e1e25f6dfe02e8dfb9cd4459f4c50b"
+  },
+  "after": {
+    "path": "/home/ccheever/sb4-intent/lane-sq/target/sq/snapback4-after",
+    "sha256": "cd45b5976d604357230ab35c167e60f953e1e25f6dfe02e8dfb9cd4459f4c50b"
+  }
+}

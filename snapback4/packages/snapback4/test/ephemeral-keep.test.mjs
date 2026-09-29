@@ -1,4 +1,4 @@
-// @ref LLP 3000.019#3.3 — typing input changes withdraw before the held replacement, for every option.
+// @ref LLP 3000.019#3.3 — typing opts into stale presentation; expiry still withdraws it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
@@ -42,7 +42,7 @@ query typingIn(room: text <=40):
 `;
 const hasPeer = read => read.data?.some(row => row.principal === 'dev:alice') === true;
 
-for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing withdraws on member commits and rejects expired held replies`, { timeout: 20_000 }, async t => {
+for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing survives member commits and expires during a held re-read`, { timeout: 20_000 }, async t => {
   const { url, dir } = await server(t, undefined, source);
   const seeded = await defaultFetch(url + '/seed', { method: 'POST', body: JSON.stringify(
     ['alice', 'bob'].map(person => ({ table: 'members', row: { id: person, room: 'r', principal: `dev:${person}`, revision: 0 } }))) });
@@ -116,7 +116,7 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing wit
     // First prove a completed re-read. Then hold all three replacement
     // bodies across the remaining commits, including a slow/paused host.
     // Twenty invalidations occupy 500 ms of the controlled four-second life,
-    // with every retention policy withdrawing on changed membership inputs.
+    // inside the default watch's separate one-second retention episode.
     now += 25;
     if (revision === 2) holding = true;
     assert.equal((await peer.mutate({ kind: 'mutation', name: 'touchMember' }, { revision })).state, 'sent');
@@ -127,14 +127,14 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing wit
     if (revision === 2) await until(() => blocked === 3, 'all typing replies held before expiry');
   }
   assert.ok(keptReads.length > 0, 'commits actually re-read the kept watch');
-  assert.ok(keptReads.some(({ read }) => "loading" in read), "membership dependency invalidates keep:true");
-  assert.ok(boundedReads.some(read => "loading" in read), "membership dependency invalidates the default");
-  assert.deepEqual(kept.getSnapshot(), { loading: true });
-  assert.deepEqual(bounded.getSnapshot(), { loading: true });
+  assert.ok(keptReads.every(({ read }) => hasPeer(read)), 'no publication hides typing during the burst');
+  assert.ok(keptReads.some(({ read }) => read.revalidating === true), 'kept data marks revalidation');
+  assert.ok(boundedReads.every(hasPeer), "ordinary ephemeral fallback honors default retention through the burst");
+  assert.ok(boundedReads.some(read => read.revalidating === true));
   // Explicit false preserves immediate withdrawal.
   assert.ok(plainReads.some(read => 'loading' in read), 'keep:false invalidation publishes loading');
   assert.ok(plainReads.some(hasPeer), 'the default watch then publishes the peer again');
-  t.diagnostic(`burst: ${plainReads.filter(read => 'loading' in read).length} default loading publications; ${keptReads.length} kept publications, with immediate dependency withdrawals`);
+  t.diagnostic(`burst: ${plainReads.filter(read => 'loading' in read).length} default loading publications; ${keptReads.length} kept publications, all visible`);
 
   assert.equal((await peer.mutate({ kind: 'mutation', name: 'touchMember' }, { revision: 21 })).state, 'sent');
   await until(() => member.getSnapshot().data?.revision === 21 && member.getSnapshot().fresh, 'held re-read commit delivered');
@@ -143,11 +143,11 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing wit
   assert.ok(replies.slice(-3).every(reply => reply.nextExpiry === deadline && reply.data?.length === 1),
     'the held bodies contain the live peer and its original server deadline');
   now = deadline - 1;
-  assert.equal(hasPeer(kept.getSnapshot()), false, 'invalidated before the held replacement');
+  assert.ok(hasPeer(kept.getSnapshot()), 'keep spans the held replacement');
   now = deadline;
   assert.equal(hasPeer(kept.getSnapshot()), false, 'kept expiry withdraws at the server deadline without a replacement reply');
   const afterExpiry = keptReads.length;
-  assert.ok(!hasPeer(kept.getSnapshot()), 'expiry cannot revive an invalidated hint');
+  assert.ok(keptReads.every(({ at, read }) => hasPeer(read) || at >= deadline), 'no publication withdraws before the deadline');
   // Check the actual server at the ORIGINAL deadline too: member commits
   // must not extend the life. Advance only any remaining time, not a new
   // four seconds after the final member commit, which could mask a renewal.
@@ -167,5 +167,5 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing wit
   release();
   await until(() => kept.getSnapshot().data?.length === 0 && kept.getSnapshot().fresh, 'empty answer after expiry');
   assert.ok(keptReads.slice(afterExpiry).every(({ read }) => !hasPeer(read)), 'late pre-expiry bodies never resurrect typing');
-  t.diagnostic(`expiry: server deadline ${deadline}, already withdrawn at ${deadline - 1}, still absent at ${deadline}; 21 member commits, no renewal`);
+  t.diagnostic(`expiry: server deadline ${deadline}, visible at ${deadline - 1}, withdrawn at ${deadline}; 21 member commits, no renewal`);
 });

@@ -815,6 +815,36 @@ mod tests {
         }
         std::fs::remove_dir_all(path).unwrap();
     }
+    // @ref LLP 3000.007#20.24.4 — SQ measurements retain the native server policy.
+    #[test]
+    fn sqlite_openers_keep_the_measured_cache_mmap_and_durability_policy() {
+        let path = std::env::temp_dir().join(format!("snapback4-pragmas-{}-{:x}", std::process::id(), crate::ids::seed()));
+        std::fs::create_dir(&path).unwrap();
+        {
+            let writer = Store::open(&path.join("store.sqlite")).unwrap();
+            let reader = writer.reader().unwrap();
+            let inspection = Store::open_read_only(&path.join("store.sqlite")).unwrap();
+            for (store, foreign_keys) in [(&writer, 0), (&reader, 1), (&inspection, 1)] {
+                let conn = store.conn();
+                let mode: String = conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
+                assert_eq!(mode, "wal");
+                for (pragma, expected) in [
+                    ("synchronous", 2), ("foreign_keys", foreign_keys), ("cache_size", -2000),
+                    ("mmap_size", 0), ("wal_autocheckpoint", 1000), ("journal_size_limit", -1),
+                ] {
+                    let actual: i64 = conn.query_row(&format!("PRAGMA {pragma}"), [], |row| row.get(0)).unwrap();
+                    assert_eq!(actual, expected, "{pragma}");
+                }
+            }
+            for store in [&reader, &inspection] {
+                let error = store.conn().execute("UPDATE _meta SET value = 'not-written' WHERE key = 'version'", []).unwrap_err();
+                assert_eq!(error.sqlite_error_code(), Some(rusqlite::ErrorCode::ReadOnly));
+            }
+            assert_eq!(writer.meta("version").unwrap().as_deref(), Some(STORE_VERSION));
+        }
+        std::fs::remove_dir_all(path).unwrap();
+    }
+
     #[test]
     fn independent_readers_reuse_plans_and_refresh_snapshots() {
         use rusqlite::StatementStatus::{RePrepare, Run};

@@ -39,9 +39,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
                 let _timing = super::latency::EngineSpan::new();
                 #[cfg(test)]
                 super::test_work(&shared.changes_refresh);
-                check(reader, since, &shared.change_proofs)
+                check(reader, since)
             },
-            None => check(&mut lock(&shared.engine), since, &shared.change_proofs),
+            None => check(&mut lock(&shared.engine), since),
         }
     };
     let result = (|| -> Result<_, snapback4_core::RuntimeError> {
@@ -97,9 +97,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     } else {principal_of(response.request.as_ref().unwrap(),shared).map(|_|())};
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
-        Ok(((seq,store_id,tables,non_revoking),generation,ephemeral))=>{
+        Ok(((seq,store_id,tables),generation,ephemeral))=>{
             let mut reply=json!({"seq":seq,"tables":tables,"generation":generation,"store_id":store_id});
-            if !non_revoking.is_empty() { reply["nonRevoking"] = json!(non_revoking); }
             if wants_ephemeral {reply["ephemeral"]=json!(ephemeral);}
             response.finish(200,reply);
         }
@@ -108,88 +107,21 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.
-fn check(engine: &mut snapback4_core::engine::Engine, since: u64, cache: &std::sync::Mutex<ProgramProofs>) -> Result<(u64, Option<String>, Vec<String>, Vec<String>), snapback4_core::error::RuntimeError> {
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>), snapback4_core::error::RuntimeError> {
     use rusqlite::OptionalExtension;
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
-    let stable = lock(cache).get(engine);
     let tx = engine.store_mut().read_transaction()?;
     let head = tx.next_seq()? - 1;
     let store_id = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
-    // Same bounded scan as the table feed; program/kind allow a positive proof.
-    let mut statement = tx.conn().prepare("SELECT seq,touched,program,kind FROM _commits WHERE seq > ?1 ORDER BY seq LIMIT 500")?;
-    let changes = statement.query_map([since as i64], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?)))?.collect::<Result<Vec<_>, _>>()?;
-    let saturated = changes.last().is_some_and(|(seq, ..)| *seq < head);
-    let mut tables = Vec::new();
-    let mut non_revoking: std::collections::BTreeSet<_> = all_tables.iter().cloned().collect();
-    for (_, touched, program, kind) in changes {
-        let touched: Vec<String> = serde_json::from_str(&touched).unwrap_or_else(|_| all_tables.clone());
-        for table in touched.into_iter().filter(|t| all_tables.contains(t)) {
-            if kind != "mutation" || !stable.get(&program).is_some_and(|safe| safe.contains(&table)) { non_revoking.remove(&table); }
-            tables.push(table);
-        }
-    }
-    if saturated { tables = all_tables; non_revoking.clear(); }
-    drop(statement);
+    let changes = tx.commits_after(since, 500)?;
+    // Advancing to the actual head must not skip invalidation beyond the
+    // bounded commit page. Saturation conservatively invalidates every table.
+    let mut tables = if changes.last().is_some_and(|(seq, _)| *seq < head) { all_tables }
+        else { changes.into_iter().flat_map(|(_, tables)| tables).filter(|name| all_tables.contains(name)).collect() };
     tables.sort();
     tables.dedup();
     tx.rollback()?;
-    non_revoking.retain(|t| tables.contains(t));
-    Ok((head, store_id, tables, non_revoking.into_iter().collect()))
-}
-
-type ProofMap = std::collections::BTreeMap<String, Vec<String>>;
-// @ref LLP 3000.029#8 — one proof pass per generation, shared by held polls.
-#[derive(Default)]
-pub(super) struct ProgramProofs {
-    generation: Option<u64>,
-    proofs: std::sync::Arc<ProofMap>,
-    #[cfg(test)]
-    visits: usize,
-}
-impl ProgramProofs {
-    fn get(&mut self, engine: &snapback4_core::Engine) -> std::sync::Arc<ProofMap> {
-        if self.generation != Some(engine.generation()) {
-            self.proofs = std::sync::Arc::new(engine.programs().map(|program| {
-                #[cfg(test)] { self.visits += 1; }
-                (program.name.clone(), non_revoking_program(engine, program))
-            }).collect());
-            self.generation = Some(engine.generation());
-        }
-        self.proofs.clone()
-    }
-}
-
-// @ref LLP 3000.029#7 — only unconditional base-row puts prove non-revocation.
-pub(super) fn non_revoking(engine: &snapback4_core::Engine, name: &str) -> Vec<String> {
-    let Some(program) = engine.programs().find(|p| p.name == name) else { return vec![] };
-    non_revoking_program(engine, program)
-}
-fn non_revoking_program(engine: &snapback4_core::Engine, program: &snapback4_core::ir::Program) -> Vec<String> {
-    use snapback4_core::{ir::{ProgramKind, write_tables}, schema::RuleExpr};
-    if program.kind != ProgramKind::Mutation || program.native { return vec![]; }
-    let writes = write_tables(program);
-    if writes.iter().any(|(_, kind)| *kind == "delete") { return vec![]; }
-    writes.into_iter().filter_map(|(name, _)| {
-        let table = engine.schema().tables.get(&name)?;
-        (matches!(table.rules.read, RuleExpr::Allow | RuleExpr::Public { .. }) && table.expire.is_none()
-            && table.through.is_none() && table.ephemeral.is_none() && table.written_by.is_empty()
-            && !engine.schema().maintains.iter().any(|m| m.target == name)).then_some(name)
-    }).collect()
-}
-
-// The affected query must itself be a direct immutable-key public lookup;
-// a public membership table may otherwise be an authority probe for secrets.
-pub(super) fn put_retention(engine: &snapback4_core::Engine, name: &str) -> Vec<String> {
-    use snapback4_core::{ir::{Expr, Input, Stmt}, schema::{IndexComponent, RuleExpr}};
-    let Some(program) = engine.programs().find(|p| p.name == name) else { return vec![] };
-    let [Stmt::Return(Expr::Get(read))] = program.body.as_slice() else { return vec![] };
-    if program.native || !read.key.iter().all(|k| matches!(k, Expr::Literal(_) | Expr::Input(Input::Viewer)) || matches!(k, Expr::Variable(v) if program.args.contains_key(v))) { return vec![]; }
-    let Some(table) = engine.schema().tables.get(&read.table) else { return vec![] };
-    let Some(index) = table.index(&read.index) else { return vec![] };
-    if index.unique && index.components.len() == read.key.len() && index.components.iter().all(|c| matches!(c, IndexComponent::Column(c) if c == "id" || table.immutable_fields().any(|f| f == c)))
-        && matches!(table.rules.read, RuleExpr::Allow | RuleExpr::Public { .. }) && table.expire.is_none()
-        && table.through.is_none() && table.ephemeral.is_none() && table.written_by.is_empty()
-        && !engine.schema().maintains.iter().any(|m| m.target == read.table) { vec![read.table.clone()] } else { vec![] }
+    Ok((head, store_id, tables))
 }
 
 struct PollResponse<'a> {
@@ -255,70 +187,6 @@ impl Drop for PollResponse<'_> {
 #[cfg(test)]
 mod column_tests {
     #[test]
-    fn retention_needs_both_a_public_put_and_an_immutable_key_lookup() {
-        let source = r#"table profiles:
-  principal: principal
-  handle: text <=30
-  immutable principal
-  unique principal
-  unique handle
-  public 'profiles'
-  insert <- allow
-  update <- allow
-  delete <- allow
-  sync public
-query mine():
-  return profiles[principal = viewer]
-query byHandle(handle: text <=30):
-  return profiles[handle = handle]
-query gated():
-  require exists profiles[principal = viewer] else MISSING
-  return profiles[id = 'alice']
-mutation save():
-  upsert profiles[principal = viewer] { principal: viewer, handle: 'alice' }
-mutation remove():
-  delete profiles[principal = viewer]
-"#;
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let programs = bound.programs.into_iter().map(|p| p.program);
-        let mut engine = snapback4_core::Engine::memory(bound.schema, programs).unwrap();
-        assert_eq!(super::put_retention(&engine, "mine"), ["profiles"]);
-        assert!(super::put_retention(&engine, "byHandle").is_empty());
-        assert!(super::put_retention(&engine, "gated").is_empty());
-        assert!(super::non_revoking(&engine, "remove").is_empty());
-        assert_eq!(super::non_revoking(&engine, "save"), ["profiles"]);
-        let from = engine.seq().unwrap();
-        let tx = engine.store_mut().transaction().unwrap();
-        tx.record_commit(from + 1, 1000, "save", "alice", "mutation", &["profiles".into()], 1).unwrap();
-        tx.commit().unwrap();
-        assert_eq!(super::check(&mut engine, from, &Default::default()).unwrap().3, ["profiles"]);
-        let tx = engine.store_mut().transaction().unwrap();
-        tx.record_commit(from + 2, 1000, "remove", "alice", "mutation", &["profiles".into()], 1).unwrap();
-        tx.commit().unwrap();
-        assert!(super::check(&mut engine, from, &Default::default()).unwrap().3.is_empty(), "one destructive commit spoils the whole interval");
-    }
-
-    #[test]
-    fn repeated_polls_build_program_proofs_once_per_generation() {
-        let source = format!("table profiles:\n  value: int\n  public 'profiles'\n  insert <- allow\n{}", (0..400).map(|i| format!("mutation put{i}():\n  insert profiles {{ value: {i} }}\n")).collect::<String>());
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let programs: Vec<_> = bound.programs.into_iter().map(|p| p.program).collect();
-        let mut engine = snapback4_core::Engine::memory(bound.schema.clone(), programs.clone()).unwrap();
-        let cache = std::sync::Mutex::new(super::ProgramProofs::default());
-        for _ in 0..20 { super::check(&mut engine, 0, &cache).unwrap(); }
-        let mut cache = cache.lock().unwrap();
-        assert_eq!(cache.visits, 400, "polls must reuse the generation's proofs");
-        let mut next_schema = bound.schema;
-        next_schema.tables.get_mut("profiles").unwrap().rules.read = snapback4_core::schema::RuleExpr::Deny;
-        engine.adopt(next_schema, programs).unwrap();
-        let proofs = cache.get(&engine);
-        assert_eq!(cache.visits, 800);
-        assert!(proofs.values().all(Vec::is_empty), "new generation must discard the old public-put proof");
-    }
-
-    #[test]
     fn saturated_changes_uses_the_public_table_enumeration() {
         let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
@@ -326,7 +194,7 @@ mutation remove():
         let private = engine.schema().maintains[0].target.clone();
         assert!(!engine.schema().visible(&private));
         let from = engine.seq().unwrap(); // Initial column activation has its own parent barrier.
-        assert_eq!(super::check(&mut engine, 0, &Default::default()).unwrap().2, ["posts"]);
+        assert_eq!(super::check(&mut engine, 0).unwrap().2, ["posts"]);
         let touched: String = engine.store().conn().query_row("SELECT touched FROM _commits WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
         assert_eq!(serde_json::from_str::<Vec<String>>(&touched).unwrap(), ["posts"]);
         let events: i64 = engine.store().conn().query_row("SELECT count(*) FROM _log WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
@@ -334,11 +202,11 @@ mutation remove():
         let tx = engine.store_mut().transaction().unwrap();
         tx.record_commit(from + 1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();
         tx.commit().unwrap();
-        assert_eq!(super::check(&mut engine, from, &Default::default()).unwrap().2, ["likes"]);
+        assert_eq!(super::check(&mut engine, from).unwrap().2, ["likes"]);
         let tx=engine.store_mut().transaction().unwrap();
         for seq in from + 2..=from + 501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
-        let (seq,_,tables,_)=super::check(&mut engine,from, &Default::default()).unwrap();
+        let (seq,_,tables)=super::check(&mut engine,from).unwrap();
         assert_eq!(seq,from + 501);
         assert_eq!(tables,["likes","posts"]);
     }

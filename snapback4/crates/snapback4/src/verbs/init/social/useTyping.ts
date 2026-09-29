@@ -32,8 +32,8 @@ export function useTyping(online: Client | null, conversation: string) {
       stop: () => stop(),
     };
     controls.current = owned;
-    // The SDK withdraws hints on membership changes and their original deadline.
-    const observation = online.observe(api.typingIn, { conversation });
+    // No unbounded retention of a membership-sensitive hint.
+    const observation = online.observe(api.typingIn, { conversation }, { keep: false });
     const publish = () => { if (alive) setRead(observation.getSnapshot()); };
     const unsubscribe = observation.subscribe(publish); publish();
     const unlink = online.onLink(link => {

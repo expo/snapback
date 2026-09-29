@@ -55,30 +55,33 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-By default `useQuery`, `usePage` and `client.observe` keep their last answer
-through plain revalidation, marked `revalidating: true`, without a time limit.
-A successful answer clears the mark. A transport failure retains it with
-`fresh: false`; `since` still identifies the confirmed server state.
-Changed arguments start their own read and never show another argument's data.
-Use `{ keep: false }` to withdraw during every refresh. `{ keep: true }` also
-keeps the live observation for 30 seconds after its last subscriber leaves.
+By default, online observations withdraw stale answers, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+By default, a local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
+A ready list read always carries an array; an absent point can still be null.
+`usePage` returns `items: []` while its first page is loading; earlier pages
+remain visible while a later page is unavailable.
 
-Invalidation always wins: changed read dependencies, unknown change footprints,
-refusals, expiry, sign-out/account change, credentials, schema adoption and store
-replacement/restore withdraw immediately for every option. Dependency changes
-remain conservative, except for proved public puts to a direct immutable-key
-public lookup. Dependencies include rule probes, read-through parents and
-maintained sources transitively, including non-expiring views. New authoritative
-replacements reach every exactly matching watch, including nonempty subsets.
-Remote evidence withdraws other queries and arguments depending on the affected
-tables; local reads stay fenced until sync applies it. A current local evaluation
-shares its answer with matching watches without requiring another sync or
-withdrawing other arguments. Older local answers cannot replace newer ones.
-A null point or empty page replaces the old answer. Snapshots check deadlines
-even before delayed timers run. No application result cache is needed or safe.
-`usePage` retains a valid prefix while a later page loads, and resets its suffix
-when cursors change. It carries `revalidating` from its contributing pages.
-Retention never grants write or media authority. The server still checks actions.
+For screens that must not unmount on a transient reload, opt in with
+`useQuery(op, args, { keep: true })` or `usePage(op, args, { keep: true })`.
+Both clients keep the last published answer during loading with `fresh: false`
+and its `since`; a new answer or refusal replaces it. A kept answer may still
+show rows a revocation withdrew until the re-read lands. This is an application
+presentation choice, not evidence that the rows remain authorized.
+`client.observe(op, args, { keep: true })` is the same option without React.
+With `keep: true`, a watch lingers for 30 seconds after its last subscriber
+leaves. It keeps its live subscription, expiry timers and place in every reset,
+invalidation, ephemeral adoption and schema installation. A new opted-in
+subscriber with the same operation, arguments, viewer and store incarnation
+joins the watch's current snapshot, with its `fresh` and `since`. After 30 seconds
+without a subscriber it closes. Sign-out, credential or viewer changes, store
+replacement or adoption, and client `close` end a lingering watch at once.
+`clear_rows`, `settle_exit`, expiry, ephemeral incarnation changes and first
+schema installation reset lingering watches like active ones before notifying.
+There is no separate store of retired answers. Lingering local watches re-run
+on commits; observation memory and normal background work continue while
+unmounted. Without `keep`, behavior is unchanged.
 
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
