@@ -119,7 +119,7 @@ fn filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope() {
 fn composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause() {
     let project = Project::new();
     fs::write(project.0.join("snapback/schema.q"), format!("{SOURCE}\nquery composed():\n  return {{outer: {{row: rows['absent']}}}}\n")).unwrap();
-    let dev = Host::start(project, true, false);
+    let dev = Host::start_with(project, true, false, &["--trace-empty"]);
     let previous = dev.refuse("add");
     let store = previous["store_id"].as_str().unwrap();
     let before = dev.project.wait_record(store, "add");

@@ -75992,6 +75992,53 @@ rowKey/type-version errors against 0.4.7. No core/wasm source changed; cap stays
 [Full report](reports/20260929-np-macos-slice/REPORT.md), with raw logs, exact pins,
 phase times, hashes, patches and screenshots. LLP 3000.030 remains Draft and
 its §11 acceptance is incomplete. Nothing pushed or published.
+## 2026-09-29 — DX round 0: ordinary empty reads are quiet
+
+Calibration #26 reported 14,802 milestone-backend and 55,210 scale-backend
+refusal lines, dominated by empty typing, reactions, feeds and missing profiles.
+The default dev path now leaves unknown empty answers out of both console and
+`why recent`: no evidence record, recursive emptiness walk, watermark update,
+queue submission, console formatting or store replacement for those answers.
+`dev --trace-empty` explicitly records EMPTY_READ locally without console
+notices. Its why/guide card explains that emptiness does not prove denial and
+gives exact rule, operation, residency, fixture and horizon investigation commands.
+LLP 3000.015 §2.1 supersedes MP's earlier unknown-empty fallback accordingly;
+the operations manual and guide changed with the implementation.
+
+Real mutation/query/asset refusals, replays and parked jobs keep individual
+records and MP's queue/ring, source generation, liveness and watermark checks.
+An application-authored refusal named EMPTY_READ is still a real refusal.
+Console repeats group by operation, code and cause in a non-sliding one-second
+window, then print once with a count and the first event identity/time. The
+32-group bound flushes the oldest early under distinct-cause pressure; save
+errors coalesce too. Counts cover accepted queue records. Abrupt termination
+can lose an unprinted group. Caller bytes, rules, meters and production
+collection behavior are unchanged.
+
+Exact-module response measurements (seven 55,210-call rounds) give median
+9.846 → 2.944 µs per call, with zero new-default records, queue entries or
+watermark updates. A matching-profile old HTTP burst printed 54,669 lines,
+dropped 541 records and wrote 437,955,712 bytes through file descriptors. Both
+new 55,210-read bursts printed nothing, wrote nothing, retained no records and
+dropped no evidence. Separate old console formatting/I/O and refusal-store
+measurements are retained. I/O was already asynchronous; no general HTTP
+latency speedup is claimed. An initial optimized-test/ordinary-dev comparison
+was excluded and rerun with matching builds.
+
+Affected process tests 16/16, console/ordering tests 3/3, memory/reader host tests
+3/3, whole guide 98/98, ref-check clean. scripts/test.sh ran once, exit 0, exact
+summary: `== 0 failure(s) in 1520 s`. Every stage passed: 4,561 client tests with
+10 declared skips, then 79/79 final models. No full-suite failures in any
+attribution category. Earlier lane-owned expectation/card-size failures and
+measurement/setup corrections are named in the report. The inherited
+60-second suite target remains exceeded; no limit or timeout changed.
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+
+Report: reports/20260929-dx-quiet-empty-reads/REPORT.md. Local commit on
+sb4-intent/dx-quiet-empty-reads with Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
 ## 2026-09-29 — Lane BP round 0: ten-CPU live replay retains scheduling
 
 Ran SQ's actual live replay on base 4fd338de5 with server, replay and probe
@@ -76158,3 +76205,47 @@ retains commands, hashes, timings, every failed/development attempt and review
 dispositions. Only owned simulator 13ABE380-D739-4436-A348-E8C23B959C0C was used;
 it was deleted after collection. No push/publication. Required merge
 859d250c39 preserved both journal sides; this is one appended round-2 entry.
+## 2026-09-29 — DX round 1: flush real refusals before managed shutdown
+
+Merged origin/main first (1c3982a45), retaining both appended journal entries.
+Read Astra's NOT READY review and Grok's completed READY WITH CHANGES review.
+Fixed their shared shutdown finding: dev INT/TERM/HUP now takes managed cleanup
+with or without an application worker. An explicit writer marker drains accepted
+records, flushes console groups and releases the live-instance lock before
+acknowledgement. One two-second deadline includes admission to a full queue and
+the acknowledgement; outstanding request senders do not delay it. Stalled sinks,
+abrupt termination and requests finishing after shutdown starts remain outside
+the delivery guarantee. Production and fatal-signal behavior stay the same.
+
+Three initial process controls reproduced zero notices for eight E_RULE refusals
+while a 25-second poll remained held. Final coverage crosses SIGINT/SIGTERM with
+and without a worker; all four require one count-8 line, eight persisted records,
+no drops and stale-instance rejection after exit. Unit coverage verifies the
+full-queue and missing-ack deadlines and lock release with a held sender clone.
+Every console grouping field is varied independently, with identified counts
+2 and 3. Removing executionSite now fails by producing one count-5 line. Lines
+include phase and generation so these distinct causes can be identified.
+
+Grok additionally found missing trace-retention guidance. The EMPTY_READ card
+and manual now explain the shared 32-record stream/queue, eviction by polling
+empties, pending/dropped latest evidence, one quiet reproduction and restarting
+without --trace-empty afterward. The served-card regression failed before that
+prose fix. LLP 3000.015 §2.1, the refusal guide, signal description and operations
+manual document the shutdown contract. No ceiling or timeout changed.
+
+Affected checks: 20/20 refusal process tests, 21/21 lifecycle tests, 5/5 writer
+and console unit tests, whole guide 98/98. The card follow-up arrived as the full
+suite's Rust stage ended; final process/guide checks were rerun afterward and
+passed. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1332 s`. Every stage passed: 4,561 client tests with ten
+declared skips, then 79/79 final models. No full-suite failures are ours,
+baseline or environmental; deliberate red controls and setup corrections are
+attributed in the report. The inherited 60-second suite target remains exceeded.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both review files were rechecked after the suite and matched the saved inputs.
+Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
