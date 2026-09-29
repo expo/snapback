@@ -1,0 +1,13 @@
+{
+  "llp/3000.029-hook-retention-with-invalidation.rfc.md": "5f87ca61c8ec7cccff83a08e54ef6265b4d618809508879ed48e3418e81257ec",
+  "snapback4/JOURNAL.md": "b0c264ca94e48cba1f8f2cd929bdd6ae125b94025601e89acff86d390a7f1099",
+  "snapback4/crates/snapback4/src/serve.rs": "2863e6d5cf50fddac12879d180a6b5238815cc452ddea7c6c62aab692a4a3811",
+  "snapback4/packages/snapback4/src/client.ts": "bbd31de3f347a12ad0fa167b028521860aa44a511f39167d688d5741c2bf1fc8",
+  "snapback4/packages/snapback4/src/http-response.ts": "4d8f53c1bcc197e8227ee6169690fdec43d4cef77437113278567134cddd7cce",
+  "snapback4/packages/snapback4/src/local-query.ts": "65c38fc988ca1f9ffd93ea33149f003c28f29812e131531536f0f69dc2478795",
+  "snapback4/packages/snapback4/src/local.ts": "ebd5277ba92d476c242de230b787ca31fac5b8142c063cf84cc4b44437e5e347",
+  "snapback4/packages/snapback4/test/helpers/app-server.mjs": "3209ad766d005bbb40eba6158dab4e53beabe7127284d8c33593555f452530a6",
+  "snapback4/packages/snapback4/test/hook-retention-fences.test.mjs": "23a759941a9d8e67153714da130a08ef1af07f0421656e5eb64844fde4d0e1cc",
+  "snapback4/packages/snapback4/test/ordinary-search.test.mjs": "aea5118268212a16aff45e83136f453370934350563167f9699f03518626239f",
+  "snapback4/packages/snapback4/test/transport-http.test.mjs": "b58adbafad54fa816391b72a1d885f81a069baf4b92aa32ffa60570f76a306bd"
+}

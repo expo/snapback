@@ -116,7 +116,8 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.equal(deliveredParents.length,1);
   const deliveredParent=deliveredParents[0].data;
   assert.deepEqual(triple(deliveredParent),[1,1,3],"interrupt only after receiving a nonzero authoritative parent image");
-  const interrupted=(await client.query(api,{id:"p"})).data;
+  const interruptedRead=await client.query(api,{id:"p"});
+  const interrupted=(await core.call({op:"query",name:"postRow",viewer:"dev:alice",args:{id:"p"},now:1000})).ok.data;
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — receiving an image ahead of another queued commit does not publish it.
   if(queuedTail){
     assert.ok(interruptedPage.images_at>interruptedPage.watermark);
@@ -125,12 +126,16 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
     assert.ok(state.watermark<interruptedPage.watermark,"the public watermark stays with the unchanged base");
     assert.equal(state.transfer_watermark,interruptedPage.watermark,"only private transfer progress advances");
     assert.deepEqual(triple(interrupted),[0,0,0],"a deferred page cannot publish its maintained values");
+    assert.deepEqual(interruptedRead,{loading:true},"the receipt fences the old base until the replica publishes its cut");
   }else{
     assert.equal(interruptedPage.images_at,interruptedPage.watermark);
     assert.deepEqual(triple(interrupted),triple(deliveredParent),"an eligible delivered image is readable before resuming sync");
   }
-  await until(()=>JSON.stringify(triple(watch.getSnapshot().data??{}))===JSON.stringify(triple(interrupted)));
-  assert.deepEqual(triple(watch.getSnapshot().data),triple(interrupted));
+  if(queuedTail) await until(()=>watch.getSnapshot().loading);
+  else {
+    await until(()=>JSON.stringify(triple(watch.getSnapshot().data??{}))===JSON.stringify(triple(interrupted)));
+    assert.deepEqual(triple(watch.getSnapshot().data),triple(interrupted));
+  }
   watch.close();await client.close();
   offline=true;interrupt=false;client=await open();
   assert.deepEqual(triple((await client.query(api,{id:"p"})).data),triple(interrupted),"the published base survives reopening while an interrupted page remains private");

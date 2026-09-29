@@ -79,6 +79,7 @@ pub struct Shared {
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
     read_cuts: Mutex<read_cost::ReadCuts>,
+    change_proofs: Mutex<changes::ProgramProofs>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
     pub worker_revision: AtomicUsize,
@@ -317,7 +318,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
-        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), change_proofs: Mutex::new(changes::ProgramProofs::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(), owner: host_owner.clone(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] request_work: Mutex::new(None),
@@ -1183,7 +1184,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     None => None,
                 };
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current) = match reader {
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current, stable_puts) = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1193,9 +1194,10 @@ fn handle(mut request: Request, shared: &Shared) {
                         let reads_presence = presence_of(&reader);
                         let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
                         let query_generation = reader.generation();
+                        let stable_puts = changes::put_retention(&reader, &op);
                         let (outcome, cut, current) = reader.query_search_at(&op, context, retained.as_deref());
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
-                        (outcome, cut, metadata, reads_presence, query_generation, current)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, stable_puts)
                     },
                     // Only memory stores lack detached readers by construction.
                     Err(error) if !shared.memory_store() => {
@@ -1207,8 +1209,9 @@ fn handle(mut request: Request, shared: &Shared) {
                         let reads_presence = presence_of(&engine);
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
                         let query_generation = engine.generation();
+                        let stable_puts = changes::put_retention(&engine, &op);
                         let (outcome, cut, current) = engine.query_search_at(&op, context, retained.as_deref());
-                        (outcome, cut, metadata, reads_presence, query_generation, current)
+                        (outcome, cut, metadata, reads_presence, query_generation, current, stable_puts)
                     },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1216,6 +1219,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
                         struct QueryReply<'a> {
+                            #[serde(rename = "stablePuts", skip_serializing_if = "Vec::is_empty")]
+                            stable_puts: Vec<String>,
                             #[serde(rename = "searchScopes", skip_serializing_if = "Option::is_none")]
                             search_scopes: &'a Option<Vec<String>>,
                             #[serde(rename = "searchCurrent", skip_serializing_if = "Option::is_none")]
@@ -1262,11 +1267,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             respond_timed(request, shared, 200, reply);
                         } else {
                             let row_provenance = provenance.then(|| outcome.data.retained_rows_mask());
-                            respond_timed(request, shared, 200, QueryReply { search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
+                            respond_timed(request, shared, 200, QueryReply { stable_puts, search_current: &search_current, generation: query_generation, search_scopes: &outcome.search_scopes, delivery: &outcome.delivery, ephemeral: &outcome.ephemeral, row_provenance: row_provenance.as_ref().map(wire::Plain), complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter, refresh });
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
+                        // @ref LLP 3000.029#11 — evaluated native codes may collide with SDK diagnostics.
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "refusalOrigin": if cut.is_some() { "evaluated" } else { "admission" }, "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }
@@ -1289,7 +1295,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
                 #[cfg(test)] test_work(&shared.mutation_wait);
-                let (outcome, metadata) = {
+                let (outcome, metadata, non_revoking, reply_generation) = {
                     let mut engine = lock(&shared.engine);
                     if let Err(refusal) = mutation_authority(&request, shared, &engine, &principal) {
                         drop(engine);
@@ -1303,14 +1309,19 @@ fn handle(mut request: Request, shared: &Shared) {
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) { shared.durable_committed(&engine); }
-                    (outcome, response_head(&mut engine))
+                    (outcome, response_head(&mut engine), changes::non_revoking(&engine, &op), engine.generation())
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         let mut body = outcome.reply(id.as_deref());
+                        if !outcome.replayed && !outcome.receipt_only {
+                            body["tables"] = json!(outcome.tables);
+                            body["nonRevoking"] = json!(non_revoking);
+                        }
                         body["store_id"] = json!(store_id);
                         body["head"] = json!(head);
+                        body["generation"] = json!(reply_generation);
                         respond_timed(request, shared, 200, body);
                     }
                     Err(refusal) => { respond_timed(request, shared, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
@@ -1434,7 +1445,7 @@ mod poison_tests {
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             readers: Mutex::new(QueryReaders::new(&engine, &Default::default())),
-            engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
+            engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()), change_proofs: Mutex::new(changes::ProgramProofs::default()),
             bound: Mutex::new(Bound { refusal_sites: Default::default(), view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             worker_revision: AtomicUsize::new(0),

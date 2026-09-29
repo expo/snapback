@@ -1074,7 +1074,7 @@ for (const mode of ["server", "horizon", "watch"]) test(`finding 2: delayed ${mo
   } else assert.equal((await read).data, "B", "an old server answer must be retried");
   f.offline(true); await f.client.sync();
   const offline = await f.client.query(op, args);
-  if (mode === "horizon") assert.ok(offline.data.every(row => row.body === "B"));
+  if (mode === "horizon") assert.ok(offline.loading || offline.data.every(row => row.body === "B"), "an unapplied replacement may remain fenced offline");
   else assert.deepEqual(offline, { loading: true }, "a query the device cannot run stays withheld offline");
 });
 

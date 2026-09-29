@@ -45,7 +45,8 @@ for (const tier of ["wasm", "process"]) for (const deadline of ["row", "episode"
     if (deadline === "row") f.expire();
     else wall = 2000;
     const loading = watch.getSnapshot();
-    assert.deepEqual(loading, { loading: true });
+    if (deadline === "row") assert.deepEqual(loading, { loading: true });
+    else assert.equal(loading.data.body, "private answer", "no episode time limit");
     assert.equal(watch.getSnapshot(), loading);
   });
 }
@@ -124,7 +125,9 @@ for (const tier of ["wasm", "process", "online"]) {
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change(operation);
       await until(() => f.held.length);
-      assert.equal(watch.getSnapshot().data?.body, operation === "settle" ? "replacement" : "private answer");
+      if (operation === "settle" && watch.getSnapshot().data) {
+        assert.equal(watch.getSnapshot().data.body, "replacement", "settling the confirmed prediction may preserve its already published replacement");
+      } else assert.deepEqual(watch.getSnapshot(), { loading: true }, "dependency changes have already withdrawn the old answer");
       const values = []; watch.subscribe(() => values.push(watch.getSnapshot()));
       f.expire();
       if (tier !== "online") assert.equal(await f.deviceValue(), null, "the real device has expired the row");

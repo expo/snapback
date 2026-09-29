@@ -1,0 +1,42 @@
+{
+  "command": "ulimit -n 4096; bash scripts/test.sh",
+  "runs": 1,
+  "exit": 1,
+  "summary": "== 1 failure(s) in 1181 s",
+  "failedStages": [
+    "client tests"
+  ],
+  "client": {
+    "tests": 4847,
+    "pass": 4836,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 10
+  },
+  "models": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "rust": {
+    "pass": 4288,
+    "fail": 0,
+    "ignored": 33
+  },
+  "fixtures": {
+    "pass": 9,
+    "fail": 0
+  },
+  "failures": [
+    {
+      "name": "social starter runs through the public client: feed, likes, receipts, typing, media and retained history",
+      "location": "packages/snapback4/test/social-starter.test.mjs:205",
+      "classification": "ours",
+      "cause": "Retained-domain assertion can run while late change evidence fences the replica; checked current-server empty answer is allowed until apply.",
+      "correction": "Explicit b.sync() after the intervening online typing-refusal call and before the retained search assertion.",
+      "qualification": "Full five-case file passes; 30 smoke repetitions pass. No green full rerun claimed."
+    }
+  ]
+}

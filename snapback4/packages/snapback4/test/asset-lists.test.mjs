@@ -321,8 +321,7 @@ for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false,
   }
   release.resolve();
   const delivered = await downloading;
-  assert.ok("url" in delivered, JSON.stringify(delivered));
-  assert.deepEqual(Buffer.from(await (await fetch(delivered.url)).arrayBuffer()), png); delivered.revoke();
+  assert.equal(delivered.denied?.code, "E_ASSET_UNKNOWN", "an old store cannot deliver a retained URL into its replacement");
   if (placed) {
     assert.deepEqual(Buffer.from(await (await fetch(newer.url)).arrayBuffer()), png, "old delivery must not revoke the new live URL");
     newer.revoke();
@@ -675,4 +674,77 @@ for (const staged of [false, true]) for (const terminal of [false, true]) test(`
   const reopened = await createLocalClient(options); f.clients.push(reopened);
   assert.equal((await reopened.query(query, {})).data[0].caption, "touched");
   assert.equal((await core.call({ op: "sync_state", capture: false })).ok.restore_refusal, undefined);
+});
+
+// @ref LLP 3000.029#4 — asset-only clients follow revocation without a query mounted.
+for (const ending of ["membership", "deletion", "expiry", "sign-out"]) test(`live online asset handle withdraws on ${ending}`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, source.replace("delete <- .principal = viewer", "delete <- allow"));
+  if (ending === "expiry") assert.equal((await f.alice.mutate(mutation("expire"), { id: f.id, until: Date.now() + 1500 })).state, "sent");
+  const handle = await f.bob.asset(f.a.id);
+  assert.ok("url" in handle, JSON.stringify(handle));
+  assert.ok(handle.url);
+  if (ending === "membership") assert.equal((await f.alice.mutate(mutation("revokeAndTouch"), { id: f.id })).state, "sent");
+  if (ending === "deletion") assert.equal((await f.alice.mutate(mutation("remove"), { id: f.id })).state, "sent");
+  if (ending === "sign-out") await f.bob.signOut();
+  const end = Date.now() + 6000;
+  while (handle.url && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(handle.url, "", "no copied URL survives received revocation or its original deadline");
+  handle.revoke();
+});
+
+for (const tier of ["online", "wasm"]) test(`${tier}: a rule change withdraws a displayed row and asset before its held replacement`, { timeout: 30000 }, async t => {
+  const gate = Promise.withResolvers();
+  t.after(() => gate.resolve());
+  const f = await fixture(t);
+  let url = f.url, hold = false, polls = 0;
+  const wait = async check => {
+    const end = Date.now() + 10000;
+    while (!check()) { assert.ok(Date.now() < end, "rule-change observation did not settle"); await new Promise(r => setTimeout(r, 5)); }
+  };
+  const opener = webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
+  const options = { url: f.url, persona: "bob", waitSeconds: 1, device: { async open(...args) {
+    const core = await opener.open(...args);
+    return { ...core, async call(request, notify) { if (hold && request.op === "query") await gate.promise; return core.call(request, notify); } };
+  } }, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (hold && path === "/q/posts") await gate.promise;
+    const response = await fetch(String(input).replace(f.url, url), init);
+    if (path === "/changes") polls++;
+    return response;
+  } };
+  const client = tier === "online" ? createClient(options) : await createLocalClient(options);
+  f.clients.push(client);
+  if (client.sync) await client.sync();
+  const watch = client.observe(query, {});
+  await wait(() => watch.getSnapshot().data?.length && polls);
+  const asset = await client.asset(f.a.id);
+  assert.ok("url" in asset, JSON.stringify(asset));
+  hold = true;
+  await f.stop();
+  writeFileSync(join(f.dir, "snapback/schema.q"), source.replace("read <- exists follows[.owner, viewer]", "read <- .owner = viewer").replace("sync to follows[.owner] by .principal", "sync to .owner"));
+  url = await f.start();
+  if (client.sync) await client.sync();
+  await wait(() => !("data" in watch.getSnapshot()) && asset.url === "");
+  gate.resolve();
+  await wait(() => Array.isArray(watch.getSnapshot().data) && watch.getSnapshot().data.length === 0);
+  assert.equal(asset.url, "");
+  watch.close(); asset.revoke();
+});
+
+test("an asset's readable rule witness expires offline at its original deadline", { timeout: 10000 }, async t => {
+  const schema = source.replace("  read <- allow\n  insert <- deny", "  immutable owner, principal\n  until: time ?\n  expire at .until\n  read <- allow\n  update <- allow\n  insert <- deny") + `
+mutation expireFollow(until: time):
+  update follows['bob'] { until }
+`;
+  const f = await fixture(t, schema);
+  const until = Date.now() + 1500;
+  assert.equal((await f.alice.mutate(mutation("expireFollow"), { until })).state, "sent");
+  const bob = createClient({ url: f.url, persona: "bob", fetch: (input, init) =>
+    new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init) });
+  f.clients.push(bob);
+  const read = await bob.asset(f.a.id);
+  assert.ok("url" in read, JSON.stringify(read));
+  await new Promise(resolve => setTimeout(resolve, Math.max(0, until - Date.now()) + 20));
+  assert.equal(read.url, "", "membership expiry is a grant deadline even without a change feed response");
+  read.revoke();
 });

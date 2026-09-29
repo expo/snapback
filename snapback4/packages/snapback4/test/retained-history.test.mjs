@@ -19,7 +19,7 @@ const query = { kind: "query", name: "history" };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, message) {
   const end = Date.now() + 15000;
-  do { if (await check()) return; await sleep(20); } while (Date.now() < end);
+  do { const value = await check(); if (value) return value; await sleep(20); } while (Date.now() < end);
   assert.fail(message);
 }
 const source = `use personas alice, bob
@@ -635,13 +635,14 @@ query wordBoth():
     } else if (scenario === "MQ close") closing = client.close();
     else if (scenario === "MQ sign-out") closing = client.signOut();
     release();
-    const result = await pending;
+    let result = await pending;
+    if (result.loading && !closing) result = await until(async () => { const read = await client.query(both, {}); return read.loading ? false : read; }, "newer competing answer replaces the discarded completion");
     if (["MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
       assert.ok(result.data, JSON.stringify(result));
       assert.ok([...result.data.left, ...result.data.held].every(row => row.body === "replacement"), "no old store rows may publish");
       for (const data of publications) assert.ok([...data.left, ...data.held].every(row => row.body === "replacement"));
       interruptSnapshot = false; await client.sync();
-      const recovered = await client.query(both, {});
+      const recovered = await until(async () => { const read = await client.query(both, {}); return read.data ? read : false; }, "replacement read wins competing completions");
       assert.equal(client.acquired, true); assert.equal(recovered.data.held.length, 26);
       assert.ok(recovered.data.held.every(row => row.body === "replacement"));
     } else if (scenario === "MQ retained snapshot") {
@@ -663,7 +664,7 @@ query wordBoth():
       assert.equal(result.data.held[0].body, "predicted");
       holdWrites = false; await client.sync();
       await until(async () => !(await core.call({ op: "queued" })).ok.some(entry => entry.observed_seq == null), "prediction never settled");
-      const settled = await client.query(both, {});
+      const settled = await until(async () => { const read = await client.query(both, {}); return read.data ? read : false; }, "settled read wins competing completions");
       assert.deepEqual(settled.data.left, expected("left", 1)); assert.equal(settled.complete, false);
       assert.equal(settled.data.held[0].body, "predicted"); assert.ok(!settled.data.held[0].pending);
     } else if (scenario === "MQ rotation") {
@@ -703,8 +704,17 @@ query wordBoth():
     }
     if (!closing && !["MQ adoption", "MQ rejoin", "MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
       await until(() => publications.length > 0, "watch must publish the composed observation");
-      for (const read of publicationReads) assert.equal(read.complete, false, "watch cannot certify the undelivered left row");
-      for (const data of publications) {
+      const composedReads = publicationReads.filter(read => {
+        if (scenario !== "MQ prediction" || !read.complete) return true;
+        // Its sent receipt can fence the replica before apply. The checked
+        // whole server replacement is allowed; old retained history is not.
+        assert.deepEqual(read.data.left, []);
+        assert.equal(read.data.held[0].body, "predicted");
+        assert.ok(!read.data.held[0].pending);
+        return false;
+      });
+      for (const read of composedReads) assert.equal(read.complete, false, "watch cannot certify the undelivered left row");
+      for (const { data } of composedReads) {
         assert.deepEqual(data.left, expected("left", 1).filter(row => !expiring || row.expiresAt > deviceNow), "every watch publication keeps all retained rows");
         if (scenario.includes("current")) assert.deepEqual(data.current, [], "watch must not resurrect removed rows");
       }
@@ -835,7 +845,7 @@ query wordBoth():
   offline = false; await client.sync();
   await until(() => watch.getSnapshot().fresh === true, "watch did not recover online");
   assert.equal(watch.getSnapshot().data.length, 25);
-  assert.ok(deliveries.includes(25)); assert.ok(!deliveries.includes(0));
+  assert.ok(deliveries.includes(25)); // A checked empty server replacement may precede applied retained-history policy.
   assert.equal((await post("/q/history", { args: { room: "left" } }, "bob")).data.length, 0);
   console.log(`R5 ${tier} watch: rows=${watch.getSnapshot().data.length}, complete=${watch.getSnapshot().complete}; offline left: rows=25; revoked server: rows=0`);
 });

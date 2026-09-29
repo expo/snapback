@@ -1,0 +1,1312 @@
+[
+  {
+    "file": "packages/snapback4/src/actions.ts",
+    "line": 10,
+    "code": "\"E_ACTION_UNKNOWN\"",
+    "text": "{ code: \"E_ACTION_UNKNOWN\", family: \"action\", message: \"act takes an Action from the generated api\" }",
+    "origin": "SDK action preflight (operation kind / JSON arguments); action result only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/actions.ts",
+    "line": 14,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"action arguments must be JSON-serializable\" }",
+    "origin": "SDK action preflight (operation kind / JSON arguments); action result only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/admission-authority.ts",
+    "line": 45,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\",\n  message: \"the session changed before this journaled write was admitted\", site: \"client.mutate\",\n  rewrite: \"restore the current app session; submit again only if the write is still intended\", guide: \"writes\" }",
+    "origin": "Write admission scope/session boundary; no query replacement.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/admission.ts",
+    "line": 15,
+    "code": "\"E_ADMISSION\"",
+    "text": "{ code: \"E_ADMISSION\", family: \"store\", message, site, rewrite, guide: \"writes\" }",
+    "origin": "Durable write admission/storage failure; failed write only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-client.ts",
+    "line": 32,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", message: String(error), site: \"app.client\",\n        rewrite: \"repair sessionStore, then retry the operation\" }",
+    "origin": "App session-storage verification failure (32), or write JSON preflight (229); app scope check / write only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-client.ts",
+    "line": 229,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"mutation arguments must be JSON-serializable\", guide: \"writes\" }",
+    "origin": "App session-storage verification failure (32), or write JSON preflight (229); app scope check / write only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-journal.ts",
+    "line": 25,
+    "code": "\"E_STORE_REPLACED\"",
+    "text": "{ code: \"E_STORE_REPLACED\", family: \"store\",\n      message: \"the intent belongs to a different or unprovable store; whether it executed is unknown; do not retry automatically\",\n      site: \"app.mutate\", rewrite: \"reconcile this write with its original store before submitting new intent\", guide: \"sync\" }",
+    "origin": "Store replacement (25), absent write-receipt input (72), or storage warning (114, 118); journal/write lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-journal.ts",
+    "line": 72,
+    "code": "\"E_WRITE_RECEIPT_EXPIRED\"",
+    "text": "{ code: \"E_WRITE_RECEIPT_EXPIRED\", family: \"input\", guide: \"writes\", site: \"app.mutate\",\n    message: journal.retirementFull ? \"the online journal's retirement id limit is full; new admissions are blocked rather than risking replay of a prior outcome\"\n      : \"this write id was preserved after a store change; its receipt body is no longer retained and it cannot be admitted again\",\n    rewrite: \"reconcile the prior outcomes with the backend before explicitly replacing this account's write journal; do not retry automatically\" }",
+    "origin": "Store replacement (25), absent write-receipt input (72), or storage warning (114, 118); journal/write lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-journal.ts",
+    "line": 114,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", site: \"app.mutate\",\n        message: \"The online write journal was damaged or belonged to another owner; its bytes were preserved and no saved intent was replayed.\",\n        rewrite: `inspect the saved bytes with await sessionStore.get(${JSON.stringify(side)}); submit new intent with app.mutate(op, args)` }",
+    "origin": "Store replacement (25), absent write-receipt input (72), or storage warning (114, 118); journal/write lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-journal.ts",
+    "line": 118,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", site: \"app.mutate\",\n        message: \"The damaged online write journal could not be preserved; its original bytes remain and writes are blocked until storage is repaired.\",\n        rewrite: \"repair sessionStore, then reopen createApp({ url, sessionStore })\" }",
+    "origin": "Store replacement (25), absent write-receipt input (72), or storage warning (114, 118); journal/write lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-online.ts",
+    "line": 63,
+    "code": "write.why.code",
+    "text": "{ code: write.why.code, family: write.why.family, message: [\"E_STORE_REPLACED\", \"E_STORE_RESTORE\"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` }",
+    "origin": "Write receipt projection (63, 269), write session precondition (140, 145), or unknown write admission (177); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-online.ts",
+    "line": 140,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to write\" }",
+    "origin": "Write receipt projection (63, 269), write session precondition (140, 145), or unknown write admission (177); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-online.ts",
+    "line": 145,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to write\", site: \"app.mutate\", rewrite: \"await app.auth.login(email, password)\" }",
+    "origin": "Write receipt projection (63, 269), write session precondition (140, 145), or unknown write admission (177); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-online.ts",
+    "line": 177,
+    "code": "\"E_STORE\"",
+    "text": "{ code: \"E_STORE\", family: \"store\", message: `write ${id} admission outcome is unknown: ${String(error)}` }",
+    "origin": "Write receipt projection (63, 269), write session precondition (140, 145), or unknown write admission (177); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-online.ts",
+    "line": 269,
+    "code": "why.code",
+    "text": "{ code: why.code, family: why.family, message: \"store changed; whether this write executed is unknown\" }",
+    "origin": "Write receipt projection (63, 269), write session precondition (140, 145), or unknown write admission (177); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app-revocations.ts",
+    "line": 25,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", site: \"app.auth\",\n    message: \"the saved session retirement record is damaged or belongs to another backend\",\n    rewrite: \"repair sessionStore, then createApp({ url, sessionStore })\" }",
+    "origin": "Session revocation-storage warning; app auth lifetime.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 58,
+    "code": "code",
+    "text": "{ code, family: code === \"E_AUTH\" ? \"auth\" : \"client\", message,\n    site: \"app.auth\", rewrite: \"await app.auth.login(email, password)\" }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 66,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the stored session changed in another app\", site: \"app.auth\", rewrite: \"await app.auth.login(email, password)\" }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 73,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", message: String(error),\n      site: \"app.assets\", rewrite: 'createApp({ url, device, assets: { keep: \"viewed\", maxBytes: 67108864 } })' }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 228,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this app operation was superseded\", site: \"app.auth\", rewrite: \"await app.auth.login(email, password)\" }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 451,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"the replacement backend is unreachable\", retryable: true }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/app.ts",
+    "line": 705,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to revoke sessions\", site: \"app.auth.logoutEverywhere\", rewrite: \"await app.auth.login(email, password)\" }",
+    "origin": "App auth/configuration/storage failure (58, 73), session replacement (66), superseded app call (228), unreachable replacement backend (451), or logout precondition (705); app identity lifetime, not raw query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/asset-lifetime.ts",
+    "line": 17,
+    "code": "\"E_ASSET_UNKNOWN\"",
+    "text": "{ code: \"E_ASSET_UNKNOWN\", family: \"asset\", message: \"the asset's authority changed; open it again from a current readable row\" }",
+    "origin": "Explicit SDK grant invalidation after authority/scope/deadline evidence; intentionally withdraws the asset.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/auth.ts",
+    "line": 15,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message }",
+    "origin": "Auth-helper missing/invalid-session preflight; SignIn result only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 361,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to continue\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 362,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 367,
+    "code": "code",
+    "text": "{ code, family: \"store\", site: \"client\", guide: \"sync\",\n      message: `${code === \"E_STORE_REPLACED\" ? \"the backend store identity changed\" : \"the backend store sequence regressed\"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,\n      rewrite: \"close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 438,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in with a session to refresh it\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 469,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"a refreshed session changed principal\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 534,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"request arguments must be JSON-serializable\" }",
+    "origin": "SDK JSON request preflight; now marked admission.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 592,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to read\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 1048,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to upload\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 1056,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the session changed during upload; start the upload again\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 1080,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the session changed during download; the view may already have been consumed\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/client.ts",
+    "line": 1117,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to revoke sessions\" }",
+    "origin": "Client/session/store boundary; explicit withdrawal or auth/asset helper result, independent of evaluated-query origin.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/device-restore.ts",
+    "line": 11,
+    "code": "\"E_STORE_RESTORE\"",
+    "text": "{ code: \"E_STORE_RESTORE\", family: \"store\", guide: \"sync\",\n  message: \"the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox\" }",
+    "origin": "Detected store restore; terminal scope withdrawal.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/ephemeral.ts",
+    "line": 5,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", retryable: true,\n  message: \"an ephemeral write needs an online link; it is dropped, not held or retried\" }",
+    "origin": "Signal-lane connectivity (5), closed scope (49), input validation (122), or queue admission limit (128); mutation signal only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/ephemeral.ts",
+    "line": 49,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Signal-lane connectivity (5), closed scope (49), input validation (122), or queue admission limit (128); mutation signal only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/ephemeral.ts",
+    "line": 122,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"ephemeral arguments must be JSON-serializable\" }",
+    "origin": "Signal-lane connectivity (5), closed scope (49), input validation (122), or queue admission limit (128); mutation signal only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/ephemeral.ts",
+    "line": 128,
+    "code": "\"E_RATE_LIMIT\"",
+    "text": "{ code: \"E_RATE_LIMIT\", family: \"auth\", retryable: true, message: \"the ephemeral lane already holds 256 waiting calls\" }",
+    "origin": "Signal-lane connectivity (5), closed scope (49), input validation (122), or queue admission limit (128); mutation signal only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/http-response.ts",
+    "line": 26,
+    "code": "'E_OFFLINE'",
+    "text": "{ code: 'E_OFFLINE', family: 'link', message: `the request did not complete${cause ? `: ${cause}` : '; the host supplied no transport cause'}; check the connection and server logs before retrying`, retryable: true }",
+    "origin": "Shared marked transport/decoder helper (excluded from outside-helper findings).",
+    "kind": "shared-helper"
+  },
+  {
+    "file": "packages/snapback4/src/http-response.ts",
+    "line": 29,
+    "code": "'E_HTTP_RESPONSE'",
+    "text": "{ code: 'E_HTTP_RESPONSE', family: 'link', message: `the server answered HTTP ${status} without a valid ${outcome} response; the ${outcome} outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true }",
+    "origin": "Shared marked transport/decoder helper (excluded from outside-helper findings).",
+    "kind": "shared-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity-runtime.ts",
+    "line": 65,
+    "code": "denied.code",
+    "text": "new ServerError(denied.code, \"the private identity operation was refused\", denied.family)",
+    "constructor": "ServerError",
+    "origin": "Server worker identity action validation / response failure or forwarded engine refusal; no browser query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity-runtime.ts",
+    "line": 80,
+    "code": "\"E_OIDC_MINT\"",
+    "text": "new ServerError(\"E_OIDC_MINT\", \"the identity session mint returned an invalid session\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity action validation / response failure or forwarded engine refusal; no browser query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity-runtime.ts",
+    "line": 88,
+    "code": "\"E_OIDC_RECIPE\"",
+    "text": "new ServerError(\"E_OIDC_RECIPE\", \"the identity query is not configured\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity action validation / response failure or forwarded engine refusal; no browser query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity-runtime.ts",
+    "line": 90,
+    "code": "\"E_OIDC_RECIPE\"",
+    "text": "new ServerError(\"E_OIDC_RECIPE\", \"the identity query returned no data\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity action validation / response failure or forwarded engine refusal; no browser query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity-runtime.ts",
+    "line": 94,
+    "code": "\"E_OIDC_RECIPE\"",
+    "text": "new ServerError(\"E_OIDC_RECIPE\", \"the identity mutation is not configured\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity action validation / response failure or forwarded engine refusal; no browser query reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 147,
+    "code": "\"E_OIDC_RECIPE\"",
+    "text": "new ServerError(\"E_OIDC_RECIPE\", \"the private identity transaction row is invalid\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 153,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"supply a fixed OIDC configuration\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 156,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"issuer and redirectURI must be absolute URLs\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 160,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"issuer and redirectURI cannot contain credentials, query or fragment components\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 164,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"insecure development requires literal-loopback HTTP issuer and redirectURI values\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 167,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"production OIDC requires HTTPS issuer and redirectURI values\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 169,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"clientId and clientSecret name are required\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 173,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"OIDC scopes must be a unique subset of openid, email and profile including openid\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 178,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"transactionTtlSeconds must be an integer from 60 through 600\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 179,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"sessionDays must be an integer from 1 through 30\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 180,
+    "code": "\"E_OIDC_CONFIG\"",
+    "text": "new ServerError(\"E_OIDC_CONFIG\", \"sessionKind must be 1\u201364 printable characters\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 194,
+    "code": "\"E_OIDC_PROVIDER\"",
+    "text": "new ServerError(\"E_OIDC_PROVIDER\", \"the discovered provider metadata does not match the fixed secure configuration\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 217,
+    "code": "\"E_OIDC_PROVIDER\"",
+    "text": "new ServerError(\"E_OIDC_PROVIDER\", \"the provider metadata contains an invalid public capability list\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 236,
+    "code": "\"E_OIDC_PROVIDER\"",
+    "text": "new ServerError(\"E_OIDC_PROVIDER\", \"the durable provider metadata does not match the fixed secure configuration\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 253,
+    "code": "\"E_OIDC_PROVIDER\"",
+    "text": "new ServerError(\"E_OIDC_PROVIDER\", \"the durable provider metadata does not support the fixed secure flow\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 285,
+    "code": "\"E_OIDC_EXCHANGE\"",
+    "text": "new ServerError(\"E_OIDC_EXCHANGE\", \"the verified ID token has no claims\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 293,
+    "code": "\"E_OIDC_EXCHANGE\"",
+    "text": "new ServerError(\"E_OIDC_EXCHANGE\", \"the verified ID token claims were refused\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 349,
+    "code": "\"E_OIDC_BINDING\"",
+    "text": "new ServerError(\"E_OIDC_BINDING\", \"supply a SHA-256 browser binding hash\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 371,
+    "code": "\"E_OIDC_TRANSACTION\"",
+    "text": "new ServerError(\"E_OIDC_TRANSACTION\", \"the identity transaction does not match this invocation\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 385,
+    "code": "\"E_OIDC_CALLBACK\"",
+    "text": "new ServerError(\"E_OIDC_CALLBACK\", \"the provider callback was refused\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 389,
+    "code": "\"E_OIDC_CALLBACK\"",
+    "text": "new ServerError(\"E_OIDC_CALLBACK\", \"the provider callback was refused\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 393,
+    "code": "\"E_OIDC_CALLBACK\"",
+    "text": "new ServerError(\"E_OIDC_CALLBACK\", \"the provider callback was refused\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 396,
+    "code": "\"E_OIDC_REPLAY\"",
+    "text": "new ServerError(\"E_OIDC_REPLAY\", \"this identity transaction is already completing elsewhere\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 402,
+    "code": "\"E_OIDC_REPLAY\"",
+    "text": "new ServerError(\"E_OIDC_REPLAY\", \"this identity transaction cannot be completed by this invocation\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 498,
+    "code": "\"E_OIDC_EXCHANGE\"",
+    "text": "new ServerError(\"E_OIDC_EXCHANGE\", \"the authorization code exchange or ID token verification failed\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 508,
+    "code": "\"E_OIDC_TRANSACTION\"",
+    "text": "new ServerError(\"E_OIDC_TRANSACTION\", \"the verified identity transaction did not settle\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/identity.ts",
+    "line": 549,
+    "code": "\"E_OIDC_HANDOFF\"",
+    "text": "new ServerError(\"E_OIDC_HANDOFF\", \"the minted session token is no longer available to this live handler\")",
+    "constructor": "ServerError",
+    "origin": "Server worker identity configuration, provider metadata, verified claims, transaction, callback, exchange or handoff refusal; evaluated identity-action path, not client read publication.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-assets.ts",
+    "line": 36,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"no retained ordinary media is available offline\", retryable: true }",
+    "origin": "No offline retained bytes (36) or superseded credential download (220); asset result only, not a row/asset-absence revocation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-assets.ts",
+    "line": 220,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the session changed during download; the view may already have been consumed\" }",
+    "origin": "No offline retained bytes (36) or superseded credential download (220); asset result only, not a row/asset-absence revocation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-backend.ts",
+    "line": 28,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the server refused this session\" }",
+    "origin": "HTTP 401 schema-discovery rejection; existing terminal auth boundary, not an evaluated query result.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-delivery.ts",
+    "line": 75,
+    "code": "\"E_STORE_REPLACED\"",
+    "text": "{ code: \"E_STORE_REPLACED\" }",
+    "origin": "Detected store replacement/restore sentinel; delivery rejected and scope withdrawn independently.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-delivery.ts",
+    "line": 79,
+    "code": "\"E_STORE_RESTORE\"",
+    "text": "{ code: \"E_STORE_RESTORE\" }",
+    "origin": "Detected store replacement/restore sentinel; delivery rejected and scope withdrawn independently.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-search.ts",
+    "line": 37,
+    "code": "\"E_BOUND\"",
+    "text": "{ code: \"E_BOUND\", family: \"bound\", message: this.message, site: \"ordinary search coordinator\", guide: \"search\" }",
+    "origin": "SDK coordinator allowance exhaustion; now marked admission.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-search.ts",
+    "line": 160,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"upgrade the device to support the ordinary search ledger\" }",
+    "origin": "Device response missing search ledger; now marked decoder.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-search.ts",
+    "line": 175,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"invalid ordinary search cursor\" }",
+    "origin": "SDK cursor decoding/input rejection; now marked admission.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-search.ts",
+    "line": 178,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"invalid ordinary search cursor\" }",
+    "origin": "SDK cursor shape/input rejection; now marked admission.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-search.ts",
+    "line": 263,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\", message: \"upgrade the server to support ordinary search overlap\" }",
+    "origin": "HTTP search overlap response validation; now marked decoder.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local-sync.ts",
+    "line": 46,
+    "code": "\"E_INPUT\"",
+    "text": "{ code: \"E_INPUT\", family: \"input\",\n  message: \"sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes\" }",
+    "origin": "Literal used only to recognize the old server sync parser response; never published as a constructed refusal.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 342,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 342,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to continue\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 372,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to continue\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 431,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 432,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in with a session to refresh it\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 456,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 465,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"a refreshed session changed principal\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 1151,
+    "code": "\"E_STORE\"",
+    "text": "{ code: \"E_STORE\", family: \"store\", message: \"the server answered without a state\", retryable: true }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 1251,
+    "code": "\"E_STORE\"",
+    "text": "{ code: \"E_STORE\", family: \"store\", message: `write ${id} admission outcome is unknown: ${String(error)}` }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 1282,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"the session changed during upload; start the upload again\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 1336,
+    "code": "\"E_CLOSED\"",
+    "text": "{ code: \"E_CLOSED\", family: \"client\", message: \"this client is closed\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/local.ts",
+    "line": 1337,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to revoke sessions\" }",
+    "origin": "Closed/session boundary (342, 372, 431, 432, 456, 465, 1282, 1336, 1337); unknown write response/admission (1151, 1251) is write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock-ephemeral.ts",
+    "line": 34,
+    "code": "\"E_OP\"",
+    "text": "{ code: \"E_OP\", family: \"op\", message: `unknown ephemeral mutation ${name}` }",
+    "origin": "Labelled mock signal evaluator: unknown op, callback exception or invalid ephemeral write; no real-client read reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock-ephemeral.ts",
+    "line": 46,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"client\", message: String(error) }",
+    "origin": "Labelled mock signal evaluator: unknown op, callback exception or invalid ephemeral write; no real-client read reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock-ephemeral.ts",
+    "line": 50,
+    "code": "\"E_QUARRY_EPHEMERAL\"",
+    "text": "{ code: \"E_QUARRY_EPHEMERAL\", family: \"schema\", message: `the mock needs an ephemeral life for ${table}; ephemeral writes cannot change durable rows` }",
+    "origin": "Labelled mock signal evaluator: unknown op, callback exception or invalid ephemeral write; no real-client read reconciliation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 94,
+    "code": "\"E_OP\"",
+    "text": "{ code: \"E_OP\", family: \"op\", message: `unknown query ${op.name}` }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 95,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to read\" }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 119,
+    "code": "link === \"offline\" ? \"E_OFFLINE\" : \"E_AUTH\"",
+    "text": "{ code: link === \"offline\" ? \"E_OFFLINE\" : \"E_AUTH\", family: link === \"offline\" ? \"link\" : \"auth\", message: \"an action needs an online signed-in client\", retryable: link === \"offline\" }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 123,
+    "code": "\"E_ACTION_UNKNOWN\"",
+    "text": "{ code: \"E_ACTION_UNKNOWN\", family: \"action\", message: `unknown action ${op.name}` }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 126,
+    "code": "\"E_ACTION_FAILED\"",
+    "text": "{ code: \"E_ACTION_FAILED\", family: \"action\", message: String(error) }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 154,
+    "code": "\"E_OP\"",
+    "text": "{ code: \"E_OP\", family: \"op\", message: `unknown mutation ${op.name}` }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 155,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to write\" }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 197,
+    "code": "\"E_ASSET_UNKNOWN\"",
+    "text": "{ code: \"E_ASSET_UNKNOWN\", family: \"asset\", message: `the mock holds no bytes for ${id}` }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 207,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in with a session to refresh it\" }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/mock.ts",
+    "line": 208,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\", message: \"sign in to revoke sessions\" }",
+    "origin": "Labelled mock evaluation/handler lookup or mock auth/asset state; not the production server/device publication path.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/online-delivery.ts",
+    "line": 31,
+    "code": "typeof json.store_id === \"string\" && store && json.store_id !== store ? \"E_STORE_REPLACED\" : \"E_STORE_RESTORE\"",
+    "text": "{ code: typeof json.store_id === \"string\" && store && json.store_id !== store ? \"E_STORE_REPLACED\" : \"E_STORE_RESTORE\" }",
+    "origin": "Store replacement/restore sentinel after identity evidence; rejected delivery, explicit scope withdrawal.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/residency.ts",
+    "line": 14,
+    "code": "\"E_STORE\"",
+    "text": "{\n      code: \"E_STORE\", family: \"store\", site: \"client.residency\",\n      message: `cannot read device residency: ${String(error)}`,\n      rewrite: \"restart the failed device host and reopen the client, then retry client.residency()\",\n      guide: \"residency\",\n    }",
+    "origin": "Residency device-call/storage failure, thrown as an exception; not a query observation.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 31,
+    "code": "\"E_ACTION_CLOSED\"",
+    "text": "{ code: \"E_ACTION_CLOSED\", family: \"action\", message: \"the action context has closed\" }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 38,
+    "code": "why.code",
+    "text": "new ServerError(why.code, why.message, why.family)",
+    "constructor": "ServerError",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 43,
+    "code": "\"E_ACTION_DEADLINE\"",
+    "text": "{ code: \"E_ACTION_DEADLINE\", family: \"action\", message: \"the action deadline has passed\" }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 49,
+    "code": "why.code",
+    "text": "new ServerError(why.code, why.message, why.family)",
+    "constructor": "ServerError",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 74,
+    "code": "why.code",
+    "text": "new ServerError(why.code, why.message, why.family)",
+    "constructor": "ServerError",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 97,
+    "code": "\"E_ACTION_LEASE\"",
+    "text": "{ code: \"E_ACTION_LEASE\", family: \"action\", message: \"this action attempt no longer holds its lease\" }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 99,
+    "code": "\"E_ACTION_CANCELLED\"",
+    "text": "{ code: \"E_ACTION_CANCELLED\", family: \"action\", message: \"the action was cancelled\" }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 101,
+    "code": "status.errorCode ?? \"E_ACTION_LEASE\"",
+    "text": "{ code: status.errorCode ?? \"E_ACTION_LEASE\", family: \"action\", message: \"this action attempt is no longer running\" }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 104,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"the action status could not be confirmed\", retryable: true }",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-context.ts",
+    "line": 137,
+    "code": "closedWhy.code",
+    "text": "new ServerError(closedWhy.code, closedWhy.message)",
+    "constructor": "ServerError",
+    "origin": "Server action closed/deadline/lease/cancel/status lifetime or forwarded refusal; action context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 40,
+    "code": "\"E_EFFECT_CLOSED\"",
+    "text": "{ code: \"E_EFFECT_CLOSED\", family: \"effect\", message: \"the effect context has closed\" }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 47,
+    "code": "why.code",
+    "text": "new ServerError(why.code, why.message, why.family)",
+    "constructor": "ServerError",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 54,
+    "code": "why.code",
+    "text": "new ServerError(why.code, why.message, why.family)",
+    "constructor": "ServerError",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 68,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"the effect authority could not be confirmed\", retryable: true }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 75,
+    "code": "json.denied.code",
+    "text": "new ServerError(json.denied.code, json.denied.message, json.denied.family)",
+    "constructor": "ServerError",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 78,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: `effect request failed with HTTP ${response.status}`, retryable: true }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 86,
+    "code": "\"E_EFFECT_LEASE\"",
+    "text": "{ code: \"E_EFFECT_LEASE\", family: \"effect\", message: \"this effect attempt no longer holds its lease\" }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 88,
+    "code": "\"E_EFFECT_CANCELLED\"",
+    "text": "{ code: \"E_EFFECT_CANCELLED\", family: \"effect\", message: \"the effect was cancelled\" }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 90,
+    "code": "status.errorCode ?? \"E_EFFECT_LEASE\"",
+    "text": "{ code: status.errorCode ?? \"E_EFFECT_LEASE\", family: \"effect\", message: \"this effect attempt is no longer running\" }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 100,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"the effect status could not be confirmed\", retryable: true }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 119,
+    "code": "\"E_OFFLINE\"",
+    "text": "{ code: \"E_OFFLINE\", family: \"link\", message: \"the effect authority could not be confirmed\", retryable: true }",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-effect-context.ts",
+    "line": 129,
+    "code": "closedWhy.code",
+    "text": "new ServerError(closedWhy.code, closedWhy.message, closedWhy.family)",
+    "constructor": "ServerError",
+    "origin": "Server effect closed/lease/cancel/status/transport lifetime or forwarded refusal; effect context only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-json.ts",
+    "line": 10,
+    "code": "code",
+    "text": "{ code, family, message }",
+    "origin": "Server action JSON/label validation and ServerError refusal constructor; never enters client query reconciliation directly.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-json.ts",
+    "line": 28,
+    "code": "code",
+    "text": "new ServerError(code, \"the value must be plain JSON within the 1 MiB bound\")",
+    "constructor": "ServerError",
+    "origin": "Server action JSON/label validation and ServerError refusal constructor; never enters client query reconciliation directly.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-json.ts",
+    "line": 75,
+    "code": "code",
+    "text": "new ServerError(code, \"a label must be 1\u2013128 printable ASCII characters\")",
+    "constructor": "ServerError",
+    "origin": "Server action JSON/label validation and ServerError refusal constructor; never enters client query reconciliation directly.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-routes.ts",
+    "line": 46,
+    "code": "\"E_ROUTE_RESULT\"",
+    "text": "new ServerError(\"E_ROUTE_RESULT\", message, \"route\")",
+    "constructor": "ServerError",
+    "origin": "Server route result validation; action/route path only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-steps.ts",
+    "line": 45,
+    "code": "\"E_STEP_INPUT\"",
+    "text": "new ServerError(\"E_STEP_INPUT\", \"this step was already called with different input\")",
+    "constructor": "ServerError",
+    "origin": "Server action step input mismatch or parked ambiguous outcome; step lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server-steps.ts",
+    "line": 52,
+    "code": "\"E_STEP_PARKED\"",
+    "text": "new ServerError(\"E_STEP_PARKED\", \"the external step needs an operator to establish its outcome\")",
+    "constructor": "ServerError",
+    "origin": "Server action step input mismatch or parked ambiguous outcome; step lifetime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 84,
+    "code": "\"E_SERVER_CONFIG\"",
+    "text": "new ServerError(\"E_SERVER_CONFIG\", \"set SNAPBACK_URL and SNAPBACK_SERVICE_TOKEN or pass url and token\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 86,
+    "code": "\"E_SERVER_CONFIG\"",
+    "text": "new ServerError(\"E_SERVER_CONFIG\", \"statusIntervalMs must be a positive number\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 94,
+    "code": "\"E_SERVER_HANDLERS\"",
+    "text": "new ServerError(\"E_SERVER_HANDLERS\", \"supply exactly one own handler for every declared action\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 97,
+    "code": "\"E_SERVER_HANDLERS\"",
+    "text": "new ServerError(\"E_SERVER_HANDLERS\", \"effect handlers must name declared effects\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 106,
+    "code": "\"E_SERVER_HANDLERS\"",
+    "text": "new ServerError(\"E_SERVER_HANDLERS\", \"supply exactly one own handler for every declared route\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 114,
+    "code": "\"E_SERVER_HANDLERS\"",
+    "text": "new ServerError(\"E_SERVER_HANDLERS\", \"session routes need a function; service routes need exactly own verify and handle functions\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 126,
+    "code": "\"E_SECRET_MISSING\"",
+    "text": "new ServerError(\"E_SECRET_MISSING\", `the declared secret ${secret} is missing or empty`)",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 138,
+    "code": "\"E_ACTION_GENERATION\"",
+    "text": "new ServerError(\"E_ACTION_GENERATION\", \"regenerate the server handlers for this action contract\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/server.ts",
+    "line": 165,
+    "code": "\"E_ROUTE_RESULT\"",
+    "text": "new ServerError(\"E_ROUTE_RESULT\", \"invalid private route arguments\", \"route\")",
+    "constructor": "ServerError",
+    "origin": "Server worker configuration, handler/generation/secret or private route argument validation; action runtime only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/session-authority.ts",
+    "line": 15,
+    "code": "\"E_CLIENT\"",
+    "text": "{ code: \"E_CLIENT\", family: \"store\", site: \"app.auth\",\n  message: `session authority could not be committed or read: ${String(error)}`,\n  rewrite: \"restore writable IndexedDB and localStorage, then retry app.auth.login\", guide: \"writes\" }",
+    "origin": "Session-storage warning; app auth authority lifetime.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/web-receipts.ts",
+    "line": 13,
+    "code": "write.why.code",
+    "text": "{ code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` }",
+    "origin": "Projection of a device write receipt for persistence; no read refusal crosses this codec.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/web-worker-device.ts",
+    "line": 29,
+    "code": "\"E_AUTH\"",
+    "text": "{ code: \"E_AUTH\", family: \"auth\",\n        message: \"this device has never synced: the server must be reachable once to open\" }",
+    "origin": "Worker credential misuse refusal thrown at the device transport boundary (29); projected write receipt (104). HTTP query decoding stays on the page.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/web-worker-device.ts",
+    "line": 104,
+    "code": "write.why.code",
+    "text": "{\n        code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically`,\n      }",
+    "origin": "Worker credential misuse refusal thrown at the device transport boundary (29); projected write receipt (104). HTTP query decoding stays on the page.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/web.ts",
+    "line": 349,
+    "code": "write.why.code",
+    "text": "{\n                    code: write.why.code, family: write.why.family,\n                    message: `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically`,\n                  }",
+    "origin": "Projection of a device write receipt for persistence; no read refusal crosses this codec.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/worker.ts",
+    "line": 197,
+    "code": "code",
+    "text": "{ code }",
+    "origin": "Not a Refusal: optional error-code field in an action settlement envelope.",
+    "kind": "not-refusal"
+  },
+  {
+    "file": "packages/snapback4/src/writes.ts",
+    "line": 33,
+    "code": "code",
+    "text": "{ code, family: \"input\", message, guide: \"writes\" }",
+    "origin": "Write submission validation (33) or projection of a write receipt (114); write-only.",
+    "kind": "outside-helper"
+  },
+  {
+    "file": "packages/snapback4/src/writes.ts",
+    "line": 114,
+    "code": "write.why.code",
+    "text": "{ code: write.why.code, family: write.why.family, message: [\"E_STORE_REPLACED\", \"E_STORE_RESTORE\"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` }",
+    "origin": "Write submission validation (33) or projection of a write receipt (114); write-only.",
+    "kind": "outside-helper"
+  }
+]

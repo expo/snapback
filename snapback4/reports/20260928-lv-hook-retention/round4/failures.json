@@ -1,0 +1,123 @@
+[
+  {
+    "log": "baseline-ephemeral.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "round 4 online: ephemeral replacement fences withdrawal at equal durable cut",
+      "round 4 online: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "round 4 process: ephemeral replacement fences withdrawal at equal durable cut",
+      "round 4 process: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "round 4 wasm: ephemeral replacement fences withdrawal at equal durable cut",
+      "round 4 wasm: ephemeral replacement fences buffered direct reply at equal durable cut"
+    ]
+  },
+  {
+    "log": "ephemeral-first.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "round 4 wasm: ephemeral replacement fences buffered direct reply at equal durable cut"
+    ]
+  },
+  {
+    "log": "ephemeral-second.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "round 4 process: ephemeral replacement fences withdrawal at equal durable cut",
+      "round 4 wasm: ephemeral replacement fences withdrawal at equal durable cut"
+    ]
+  },
+  {
+    "log": "mutant-dependency-floor-http.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "round 4 online: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "round 4 process: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "round 4 wasm: ephemeral replacement fences buffered direct reply at equal durable cut"
+    ]
+  },
+  {
+    "log": "mutant-dependency-floor-model.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "independent ephemeral epoch model seed 3",
+      "independent ephemeral epoch model seed 10",
+      "independent ephemeral epoch model seed 11",
+      "independent ephemeral epoch model seed 17",
+      "independent ephemeral epoch model seed 21",
+      "independent ephemeral epoch model seed 22",
+      "independent ephemeral epoch model seed 24",
+      "independent ephemeral epoch model seed 27",
+      "independent ephemeral epoch model seed 29",
+      "independent ephemeral epoch model seed 30",
+      "independent ephemeral epoch model seed 32",
+      "independent ephemeral epoch model seed 38"
+    ]
+  },
+  {
+    "log": "mutant-final-publication.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "round 4 process: epoch evidence in the final publication continuation fences a direct reply",
+      "round 4 wasm: epoch evidence in the final publication continuation fences a direct reply"
+    ]
+  },
+  {
+    "log": "mutant-poll-floor.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "withheld epochs do not advance floors and changes fence ownerless replies"
+    ]
+  },
+  {
+    "log": "mutant-query-evidence.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "independent ephemeral epoch model seed 5",
+      "independent ephemeral epoch model seed 7",
+      "independent ephemeral epoch model seed 8",
+      "independent ephemeral epoch model seed 10",
+      "independent ephemeral epoch model seed 11",
+      "independent ephemeral epoch model seed 15",
+      "independent ephemeral epoch model seed 17",
+      "independent ephemeral epoch model seed 21",
+      "independent ephemeral epoch model seed 22",
+      "independent ephemeral epoch model seed 24",
+      "independent ephemeral epoch model seed 25",
+      "independent ephemeral epoch model seed 26",
+      "independent ephemeral epoch model seed 27",
+      "independent ephemeral epoch model seed 29",
+      "independent ephemeral epoch model seed 30",
+      "independent ephemeral epoch model seed 32",
+      "independent ephemeral epoch model seed 33",
+      "independent ephemeral epoch model seed 34",
+      "independent ephemeral epoch model seed 35",
+      "independent ephemeral epoch model seed 38",
+      "independent ephemeral epoch model seed 39"
+    ]
+  },
+  {
+    "log": "mutant-row-key.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": true,
+    "failures": [
+      "test row_keyed_view_census ... FAILED",
+      "test row_view_inherited_member_census ... FAILED"
+    ]
+  },
+  {
+    "log": "rust-census.log.gz",
+    "classification": "ours",
+    "expected_counterfactual": false,
+    "failures": [
+      "test row_keyed_view_census ... FAILED"
+    ]
+  }
+]

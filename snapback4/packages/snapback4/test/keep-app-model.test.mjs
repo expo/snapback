@@ -92,6 +92,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
         lastDeadline = undefined; stop = watch.subscribe(record);
         continue;
       }
+      expectedWithdrawal = action !== "remount"; // Every generated write changes the query's input table.
       if (action === "local") assert.equal((await app.mutate(edit, { body })).state, "sent");
       if (action === "remote" || action === "burst") {
         if (action === "burst") for (let n = 0; n < 2 + next() % 3; n++) await remote(`${body}-intermediate-${n}`);
@@ -102,7 +103,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
         const result = await app.mutate(edit, { body });
         assert.equal(result.state, "pending");
         await until(() => watch.getSnapshot().data?.[0]?.body === body, "predicted answer through delayed authority");
-        offline = false; expectedWithdrawal = false;
+        offline = false;
       }
       if (app.client.sync) await app.client.sync();
       await until(() => watch.getSnapshot().data?.[0]?.body === body, `seed ${seed}, trace ${trace}`);

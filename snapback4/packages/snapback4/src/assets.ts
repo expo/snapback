@@ -1,3 +1,4 @@
+import { assetEvidence } from "./asset-lifetime.ts";
 // Assets on the client: `upload` posts the bytes and returns the facts the
 // server established; `asset` fetches the bytes under the viewer's own
 // credentials and hands back a display URL, so a screen never puts a token in
@@ -103,39 +104,45 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
   let release: (() => void) | undefined;
   try {
     let response: Response;
+    let meta: { seq?: number; nextExpiry?: number | null } = {};
     let waited = 0;
     for (let attempt = 0; ; attempt++) {
       response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
+      meta = {};
+      try { meta = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}"); } catch {}
       if (response.ok) break;
-      const json = await response.json().catch(() => null) as { denied?: unknown } | null;
+      const json = await response.json().catch(() => null) as { denied?: unknown; seq?: number; head?: number } | null;
       const why = refusal(json?.denied) ?? invalidResponse(response.status, "download");
-      // An admission refusal proves the once-view response never started.
-      // A reset, including during blob consumption, exits without retrying.
+      const denied = () => assetEvidence({ denied: why }, { ...meta,
+        ...(typeof (json?.seq ?? json?.head) === "number" ? { seq: json!.seq ?? json!.head! } : {}) });
+      // Only a coded admission refusal proves a once-view response never began.
+      // Preserve its code and authority cut; lifetime applies only asset evidence.
       const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
-      if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return { denied: why };
+      if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return denied();
       await new Promise(resolve => setTimeout(resolve, delay));
       waited += delay;
-      if (signal?.aborted) return { denied: why };
+      if (signal?.aborted) return denied();
     }
+    const accepted = (read: AssetRead) => assetEvidence(read, meta);
     const blob = await response.blob();
     release = ownBlob(blob);
     const retained = await viewed?.(blob, response);
-    if (retained) return retained;
+    if (retained) return accepted(retained);
     const type = response.headers.get("content-type") ?? blob.type, bytes = blob.size;
     let url: string;
     try { url = URL.createObjectURL(blob); } catch {
       // @ref LLP 3000.011.005.000#8 — a host without working object URLs uses a transient copy, never a file
       let dataURL = await blobDataURL(blob, type, bytes);
-      return { get url() { return dataURL; }, type, bytes, revoke: () => { dataURL = ""; } };
+      return accepted({ get url() { return dataURL; }, type, bytes, revoke: () => { dataURL = ""; } });
     }
     const releaseHandle = release;
     release = undefined;
     let revoked = false;
-    return { url, type, bytes, revoke: () => {
+    return accepted({ url, type, bytes, revoke: () => {
       if (revoked) return;
       revoked = true;
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }
-    } };
+    } });
   } catch (error) {
     return { denied: offline(error) };
   } finally {

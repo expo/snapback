@@ -108,7 +108,7 @@ fn memory_aggregate_point_and_raw_probe_dependencies_are_constant() {
             );
             assert_eq!(
                 r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
-                vec!["children", "totals"]
+                vec!["children", "parents", "totals"]
             );
             // No rule_dependencies call: probe_witness itself owns the source dependency.
             let mut r = reader(&rows, &schema);
@@ -205,7 +205,7 @@ fn memory_inherited_only_aggregate_dependencies() {
             assert!(!r.query_unavailable && r.meter.capped_at.is_none());
             assert_eq!(
                 r.read_tables.iter().map(String::as_str).collect::<Vec<_>>(),
-                vec!["children", "totals"]
+                vec!["children", "middles", "roots", "totals"]
             );
             let mut r = reader(&rows, &schema);
             assert_eq!(

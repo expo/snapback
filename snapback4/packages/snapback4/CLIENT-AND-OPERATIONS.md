@@ -754,10 +754,15 @@ its discovery poll; durable-only clients make no extra schema request. Growing t
 table notifications rerun matching watches without a durable change or `/sync`.
 Watches also refetch at `nextExpiry`; incomplete ephemeral answers refresh at a
 fixed one-second cadence until complete or closed. No application expiry timer
-is needed. Offline ephemeral reads have no retained data.
+is needed. Ephemeral rows are never replicated or available to a new offline read;
+mounted answers still obey their original deadlines and learned invalidation.
 
 Query answers and polls carry an incarnation and epoch, separately from the
-durable sequence. Each watch rejects older epochs. Accepting a new incarnation
+durable sequence. Accepted answers and change notifications raise dependency
+epoch floors: older overlapping watches withdraw before callbacks, and delayed
+replies (including direct reads without a watch) cannot cross those floors.
+Unrelated ephemeral tables remain independent. Equal durable sequences and
+replica sync cannot release an ephemeral floor. Accepting a new incarnation
 advances the client's ephemeral request revision, invalidates outstanding
 requests, and reruns every ephemeral watch and the poll. Responses tagged with
 an older revision are discarded before considering their incarnation.
@@ -871,9 +876,9 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-By default, observations retain an answer during a re-read for at most one second
-after processing the invalidation, marked `revalidating: true`. Use `keep: false`
-for immediate withdrawal. All observations discard responses older than observed
+By default, observations retain an answer through plain revalidation without a
+timeout, marked `revalidating: true`. Changed inputs, expiry and identity/store
+boundaries withdraw immediately. Use `keep: false` to opt out even during plain refreshes. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
 (`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
@@ -912,12 +917,10 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion withdraws to `loading` for every retention policy until the next
-invalidation, and closing the last observation owner cancels its retries.
-A local server fallback joins the displayed answer's existing revalidation
-episode. Successful transport does not withdraw it while device composition
-continues; only the whole evaluation's outcome, the episode cap, or a hard
-withdrawal ends retention.
+exhaustion keeps a still-valid answer revalidating until a later retry. It never
+resurrects an invalidated answer. Closing the last owner cancels retries.
+Local fallback and composition retain through plain revalidation; a changed
+input or an expired candidate withdraws first.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
 `complete` means the query answered its declared request within known coverage and execution limits.
@@ -1198,31 +1201,44 @@ function useThread(conversationId: string) {
 }
 ```
 
-<!-- @ref LLP 3000.023#3.1 — one revalidation episode follows the displayed answer through the facade. -->
-On the local client (wasm or process device) and the online client, an
-invalidation marks the displayed answer `revalidating: true`, preserving its
-`fresh` and `since`. It remains until the replacement, an unsuccessful re-read,
-or **one second of host time after the client processes the invalidation**.
-The time a change takes to reach the client precedes that bound. Further
-invalidations and the facade's authority check never renew the same answer's
-episode. The deadline withdraws to `loading` but lets the in-flight read still
-publish. Snapshots and render peeks check it even before a delayed timer runs;
-a suspended page runs no code. A successful replacement clears `revalidating`.
-A failed presence sample is the separate exception described above.
+<!-- @ref LLP 3000.029#3 — retain until invalidation evidence, never a host timeout. -->
+`useQuery`, `usePage` and `client.observe` retain their last same-key answer
+through plain revalidation, marked `revalidating: true`, without a time limit.
+They preserve coverage and freshness; a disconnect sets retained freshness false.
+Unavailable replies and failed transport cannot erase a still-valid answer.
+New arguments, operation or client start a distinct read, never old-argument data.
 
-| `keep` | During a re-read | After the last subscriber leaves |
+| `keep` | Plain revalidation | After the last subscriber leaves |
 | --- | --- | --- |
-| omitted | Retains for at most one second | Closes |
-| `false` | Withdraws immediately | Closes |
-| `true` | Retains without the one-second cap | Lingers 30 seconds |
+| omitted | Retains indefinitely | Closes |
+| `false` | Withdraws | Closes |
+| `true` | Retains indefinitely | Lingers 30 seconds |
 
-The three options own separate watches, even for identical operations and
-arguments. Pass them to `client.observe`, `useQuery` or `usePage`.
-**Retention can show a revoked row during the re-read.** For actions, check
-`isReady(read) && !read.revalidating`. Use `keep: false` for an export, copy or
-playback that must withdraw as soon as the client processes the change.
-`fresh` still describes server confirmation: a completed offline answer may
-have `fresh: false` without being `revalidating`. Retention grants no authority.
+Every policy withdraws on invalidation evidence: changed read dependencies,
+unknown footprints, denial, expiry, schema/rule changes, sign-out/account or
+credential change, and store replacement/restore. The existing protocol names
+tables, including read-through parents, rule probes and maintained sources
+transitively, whether or not the source expires. Direct public-row lookups by immutable unique keys can retain through
+proved public inserts/updates; known unrelated mutation footprints also preserve
+them. Unseen gaps, saturated change intervals and relevant predictions still
+withdraw. A historical replay cannot invalidate an observation already validated
+through both the receipt and its current head. Already-pending unrelated
+predictions preserve the public-put proof too; relevant or unknown effects cancel it.
+Every other changed dependency remains conservative. A pending sync cannot let
+a prediction or a new query resurrect pre-evidence replica data. Accepted
+one-shot and watch replacements reach every exactly matching read across
+retention policies, including nonempty subsets. Other queries and argument sets
+that depend on the affected tables withdraw, and new local evaluations remain
+fenced until the replica applies that evidence. Unknown footprints are global;
+explicit empty server footprints have no data dependencies. A transport failure
+does not become authority. Known cuts cannot erase a pending cutless fence.
+This is not a claim of instantaneous remote revocation: offline clients can only
+process evidence they receive. Row deadlines still apply while offline.
+A new null or empty result replaces old rows; a facade cannot retain a different
+old image while checking the replacement. Never add an application result cache.
+The signed-in route should still belong to identity; its EnsureProfile loading
+gate is now harmless through plain same-key revalidation. Actions remain subject
+to server rules. `revalidating` is separate from a completed offline `fresh: false`.
 
 `keep: true` keeps the same live observation for 30 seconds after its last
 subscriber leaves, with normal reads, timers and change-feed interest. A new
@@ -1233,12 +1249,12 @@ an already-active default watch also sees its current answer immediately.
 
 App facades share one approval per raw watch. A peer's successful authority
 check moves every live facade of that watch to the approved replacement.
-Every retaining watch keeps the previous approved answer, marked `revalidating`, while the replacement
-waits for its authority check. It inherits the same episode deadline by value
-and tracks the held answer's own device and server deadlines through clock
-corrections. A local reobservation wakeup does not expire remembered server
+A retaining watch keeps an identical approved data image, marked `revalidating`,
+while authority checks run. Different images withdraw the old approval immediately.
+Held data keeps its original device and server deadlines through clock corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
-immediately, including failure, link loss, and a replacement's earlier expiry.
+immediately, including a replacement's earlier expiry. Plain transport failure and
+link loss retain without renewing those deadlines.
 Opening remounts register for the watch before its raw owner or first approval exists and
 receive notifications for approval, withdrawal and each distinct denial. An
 opening keeps its last raw-owner association if that owner retires while its
@@ -1264,10 +1280,9 @@ delivering read or link callbacks, including callbacks from lingering remounts.
 Facade snapshots honor their source's loading or denial even before their own
 subscription callback runs, including with `keep: false`; new data still needs
 authority. For all three policies, a closed facade keeps consulting its detached
-raw handle but never adopts a new identity. While its last identity is still the source's and its own row and episode
+raw handle but never adopts a new identity. While its last identity is still the source's and its original row
 deadlines hold, it returns the source's current copy of that identity, including
-its revalidating mark. It preserves the earliest episode it observed, whether
-before or after close, even if a later copy omits the deadline. After that it returns one stable `loading` snapshot, or its denial, even
+its revalidating mark. After withdrawal it returns one stable `loading` snapshot, or its denial, even
 when the replacement has identical data. A closed facade has no listeners and
 never notifies. Loading captured at close is already latched, without another
 getter call. Once its loading snapshot latches, a later source denial does
@@ -1276,15 +1291,14 @@ Closing a standalone `keep: false` facade removes its raw owner
 and cancels its subscriptions and timers. Shared approval and raw subscription delivery
 announce the same withdrawal only once, including an authority refusal during
 replacement or opening.
-An episode expiring during a grouped commit notifies after every affected watch
-has reloaded, so callbacks also see peers' revalidation marks.
+Grouped invalidation withdraws all affected answers before callbacks run.
 
-For all three options, a failed whole re-read, expired candidate, refusal,
+For all three options, an expired candidate, refusal,
 expiry, sign-out, credential or viewer change, store replacement or adoption,
 `clear_rows`, `settle_exit`, ephemeral incarnation change, first schema
 installation, or client close withdraws the answer immediately. A successful
-server fallback keeps retaining while device composition finishes within the
-episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
+server fallback keeps retaining while device composition finishes, within the
+original authorization deadlines. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
 closed local observation still checks its saved deadlines; resubscribing rearms
 those same absolute row deadlines before its re-read. Observed server expiry also
@@ -1376,6 +1390,9 @@ safe integer; zero retains no bytes). Storage belongs
 to this server, principal and device: IndexedDB on the web, files in Documents
 with the Expo opener, and device metadata with the process opener. `client.asset`
 and `useAsset` use retained bytes offline and revalidate every online fetch.
+Authoritative asset refusals compare their cut with grant cuts before revoking
+SDK handles or cached media; request-start order breaks ties and orders replies
+without a cut. Older in-flight grants cannot cross a newer refusal.
 A home row leaving its partition, being deleted or cleared, or expiring purges
 its bytes (including offline expiry); sign-out purges them too. Stream changes
 are checked before sync completes, and reopening checks lifetimes before reads.
@@ -1412,7 +1429,7 @@ duration != null else DURATION_UNKNOWN` before `require duration <=
 rule: `client.asset(id)` fetches the bytes under the viewer's credentials
 and resolves `{ url, type, bytes, revoke }` — a blob URL, transient data URL or
 retained file URI, and `revoke()` for when the screen is done — or `{ denied }` (`useAsset` in React
-revokes on unmount; `client.assetSource(id)` gives `{ uri, headers }`
+withdraws on authority evidence, original grant expiry and unmount; `client.assetSource(id)` gives `{ uri, headers }`
 for native image and video views); a row that is deleted, whose column
 is cleared, that expired, or that the viewer may not read answers
 `E_ASSET_UNKNOWN`. A column declared `image <=N once` serves one view per

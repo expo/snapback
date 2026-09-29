@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+    "--test",
+    "--test-name-pattern=missing both certificates",
+    "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r6-missing-certificate-mutant/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+  ],
+  "status": 1,
+  "signal": null,
+  "killed": true
+}

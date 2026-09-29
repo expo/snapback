@@ -50,21 +50,19 @@ export type ReadCut = "meter" | "words" | null;
  * a local answer composes retained rows) until a newer answer replaces it. A background re-read about
  * 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a suspended
  * client leave the sample on screen, with the same flag, and no bound on its age.
- * By default a re-read retains the displayed answer for one non-renewable second
- * after the client processes the invalidation, marked `revalidating: true` with
- * `fresh` and `since` unchanged. A replacement clears the mark. A failed re-read
- * or the deadline withdraws to loading, even if a host timer has not run.
- * `keep: false` withdraws immediately; `keep: true` retains without that time cap
- * and lingers for 30 s after the last subscriber leaves. Retention can show
- * revoked rows during a re-read. Gate actions on `isReady(read) && !read.revalidating`;
- * use `keep: false` for exports, copies or playback that must withdraw at once.
- * Every option withdraws on expiry, a refusal, a viewer or credential change,
- * store reset, adoption or close. Retention never grants authority.
- * @ref LLP 3000.023#3.1 — bounded retention is separate from server freshness.
+ * Plain revalidation retains the last answer without a timeout, marked
+ * `revalidating: true`. Changed dependencies, unknown change footprints, expiry,
+ * denial and identity/store boundaries withdraw immediately for every option.
+ * Dependency changes are conservative: even an innocent write to an input table
+ * invalidates until a new authorized answer arrives. Offline retained answers
+ * have `fresh: false`; successful replacements clear `revalidating`.
+ * `keep: false` opts out of retention; `keep: true` additionally lingers for
+ * 30 seconds after the last subscriber. Changed arguments never borrow an old answer.
+ * @ref LLP 3000.029#3 — retention is separate from input invalidation and freshness.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
 export type Read<T> =
-  | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly revalidating?: true; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
+  | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; /** The same authorized answer while plain revalidation runs. */ readonly revalidating?: true; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
   | { readonly loading: true }
   | { readonly denied: Refusal };
 
@@ -185,10 +183,11 @@ export type Action<Args, Result = unknown> = Op<Args, Result> & { readonly kind:
 export type ArgsOf<O> = O extends Op<infer A, unknown> ? A : never;
 export type ResultOf<O> = O extends Op<unknown, infer R> ? R : never;
 
-/** Omitted: retain during a re-read for one non-renewable second, with revalidating.
- * False: withdraw immediately. True: retain without the time cap and linger 30 s
- * after unmount. Failed reads, expiry, refusals and resets withdraw for all three.
- * @ref LLP 3000.023#3.2 — each policy owns a separate live watch. */
+/** Omitted: retain during plain revalidation without a timeout, with revalidating.
+ * False: withdraw immediately. True: additionally linger 30 s
+ * after unmount. Expiry, authoritative refusals and resets withdraw for all three.
+ * Failed plain refreshes retain for the default and true policies.
+ * @ref LLP 3000.029#3 — each policy owns a separate live watch. */
 export interface ObserveOptions { readonly keep?: boolean }
 
 /** A live read: the current value and a way to hear it change. */

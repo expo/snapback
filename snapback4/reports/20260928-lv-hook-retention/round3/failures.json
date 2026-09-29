@@ -1,0 +1,197 @@
+[
+  {
+    "log": "affected.log.gz",
+    "classification": "ours",
+    "failures": [
+      "every delivery await is explicitly classified"
+    ]
+  },
+  {
+    "log": "bounded-dependencies.log.gz",
+    "classification": "ours",
+    "failures": [
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced",
+      "bounded Following wasm: a known branch wins over static server routing",
+      "bounded Following native: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: a scalar cut before the feed keeps its possible reads fenced",
+      "bounded Following native: a known branch wins over static server routing"
+    ]
+  },
+  {
+    "log": "census-diagnosis.log.gz",
+    "classification": "ours",
+    "failures": [
+      "round 3 process: compiled-schema census bounds every server and device read footprint",
+      "round 3 wasm: compiled-schema census bounds every server and device read footprint"
+    ]
+  },
+  {
+    "log": "counterfactual-baseline.log.gz",
+    "classification": "expected counterfactual",
+    "failures": [
+      "round 3 online: tree evidence withdraws dependent observations and fences new reads",
+      "round 3 online: sum evidence withdraws dependent observations and fences new reads",
+      "round 3 process: tree evidence withdraws dependent observations and fences new reads",
+      "round 3 process: sum evidence withdraws dependent observations and fences new reads",
+      "round 3 wasm: tree evidence withdraws dependent observations and fences new reads",
+      "round 3 wasm: sum evidence withdraws dependent observations and fences new reads",
+      "round 3 process: compiled-schema census bounds every server and device read footprint",
+      "round 3 wasm: compiled-schema census bounds every server and device read footprint",
+      "round 3 process: already-pending unrelated prediction preserves comparative myProfile",
+      "round 3 wasm: already-pending unrelated prediction preserves comparative myProfile"
+    ]
+  },
+  {
+    "log": "counterfactual-private-column.log.gz",
+    "classification": "expected counterfactual",
+    "failures": [
+      "round 3 online: column evidence withdraws dependent observations and fences new reads",
+      "round 3 process: column evidence withdraws dependent observations and fences new reads",
+      "round 3 wasm: column evidence withdraws dependent observations and fences new reads"
+    ]
+  },
+  {
+    "log": "footprint-initial.log.gz",
+    "classification": "ours",
+    "failures": [
+      "round 3 process: compiled-schema census bounds every server and device read footprint",
+      "round 3 wasm: compiled-schema census bounds every server and device read footprint"
+    ]
+  },
+  {
+    "log": "footprint-model-second.log.gz",
+    "classification": "ours",
+    "failures": [
+      "round 3 process: compiled-schema census bounds every server and device read footprint",
+      "round 3 wasm: compiled-schema census bounds every server and device read footprint"
+    ]
+  },
+  {
+    "log": "footprint-model.log.gz",
+    "classification": "ours",
+    "failures": [
+      "round 3 process: compiled-schema census bounds every server and device read footprint",
+      "round 3 wasm: compiled-schema census bounds every server and device read footprint"
+    ]
+  },
+  {
+    "log": "mutant-finite-release.log.gz",
+    "classification": "expected counterfactual",
+    "failures": [
+      "independent fence model seed 4",
+      "independent fence model seed 9",
+      "independent fence model seed 10",
+      "independent fence model seed 11",
+      "independent fence model seed 14",
+      "independent fence model seed 17",
+      "independent fence model seed 20",
+      "independent fence model seed 22",
+      "independent fence model seed 23",
+      "independent fence model seed 25",
+      "independent fence model seed 26",
+      "independent fence model seed 28",
+      "independent fence model seed 32",
+      "independent fence model seed 33",
+      "independent fence model seed 36",
+      "independent fence model seed 40",
+      "finite dependency fence survives every intermediate apply for newly opened aliases"
+    ]
+  },
+  {
+    "log": "mutant-receipt-scan-qualified.log.gz",
+    "classification": "expected counterfactual",
+    "failures": [
+      "Grok: 400 unrelated receipts do not visit all 400 online observations"
+    ]
+  },
+  {
+    "log": "mutant-receipt-scan.log.gz",
+    "classification": "ours",
+    "failures": [
+      "Grok: 400 unrelated receipts do not visit all 400 online observations"
+    ]
+  },
+  {
+    "log": "private-census.log.gz",
+    "classification": "ours",
+    "failures": [
+      "error[E0308]: mismatched types",
+      "error: could not compile `snapback4-lang` (test \"read_dependencies\") due to 1 previous error"
+    ]
+  },
+  {
+    "log": "receipt-cost.log.gz",
+    "classification": "ours",
+    "failures": [
+      "Grok: 400 unrelated receipts do not visit all 400 online observations"
+    ]
+  },
+  {
+    "log": "rust-dependencies-second.log.gz",
+    "classification": "ours",
+    "failures": [
+      "ordinary_expiring_page_recounts",
+      "aggregate_tables_constant"
+    ]
+  },
+  {
+    "log": "rust-dependencies.log.gz",
+    "classification": "ours",
+    "failures": [
+      "ordinary_expiring_page_recounts",
+      "aggregate_tables_constant"
+    ]
+  },
+  {
+    "log": "test-sh.log.gz",
+    "classification": "ours",
+    "failures": [
+      "engine::aggregate_metadata_tests::memory_inherited_only_aggregate_dependencies",
+      "engine::aggregate_metadata_tests::memory_aggregate_point_and_raw_probe_dependencies_are_constant",
+      "uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots",
+      "the_same_module_answers_the_same_on_the_server_and_on_both_devices",
+      "durable_schema_and_types_keep_base_bytes",
+      "aggregate_denial_dependencies",
+      "aggregate_denial_work",
+      "aggregate_inherited_only_dependencies",
+      "authorized_expired_backlog_stays_metered",
+      "aggregate_tables_constant",
+      "bounded Following wasm: unknown conditions preserve static and helper dependencies",
+      "bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced",
+      "bounded Following wasm: a known branch wins over static server routing",
+      "bounded Following native: unknown conditions preserve static and helper dependencies",
+      "bounded Following native: a scalar cut before the feed keeps its possible reads fenced",
+      "bounded Following native: a known branch wins over static server routing",
+      "every delivery await is explicitly classified"
+    ]
+  },
+  {
+    "log": "wasm-fourth.log.gz",
+    "classification": "ours",
+    "failures": [
+      "wasm 2042726 B raw, 593945 B gzip (budget 593719: OVER by 226 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "wasm-second.log.gz",
+    "classification": "ours",
+    "failures": [
+      "wasm 2042386 B raw, 593882 B gzip (budget 593719: OVER by 163 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "wasm-third.log.gz",
+    "classification": "ours",
+    "failures": [
+      "wasm 2042761 B raw, 593818 B gzip (budget 593719: OVER by 99 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  },
+  {
+    "log": "wasm.log.gz",
+    "classification": "ours",
+    "failures": [
+      "wasm 2042399 B raw, 593842 B gzip (budget 593719: OVER by 123 B \u2014 issues/20260913-snapback4-wasm-device-diet.md)"
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "raw": 2042203,
+  "gzip": 593641,
+  "cap": 593719,
+  "headroom": 78,
+  "sha256": "d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466",
+  "command": "gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "toolchain": {
+    "node": "24.13.1",
+    "rust": "1.97.0",
+    "wasm-bindgen": "0.2.127"
+  },
+  "wasm_opt": false,
+  "rebuilt": false,
+  "delta_gzip": 0
+}

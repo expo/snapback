@@ -18,7 +18,8 @@ function Account() {
     setBusy(false);
   }
   if (auth.state === "restoring") return <Text>Restoring account…</Text>;
-  // The signed-in route follows identity, never a profile/inbox query.
+  // Plain profile revalidation retains data; actual invalidation still leaves
+  // navigation owned by this signed-in identity.
   if (auth.state === "signed-in") return <Stack>
     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     <Stack.Screen name="conversation/[id]" options={{ title: "Conversation" }} />

@@ -1,3 +1,4 @@
+import { answerIdentity } from "../dist/read-observation.js";
 // LLP 3000.019 §3.3 revision 4: the application explicitly opts into stale presentation.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -69,7 +70,7 @@ async function fixture(t) {
 }
 
 for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", "settle", "revoke", "leave", "refusal"]) {
-  test(`${tier}: keep=${keep} across ${change} publishes no loading and replaces the old answer`, { timeout: 30_000 }, async t => {
+  test(`${tier}: keep=${keep} across ${change} withdraws changed inputs and replaces the old answer`, { timeout: 30_000 }, async t => {
     const { directory, url, post, kick } = await fixture(t);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const readOp = change === "refusal" ? { ...query, name: "required" } : query;
@@ -101,6 +102,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     const lingering = client.observe({ ...query, name: "second" }, {}, { keep: true });
     await until(() => lingering.getSnapshot().data?.body === "private answer", "lingering query ready");
     lingering.close();
+    const originalIdentity = answerIdentity(watch.getSnapshot());
     const values = [];
     watch.subscribe(() => values.push(watch.getSnapshot()));
     armed = true;
@@ -108,14 +110,9 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
       : (change === "revoke" || change === "refusal") ? kick()
       : client.mutate({ kind: "mutation", name: change === "leave" ? "leave" : "edit" }, change === "leave" ? {} : { body: "next answer" });
     await atCommit.promise;
-    assert.ok("data" in snapshot, JSON.stringify(snapshot));
-    assert.equal(snapshot.revalidating, true);
-    assert.equal(snapshot.fresh, true, "revalidation preserves server freshness");
-    assert.equal(plain.getSnapshot().loading, true, "a keep subscriber cannot change the default watch");
-    if (change === "revoke" || change === "leave") {
-      assert.equal(snapshot.data.body, "private answer", "explicit keep accepts the withdrawn row until the re-read");
-      if (change === "revoke") assert.equal((await core.call({ op: "query", name: "secret", args: {}, viewer: "dev:bob", now: Date.now() })).ok.data, null, "the actual device has already revoked the row");
-    }
+    assert.deepEqual(snapshot, { loading: true }, "changed inputs withdraw before the held re-read");
+    assert.equal(plain.getSnapshot().loading, true);
+    if (change === "revoke") assert.equal((await core.call({ op: "query", name: "secret", args: {}, viewer: "dev:bob", now: Date.now() })).ok.data, null);
     if (change === "leave") assert.ok(captured.result.ok.predicted.includes("members/bob"));
     blocking = false; held.resolve();
     assert.equal((await operation).state, "sent");
@@ -126,7 +123,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     assert.equal(joined.getSnapshot(), lingering.getSnapshot(), "remount sees the current committed answer");
     assert.ok(values.length > 0);
     const beforeReplacement = change === "refusal" ? values.slice(0, values.findIndex(read => "denied" in read) + 1) : values;
-    assert.ok(beforeReplacement.every(read => !("loading" in read)), JSON.stringify(values));
+    assert.ok(beforeReplacement.every(read => !("data" in read) || answerIdentity(read) !== originalIdentity), "only newly evaluated answers may publish after invalidation");
   });
 }
 
@@ -210,8 +207,9 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) te
   await post("/m/edit", { id: "edit-one", args: { body: "obsolete" } }); await client.sync();
   await until(() => captured, "old evaluation captured");
   await post("/m/edit", { id: "edit-two", args: { body: "current" } }); await client.sync();
-  assert.equal(watch.getSnapshot().data.body, "private answer");
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  values.length = 0; // Earlier checked HTTP answers predate the second commit.
   hold = false; held.resolve();
   await until(() => watch.getSnapshot().data?.body === "current", "current evaluation");
-  assert.ok(values.every(read => read.data?.body !== "obsolete" && !("loading" in read)), JSON.stringify(values));
+  assert.ok(values.every(read => read.data?.body !== "obsolete"), JSON.stringify(values));
 });

@@ -68,6 +68,7 @@ async function deviceFiles(t) {
   function openCore() {
     return {
       async call({ op, key, value, id, home: receipt }) {
+        if (op === "state") return { ok: { watermark: 1 } };
         if (op === "asset_home") return { ok: ["store_id", "table", "row", "column"].every(key => receipt?.[key] === homes.get(id)?.[key]) ? homes.get(id) : null };
         assert.equal(key, "media:manifest");
         if (op === "meta") return { ok: (await read(join(directory, "manifest")))?.toString() ?? null };
@@ -283,6 +284,7 @@ test("a delayed transient conversion cannot publish an obsolete session's asset"
     let fetches = 0;
     const client = createClient({ url: "https://assets.invalid", session: session("old"), fetch: async url => {
       const path = new URL(url).pathname;
+      if (path === "/changes") return new Promise(() => {});
       if (path === "/auth/refresh") return Response.json({ session: session("next") });
       if (path === "/auth/logout") return Response.json({ ok: true });
       return response(++fetches === 1 ? old : next, "none");

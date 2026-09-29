@@ -1,0 +1,14 @@
+[
+  {
+    "name": "final-publication",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=final publication continuation",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r4-mutant-final-publication/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+    ]
+  }
+]

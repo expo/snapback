@@ -1,3 +1,4 @@
+import { AssetLifetime } from "./asset-lifetime.ts";
 import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
@@ -18,6 +19,7 @@ import { approveDelivery, guardDelivery } from "./delivery-acceptance.ts";
 export function guardClient(raw: Client, check: () => Promise<boolean>, validScope: () => boolean, why: () => Refusal, retireStore?: () => Promise<void> | undefined, admit?: () => Refusal | undefined) {
   guardDelivery(raw);
   let active = true;
+  const assets = new AssetLifetime();
   const valid = () => active && validScope();
   const approved = new WeakSet<object>();
   const kept = new ReadApprovals();
@@ -262,7 +264,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       const denied = await refusal();
       if (denied) return { denied };
       const asset = await raw.asset(id);
-      if (valid()) return asset;
+      if (valid()) return assets.own(asset);
       if ("url" in asset) asset.revoke();
       return { denied: why() };
     },
@@ -289,7 +291,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   return { client, fence() {
     if (!active) return () => {};
     active = false;
-    const deliver = deferReadNotifications(() => kept.close());
+    const deliver = deferReadNotifications(() => { assets.invalidate(); kept.close(); });
     for (const cleanup of cleanups) cleanup();
     cleanups.clear();
     // The app publishes its new view before notifying retired subscriptions.

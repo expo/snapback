@@ -1,0 +1,8 @@
+{
+  "source": "snapback4/packages/snapback4/src/http-response.ts",
+  "source_modified": "2026-09-29T01:42:15.613000695+02:00",
+  "vite_error": "2026-09-29T01:42:15+02:00",
+  "inference": "likely Vite reload caused by our in-run source edit; ours, no environmental exemption",
+  "rerun": "authority-react-rerun.log.gz",
+  "product_or_test_changed_for_rerun": false
+}

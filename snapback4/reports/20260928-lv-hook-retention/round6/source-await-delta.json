@@ -1,0 +1,97 @@
+[
+  {
+    "file": "client.ts",
+    "added": [
+      {
+        "owner": "refresh",
+        "expression": "watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => { if (!currentRead(result, watch)) return false; return true; } })",
+        "line": 729
+      }
+    ],
+    "removed": [
+      {
+        "owner": "refresh",
+        "expression": "watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => { if (!currentRead(result, watch)) return false; // Install deadlines before publication: a subscriber can close synchronously. scheduleExpiry(watch, result.nextExpiry); return true; } })",
+        "line": 686
+      }
+    ]
+  },
+  {
+    "file": "local-assets.ts",
+    "added": [
+      {
+        "owner": "read",
+        "expression": "this.call({ op: \"state\" })",
+        "line": 131
+      },
+      {
+        "owner": "readLocalAsset",
+        "expression": "env.media.read(id)",
+        "line": 197
+      },
+      {
+        "owner": "readLocalAsset",
+        "expression": "fetchAsset(env.base, request.headers, env.fetch, id, (blob, response) => { let seq: number | undefined; try { seq = JSON.parse(response.headers.get(\"x-snapback-asset-read\") ?? \"{}\").seq; } catch {} if (!current() || !env.lifetime.grant(id, seq, ticket, revision)) return Promise.resolve(); return env.media.viewed(id, blob, response, () => current() && env.lifetime.permits(id, seq, ticket, revision)); })",
+        "line": 200
+      },
+      {
+        "owner": "readLocalAsset",
+        "expression": "env.refused(read.denied, request.revision)",
+        "line": 208
+      },
+      {
+        "owner": "readLocalAsset",
+        "expression": "env.media.read(id)",
+        "line": 197
+      },
+      {
+        "owner": "readLocalAsset",
+        "expression": "env.media.invalidate(id, () => current() && env.lifetime.current(id, read, ticket))",
+        "line": 214
+      }
+    ],
+    "removed": []
+  },
+  {
+    "file": "local.ts",
+    "added": [
+      {
+        "owner": "syncRound",
+        "expression": "queued()",
+        "line": 608
+      },
+      {
+        "owner": "syncRound",
+        "expression": "call({ op: \"apply\", page, predictionFreeRevision, predictionTables, first: !catchingUp && after === undefined }, touched)",
+        "line": 742
+      }
+    ],
+    "removed": [
+      {
+        "owner": "syncRound",
+        "expression": "call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)",
+        "line": 717
+      },
+      {
+        "owner": "asset",
+        "expression": "fetchAsset(base, request.headers, doFetch, id, (blob, response) => unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response))",
+        "line": 1306
+      },
+      {
+        "owner": "asset",
+        "expression": "refusedSession(read.denied, request.revision)",
+        "line": 1309
+      },
+      {
+        "owner": "asset",
+        "expression": "media!.read(id)",
+        "line": 1312
+      },
+      {
+        "owner": "asset",
+        "expression": "media!.invalidate(id)",
+        "line": 1315
+      }
+    ]
+  }
+]

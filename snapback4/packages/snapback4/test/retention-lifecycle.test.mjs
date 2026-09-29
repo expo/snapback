@@ -215,9 +215,9 @@ for (const keep of [undefined, false]) test(`wasm: resubscription delivers saved
   const seen = [];
   watch.subscribe(() => seen.push(owner.snapshot));
   assert.deepEqual(owner.deadlines, deadlines, "resubscription preserves the absolute deadlines");
-  assert.equal(owner.snapshot.data, "private A");
+  assert.equal(owner.snapshot.data, keep === false ? undefined : "private A");
   f.wall(4999); t.mock.timers.tick(99);
-  assert.equal(owner.snapshot.data, "private A");
+  assert.equal(owner.snapshot.data, keep === false ? undefined : "private A");
   f.wall(5000); t.mock.timers.tick(1);
   assert.deepEqual(owner.snapshot, { loading: true }, "timer delivery withdraws before any accessor");
   assert.ok(seen.some(read => read.loading), "the saved row timer notifies subscribers");
@@ -291,14 +291,16 @@ for (const tier of ["online", "wasm"]) for (const boundary of tier === "online" 
       if (boundary === "offline" || boundary === "sign-out") assert.ok(seen.some(event => event.kind === "link"));
       for (const event of seen) {
         for (const read of [...event.raw, ...event.reads, event.peek].filter(Boolean)) {
-          assert.ok(!("data" in read), `${event.kind} callback must see every peer withdrawn: ${JSON.stringify(read)}`);
+          if (boundary === "offline" && "data" in read) {
+            assert.equal(read.revalidating, true); assert.equal(read.fresh, false);
+          } else assert.ok(!("data" in read), `${event.kind} callback must see every peer withdrawn: ${JSON.stringify(read)}`);
         }
         if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
           for (const read of [...event.raw, ...event.reads]) assert.equal(read.denied?.code, event.closing ? "E_CLOSED" : "E_AUTH",
             `${event.kind} callback must deny with E_AUTH until signOut calls close`);
         }
       }
-      assert.ok(!peer.getSnapshot().data, "the second peer was also withdrawn");
+      if (boundary !== "offline" || peerKeep === false) assert.ok(!peer.getSnapshot().data, "the second peer was also withdrawn");
       if (tier === "wasm" && mode === "guard" && boundary === "sign-out") {
         assert.ok(seen.some(event => !event.closing), "sign-out delivered its denial before closing");
         assert.ok(seen.some(event => event.closing), "close delivered the terminal denial");

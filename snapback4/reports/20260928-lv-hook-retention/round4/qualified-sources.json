@@ -1,0 +1,7 @@
+{
+  "snapback4/packages/snapback4/src/client.ts": "054a09039feb7e39f47e48f6c6312bac3a682f49f28a208d779c8ac911f1333d",
+  "snapback4/packages/snapback4/src/ephemeral-reads.ts": "d87af7220d0f3e06166100be48455faa74551ca4c8e08f8a5afc0f81761137e1",
+  "snapback4/packages/snapback4/src/local-query.ts": "e966c2fd1958c6efffc701922d2948c9f740bd1e6936ac25a5ad33c7619f00fd",
+  "snapback4/packages/snapback4/src/local.ts": "23f7e65918b1083fef7ce1d327e67478e15d41c37fd66a454840274387b30772",
+  "snapback4/packages/snapback4/src/read-index.ts": "653e599a4caa4a584131b46db2c1eff6f7c8e21e2735a510080e7d4ca9dfb1c8"
+}

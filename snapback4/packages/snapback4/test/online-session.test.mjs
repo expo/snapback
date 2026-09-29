@@ -271,6 +271,7 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   const bearers = [];
   const client = createClient({ url: "https://asset.invalid", session: session("old"), fetch: async (url, init) => {
     const path = new URL(url).pathname;
+    if (path === "/changes") return new Promise(() => {});
     if (path === "/auth/refresh") return Response.json({ session: session("next") });
     bearers.push(bearer(init));
     if (bearers.length === 1) { oldEntered.resolve(); await oldRelease.promise; }

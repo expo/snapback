@@ -1,0 +1,35 @@
+{
+  "base": "f32f75e37365339269ecbe609a2211440ce14830",
+  "origin_main_after_fetch": "9ef49d43cb713dfd5c80e0a50ce05164bc0b331d",
+  "inputs": [
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.prompt.md",
+      "sha256": "33d288886a7d9b5b15bc4b5bc67f53e0a355e72128e1752d05b8ab033fc98173"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.r1.prompt.md",
+      "sha256": "5a49ae77c0bf4b56aecfbe57986232f8664b3295f089af16d86298f251764515"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.r2.prompt.md",
+      "sha256": "697003f6d5f78016e584b0080513e2425f0f6754d876d87434a39be8febf1c8a"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.r3.prompt.md",
+      "sha256": "b3bda767177e60ca2160e3bedf285ffe218e0a887ccff75c3a19011188e2970f"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/reviews/lv-r3.astra.md",
+      "sha256": "2e7816b0d343650671eed659654887a92101cb27dba139e21760116c685f030a"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/reviews/lv-r3.grok.md",
+      "sha256": "1af36a997197ba1c4c802936f9921a4851e022f97a4553a19a0ca169c79aae85"
+    }
+  ],
+  "grok_final_check": {
+    "path": "/home/ccheever/sb4-intent/reviews/lv-r3.grok.md",
+    "sha256": "1af36a997197ba1c4c802936f9921a4851e022f97a4553a19a0ca169c79aae85",
+    "state": "progress notes only; no findings or verdict"
+  }
+}

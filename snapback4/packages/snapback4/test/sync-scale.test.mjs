@@ -131,7 +131,7 @@ for (const fault of ['503', 'prediction', 'expiry']) test(`an unpublished ${faul
   else f.failRefresh(fault);
   await until(() => fault === 'prediction' ? f.counts().fenced > 0 : f.counts().failures === 1, 'background refresh encountered fault');
   await delay(100); // Allow the unpublished attempt to settle before recovery.
-  assert.equal(f.observed.getSnapshot(), shown, 'the failed/fenced result was not published');
+  assert.deepEqual(f.observed.getSnapshot(), { ...shown, revalidating: true }, 'the failed/fenced result leaves the original answer marked revalidating');
   if (fault === 'prediction') await f.prediction(false);
   await f.remove(first);
   const second = await f.send(2);

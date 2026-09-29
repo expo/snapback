@@ -1,7 +1,8 @@
+import { AssetLifetime, assetEvidence } from "./asset-lifetime.ts";
 // @ref LLP 3000.007#8 — ordinary viewed media belongs to its current home row
-import type { AssetRead } from "./contract.ts";
+import type { AssetRead, Refusal } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
-import { blobArrayBuffer } from "./assets.ts";
+import { blobArrayBuffer, fetchAsset } from "./assets.ts";
 import { clockDelay } from "./clock.ts";
 
 /** A host's private byte storage. Hex crosses the native JSON bridge; native
@@ -30,7 +31,7 @@ export function changesMediaAuthority(op: string, result: unknown): boolean {
   return op !== "observe_store" || (result as { reset?: boolean } | undefined)?.reset !== false;
 }
 interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
-interface Entry { confirmed?: true; id: string; home: Home; bytes: number; used: number }
+interface Entry { seq?: number; confirmed?: true; id: string; home: Home; bytes: number; used: number }
 const identity = (home: Home) => JSON.stringify([home.store_id, home.table, home.row, home.column, home.generation]);
 const absent = (): AssetRead => ({ denied: { code: "E_OFFLINE", family: "link", message: "no retained ordinary media is available offline", retryable: true } });
 
@@ -109,12 +110,12 @@ export class MediaCache {
     this.schedule();
   }
   reconcile() { return this.serial(() => this.check()); }
-  invalidate(id: string) { return this.serial(async () => { await this.drop(id); await this.save(); this.schedule(); }); }
+  invalidate(id: string, current: () => boolean = () => true) { return this.serial(async () => { if (!current()) return; await this.drop(id); await this.save(); this.schedule(); }); }
   async clear() {
     await this.serial(async () => { for (const id of [...this.entries.keys()]) await this.drop(id); await this.save(); });
     clearTimeout(this.timer);
   }
-  private result(entry: Entry, hex: string): AssetRead {
+  private result(entry: Entry, hex: string, seq = entry.seq): AssetRead {
     const bytes = Uint8Array.from(hex.match(/../g) ?? [], (b) => parseInt(b, 16));
     const uri = this.store.uri?.(entry.id);
     const url = uri ?? URL.createObjectURL(new Blob([bytes], { type: entry.home.type }));
@@ -122,10 +123,12 @@ export class MediaCache {
     this.live.set(entry.id, handles);
     const revoke = () => { if (!uri) URL.revokeObjectURL(url); handles.delete(revoke); };
     handles.add(revoke);
-    return { url, type: entry.home.type, bytes: entry.bytes, revoke };
+    return assetEvidence({ url, type: entry.home.type, bytes: entry.bytes, revoke }, { ...(seq === undefined ? {} : { seq }), nextExpiry: entry.home.expiresAt });
   }
   read(id: string): Promise<AssetRead> {
     return this.serial(async () => {
+      // Capture before checking the home: this grant is validated by this replica.
+      const state = await this.call({ op: "state" }) as { watermark?: number } | null;
       await this.check();
       const entry = this.entries.get(id);
       if (!entry || this.stopped) return absent();
@@ -133,10 +136,10 @@ export class MediaCache {
       if (!hex || hex.length !== entry.bytes * 2) { await this.drop(id); await this.save(); return absent(); }
       entry.used = this.now();
       await this.save();
-      return this.result(entry, hex);
+      return this.result(entry, hex, state?.watermark);
     });
   }
-  viewed(id: string, blob: Blob, response: Response): Promise<AssetRead | void> {
+  viewed(id: string, blob: Blob, response: Response, current: () => boolean = () => true): Promise<AssetRead | void> {
     // @ref LLP 3000.019#3.5 — copied facts and synced references prove no placement.
     let receipt: Pick<Home, "store_id" | "table" | "row" | "column"> | undefined;
     try {
@@ -145,7 +148,7 @@ export class MediaCache {
     } catch { /* Older servers and upload previews have no retainable home. */ }
     // The current store's once flag is authoritative even when our schema is stale.
     if (response.headers.get("accept-ranges") === "none") return this.serial(async () => {
-      if (this.stopped) return;
+      if (this.stopped || !current()) return;
       // Check after earlier cache operations: an old store cannot revoke a new store's entry.
       const entry = this.entries.get(id);
       if (entry?.confirmed && receipt && entry.home.store_id !== receipt.store_id) return;
@@ -153,7 +156,7 @@ export class MediaCache {
     });
     if (response.status !== 200 || response.headers.get("accept-ranges") !== "bytes" || this.options.keep !== "viewed" || blob.size > this.options.maxBytes) return Promise.resolve();
     return this.serial(async () => {
-      if (this.stopped) return;
+      if (this.stopped || !current()) return;
       const home = receipt ? await this.home(id, receipt) : null;
       if (!home) {
         // @ref LLP 3000.019#3.5 — an old delivery cannot erase a newer store/cell's bytes or live URLs.
@@ -165,8 +168,11 @@ export class MediaCache {
         return;
       }
       const bytes = new Uint8Array(await blobArrayBuffer(blob));
+      if (!current()) return;
+      let seq: number | undefined;
+      try { seq = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}").seq; } catch {}
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-      const entry: Entry = { confirmed: true, id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
+      const entry: Entry = { ...(seq === undefined ? {} : { seq }), confirmed: true, id, home: { ...home, type: blob.type }, bytes: blob.size, used: this.now() };
       // Keep the manifest first so an interrupted byte write is removed on reopen.
       this.entries.set(id, entry);
       await this.save();
@@ -176,4 +182,42 @@ export class MediaCache {
     });
   }
   async close() { this.stopped = true; clearTimeout(this.timer); await this.tail; for (const handles of this.live.values()) for (const revoke of handles) revoke(); }
+}
+
+// @ref LLP 3000.029#8 — order refusals before both handle and media mutation.
+export async function readLocalAsset(id: string, env: {
+  lifetime: AssetLifetime; media: MediaCache; base: string; fetch: typeof fetch;
+  online(): boolean; credentials(): { headers: Record<string, string>; revision: number };
+  revision(): number; unavailable(): Refusal | null; offline(): Refusal; disconnected(): void;
+  refused(denied: Refusal, revision: number): Promise<unknown>;
+}): Promise<AssetRead> {
+  const revision = env.lifetime.revision, ticket = env.lifetime.begin(), denied = env.unavailable();
+  if (denied) return { denied };
+  const own = (read: AssetRead) => env.lifetime.own(read, revision, id, ticket);
+  if (!env.online()) return own(await env.media.read(id));
+  const request = env.credentials();
+  const current = () => !env.unavailable() && request.revision === env.revision();
+  const read = await fetchAsset(env.base, request.headers, env.fetch, id, (blob, response) => {
+    let seq: number | undefined;
+    try { seq = JSON.parse(response.headers.get("x-snapback-asset-read") ?? "{}").seq; } catch {}
+    if (!current() || !env.lifetime.grant(id, seq, ticket, revision)) return Promise.resolve();
+    return env.media.viewed(id, blob, response, () => current() && env.lifetime.permits(id, seq, ticket, revision));
+  });
+  if ("denied" in read) {
+    if (current()) own(read);
+    await env.refused(read.denied, request.revision);
+    if (read.denied.code === "E_OFFLINE" && !env.unavailable() && current()) {
+      env.disconnected();
+      const retained = own(await env.media.read(id));
+      return "url" in retained ? retained : read;
+    }
+    if (read.denied.code === "E_ASSET_UNKNOWN" && current()) await env.media.invalidate(id,
+      () => current() && env.lifetime.current(id, read, ticket));
+  }
+  if (!current()) {
+    if ("url" in read) read.revoke();
+    return env.unavailable() ? { denied: env.unavailable()! } : "denied" in read ? read :
+      { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+  }
+  return "denied" in read ? read : own(read);
 }

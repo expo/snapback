@@ -32,7 +32,9 @@ globalThis.__rgIterate = async function* (id, iterable) {
 const { createLocalClient } = await import(pathToFileURL(join(directory, 'dist/local.js')));
 const sites = census();
 const classified = JSON.parse(readFileSync(new URL('./delivery-fault-sites.json',import.meta.url),'utf8'));
-const { MediaCache } = await import(pathToFileURL(join(directory, 'dist/local-assets.js')));
+const { AssetLifetime } = await import(pathToFileURL(join(directory, 'dist/asset-lifetime.js')));
+const { createClient } = await import(pathToFileURL(join(directory, 'dist/client.js')));
+const { MediaCache, readLocalAsset } = await import(pathToFileURL(join(directory, 'dist/local-assets.js')));
 const { legacyInputRefusal, syncTransport } = await import(pathToFileURL(join(directory, 'dist/local-sync.js')));
 const selected = process.env.RG_MATRIX_SITE === undefined ? sites : sites.filter((_, i) => process.env.RG_MATRIX_SITE.split(',').includes(String(i)));
 const results = [];
@@ -47,7 +49,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
   test(`${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
     const index = fixtureIndex(sites.indexOf(site)), scenario = recipe(sites.indexOf(site));
-    direct = [11,18,26,27,35,42,50,72,156,157].includes(index);
+    direct = [11,18,26,27,35,42,50,72,156,157,162].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
     const why = {code:'RG_KNOWN', family:'application', message:'known refusal'};
@@ -107,13 +109,34 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     await drain();
     assert.ok(ok(await f.core.call({op:'queued'})).some(e => e.id === first.id && (e.sent_seq === 11 || scenario === 'acknowledgement') && e.observed_seq == null));
     let release; const held = new Promise(r => { release = r; }); queueRelease = release;
-    f.beforeCall(async request => { if (request.op === 'queued') await held; });
+    // Hold dispatch to stage the tails. Sync's read-only prediction capture
+    // must still inspect them; its failures use the ordinary fault injection.
+    f.beforeCall(async request => { if (request.op === 'queued' && !stack.getStore()?.includes('local.ts:syncRound:queued()#1')) await held; });
     const tails = ['tail1', 'tail2'].map(body => f.client.mutate(op, { conversationId: 'c1', body }, {waitSeconds:25}));
     await until(async () => ok(await f.core.call({op:'queued'})).length === 3);
     queueIds = ok(await f.core.call({op:'queued'})).map(e=>e.id);
     prepared = true;
     const sideWork = [];
     const run = body => { const p = Promise.resolve().then(body).catch(()=>{}); sideWork.push(p); };
+    // LV's moved media API awaits are optional to the real device's FIFO.
+    // Fault host storage/fetch below the await; the refusal callback is a no-op.
+    const assetEnv = { lifetime: new AssetLifetime(), media: api.media, base: 'http://matrix.test',
+      online: () => index >= 161, credentials: () => ({ headers: {}, revision: 0 }), revision: () => 0,
+      unavailable: () => null, offline: () => why, disconnected() {}, async refused() {},
+      fetch: async () => { fault(); if (index === 163) throw Error('offline media fallback');
+        return Response.json({denied:{code:'E_ASSET_UNKNOWN',family:'asset',message:'missing'},seq:11},{status:404}); } };
+    const onlineWatches = [];
+    const online = scenario === 'onlineRefresh' ? createClient({url:'http://matrix.test',persona:'alice',fetch:async (input,init)=>{
+      fault(); const path = new URL(input).pathname;
+      if(path === '/schema') return Response.json(original);
+      if(path === '/changes') return new Promise((_,reject)=>{ const abort=()=>reject(Error('closed')); if(init.signal.aborted) abort(); else init.signal.addEventListener('abort',abort,{once:true}); });
+      return Response.json({data:'matrix',complete:true,tables:[],seq:11,head:11});
+    }}) : null;
+    const retentionWork = () => {
+      if (scenario === 'assetRead') run(()=>readLocalAsset('asset',assetEnv));
+      if (online) { const watch=online.observe({kind:'query',name:'marker'},{attempt:onlineWatches.length}); onlineWatches.push(watch); watch.subscribe(()=>{}); }
+    };
+    t.after(async()=>{ for(const watch of onlineWatches) watch.close(); await online?.close(); });
     if (scenario === 'media') {
       api.media.options = {keep:'viewed',maxBytes:index === 113 ? 0 : 10};
       api.media.entries.set('asset', {id:'asset',bytes:1,used:0,confirmed:true,home:{store_id:'A',table:'messages',row:'A-0',column:'photo',generation:1,type:'image/png',expiresAt:null}});
@@ -154,6 +177,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     }
     if (scenario === 'search') api.queryFixture([148,149,152,153].includes(index) ? undefined : queryPlan,index === 148,index === 149);
     enabled = true;
+    retentionWork();
     if (scenario === 'search') run(()=>f.client.query({kind:'query',name:'matrixQuery'},{q:'coffee',c:null}));
     if(index === 118) await assert.doesNotReject(()=>syncTransport(async()=>new Response('invalid JSON',{status:400}))('http://matrix.test',{}, {generation:1}),'legacy discovery tolerates an unreadable error body');
     if(index === 13) {
@@ -193,6 +217,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     await drain(100); assert.equal(failures, initialFailures, 'no retry spin while time is frozen');
     for (let n = 0; n < 8; n++) {
       t.mock.timers.tick(5000);
+      retentionWork();
       if (['adoption','reset','legacy'].includes(scenario)) run(()=>f.client.sync());
       if (scenario === 'probe') run(()=>api.probe());
     if (scenario === 'follow') {
@@ -218,7 +243,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     assert.ok(failures <= 100, 'fault retries remain bounded over eight five-second advances');
     enabled = false; prepared = false;
     for (let n = 0; n < 3; n++) { t.mock.timers.tick(5000); await drain(100); }
-    if (scenario === 'search') await Promise.all(sideWork);
+    if (scenario === 'search' || scenario === 'assetRead') await Promise.all(sideWork);
     if(scenario === 'clock') await assert.doesNotReject(()=>api.clock.persist(),'clock persistence recovers after host recovery');
     if(scenario === 'media') await assert.doesNotReject(()=>api.media.reconcile(),'media recovers when its host recovers');
     const terminal = await Promise.all(tails);

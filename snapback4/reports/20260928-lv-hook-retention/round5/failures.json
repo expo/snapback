@@ -1,0 +1,65 @@
+[
+  {
+    "log": "before.log.gz",
+    "classification": "ours: expected pre-fix",
+    "tests": [
+      "online pre-discovery: ephemeral replacement fences withdrawal at equal durable cut",
+      "online pre-discovery: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "online direct-only: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "process missing metadata: ephemeral replacement fences withdrawal at equal durable cut",
+      "process missing metadata: ephemeral replacement fences buffered direct reply at equal durable cut",
+      "wasm missing metadata: ephemeral replacement fences withdrawal at equal durable cut",
+      "wasm missing metadata: ephemeral replacement fences buffered direct reply at equal durable cut"
+    ]
+  },
+  {
+    "log": "focused.log.gz",
+    "classification": "ours: unconfirmed initial-watch timeout",
+    "tests": [
+      "process missing metadata: ephemeral replacement fences withdrawal at equal durable cut"
+    ]
+  },
+  {
+    "log": "mutant-last-owner-floor.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-request-revision.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-response-owner.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-peer-owner.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-missing-metadata.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-unknown-owner.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "log": "mutant-unknown-floor.log.gz",
+    "classification": "ours: expected mutation",
+    "killed_by_assertion": true
+  },
+  {
+    "classification": "ours: setup",
+    "details": [
+      "Extra snapback4 prefix in initial report directory and mutation-runner paths; corrected.",
+      "Guessed LLP/test filenames not found; located correct files.",
+      "LLP patch context mismatch; atomic patch reapplied correctly."
+    ]
+  }
+]

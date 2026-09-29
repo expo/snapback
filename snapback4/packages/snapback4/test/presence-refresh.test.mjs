@@ -153,11 +153,13 @@ test("a background reply that a newer read overtook leaves the newer interval al
   assert.notEqual(mark.getSnapshot().data, "v2");
 });
 
-test("an accepted loading answer is published, and a background failure keeps the answer and the link", async t => {
+test("an unavailable revalidation and a background failure keep the answer and the link", async t => {
   const loading = transport(n => n === 1 ? data("v1") : { loading: true, seq: 1, tables: [], refresh: 300 });
   const a = loading.client.observe(query, { p: "dev:bob" });
+  t.after(async () => { a.close(); await loading.client.close(); });
   await until(() => a.getSnapshot().data === "v1", "the first answer arrived");
-  await until(() => "loading" in a.getSnapshot(), "the server's own loading answer is published");
+  await until(() => a.getSnapshot().revalidating === true, "the unavailable replacement retains its original answer");
+  assert.equal(a.getSnapshot().data, "v1");
   a.close(); await loading.client.close();
   const failing = transport(n => n === 1 ? data("v1") : n === 2 ? new Response("unavailable", { status: 503 }) : data("v3"));
   const b = failing.client.observe(query, { p: "dev:bob" });

@@ -1,0 +1,43 @@
+{
+  "base_commit": "4c09767ccee9865b227560699dbf2ed877812baa",
+  "origin_main_at_merge": "9ef49d43cb713dfd5c80e0a50ce05164bc0b331d",
+  "branch": "sb4-intent/lv-hook-retention",
+  "start": "git fetch origin && git merge origin/main: already up to date",
+  "reviews": "Grok checked before implementation (in progress), read in full when complete, checked again before completion; full Astra review read before implementation",
+  "files": [
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.prompt.md",
+      "sha256": "33d288886a7d9b5b15bc4b5bc67f53e0a355e72128e1752d05b8ab033fc98173"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.r1.prompt.md",
+      "sha256": "5a49ae77c0bf4b56aecfbe57986232f8664b3295f089af16d86298f251764515"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/lane-lv.r2.prompt.md",
+      "sha256": "697003f6d5f78016e584b0080513e2425f0f6754d876d87434a39be8febf1c8a"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/reviews/lv-r2.astra.md",
+      "sha256": "b5be327a267455f5159b87d393c7d8cbaa0b63342492f651ea357634b291d080"
+    },
+    {
+      "path": "/home/ccheever/sb4-intent/reviews/lv-r2.grok.md",
+      "sha256": "3ac8d03b5d8660db33d3bb12bf862e57aeea7696b9e4782d524e6f52ab25e5fd"
+    },
+    {
+      "path": "snapback4/reports/20260928-lv-hook-retention/round1/REPORT.md",
+      "sha256": "a30ed12ffddd007189049c762db63a934f1a31b8a19914d121d319a26e3e2548"
+    },
+    {
+      "path": "snapback4/reports/20260928-lv-hook-retention/round2/REPORT.md",
+      "sha256": "87d514996ffa5ec54094cfc8e48d7c2d42200a67ef931aa76f2002e187026f1e"
+    },
+    {
+      "path": "snapback4/reports/20260928-lv-hook-retention/REPORT.md",
+      "sha256": "bca56fae71ea67bfbe9dd57056c5d858481115234dcf23ee9a4138f559c2cf27"
+    }
+  ],
+  "final_grok_check_utc": "2026-09-28T21:30:47.190170+00:00",
+  "final_grok_sha256": "3ac8d03b5d8660db33d3bb12bf862e57aeea7696b9e4782d524e6f52ab25e5fd"
+}

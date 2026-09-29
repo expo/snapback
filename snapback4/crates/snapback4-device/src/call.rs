@@ -168,8 +168,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 encoded(&device.admit_with_replay(queued_entry(entry)?, replay)?)?
             }
             "settle" => {
-                device.settle(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;
-                Json::Null
+                let touched = device.settle_touched(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;
+                json!({ "touched": touched })
             }
             "predict" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));

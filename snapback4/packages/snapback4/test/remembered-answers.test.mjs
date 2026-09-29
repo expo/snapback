@@ -116,7 +116,7 @@ test("a composed read's refusal removes no answer a later read remembered", asyn
   // expired, remembers the server's whole answer at the same cut.
   const env = reading(answers, { call: async () => retained, reply: () => { answers.view().set(key, answer("later"), 7); return refused(7); } });
   const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
-  assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
+  assert.equal(result.read.loading, true, "the older completion is fenced: " + JSON.stringify(result.read));
   assert.equal(answers.get(key)?.read.data, "later", "the composed read began first, so its refusal at the same cut is older");
   // Composition clears nothing before its reply: a later read's answer, remembered while
   // the composed read observed its device, stays.
@@ -134,7 +134,7 @@ test("an earlier read's answer at a higher cut, landing while a composed read is
   const earlier = answers.view();
   const env = reading(answers, { call: async () => retained, reply: () => { earlier.set(key, answer("cut 100"), 100); return refused(40); } });
   const result = await evaluateLocal(env, { kind: "query", name: "read" }, {}, 0, 0);
-  assert.equal(result.read.denied?.code, "NOT_HERE", JSON.stringify(result.read));
+  assert.equal(result.read.loading, true, "the older completion is fenced: " + JSON.stringify(result.read));
   assert.equal(answers.get(key)?.read.data, "cut 100", "the answer read at cut 100 is newer than the composed read's refusal at cut 40");
 });
 

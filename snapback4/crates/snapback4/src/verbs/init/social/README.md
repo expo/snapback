@@ -48,7 +48,7 @@ never enters the durable outbox and its availability never gates the composer.
 `ConversationScreen` pins ordinary `history` to the route ID. The composer
 and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
-SDK's default one-second `revalidating` retention; no application cache holds
+SDK's default unlimited plain-revalidation retention (`revalidating: true`); no application cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
 Membership and receipt decorations withdraw immediately. Missing membership
 keeps the draft and disables send; stale/retained/revalidating rows never grant

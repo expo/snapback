@@ -1,0 +1,11 @@
+{
+  "snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs": "fff3677cdc753bf50d26b142e05423edfdd84031e3f605bc570498b8e373d8b7",
+  "snapback4/packages/snapback4/src/local.ts": "e562ddb06e063218ff3c35afb3ae159cb67a5fc975cf64e98ef10e8c84e8a735",
+  "snapback4/packages/snapback4/src/local-query.ts": "ec0f84647785f1774f71ad8c2c1ae702f4018b4824d4afa3a291dbd2d7dd8fed",
+  "snapback4/packages/snapback4/src/local-reads.ts": "d4a442f04e2b2b876f8cdf51f85b6e43f99e5bbce0798c3c976e8d7355497543",
+  "snapback4/packages/snapback4/src/local-read-publication.ts": "016c5f3160d725c2ce60076247f6619902c55a045137778fd5acaa5b6213f95e",
+  "snapback4/packages/snapback4/src/read-observation.ts": "3c6faf1e9df64fecbcfedf17741a50438824d6b71714c014e7b2e4ed0d785a58",
+  "snapback4/packages/snapback4/src/clock.ts": "2caf6aadae2a2aeaae1d30e0affcc4763ad12b0b8e9f2a15f5ba0c1756e2fe97",
+  "snapback4/packages/snapback4/src/changes.ts": "63be624ade2b42c657edfeee49bff66524fda47dd8442df0d3e7e829a1e59793",
+  "snapback4/packages/snapback4/src/http-response.ts": "9220e4e5bfcadbc5eba27c936dbbd49fb20a69947760db4a2c520fade849efc6"
+}

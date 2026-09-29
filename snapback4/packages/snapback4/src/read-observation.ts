@@ -1,7 +1,14 @@
+import type { ReadIndex, IndexedRead } from "./read-index.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
-import { deliverReadNotifications } from "./read-notifications.ts";
+import { deferReadNotifications, deliverReadNotifications } from "./read-notifications.ts";
 import { beginEpisode, copyEpisode, ReadEpisode } from "./read-episode.ts";
+
+// Authority belongs to wire-equivalent arguments, independent of object key order.
+export function readKey(op: { name: string }, args: unknown): string {
+  return `${op.name}:${JSON.stringify(args, (_key, value) => value && typeof value === "object" && !Array.isArray(value)
+    ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value)}`;
+}
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
@@ -74,47 +81,62 @@ export class ReadObservation<T> {
     try {
       let result = await run();
       for (let attempt = 0; ; attempt++) {
-        if (revision !== this.revision) return { ...result, read: this.snapshot };
+        if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
         // Check at publication, after the caller's asynchronous continuation.
         if (!accept(result)) {
           // One round has at most four requests, with 25/50/100 ms backoff.
           // A later invalidation can start another round; this one must settle.
           if (attempt === 3) {
-            this.publish({ loading: true }); notify();
+            this.reload(); notify();
             return { ...result, read: this.snapshot, retryExhausted: true };
           }
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
           // Close/reset may happen during backoff, before another request starts.
-          if (revision !== this.revision) return { ...result, read: this.snapshot };
+          if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
           result = await run();
           continue;
         }
         // Acceptance may itself adopt an incarnation and synchronously reset
         // this observation (or let a peer close it). That retires this fetch.
-        if (revision !== this.revision) return { ...result, read: this.snapshot };
+        if (revision !== this.revision) return publishResult ? { ...result, read: this.snapshot } : result;
         if (publishResult) {
-          this.publish(result.transportOffline ? { loading: true } : result.read);
+          this.update(result.transportOffline ? { loading: true } : result.read);
           notify();
         }
         return result;
       }
     } catch (error) {
-      if (publishResult && revision === this.revision) { this.publish({ loading: true }); notify(); }
+      if (publishResult && revision === this.revision) { this.reload(); notify(); }
       throw error;
     }
   }
 
-  // @ref LLP 3000.023#3.2 — only an invalidation retains; publishing loading always withdraws.
+  // @ref LLP 3000.029#3 — only plain revalidation retains; evidence uses reset/publish.
   reload(): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger);
+    this.snapshot = revalidatingAnswer(this.snapshot, false);
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
+  }
+
+  // No new answer is not evidence against the last authorized answer. Callers
+  // must reset at the evidence boundary, before starting their asynchronous read.
+  update(read: Read<T>): void {
+    if ("loading" in read) this.reload(); else this.publish(read);
+  }
+
+  offline(): void {
+    this.reload();
+    if ("data" in this.snapshot) {
+      this.snapshot = copyAnswer(this.snapshot, { ...this.snapshot, fresh: false,
+        ...(this.since === undefined ? {} : { since: this.since }) });
+      this.deliver("answer")();
+    }
   }
 
   publish(read: Read<T>): void { this.replace(read); }
@@ -142,4 +164,34 @@ export class ReadObservation<T> {
   reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; return this.replace(read, "reset", deferred); }
   // @ref LLP 3000.023#3.6 — source expiry withdraws its facade hold in the sweep's notification phase.
   expire(): () => void { this.resetVersion++; return this.replace({ loading: true }, "expiry", true); }
+}
+
+// @ref LLP 3000.029#4 — an unavailable replacement cannot forget the held answer's inputs.
+export function readInputs(previous: Set<string>, next: Iterable<string>, retained: boolean): Set<string> {
+  return retained && previous.size === 0 ? previous : new Set([...(retained ? previous : []), ...next]);
+}
+
+// @ref LLP 3000.029#8 — withdraw overlapping shapes before any callbacks.
+export function invalidateReadEvidence<W extends IndexedRead>(watches: ReadIndex<W>,
+  op: { name: string }, args: unknown, read: Read<unknown>, install: (watch: W) => void = () => {}, source?: W, publish: () => boolean = () => true,
+  tables: Set<string> = new Set(), cut?: number, refresh: (watch: W) => void = () => {}, dependencyFree = false): boolean {
+  const deliveries: (() => void)[] = [], withdrawn: W[] = [];
+  const matching = new Set(watches.matching(op, args));
+  for (const watch of watches.evidence(tables, cut, dependencyFree)) {
+    if (watch === source || matching.has(watch) || (cut !== undefined && (watch.validThrough ?? watch.serverSeq ?? -1) >= cut)) continue;
+    clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
+    deliveries.push(watch.reset({ loading: true }, true)); withdrawn.push(watch);
+    deliveries.push(() => { for (const notify of watch.subscribers) notify(); });
+  }
+  for (const watch of matching) if (watch !== source) {
+    clearTimeout(watch.expiryTimer ?? undefined); watch.expiryTimer = null; watch.deadlines = undefined;
+    install(watch);
+    deliveries.push(deferReadNotifications(() => watch.publish(read)));
+    deliveries.push(() => { for (const notify of watch.subscribers) notify(); });
+  }
+  let accepted = false;
+  deliveries.push(deferReadNotifications(() => { accepted = publish(); }));
+  deliverReadNotifications(deliveries);
+  for (const watch of withdrawn) refresh(watch);
+  return accepted;
 }

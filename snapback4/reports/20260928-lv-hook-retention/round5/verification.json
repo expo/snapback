@@ -1,0 +1,28 @@
+{
+  "affected": {
+    "pass": 1277,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 434100.580827,
+    "command": "affected-command.json",
+    "log": "affected.log.gz"
+  },
+  "whole_guide": {
+    "pass": 98,
+    "fail": 0,
+    "command": "cargo test -p snapback4-lang --test guide",
+    "log": "guide.log.gz"
+  },
+  "mutations_killed": 7,
+  "build": "pass",
+  "typecheck": "pass",
+  "scripts_test_sh": "not run; supervisor landing suite next",
+  "intermediate_failure": {
+    "classification": "ours",
+    "name": "process missing metadata: ephemeral replacement fences withdrawal at equal durable cut",
+    "failure": "initial ephemeral owners timeout",
+    "cause": "unconfirmed",
+    "subsequent_passes": "isolated two-case run, 12 repetitions, focused run and final affected run"
+  }
+}

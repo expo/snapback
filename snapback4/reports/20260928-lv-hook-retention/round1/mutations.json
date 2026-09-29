@@ -1,0 +1,72 @@
+[
+  {
+    "name": "changes-call",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 1"
+  },
+  {
+    "name": "replica-fence",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 1"
+  },
+  {
+    "name": "cross-policy",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 2"
+  },
+  {
+    "name": "subset-replacement",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 3"
+  },
+  {
+    "name": "asset-refusal",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 4 online"
+  },
+  {
+    "name": "asset-next-cut",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "next-sequence asset"
+  },
+  {
+    "name": "withheld-cut",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "withheld reply cannot"
+  },
+  {
+    "name": "builder-local",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 5 browser wasm"
+  },
+  {
+    "name": "builder-online",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "Astra 5 browser online"
+  },
+  {
+    "name": "unknown-cut-sync",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "pattern": "already requested sync"
+  }
+]

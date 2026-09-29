@@ -124,7 +124,7 @@ impl Host {
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: super::engine_lock::FairMutex::new(engine),
-            readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), refusals,
+            readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), change_proofs: Mutex::new(changes::ProgramProofs::default()), refusals,
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
             worker_revision: AtomicUsize::new(0),

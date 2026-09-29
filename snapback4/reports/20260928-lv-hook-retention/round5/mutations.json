@@ -1,0 +1,86 @@
+[
+  {
+    "name": "last-owner-floor",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=dependency epochs cover owners",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-last-owner-floor/packages/snapback4/test/ephemeral-fencing.test.mjs"
+    ]
+  },
+  {
+    "name": "request-revision",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=pre-discovery|direct-only",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-request-revision/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+    ]
+  },
+  {
+    "name": "response-owner",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=pre-discovery: ephemeral replacement fences withdrawal",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-response-owner/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+    ]
+  },
+  {
+    "name": "peer-owner",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=pre-discovery peers",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-peer-owner/packages/snapback4/test/ephemeral-fencing.test.mjs"
+    ]
+  },
+  {
+    "name": "missing-metadata",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=missing metadata",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-missing-metadata/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+    ]
+  },
+  {
+    "name": "unknown-owner",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=unknown response footprints",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-unknown-owner/packages/snapback4/test/ephemeral-fencing.test.mjs"
+    ]
+  },
+  {
+    "name": "unknown-floor",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=unknown response footprints",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r5-mutant-unknown-floor/packages/snapback4/test/ephemeral-fencing.test.mjs"
+    ]
+  }
+]

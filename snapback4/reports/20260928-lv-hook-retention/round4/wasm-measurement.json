@@ -1,0 +1,12 @@
+{
+  "artifact": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "raw_bytes": 2042203,
+  "gnu_file_input_gzip9_bytes": 593640,
+  "sha256": "ac18ec094d1c596bda96caa164870f25192a1463397f5bd97f57e436338fe0bc",
+  "cap_bytes": 593719,
+  "headroom_bytes": 79,
+  "delta_raw_vs_round3": 0,
+  "delta_gzip_vs_round3": 0,
+  "command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "source": "existing canonical round-3 wasm; round 4 changes no Rust runtime source"
+}

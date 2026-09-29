@@ -145,7 +145,7 @@ for (const keep of [undefined, true]) {
       assert.equal(f.owner().subscribers.size, 1, "opening authority is still blocked");
       assert.equal(remount.getSnapshot(), watch.getSnapshot());
       assert.equal(seen.length, 2, "one revalidation and one replacement notification");
-      assert.equal(seen[0].revalidating, true);
+      assert.equal(seen[0].loading, true);
       assert.equal(seen[1], remount.getSnapshot(), "the getter never advances without its notification");
     }
     remount.close(); watch.close();
@@ -200,7 +200,7 @@ for (const keep of [undefined, true]) {
     t.after(() => { first.resolve(true); second.resolve(true); });
     f.gateChecks([first, second]);
     f.publish("B", { server: 8000 });
-    assert.deepEqual(watch.getSnapshot(), { ...a, revalidating: true }, "A stays under its own deadlines before any check approves B");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "a changed image withdraws before B is approved");
     assert.equal(peer.getSnapshot(), watch.getSnapshot());
     const seen = [];
     watch.subscribe(() => seen.push(watch.getSnapshot()));
@@ -256,7 +256,7 @@ for (const keep of [undefined, true]) for (const transition of ["reload", "repla
     assert.equal(seen.length, 0, "shared delivery waits for the whole transition");
     deliver();
     assert.equal(seen.length, 1, "the opening remount is notified before its authority check completes");
-    assert.deepEqual(seen[0], { ...original, revalidating: true });
+    assert.deepEqual(seen[0], transition === "reload" ? { ...original, revalidating: true } : { loading: true });
     assert.equal(f.owner().subscribers.size, subscribers, "the remount has not attached to the raw source");
     f.owner().reload();
     assert.equal(seen.length, 1, "an unchanged held snapshot needs no notification");
@@ -272,7 +272,7 @@ for (const domain of ["device", "server"]) for (const trigger of ["timer", "corr
     await until(() => watch.getSnapshot().data === "A");
     const since = f.owner().since;
     f.hold();
-    f.publish("B", { [domain]: 2000 });
+    f.publish("A", { [domain]: 2000 });
     const kept = watch.getSnapshot();
     assert.equal(kept.revalidating, true); assert.equal(kept.data, "A"); assert.equal(kept.fresh, true);
     assert.equal(kept.since, undefined);
@@ -290,7 +290,7 @@ for (const domain of ["device", "server"]) for (const trigger of ["timer", "corr
       assert.deepEqual(joined.getSnapshot(), { loading: true }, "rollback never resurrects A");
     }
     assert.ok(seen.some(read => read.loading), "an opening remount receives expiry while its first authority check is blocked");
-    f.release(); await until(() => joined.getSnapshot().data === "B");
+    f.release(); await until(() => joined.getSnapshot().data === "A");
     joined.close();
   });
 }
@@ -300,19 +300,19 @@ test("held server data ignores a device reobservation wakeup, even when device t
   await until(() => f.owner());
   f.publish("A", { device: 1100, server: 1500, localWakeup: true });
   await until(() => watch.getSnapshot().data === "A");
-  f.hold(); f.publish("B", { server: 2000 });
+  f.hold(); f.publish("A", { server: 2000 });
   f.clock.raiseIssued(1600);
   assert.equal(watch.getSnapshot().data, "A");
   f.clock.sample(1500, 1000, 1000, "clock:1");
   assert.deepEqual(watch.getSnapshot(), { loading: true });
-  f.release(); await until(() => watch.getSnapshot().data === "B"); watch.close();
+  f.release(); await until(() => watch.getSnapshot().data === "A"); watch.close();
 });
 
 test("a replacement's earlier deadline withdraws the shared approved answer", async t => {
   const f = fixture(t), watch = f.client.observe(q, {}, options);
   await until(() => f.owner());
   f.publish("A", { server: 1500 }); await until(() => watch.getSnapshot().data === "A");
-  f.hold(); f.publish("B", { server: 1100 });
+  f.hold(); f.publish("A", { server: 1100 });
   f.clock.sample(1100, 1000, 1000, "clock:1");
   assert.equal(f.owner().snapshot.loading, true);
   assert.equal(watch.getSnapshot().loading, true);
@@ -327,7 +327,7 @@ test("all facade deadlines withdraw before a subscriber rolls the clock back", a
   await until(() => f.owner() && f.owner({ b: true }));
   f.publish("A", { server: 1100 }); f.publish("A", { server: 1100 }, { b: true });
   await until(() => a.getSnapshot().data && b.getSnapshot().data);
-  f.hold(); f.publish("B", { server: 2000 }); f.publish("B", { server: 2000 }, { b: true });
+  f.hold(); f.publish("A", { server: 2000 }); f.publish("A", { server: 2000 }, { b: true });
   let rolledBack = false;
   a.subscribe(() => {
     if (!a.getSnapshot().loading) return;
@@ -344,7 +344,7 @@ for (const reset of ["scope", "denied", "authority", "fence", "linger"]) test(`h
   await until(() => f.owner());
   f.publish("A", { server: 1500 }); await until(() => watch.getSnapshot().data === "A");
   const owner = f.owner();
-  f.hold(); f.publish("B", { server: 2000 });
+  f.hold(); f.publish("A", { server: 2000 });
   assert.equal(watch.getSnapshot().data, "A");
   if (reset === "scope") owner.reset(ready("same payload after reset"));
   if (reset === "denied") owner.publish({ denied: why });
@@ -378,7 +378,7 @@ for (const domain of ["device", "server"]) for (const access of ["snapshot", "pe
     const f = fixture(t), watch = f.client.observe(q, {}, options);
     await until(() => f.owner());
     f.publish("A", { [domain]: 1100 }); await until(() => watch.getSnapshot().data === "A");
-    f.hold(); f.publish("B", { [domain]: 2000 });
+    f.hold(); f.publish("A", { [domain]: 2000 });
     const ticket = f.memory.begin(), old = { read: ready("A"), nextExpiry: 1100, at: 1000, tables: new Set() };
     f.memory.set("read", { ...old, read: ready("C"), nextExpiry: 3000 }, { seq: 2, ticket: f.memory.begin() });
     f.setWall(1100);
@@ -398,7 +398,7 @@ for (const withdrawal of ["reset", "denied", "retire"]) test(`opening remount is
   const f = fixture(t), watch = f.client.observe(q, {}, options);
   await until(() => f.owner());
   f.publish("A"); await until(() => watch.getSnapshot().data === "A");
-  f.hold(); f.publish("B"); watch.close();
+  f.hold(); f.publish("A"); watch.close();
   const remount = f.client.observe(q, {}, options), seen = [];
   remount.subscribe(() => seen.push(remount.getSnapshot()));
   assert.equal(remount.getSnapshot().data, "A");
@@ -419,7 +419,7 @@ for (const order of ["B-first", "C-refuses"]) test(`independent authority comple
   f.publish("B"); f.publish("C");
   if (order === "B-first") {
     b.resolve(true); await delay(0);
-    assert.equal(watch.getSnapshot().data, "A", "B's approval must not publish unchecked C");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "B cannot publish unchecked C or restore A");
     c.resolve(true); await until(() => watch.getSnapshot().data === "C");
   } else {
     c.resolve(false); await until(() => watch.getSnapshot().denied);

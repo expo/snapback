@@ -1,0 +1,15 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--bin",
+    "snapback4",
+    "serve::",
+    "--",
+    "--test-threads=4"
+  ],
+  "exit": 0,
+  "seconds": 6.264369273092598
+}

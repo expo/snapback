@@ -1,0 +1,38 @@
+[
+  {
+    "name": "old-cross-invocation-assertion",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=delayed changes",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r8-control-old-cross-invocation-assertion/packages/snapback4/test/expiry-retry-watch.test.mjs"
+    ]
+  },
+  {
+    "name": "restart-continuation",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=delayed changes",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r8-control-restart-continuation/packages/snapback4/test/expiry-retry-watch.test.mjs"
+    ]
+  },
+  {
+    "name": "leak-expired-cursor",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=delayed changes",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r8-control-leak-expired-cursor/packages/snapback4/test/expiry-retry-watch.test.mjs"
+    ]
+  }
+]

@@ -313,6 +313,8 @@ pub struct MutationOutcome {
 #[cfg(feature = "sqlite")]
 #[derive(Clone, Debug)]
 pub struct AssetGrant {
+    pub seq: u64,
+    pub next_expiry: Option<i64>,
     /// Store identity captured in the same transaction as the placement grant.
     pub store_id: String,
     /// Ledger-confirmed placement; upload previews have no home.
@@ -731,11 +733,12 @@ impl Engine {
         }
         // @ref LLP 3000.019#3.5 — a delayed download cannot confer custody in a replacement store.
         let store_id = tx.meta("store_id")?.ok_or_else(unknown)?;
-        let grant = |once: bool| AssetGrant { store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
+        let seq = tx.next_seq()? - 1;
+        let grant = |once: bool, next_expiry| AssetGrant { seq, next_expiry, store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once };
         let Some((table_name, row_id, column)) = &asset.home else {
             if asset.owner == principal {
                 tx.rollback()?;
-                return Ok(grant(false));
+                return Ok(grant(false, None));
             }
             return Err(unknown());
         };
@@ -747,9 +750,12 @@ impl Engine {
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
+        let expiry = runner.next_expiry.scope(); // @ref LLP 3000.029#4 — a handle cannot outlast its rule witnesses.
         let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?
             && (runner.context.is_system() || !table.written_by.get(column).is_some_and(|authority| !authority.audience
                 && image.field(&authority.owner).ok() != Some(&Value::Id(principal.into()))));
+        if allowed { expiry.emit(); } else { drop(expiry); }
+        let next_expiry = [table.deadline(&row), runner.next_expiry.get()].into_iter().flatten().min();
         drop(runner);
         if !allowed {
             tx.rollback()?;
@@ -766,7 +772,7 @@ impl Engine {
             }
         }
         tx.rollback()?;
-        Ok(grant(once))
+        Ok(grant(once, next_expiry))
     }
 
     /// Complete a view after the host has successfully sent the bytes.
@@ -949,6 +955,7 @@ impl Engine {
                 let now = context.now.unwrap_or(0);
                 let runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
+                runner.complete_read_dependencies(program);
                 let data = value?;
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = runner.delivery_manifest(&data);

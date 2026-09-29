@@ -1,0 +1,50 @@
+[
+  {
+    "name": "query-evidence",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=independent ephemeral epoch model",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r4-mutant-query-evidence/packages/snapback4/test/hook-retention-model.test.mjs"
+    ]
+  },
+  {
+    "name": "dependency-floor-model",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=independent ephemeral epoch model",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r4-mutant-dependency-floor-model/packages/snapback4/test/hook-retention-model.test.mjs"
+    ]
+  },
+  {
+    "name": "dependency-floor-http",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=buffered direct reply",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r4-mutant-dependency-floor-http/packages/snapback4/test/hook-retention-ephemeral.test.mjs"
+    ]
+  },
+  {
+    "name": "poll-floor",
+    "killed": true,
+    "status": 1,
+    "signal": null,
+    "command": [
+      "/home/ccheever/.local/node-v24.13.1-linux-x64/bin/node",
+      "--test",
+      "--test-name-pattern=withheld epochs",
+      "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-r4-mutant-poll-floor/packages/snapback4/test/ephemeral-fencing.test.mjs"
+    ]
+  }
+]

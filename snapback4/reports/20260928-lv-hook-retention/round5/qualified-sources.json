@@ -1,0 +1,10 @@
+{
+  "snapback4/packages/snapback4/src/backend.ts": "15f86cee07e43e3e100ff4a962c41037992573c756cce3805da2c0d25111f477",
+  "snapback4/packages/snapback4/src/changes.ts": "63be624ade2b42c657edfeee49bff66524fda47dd8442df0d3e7e829a1e59793",
+  "snapback4/packages/snapback4/src/client.ts": "6ee236cd657e9469b1110c66848b4107ed8f808f74ff3102f841fc0e309fb00e",
+  "snapback4/packages/snapback4/src/ephemeral-reads.ts": "a26ca52111c84c06330acec851bfafaa163f07bb9c4c3648e3b4ad911951c722",
+  "snapback4/packages/snapback4/src/local-query.ts": "04080afec5f3b47fd3904538905555a051e910ec6ad72ae6af332c96dadec076",
+  "snapback4/packages/snapback4/src/local.ts": "0dd6a82646fd0f63521488e93ae9bbc1491b5d018f51507234e371d57236f84f",
+  "snapback4/packages/snapback4/test/ephemeral-fencing.test.mjs": "8bb57b6ec1aafd95227321e3cbfc3a8982e66d0d30a7794f0b5b5d53128e3314",
+  "snapback4/packages/snapback4/test/hook-retention-ephemeral.test.mjs": "bcbf77aae664b7ab1c9ed3ca9ec2d7cb90ab38538c077602f0cb35b10b7ec487"
+}
