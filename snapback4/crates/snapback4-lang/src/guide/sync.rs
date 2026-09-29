@@ -270,7 +270,7 @@ it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
 grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
-`online only`; `snapback4 test --residency` measures its cold rows. `check`
+`online only`; `snapback4 test --residency` measures its cold rows. `check --residency`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
 Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
 coverage; see `guide maintains` and the replica census in `guide offline-interactions`.
@@ -295,8 +295,7 @@ Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
 and deduplicated sites and rewrites.
 Every text `check` also summarizes mutations that never predict, blocked insert
 arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
-The horizon bucket and `why`'s qualified heading keep every read and site visible
-on unchanged checks. This includes the expiring source behind a live-aggregate
+`check --verbose` and `why` keep every read and site visible on unchanged checks. Plain `check` starts with the verdict and summarizes notes and prediction; sequence, field, view, ephemeral and scale details stay under `--verbose` (or the relevant `--cost`/`--residency` flag). JSON keeps its full report. This includes the expiring source behind a live-aggregate
 write-rule probe: prediction needs that source without a horizon.
 `N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
 only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.

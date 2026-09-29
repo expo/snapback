@@ -10,6 +10,8 @@ pub(super) fn normalize(documents: &mut [Document], diagnostics: &mut Vec<Diagno
     }).collect();
     let mut visit = |value: &mut Expr| {
         let Expr::Call { name, args, site } = value else { return; };
+        // @ref LLP 3000.007#23 — aliases lower before planning; an explicitly declared helper keeps its meaning.
+        if matches!(name.as_str(), "len" | "length") && !owners.contains_key(name) { *name = "count".into(); }
         let Some((module, helper)) = name.split_once('.') else { return; };
         let Some(owner) = owners.get(helper) else { return; };
         if module != owner {

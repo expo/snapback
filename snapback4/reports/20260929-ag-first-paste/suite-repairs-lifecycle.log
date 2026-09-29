@@ -1,0 +1,17 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 1.29s
+     Running tests/lifecycle.rs (snapback4/target/debug/deps/lifecycle-294f9c4be30a91bd)
+
+running 1 test
+test w10r1b_dev_reports_the_same_cascades_as_check ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 1.67s

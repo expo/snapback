@@ -1,0 +1,5 @@
+schema.q:4:21 — E_QUARRY_SYNTAX: expected "=", got "on"
+  rewrite: write = at this position to complete the construct
+  guide: language
+
+check: 1 problem

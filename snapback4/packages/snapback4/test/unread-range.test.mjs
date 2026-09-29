@@ -265,7 +265,7 @@ test('check enumerates every range candidate and its fallback in text and JSON',
   ]);
   assert.match(r.selection, /greatest encoded lower bound.*strict.*null is weakest/);
   assert.match(r.fallback, /every range operand is null/);
-  const text = execFileSync(binary, ['check'], { cwd: s.dir, encoding: 'utf8' });
+  const text = execFileSync(binary, ['check', '--verbose'], { cwd: s.dir, encoding: 'utf8' });
   for (const part of [r.index, r.horizon.index, r.selection, r.fallback, '.ordinal > member.joinedAt']) assert.ok(text.includes(part), part);
 });
 

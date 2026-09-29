@@ -1,0 +1,9 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 8.94s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-0725415a6b6d70da)
+
+running 2 tests
+test comparative_and_cal25_name_rewrites_run_on_memory ... ok
+test comparative_and_cal25_name_rewrites_run_on_sqlite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s

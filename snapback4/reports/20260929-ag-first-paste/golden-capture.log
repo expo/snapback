@@ -1,0 +1,36 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+warning: constant `PICK` is never used
+ --> crates/snapback4-lang/tests/lowering/cases.rs:5:11
+  |
+5 | pub const PICK: &str = "fn pick(stop: bool):\n  if stop:\n    return 1\n  if true and true:\n    return 2\n  return 3\n\nmutation pro...
+  |           ^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `TABLE` is never used
+ --> crates/snapback4-lang/tests/lowering/cases.rs:6:7
+  |
+6 | const TABLE: &str = "effect notify\ntable notes:\n  n: int\n  unique byN: n\n  public 'notes'\n  sync public\n  insert <- allow\n  up...
+  |       ^^^^^
+
+warning: function `generated` is never used
+ --> crates/snapback4-lang/tests/lowering/cases.rs:8:8
+  |
+8 | pub fn generated() -> BTreeMap<String, Sources> {
+  |        ^^^^^^^^^
+
+warning: function `indent` is never used
+  --> crates/snapback4-lang/tests/lowering/cases.rs:54:4
+   |
+54 | fn indent(value: &str) -> String { value.lines().map(|line| format!("  {line}\n")).collect() }
+   |    ^^^^^^
+
+warning: `snapback4-lang` (test "ag_golden") generated 4 warnings
+    Finished `test` profile [optimized] target(s) in 1.59s
+     Running tests/ag_golden.rs (target/debug/deps/ag_golden-1cc0f495f0b55ae9)
+
+running 1 test
+test capture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

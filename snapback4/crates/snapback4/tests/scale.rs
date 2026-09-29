@@ -55,7 +55,7 @@ fn language_operation_classes() {
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
     // The receipt example has no state-ordered index, so its extrema scan.
-    pin_backlog(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "expiration", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+    pin_backlog(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "expiration", "familiarLengths", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
         &["hasMessages"],
         &["digest", "everywhere", "groupedMessages", "inbox", "memberTotal", "personalizeNative", "receiptStatus", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
 }
@@ -250,10 +250,11 @@ fn text_and_json_preserve_cost_lines_and_add_a_summary() {
     let plain = run(&["check"]);
     assert!(plain.status.success(), "{plain:?}");
     let plain = String::from_utf8(plain.stdout).unwrap();
-    assert!(plain.contains("scale: 8 of 12 operations are constant; 4 grow with data"), "{plain}");
+    assert!(!plain.contains("scale:"), "{plain}");
     let cost = run(&["check", "--cost"]);
     assert!(cost.status.success());
     let cost = String::from_utf8(cost.stdout).unwrap();
+    assert!(cost.contains("scale: 8 of 12 operations are constant; 4 grow with data"), "{cost}");
     assert!(cost.contains("  query page:\n    scale: constant — at most 21 rows examined, 0 probes, 0 lanes"));
     assert!(cost.contains("scan posts.byId first 20 — rule decided by the prefix: no probes"));
     assert!(cost.contains("filter over ≤ examined ceiling (8192)"));

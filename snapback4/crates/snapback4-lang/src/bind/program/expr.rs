@@ -243,6 +243,11 @@ impl Binder<'_> {
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
+                // @ref LLP 3000.007#23 — count rows expose count as an authoring alias, without a stored column.
+                if name == "count" && !info.columns.contains_key(name)
+                    && info.maintained.as_ref().is_some_and(|m| m.aggregate == "count") {
+                    return self.member(base, ty, "value", site);
+                }
                 if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
                     return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
                 }

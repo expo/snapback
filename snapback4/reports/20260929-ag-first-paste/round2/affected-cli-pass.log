@@ -1,0 +1,212 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "scale") generated 2 warnings (run `cargo fix --test "scale" -p snapback4` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 2.16s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 81 tests
+test w13b_near_ceiling_requires_more_than_half_and_reports_each_counter ... ok
+test guide_prediction_is_a_stdout_card ... ok
+test guide_unknown_word_suggests_cards_on_stdout ... ok
+test w13b_cut_log_suppresses_per_operation_and_site_with_a_count ... ok
+test b2_why_fanout_keeps_its_example_with_bounded_card_context ... ok
+test check_explains_held_dispatch_and_generates_the_client_marker ... ok
+test w11_expiry_synthesizes_sweep_indexes_without_source_repairs ... ok
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+test r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds ... ok
+test er_expiry_cost_names_backlog_attempt_and_atomic_refusal ... ok
+test w10r2_why_placement_has_its_own_section ... ok
+test w10r2_why_unknown_has_its_own_section ... ok
+test w10r2_why_emit_in_query_has_its_own_section ... ok
+test w10r1_nested_job_prelude_keeps_its_independent_repair ... ok
+test guide_lists_aliases_and_resolves_them_on_stdout ... ok
+test w10r1_empty_job_keeps_its_independent_repair ... ok
+test w10r2_why_syntax_has_its_own_section ... ok
+test first_paste::failing_check_keeps_the_terse_prediction_reason ... ok
+test why_rule_distinguishes_readable_and_unreadable_collision_targets ... ok
+test w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic ... ok
+test w10r1_multiple_job_prelude_statements_keep_the_independent_repair ... ok
+test w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded ... ok
+test b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied ... ok
+test w10a_inline_sections_have_a_check_wide_bound_and_stable_order ... ok
+test w10r2_repeated_unknown_prints_its_section_under_the_first_site ... ok
+test w10c_check_keeps_independent_errors_and_other_operations ... ok
+test upsert_insert_proof_and_service_grants_reach_check_and_why ... ok
+test w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap ... ok
+test w9c_check_validates_unique_refusal_codes_like_require ... ok
+test w13c_cost_reports_meter_domains_and_prefix_existence_as_scans ... ok
+test w10c_check_hides_only_the_redundant_operation_cascade ... ok
+test b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text ... ok
+test w9b_why_prints_a_codes_card_paragraph ... ok
+test fixture_test_reports_cursorless_top_n_complete ... ok
+test w11r2_generic_application_refusals_do_not_claim_the_feed_recipe ... ok
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test w10a_repeated_refusals_explain_once_and_preserve_json ... ok
+test b2_every_check_summarizes_zero_one_and_three_never_mutations ... ok
+test audience_bounds::builder_why_names_inherited_horizon_and_the_jobs_actual_meter ... ok
+test audience_bounds::unrelated_job_costs_keep_visibility_without_digest_advice ... ok
+test audience_bounds::job_cost_advice_uses_the_pinned_groups_query_ceiling ... ok
+test w10r1_correcting_equality_still_requires_a_job_chunk ... ok
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+test w9r1b_why_wide_merge_opens_the_notes_card ... ok
+test w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store ... ok
+test w9a_check_states_held_source_coverage_only_without_horizons ... ok
+test notes_stay_short_and_verbose_explains_each_code_once ... ok
+test w13c_check_fix_parenthesizes_an_inner_matching_read ... ok
+test natural_forms_diagnostics_are_authored_in_plain_verbose_and_json ... ok
+test check_adoption::w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store ... ok
+test w13b_starter_has_no_near_ceiling_summary ... ok
+test w11r1c_help_describes_residency_without_query_meters ... ok
+test column_trending_cost_has_one_merge_and_derived_bounds ... ok
+test horizon_check_and_why_keep_the_same_advice_across_checks ... ok
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+test w8r1b_release_from_a_used_dev_store_never_returns_read_meters ... ok
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+test w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean ... ok
+test first_paste::terse_check_counts_and_explains_search_behavior_warnings ... ok
+test w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary ... ok
+test check_accepts_contextual_defaults_for_an_empty_dev_table ... ok
+test w9b_new_maintains_share_one_note_without_pre_adoption_counts ... ok
+test changed_default_rechecks_unchanged_unique_index ... ok
+test check_reports_all_narrowing_sites_in_text_and_json_without_adopting ... ok
+test changed_default_rechecks_unchanged_cap ... ok
+test check_without_a_store_and_additive_or_fitting_adoption_are_quiet ... ok
+test inspection_materializes_required_literals_but_not_optional_defaults ... ok
+test check_uses_explicit_store_and_locates_index_and_table_refusals ... ok
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... ok
+test check_preserves_database_and_wal_bytes_with_live_and_stopped_dev ... ok
+test maintained_column_inspection_is_public_and_missing_storage_reads_zero ... ok
+test changed_default_that_still_fits_existing_groups_is_adoptable ... ok
+test w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema ... ok
+test row_view_check_matches_engine_chunk_size_and_commit_count ... ok
+test check_adoption::w8c_watching_host_reopens_after_external_adoption_while_cli_refuses ... ok
+test r2_n4_inspection_defaults_equal_stored_values_and_group_together ... ok
+test w11r1c_toolchain_why_explains_node_start_failure_too ... ok
+test w11_why_every_registered_code_returns_its_dedicated_section ... ok
+test check_adoption::w8c_startup_waits_for_the_adoption_lock_to_clear ... ok
+test check_adoption::w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save ... ok
+
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.62s
+
+     Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-5a6d546013e03264)
+
+running 10 tests
+test changed_syntax_at_a_retained_site_never_quotes_stale_source ... ok
+test builder_comments_are_opaque_to_friendly_index_labels ... ok
+test friendly_index_label_keeps_id_when_it_is_the_only_sort_column ... ok
+test extrema_cost_names_seek_or_scan_and_prices_the_endpoint ... ok
+test presence_variants_keep_the_authored_read_before_expansion ... ok
+test multiline_unicode_literals_are_quoted_without_relabeling_their_contents ... ok
+test grouped_shaped_reads_keep_balanced_source_boundaries ... ok
+test source_spans_keep_spacing_parentheses_and_duration_spelling ... ok
+test board_quotes_source_read_with_four_planner_variants ... ok
+test fallback_printer_preserves_boolean_arithmetic_and_conditional_precedence ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/check_notes.rs (target/debug/deps/check_notes-3734f6df8a71f9b7)
+
+running 3 tests
+test json_and_text_both_name_every_sequence_counter ... ok
+test no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why ... ok
+test sync_order_note_is_printed_on_every_check_and_clears_with_matching_window ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/fix.rs (target/debug/deps/fix-77146cecea8e0151)
+
+running 27 tests
+test an_unmarked_or_inexact_rewrite_cannot_change_source ... ok
+test concurrent_fix_subprocess ... ok
+test conditional_guesses_use_the_exact_expression_span ... ok
+test double_equals_edit_rechecks_tokens_at_the_exact_site ... ok
+test fix_final_compile_reads_the_current_project ... ok
+test module_job_fix_uses_the_compilers_target_and_preserves_the_schedule ... ok
+test spelling_repairs_preserve_the_rest_of_the_line ... ok
+test the_mechanical_class_is_explicit_on_constructors ... ok
+test check_fix_repairs_equality_and_keeps_the_independent_error ... ok
+test cross_file_fix_refuses_a_changed_query_before_apply ... ok
+test check_fix_leaves_strict_not_equal_unchanged ... ok
+test calibration_bool_shape_compiles_without_cli_edits ... ok
+test cross_file_fix_rereads_destination_immediately_before_write ... ok
+test r3_cross_file_fix_rereads_query_immediately_before_write ... ok
+test cross_file_fix_refuses_a_changed_destination_before_apply ... ok
+test optional_chain_cli_repair_preserves_comments_and_a_second_check_is_clean ... ok
+test unresolved_positional_keys_require_an_author_choice ... ok
+test calibration_cursor_index_has_specific_code_and_cli_repair ... ok
+test calibration_guide_cli_resolves_the_builders_words ... ok
+test planned_indexes_leave_source_and_indentation_unchanged_across_files ... ok
+test non_applicable_repairs_leave_source_and_exit_unchanged ... ok
+test check_cost_counts_the_rule_probe_and_fix_qualifies_a_module_job ... ok
+test check_fix_applies_repairs_and_preserves_accepted_forms_byte_exact ... ok
+test check_fix_repairs_double_equals_byte_exact_in_helpers_and_multiple_files ... ok
+test review_check_fix_parenthesizes_the_inner_index_without_changing_other_bytes ... ok
+test filtered_page_shapes_compile_without_cli_edits ... ok
+test repair_variants_preserve_surrounding_source ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/scale.rs (target/debug/deps/scale-0caced034445820f)
+
+running 28 tests
+test bounds_card_examples_compile_without_notes_and_pin_both_classes ... ok
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test default_text_and_explicit_bound_have_identical_scale_certificates ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test schema_caps_and_argument_pages_survive_ir_index_renaming ... ok
+test hidden_rows_expiry_rule_probes_and_live_aggregates_are_not_constant ... ok
+test residual_domains_lane_discovery_and_input_bounds ... ok
+test the_guide_and_readme_describe_three_classes ... ok
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+test chat_operation_classes ... ok
+test clique_operation_classes ... ok
+test only_the_compilers_own_timeline_scan_is_a_cleanup_backlog ... ok
+test text_and_json_preserve_cost_lines_and_add_a_summary ... ok
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+test language_operation_classes ... ok
+test scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair ... ok
+test witnesses::non_expiring_public_word_search_grows_with_matching_words ... ok
+test witnesses::mutation_scan_includes_admission_before_traversal ... ok
+test witnesses::loop_carried_population_dependency_reaches_a_fixed_point_without_repricing ... ok
+test witnesses::walk_includes_seed_authorization_and_nested_reads ... ok
+test witnesses::write_certificate_includes_the_refused_1025th_insert ... ok
+test witnesses::authorized_merge_covers_openings_refills_and_overlapping_lanes ... ok
+test witnesses::repeated_mutation_scans_cover_admission_near_and_across_the_ceiling ... ok
+test bounds_cover_nested_work_and_cursor_pages_on_growing_data ... ok
+test witnesses::certificate_includes_the_charge_that_crosses_a_meter_ceiling ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s

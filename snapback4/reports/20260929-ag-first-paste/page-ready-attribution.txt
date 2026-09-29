@@ -1,0 +1,13 @@
+Base f56e8048a compiler/CLI extracted into /tmp/sb4-ag-first-paste-base; binary name alone changed to snapback4-ag-baseline to avoid replacing the active binary. Unchanged runtime and client sources linked from this checkout.
+Canonical deploy of packages/snapback4/test/fixtures/page-ready.q produced these metadata comparisons:
+version: identical df9da1ae13db6b5d6105f5f75e6b8c800d379b356e96ad45838a45bb08485d63
+store_id: different
+live_sum_candidates: identical 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+release: identical 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+schema_hash: identical 93b512470a86f5d2b6f66859eb21ba5d249a6ced5cbfa4365d24f6ea026ec68e
+index_keys_validated: identical f719ccd3b4f7a97416a252a7ca3b651ef5025c086c7ed7f9d2f094b263b6f5cd
+generation: identical 6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+read_through_shortened: identical 44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a
+activation_hash: identical ed33e55525b8d2b6428a2445dd21026639dc91f7ffe054552d743945410482e0
+
+activation_hash is the digest of (schema, programs), per snapback4-core/src/store/activation.rs. The schema and executable program images therefore match the base for this fixture. Client packages and runtime sources also match the base; both isolated runs pass all three tests. The two full-suite failures are classified environmental/nondeterministic, not proved deterministic baseline defects.
