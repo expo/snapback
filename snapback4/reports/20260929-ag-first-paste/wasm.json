@@ -1,0 +1,8 @@
+{
+  "raw": 2042203,
+  "gzip": 593573,
+  "cap": 593719,
+  "headroom": 146,
+  "sha256": "75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c",
+  "source": "scripts/test.sh wasm build"
+}

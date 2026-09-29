@@ -1,0 +1,86 @@
+✖ mixed evidence schedule process: 300 independent histories (27.086378ms)
+✖ mixed evidence schedule wasm: 300 independent histories (25.723997ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.04539
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule process: 300 independent histories (27.086378ms)
+  AssertionError [ERR_ASSERTION]: schema.q:10:3 — E_SYNC: members grants the private audience of members: every insert rule branch needs an independent grant probe in members, binding its recipient to viewer and its group columns to this group's columns (room), or a created probe for the new group; `.principal = viewer` alone lets anyone join. This also governs insert if absent and upsert
+    rewrite: make the sync audience exactly match the table's read rule
+    guide: sync
+
+  E_SYNC: a sync line cannot be honoured; the message names the rule term, column or index to change.
+
+  ## Refusals
+
+  E_SYNC means the sync declaration cannot deliver exactly its authorized
+  audience. For example, `read <- .ownerId = viewer` cannot pair with
+  `sync public`; use `sync` to infer delivery to the owner. For group delivery,
+  match the read rule's membership probe, declare its unique group/principal
+  key, and guard new memberships with existing
+  membership or creation of the group. Follow the message's rule term,
+  column or index; do not make private rows public just to enable sync.
+  For a maintained view, E_SYNC names inherited public sync from its source,
+  without a horizon, and the conflicting explicit read. Keep the public read
+  (or omit it) for the public offline summary, or use `online only` and lose
+  offline aggregate/absence coverage. A view cannot declare a separate sync
+  audience; do not narrow its public source to make it private. See `guide
+  maintains` and `guide offline-interactions` for the replica census and the
+  explicit source owner-key coverage alternative for viewer-owned existence.
+  That alternative keeps the public window; it does not supply aggregate totals.
+
+  Full card: snapback4 guide sync
+
+  schema.q:20:3 — E_SYNC: members grants the private audience of messages: every insert rule branch needs an independent grant probe in members, binding its recipient to viewer and its group columns to this group's columns (room), or a created probe for the new group; `.principal = viewer` alone lets anyone join. This also governs insert if absent and upsert
+    rewrite: make the sync audience exactly match the table's read rule
+    guide: sync
+
+  SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="2 problems in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/answers-stay.mjs:58:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:12:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule wasm: 300 independent histories (25.723997ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="2 problems in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/answers-stay.mjs:58:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:12:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,6 +1,6 @@
-# Client: preserve intent through read gaps
+# Client: answers stay on screen
 
-Keep drafts, routes and viewer ownership above transient lists; render protected rows only from current reads.
+Render current reads: same-key observations keep their answer during revalidation.
 Submit once at custody, then let the user continue.
 
 ```tsx
@@ -26,10 +26,10 @@ export function Composer({ conversationId }: { conversationId: string }) {
 }
 ```
 
-For this recipe, membership has no horizon, syncs within the conversation's own group with the messages' audience, and that group's first acquisition has finished. The viewer's membership is then `present` or `absent`, never `partial` just because the device is offline. `loading` here is first acquisition, not denial or absence. Disable send on membership `absent` or `denied`, never `loading`/`partial`. Do not add `with own keys` to admin-written memberships.
+This recipe requires membership with no horizon, synced within the conversation's own group with the messages' audience, after that group's first acquisition. Membership is then `present` or `absent` offline; `loading` means acquisition, not denial. Disable send on `absent`/`denied`, never `loading`/`partial`. Do not add `with own keys` to admin-written memberships.
 
-`waitSeconds: 0` returns at custody; `inFlight` covers that call. Pending settlement must not disable the next send. Clear at submit; restore refused text only into an empty draft, otherwise offer Edit and Dismiss. Predicted rows carry `pending: true`: show “Sending…”.
-For recovery, save `{ id: mintId(), args }` in account-and-backend-scoped storage before submitting with that id. Observe it with `usePendingWrite`: show “Saving…” during submission and “Checking…” while `restoring`. Only then is an undefined receipt unknown; never automatically resend it. Offer saved text to edit on failure and Dismiss only after lookup settles. A new attempt gets a new id; a replay confirms execution without historical results. The web/Expo starters include the saved-intent journal.
+`waitSeconds: 0` returns at custody; `inFlight` covers that call, not settlement. Clear at submit; restore refused text into an empty draft, otherwise offer Edit/Dismiss. Predicted rows carry `pending: true` (“Sending…”).
+For recovery, save `{ id: mintId(), args }` in account/backend-scoped storage before submission. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; only afterward is an undefined receipt unknown. Never automatically resend it. Offer failed text to edit; Dismiss after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
@@ -45,16 +45,21 @@ Use `presence(read)` for status; after `isReady(read)`, branch on `read.presence
 
 Only top-level `null` or `[]` is empty: `false`, `0`, and nested nulls are present. Empty means `absent` only when `complete`, `cut === null`, no `next`, and no intersecting pending prediction. An unknown prediction footprint blocks every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden and missing rows are indistinguishable.
 
-Route and mount on `present`/`absent`, never `loading`/`partial`. The signed-in tree follows `useAuth().state`; keep drafts above transient rows and reset them on account/backend change. A required membership row's `absent` disables send; its `loading`/`partial` does not. Retention grants no authority; one-view playback keeps the safeguards below.
+Route on `present`/`absent`, never `loading`/`partial`. The signed-in tree follows `useAuth().state`; keep drafts above transient rows, resetting on account/backend change. Retention grants no authority.
 
-For search use one ordinary query per scope through `usePage`. Render `page.items`; classify `page.read`, because `items: []` also occurs while page one loads. Show “Partial results” only for `presence(page.read) === "partial"`. Follow `hasMore`/`loadMore`; a nonempty page is `present` even with a continuation or cut. Keep server-needing decorations separate: an unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
+Same-key reads retain answers marked `revalidating` through plain refetch, reconnect, slow reads, transport failure and retry exhaustion, without timeout. Completed answers replace directly and recompute presence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. An older replica cannot clear a pending notification. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential/store/schema resets still withdraw; generation changes withdraw before adoption even without changed tables. No route latch is needed for refetch.
+
+Search uses one query per scope through `usePage`: render `page.items`, classify `page.read` (`items: []` also occurs during loading). Show “Partial results” only for `presence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present with cuts/continuations. An unavailable unread aggregate is unknown, not zero; never hide its conversation.
+
+## Measure cold acquisition
+
+`webDevice({ worker: true })` moves atomic publication off the page thread; `webDevice()` remains default. Render the first screen while `useAcquisition()` reports progress; `acquired` means the declared partition is durably published for offline use.
+On eb1000 (EPYC 9454, Chromium 151), five cold runs measured medians **2.25 s Worker / 2.19 s default** for 100 memberships, 500 Following edges and 500 messages (3.65 MB); 1,000 memberships/90,500 messages took **25.66 s Worker** (39.76 MB). M1 Max estimates **5–8 s / 60–90 s** are unqualified, not promises. Group count alone is insufficient.
+Measure five fresh browser profiles on your largest account: clock immediately before `createApp` through `onAcquired(true)` after authentication. Record median, host/network/browser, sync bytes/requests and `client.residency()`; time first screen separately, then verify offline reopening. Warm restoration is not cold acquisition. Full recipe: `guide sync`.
 
 ## Acknowledgements and receipts
 
-Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.
-The SDK owns delivery reporting from acquired rows and accepted query manifests, even with no conversation mounted. The screen owns visible `seen` reporting; mount `useReceipts` for that screen, not background delivery observations.
-“Read” follows `seen` of the newest message on screen while the conversation is open and the app foregrounded; keep the hook above transient rows and follow its visibility input.
-The recipient set is membership at send time: later joins never enter it, and leaving/removal drops a recipient from the requirement, without recording that they read.
+`snapback4 guide receipts` keeps schema, mutations and `useReceipts` together. The SDK owns delivery reporting from acquired rows/accepted manifests without mounted conversations; the screen owns visible `seen` reporting. Mount the hook above transient rows, following visibility. “Read” follows `seen` of the newest message while open and foregrounded. Recipients are members at send time; later joins are excluded, removals drop requirements without claiming they read.
 
 ## One-view photos
 

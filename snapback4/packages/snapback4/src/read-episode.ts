@@ -1,11 +1,11 @@
 import type { Read } from "./contract.ts";
 
-// @ref LLP 3000.023#3.1 — one absolute host deadline, copied by value with the displayed answer.
+// @ref LLP 3000.023#10 — one absolute host deadline, copied by value with the displayed answer.
 const deadlines = new WeakMap<Read<unknown>, number>();
 export const episodeDeadline = (read: Read<unknown>): number | undefined => deadlines.get(read);
 export function copyEpisode(from: Read<unknown>, to: Read<unknown>): void {
   const deadline = episodeDeadline(from);
-  if (deadline !== undefined) deadlines.set(to, deadline);
+  if (deadline !== undefined) deadlines.set(to, Math.min(deadline, episodeDeadline(to) ?? deadline));
 }
 export function beginEpisode(from: Read<unknown>, to: Read<unknown>, bounded: boolean): void {
   copyEpisode(from, to);

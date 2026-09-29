@@ -66,7 +66,14 @@ impl Parser {
             if self.at_kind(Kind::Eof) {
                 break;
             }
+            let start = self.position;
             let result = self.top_level();
+            if result.is_ok() && let Some(last) = self.tokens[start..self.position].iter()
+                .rev().find(|t| !matches!(t.kind, Kind::Newline | Kind::Indent | Kind::Dedent | Kind::Eof)) {
+                let first = &self.tokens[start].site;
+                let text = self.source[first.line as usize - 1..last.site.line as usize].join("\n");
+                self.document.source.declarations.insert(first.to_string(), text);
+            }
             if let Err(diagnostic) = result {
                 self.diagnostics.push(diagnostic);
                 self.recover_top_level();
@@ -651,11 +658,14 @@ impl Parser {
                 if effect.value == "sync" {
                     return Err(crate::bind::audience_diagnostics::sync_syntax(&name, &source, &effect.site));
                 }
-                if effect.value != "read" {
-                    let rewrite = if effect.value == "public" { "read <- allow  -- maintain has no public property" } else { "read <- rule" };
-                    return Err(syntax_with(&effect.site, format!("unknown maintain property {}", effect.value), rewrite));
+                if effect.value != "read" && effect.value != "public" {
+                    return Err(syntax_with(&effect.site, format!("unknown maintain property {}", effect.value), "read <- rule"));
                 }
-                let value = self.parse_focal_rule_value(&effect.value, &effect.site)?;
+                // @ref LLP 3000.007#23 — public has the same read authority on tables and aggregate views.
+                let value = if effect.value == "public" {
+                    if self.at_kind(Kind::Str) { self.take_kind(Kind::Str)?; }
+                    Expr::Name { name: "allow".into(), site: effect.site.clone() }
+                } else { self.parse_focal_rule_value(&effect.value, &effect.site)? };
                 self.newline()?;
                 if read.is_some() {
                     return Err(syntax_with(&effect.site, format!("maintain {name} has more than one read rule"), "keep one read <- rule"));
@@ -763,6 +773,10 @@ impl Parser {
         if self.at("from") {
             return Err(unsupported(&self.peek().site.clone(), "imports", format!("every .q file beside schema.q shares one namespace: declare `shape {name}` once, in any file, and use it anywhere")));
         }
+        if self.at("on") && self.peek_at(1).kind == Kind::Word && self.peek_at(2).value == "=" {
+            let at = self.peek().site.clone();
+            return Err(syntax_with(&at, "shapes infer their row type; omit on table", "=").mechanical());
+        }
         self.take("=")?;
         self.take("{")?;
         let fields = self.parse_shape_fields()?;
@@ -784,9 +798,10 @@ impl Parser {
         self.take(":")?;
         let body = if self.at_kind(Kind::Newline) {
             self.newline()?;
-            let statements = self.parse_block()?;
+            let mut statements = self.parse_block()?;
             if !matches!(statements.last(), Some(Stmt::Return { .. })) {
-                return Err(syntax_with(&site, "a fn body ends with return", "end the helper with `return expr` or a bare `return`"));
+                // @ref LLP 3000.007#23 — falling through a block helper returns null, as a bare return does.
+                statements.push(Stmt::Return { value: Expr::Literal { value: Literal::Null, site: site.clone() }, site: site.clone() });
             }
             FunctionBody::Block(statements)
         } else {

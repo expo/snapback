@@ -199,3 +199,19 @@ test('two-page presence combines coverage and the final cursor with actual pendi
   }
   assert.equal(cases, 1024);
 });
+
+test('published replacements recompute presence even when a caller spreads the predecessor', t => {
+  for (const keep of [undefined, true, false]) {
+    const watch = new ReadObservation(keep);
+    t.after(() => watch.retire());
+    watch.publish(readyRead({ data: null, complete: true, cut: null, fresh: true }));
+    const absent = watch.snapshot;
+    watch.publish({ ...absent, data: { id: 'arrived' } });
+    assert.equal(watch.snapshot.presence, 'present');
+    assert.notEqual(answerIdentity(watch.snapshot), answerIdentity(absent));
+    const present = watch.snapshot;
+    watch.publish({ ...present, data: null });
+    assert.equal(watch.snapshot.presence, 'absent');
+    assert.notEqual(answerIdentity(watch.snapshot), answerIdentity(present));
+  }
+});

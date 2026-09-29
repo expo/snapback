@@ -1,0 +1,17 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 0.89s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 10 tests
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test upsert_advice_withholds_effectful_keys_and_patch_values ... ok
+test cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s

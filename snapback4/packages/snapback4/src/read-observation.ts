@@ -2,7 +2,7 @@ import { pendingRead, readyRead, readyPresence } from "./read-presence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
-import { beginEpisode, copyEpisode, ReadEpisode } from "./read-episode.ts";
+import { beginEpisode, copyEpisode, episodeDeadline, ReadEpisode } from "./read-episode.ts";
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
@@ -22,20 +22,26 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
 export function answerPresence<T>(read: Read<T>, pending: boolean): Read<T> {
   if (!("data" in read)) return read;
   const next = readyPresence(read, pending);
-  // Empty page chains need notification even if a source stays partial due to
-  // its cursor. A nonempty answer stays present regardless of the pending fact.
+  // Empty page chains notify pending changes even while a cursor keeps them partial.
   return read.presence !== next || next !== "present" && pendingRead(read) !== pending
     ? copyAnswer<T>(read, readyRead<T>(read, pending)) : read;
 }
 
-// @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
-export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean, pending?: boolean): Read<T> {
+export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
+  if (!("data" in read) || (!read.fresh && read.since !== undefined)) return read;
+  return copyAnswer<T>(read, readyRead<T>({ ...read, fresh: false, since: read.since ?? confirmedAt ?? Date.now() }, pendingRead(read)));
+}
+
+// @ref LLP 3000.023#10 — change evidence can bound an already plain revalidation.
+// @ref LLP 3000.031#1.1 — pending changes reclassify the held answer, preserving its identity.
+export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: boolean): Read<T> {
   if (!("data" in read)) return read;
   const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
   const next = readyPresence(read, blocked);
-  if (read.revalidating && read.presence === next && (next === "present" || pendingRead(read) === blocked)) return read;
+  if (read.revalidating && (!bounded || episodeDeadline(read) !== undefined)
+    && read.presence === next && (next === "present" || pendingRead(read) === blocked)) return read;
   const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
-  if (!read.revalidating) beginEpisode(read, copy, bounded);
+  beginEpisode(read, copy, bounded);
   return copy;
 }
 
@@ -77,6 +83,8 @@ export class ReadObservation<T> {
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null = null;
   since: number | undefined;
+  // Transport metadata also applies to an older approved facade answer.
+  transportOffline = false;
   // @ref LLP 3000.019#3.3 — facade holds belong to this live watch and end with its scope.
   readonly followers = new Set<(change: "answer" | "reset" | "expiry") => (() => void) | void>();
   private revision = 0;
@@ -106,7 +114,7 @@ export class ReadObservation<T> {
           // One round has at most four requests, with 25/50/100 ms backoff.
           // A later invalidation can start another round; this one must settle.
           if (attempt === 3) {
-            this.publish({ loading: true }); notify();
+            this.failed(); notify();
             return { ...result, read: this.snapshot, retryExhausted: true };
           }
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
@@ -119,28 +127,44 @@ export class ReadObservation<T> {
         // this observation (or let a peer close it). That retires this fetch.
         if (revision !== this.revision) return { ...result, read: this.snapshot };
         if (publishResult) {
-          this.publish(result.transportOffline ? { loading: true } : result.read);
+          if (result.transportOffline) this.failed(true); else this.publish(result.read);
           notify();
         }
         return result;
       }
     } catch (error) {
-      if (publishResult && revision === this.revision) { this.publish({ loading: true }); notify(); }
+      if (publishResult && revision === this.revision) { this.failed(); notify(); }
       throw error;
     }
   }
 
-  // @ref LLP 3000.023#3.2 — only an invalidation retains; publishing loading always withdraws.
-  reload(): void {
+  // @ref LLP 3000.023#10 — all change evidence starts a bounded episode.
+  reload(bounded = false): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger, this.pending?.());
+    this.snapshot = revalidatingAnswer(this.snapshot, bounded, this.pending?.());
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
+  }
+
+  // Failure is not an answer. A known change still withdraws on failure;
+  // plain revalidation keeps the displayed identity and all its row deadlines.
+  // @ref LLP 3000.023#10 — transport loss marks existing freshness false, with no new flag.
+  failed(offline = false): void {
+    this.read(null);
+    if (!this.retain || !("data" in this.snapshot) || episodeDeadline(this.snapshot) !== undefined) {
+      this.publish({ loading: true });
+      return;
+    }
+    if (offline) {
+      this.transportOffline = true;
+      this.snapshot = offlineAnswer(this.snapshot, this.since);
+    }
+    this.reload();
   }
 
   publish(read: Read<T>): void { this.replace(read); }
@@ -153,13 +177,17 @@ export class ReadObservation<T> {
   private replace(read: Read<T>, change: "answer" | "reset" | "expiry" = "answer", deferred = false): () => void {
     this.revision++;
     this.episode.clear();
-    if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
-    this.snapshot = { ...read };
+    // Every replacement classifies its own value and facts, never the previous answer.
+    // @ref LLP 3000.031#1.1 — presence is recomputed on each published answer.
+    this.snapshot = "data" in read ? readyRead<T>({ ...read,
+      ...(read.since !== undefined ? { since: Math.min(read.since, Date.now()) } : {}),
+    }, this.pending?.() ?? pendingRead(read)) : { ...read };
+    this.transportOffline = this.transportOffline && "data" in read && !read.fresh;
     identities.set(this.snapshot, {});
     owners.set(this.snapshot, this);
     this.kept = false;
     // Freshness age uses wall time even when row deadlines use issued device time.
-    this.since = "data" in read ? read.since ?? (read.fresh ? Date.now() : undefined) : undefined;
+    this.since = "data" in this.snapshot ? this.snapshot.since ?? (this.snapshot.fresh ? Date.now() : undefined) : undefined;
     const deliver = this.deliver(change);
     if (!deferred) deliver();
     return deliver;

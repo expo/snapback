@@ -1,0 +1,53 @@
+{
+  "before": {
+    "accepted": 384608,
+    "dropped": 1862,
+    "records_created": 386470,
+    "requests_per_round": 55210,
+    "round_ns": [
+      668994970,
+      554135884,
+      550614535,
+      449328214,
+      387597463,
+      474035879,
+      543611058
+    ],
+    "watermark": 386470,
+    "writer": {
+      "console_bytes": 13747290,
+      "console_format_and_file_io_ns": 2517999985,
+      "console_format_ns": 148416777,
+      "count": 55210,
+      "final_store_bytes": 8056,
+      "store_ring_clone_serialize_replace_ns": 45212362076
+    },
+    "source_sha256": {
+      "dev_refusals.rs": "2f3214f9db6aa6a744e3653a0349d11adf986b3725acfa93e12cd03243169bbb",
+      "dev_refusal_response.rs": "709d4611c22b31bf5670fecc1200d396efddc1391bc37f3c5cd1c503ece6c9db",
+      "dev_refusal_watermark.rs": "fdfa5ca351e4acc9f7e960e740c8c6de8a08f39ecc59b4fe525bfe771abea687"
+    }
+  },
+  "after": {
+    "accepted": 0,
+    "dropped": 0,
+    "records_created": 0,
+    "requests_per_round": 55210,
+    "round_ns": [
+      171697490,
+      162093103,
+      164271840,
+      162275777,
+      162676779,
+      162541186,
+      162559463
+    ],
+    "watermark": 0,
+    "source_sha256": {
+      "dev_refusals.rs": "b559ad96e2224e0c2730303ca362b36faf69b471477bcb343b893eecfcbc2072",
+      "dev_refusal_response.rs": "daf0b48def907e22206622274555864101b28e50a2205264bb75a81a73447ad4",
+      "dev_refusal_watermark.rs": "fdfa5ca351e4acc9f7e960e740c8c6de8a08f39ecc59b4fe525bfe771abea687",
+      "dev_refusal_console.rs": "9bc5c551973ee1e59fb6a1031da569284d63efcf3bcccfa31ac6dd32de983b02"
+    }
+  }
+}

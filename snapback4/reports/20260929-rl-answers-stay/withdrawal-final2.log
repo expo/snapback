@@ -1,0 +1,155 @@
+✔ wasm: apply revocation, keep=undefined, held (472.450303ms)
+✔ wasm: admit revocation, keep=undefined, held (86.315123ms)
+✔ wasm: transfer revocation, keep=undefined, held (89.910902ms)
+✔ wasm: remount revocation, keep=undefined, held (1090.160746ms)
+✔ wasm: apply revocation, keep=undefined, throw (1093.144067ms)
+✔ wasm: admit revocation, keep=undefined, throw (88.612136ms)
+✔ wasm: transfer revocation, keep=undefined, throw (1074.601649ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (78.18534ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (77.779041ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (1079.104297ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (250.713904ms)
+✖ wasm: admit revocation, keep=undefined, retryExhausted (302.953612ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (247.5344ms)
+✔ wasm: apply revocation, keep=false, held (90.21645ms)
+✔ wasm: admit revocation, keep=false, held (92.613433ms)
+✔ wasm: transfer revocation, keep=false, held (77.717028ms)
+✔ wasm: remount revocation, keep=false, held (88.425847ms)
+✔ process: apply revocation, keep=undefined, held (1166.125208ms)
+✔ process: admit revocation, keep=undefined, held (125.912956ms)
+✔ process: transfer revocation, keep=undefined, held (1115.615162ms)
+✔ process: remount revocation, keep=undefined, held (1130.606569ms)
+✔ process: apply revocation, keep=undefined, throw (120.600254ms)
+✔ process: admit revocation, keep=undefined, throw (118.465686ms)
+✔ process: transfer revocation, keep=undefined, throw (104.091313ms)
+✔ process: apply revocation, keep=undefined, unavailable (1119.632102ms)
+✔ process: admit revocation, keep=undefined, unavailable (126.814606ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1125.699705ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1292.704411ms)
+✖ process: admit revocation, keep=undefined, retryExhausted (1322.392823ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (1278.947465ms)
+✔ process: apply revocation, keep=false, held (1114.311127ms)
+✔ process: admit revocation, keep=false, held (119.581237ms)
+✔ process: transfer revocation, keep=false, held (1118.878433ms)
+✔ process: remount revocation, keep=false, held (1112.411601ms)
+✔ online: revoked data, keep=undefined, held (62.183879ms)
+✔ online: revoked data, keep=undefined, retryExhausted (230.583647ms)
+✔ online: revoked data, keep=undefined, unavailable (69.342669ms)
+✔ online: revoked data, keep=undefined, throw (58.146279ms)
+✔ online: revoked data, keep=false, held (58.882242ms)
+✔ online: revoked data, keep=false, retryExhausted (48.08398ms)
+✔ online: revoked data, keep=false, unavailable (45.711745ms)
+✔ online: revoked data, keep=false, throw (56.988144ms)
+✔ replacement completes and clears revalidation: keep=undefined, "B" (1.993627ms)
+✔ replacement completes and clears revalidation: keep=undefined, null (0.185478ms)
+✔ replacement completes and clears revalidation: keep=undefined, [] (0.112279ms)
+✔ replacement completes and clears revalidation: keep=undefined, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.118097ms)
+✔ failure policy and explicit withdrawals: keep=undefined, throw (0.416564ms)
+✔ failure policy and explicit withdrawals: keep=undefined, transportOffline (0.11297ms)
+✔ failure policy and explicit withdrawals: keep=undefined, retryExhausted (175.739907ms)
+✔ failure policy and explicit withdrawals: keep=undefined, retain:false (0.181082ms)
+✔ failure policy and explicit withdrawals: keep=undefined, loading (0.116835ms)
+✔ replacement completes and clears revalidation: keep=true, "B" (0.22054ms)
+✔ replacement completes and clears revalidation: keep=true, null (0.172058ms)
+✔ replacement completes and clears revalidation: keep=true, [] (0.11335ms)
+✔ replacement completes and clears revalidation: keep=true, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.084076ms)
+✔ failure policy and explicit withdrawals: keep=true, throw (0.08717ms)
+✔ failure policy and explicit withdrawals: keep=true, transportOffline (0.058908ms)
+✔ failure policy and explicit withdrawals: keep=true, retryExhausted (175.584804ms)
+✔ failure policy and explicit withdrawals: keep=true, retain:false (0.303615ms)
+✔ failure policy and explicit withdrawals: keep=true, loading (0.178488ms)
+✔ replacement completes and clears revalidation: keep=false, "B" (0.286239ms)
+✔ replacement completes and clears revalidation: keep=false, null (0.244205ms)
+✔ replacement completes and clears revalidation: keep=false, [] (0.188752ms)
+✔ replacement completes and clears revalidation: keep=false, {"denied":{"code":"HIDDEN","family":"rule","message":"hidden"}} (0.150676ms)
+✔ failure policy and explicit withdrawals: keep=false, throw (0.312338ms)
+✔ failure policy and explicit withdrawals: keep=false, transportOffline (0.12023ms)
+✔ failure policy and explicit withdrawals: keep=false, retryExhausted (176.134128ms)
+✔ failure policy and explicit withdrawals: keep=false, retain:false (0.278427ms)
+✔ failure policy and explicit withdrawals: keep=false, loading (0.13377ms)
+✔ one stable episode withdrawal at the deadline via snapshot, late success still lands (2.398795ms)
+✔ one stable episode withdrawal at the deadline via peek, late success still lands (0.627872ms)
+✔ one stable episode withdrawal at the deadline via timer, late success still lands (0.655932ms)
+✔ successful fallback and held composition keep the same episode: keep=undefined (0.46708ms)
+✔ successful fallback and held composition keep the same episode: keep=true (0.177806ms)
+✔ three watch keys and lifetimes in acquisition order ,false,true (2.260027ms)
+✔ three watch keys and lifetimes in acquisition order true,false, (0.352589ms)
+✔ clear_rows resets every retention policy and fences old reads (0.688682ms)
+✔ settle_exit resets every retention policy and fences old reads (0.264696ms)
+✔ adopt resets every retention policy and fences old reads (0.249383ms)
+✔ observe_store resets every retention policy and fences old reads (0.231927ms)
+✔ facade and opening remount share source expiry, keep=undefined (15.771215ms)
+✔ facade and opening remount share source loading, keep=undefined (4.385712ms)
+✔ facade and opening remount share source transportOffline, keep=undefined (4.418021ms)
+✔ facade and opening remount share source retain:false, keep=undefined (5.396748ms)
+✔ facade and opening remount share source reset, keep=undefined (4.261226ms)
+✔ facade and opening remount share source denied, keep=undefined (5.15103ms)
+✔ facade and opening remount share source expiry, keep=true (5.178711ms)
+✔ facade and opening remount share source loading, keep=true (5.048005ms)
+✔ facade and opening remount share source transportOffline, keep=true (5.327704ms)
+✔ facade and opening remount share source retain:false, keep=true (4.220354ms)
+✔ facade and opening remount share source reset, keep=true (5.264409ms)
+✔ facade and opening remount share source denied, keep=true (4.965712ms)
+✔ facade inherits A's episode timestamp from the invalidation, through B and C authority (6.976124ms)
+✔ an early episode timer rearms to the original deadline without accessor help (0.619979ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=undefined (5.139943ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=false (5.318531ms)
+✔ facade withdrawal notifies once, including an opening remount, keep=true (4.280495ms)
+✔ closeWatchAnswers notifies each raw subscriber exactly once after withdrawing every peer (1.019829ms)
+✔ an episode due inside a grouped commit waits until the settled peer is revalidating (0.904145ms)
+✔ online change bounds an older facade hold through later source replacements, keep=undefined (7.324407ms)
+✔ online change bounds an older facade hold through later source replacements, keep=true (6.697046ms)
+✔ local apply retains without an online-change episode, keep=undefined (0.592508ms)
+✔ local admit retains without an online-change episode, keep=undefined (0.692047ms)
+✔ local settle retains without an online-change episode, keep=undefined (0.304326ms)
+✔ local apply retains without an online-change episode, keep=true (0.262293ms)
+✔ local admit retains without an online-change episode, keep=true (0.302273ms)
+✔ local settle retains without an online-change episode, keep=true (0.250876ms)
+ℹ tests 107
+ℹ suites 0
+ℹ pass 105
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21737.943166
+
+✖ failing tests:
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ wasm: admit revocation, keep=undefined, retryExhausted (302.953612ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 'private answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:183:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'private answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ process: admit revocation, keep=undefined, retryExhausted (1322.392823ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 'private answer'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:183:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'private answer',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

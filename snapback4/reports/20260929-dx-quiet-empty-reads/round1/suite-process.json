@@ -1,0 +1,7 @@
+{
+  "pid": 3129558,
+  "command": "bash scripts/test.sh",
+  "parallel_logs": [
+    "/tmp/snapback4-test.7JF3H5"
+  ]
+}

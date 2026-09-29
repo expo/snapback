@@ -194,8 +194,8 @@ for (const keep of [undefined, false, true]) {
   });
 }
 
-for (const keep of [undefined, true]) for (const closeBeforeReload of [false, true]) {
-  test(`closed facade follows same identity's revalidation (close before=${closeBeforeReload}), keep=${keep}`, async t => {
+for (const keep of [undefined, true]) for (const closeBeforeReload of [false, true]) for (const bounded of [false, true]) {
+  test(`closed facade follows same identity's revalidation (close before=${closeBeforeReload}), keep=${keep}, bounded=${bounded}`, async t => {
     let host = 1000; t.mock.method(Date, "now", () => host);
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
@@ -204,15 +204,15 @@ for (const keep of [undefined, true]) for (const closeBeforeReload of [false, tr
     const original = watch.getSnapshot(), seen = events(watch);
     f.hold();
     if (closeBeforeReload) watch.close();
-    f.owner().reload(); for (const notify of f.owner().subscribers) notify();
+    f.owner().reload(bounded); for (const notify of f.owner().subscribers) notify();
     if (!closeBeforeReload) watch.close();
     const closedCalls = seen.length, current = watch.getSnapshot();
     assert.equal(answerIdentity(current), answerIdentity(original));
     assert.equal(current, peer.getSnapshot());
     assert.equal(current.revalidating, true);
-    assert.equal(episodeDeadline(current), keep ? undefined : 2000);
+    assert.equal(episodeDeadline(current), bounded ? 2000 : undefined);
     host = 2000;
-    if (keep) assert.equal(watch.getSnapshot(), current);
+    if (!bounded) assert.equal(watch.getSnapshot(), current);
     else assert.deepEqual(watch.getSnapshot(), { loading: true });
     assert.equal(seen.length, closedCalls);
     peer.close();
@@ -238,7 +238,7 @@ for (const closeBeforeReload of [false, true]) test(`closed captured episode enf
   await settle(); f.publish("A"); await settle();
   const original = f.owner().snapshot;
   if (closeBeforeReload) watch.close();
-  f.hold(); f.owner().reload(); for (const notify of f.owner().subscribers) notify();
+  f.hold(); f.owner().reload(true); for (const notify of f.owner().subscribers) notify();
   assert.equal(episodeDeadline(watch.getSnapshot()), 2000);
   if (!closeBeforeReload) watch.close();
   // Isolate the facade's cap: the detached source supplies an earlier copy of the

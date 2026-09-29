@@ -1,0 +1,21 @@
+1. **High — [snapback4/packages/snapback4/src/web-idb.ts:7](/home/ccheever/sb4-intent/review-aq-r0-astra/snapback4/packages/snapback4/src/web-idb.ts:7): format 3 does not fence older clients.**
+
+   The physical database still opens at IndexedDB version 1. After migration, a cached pre-AQ client can acquire the released store. Its `load()` treats the unfamiliar marker as an unpacked store, so subsequent deletes remove direct records but leave packed rows intact.
+
+   **Reproduced in Chromium using both revisions:** create 600 rows with the old adapter → migrate with AQ → reopen with the old adapter → delete one row and commit watermark `2` → reopen. The deleted row remains, alongside watermark `2`. An older client’s direct update also shadows a later AQ packed update. This can resurrect deleted or revoked data after reload. Exclusive Web Locks do not prevent sequential owners running incompatible versions.
+
+   **Smallest fix:** fence format 3 with a higher actual IndexedDB database version, preserving existing stores during upgrade, so old `open(name, 1)` calls fail. Add a regression using both adapters.
+
+2. **Low — [snapback4/packages/snapback4/test/web-review.test.mjs:369](/home/ccheever/sb4-intent/review-aq-r0-astra/snapback4/packages/snapback4/test/web-review.test.mjs:369): migration durability is not asserted.**
+
+   I changed only `upgradeBuckets()`’s transaction from `strict` to `relaxed` in a temporary copy. All **14/14** browser tests still passed. That mutation permits acknowledging migration before strict physical durability; abort-and-reopen assertions cannot distinguish it.
+
+   **Smallest fix:** assert that the migration transaction uses `durability === "strict"`, as the ordinary bulk-save test already does.
+
+What is sound: for AQ clients, split roots, leaves, overflow, staging, metadata and outbox retain one strict transaction. The conditional guard waits for child writes and commits in the guard callback. Publication and acquisition progress remain downstream of persistence. No tables, authorization rules or coverage calculations are deferred or changed; existing page/Worker ownership barriers remain intact.
+
+The measurements support the stated eb1000 improvement. Before/after variants alternate against the same server and fixture, with fresh device stores. Recomputed medians match **4.90 → 2.19 s default**, **4.44 → 2.25 s Worker**, and **25.66 s heavy Worker**. Structural bucket/request counts supplement timing, and all 50 retained samples pass exhaustive row comparisons. The heavy measurement is instrumented; the Mac estimates remain unmeasured.
+
+I ran the unchanged browser regression in a temporary copy: **14/14 passed**. The worktree is unchanged.
+
+**Verdict: NOT READY.**

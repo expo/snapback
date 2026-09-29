@@ -1,0 +1,3034 @@
+{
+  "watch": {
+    "loading": true
+  },
+  "plain": {
+    "denied": {
+      "code": "HIDDEN",
+      "family": "rule",
+      "guide": "programs",
+      "message": "the program refused with HIDDEN",
+      "rule": "HIDDEN",
+      "site": "schema.q:21:29"
+    }
+  },
+  "lingering": {
+    "data": null,
+    "complete": true,
+    "cut": null,
+    "fresh": true,
+    "next": null
+  },
+  "link": "online",
+  "values": [
+    {
+      "loading": true
+    },
+    {
+      "loading": true
+    },
+    {
+      "loading": true
+    },
+    {
+      "loading": true
+    },
+    {
+      "loading": true
+    },
+    {
+      "denied": {
+        "code": "HIDDEN",
+        "family": "rule",
+        "guide": "programs",
+        "message": "the program refused with HIDDEN",
+        "rule": "HIDDEN",
+        "site": "schema.q:21:29"
+      }
+    },
+    {
+      "loading": true
+    },
+    {
+      "loading": true
+    },
+    {
+      "denied": {
+        "code": "HIDDEN",
+        "family": "rule",
+        "guide": "programs",
+        "message": "the program refused with HIDDEN",
+        "rule": "HIDDEN",
+        "site": "schema.q:21:29"
+      }
+    },
+    {
+      "loading": true
+    }
+  ],
+  "captured": {
+    "op": "apply",
+    "page": {
+      "acknowledged": {},
+      "events": [
+        {
+          "data": [
+            "room"
+          ],
+          "id": "[{\"String\":\"room\"}]",
+          "kind": "scope",
+          "seq": 2,
+          "table": "members"
+        },
+        {
+          "data": [
+            "room"
+          ],
+          "id": "[{\"String\":\"room\"}]",
+          "kind": "scope",
+          "seq": 2,
+          "table": "secrets"
+        }
+      ],
+      "generation": 1,
+      "images_at": 2,
+      "joined": {},
+      "more": false,
+      "now": 1790650450056,
+      "snapshot": false,
+      "store_id": "2c955663e406247ae578cbc96eae9fd9",
+      "watermark": 2,
+      "send_revision": 1,
+      "pending_through": 0,
+      "pending_complete": true,
+      "pending_bound": 0,
+      "requested_watermark": 1,
+      "captured_restore_watermark": 1,
+      "captured_restore_images_at": 0,
+      "captured_watermark": 1,
+      "stage_snapshot": false,
+      "snapshot_catchup": false
+    },
+    "predictionFreeRevision": 0,
+    "predictionTables": {},
+    "first": true,
+    "result": {
+      "ok": {
+        "published": true,
+        "touched": [
+          "members",
+          "secrets"
+        ]
+      }
+    }
+  },
+  "trace": [
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 0,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": null,
+          "transfer_watermark": 0,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "server-clock"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "queued",
+        "restore_clock_floor": true
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "server-clock-floor"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "server-clock",
+        "value": "{\"offset\":1,\"issuedOffset\":1}"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "media:manifest"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "next_submission"
+      },
+      "result": {
+        "ok": 1
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "syncedAt:wall:1"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 0,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": null,
+          "transfer_watermark": 0,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 0,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": null,
+          "transfer_watermark": 0,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "write-history",
+        "lookup": true
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "delivery-active"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state"
+      },
+      "result": {
+        "ok": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 0,
+          "send_revision": 0,
+          "snapshot_catchup": false,
+          "store_id": null,
+          "transfer_store_id": null,
+          "transfer_watermark": 0,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "server-clock",
+        "value": "{\"offset\":0.5,\"issuedOffset\":0.5}"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "acknowledged": {},
+          "after": null,
+          "events": [
+            {
+              "data": {
+                "id": "bob",
+                "principal": "dev:bob",
+                "room": "room"
+              },
+              "id": "bob",
+              "kind": "put",
+              "table": "members"
+            },
+            {
+              "data": {
+                "id": "alice",
+                "principal": "dev:alice",
+                "room": "room"
+              },
+              "id": "alice",
+              "kind": "put",
+              "table": "members"
+            },
+            {
+              "data": {
+                "body": "private answer",
+                "id": "private",
+                "room": "room"
+              },
+              "id": "private",
+              "kind": "put",
+              "table": "secrets"
+            }
+          ],
+          "generation": 1,
+          "held": {},
+          "more": false,
+          "next": null,
+          "now": 1790650450013,
+          "snapshot": true,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 0,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 0,
+          "captured_restore_watermark": 0,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 0,
+          "stage_snapshot": true,
+          "snapshot_catchup": false
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "2c955663e406247ae578cbc96eae9fd9",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "apply",
+        "page": {
+          "acknowledged": {},
+          "after": null,
+          "events": [
+            {
+              "data": {
+                "id": "bob",
+                "principal": "dev:bob",
+                "room": "room"
+              },
+              "id": "bob",
+              "kind": "put",
+              "table": "members"
+            },
+            {
+              "data": {
+                "id": "alice",
+                "principal": "dev:alice",
+                "room": "room"
+              },
+              "id": "alice",
+              "kind": "put",
+              "table": "members"
+            },
+            {
+              "data": {
+                "body": "private answer",
+                "id": "private",
+                "room": "room"
+              },
+              "id": "private",
+              "kind": "put",
+              "table": "secrets"
+            }
+          ],
+          "generation": 1,
+          "held": {},
+          "more": false,
+          "next": null,
+          "now": 1790650450013,
+          "snapshot": true,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 0,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 0,
+          "captured_restore_watermark": 0,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 0,
+          "stage_snapshot": true,
+          "snapshot_catchup": false
+        },
+        "predictionFreeRevision": 0,
+        "predictionTables": {},
+        "first": true
+      },
+      "result": {
+        "ok": {
+          "published": false,
+          "touched": []
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "delivery-active"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state"
+      },
+      "result": {
+        "ok": {
+          "acquired": false,
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "2c955663e406247ae578cbc96eae9fd9",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": "1",
+            "device:snapshot:owner": "1",
+            "device:snapshot:through": "1",
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 1,
+          "restore_watermark": 1,
+          "send_revision": 0,
+          "snapshot_catchup": true,
+          "store_id": null,
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "acknowledged": {},
+          "events": [],
+          "generation": 1,
+          "images_at": 1,
+          "joined": {},
+          "more": false,
+          "now": 1790650450017,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 0,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 1,
+          "captured_watermark": 0,
+          "stage_snapshot": false,
+          "snapshot_catchup": true
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": null,
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": "2c955663e406247ae578cbc96eae9fd9",
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": null,
+            "device:snapshot:images_at": "1",
+            "device:snapshot:owner": "1",
+            "device:snapshot:through": "1",
+            "device:store_id": null,
+            "device:watermark": null
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 0
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "apply",
+        "page": {
+          "acknowledged": {},
+          "events": [],
+          "generation": 1,
+          "images_at": 1,
+          "joined": {},
+          "more": false,
+          "now": 1790650450017,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 0,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 1,
+          "captured_watermark": 0,
+          "stage_snapshot": false,
+          "snapshot_catchup": true
+        },
+        "predictionFreeRevision": 0,
+        "predictionTables": {},
+        "first": false
+      },
+      "result": {
+        "ok": {
+          "published": true,
+          "touched": [
+            "members",
+            "secrets"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "delivery-active"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "syncedAt:wall:1",
+        "value": "1790650450019"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state"
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "acknowledged": {},
+          "events": [],
+          "generation": 1,
+          "images_at": 1,
+          "joined": {},
+          "more": false,
+          "now": 1790650450023,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 1,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 1,
+          "stage_snapshot": false,
+          "snapshot_catchup": false
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "apply",
+        "page": {
+          "acknowledged": {},
+          "events": [],
+          "generation": 1,
+          "images_at": 1,
+          "joined": {},
+          "more": false,
+          "now": 1790650450023,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 1,
+          "send_revision": 1,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 1,
+          "stage_snapshot": false,
+          "snapshot_catchup": false
+        },
+        "predictionFreeRevision": 0,
+        "predictionTables": {},
+        "first": true
+      },
+      "result": {
+        "ok": {
+          "published": true,
+          "touched": []
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "delivery-active"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "syncedAt:wall:1",
+        "value": "1790650450027"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "query",
+        "name": "required",
+        "viewer": "dev:bob",
+        "args": {},
+        "now": 1790650450031
+      },
+      "result": {
+        "ok": {
+          "complete": true,
+          "cut": null,
+          "data": {
+            "body": "private answer",
+            "id": "private",
+            "room": "room"
+          },
+          "next": null,
+          "nextExpiry": null,
+          "retained": false,
+          "tables": [
+            "members",
+            "secrets"
+          ],
+          "unknown": false
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "query",
+        "name": "required",
+        "viewer": "dev:bob",
+        "args": {},
+        "now": 1790650450031
+      },
+      "result": {
+        "ok": {
+          "complete": true,
+          "cut": null,
+          "data": {
+            "body": "private answer",
+            "id": "private",
+            "room": "room"
+          },
+          "next": null,
+          "nextExpiry": null,
+          "retained": false,
+          "tables": [
+            "members",
+            "secrets"
+          ],
+          "unknown": false
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "query",
+        "name": "second",
+        "viewer": "dev:bob",
+        "args": {},
+        "now": 1790650450041
+      },
+      "result": {
+        "ok": {
+          "complete": true,
+          "cut": null,
+          "data": {
+            "body": "private answer",
+            "id": "private",
+            "room": "room"
+          },
+          "next": null,
+          "nextExpiry": null,
+          "retained": false,
+          "tables": [
+            "members",
+            "secrets"
+          ],
+          "unknown": false
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 1,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "state"
+      },
+      "result": {
+        "ok": {
+          "generation": 1,
+          "native": null,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state"
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 1,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 1,
+          "watermark": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "acknowledged": {},
+          "events": [
+            {
+              "data": [
+                "room"
+              ],
+              "id": "[{\"String\":\"room\"}]",
+              "kind": "scope",
+              "seq": 2,
+              "table": "members"
+            },
+            {
+              "data": [
+                "room"
+              ],
+              "id": "[{\"String\":\"room\"}]",
+              "kind": "scope",
+              "seq": 2,
+              "table": "secrets"
+            }
+          ],
+          "generation": 1,
+          "images_at": 2,
+          "joined": {},
+          "more": false,
+          "now": 1790650450056,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 2,
+          "send_revision": 1,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 1,
+          "stage_snapshot": false,
+          "snapshot_catchup": false
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "1"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "apply",
+        "page": {
+          "acknowledged": {},
+          "events": [
+            {
+              "data": [
+                "room"
+              ],
+              "id": "[{\"String\":\"room\"}]",
+              "kind": "scope",
+              "seq": 2,
+              "table": "members"
+            },
+            {
+              "data": [
+                "room"
+              ],
+              "id": "[{\"String\":\"room\"}]",
+              "kind": "scope",
+              "seq": 2,
+              "table": "secrets"
+            }
+          ],
+          "generation": 1,
+          "images_at": 2,
+          "joined": {},
+          "more": false,
+          "now": 1790650450056,
+          "snapshot": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "watermark": 2,
+          "send_revision": 1,
+          "pending_through": 0,
+          "pending_complete": true,
+          "pending_bound": 0,
+          "requested_watermark": 1,
+          "captured_restore_watermark": 1,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 1,
+          "stage_snapshot": false,
+          "snapshot_catchup": false
+        },
+        "predictionFreeRevision": 0,
+        "predictionTables": {},
+        "first": true
+      },
+      "result": {
+        "ok": {
+          "published": true,
+          "touched": [
+            "members",
+            "secrets"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "meta",
+        "key": "delivery-active"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "syncedAt:wall:1",
+        "value": "1790650450062"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "query",
+        "name": "required",
+        "viewer": "dev:bob",
+        "args": {},
+        "now": 1790650450067
+      },
+      "result": {
+        "ok": {
+          "denied": {
+            "code": "HIDDEN",
+            "family": "rule",
+            "guide": "programs",
+            "message": "the program refused with HIDDEN",
+            "rule": "HIDDEN",
+            "site": "schema.q:21:29"
+          },
+          "retained": false,
+          "unknown": false
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "query",
+        "name": "required",
+        "viewer": "dev:bob",
+        "args": {},
+        "now": 1790650450067
+      },
+      "result": {
+        "ok": {
+          "denied": {
+            "code": "HIDDEN",
+            "family": "rule",
+            "guide": "programs",
+            "message": "the program refused with HIDDEN",
+            "rule": "HIDDEN",
+            "site": "schema.q:21:29"
+          },
+          "retained": false,
+          "unknown": false
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "set_meta",
+        "key": "server-clock",
+        "value": "{\"offset\":-0.5,\"issuedOffset\":-0.5}"
+      },
+      "result": {
+        "ok": null
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "queued"
+      },
+      "result": {
+        "ok": []
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "observe_store",
+        "page": {
+          "snapshot": false,
+          "generation": 1,
+          "events": [],
+          "watermark": 2,
+          "more": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "requested_watermark": 2,
+          "captured_restore_watermark": 2,
+          "captured_restore_images_at": 0,
+          "captured_watermark": 2,
+          "send_revision": 1
+        }
+      },
+      "result": {
+        "ok": {
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "reset": false,
+          "retired": {},
+          "send_revision": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "op": "sync_state",
+        "capture": false
+      },
+      "result": {
+        "ok": {
+          "acquired": true,
+          "adoption_capture": {
+            "device:acquired-generation": "1",
+            "device:backend-identity": "16509b14248456f5939a71c2b37b6effedd6e6d4da5d067555906d87212881c3",
+            "device:backend-required": null,
+            "device:deferred:cursor": null,
+            "device:deferred:identity": null,
+            "device:deferred:images_at": null,
+            "device:generation": "1",
+            "device:native:digest": null,
+            "device:restore-refused": null,
+            "device:send_revision": "1",
+            "device:snapshot:images_at": null,
+            "device:snapshot:owner": null,
+            "device:snapshot:through": null,
+            "device:store_id": "2c955663e406247ae578cbc96eae9fd9",
+            "device:watermark": "2"
+          },
+          "backend_required": false,
+          "generation": 1,
+          "outbox_status": true,
+          "pending_bound": 0,
+          "pending_complete": true,
+          "pending_ids": [],
+          "pending_through": 0,
+          "receipt_outcomes": true,
+          "restore_images_at": 0,
+          "restore_watermark": 2,
+          "send_revision": 1,
+          "snapshot_catchup": false,
+          "store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_store_id": "2c955663e406247ae578cbc96eae9fd9",
+          "transfer_watermark": 2,
+          "watermark": 2
+        }
+      }
+    }
+  ]
+}

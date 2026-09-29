@@ -84,3 +84,35 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   await until(() => presence(observed.getSnapshot()) === 'present');
   assert.equal(observed.getSnapshot().data.label, 'new');
 });
+
+// @ref LLP 3000.023#10 — same-key completed replacements always replace data.
+// @ref LLP 3000.031#1.1 — each replacement classifies its own disclosed value.
+for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row arrival and delete replace absent/present presence`, { timeout: 60_000 }, async t => {
+  const { fixture, open, q, until } = await import('./helpers/answers-stay.mjs');
+  const f = await fixture(t);
+  assert.equal((await f.post('/m/erase', {})).state, 'sent');
+  const client = await open(t, f, host);
+  const watch = client.observe(q('item'), {});
+  const published = [];
+  const stop = watch.subscribe(() => published.push(watch.getSnapshot()));
+  t.after(() => { stop(); watch.close(); });
+  await until(() => presence(watch.getSnapshot()) === 'absent');
+  const absent = watch.getSnapshot();
+  published.length = 0;
+  assert.equal((await f.post('/seed', [{ table: 'messages', row: { id: 'item', room: 'room', body: 'arrived', at: 2 } }])).seeded, 1);
+  if (client.sync) await client.sync();
+  await until(() => presence(watch.getSnapshot()) === 'present' && watch.getSnapshot().data.body === 'arrived');
+  const present = watch.getSnapshot();
+  assert.notEqual(present, absent);
+  assert.equal((await f.post('/m/erase', {})).state, 'sent');
+  if (client.sync) await client.sync();
+  await until(() => presence(watch.getSnapshot()) === 'absent');
+  assert.equal(watch.getSnapshot().data, null);
+  assert.notEqual(watch.getSnapshot(), present);
+  assert.ok(published.some(read => presence(read) === 'present'));
+  assert.ok(published.every(read => 'data' in read), 'immediate same-key replacements never flash loading');
+  for (const read of published) {
+    if (read.data === null) assert.notEqual(read.presence, 'present', 'an empty replacement never inherits present');
+    else assert.equal(read.presence, 'present', 'an arriving row never inherits absent/partial');
+  }
+});

@@ -378,7 +378,9 @@ fn infer_audience(catalog: &Catalog, sync: &SyncDecl, rule: &RuleExpr, named: Op
 /// Bind a rule expression over a table's focal row.
 pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallible<RuleExpr> {
     let bindings = RuleBindings { old: rule.bindings.first().cloned(), next: rule.bindings.get(1).cloned(), update: rule.effect == Effect::Update, insert: rule.effect == Effect::Insert };
-    rule_expr(catalog, info, &rule.value, &bindings)
+    rule_expr(catalog, info, &rule.value, &bindings).map_err(|error| {
+        super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error)
+    })
 }
 
 struct RuleBindings {
@@ -488,7 +490,8 @@ fn rule_term(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 let ty = column_ty(info, name).ok_or_else(|| unknown(site, format!("rule reads undeclared column {}.{name}", info.decl.name), name_rewrite(name, info.columns.keys().map(String::as_str).chain(["id"]), None)))?;
                 Ok((RuleTerm::NextField(name.clone()), ty))
             }
-            other => Err(unknown(site, format!("`{}` is not a rule term; rules read the row as .column", crate::print::expression(other)), format!(".{name}"))),
+            other => Err(unknown(site, format!("rules cannot traverse `{}`; dropping `{}` would change the rule", crate::print::expression(expr), crate::print::expression(other)),
+                "declare read through on the child to inherit parent authorization; rules otherwise compare row-local .column values").guide("rules")),
         },
         Expr::Name { name, .. } if bindings.update && (bindings.old.as_deref() == Some(name) || bindings.next.as_deref() == Some(name)) => Err(unknown(site, format!("select a field of {name} explicitly"), format!("{name}.id"))),
         Expr::Name { name, .. } => Err(unknown(site, format!("`{name}` is not a rule term; rules read the row as .{name}"), format!(".{name}"))),

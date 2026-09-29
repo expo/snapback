@@ -242,7 +242,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { log_empty_reads: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
+    Dev { trace_empty: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
     Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
@@ -313,7 +313,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     let shared = Arc::new(Shared {
         project: project.root.canonicalize().map_err(|e| e.to_string())?,
         temporary: matches!(mode, Mode::Dev { fresh: true, .. }),
-        refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address, matches!(mode, Mode::Dev { log_empty_reads: true, .. }))? } else { Default::default() },
+        refusals: if dev { dev_refusals::Recent::start(&project.root, &engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default(), address, matches!(mode, Mode::Dev { trace_empty: true, .. }))? } else { Default::default() },
         latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
@@ -330,6 +330,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
+    if dev { crate::lifecycle::managed_cleanup(); }
     let server = Arc::new(server);
     let address = server.server_addr();
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
@@ -394,7 +395,7 @@ fn serve_requests(
             }
             report_at = Instant::now();
         }
-        if stopping() { return Ok(()); }
+        if stopping() { shared.refusals.shutdown(); return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }

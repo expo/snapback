@@ -25,7 +25,7 @@ for (const keep of [undefined, true, false]) {
       assert.deepEqual(watch.read(null), { ...ready("A"), revalidating: true });
       assert.equal(answerIdentity(watch.snapshot), identity);
       now = 1999; watch.reload();
-      assert.equal(episodeDeadline(watch.snapshot), keep === true ? undefined : 2000);
+      assert.equal(episodeDeadline(watch.snapshot), undefined);
     }
     const replacement = data?.denied ? data : ready(data);
     gate.resolve({ read: replacement }); await work;
@@ -34,7 +34,7 @@ for (const keep of [undefined, true, false]) {
     watch.retire();
   });
   for (const failure of ["throw", "transportOffline", "retryExhausted", "retain:false", "loading"]) {
-    test(`hard withdrawals replace retained data: keep=${keep}, ${failure}`, async t => {
+    test(`failure policy and explicit withdrawals: keep=${keep}, ${failure}`, async t => {
       const watch = new ReadObservation(keep), gate = Promise.withResolvers();
       watch.publish(ready("A"));
       const result = { read: failure === "loading" ? { loading: true } : ready("B"), transportOffline: failure === "transportOffline" };
@@ -43,7 +43,9 @@ for (const keep of [undefined, true, false]) {
       if (failure === "retain:false") assert.deepEqual(watch.read(null), { loading: true });
       if (failure === "throw") { gate.reject(Error("device unavailable")); await assert.rejects(work); }
       else { gate.resolve(result); await work; }
-      assert.deepEqual(watch.read(null), failure === "retain:false" ? ready("B") : { loading: true });
+      const retained = keep !== false && ["throw", "transportOffline", "retryExhausted"].includes(failure);
+      assert.deepEqual(watch.read(null), retained ? { ...ready("A"), revalidating: true }
+        : failure === "retain:false" ? ready("B") : { loading: true });
       watch.retire();
     });
   }
@@ -59,7 +61,7 @@ for (const access of ["snapshot", "peek", "timer"]) test(`one stable episode wit
     key, subscribers: new Set(), presenceRefresh: null,
   }), () => {}, () => {}, () => null);
   const watch = watches.get(key), gate = Promise.withResolvers();
-  watch.publish(ready("A"));
+  watch.publish(ready("A")); watch.reload(true);
   let notifications = 0; handle.subscribe(() => notifications++);
   const work = watch.fetch(() => gate.promise, () => {});
   const deadline = episodeDeadline(handle.getSnapshot()), reset = watch.resetVersion;
@@ -87,9 +89,7 @@ for (const keep of [undefined, true]) test(`successful fallback and held composi
   now = 1999;
   assert.equal(watch.read(null).data, "A", "server success does not withdraw while the later device read is held");
   assert.equal(watch.read(null).revalidating, true);
-  if (keep === undefined) {
-    now = 2000; assert.deepEqual(watch.read(null), { loading: true });
-  }
+  now = 5000; assert.equal(watch.read(null).data, "A");
   watch.publish(ready("composed B"));
   assert.equal(watch.read(null).data, "composed B");
   assert.equal(watch.read(null).revalidating, undefined);
@@ -146,6 +146,7 @@ for (const keep of [undefined, true]) for (const withdrawal of ["expiry", "loadi
     if (withdrawal === "loading") f.owner().publish({ loading: true });
     if (withdrawal === "reset") f.owner().reset({ loading: true });
     if (withdrawal === "denied") f.owner().publish({ denied: why });
+    if (withdrawal === "transportOffline") f.owner().reload(true);
     if (withdrawal === "transportOffline") await f.owner().fetch(async () => ({ read: ready("C"), transportOffline: true }), () => {});
     if (withdrawal === "retain:false") {
       const gate = Promise.withResolvers(), pending = f.owner().fetch(() => gate.promise, () => {}, { retain: false });
@@ -167,7 +168,7 @@ test("facade inherits A's episode timestamp from the invalidation, through B and
   f.owner().publish(ready("A"));
   for (const listener of f.owner().subscribers) listener();
   await until(() => watch.getSnapshot().data === "A");
-  f.hold(); f.owner().reload();
+  f.hold(); f.owner().reload(true);
   assert.equal(watch.getSnapshot().fresh, false); assert.equal(watch.getSnapshot().since, 500);
   now = 1900; f.publish("B");
   now = 1950; f.publish("C");
@@ -188,7 +189,7 @@ test("an early episode timer rearms to the original deadline without accessor he
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const watch = new ReadObservation();
   watch.onWithdrawal = () => notifications++;
-  watch.publish(ready("A")); watch.reload();
+  watch.publish(ready("A")); watch.reload(true);
   wall = 1500; t.mock.timers.tick(1000); // First delivery is early in the host clock.
   assert.equal(watch.snapshot.data, "A"); assert.equal(notifications, 0);
   wall = 2000; t.mock.timers.tick(500);
@@ -209,7 +210,7 @@ for (const keep of [undefined, false, true]) test(`facade withdrawal notifies on
   opening.subscribe(() => joined.push(opening.getSnapshot()));
   t.mock.timers.enable({ apis: ["setTimeout"] });
   if (keep === undefined) {
-    f.owner().reload();
+    f.owner().reload(true);
     assert.equal(watch.getSnapshot().revalidating, true);
     assert.equal(opening.getSnapshot().revalidating, true);
     seen.length = 0; joined.length = 0;
@@ -254,7 +255,7 @@ test("an episode due inside a grouped commit waits until the settled peer is rev
     }), watch => watch.publish(ready(name)), () => {}, () => null);
   });
   const [a, b] = [...watches.values()], seen = [];
-  a.reload();
+  a.reload(true);
   handles[0].subscribe(() => seen.push({ phase, first: a.snapshot, peer: b.snapshot }));
   wall = 2000; phase = "inside";
   const deliver = deferReadNotifications(() => new LocalReads().committed(watches.values(), "apply"));
@@ -263,3 +264,31 @@ test("an episode due inside a grouped commit waits until the settled peer is rev
   assert.deepEqual(seen, [{ phase: "after", first: { loading: true }, peer: { ...ready("B"), revalidating: true } }]);
   handles.forEach(handle => handle.close());
 });
+
+for (const keep of [undefined, true]) test(`online change bounds an older facade hold through later source replacements, keep=${keep}`, async t => {
+  let now = 1000; t.mock.method(Date, 'now', () => now);
+  const f = fixture(t, keep ?? 'default'), watch = f.client.observe(q, {}, { keep });
+  await until(() => f.owner());
+  f.publish('A'); await until(() => watch.getSnapshot().data === 'A');
+  f.hold(); f.publish('B');
+  now = 4000; assert.equal(watch.getSnapshot().data, 'A', 'plain authority wait is unbounded');
+  f.owner().reload(true);
+  assert.equal(episodeDeadline(watch.getSnapshot()), 5000, 'held A inherits the online evidence time');
+  now = 4500; f.publish('C');
+  now = 4900; f.publish('D');
+  now = 5000; assert.deepEqual(watch.getSnapshot(), { loading: true }, 'successful source replacements cannot renew unchecked A');
+  f.release(); await until(() => watch.getSnapshot().data === 'D'); watch.close();
+});
+
+for (const keep of [undefined, true]) for (const operation of ["apply", "admit", "settle"]) {
+  test(`local ${operation} retains within a change episode, keep=${keep}`, t => {
+    let now = 1000; t.mock.method(Date, "now", () => now);
+    const watch = Object.assign(new ReadObservation(keep), { presenceRefresh: null });
+    t.after(() => watch.retire()); watch.publish(ready("A"));
+    new LocalReads().committed([watch], operation);
+    assert.equal(episodeDeadline(watch.snapshot), 2000);
+    now = 1999; assert.equal(watch.read(null).data, "A");
+    assert.equal(watch.read(null).revalidating, true);
+    watch.publish(ready(null)); assert.equal(watch.read(null).data, null);
+  });
+}

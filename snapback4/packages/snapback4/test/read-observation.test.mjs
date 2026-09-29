@@ -5,7 +5,7 @@ import { ReadObservation } from '../dist/read-observation.js';
 const ready = data => (readyRead({ data, complete: true, cut: null, fresh: true }));
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 
-for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`one replacing fetch ends retention: ${outcome}`, async () => {
+for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`replacing fetch outcome: ${outcome}`, async () => {
   const watch = new ReadObservation(), gate = deferred();
   watch.publish(ready(['private']));
   const work = watch.fetch(() => gate.promise, () => {}, { retain: true });
@@ -15,13 +15,13 @@ for (const outcome of ['answer', 'loading', 'denied', 'failure']) test(`one repl
   if (outcome === 'failure') {
     gate.reject(Error('transport failed'));
     await assert.rejects(work, /transport failed/);
-    assert.deepEqual(watch.snapshot, { loading: true });
+    assert.deepEqual(watch.snapshot, { ...ready(['private']), revalidating: true });
   } else {
     const read = outcome === 'answer' ? ready([]) : outcome === 'loading' ? { loading: true } : { denied: { code: 'E_RULE', family: 'rule', message: 'withdrawn' } };
     gate.resolve({ read }); await work;
     assert.deepEqual(watch.snapshot, read);
   }
-  if (outcome !== 'answer') {
+  if (outcome !== 'answer' && outcome !== 'failure') {
     const next = deferred(), work = watch.fetch(() => next.promise, () => {});
     assert.ok(!('data' in watch.snapshot), 'the next fetch cannot reuse the previous private answer');
     next.resolve({ read: { loading: true } }); await work;

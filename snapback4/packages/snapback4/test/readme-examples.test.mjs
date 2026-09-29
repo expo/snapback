@@ -286,24 +286,16 @@ test("client card composer disables only refused or proven absent membership", a
   }
 });
 
-// Execute the published route owner: it retains route identity, never read data.
-test("profile route is chosen once per account and survives later loading", async () => {
-  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/function initialProfileRoute[\s\S]*?\n}/)?.[0];
+test("profile screen waits for proven presence and uses each replacement", async () => {
+  const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/async function profileScreen[\s\S]*?\n}/)?.[0];
   assert.ok(source);
-  const choose = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\ninitialProfileRoute;`, { api: { myProfile: {} }, presence });
-  let calls = 0;
-  let answer = { loading: true };
-  const route = choose({ query: async () => { calls++; return answer; } });
-  assert.equal(await route(), "loading");
-  answer = readyRead({ data: null, complete: false, cut: null, fresh: false });
-  assert.equal(await route(), "loading", "uncertain empty is not a missing profile route");
-  answer = { denied: { message: "unavailable" } };
-  assert.equal(await route(), "error");
-  answer = readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true });
-  assert.equal(await route(), "app");
-  answer = { loading: true };
-  assert.equal(await route(), "app");
-  assert.equal(calls, 4, "the chosen route never re-reads or retains the protected profile");
-  const otherAccount = choose({ query: async () => readyRead({ data: null, complete: true, cut: null, fresh: true }) });
-  assert.equal(await otherAccount(), "profile", "another account starts with its own decision");
+  const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, presence });
+  for (const [answer, expected] of [
+    [{ loading: true }, "loading"],
+    [readyRead({ data: null, complete: false, cut: null, fresh: false }), "loading"],
+    [{ denied: { message: "unavailable" } }, "error"],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), "profile"],
+    [readyRead({ data: { handle: "alice" }, complete: true, cut: null, fresh: true }), "app"],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), "profile"],
+  ]) assert.equal(await screen({ query: async () => answer }), expected);
 });

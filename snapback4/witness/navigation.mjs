@@ -18,7 +18,7 @@ try {
     const writes = await Promise.all(["exit one", "exit two"].map(body => client.mutate({ kind: "mutation", name: "send" }, { conversationId: "c1", body })));
     // Read the actual IDB transaction before navigation, independently of wasm.
     const saved = await new Promise((resolve, reject) => {
-      const open = indexedDB.open(`snapback4-${encodeURIComponent(`${api}:dev:alice`)}`, 1);
+      const open = indexedDB.open(`snapback4-${encodeURIComponent(`${api}:dev:alice`)}`);
       open.onsuccess = () => {
         const db = open.result, tx = db.transaction("changes"), req = tx.objectStore("changes").getAll();
         tx.oncomplete = () => { db.close(); resolve(req.result.filter(c => c.s === "o").map(c => JSON.parse(c.v).id)); };

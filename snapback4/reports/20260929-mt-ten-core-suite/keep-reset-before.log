@@ -1,0 +1,1000 @@
+attempt 1
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.194103ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.621428
+attempt 2
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (88.324811ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.974206
+attempt 3
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.233024ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.850157
+attempt 4
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (83.790274ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 186.823907
+attempt 5
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (85.03496ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.918051
+attempt 6
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.718162ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.362035
+attempt 7
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.732789ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.909907
+attempt 8
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.83292ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.568718
+attempt 9
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.940822ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 181.317536
+attempt 10
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.212657ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 172.546371
+attempt 11
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.275847ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.272647
+attempt 12
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.826665ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.165895
+attempt 13
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.027705ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.678243
+attempt 14
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (77.418286ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.245038
+attempt 15
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.45829ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.278435
+attempt 16
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.521909ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.480397
+attempt 17
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.763118ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.194339
+attempt 18
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (76.173861ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 170.317902
+attempt 19
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.535535ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.642872
+attempt 20
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.415551ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.725255
+attempt 21
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.929931ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.307922
+attempt 22
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (88.463709ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.916939
+attempt 23
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.367639ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.493829
+attempt 24
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.252122ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.49146
+attempt 25
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.674517ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.705915
+attempt 26
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (76.062705ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166.955383
+attempt 27
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.672513ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.38053
+attempt 28
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.127737ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.414214
+attempt 29
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.633316ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.393019
+attempt 30
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.434859ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 170.954836
+attempt 31
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (74.914805ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 169.082981
+attempt 32
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.497412ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.823023
+attempt 33
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.436432ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.875283
+attempt 34
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.859543ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.585962
+attempt 35
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.873754ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.159013
+attempt 36
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (77.051737ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 172.672941
+attempt 37
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (75.468694ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 169.612154
+attempt 38
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (77.910674ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 172.107884
+attempt 39
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.702615ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.690991
+attempt 40
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (83.926078ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.439804
+attempt 41
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.029931ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.020191
+attempt 42
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.252914ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.545198
+attempt 43
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.077298ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.230475
+attempt 44
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.183369ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.971366
+attempt 45
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (76.321312ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 172.390278
+attempt 46
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.120337ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.285488
+attempt 47
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.540011ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.122758
+attempt 48
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.128998ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.887108
+attempt 49
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.573095ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.727139
+attempt 50
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.88499ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.771278
+attempt 51
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (84.208291ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.062699
+attempt 52
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (77.722852ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.105244
+attempt 53
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.661845ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.315389
+attempt 54
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.496198ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.970079
+attempt 55
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.19545ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.915707
+attempt 56
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.503297ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.701406
+attempt 57
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (76.611887ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 172.579701
+attempt 58
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (83.858667ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.325495
+attempt 59
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.744632ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.762449
+attempt 60
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.050903ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.025233
+attempt 61
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.635885ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.017499
+attempt 62
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.092784ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.040905
+attempt 63
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.081013ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.75185
+attempt 64
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.685143ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.376713
+attempt 65
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.951784ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.636262
+attempt 66
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (86.824011ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.82967
+attempt 67
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.663366ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 188.662823
+attempt 68
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.506451ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.008216
+attempt 69
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (86.20942ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.221227
+attempt 70
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.047105ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.578472
+attempt 71
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.007714ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 181.525197
+attempt 72
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.778641ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.359205
+attempt 73
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.78405ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 181.048323
+attempt 74
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.81744ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.379292
+attempt 75
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.107896ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.385723
+attempt 76
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.018053ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.203586
+attempt 77
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.554439ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.99849
+attempt 78
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (86.331142ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.025474
+attempt 79
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.911801ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.738173
+attempt 80
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.4126ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 181.521681
+attempt 81
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.462766ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.397318
+attempt 82
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.005863ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.041314
+attempt 83
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.684962ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.749076
+attempt 84
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (86.87639ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.439282
+attempt 85
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.280454ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.510329
+attempt 86
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.116106ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.674956
+attempt 87
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.34339ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.972644
+attempt 88
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (79.611333ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.289981
+attempt 89
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.679973ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.979763
+attempt 90
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (82.863405ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.631291
+attempt 91
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.796788ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.512639
+attempt 92
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.573788ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.096373
+attempt 93
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (83.299158ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.230869
+attempt 94
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.74169ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 174.993028
+attempt 95
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (81.99883ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 179.400142
+attempt 96
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (83.860911ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180.654913
+attempt 97
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.76854ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 173.115444
+attempt 98
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.721819ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.221188
+attempt 99
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (80.152193ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 177.064511
+attempt 100
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (78.272286ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176.385745

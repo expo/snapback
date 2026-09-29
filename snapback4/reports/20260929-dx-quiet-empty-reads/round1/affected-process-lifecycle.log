@@ -1,0 +1,63 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 1.32s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-8e2e84704490be50)
+
+running 20 tests
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause ... ok
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s
+
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-294f9c4be30a91bd)
+
+running 21 tests
+test subprocess_probe ... ok
+test dev_refuses_an_explicit_worker_path_instead_of_ignoring_it ... ok
+test startup_refusals_name_the_unserved_generation ... ok
+test a_signal_diagnostic_starts_a_line_after_interrupted_stderr ... ok
+test a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline ... ok
+test off_thread_panic_and_watcher_return_have_one_line_reasons ... ok
+test sqlite_permissions_preserve_database_and_wal_locks ... ok
+test service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved ... ok
+test development_banner_and_release_auth_boundary ... ok
+test killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children ... ok
+test dev_and_doctor_report_low_inherited_descriptor_limits ... ok
+test memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill ... ok
+test a_store_without_work_binding_columns_still_serves ... ok
+test a_signal_still_cleans_up_the_application_worker ... ok
+test sqlite_replay_survives_counter_split_and_an_offline_cli_backfill ... ok
+test dev_default_adoption_and_check_share_the_successor_refusal ... ok
+test a_real_mapping_fault_reports_before_the_os_terminates_the_process ... ok
+test watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill ... ok
+test w10r1b_dev_reports_the_same_cascades_as_check ... ok
+test abort_profile_reports_an_off_thread_panic_to_redirected_stderr ... ok
+test dev_and_serve_report_signals_without_a_configured_worker ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.07s

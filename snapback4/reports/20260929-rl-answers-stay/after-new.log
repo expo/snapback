@@ -1,0 +1,98 @@
+✔ online evidence while already revalidating: keep=undefined, late answer (2.19562ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.507961ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.296845ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (176.899527ms)
+✔ online evidence while already revalidating: keep=true, late answer (0.495513ms)
+✔ online evidence while already revalidating: keep=true, throw (0.345478ms)
+✔ online evidence while already revalidating: keep=true, offline (0.324947ms)
+✔ online evidence while already revalidating: keep=true, exhausted (175.917666ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1059.863665ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (31.739369ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1027.01923ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (32.105929ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3052.824365ms)
+  ✔ offline transport (51.033146ms)
+  ✔ retry exhaustion (183.155243ms)
+  ✔ reconnect (90.786306ms)
+✔ process keep=undefined: profile route gate (4348.426692ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (40.126219ms)
+  ✔ own send and settlement (55.698628ms)
+  ✔ edit (32.481701ms)
+  ✔ delete (29.782125ms)
+  ✔ membership removal (32.131437ms)
+✔ process keep=undefined: chat history and membership removal (1782.681404ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3040.641932ms)
+  ✔ offline transport (48.894139ms)
+  ✔ retry exhaustion (180.663098ms)
+  ✔ reconnect (85.321895ms)
+✔ process keep=true: profile route gate (3995.470856ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (51.947346ms)
+  ✔ own send and settlement (54.986922ms)
+  ✔ edit (32.20656ms)
+  ✔ delete (31.127432ms)
+  ✔ membership removal (33.303223ms)
+✔ process keep=true: chat history and membership removal (1777.235228ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3037.587169ms)
+  ✔ offline transport (43.142009ms)
+  ✔ retry exhaustion (180.265511ms)
+  ✔ reconnect (74.559465ms)
+✔ wasm keep=undefined: profile route gate (4377.408455ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (36.511191ms)
+  ✔ own send and settlement (38.284018ms)
+  ✔ edit (22.975275ms)
+  ✔ delete (64.940339ms)
+  ✔ membership removal (24.502183ms)
+✔ wasm keep=undefined: chat history and membership removal (1682.229477ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3037.560123ms)
+  ✔ offline transport (43.782719ms)
+  ✔ retry exhaustion (179.732452ms)
+  ✔ reconnect (73.204234ms)
+✔ wasm keep=true: profile route gate (3902.072994ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (45.91212ms)
+  ✔ own send and settlement (32.742612ms)
+  ✔ edit (25.821449ms)
+  ✔ delete (24.04677ms)
+  ✔ membership removal (24.649433ms)
+✔ wasm keep=true: chat history and membership removal (1671.755096ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3023.640757ms)
+  ✔ offline transport (37.981705ms)
+  ✔ retry exhaustion (193.780176ms)
+  ✔ reconnect (74.483892ms)
+✔ online keep=undefined: profile route gate (3878.944535ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (26.687979ms)
+  ✔ own send and settlement (19.68304ms)
+  ✔ edit (18.728048ms)
+  ✔ delete (15.156305ms)
+  ✔ membership removal (15.427191ms)
+✔ online keep=undefined: chat history and membership removal (607.465001ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3033.351708ms)
+  ✔ offline transport (38.776616ms)
+  ✔ retry exhaustion (195.031852ms)
+  ✔ reconnect (71.101763ms)
+✔ online keep=true: profile route gate (3876.865114ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (28.199423ms)
+  ✔ own send and settlement (23.170176ms)
+  ✔ edit (17.4416ms)
+  ✔ delete (15.245519ms)
+  ✔ membership removal (17.788781ms)
+✔ online keep=true: chat history and membership removal (635.837544ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 78
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33653.08379

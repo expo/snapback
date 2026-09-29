@@ -174,9 +174,9 @@ non-empty current server plan; retained coverage can still be incomplete.
 (add the membership predicate), **N_SEARCH_OPEN** (use grouped),
 **N_SEARCH_WORDS** (longer first term or pinned chat), and **N_SEARCH_SHAPE**
 (remove repeated peer/detail subqueries from each hit). Every entry has a site,
-rewrite and `why` explanation. No structural certificate predicts corpus bytes.
+summary; `check --verbose` adds rewrites and `why` explanations. No certificate predicts bytes.
 
-**Device holdings.** With horizon-free sources, `check` reports horizon-free
+**Device holdings.** With horizon-free sources, `check --verbose` reports horizon-free
 source coverage for `searchHeld`: it reads one unscoped words index over the
 messages this device holds, with no membership merge or per-reader copy.
 Use the local client and continue with `c: read.next`.

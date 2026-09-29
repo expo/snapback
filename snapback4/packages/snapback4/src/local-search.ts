@@ -139,6 +139,7 @@ function sourceCursor(plan: SearchComposition, row: Row, generation: number, led
 }
 export interface SearchResult {
   read: Read<unknown>;
+  transportOffline?: boolean;
   nextExpiry: number | null;
   serverExpiry?: number | null;
   credential?: number;
@@ -203,7 +204,8 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
     if (retained.length > plan.limit + 1) throw new SearchBound("overlap candidates");
     ledger.text(jsonBound(retained, ledger));
     const response = await env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained }, r => ledger.decode(r)); checkpoint();
-    if (!response.ok || response.obsoleteAuth || await blocked()) return loading;
+    if (!response.ok) return { ...loading, transportOffline: true };
+    if (response.obsoleteAuth || await blocked()) return loading;
     checkpoint();
     const remote = response.json as Page;
     // A permanent refusal publishes no rows or cursor. It must not become an

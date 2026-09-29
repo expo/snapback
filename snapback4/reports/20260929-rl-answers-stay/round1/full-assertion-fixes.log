@@ -1,0 +1,58 @@
+✔ expiry retry chained permits wasm (455.182357ms)
+✔ expiry retry populated watch wasm (82.843659ms)
+✔ expiry retry server pagination wasm (68.03218ms)
+✔ expiry retry server pagination watch wasm (75.815936ms)
+✔ expiry retry remembered branch wasm (60.098721ms)
+✔ expiry retry remembered branch watch wasm (75.350649ms)
+✔ expiry retry remembered branch timer watch wasm (168.383958ms)
+✔ expiry retry chained permits process (110.67529ms)
+✔ expiry retry populated watch process (113.407115ms)
+✔ expiry retry server pagination process (102.780168ms)
+✔ expiry retry server pagination watch process (98.797259ms)
+✔ expiry retry remembered branch process (95.919195ms)
+✔ expiry retry remembered branch watch process (102.830373ms)
+✔ expiry retry remembered branch timer watch process (206.002949ms)
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11163.129851ms)
+ℹ inside-episode data notifications: 25; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (12813.40981ms)
+ℹ inside-episode data notifications: 25; deadline withdrawals: 3
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (12316.022308ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (34601.932251ms)
+ℹ inside-episode data notifications: 91; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (34387.050003ms)
+ℹ inside-episode data notifications: 91; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (34368.861174ms)
+ℹ inside-episode data notifications: 92; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (34514.180346ms)
+ℹ inside-episode data notifications: 93; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (34580.666772ms)
+ℹ inside-episode data notifications: 93; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (34584.790056ms)
+ℹ inside-episode data notifications: 92; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 23, 50ms authority (10909.735793ms)
+ℹ inside-episode data notifications: 25; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 44, 50ms authority (11813.484606ms)
+ℹ inside-episode data notifications: 25; deadline withdrawals: 3
+✔ createApp keep=true property: online, seed 445, 50ms authority (11992.154528ms)
+ℹ inside-episode data notifications: 27; deadline withdrawals: 4
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (34173.9311ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (34158.601432ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (34058.63535ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+✔ createApp keep=true property: process, seed 23, 50ms authority (34126.613719ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+✔ createApp keep=true property: process, seed 44, 50ms authority (34392.024616ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+✔ createApp keep=true property: process, seed 445, 50ms authority (34186.943682ms)
+ℹ inside-episode data notifications: 89; deadline withdrawals: 3
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 483256.036014

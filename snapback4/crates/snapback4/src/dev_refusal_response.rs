@@ -42,8 +42,8 @@ impl Drop for Pending {
 // Inspect the actual encoded envelope, after overflow substitution. This covers
 // every responder using the shared JSON response layer, including receipt replay,
 // static admission and future paths with no attached collector. No user data is
-// copied into the record. Empty answers are conservatively marked unknown when
-// a rule reason was not instrumented; they are not claimed to prove a denial.
+// copied into the record. Unknown empty answers enter only the opt-in local
+// trace; successful visibility filtering is never a refusal.
 pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
     CURRENT.with(|c| {
         let mut c = c.borrow_mut();
@@ -55,20 +55,22 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             // later uninstrumented terminal refusal in that same request.
             code.is_none() || cause.terminal
         });
+        let empty_answer = code.is_none();
         let code = match code {
             Some(code) => code,
             None if evidence.query && body.get("data").is_some() && body.get("loading") != Some(&Value::Bool(true)) => {
                 // Visibility filtering is a successful read, not a refusal.
                 if cause.as_ref().is_some_and(|cause| !cause.terminal && !cause.no_candidate) { return None; }
-                if empty(&body["data"]) { "EMPTY_READ" }
+                if evidence.recent.trace_empty && empty(&body["data"]) { "EMPTY_READ" }
                 else { return None; }
             }
             None => return None,
         };
         let mut record = json!({"operation":evidence.operation, "code":code, "requestId":evidence.request,
             "generation":evidence.generation, "clause":"cause not instrumented", "at":snapback4_core::now_ms()});
-        if code == "EMPTY_READ" {
-            record["cause"] = json!(if cause.as_ref().is_some_and(|c| c.no_candidate) { "no-candidate" } else { "unrecorded" });
+        if empty_answer {
+            record["emptyRead"] = json!(true);
+            record["cause"] = json!(if cause.as_ref().is_some_and(|cause| cause.no_candidate) { "no-candidate" } else { "unrecorded" });
             record["clause"] = json!("no probe miss and no rule cause were recorded");
         }
         if let Some(cause) = cause {

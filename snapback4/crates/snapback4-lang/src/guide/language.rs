@@ -28,7 +28,7 @@ mutation addNote(body: text):
 
 ## Limits
 
-- Use Quarry spellings such as `count(x)` and `first 20`: E_QUARRY_UNSUPPORTED.
+- `count(x)`, `len(x)`, `length(x)`: text characters or list items; identical typing and meters. Unsupported spellings: E_QUARRY_UNSUPPORTED.
 - A field or argument must fit its declared type: E_QUARRY_TYPE.
 - Queries only read; writes belong in mutations or jobs: E_QUARRY_PLACEMENT.
 
@@ -246,14 +246,16 @@ query expiration(setting: text):
   return now + expiryTtl(setting) if expiryTtl(setting) != null else null  -- repeated pure calls narrow (guide types)
 
 fn isBrief(ttl: int ?): ttl != null                                  -- expanded at each call
-fn stamp(roomId: rooms):                                             -- inherits caller write authority
+fn stamp(roomId: rooms):                                             -- inherits caller write authority; falling through returns null
   update rooms[roomId] { createdAt: now }
-  return
 fn tally(n: int):
   total = 0
   for i in range(0, 1 + 1):
     total = total + n
   return total
+
+query familiarLengths():
+  return { characters: len('é🙂'), items: length([1, 2]) }
 
 fn profileLabel(label: text): label
 query spreadProfile(h: text 3..20 format handle, extra: text):

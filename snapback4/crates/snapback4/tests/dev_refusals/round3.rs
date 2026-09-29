@@ -119,7 +119,7 @@ fn filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope() {
 fn composed_missing_row_is_present_and_does_not_emit_empty_read() {
     let project = Project::new();
     fs::write(project.0.join("snapback/schema.q"), format!("{SOURCE}\nquery composed():\n  return {{outer: {{row: rows['absent']}}}}\n")).unwrap();
-    let dev = Host::start_logging(project, true, false, true);
+    let dev = Host::start_with(project, true, false, &["--trace-empty"]);
     let previous = dev.refuse("add");
     let store = previous["store_id"].as_str().unwrap();
     let before = dev.project.wait_record(store, "add");
