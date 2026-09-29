@@ -73,7 +73,7 @@ const polls = [];
 const mounts = { query: 0, page: 0 };
 window.latest = {}; window.events = [];
 const app = createApp({ url, sessionStore: { ...memory, async get(key) {
-  if (delayed) { delays++; await new Promise(resolve => setTimeout(resolve, options?.keep ? 50 : 5)); }
+  if (delayed) { delays++; await new Promise(resolve => setTimeout(resolve, 5)); }
   return memory.get(key);
 } }, fetch: async (input, init) => {
   const path = new URL(input).pathname;

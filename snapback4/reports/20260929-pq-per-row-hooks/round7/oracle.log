@@ -1,0 +1,60 @@
+✔ reference rejects transient empty member answers and sign-out loading (1.021942ms)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 69)
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ mixed evidence schedule process: 300 independent histories (6689.84904ms)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 154)
+✖ mixed evidence schedule wasm: 300 independent histories (6965.871219ms)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 169)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 198)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 217)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 227)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 256)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 268)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 473)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 481)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 499)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 505)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 511)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 517)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 533)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 541)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 549)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 555)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 571)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 577)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 583)
+(node:3665583) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 589)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259811.512221
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:33:41
+✖ mixed evidence schedule process: 300 independent histories (6689.84904ms)
+  Error: injected replacement failure
+      at Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:92:58)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:379:33)
+      at async local (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:102:24)
+      at async route (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:277:23)
+      at async evaluateLocal (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:367:27)
+      at async file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1162:41
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:33:41
+✖ mixed evidence schedule wasm: 300 independent histories (6965.871219ms)
+  Error: injected replacement failure
+      at Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:92:58)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at listOnTimeout (node:internal/timers:567:9)
+      at process.processTimers (node:internal/timers:541:7)
+      at async Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:379:33)
+      at async local (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:102:24)
+      at async route (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:277:23)
+      at async evaluateLocal (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:367:27)
+      at async file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1162:41

@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — invalidated attempts retire; replacement queue wait precedes its episode.
+// @ref LLP 3000.023#10 — invalidated attempts retire; replacement queue wait precedes its episode.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -119,8 +119,8 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
   });
 }
 
-for (const tier of ['online', 'wasm', 'process']) test(`${tier}: invalidating an acquisition leaves replacement queue wait outside the episode`, async t => {
-  const f = await fixture(t, tier);
+for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, true]) test(`${tier} keep=${keep}: invalidating an acquisition leaves replacement queue wait outside the episode`, async t => {
+  const f = await fixture(t, tier, keep);
   f.acquire(); await until(() => f.reads === 1);
   assert.equal(episodeDeadline(f.watch.getSnapshot()), undefined);
   const blocks = await f.fill();
@@ -148,7 +148,7 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
       if (changed) return;
       // Isolate the final callback from the evaluation and early version checks.
       changed = true; f.owner.changeVersion = (f.owner.changeVersion ?? 0) + 1;
-      f.owner.reload({ queued: true });
+      f.owner.reload(true, { queued: true });
     } });
     f.watch.subscribe(() => { if (changed) seen.push(f.owner.snapshot); });
     f.acquire(); await until(() => f.reads === 1); f.old.resolve();

@@ -325,7 +325,7 @@ export function createClient(options: ClientOptions): Client {
       if (next === "signed-out") endLingering(watches.values());
       if (next !== "online") for (const watch of watches.values()) {
         if (next === "signed-out" || "data" in watch.snapshot) {
-          watch.publish(next === "signed-out" ? { denied: auth() } : { loading: true });
+          if (next === "signed-out") watch.publish({ denied: auth() }); else watch.failed(true);
           changed.push(watch);
         }
       }
@@ -612,14 +612,14 @@ export function createClient(options: ClientOptions): Client {
   function watchEphemeral(watch: Watch) {
     const tables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, reset => {
+    ephemeralReads.add(watch, tables, (reset, changed) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
       if (reset) scheduleExpiry(watch, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void scheduleRead(watch);
+        void scheduleRead(watch, changed);
       };
     });
   }
@@ -679,9 +679,9 @@ export function createClient(options: ClientOptions): Client {
   }
 
   const readWork = new ReadWork<Watch>();
-  function scheduleRead(watch: Watch) {
+  function scheduleRead(watch: Watch, changed = false) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    watch.reload({ queued: true }); notify(watch);
+    watch.reload(changed, { queued: true }); notify(watch);
     acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
@@ -706,7 +706,7 @@ export function createClient(options: ClientOptions): Client {
         if (result.deadlineWithdrawn?.()) return true;
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
-        scheduleExpiry(watch, result.nextExpiry);
+        if (!result.transportOffline) scheduleExpiry(watch, result.nextExpiry);
         return true;
       } }), signal);
       checkRead(signal);
@@ -718,19 +718,21 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || !currentRead(result, watch)) {
         if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()
           && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) { retryExpired = true; return; }
-        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.publish({ loading: true });
+        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
         return;
       }
-      watch.publish(result.transportOffline ? { loading: true } : result.read);
+      if (result.transportOffline || exhausted) watch.failed(result.transportOffline); else watch.publish(result.read);
       acceptDelivery(result, watch.snapshot);
       notify(watch);
       watch.tables = new Set(tables);
       ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
+    } catch {
+      if (!signal.aborted && !closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -826,7 +828,7 @@ export function createClient(options: ClientOptions): Client {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
           for (const watch of watches.values()) {
-            if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void scheduleRead(watch);
+            if (changedGeneration || !json.tables || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void scheduleRead(watch, true);
           }
         }
       } catch (error) {
@@ -863,7 +865,7 @@ export function createClient(options: ClientOptions): Client {
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void scheduleRead(watch);
+      for (const watch of watches.values()) void scheduleRead(watch, true);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.

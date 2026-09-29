@@ -32,6 +32,7 @@ import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } f
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { localPendingHolds, localPendingWrites, pendingChanges } from "./pending-writes.ts";
 import { changeFeed } from "./changes.ts";
+import { episodeDeadline } from "./read-episode.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
@@ -111,8 +112,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
-  // Restore before installing a backend: sync must validate the old evidence
-  // before adoption. Each server/viewer pair has one store.
+  // One store per server/viewer; sync validates old evidence before backend adoption.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online", linkRevision = 0;
   let generation = 0;
@@ -179,10 +179,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return result;
   }
   let seq = 0;
-  // The submission counter is taken synchronously as each write is admitted
-  // — a burst predicts concurrently and would otherwise number itself in
-  // the order its predictions finished — and continues from what the
-  // module's outbox holds.
+  // Number admissions synchronously, before concurrent prediction can reorder them,
+  // continuing from the module's outbox.
   let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
@@ -273,8 +271,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const affected = [...watches.values()].filter(watch => touched === undefined || (touched.length > 0
       && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
     const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
-    // Warm applies drain after the watermark. The commit already marks the old
-    // answer revalidating; cold acquisition continues publishing progressively.
+    // Warm applies drain after watermark publication; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
     return delivery;
   }
@@ -315,9 +312,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const table of footprint ?? []) committedTables?.tables.add(table);
         delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
       }
-      // A committed replacement has already retired the client's partition.
-      // Fence it before even media reconciliation can fail; native identity
-      // is read separately and must never be a prerequisite for invalidation.
+      // Fence a committed replacement before fallible media reconciliation or native identity reads.
       if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
         observeIncarnation(undefined, true, delivery);
         delivery.push(...retiredReceipts(history, (result.ok as { retired: Record<string, number> }).retired, completeWrite));
@@ -351,7 +346,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (next === "signed-out") endLingering(watches.values());
         for (const watch of watches.values()) {
           if (next === "signed-out") watch.publish({ denied: unavailable()! });
-          else if ("data" in watch.snapshot && watch.snapshot.fresh) watch.publish({ loading: true });
+          else if ("data" in watch.snapshot) watch.failed(true);
         }
       });
       deliver();
@@ -507,8 +502,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }).catch(() => {});
     return work;
   };
-  // A quiet request is a background presence refresh: its failure retries on the
-  // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
+  // Quiet presence failures retry on their timer without changing the link (LLP 3000.018 §3.2).
   function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, control?: DeviceControlSnapshot, decode?: (response: Response) => Promise<Record<string, unknown>>, signal?: AbortSignal) {
     const work = sendPost(path, body, captured, eph, quiet, control, decode, signal);
     active.add(work);
@@ -742,6 +736,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           observeIncarnation(publishedStore ?? undefined);
           storeIdentity = publishedStore ?? undefined;
           watermark = publishedState?.watermark ?? watermark;
+          if (publishedState) answers.applied(watches.values(), publishedState.watermark);
         }
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
@@ -773,7 +768,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) if (touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
-          if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept) { void scheduleRead(watch); continue; }
+          if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void scheduleRead(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
           watch.publish({ ...read, fresh: true });
@@ -834,13 +829,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
-      if (replaced || shrank) observeIncarnation(json.store_id, shrank);
-      const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
+      // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
+      const generationChanged = json.generation !== undefined && json.generation !== generation;
+      if (replaced || shrank || generationChanged) observeIncarnation(json.store_id, shrank || generationChanged);
+      const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
         for (const watch of watches.values()) {
-          if (runsOnServer(backend!, watch.op, nativeReady) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) { watch.changeVersion = (watch.changeVersion ?? 0) + 1; scheduleRead(watch); }
+          if (!json.tables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
         }
       }
       return changed;
@@ -910,7 +907,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const denied = unavailable(); // Rule 1 also holds across the caller's await.
         if (denied) return { ...result, read: { denied }, incarnation: revision, authority };
         if (result.ephemeralStale || (result.ephemeralRequest && !ephemeralReads.current(result.ephemeralRequest))) {
-          if (attempt >= 3) return { ...result, read: { loading: true } as Read<R>, incarnation: revision, authority };
+          if (attempt >= 3) return { ...result, retryExhausted: true, read: { loading: true } as Read<R>, incarnation: revision, authority };
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
           answerCache = answers.serverAnswers.view();
           continue;
@@ -935,21 +932,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function watchEphemeral(watch: Watch) {
     const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, reset => {
+    ephemeralReads.add(watch, tables, (reset, changed) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
       if (reset) scheduleExpiry(watch, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void scheduleRead(watch);
+        void scheduleRead(watch, changed);
       };
     });
   }
   function rerunTables(tables: Set<string>) { rerunLocalTables(watches.values(), tables, scheduleRead); }
   function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
-  // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
-  // still in its change version: queued invalidation need not replace the snapshot object.
+  // @ref LLP 3000.018#3.2 — background presence checks change versions even when queued snapshots stay identical.
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
@@ -963,8 +959,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion) return;
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion) return false;
-          watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion || !answers.current(watch, result)) return false;
+          watch.answerRevision = authority; watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables;
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
@@ -978,10 +974,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {}
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
-  const readWork = new ReadWork<Watch>(); // @ref LLP 3000.023#7 — changed input retires an older attempt; refresh cadence alone does not.
-  function scheduleRead(watch: Watch) {
+  const readWork = new ReadWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
+  function scheduleRead(watch: Watch, changed = false, cut?: number) {
     if (closed || sessionDead) return;
-    watch.reload({ queued: true }); notify(watch); acquireRead(watch);
+    if (changed) answers.changed(watch, cut);
+    watch.reload(changed, { queued: true }); notify(watch); acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
     if (closed || sessionDead) return;
@@ -1010,27 +1007,33 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       retryExpired = result.retryExpired === true;
       if (retryExpired && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) return;
       if (!retryExpired) watch.expiredRetries = 0;
+      if (!answers.current(watch, result)) return;
       const accepted = publishLocal(result, () => {
         if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) return false;
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
-        watch.incarnation = revision;
+        watch.answerRevision = authority; watch.incarnation = revision;
         watch.tables = tables;
         // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
         if (served) watch.presenceEvery = after;
         armPresence(watch);
+        if ((result.transportOffline || result.retryExhausted) && (!("data" in read) || episodeDeadline(watch.snapshot) !== undefined)) {
+          watch.failed(result.transportOffline);
+          if (!watch.kept) scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
+          notify(watch); return true;
+        }
         scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
         if (watch.snapshot !== read) {
           const denied = unavailable(); // Rule 1: immediately before notifying observers.
-          watch.publish(denied ? { denied } : read);
+          watch.publish(denied ? { denied } : result.transportOffline && "data" in read ? { ...read, revalidating: true } : read);
           notify(watch);
         }
         return true;
       }, watch);
       if (!accepted) { watch.dirty = true; retryExpired = true; }
     } catch {
-      if (!signal.aborted && !closed && watches.get(watch.key) === watch) {
-        watch.publish({ loading: true }); notify(watch);
+      if (!signal.aborted && !closed && changeVersion === watch.changeVersion && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) {
+        watch.failed(link === "offline"); notify(watch);
         armPresence(watch);
       }
     } finally {
@@ -1206,7 +1209,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
-          void scheduleRead(watch); },
+          void scheduleRead(watch, "data" in watch.snapshot && watch.answerRevision !== answers.revision); },
         watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },
@@ -1420,8 +1423,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
   // @ref LLP 3000.007#20.4 — recover existing IDs before accepting a fresh synchronous web admission; custody stays with the outbox and its receipt window.
   await queued();
-  // Remember shared ids to route retries through lookup, without retaining or
-  // settling their outcomes. Settlement's history.read remains strictly local.
+  // Remember shared ids for lookup retries; outcome retention and settlement stay local.
   const keptWrites = (await call({ op: "meta", key: "write-history", lookup: true })).ok as string | null;
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
@@ -1469,8 +1471,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     // Exit and ordinary replay share the host's startup checks, even offline.
     const replayAllowed = core.onSuspend && await replayOnOpen();
     if (replayAllowed) listenForExit();
-    // Install the same-head exit retry before awaiting ordinary delivery.
-    // Slow delivery and snapshots must not consume the page's exit opportunity.
+    // Install same-head exit retry before slow delivery/snapshots can consume the exit opportunity.
     if (replayAllowed && link === "online") await flushOnce(false);
     if (link === "online") await syncOnce();
     if (deliveryQueue?.enabled && link === "online" && !deliveryWitness) await probe();
@@ -1492,8 +1493,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     stopClock?.();
     await deliveryQueue?.stop();
     aborter.abort();
-    // Opening the device transfers its lifetime to this constructor. Until a
-    // client is returned, every later startup failure must release it here.
+    // This constructor owns the opened device until return; startup failures release it.
     try { await media?.close(); await core.close(); } catch {}
     throw error;
   }

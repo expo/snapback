@@ -65,7 +65,7 @@
   },
   "client.ts": {
     "count": 58,
-    "sha256": "b5981ef14b05d20c45663755dae0d97402920df64f48e0d9bb9d250feb095a57"
+    "sha256": "87f60b19c89c943cea190a8cf53465eef22fe60943888fe90cecb3b49267bd70"
   },
   "clock.ts": {
     "count": 7,
@@ -164,8 +164,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-query.ts": {
-    "count": 29,
-    "sha256": "691a081ade2d56b5a500f19e4b9c5710397f027cdd8ce2a6d9ecf5073163b93d"
+    "count": 30,
+    "sha256": "d3a34b2521e361e75e03fe86a690ddd01bfc44a6f5d08827ba560ccb405c0060"
   },
   "local-read-deadlines.ts": {
     "count": 0,

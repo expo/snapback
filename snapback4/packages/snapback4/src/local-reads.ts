@@ -32,6 +32,9 @@ export interface LocalWatch extends ReadObservation<unknown> {
   running: boolean;
   dirty: boolean;
   changeVersion?: number;
+  /** Reported change not yet published by this replica. */
+  changeCut?: number;
+  answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -147,10 +150,32 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit fences reads; retaining watches bound an ordinary reload. */
+/** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
+
+  // @ref LLP 3000.023#10 — change evidence retires recovery memory and
+  // pre-change evaluations without resetting the displayed answer.
+  changed(watch: LocalWatch, cut?: number): void {
+    this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
+    watch.changeVersion = (watch.changeVersion ?? 0) + 1;
+    if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
+  }
+
+  // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
+  // evidence. Only published sync progress or a whole server answer at the cut
+  // qualifies; a composed answer may still contain pre-change local rows.
+  applied(watches: Iterable<LocalWatch>, watermark: number): void {
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  }
+
+  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
+    return watch.changeCut === undefined || !("data" in result.read)
+      || (result.serverOnly === true && result.seq !== undefined && result.seq >= watch.changeCut);
+    // Keep the replica floor even after a qualifying server replacement: an
+    // offline re-read must not reinstall its older local rows before sync.
+  }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
   expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
@@ -166,7 +191,8 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) watch.reset({ loading: true }); else watch.reload({ queued: true });
+      if (reset) delete watch.changeCut;
+      if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

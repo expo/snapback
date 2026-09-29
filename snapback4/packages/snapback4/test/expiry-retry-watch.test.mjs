@@ -167,12 +167,12 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       wall = deadline;
       await reached.promise; // Timer fired; the device reobservation is held.
       assert.equal(calls, 2);
-      // @ref LLP 3000.023#7 — a wakeup acquires without invalidating the remembered answer.
+      // @ref LLP 3000.023#10 — a wakeup acquires without invalidating the remembered answer.
       assert.equal(live.getSnapshot(), before, "local wakeup preserves the remembered value, freshness and age");
       assert.equal(answerIdentity(live.getSnapshot()), answerIdentity(before));
       assert.equal(publications.length, 1, "a wakeup does not publish an invalidation");
       localGate.release();
-      await until(() => publications.length === 2 && !live.getSnapshot().revalidating, "timer reobservation did not publish its replacement");
+      await until(() => publications.length === 2 && live.getSnapshot().revalidating === true, "timer reobservation did not publish its replacement");
       assert.ok(publications.every(read => read.data === true && read.fresh === false));
       assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
       return;

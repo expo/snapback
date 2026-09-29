@@ -4,7 +4,7 @@ import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn, type ReadDea
 import { matchingReads } from "./read-key.ts";
 import { LocalReads, notifyLocalWatch as notify, type LocalWatch as Watch } from "./local-reads.ts";
 
-// @ref LLP 3000.023#7 — held expiry may raise the floor after evaluation returns.
+// @ref LLP 3000.023#10 — held expiry may raise the floor after evaluation returns.
 export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
   result: { read: Read<unknown>; deadlineWithdrawn?: true; serverExpiry?: number | null }): boolean {
   return !!result.deadlineWithdrawn || ("data" in result.read

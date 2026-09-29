@@ -1,0 +1,12 @@
+[
+  {
+    "host": "process",
+    "seed": 1,
+    "failures": []
+  },
+  {
+    "host": "process",
+    "seed": 2,
+    "failures": []
+  }
+]

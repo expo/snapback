@@ -10,6 +10,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { answerIdentity } from "../dist/read-observation.js";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
@@ -73,7 +74,8 @@ for (const tier of ["wasm", "process"]) {
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
     await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     await until(() => reads.length >= 2, "the background refresh ran");
     await delay(100);
@@ -93,10 +95,12 @@ for (const tier of ["wasm", "process"]) {
     t.after(() => mark.close());
     await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
     await until(() => shown(mark.getSnapshot()), `the server's own ${kind} was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => answerIdentity(mark.getSnapshot()) !== displayed, "recovery completed");
     await delay(300);
     stop();
     assert.ok(!seen.some(read => read.data?.v === 1), `recovery brought back the answer the ${kind} replaced: ${JSON.stringify(seen)}`);
@@ -113,7 +117,8 @@ for (const tier of ["wasm", "process"]) {
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => { held.resolve(); mark.close(); });
     await until(() => mark.getSnapshot()?.data?.v === 1, `the first answer did not arrive: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     await until(() => mark.getSnapshot()?.data?.v === 3, `the expiry did not re-run the watch: ${JSON.stringify(mark.getSnapshot())}`);
     assert.equal(reads.length, 3, "the held refresh, then the expiry's re-run");
@@ -124,9 +129,9 @@ for (const tier of ["wasm", "process"]) {
     // An outage takes the link offline, and the client recovers the server answer it last accepted.
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    const recovered = seen.find(read => read.fresh === false);
+    const recovered = seen.find(read => read.fresh === false && answerIdentity(read) !== displayed);
     assert.equal(recovered.data?.v, 3, `recovery showed a reply that was never accepted: ${JSON.stringify(recovered)}`);
     assert.ok(!seen.some(read => read.data?.v === 2), `the overtaken reply was published: ${JSON.stringify(seen)}`);
   });
@@ -147,13 +152,14 @@ for (const tier of ["wasm", "process"]) {
     held.resolve();
     // Nothing overtook the refresh on this watch, so its reply is published; the one-shot answer stays remembered.
     await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 3, `recovery lost the newer answer: ${JSON.stringify(seen)}`);
+    assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 3, `recovery lost the newer answer: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an accepted background reply is what a later recovery shows`, { timeout: 60_000 }, async t => {
@@ -161,13 +167,14 @@ for (const tier of ["wasm", "process"]) {
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
     await until(() => mark.getSnapshot()?.data?.v === 2, `the background refresh was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 2, `recovery did not show the accepted background answer: ${JSON.stringify(seen)}`);
+    assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 2, `recovery did not show the accepted background answer: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an accepted background reply replaces an older read's answer that landed while it ran`, { timeout: 60_000 }, async t => {
@@ -188,13 +195,14 @@ for (const tier of ["wasm", "process"]) {
     assert.equal((await older).data?.v, 2, "the older one-shot read landed");
     second.resolve();
     await until(() => mark.getSnapshot()?.data?.v === 3, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 3, `recovery stepped back to the older read's answer: ${JSON.stringify(seen)}`);
+    assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 3, `recovery stepped back to the older read's answer: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an older read's refusal that lands after an accepted background reply does not erase it`, { timeout: 60_000 }, async t => {
@@ -212,13 +220,14 @@ for (const tier of ["wasm", "process"]) {
     await until(() => mark.getSnapshot()?.data?.v === 3, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
     first.resolve();
     assert.equal((await older).denied?.code, "NOT_HERE", "the older one-shot read was refused");
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 3, `an older refusal erased the newer answer: ${JSON.stringify(seen)}`);
+    assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 3, `an older refusal erased the newer answer: ${JSON.stringify(seen)}`);
     assert.ok(reads.length >= 3, "the refresh ran after the one-shot read began");
   });
 
@@ -238,13 +247,15 @@ for (const tier of ["wasm", "process"]) {
     await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
     gate.resolve();
     assert.equal((await older).denied?.code, "NOT_HERE", "the one-shot read was refused at the later cut");
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => answerIdentity(mark.getSnapshot()) !== displayed, "recovery completed");
     await delay(300);
     stop();
-    assert.ok(!seen.some(read => read.fresh === false && read.data?.v === 2), `recovery showed an answer a later refusal replaced: ${JSON.stringify(seen)}`);
+    assert.ok(!seen.some(read => read.fresh === false && answerIdentity(read) !== displayed && read.data?.v === 2), `recovery showed an answer a later refusal replaced: ${JSON.stringify(seen)}`);
     assert.equal(reads.length, 3);
   });
 
@@ -266,13 +277,15 @@ for (const tier of ["wasm", "process"]) {
     refusing = true;
     gate.resolve();
     assert.equal((await older).denied?.code, "NOT_HERE", "the one-shot read, retried under the new store, was refused");
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => answerIdentity(mark.getSnapshot()) !== displayed, "recovery completed");
     await delay(300);
     stop();
-    assert.ok(!seen.some(read => read.fresh === false && "data" in read), `recovery showed an answer the retried read's refusal replaced: ${JSON.stringify(seen)}`);
+    assert.ok(!seen.some(read => read.fresh === false && answerIdentity(read) !== displayed && "data" in read), `recovery showed an answer the retried read's refusal replaced: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: forgetting an expired answer leaves the next server answer free to be remembered`, { timeout: 60_000 }, async t => {
@@ -286,13 +299,14 @@ for (const tier of ["wasm", "process"]) {
     await until(() => "loading" in mark.getSnapshot(), `the expired answer was not withdrawn: ${JSON.stringify(mark.getSnapshot())}`, 10_000);
     up();
     await until(() => (mark.getSnapshot()?.data?.v ?? 0) >= 2, `the watch did not read again once online: ${JSON.stringify(mark.getSnapshot())}`, 15_000);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the second outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.ok(seen.find(read => read.fresh === false).data?.v >= 2, `recovery lost the answer read after the forgotten one: ${JSON.stringify(seen)}`);
+    assert.ok(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v >= 2, `recovery lost the answer read after the forgotten one: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: a reply that names no store cut is ordered by when its read began`, { timeout: 60_000 }, async t => {
@@ -307,13 +321,14 @@ for (const tier of ["wasm", "process"]) {
     const mark = client.observe(query, { p: "dev:alice" });
     t.after(() => mark.close());
     await until(() => mark.getSnapshot()?.data?.v === 2, `the refresh without a cut was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
-    await until(() => seen.some(read => read.fresh === false), `no recovery was published: ${JSON.stringify(seen)}`);
+    await until(() => seen.some(read => read.fresh === false && answerIdentity(read) !== displayed), `no recovery was published: ${JSON.stringify(seen)}`);
     stop();
-    assert.equal(seen.find(read => read.fresh === false).data?.v, 2, `a reply without a cut lost to an older one: ${JSON.stringify(seen)}`);
+    assert.equal(seen.find(read => read.fresh === false && answerIdentity(read) !== displayed).data?.v, 2, `a reply without a cut lost to an older one: ${JSON.stringify(seen)}`);
   });
 
   test(`${tier}: an accepted background reply does not undo a newer read's deletion of an absent answer`, { timeout: 60_000 }, async t => {
@@ -331,12 +346,14 @@ for (const tier of ["wasm", "process"]) {
     assert.equal((await client.query(query, { p: "dev:alice" })).denied?.code, "NOT_HERE", "the one-shot read was refused");
     held.resolve();
     await until(() => mark.getSnapshot()?.data?.v === 2, `the background reply was not published: ${JSON.stringify(mark.getSnapshot())}`);
-    const seen = [];
+    // Offline metadata copies keep the displayed identity; recovery replaces it.
+    const seen = [], displayed = answerIdentity(mark.getSnapshot());
     const stop = mark.subscribe(() => seen.push(mark.getSnapshot()));
     down();
     await until(() => client.link() === "offline", "the outage took the link offline");
+    await until(() => answerIdentity(mark.getSnapshot()) !== displayed, "recovery completed");
     await delay(300);
     stop();
-    assert.ok(!seen.some(read => read.fresh === false && read.data?.v === 2), `recovery showed an answer a newer refusal had removed: ${JSON.stringify(seen)}`);
+    assert.ok(!seen.some(read => read.fresh === false && answerIdentity(read) !== displayed && read.data?.v === 2), `recovery showed an answer a newer refusal had removed: ${JSON.stringify(seen)}`);
   });
 }

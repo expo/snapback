@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: reference rejects transient empty member answers and sign-out loading
+ok 1 - reference rejects transient empty member answers and sign-out loading
+  ---
+  duration_ms: 0.949683
+  type: 'test'
+  ...
+# (node:3668963) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 69)
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: mixed evidence schedule process: 3 independent histories
+not ok 2 - mixed evidence schedule process: 3 independent histories
+  ---
+  duration_ms: 6705.942705
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:33:41'
+  failureType: 'unhandledRejection'
+  error: 'injected replacement failure'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:92:58)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:379:33)
+    async local (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:102:24)
+    async route (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:277:23)
+    async evaluateLocal (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:367:27)
+    async file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1162:41
+  ...
+# {"host":"process","seeds":3,"failedSeeds":2,"failures":["Error: injected replacement failure","visibility after membership removal at 4, now 1790671571483, allowed until 1790671571483","AssertionError [ERR_ASSERTION]: held removal replacement withdraws at fixture deadline\\n+ actual - expected\\n\\n+ undefined\\n- true\\n","AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\\n+ actual - expected\\n\\n+ [\\n+   'plain offline ephemeral metadata differs from fixture'\\n+ ]\\n- []\\n"]}
+# (node:3668963) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 151)
+# Subtest: mixed evidence schedule wasm: 3 independent histories
+not ok 3 - mixed evidence schedule wasm: 3 independent histories
+  ---
+  duration_ms: 7114.960862
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:33:41'
+  failureType: 'unhandledRejection'
+  error: 'injected replacement failure'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:92:58)
+    async Object.call (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:379:33)
+    async local (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:102:24)
+    async route (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:277:23)
+    async evaluateLocal (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-query.js:367:27)
+    async file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1162:41
+  ...
+# {"host":"wasm","seeds":3,"failedSeeds":2,"failures":["Error: injected replacement failure","visibility after membership removal at 4, now 1790671578183, allowed until 1790671578183","AssertionError [ERR_ASSERTION]: held removal replacement withdraws at fixture deadline\\n+ actual - expected\\n\\n+ undefined\\n- true\\n","AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\\n+ actual - expected\\n\\n+ [\\n+   'plain offline ephemeral metadata differs from fixture'\\n+ ]\\n- []\\n"]}
+1..3
+# tests 3
+# suites 0
+# pass 1
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19200.406724

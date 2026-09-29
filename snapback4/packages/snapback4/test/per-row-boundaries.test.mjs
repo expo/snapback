@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — queueing never postpones policy transitions or expiry floors.
+// @ref LLP 3000.023#10 — queueing never postpones policy transitions or expiry floors.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — bound observation starts; expiry and scope resets stay synchronous.
+// @ref LLP 3000.023#10 — bound observation starts; expiry and scope resets stay synchronous.
 // Each client owns a queue. Distinct watches share capacity; repeated requests
 // for a queued watch coalesce. Active watches keep their existing dirty fence.
 export const READ_WORK_LIFETIME = 30_000;

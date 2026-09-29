@@ -41,7 +41,7 @@ function fixture(t, keep) {
 
 test("closing a raw local handle stops its episode timer but keeps the deadline", t => {
   const f = fixture(t);
-  f.owner.reload(); f.handle.close();
+  f.owner.reload(true); f.handle.close();
   assert.equal(f.watches.size, 0);
   assert.equal(f.peek(), undefined, "closed observations cannot be remounted from the map");
   f.wall(1999); assert.equal(f.handle.getSnapshot().data, "private");

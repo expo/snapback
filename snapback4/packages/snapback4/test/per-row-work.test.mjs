@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — counts pin scheduling and dependency work at 1,000 rows.
+// @ref LLP 3000.023#10 — counts pin scheduling and dependency work at 1,000 rows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ReadWork, READ_WORK_LIFETIME, withReadSignal } from '../dist/read-work.js';

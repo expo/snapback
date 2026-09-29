@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — due-result recovery must preserve newer answers and release slots.
+// @ref LLP 3000.023#10 — due-result recovery must preserve newer answers and release slots.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

@@ -1,6 +1,6 @@
-# Client: preserve intent through read gaps
+# Client: answers stay on screen
 
-Keep drafts, routes and viewer ownership above transient lists; render protected rows only from current reads.
+Render current reads: same-key observations keep their answer during revalidation.
 Submit once at custody, then let the user continue.
 
 ```tsx
@@ -31,8 +31,9 @@ The reference saved-intent journal is in the starters: `snapback4 init --expo` /
 
 ## Honest read boundaries
 
-The signed-in tree follows `useAuth().state`, not a profile query. Decide the first route once per account/backend; subsequent `loading` never unmounts that tree, a route or draft.
-Keep headers and composers mounted through `loading`; rows follow the current read, never a saved previous answer. Reset user-owned state on account/backend change.
+A profile `useQuery` can gate a route: once ready, plain refetch, reconnect, a slow read, transport failure and retry exhaustion keep its answer marked `revalidating`, with no timeout. `usePage` likewise keeps history through peer sync, sends, settlements, edits and deletes; each completed read replaces the answer directly.
+Local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications keep the answer for at most one non-renewable second after the replacement attempt starts, then withdraw on failure or timeout. Immediate replica replacements never show `loading`. A notification remains pending until sync applies it. A whole server answer at its reported cut can replace the display sooner; older replica reads remain ineligible. Membership removal replaces rows with the denial or empty answer. `fresh: false` and `since` describe offline freshness; `revalidating` says a replacement is still needed.
+Offline ephemeral answers keep their original row expiry. The default and `keep: true` share this policy; `true` also lingers for 30 seconds after the last subscriber. `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Reset user-owned state on account/backend change. No identity latch or `keep: true` workaround is needed for refetch.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 For search, use one ordinary query per scope through `usePage`, as the social
 starter does. The replica client combines current server hits with retained
@@ -58,7 +59,7 @@ Both do zero evaluations for a known unrelated table write. The client starts
 at most eight queued observation attempts per event-loop turn, with at most eight
 active; direct queries and timed presence refreshes use separate paths.
 `keep: false` withdraws before a re-read is queued; retaining watches keep the answer marked `revalidating`.
-Queue wait precedes a new retention episode: its one-second bound starts when the attempt starts. Later queueing and retries never renew an existing deadline. Expiry and scope resets remain immediate.
+Queue wait precedes a new change-evidence episode: its one-second bound starts when the attempt starts. Later queueing and retries never renew an existing deadline. Expiry and scope resets remain immediate.
 Known unrelated writes also preserve remembered server answers for offline fallback.
 A clock refresh preserves a newer answer whose own deadline is still in the future.
 Dependencies include authorization inputs: a write can re-evaluate every row on the table even when only one id changed.

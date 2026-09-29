@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — retired attempts release capacity and cannot publish late.
+// @ref LLP 3000.023#10 — retired attempts release capacity and cannot publish late.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

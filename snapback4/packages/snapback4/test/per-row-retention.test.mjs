@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — queue wait, remembered dependencies and the final reset fence.
+// @ref LLP 3000.023#10 — queue wait, remembered dependencies and the final reset fence.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -115,8 +115,8 @@ for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replicated w
   assert.deepEqual({ queries, localQueries }, before, 'unrelated applies do no replacement query');
   online = false; await client.sync();
   await until(() => client.link() === 'offline');
-  await until(() => watch.getSnapshot().data === true && watch.getSnapshot().fresh === false && !watch.getSnapshot().revalidating,
-    'offline observation completes using remembered memory');
+  await until(() => watch.getSnapshot().data === true && watch.getSnapshot().fresh === false && watch.getSnapshot().revalidating === true,
+    'offline observation retains remembered memory while revalidating');
   assert.equal(watch.getSnapshot().data, true, 'the observed fallback survives the unrelated write');
   assert.equal((await client.query(op, {})).data, true, 'direct fallback uses the same remembered answer');
 });
@@ -144,7 +144,7 @@ for (const keep of [undefined, false, true]) test(`queued keep=${keep}: episode 
   t.after(() => { approvals.close(); watch.retire(); });
   watch.publish(ready('A')); approvals.approve(watch.snapshot);
   const identity = answerIdentity(watch.snapshot);
-  watch.reload({ queued: true }); now = 5000;
+  watch.reload(true, { queued: true }); now = 5000;
   t.mock.timers.tick(4000);
   if (keep === false) {
     assert.deepEqual(watch.read(null), { loading: true });
@@ -158,16 +158,14 @@ for (const keep of [undefined, false, true]) test(`queued keep=${keep}: episode 
   const queued = watch.snapshot;
   watch.reload(); // The queued attempt starts now.
   assert.equal(watch.snapshot, queued, 'starting the hidden deadline is not another visible transition');
-  const deadline = keep === true ? undefined : 6000;
+  const deadline = 6000; // Change evidence bounds both retaining policies.
   assert.equal(episodeDeadline(watch.snapshot), deadline);
   assert.equal(episodeDeadline(approvals.get(watch.snapshot).read()), deadline);
-  now = 5500; watch.reload({ queued: true }); watch.reload();
+  now = 5500; watch.reload(true, { queued: true }); watch.reload();
   assert.equal(episodeDeadline(watch.snapshot), deadline, 'a later queue wait cannot renew an existing episode');
   now = 6000;
-  if (keep === undefined) {
-    assert.deepEqual(watch.read(null), { loading: true });
-    assert.deepEqual(approvals.get(watch.snapshot).read(), { loading: true });
-  } else assert.equal(watch.read(null).data, 'A');
+  assert.deepEqual(watch.read(null), { loading: true });
+  assert.deepEqual(approvals.get(watch.snapshot).read(), { loading: true });
 });
 
 for (const boundary of ['row expiry', 'reset']) test(`queued observation still withdraws at ${boundary}`, t => {
@@ -179,13 +177,13 @@ for (const boundary of ['row expiry', 'reset']) test(`queued observation still w
   t.after(() => { approvals.close(); watch.retire(); clearTimeout(watch.expiryTimer); });
   watch.publish(ready('A'));
   arm(watch, { device: null, server: 1500, localWakeup: false }); approvals.approve(watch.snapshot);
-  watch.reload({ queued: true });
+  watch.reload(true, { queued: true });
   if (boundary === 'row expiry') { now = 1500; sweep(); } else watch.reset({ loading: true });
   assert.deepEqual(watch.read(null), { loading: true });
   assert.deepEqual(approvals.get(watch.snapshot).read(), { loading: true });
   assert.equal(watch.resetVersion, 1);
   now = 1000; watch.reload(); assert.deepEqual(watch.read(null), { loading: true });
-  watch.publish(ready('B')); watch.reload({ queued: true });
+  watch.publish(ready('B')); watch.reload(true, { queued: true });
   assert.equal(episodeDeadline(watch.snapshot), undefined, 'the reset retired the prior episode');
 });
 
@@ -298,5 +296,33 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
     for (const field of fields) assert.equal(owner[field], before[field], `no cancelled watch update: ${field}`);
     gate.resolve();
     await until(() => watch.getSnapshot().data === true && !watch.getSnapshot().revalidating);
+  });
+}
+
+for (const keep of [undefined, true]) for (const end of ['failure', 'timeout']) {
+  test(`plain refresh followed by queued change keeps its bound: keep=${keep}, ${end}`, t => {
+    let now = 1000; t.mock.method(Date, 'now', () => now);
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const watch = new ReadObservation(keep), approvals = new ReadApprovals();
+    t.after(() => { approvals.close(); watch.retire(); });
+    watch.publish(ready('A')); approvals.approve(watch.snapshot);
+    watch.reload(); now = 5000; watch.failed(true);
+    assert.equal(watch.read(null).data, 'A');
+    assert.equal(watch.snapshot.fresh, false); assert.equal(watch.snapshot.since, 1000);
+    assert.equal(episodeDeadline(watch.snapshot), undefined);
+    watch.reload(true, { queued: true }); now = 9000;
+    watch.reload(false, { queued: true });
+    assert.equal(watch.read(null).data, 'A');
+    assert.equal(episodeDeadline(watch.snapshot), undefined, 'plain reload cannot start the queued change attempt');
+    watch.reload(); const deadline = 10000;
+    assert.equal(episodeDeadline(watch.snapshot), deadline);
+    now = 9500; watch.reload(true, { queued: true }); watch.reload(false, { queued: true });
+    assert.equal(episodeDeadline(watch.snapshot), deadline, 'another queue wait cannot extend the active bound');
+    assert.equal(episodeDeadline(approvals.get(watch.snapshot).read()), deadline);
+    if (end === 'failure') watch.failed(true); else now = deadline;
+    assert.deepEqual(watch.read(null), { loading: true });
+    assert.deepEqual(approvals.get(watch.snapshot).read(), { loading: true });
+    watch.publish(ready('B'));
+    assert.equal(watch.read(null).data, 'B', 'withdrawal still accepts a later replacement');
   });
 }

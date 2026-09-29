@@ -1,4 +1,4 @@
-// @ref LLP 3000.023#7 — key-order-only React renders preserve the observation and page chain.
+// @ref LLP 3000.023#10 — key-order-only React renders preserve the observation and page chain.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';

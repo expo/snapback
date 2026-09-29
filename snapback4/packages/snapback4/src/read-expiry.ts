@@ -12,7 +12,7 @@ interface ExpiringRead {
   expiryTimer: ReturnType<typeof setTimeout> | null;
   expiredServerDeadline?: number | undefined;
 }
-// @ref LLP 3000.023#7 — a queued recovery cannot renew a withdrawn deadline
+// @ref LLP 3000.023#10 — a queued recovery cannot renew a withdrawn deadline
 // after server-time rollback, even with a new request ticket or retention policy.
 export function readDeadlineWithdrawn(watches: Iterable<Pick<ExpiringRead, "expiredServerDeadline">>, deadline: number | null | undefined): boolean {
   if (deadline == null) return false;
@@ -106,7 +106,7 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
   }
   for (const deliver of deliveries) deliver();
   // A clock sample re-arms future deadlines; only due owners need evaluation.
-  // @ref LLP 3000.023#7 — ordinary response timing must not refetch every row.
+  // @ref LLP 3000.023#10 — ordinary response timing must not refetch every row.
   for (const watch of due) refresh(watch);
 }
 
