@@ -78,8 +78,14 @@ and UIScene lifecycle ready for iOS 27. Products, intermediates and module cache
 are pinned to the private workspace; every app/Pods target's resolved output
 paths are checked before compilation. Custom output-directory and linker side-output overrides refuse, including
 `LD_MAP_FILE_PATH`, `LD_DEPENDENCY_INFO_FILE`, LTO objects and SDK imports.
+The same checks cover `PER_ARCH_OBJECT_FILE_DIR` and `COMPILATION_CACHE_CAS_PATH`.
 Resolved destinations for every target must stay in the private cache, including
 through symlink parents.
+Nonempty `SKIP_BUNDLING` and `SOURCEMAP_FILE` settings are refused. Every build
+removes the old product bundle and requires Xcode to produce a new one before
+sealing its receipt. Resolved Swift and module-verifier flags, including forwarded
+compiler arguments, must keep outputs inside the private cache. Unsupported
+bundler command, output-name, config and argument overrides also refuse.
 The adapter audits supported Xcode references and resolved output destinations;
 uncovered references, custom build scripts/Podfile/environment hooks, and scheme
 actions are refused. Its native inventories are provenance, not a complete
@@ -121,7 +127,7 @@ The repack route is withdrawn: its native compatibility key was incomplete.
 No credentials, signing settings or native identity are changed.
 
 Five complete warm `--build` runs with smoke on the M5 Pro mini measured
-**172.045 s median / 199.870 s nearest-rank p95** (about 2.9 / 3.3 minutes).
+**159.841 s median / 197.562 s nearest-rank p95** (about 2.7 / 3.3 minutes).
 Every run passed, with installed dependencies/tools, a booted simulator and a
 warm private cache; shared-host load varied. Cold native build/install measured
 359 s in the earlier setup, with smoke and setup additional; its final GUI

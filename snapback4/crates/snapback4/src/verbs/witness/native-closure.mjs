@@ -37,13 +37,25 @@ export function privateBuildFlags(cache) {
 // bypass SYMROOT/OBJROOT when explicitly set. Install-name and runtime search
 // settings are metadata, not file destinations. Unknown linker flags refuse.
 export const linkerOutputKey = key => ['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].includes(key);
-const outputKey = key => linkerOutputKey(key) || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
+const outputKey = key => linkerOutputKey(key) || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH'].includes(key) || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
   || ['SYMROOT', 'OBJROOT', 'DSTROOT', 'CCHROOT', 'SHARED_PRECOMPS_DIR', 'DERIVED_DATA_DIR', 'DERIVED_FILE_DIR', 'DERIVED_FILES_DIR', 'DERIVED_SOURCES_DIR', 'INDEX_DATA_STORE_DIR', 'CLANG_MODULE_CACHE_PATH', 'SWIFT_MODULE_CACHE_PATH', 'INSTALL_ROOT', 'TARGET_BUILD_DIR'].includes(key);
+export function validateBundlingSettings(settings, target) {
+  for (const [rawKey, value] of Object.entries(settings)) {
+    const key = rawKey.replace(/\[[^\]]+\]/g, '');
+    // RN treats even "0" or whitespace as a nonempty request to skip bundling.
+    // Its approved script also writes SOURCEMAP_FILE directly, outside Xcode's roots.
+    if (['SKIP_BUNDLING', 'SOURCEMAP_FILE', 'BUNDLE_NAME', 'BUNDLE_COMMAND', 'BUNDLE_CONFIG',
+      'CLI_PATH', 'COMPOSE_SOURCEMAP_PATH', 'NODE_ARGS', 'NODE_OPTIONS', 'EXTRA_PACKAGER_ARGS',
+      'CONFIG_JSON', 'CONFIG_CMD', 'PROJECT_ROOT', 'ENTRY_FILE'].includes(key) && String(value) !== '')
+      refuse(`${target}: unsupported ${key}: ${value}`);
+  }
+}
 export function validateOutputs(rows, cache) {
   if (!Array.isArray(rows) || !rows.length) refuse('missing resolved target settings');
   const owned = canonical(cache);
   for (const { target, buildSettings: s } of rows) {
     for (const required of ['TARGET_BUILD_DIR', 'TARGET_TEMP_DIR', 'OBJROOT', 'SYMROOT']) if (!s?.[required]) refuse(`${target}: missing ${required}`);
+    validateBundlingSettings(s, target);
     for (const [key, value] of Object.entries(s)) if (outputKey(key) && value) {
       if (typeof value !== 'string' || !path.isAbsolute(value) || value.includes('$') || !inside(canonical(value), owned))
         refuse(`${target}: output ${key} escapes private workspace: ${value}`);
@@ -120,11 +132,32 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
     }
   }
   function flags(value, s) {
-    const tokens = words(expand(Array.isArray(value) ? value.join(' ') : value, s));
-    for (let i = 0; i < tokens.length; i++) {
+    const raw = words(expand(Array.isArray(value) ? value.join(' ') : value, s));
+    // Each wrapper forwards exactly one argument. Keep compiler channels apart:
+    // -Xcc -I -Xcc path is a pair; -Xcc -I -Xfrontend path is not.
+    const streams = { direct: [], '-Xcc': [], '-Xfrontend': [] };
+    for (let i = 0; i < raw.length; i++) {
+      const t = raw[i];
+      if (t === '-Xcc' || t === '-Xfrontend') {
+        const next = raw[++i];
+        if (!next || next === '-Xcc' || next === '-Xfrontend') refuse(`${s.TARGET_NAME}: malformed forwarded flag ${value}`);
+        streams[t].push(next);
+      } else streams.direct.push(t);
+    }
+    for (const tokens of Object.values(streams)) for (let i = 0; i < tokens.length; i++) {
       const t = tokens[i];
+      const output = t.split('=')[0];
+      if (['-o', '-emit-module-path', '-emit-module-interface-path', '-emit-private-module-interface-path',
+        '-emit-package-module-interface-path', '-emit-objc-header-path', '-emit-dependencies-path',
+        '-emit-reference-dependencies-path', '-serialize-diagnostics-path', '-serialize-diagnostics',
+        '-index-store-path', '-module-cache-path', '-MF', '-MJ'].includes(output)) {
+        const dest = t.includes('=') ? t.slice(t.indexOf('=') + 1) : tokens[++i];
+        if (!dest || !path.isAbsolute(dest) || !inside(canonical(dest), canonical(cache)))
+          refuse(`${s.TARGET_NAME}: output flag ${output} escapes private workspace: ${dest ?? '(missing destination)'}`);
+        continue;
+      }
       if (t === '-x') { if (!['objective-c', 'objective-c++', 'c', 'c++'].includes(tokens[++i])) refuse(`unsupported source language ${value}`); continue; }
-      if (['-Xcc', '-Xfrontend', '-D'].includes(t)) { if (t === '-D' && !/^[A-Z_][A-Z_0-9]*$/.test(tokens[++i] ?? '')) refuse(`unsupported native flag ${value}`); continue; }
+      if (t === '-D') { if (!/^[A-Z_][A-Z_0-9]*$/.test(tokens[++i] ?? '')) refuse(`unsupported native flag ${value}`); continue; }
       if (['-ivfsoverlay', '-include', '-imacros', '-I', '-F', '-L', '-isystem', '-iquote', '-iframework'].includes(t)) {
         const file = check(tokens[++i], s);
         if (t === '-ivfsoverlay') {
@@ -156,6 +189,8 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
   for (const row of rows) {
     const s = { ...row.buildSettings, inherited: '', TARGET_NAME: row.target };
     for (const [key, value] of Object.entries(s)) {
+      if (key === 'HERMES_CLI_PATH' && value && canonical(value) !== canonical(path.join(root, 'node_modules/hermes-compiler/hermesc/osx-bin/hermesc')))
+        refuse(`${row.target}: unsupported HERMES_CLI_PATH: ${value}`);
       if (['CC', 'CXX', 'LD', 'LDPLUSPLUS', 'SWIFT_EXEC', 'SDKROOT'].includes(key) && value
         && !['clang', 'clang++', 'ld', 'swiftc'].includes(value)) {
         if (resolve(value).kind !== 'toolchain') refuse(`unsupported native tool ${key}: ${value}`);
@@ -166,7 +201,7 @@ export function auditNativeProject(project, projectDir, rows, root, cache, syste
         const paths = key.endsWith('_PATHS') ? words(value) : [value];
         for (const p of paths) { if (p !== '/usr/lib/swift') check(p, s); }
       }
-      if (/^(OTHER_(?:C|CPLUSPLUS|SWIFT|LD|LIBTOOL|MODULE_VERIFIER)FLAGS|WARNING_CFLAGS)$/.test(key) && value) flags(value, s);
+      if (/^(OTHER_(?:(?:C|CPLUSPLUS|LD|LIBTOOL)FLAGS|(?:SWIFT|MODULE_VERIFIER)_FLAGS)|WARNING_CFLAGS)$/.test(key) && value) flags(value, s);
       if (['PODS_TARGET_SRCROOT', 'PODFILE_DIR', 'REACT_NATIVE_PATH', 'SRCROOT', 'PROJECT_DIR'].includes(key) && value) check(value, s);
     }
     // Inspect every target's phases and inherited configuration files, including Pods.

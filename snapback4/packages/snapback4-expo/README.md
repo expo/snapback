@@ -80,5 +80,5 @@ After JS/assets edits, repeat `witness ios --build . --smoke` with the same
 dedicated simulator and a fresh artifacts directory. Warm Xcode intermediates
 are reused; each run builds the current app and seals a new receipt. Repack
 is withdrawn. Five complete warm build-plus-smoke runs on the shared M5 Pro mini
-measured 172.045 s median / 199.870 s nearest-rank p95, all passing; cold native preparation was about six minutes, with smoke and setup
+measured 159.841 s median / 197.562 s nearest-rank p95, all passing; cold native preparation was about six minutes, with smoke and setup
 additional. See `guide witness` for pins, scope and exact invocation.

@@ -77,7 +77,9 @@ test('native Xcode sources, resources and build inputs outside covered roots ref
       { c: { buildSettings: { CONFIGURATION_BUILD_DIR: '/other/Products' } } },
       { c: { buildSettings: { OBJROOT: '/other/Objects' } } },
       { c: { buildSettings: { SYMROOT: '/other/Symbols' } } },
-      ...['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].map(k => ({ c: { buildSettings: { [k + '[sdk=iphonesimulator*]']: '/other/sentinel' } } })),
+      { c: { buildSettings: { 'SKIP_BUNDLING[sdk=iphonesimulator*]': '1' } } },
+      { c: { buildSettings: { 'SOURCEMAP_FILE[sdk=iphonesimulator*]': '/other/app.map' } } },
+      ...['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].map(k => ({ c: { buildSettings: { [k + '[sdk=iphonesimulator*]']: '/other/sentinel' } } })),
       { c: { buildSettings: { HEADER_SEARCH_PATHS: '$(SRCROOT)/../SharedNative' } } },
       { c: { buildSettings: { SWIFT_INCLUDE_PATHS: '$(SRCROOT)/../SharedNative' } } },
       { c: { buildSettings: { 'SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]': '/opt/shared-native' } } },
@@ -130,6 +132,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
   const write = (file, value) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, typeof value === 'object' && !Buffer.isBuffer(value) ? JSON.stringify(value) : value); };
   try {
     write(path.join(project, 'package.json'), {});
+    write(path.join(project, 'javascript.txt'), 'A');
     write(path.join(project, 'app.json'), { expo: { newArchEnabled: true } });
     write(path.join(project, 'package-lock.json'), { packages: {} });
     for (const [name, version] of Object.entries({ expo: '57.0.22', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.13', 'hermes-compiler': 'test' })) {
@@ -174,7 +177,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     }
     const sentinel = path.join(root, 'outside-sentinel');
     fs.writeFileSync(sentinel, 'another owner');
-    for (const key of ['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
+    for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
       const bad = run('build', key, key);
       assert.equal(bad.status, 1, bad.stderr);
       assert.match(bad.stderr, new RegExp('Pod: output ' + key + ' escapes private workspace'));
@@ -192,6 +195,45 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     const built = JSON.parse(fs.readFileSync(receipt));
     assert.notEqual(built.inputs.pods.sha256, built.sourceInputs.pods.sha256, 'the key must describe post-resolution bytes');
     assert.notEqual(built.inputs.pods.sha256, built.preparedInputs.pods.sha256, 'Xcode-produced bytes have a separate inventory');
+    // Change only JS after a successful A; stale valid A must never be sealed as B.
+    write(path.join(project, 'javascript.txt'), 'B');
+    const skipped = run('build', 'warm-skip-setting', 'skip-bundling');
+    assert.equal(skipped.status, 1, skipped.stderr);
+    assert.match(skipped.stderr, /App: unsupported SKIP_BUNDLING: 1/);
+    assert.equal(fs.existsSync(path.join(skipped.out, 'xcode-build.log')), false);
+    assert.equal(fs.existsSync(path.join(skipped.out, 'build.json')), false);
+    const product = path.join(project, '.snapback4-witness/DerivedData/Build/Products/fixture.app');
+    assert.equal(fs.readFileSync(product + '/main.jsbundle')[127], 'A'.charCodeAt(0));
+    const noBundle = run('build', 'warm-skipped-phase', 'skipped-phase');
+    assert.equal(noBundle.status, 1, noBundle.stderr);
+    assert.match(noBundle.stderr, /Xcode did not produce main.jsbundle/);
+    assert.equal(fs.existsSync(path.join(noBundle.out, 'build.json')), false);
+    const warm = run('build', 'warm-b', 'requires-pin');
+    assert.equal(warm.status, 0, warm.stderr);
+    const b = JSON.parse(fs.readFileSync(path.join(warm.out, 'build.json')));
+    assert.notEqual(b.source.sha256, built.source.sha256);
+    assert.notEqual(b.executedApp.javascript.sha256, built.executedApp.javascript.sha256);
+    assert.equal(fs.readFileSync(product + '/main.jsbundle')[127], 'B'.charCodeAt(0));
+    // A failed command leaves a completely valid warm B product and dependency
+    // graph. Removing the command status guard would incorrectly issue a receipt.
+    const failed = run('build', 'failed-xcodebuild', 'failed-build');
+    assert.equal(failed.status, 1, failed.stderr);
+    assert.match(failed.stderr, /E_WITNESS_BUILD: xcode-build failed \(65\)/);
+    assert.equal(hbc(product + '/main.jsbundle').sha256, b.executedApp.javascript.sha256);
+    assert.equal(fs.existsSync(path.join(failed.out, 'build.json')), false);
+    for (const [fault, expected] of [
+      ['swift-output', /Pod: output flag -emit-module-interface-path escapes private workspace/],
+      ['swift-index-output', /Pod: output flag -index-store-path escapes private workspace/],
+      ['clang-output', /Pod: output flag -serialize-diagnostics escapes private workspace/],
+      ['sourcemap', /Pod: unsupported SOURCEMAP_FILE/],
+    ]) {
+      const bad = run('build', fault, fault);
+      assert.equal(bad.status, 1, bad.stderr); assert.match(bad.stderr, expected);
+      assert.ok(bad.stderr.includes(sentinel));
+      assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
+      assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
+      assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
+    }
     write(path.join(project, 'SharedNative/Foo.h'), 'external native input');
     const podLink = path.join(project, 'ios/Pods/external.h');
     fs.symlinkSync('../../SharedNative/Foo.h', podLink);
@@ -249,7 +291,15 @@ test('all target outputs and symlink parents must stay private', async () => {
     fs.mkdirSync(cache); fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');
     const s = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
     validateOutputs([{ target: 'App', buildSettings: s }], cache);
-    for (const key of ['CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
+    for (const key of ['SKIP_BUNDLING', 'SOURCEMAP_FILE', 'BUNDLE_NAME', 'BUNDLE_COMMAND', 'BUNDLE_CONFIG',
+      'CLI_PATH', 'COMPOSE_SOURCEMAP_PATH', 'NODE_ARGS', 'NODE_OPTIONS', 'EXTRA_PACKAGER_ARGS',
+      'CONFIG_JSON', 'CONFIG_CMD', 'PROJECT_ROOT', 'ENTRY_FILE']) {
+      validateOutputs([{ target: 'App', buildSettings: { ...s, [key]: '' } }], cache);
+      for (const value of ['1', '0', ' ', root + '/shared/map']) assert.throws(() => validateOutputs([
+        { target: 'App', buildSettings: { ...s, [key]: value } },
+      ], cache), new RegExp('unsupported ' + key));
+    }
+    for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'CONFIGURATION_BUILD_DIR', 'OBJROOT', 'SYMROOT', 'DSTROOT', 'DERIVED_SOURCES_DIR', 'CLANG_MODULE_CACHE_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
       for (const value of [root + '/shared', cache + '/link/new']) assert.throws(() => validateOutputs([
         { target: 'App', buildSettings: s }, { target: 'Pod', buildSettings: { ...s, [key]: value } },
       ], cache), /Pod: output .* escapes private workspace/);
@@ -267,6 +317,28 @@ test('Pods graph audit refuses external search paths, config includes, phase lis
     const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
     const audit = (g = graph, extra = {}) => auditNativeProject(g, dir, [{ target: 'Pod', buildSettings: { ...settings, ...extra } }], root, cache, [], 'App');
     assert.equal(audit().sources.length, 0);
+    assert.throws(() => audit(graph, { HERMES_CLI_PATH: root + '/node_modules/other-compiler' }), /unsupported HERMES_CLI_PATH/);
+    assert.ok(audit(graph, { HERMES_CLI_PATH: root + '/node_modules/hermes-compiler/hermesc/osx-bin/hermesc' }));
+    fs.mkdirSync(root + '/shared'); fs.symlinkSync('../shared', cache + '/link');
+    for (const key of ['OTHER_SWIFT_FLAGS', 'OTHER_MODULE_VERIFIER_FLAGS']) {
+      for (const flag of ['-o', '-emit-module-path', '-emit-module-interface-path', '-emit-private-module-interface-path',
+        '-emit-package-module-interface-path', '-emit-objc-header-path', '-emit-dependencies-path',
+        '-emit-reference-dependencies-path', '-serialize-diagnostics-path', '-serialize-diagnostics',
+        '-index-store-path', '-module-cache-path', '-MF', '-MJ']) {
+        assert.throws(() => audit(graph, { [key]: `${flag} ${root}/shared/sentinel` }), /Pod: output flag .* escapes private workspace/);
+        assert.ok(audit(graph, { [key]: `${flag} ${cache}/private-output` }));
+      }
+      for (const wrapper of ['', '-Xfrontend ', '-Xcc ']) {
+        assert.ok(audit(graph, { [key]: `${wrapper}-emit-module-interface-path ${wrapper}${cache}/good.swiftinterface` }));
+        for (const destination of [root + '/shared/sentinel', cache + '/link/sentinel', 'relative.swiftinterface']) {
+          for (const value of [`${wrapper}-emit-module-interface-path ${wrapper}${destination}`, `${wrapper}-emit-module-interface-path=${destination}`])
+            assert.throws(() => audit(graph, { [key]: value }), /Pod: output flag .* escapes private workspace/);
+        }
+      }
+      for (const value of ['-Xcc', '-Xfrontend -Xcc', `-Xcc -I -Xfrontend ${dir}`, `-Xfrontend -emit-module-interface-path -Xcc ${cache}/out`])
+        assert.throws(() => audit(graph, { [key]: value }));
+      assert.ok(audit(graph, { [key]: `-Xcc -I -Xcc ${dir} -Xfrontend -import-underlying-module` }));
+    }
     for (const key of ['HEADER_SEARCH_PATHS', 'FRAMEWORK_SEARCH_PATHS', 'LIBRARY_SEARCH_PATHS', 'SWIFT_INCLUDE_PATHS', 'SWIFT_OBJC_BRIDGING_HEADER']) {
       assert.throws(() => audit(graph, { [key]: root + '/SharedNative' }), /outside covered roots/);
     }

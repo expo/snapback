@@ -90,8 +90,8 @@ Read `npx snapback4 guide witness` for its exact pins, native helper and session
 requirements, installed-app mode (`--bundle-id ID`), and deeper scenarios.
 After a JS or asset edit, run `--build` again with a fresh artifacts directory;
 the private Xcode cache keeps the native intermediates warm. Five complete warm
-runs with smoke on the shared M5 Pro mini measured **172.045 s median / 199.870 s
-p95** (about 2.9 / 3.3 minutes), all passing. Cold native
+runs with smoke on the shared M5 Pro mini measured **159.841 s median / 197.562 s
+p95** (about 2.7 / 3.3 minutes), all passing. Cold native
 preparation was about six minutes, with smoke and tool/dependency setup additional;
 these pinned-app observations are not a general timing guarantee. Repack is withdrawn.
 Compiler-declared server-only reads record expected offline unavailability and

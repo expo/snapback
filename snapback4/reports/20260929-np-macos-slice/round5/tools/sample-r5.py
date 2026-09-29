@@ -1,0 +1,33 @@
+from pathlib import Path
+import shutil,subprocess,json,hashlib,statistics,math
+r=Path('/Users/ccheever/sb4-np');s=r/'subject';e=r/'evidence/round5';repo=r/'lane/snapback4';tools=repo/'reports/20260929-np-macos-slice/round5/tools';u=(e/'owned.udid').read_text().strip()
+results=[]
+def run(name):
+ code=subprocess.run(['python3',str(tools/'run-witness-r5.py'),name,'--build',str(s),'--smoke','--udid',u,'--port','49371'],stdout=subprocess.DEVNULL).returncode
+ record=json.loads((e/f'{name}-command.json').read_text());results.append({'name':name,'exitStatus':code,'durationMs':record['durationMs']});(e/'sample-results.json').write_text(json.dumps(results,indent=2));print(name,code,record['durationMs'],flush=True)
+ assert code==0, name
+ receipt=json.loads((e/name/'build.json').read_text())
+ for row in receipt['nativeClosure']['compiler']['records']:
+  p=s/'.snapback4-witness'/row['path'];b=p.read_bytes();assert hashlib.sha256(b).hexdigest()==row['sha256'];dest=e/name/'native-dependencies'/row['path'];dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(b)
+p=s/'src/NPProbe.tsx';p.write_text(p.read_text().replace("marker = 'NP B'", "marker = 'NP A'"));(e/'NPProbe-A.tsx').write_bytes(p.read_bytes())
+for suffix in ['', '@2x', '@3x']:shutil.copy2(repo/f'reports/20260929-np-macos-slice/subject/A-assets/probe-A{suffix}.png',s/f'assets/np/probe{suffix}.png')
+run('final-a-ownbuild-1')
+p.write_text(p.read_text().replace("marker = 'NP A'", "marker = 'NP B'"));(e/'NPProbe-B.tsx').write_bytes(p.read_bytes())
+for suffix in ['', '@2x', '@3x']:shutil.copy2(repo/f'reports/20260929-np-macos-slice/subject/assets/np/probe{suffix}.png',s/f'assets/np/probe{suffix}.png')
+# Warm A -> B: deliberately skip bundling while A is still the private product.
+project=s/'ios/Clique.xcodeproj/project.pbxproj';original=project.read_bytes()
+a=json.loads((e/'final-a-ownbuild-1/build.json').read_text());product=Path(a['settings']['TARGET_BUILD_DIR'])/a['settings']['FULL_PRODUCT_NAME']/'main.jsbundle'
+before=hashlib.sha256(product.read_bytes()).hexdigest();assert before==a['executedApp']['javascript']['sha256']
+try:
+ graph=json.loads(subprocess.check_output(['/usr/bin/plutil','-convert','json','-o','-',str(project)]))
+ for obj in graph['objects'].values():
+  if obj.get('isa')=='XCBuildConfiguration':obj.setdefault('buildSettings',{})['SKIP_BUNDLING']='1'
+ project.write_text(json.dumps(graph));name='control-final-warm-skip-bundling'
+ code=subprocess.run(['python3',str(tools/'run-witness-r5.py'),name,'--build',str(s),'--smoke','--udid',u,'--port','49371'],stdout=subprocess.DEVNULL).returncode
+ diagnostic=(e/(name+'.log')).read_text();assert code==1 and 'unsupported SKIP_BUNDLING: 1' in diagnostic,diagnostic
+ assert not (e/name/'build.json').exists() and not (e/name/'xcode-build.log').exists() and not (e/name/'proof.json').exists()
+ after=hashlib.sha256(product.read_bytes()).hexdigest();assert before==after
+ (e/'final-warm-skip-control.json').write_text(json.dumps({'baseline':'final-a-ownbuild-1','sourceMarker':'NP B','oldProductSha256':before,'retainedProductSha256':after,'exitStatus':code,'diagnostic':diagnostic,'noReceiptOrInstall':True},indent=2))
+finally:project.write_bytes(original)
+for n in range(1,6):run(f'final-b-warm-ownbuild-{n}')
+times=sorted(x['durationMs'] for x in results[1:]);(e/'timings.json').write_text(json.dumps({'n':len(times),'medianMs':statistics.median(times),'nearestRankP95Ms':times[math.ceil(.95*len(times))-1],'runs':results},indent=2));print(times,flush=True)

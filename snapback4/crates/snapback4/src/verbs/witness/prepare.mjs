@@ -1,7 +1,7 @@
 // @ref LLP 3000.030#3 — private own-project preparation; never launch through Expo CLI.
 import fs from 'node:fs';
 import { nativeReferences } from './native-inputs.mjs';
-import { privateBuildFlags, validateOutputs, auditNativeProject, compilerClosure } from './native-closure.mjs';
+import { privateBuildFlags, validateOutputs, auditNativeProject, compilerClosure, canonical } from './native-closure.mjs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
@@ -150,8 +150,14 @@ try {
         '-configuration', 'Release', '-sdk', 'iphonesimulator', 'ARCHS=arm64', ...privateBuildFlags(cache), '-showBuildSettings', '-json']));
       graphs.push(auditNativeProject(graph, path.dirname(projectFile), rows, snapshot, cache, systemRoots, scheme));
     }
-    // A failed build may leave a stale product; only exit success advances.
-    command('xcode-build', 'xcodebuild', [...args, '-resultBundlePath', path.join(out, 'build.xcresult'), 'build']);
+    // Query settings without masking overrides, then pin bundling on the build.
+    // A successful skipped phase must not seal a previous build's JavaScript.
+    const bundle = path.join(app, 'main.jsbundle');
+    if (!canonical(bundle).startsWith(canonical(cache) + path.sep)) fail('E_WITNESS_BUILD', `bundle output escapes private workspace: ${bundle}`);
+    fs.rmSync(bundle, { force: true });
+    // A failed build may retain/recreate a valid product; only exit success advances.
+    command('xcode-build', 'xcodebuild', [...args, 'SKIP_BUNDLING=', 'SOURCEMAP_FILE=', '-resultBundlePath', path.join(out, 'build.xcresult'), 'build']);
+    if (!fs.existsSync(bundle)) fail('E_WITNESS_BUILD', 'Xcode did not produce main.jsbundle for this build');
     nativeClosure = { format: 1, adapter, graphs, compiler: compilerClosure(snapshot, cache, systemRoots, graphs.flatMap(g => g.sources), graphs.flatMap(g => g.products)) };
     seal(path.join(out, 'native-closure.json'), nativeClosure);
     app = fs.realpathSync(app);

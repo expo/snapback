@@ -76833,3 +76833,35 @@ no wasm/budget change. Owned simulator 4DBA489E-DE5A-4ECE-B0FD-8DEC30CBFA17 was
 deleted after collection. One appended entry; nothing pushed or published.
 Report: reports/20260929-np-macos-slice/round4/REPORT.md. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — NP-mac round 5: require fresh JS and private compiler outputs
+
+Fetched and merged origin/main first (already up to date). Read prompts/reports
+r0–r4, Astra's full NOT READY review and the later Grok READY WITH CHANGES review;
+both were rechecked. Repack stays withdrawn. Build now rejects nonempty unmasked
+SKIP_BUNDLING/SOURCEMAP_FILE and unsafe producer overrides, pins both empty for
+Xcode, removes the previous canonical product bundle and requires new output.
+Resolved app/Pod Swift and module-verifier flags use their real names, unwrap
+-Xcc/-Xfrontend by compiler channel and reject escaping output destinations.
+PER_ARCH_OBJECT_FILE_DIR and COMPILATION_CACHE_CAS_PATH get the same canonical
+private-output checks. A failed Xcode command retaining a valid product cannot
+issue a receipt. Every finding has a detecting test; ten guard mutations fail.
+
+Final A passed full smoke in 181,477 ms. Five complete warm B builds passed:
+159,841 / 169,741 / 155,041 / 197,562 / 154,456 ms; median 159,841 ms, nearest-rank p95 197,562 ms.
+LLP 3000.030 remains Accepted for the bounded build route. The pre-final A success,
+B interruption for late review, and a final-code disk-full snapshot failure remain
+in evidence. ENOSPC prevented that attempt's final time/status record; neither is
+invented. Only our rebuildable Rust incremental cache was removed to recover space.
+No test/archive jobs ran beside the five measured builds; shared-host load is retained.
+
+Independent app/HBC/receipt/xcresult/native-record/runtime/generation checks pass
+for all six final successes. Actual warm-skip, ten output sentinels, tampered
+output, cold startup error, post-success death, owner/listener and interrupted
+descendant controls pass. Final checks: 31 helper, 28 driver, 10 witness unit,
+99 guide and ref-check. No client/core/wasm or helper-patch change; cap unchanged.
+Owned simulator 70220322-4798-470D-BE66-E17EAED0B7FD was deleted after collection.
+Report: reports/20260929-np-macos-slice/round5/REPORT.md. One appended entry;
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
