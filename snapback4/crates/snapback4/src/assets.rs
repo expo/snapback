@@ -61,12 +61,7 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     }
     let _transfer = shared.asset_transfers.enter(id, &principal);
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
-    let (granted, refusal_cut) = {
-        let mut engine = lock(&shared.engine);
-        let granted = engine.asset_access_request(&principal, id, shared.now(), range_requested);
-        let cut = engine.seq().ok();
-        (granted, cut)
-    };
+    let granted = lock(&shared.engine).asset_access_request(&principal, id, shared.now(), range_requested);
     let grant = match granted {
         Ok(grant) => grant,
         Err(error) => {
@@ -78,11 +73,11 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
                 _ if refusal.retryable => 503,
                 _ => 500,
             };
-            return respond(request, status, json!({ "denied": refusal_json(&refusal), "seq": refusal_cut }));
+            return respond(request, status, json!({ "denied": refusal_json(&refusal) }));
         }
     };
     let Ok(mut file) = std::fs::File::open(&grant.path) else {
-        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")), "seq": grant.seq }));
+        return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_ASSET_UNKNOWN", "asset", "the bytes are gone").guide("assets")) }));
     };
     let total = grant.bytes;
     let range = request.headers().iter().find(|h| h.field.as_str().as_str().eq_ignore_ascii_case("range"))
@@ -101,10 +96,8 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
         Header::from_bytes("Accept-Ranges", if grant.once { "none" } else { "bytes" }).unwrap(),
         Header::from_bytes("Cache-Control", "private, no-store").unwrap(),
         Header::from_bytes("X-Content-Type-Options", "nosniff").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home, x-snapback-asset-read").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "content-length, content-range, accept-ranges, x-snapback-asset-home").unwrap(),
     ];
-    // @ref LLP 3000.029#4 — the handle carries its original authorization deadline and cut.
-    headers.push(Header::from_bytes("X-Snapback-Asset-Read", json!({"seq":grant.seq,"nextExpiry":grant.next_expiry}).to_string()).unwrap());
     // @ref LLP 3000.019#3.5 — only the download's ledger home authorizes retention.
     if let Some((table, row, column)) = &grant.home {
         let receipt = json!({"store_id":grant.store_id,"table":table,"row":row,"column":column}).to_string();

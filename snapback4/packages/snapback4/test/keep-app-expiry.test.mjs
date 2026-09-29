@@ -7,7 +7,7 @@ import { RememberedAnswers } from "../dist/local-reads.js";
 import { modelBackend, modelDevice, modelPage } from "./helpers/app-model-device.mjs";
 import { until } from "./helpers/app-server.mjs";
 
-for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held expiry fences late HTTP memory before rollback, preserving the newer same-image grant`, async t => {
+for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held expiry fences late HTTP memory before rollback, preserving newer B`, async t => {
   const url = "http://app-kept-memory.test", wall = Date.now(), deadline = wall + 3_600_000;
   const memory = memorySessionStore(), gate = Promise.withResolvers(), replacement = Promise.withResolvers();
   let clock = new ServerClock(() => wall), holding = false, queries = 0, failedReads = false, cache;
@@ -30,7 +30,7 @@ for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held ex
       if (failedReads) throw Error("offline after rollback");
       const first = ++queries === 1;
       if (!first) { await replacement.promise; holding = true; }
-      return Response.json({ data: "A", complete: true, tables: ["remote"], seq: 1,
+      return Response.json({ data: first ? "A" : "B", complete: true, tables: ["remote"], seq: 1,
         nextExpiry: first ? deadline : deadline + 3_600_000, refresh: 250 });
     }
     throw Error(path);
@@ -43,7 +43,7 @@ for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held ex
   const key = "viewer:{}", old = cache.get(key), oldTicket = cache.begin();
   await until(() => queries === 2, "background replacement reaches transport");
   replacement.resolve();
-  await until(() => cache.get(key)?.nextExpiry === deadline + 3_600_000, "the newer same-image grant replaces memory while authority waits");
+  await until(() => cache.get(key)?.read.data === "B", "raw B replaces memory while authority waits");
   assert.equal(watch.getSnapshot().data, "A");
   const seen = [];
   watch.subscribe(() => {
@@ -53,11 +53,11 @@ for (const keep of [undefined, true]) test(`createApp wasm keep=${keep}: held ex
   clock.sample(deadline, wall, wall, "clock:1");
   assert.deepEqual(watch.getSnapshot(), { loading: true });
   assert.ok(seen.some(read => read.loading));
-  assert.equal(cache.get(key)?.read.data, "A", "newer memory is still unexpired");
+  assert.equal(cache.get(key)?.read.data, "B", "newer memory is still unexpired");
   cache.set(key, old, { seq: 100, ticket: oldTicket });
-  assert.equal(cache.get(key)?.nextExpiry, deadline + 3_600_000, "old body cannot reinstall A, even at a higher cut");
+  assert.equal(cache.get(key)?.read.data, "B", "old body cannot reinstall A, even at a higher cut");
   failedReads = true; holding = false; gate.resolve();
-  await until(() => watch.getSnapshot().data === "A", "recovery uses the unexpired same-image grant");
-  assert.equal((await app.client.query(op, {})).data, "A", "public recovery cannot resurrect expired A");
+  await until(() => watch.getSnapshot().data === "B", "approved replacement or offline recovery remains B");
+  assert.equal((await app.client.query(op, {})).data, "B", "public recovery cannot resurrect expired A");
   watch.close();
 });

@@ -130,10 +130,6 @@ test("server-class watches run locally first and recover remembered server data 
   await until(() => watch.getSnapshot().data?.[0]?.id === "a1", "initial server answer missing");
   await f.seed([{ table: "audit", row: { id: "a2", text: "commit touched only the server table", at: 2 } }]);
   await until(() => watch.getSnapshot().data?.[0]?.id === "a2", "online-only commit did not rerun watch");
-  // This is plain offline recovery, after the delivered change cut is applied.
-  // A deliberately held pre-evidence replica belongs to the fence regressions.
-  await client.sync();
-  assert.equal((await client.query(query("audits"), { c: null })).data[0].id, "a2");
   f.offline(true); await client.sync();
   await until(() => watch.getSnapshot().fresh === false, "offline watch downgrades the remembered answer");
   assert.equal(watch.getSnapshot().data[0].id, "a2");

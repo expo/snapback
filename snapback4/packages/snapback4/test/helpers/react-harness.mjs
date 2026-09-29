@@ -769,8 +769,10 @@ const cases = {
       equal(latest.page.items, ["a", "b"], "ready pages stay while a new page loads");
       check(host.querySelector("input") === editor && editor.value === "unsent draft", "load-more preserves the editor");
       await act(async () => { await raw.mutate(mutation, {}); });
-      await settle(() => latest.query.loading && latest.page.read.loading);
-      equal(latest.page.items, [], "an unknown mutation footprint withdraws the loaded pages");
+      await settle(() => latest.query.revalidating && latest.page.read.revalidating);
+      equal(latest.page.items, ["a", "b"], "a mutation re-read keeps both pages");
+      check(!latest.query.loading && !latest.page.read.loading && latest.query.fresh && latest.page.read.fresh, "kept metadata reaches both hooks");
+      check(host.querySelector("input") === editor && editor.value === "unsent draft", "re-read preserves the editor and draft");
       phase = "ready"; await act(async () => held.splice(0).forEach(resolve => resolve()));
       await settle(() => latest.page.items.length === 3 && latest.query.fresh);
       phase = "denied"; await act(async () => { await raw.mutate(mutation, {}); });
@@ -1003,7 +1005,7 @@ for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true])
 }
 
 for (const hook of ["useQuery", "usePage"]) {
-  cases[hook + " createApp remount cannot reuse a lingering answer after input invalidation"] = async () => {
+  cases[hook + " createApp remount first commits the lingering answer during a held re-read"] = async () => {
     const url = "http://lingering-reread-" + hook + ".test", memory = memorySessionStore();
     await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 7 * 86400000 }, memory);
     let latest, queries = 0, commits = [], changed = false, holding = false;
@@ -1046,8 +1048,10 @@ for (const hook of ["useQuery", "usePage"]) {
       const before = queries;
       commits = [];
       await mount(h(Probe), app.client);
-      check(commits[0]?.read.loading, "first commit cannot retain an invalidated answer");
-      check(commits[0].html.includes("Loading"), "withdrawal precedes the remount");
+      equal(commits[0]?.read.data, ["secret"], "first commit keeps the previously authorized answer");
+      check(commits[0].read.fresh === true && commits[0].read.revalidating === true, "first commit preserves freshness and carries revalidation");
+      check(commits[0].html.includes('value="secret"') && !commits[0].html.includes("Loading"), "the editor is in the first committed DOM");
+      check(commits.every(commit => !commit.read.loading), "StrictMode subscription replay never flashes loading");
       equal(queries, before, "joining the running watch adds no duplicate read");
       replacement.resolve();
       await settle(() => latest.data?.[0] === "replacement");

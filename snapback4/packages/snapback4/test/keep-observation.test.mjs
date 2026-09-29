@@ -133,7 +133,7 @@ for (const op of ["apply", "admit", "settle", "clear_rows", "settle_exit", "adop
     const work = keep.fetch(() => held.promise, () => {}, { accept: () => reads.revision === revision });
     if (["adopt", "observe_store"].includes(op)) reads.clear([keep, plain, idle]);
     else reads.committed([keep, plain, idle], op);
-    const retained = false; // Missing footprints invalidate every answer.
+    const retained = ["apply", "admit", "settle"].includes(op);
     assert.equal("data" in keep.snapshot, retained);
     if (retained) { assert.equal(keep.snapshot.fresh, true); assert.equal(keep.snapshot.revalidating, true); }
     assert.equal("data" in idle.snapshot, retained);
@@ -157,7 +157,7 @@ test("keep carries original freshness through reload, and every published result
     assert.equal(watch.snapshot.revalidating, true);
     assert.deepEqual(watch.snapshot.data, ["old"]);
     held.resolve({ read }); await work;
-    assert.deepEqual(watch.snapshot, "loading" in read ? { ...initial, revalidating: true } : read);
+    assert.deepEqual(watch.snapshot, read);
   }
 });
 
@@ -270,12 +270,15 @@ for (const trigger of ["mutation", "notification"]) for (const outcome of ["next
   if (trigger === "mutation") await f.client.mutate({ kind: "mutation", name: "edit" }, {});
   else await f.change();
   await until(() => f.reads() > before);
-  assert.deepEqual(f.live.getSnapshot(), { loading: true });
+  assert.equal(f.live.getSnapshot().data, "private", "revoked/changed answer stays until the replacement read lands");
+  assert.equal(f.live.getSnapshot().fresh, true);
+  assert.equal(f.live.getSnapshot().revalidating, true);
+  // An ordinary notification must not evict idle opt-in answers either.
   const remount = f.client.observe(q, { idle: true }, { keep: true });
-  assert.deepEqual(remount.getSnapshot(), { loading: true }); remount.close();
+  assert.equal(remount.getSnapshot().data, "private"); remount.close();
   f.hold(false); for (const release of f.releases) release.resolve();
   await until(() => outcome === "denied" ? f.live.getSnapshot().denied?.code === why.code : f.live.getSnapshot().data === "next");
-  assert.ok(values.every(read => read.data !== "private"), JSON.stringify(values));
+  assert.ok(values.every(read => !("loading" in read)), JSON.stringify(values));
 });
 
 for (const reset of ["adoption", "replacement", "regression", "credentials", "viewer", "sign-out", "close"]) test(`online keep: ${reset} clears active and lingering answers`, async t => {
@@ -311,10 +314,10 @@ test("online keep: an in-flight answer read before a newer commit never replaces
   await until(() => f.releases.length > 0);
   f.answer("current");
   await f.client.mutate({ kind: "mutation", name: "edit" }, {});
-  assert.deepEqual(f.live.getSnapshot(), { loading: true });
+  assert.equal(f.live.getSnapshot().data, "private");
   f.hold(false); for (const release of f.releases) release.resolve();
   await until(() => f.live.getSnapshot().data === "current");
-  assert.ok(values.every(read => read.data !== "obsolete"), JSON.stringify(values));
+  assert.ok(values.every(read => read.data !== "obsolete" && !("loading" in read)), JSON.stringify(values));
 });
 
 
@@ -325,8 +328,8 @@ test("the app client forwards keep while its lifetime fence still withdraws data
   await until(() => watch.getSnapshot().data === "private");
   f.hold(true); f.answer("next");
   await f.client.mutate({ kind: "mutation", name: "edit" }, {});
-  await until(() => f.releases.length > 0 && watch.getSnapshot().loading === true);
-  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  await until(() => f.releases.length > 0 && watch.getSnapshot().revalidating === true);
+  assert.equal(watch.getSnapshot().data, "private");
   const notify = facade.fence(); notify();
   assert.deepEqual(watch.getSnapshot(), { denied: why });
   f.hold(false); for (const release of f.releases) release.resolve();
@@ -395,12 +398,20 @@ for (const keep of [undefined, true, false]) test(`createApp ${keep !== false ? 
   holding = true; snapshots.length = 0;
   replacement.resolve();
   await until(() => blocked > 0);
-  assert.deepEqual(watch.getSnapshot(), { loading: true }, "a superseded image cannot survive authority checking");
+  if (keep !== false) {
+    assert.equal(watch.getSnapshot().data, "A");
+    assert.equal(watch.getSnapshot().fresh, true);
+    assert.equal(watch.getSnapshot().revalidating, true);
+    assert.ok(snapshots.every(read => read.data === "A"));
+    const remount = app.client.observe(q, {}, { keep });
+    assert.equal(remount.getSnapshot(), watch.getSnapshot(), "remount starts with A while B waits");
+    remount.close();
+  } else assert.deepEqual(watch.getSnapshot(), { loading: true });
   snapshots.length = 0;
   clock.sample(deadline + 1, wall, wall, "server:1");
   await delay(10);
   assert.deepEqual(watch.getSnapshot(), { loading: true }, "superseded A cannot remain visible past its own deadline");
-  if (keep !== false) assert.equal(snapshots.length, 0, "already withdrawn A needs no second expiry notification");
+  if (keep !== false) assert.ok(snapshots.some(read => read.loading), "A's own expiry notifies before authority resumes");
   assert.ok(snapshots.every(read => !("data" in read)), "B still needs authority");
   holding = false; held.resolve();
   await until(() => watch.getSnapshot().data === "B");

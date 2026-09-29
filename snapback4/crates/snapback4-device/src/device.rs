@@ -1077,16 +1077,11 @@ impl<S: DeviceStore> Device<S> {
     /// stream to carry it) or refused (`None`: the entry goes); the
     /// survivors are replayed over the confirmed images.
     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
-        self.settle_touched(id, seq).map(|_| ())
-    }
-
-    // @ref LLP 3000.029#2 — settlement can replay other predictions; report all changed inputs.
-    pub fn settle_touched(&mut self, id: &str, seq: Option<u64>) -> Result<Vec<String>, RuntimeError> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         let restored_delivery = delivery::predicted(&tx, &self.schema)?;
-        let mut touched = predictions::restore(&tx, &self.schema)?;
+        predictions::restore(&tx, &self.schema)?;
         match seq {
             Some(seq) => {
                 let data = tx.outbox_get(id)?.ok_or_else(|| RuntimeError::Store(format!("the outbox holds no write {id}")))?;
@@ -1095,10 +1090,9 @@ impl<S: DeviceStore> Device<S> {
             }
             None => predictions::remove(&tx, id)?,
         }
-        touched.extend(predictions::replay(&tx, &self.schema, &self.programs, watermark)?);
+        predictions::replay(&tx, &self.schema, &self.programs, watermark)?;
         delivery::publish(&tx, &self.schema, &restored_delivery, self.delivery_now)?;
-        tx.commit()?;
-        Ok(touched.into_iter().collect())
+        tx.commit()
     }
 
     /// Queue a write as given (no prediction); a duplicate submission

@@ -29,8 +29,6 @@ for (const page of [null, "second"]) test(`usePage checks ${page ?? "first"} pag
   assert.equal(held.read.revalidating, true); assert.equal(held.read.fresh, true);
   assert.equal(pages.getSnapshot(), held);
   now = 2000;
-  assert.equal(pages.getSnapshot(), held, "plain revalidation has no host deadline");
-  source(page).reset({ loading: true }); notify(page);
   const withdrawn = pages.getSnapshot();
   assert.notEqual(withdrawn, held);
   assert.deepEqual(withdrawn.items, page === null ? [] : ["a"]);

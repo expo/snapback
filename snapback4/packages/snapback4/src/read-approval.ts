@@ -11,7 +11,7 @@ export interface ApprovedAnswer {
   generation: number;
 }
 
-// @ref LLP 3000.029#4 — same-image approval holds keep their original source deadlines.
+// @ref LLP 3000.023#3.6 — one shared approval per raw watch, with A's own row and episode deadlines.
 export class ReadApprovals {
   private readonly answers = new WeakMap<ReadObservation<unknown>, ApprovedAnswer>();
   private readonly releases = new Set<() => () => void>();
@@ -82,17 +82,12 @@ export class ReadApprovals {
       if (change === "reset" || !("data" in next)) {
         return drop("data" in next ? { loading: true } : next);
       }
-      // @ref LLP 3000.029#4 — a null/empty/different image cannot leave A
-      // displayed while the facade checks B's custody asynchronously.
-      if ("data" in held.snapshot && JSON.stringify(next.data) !== JSON.stringify(held.snapshot.data)) {
-        return drop({ loading: true });
-      }
       // Opening remounts listen here before they subscribe to the raw source.
       if (!owner.retain && answerIdentity(next) !== answerIdentity(held.snapshot)) {
         return drop({ loading: true });
       }
       return update(answerIdentity(next) === answerIdentity(held.snapshot) ? next
-        : revalidatingAnswer(held.snapshot, false));
+        : revalidatingAnswer(held.snapshot, !owner.linger));
     };
     const release = () => {
       held.generation++;

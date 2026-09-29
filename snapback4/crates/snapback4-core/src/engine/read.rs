@@ -172,9 +172,7 @@ impl<'r> Runner<'r> {
         Ok(())
     }
 
-    // Expiry execution bookkeeping. The complete, unconditional dependency
-    // footprint is installed by complete_read_dependencies after evaluation.
-    // @ref LLP 3000.014#5-what-derives-from-the-capture — empty and denied groups share expiry dependencies.
+    // @ref LLP 3000.014#5-what-derives-from-the-capture — source invalidation is schema-derived, including empty and denied groups.
     pub(super) fn aggregate_source_dependency(&mut self, table: &str) {
         if let Some(maintain) = self.schema.maintain_for(table)
             && self.schema.tables[&maintain.source].is_expiring() {

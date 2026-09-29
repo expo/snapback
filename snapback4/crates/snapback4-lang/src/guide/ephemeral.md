@@ -77,10 +77,10 @@ const stopTyping = useMutation(api.stopTyping);
 <TypingIndicator visible={"data" in typing && (typing.data?.length ?? 0) > 0} />;
 ```
 
-The default and `keep: true` keep the indicator during plain revalidation.
-Received membership revocation, expiry or a newer overlapping ephemeral answer
-withdraws older data immediately for every policy (`guide reads`). Newer epochs
-also fence delayed replies from other queries, even when durable `seq` is unchanged.
+`keep: true` keeps the indicator during a re-read after an unrelated write;
+expiry still clears it.
+A kept answer may show rows after membership is revoked until the re-read lands;
+keeping is an application choice (`guide reads`).
 `useQuery` watches normally and re-reads at the row's expiry. The client sends
 calls in order. `setTyping` is marked `renews`: waiting equal calls coalesce,
 and an equal last successful call can be reused for one quarter of the life

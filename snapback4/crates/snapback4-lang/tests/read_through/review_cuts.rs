@@ -146,7 +146,7 @@ pub fn aggregate_inherited_only_dependencies(mut factory: impl FnMut(&str) -> Bo
                 assert_eq!(o.data, expected);
                 assert_eq!(
                     o.tables,
-                    vec!["children", "middles", "roots", "totals"],
+                    vec!["children", "totals"],
                     "{world}/{denied}: {o:?}"
                 );
                 assert_eq!(o.next_expiry, (!denied && world == "live").then_some(300));

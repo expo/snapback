@@ -7,10 +7,8 @@ import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { processDevice } from '../dist/native.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
-import { binary, server, until } from './helpers/app-server.mjs';
+import { binary, server } from './helpers/app-server.mjs';
 import { parkedChanges } from './helpers/sync-control.mjs';
-import { answerObservation } from '../dist/read-observation.js';
-import { SearchLedger } from '../dist/local-search.js';
 
 const source = `use personas alice, bob
 table members:
@@ -75,15 +73,14 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
   const requests=[], scans=[], states=[];
   const persist=memoryPersistence();
   const opener = tier==='wasm' ? webDevice({wasm:readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm',import.meta.url)),persist}) : processDevice({binary,dir:join(dir,'device')});
-  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(options.transformDeviceRequest?.(req) ?? req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return options.transformDeviceReply?.(req, result) ?? result;}}}},fetch:async(input,init)=>{
+  const clientOptions = {url,persona:'bob',device:{async open(...args){core=await opener.open(...args);return {...core, async call(req,...rest){const result=await core.call(req,...rest); if(req.op==='query') scans.push({request:req,result});if(req.op==='search_state')states.push(result);return result;}}}},fetch:async(input,init)=>{
     if(offline) throw new TypeError('offline');
     const path=new URL(input).pathname;
     if(path==='/changes') return parkedChanges(init.signal);
     if(path.startsWith('/q/')) {
-      const refusal = options.queryResponse?.(); if (refusal) return refusal;
       const response=await fetch(input,init);requests.push({body:JSON.parse(init.body),json:await response.clone().json()});
       if(hold){const current=hold;hold=null;current.arrived.resolve();await current.release.promise;}
-      return options.transformResponse ? options.transformResponse(response) : response;
+      return response;
     }
     return fetch(input,init);
   }};
@@ -97,62 +94,6 @@ async function setup(t, tier = 'process', expires = null, options = {}) {
     async reopen(){await client.close();client=await createLocalClient(clientOptions);await client.sync();},
     hold(){const value={arrived:gate(),release:gate()};hold=value;return value;}};
 }
-// @ref LLP 3000.029#11 — composed queries pass the same publication classification.
-for (const tier of ['process', 'wasm']) for (const code of ['E_HTTP_RESPONSE', 'E_OFFLINE', 'E_RATE_LIMIT', 'E_STORE', 'E_STORE_BUSY', 'E_AUTH']) test(`round 7 mixed search ${tier}: ${code} cannot replace a retained page`, async t => {
-  let failed = false;
-  const why = { code, family: code.startsWith('E_STORE') ? 'store' : code === 'E_AUTH' ? 'auth' : code === 'E_RATE_LIMIT' ? 'limit' : 'link', message: 'not evaluated', retryable: code !== 'E_STORE_BUSY' };
-  const f = await setup(t, tier, null, { queryResponse: () => !failed ? null : code === 'E_HTTP_RESPONSE'
-    ? new Response('{broken', { status: 404 }) : Response.json({ denied: why, refusalOrigin: 'admission' }, { headers: { 'Retry-After': '11' } }) });
-  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
-  watch.subscribe(() => {}); t.after(() => watch.close());
-  await until(() => watch.getSnapshot().data?.length);
-  const before = ids(watch.getSnapshot()), snapshots = [];
-  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
-  failed = true;
-  assert.equal((await f.client.query(q, args)).denied?.code, code);
-  assert.deepEqual(ids(watch.getSnapshot()), before, 'direct composed diagnostic is not authority evidence');
-  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
-  await until(() => optOut.getSnapshot().denied?.code === code, 'opted-out composed query exposes its diagnostic');
-  assert.deepEqual(ids(watch.getSnapshot()), before);
-  assert.ok(snapshots.every(read => read.data?.length), 'composed diagnostic does not withdraw data');
-});
-
-for (const tier of ['process', 'wasm']) for (const failure of ['missing searchCurrent', 'missing ledger', 'SDK budget']) test(`round 10 mixed search ${tier}: ${failure} preserves the page and deadlines`, async t => {
-  let malformed = false;
-  const deadline = Date.now() + 60_000;
-  const f = await setup(t, tier, deadline, { transformDeviceReply(request, reply) {
-    if (malformed && request.op === 'search_state' && reply.ok) {
-      if (failure === 'missing ledger') return { ...reply, ok: { ...reply.ok, metered: undefined } };
-      if (failure === 'SDK budget') return { ...reply, ok: { ...reply.ok, ceilings: { ...reply.ok.ceilings, heap_bytes: 1 } } };
-    }
-    return reply;
-  }, async transformResponse(response) {
-    const json = await response.json();
-    assert.ok(Array.isArray(json.searchCurrent), 'the server supplied a valid envelope');
-    json.nextExpiry = deadline;
-    if (malformed && failure === 'missing searchCurrent') delete json.searchCurrent;
-    return Response.json(json, { status: response.status, headers: response.headers });
-  } });
-  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
-  watch.subscribe(() => {}); t.after(() => watch.close());
-  await until(() => watch.getSnapshot().data?.length);
-  const before = ids(watch.getSnapshot()), owner = answerObservation(watch.getSnapshot());
-  const deadlines = { ...owner.deadlines }, snapshots = [];
-  assert.equal(deadlines.server, deadline);
-  assert.equal(deadlines.device, deadline);
-  watch.subscribe(() => snapshots.push(watch.getSnapshot()));
-  malformed = true;
-  const code = failure === 'SDK budget' ? 'E_BOUND' : 'E_INPUT';
-  assert.equal((await f.client.query(q, args)).denied?.code, code);
-  assert.deepEqual(ids(watch.getSnapshot()), before, 'response validation is not replacement evidence');
-  assert.deepEqual(owner.deadlines, deadlines, 'direct failure cannot change either deadline');
-  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
-  await until(() => optOut.getSnapshot().denied?.code === code);
-  assert.deepEqual(ids(watch.getSnapshot()), before);
-  assert.deepEqual(owner.deadlines, deadlines, 'peer failure cannot change either deadline');
-  assert.ok(snapshots.every(read => Array.isArray(read.data)), 'no loading or refusal replaces retained rows');
-});
-
 for(const tier of ['process','wasm']) test(`ordinary mixed search ${tier}: retained first page, consumed prefixes and every ID exactly once`,async t=>{
   const f=await setup(t,tier), actual=[];
   let c;
@@ -514,58 +455,4 @@ test('ordinary mixed search: real word-dense drain pages follow the combined key
   const third=await f.client.query(q,{q:'coffee',c:next.next});
   assert.equal(f.requests.length-start,3);
   assert.ok(fetched.data.filter(row=>!ids(next).includes(row.id)).every(row=>ids(third).includes(row.id)),'unconsumed server hits survive');
-});
-
-for (const tier of ['process', 'wasm']) for (const phase of ['opening', 'after decode'])
-test(`round 11 mixed search ${tier}: ${phase} search_state budget refusal preserves retained authority`, async t => {
-  let failed = false, stateRefusals = 0, ceilings;
-  const deadline = Date.now() + 60000;
-  const decode = SearchLedger.prototype.decode;
-  // Pad a real HTTP 200 to fit decoding with ~4 KB left; the next real
-  // Rust search_state reservation refuses at its 8 KB charge.
-  SearchLedger.prototype.decode = async function(response) {
-    if (failed && phase === 'after decode') {
-      const text = await response.text();
-      assert.equal(response.status, 200);
-      const bytes = Math.floor((this.ceilings.heap_bytes - this.used.heap_bytes - 4096 - 128) / 32);
-      assert.ok(bytes > Buffer.byteLength(text));
-      response = new Response(text + ' '.repeat(bytes - Buffer.byteLength(text)), { status: 200 });
-    }
-    const json = await decode.call(this, response);
-    if (failed && phase === 'after decode') {
-      const remaining = this.ceilings.heap_bytes - this.used.heap_bytes;
-      assert.ok(remaining >= 4096 && remaining < 8192);
-    }
-    return json;
-  };
-  t.after(() => { SearchLedger.prototype.decode = decode; });
-  const f = await setup(t, tier, deadline, {
-    transformDeviceRequest(request) {
-      if (failed && phase === 'opening' && request.op === 'search_state' && !request.spent) {
-        return { ...request, spent: { ...Object.fromEntries(Object.keys(ceilings).map(k => [k, 0])), heap_bytes: ceilings.heap_bytes - 4096 } };
-      }
-      return request;
-    },
-    transformDeviceReply(request, reply) {
-      if (request.op === 'search_state') {
-        ceilings ??= reply.ok?.ceilings;
-        if (reply.denied?.code === 'E_BOUND') stateRefusals++;
-      }
-      return reply;
-    },
-    async transformResponse(response) { return Response.json({ ...await response.json(), nextExpiry: deadline }); },
-  });
-  const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
-  watch.subscribe(() => {}); t.after(() => watch.close());
-  await until(() => watch.getSnapshot().data?.length);
-  const before = ids(watch.getSnapshot()), owner = answerObservation(watch.getSnapshot()), deadlines = { ...owner.deadlines };
-  const snapshots = []; watch.subscribe(() => snapshots.push(watch.getSnapshot()));
-  failed = true;
-  assert.equal((await f.client.query(q, args)).denied?.code, 'E_BOUND');
-  assert.ok(stateRefusals > 0, 'real device metadata call refused');
-  assert.deepEqual(ids(watch.getSnapshot()), before); assert.deepEqual(owner.deadlines, deadlines);
-  const optOut = f.client.observe(q, args, { keep: false }); optOut.subscribe(() => {}); t.after(() => optOut.close());
-  await until(() => optOut.getSnapshot().denied?.code === 'E_BOUND');
-  assert.deepEqual(ids(watch.getSnapshot()), before); assert.deepEqual(owner.deadlines, deadlines);
-  assert.ok(snapshots.every(read => Array.isArray(read.data)));
 });

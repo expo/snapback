@@ -209,9 +209,10 @@ for (const keep of [undefined, true]) for (const closeBeforeReload of [false, tr
     assert.equal(answerIdentity(current), answerIdentity(original));
     assert.equal(current, peer.getSnapshot());
     assert.equal(current.revalidating, true);
-    assert.equal(episodeDeadline(current), undefined);
+    assert.equal(episodeDeadline(current), keep ? undefined : 2000);
     host = 2000;
-    assert.equal(watch.getSnapshot(), current);
+    if (keep) assert.equal(watch.getSnapshot(), current);
+    else assert.deepEqual(watch.getSnapshot(), { loading: true });
     assert.equal(seen.length, closedCalls);
     peer.close();
   });
@@ -221,7 +222,7 @@ for (const keep of [undefined, true]) test(`release fences pending authority bef
   const opts = keep === undefined ? undefined : { keep }, f = fixture(t, keep ?? "default");
   const watch = f.client.observe(q, {}, opts);
   await settle(); f.publish("A"); await settle();
-  const [pending] = gates(t, f, 1); f.publish("A");
+  const [pending] = gates(t, f, 1); f.publish("B");
   f.owner().reset({ data: "C", complete: true, fresh: true, cut: null, next: null });
   const withdrawal = watch.getSnapshot(); assert.deepEqual(withdrawal, { loading: true });
   pending.resolve(true); await settle();
@@ -229,7 +230,7 @@ for (const keep of [undefined, true]) test(`release fences pending authority bef
   watch.close();
 });
 
-for (const closeBeforeReload of [false, true]) test(`closed plain revalidation has no episode deadline even when the source copy changes (close before=${closeBeforeReload})`, async t => {
+for (const closeBeforeReload of [false, true]) test(`closed captured episode enforces its deadline even when the source copy has none (close before=${closeBeforeReload})`, async t => {
   let host = 1000; t.mock.method(Date, "now", () => host);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const f = fixture(t, "default"), watch = f.client.observe(q, {}), peer = f.client.observe(q, {});
@@ -237,14 +238,14 @@ for (const closeBeforeReload of [false, true]) test(`closed plain revalidation h
   const original = f.owner().snapshot;
   if (closeBeforeReload) watch.close();
   f.hold(); f.owner().reload(); for (const notify of f.owner().subscribers) notify();
-  assert.equal(episodeDeadline(watch.getSnapshot()), undefined);
+  assert.equal(episodeDeadline(watch.getSnapshot()), 2000);
   if (!closeBeforeReload) watch.close();
   // Isolate the facade's cap: the detached source supplies an earlier copy of the
   // same identity with no episode. No source accessor or timer can mask the check.
   t.mock.method(f.owner(), "read", () => original);
   host = 1500; assert.equal(answerIdentity(watch.getSnapshot()), answerIdentity(original));
   host = 2000;
-  const retained = watch.getSnapshot(); assert.equal(answerIdentity(retained), answerIdentity(original));
-  host = 1000; assert.equal(watch.getSnapshot(), retained);
+  const loading = watch.getSnapshot(); assert.deepEqual(loading, { loading: true });
+  host = 1000; assert.equal(watch.getSnapshot(), loading, "rollback never revives a closed episode");
   peer.close();
 });

@@ -129,7 +129,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
 }
 
 for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const lingering of keep === true ? [false, true] : [false]) {
-  test(`${tier} keep=${keep}: a newer replacement updates every displayed deadline and rejects an older body (${lingering ? "lingering" : "active"})`, async t => {
+  test(`${tier} keep=${keep}: displayed expiry fences an older body while preserving newer memory (${lingering ? "lingering" : "active"})`, async t => {
     const { url, dir } = await server(t, undefined, `use personas alice
 table rows:
   body: text
@@ -164,7 +164,7 @@ mutation put(body: text, expiresAt: time):
         const response = new Response(reply.body, { status: reply.status });
         if (path.startsWith("/q/") && holdBody) {
           holdBody = false;
-          const json = await response.json(); captured = json; blocked = true;
+          const json = await response.json(); captured = json; blocked = true; fail = true;
           const held = Response.json(json);
           held.json = async () => { await gate.promise; return json; };
           return held;
@@ -175,26 +175,26 @@ mutation put(body: text, expiresAt: time):
     await client.sync();
     const op = { kind: "query", name: "remote" }, watch = client.observe(op, {}, { keep });
     await until(() => watch.getSnapshot().data?.body === "A");
+    await put("B", deadline + 3_600_000);
+    assert.equal((await client.query(op, {})).data?.body, "B", "B replaces memory without replacing displayed A");
+    assert.equal(watch.getSnapshot().data.body, "A");
+    if (lingering) watch.close();
     await put("old body", deadline);
     holdBody = true;
-    clock.sample(wall - 100, wall, wall, "server:1");
+    clock.sample(wall - 100, wall, wall, "server:1"); // Begin a re-read before A expires.
     await until(() => blocked);
     assert.equal(captured.data.body, "old body");
     assert.equal(captured.nextExpiry, deadline);
-    await put("B", deadline + 3_600_000);
-    assert.equal((await client.query(op, {})).data?.body, "B");
-    assert.equal(watch.getSnapshot().data.body, "B", "the newer direct answer replaces all displayed owners");
-    if (lingering) watch.close();
-    fail = true;
     clock.sample(deadline, wall, wall, "server:2");
-    assert.equal(watch.getSnapshot().data?.body, "B", "A's retired deadline cannot withdraw B");
+    assert.deepEqual(watch.getSnapshot(), { loading: true }, "displayed A withdraws at its own deadline");
+    clock.sample(wall, wall, wall, "server:3");
     const joined = lingering ? client.observe(op, {}, { keep }) : watch, snapshots = [];
     joined.subscribe(() => snapshots.push(joined.getSnapshot()));
     gate.resolve();
-    await until(() => failed > 0, "older completion settles and transport recovery runs");
+    await until(() => failed > 0 && snapshots.some(read => read.data), "expired fetch finishes and recovery publishes");
     assert.ok(snapshots.every(read => !("data" in read) || read.data?.body === "B"), JSON.stringify(snapshots));
-    assert.equal(joined.getSnapshot().data?.body, "B", "older response metadata cannot shorten the current deadline");
-
+    assert.equal(joined.getSnapshot().data?.body, "B", "the old body cannot overwrite newer memory");
+    assert.equal((await client.query(op, {})).data?.body, "B", "one-shot offline recovery preserves B too");
   });
 }
 
@@ -324,20 +324,21 @@ for (const tier of ["wasm", "process"]) for (const lingering of [false, true]) {
   });
 }
 
-for (const tier of ["wasm", "process"]) test(`${tier} keep: a direct replacement installs its newer deadline before the former one expires`, async t => {
+for (const tier of ["wasm", "process"]) test(`${tier} keep: an older displayed deadline preserves a newer unexpired remembered answer`, async t => {
   const f = await fixture(t, tier), op = { kind: "query", name: "branch" };
   const watch = f.client.observe(op, {}, { keep: true });
   await until(() => watch.getSnapshot().data === true);
   f.answerDeadline(f.serverDeadline + 3_600_000);
-  assert.equal((await f.client.query(op, {})).data, true, "a later one-shot answer replaces the watch and memory");
+  assert.equal((await f.client.query(op, {})).data, true, "a later one-shot answer replaces memory without replacing the watch");
   await f.offline();
   watch.close(); f.hold();
+  const reads = f.localQueries();
   f.clock.sample(f.serverDeadline + 1, f.wall, f.wall, "server:1");
-  assert.equal(watch.getSnapshot().data, true, "the replaced deadline cannot expire the current answer");
+  await until(() => watch.getSnapshot().loading && f.localQueries() > reads);
   const joined = f.client.observe(op, {}, { keep: true });
   f.release();
-  assert.equal(joined.getSnapshot().data, true);
-
+  await until(() => joined.getSnapshot().data === true, "the newer answer is still recoverable");
+  assert.equal(joined.getSnapshot().fresh, false);
 });
 
 for (const first of ["device", "server"]) test(`armReadExpiry: split clocks schedule the ${first} deadline in its own domain`, t => {

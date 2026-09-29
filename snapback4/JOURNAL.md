@@ -75898,3 +75898,15 @@ size and 146 B below the unchanged 593,719 B cap. SHA-256
 No tool installation, push or publication. Report:
 reports/20260928-lv-hook-retention/round11/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — LV reverted from main
+
+The supervisor reverted lane LV's implementation (merges `ee514de11`,
+`f56e8048a`) from `main`, restoring the pre-LV client, engine and guide, and
+keeping LLP 3000.029 (now Shelved, §0), the lane's reports and these journal
+entries. No publication carried LV. The round-12 review still found a High and
+two Mediums against the pre-LV reference. §2's withdrawal on touched
+dependencies also made a mounted history `loading` on every incoming message,
+send and settlement, the friction builders fought in every calibration. The
+retained-answer goal continues as a smaller change to LLP 3000.023's model.
+Lane PQ, which merged LV, will be ported onto this `main`.
