@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 5.35s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test upsert_advice_keeps_hidden_writable_targets ... FAILED
+
+failures:
+
+---- upsert_advice_keeps_hidden_writable_targets stdout ----
+
+thread 'upsert_advice_keeps_hidden_writable_targets' (3847694) panicked at crates/snapback4-lang/tests/first_paste.rs:180:5:
+ResidencySite { site: "schema.q:33:9 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs held key coverage and additional read work, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, message: message, principal: viewer })" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    upsert_advice_keeps_hidden_writable_targets
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

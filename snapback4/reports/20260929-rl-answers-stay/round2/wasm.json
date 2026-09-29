@@ -1,0 +1,8 @@
+{
+  "rawBytes": 2040529,
+  "gzip9Bytes": 592975,
+  "cap": 593719,
+  "sha256": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b",
+  "method": "scripts/build-wasm.sh: gzip -9 -c <artifact>",
+  "marginBytes": 744
+}

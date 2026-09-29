@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=undefined
+ok 1 - process: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2458.484076
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=true
+ok 2 - process: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2444.666308
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=false
+ok 3 - process: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2448.157662
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=undefined
+ok 4 - process: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2443.814365
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=true
+ok 5 - process: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2440.313189
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=false
+ok 6 - process: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2447.181264
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=undefined
+ok 7 - process: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2440.409857
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=true
+ok 8 - process: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2446.204644
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=false
+ok 9 - process: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2440.559766
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=undefined
+ok 10 - wasm: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2849.064996
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=true
+ok 11 - wasm: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2434.750953
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=false
+ok 12 - wasm: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2447.497668
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=undefined
+ok 13 - wasm: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2439.146644
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=true
+ok 14 - wasm: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2438.192505
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=false
+ok 15 - wasm: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2433.960094
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=undefined
+ok 16 - wasm: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2463.77489
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=true
+ok 17 - wasm: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2447.624807
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=false
+ok 18 - wasm: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2437.613023
+  type: 'test'
+  ...
+# Subtest: process: generation boundary clears remembered answers and a held server completion
+ok 19 - process: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1444.572731
+  type: 'test'
+  ...
+# Subtest: wasm: generation boundary clears remembered answers and a held server completion
+ok 20 - wasm: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1445.695584
+  type: 'test'
+  ...
+# Subtest: process: quiet presence cannot publish below a pending durable cut
+ok 21 - process: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 704.371586
+  type: 'test'
+  ...
+# Subtest: wasm: quiet presence cannot publish below a pending durable cut
+ok 22 - wasm: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 663.976966
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=undefined, failed=false
+ok 23 - online: missing tables, keep=undefined, failed=false
+  ---
+  duration_ms: 1025.03704
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=undefined, failed=true
+ok 24 - online: missing tables, keep=undefined, failed=true
+  ---
+  duration_ms: 31.398879
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=true, failed=false
+ok 25 - online: missing tables, keep=true, failed=false
+  ---
+  duration_ms: 1031.491362
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=true, failed=true
+ok 26 - online: missing tables, keep=true, failed=true
+  ---
+  duration_ms: 30.975183
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=false
+ok 27 - online: empty tables, keep=undefined, failed=false
+  ---
+  duration_ms: 1121.579501
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=true
+ok 28 - online: empty tables, keep=undefined, failed=true
+  ---
+  duration_ms: 1121.352111
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=false
+ok 29 - online: empty tables, keep=true, failed=false
+  ---
+  duration_ms: 1120.973705
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=true
+ok 30 - online: empty tables, keep=true, failed=true
+  ---
+  duration_ms: 1121.167986
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55390.540194

@@ -1,0 +1,14 @@
+✔ process: ordinary search offline classification (400.178669ms)
+✔ process: ordinary search loading classification (293.208984ms)
+✔ process: ordinary search denied classification (299.615237ms)
+✔ wasm: ordinary search offline classification (757.295794ms)
+✔ wasm: ordinary search loading classification (229.162476ms)
+✔ wasm: ordinary search denied classification (234.403162ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2431.468486

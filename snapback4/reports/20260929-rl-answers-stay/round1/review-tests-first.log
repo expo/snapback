@@ -1,0 +1,135 @@
+✔ apply keeps its bound on held, keep=undefined (1.924474ms)
+✔ apply keeps its bound on throw, keep=undefined (0.627991ms)
+✔ admit keeps its bound on held, keep=undefined (0.269003ms)
+✔ admit keeps its bound on throw, keep=undefined (0.293099ms)
+✔ settle keeps its bound on held, keep=undefined (0.415964ms)
+✔ settle keeps its bound on throw, keep=undefined (0.284166ms)
+✔ apply keeps its bound on held, keep=true (0.252809ms)
+✔ apply keeps its bound on throw, keep=true (0.243686ms)
+✔ admit keeps its bound on held, keep=true (0.212829ms)
+✔ admit keeps its bound on throw, keep=true (0.299669ms)
+✔ settle keeps its bound on held, keep=true (0.161132ms)
+✔ settle keeps its bound on throw, keep=true (0.206149ms)
+✔ process: applied membership removal and held replica replacement (1164.98816ms)
+✔ process: applied membership removal and throw replica replacement (310.156704ms)
+✔ wasm: applied membership removal and held replica replacement (1915.511332ms)
+✔ wasm: applied membership removal and throw replica replacement (125.593136ms)
+✔ online receipt bounds held replacement, keep=undefined (1127.373537ms)
+✔ online receipt bounds offline replacement, keep=undefined (98.777071ms)
+✔ online receipt bounds held replacement, keep=true (1083.353403ms)
+✔ online receipt bounds offline replacement, keep=true (177.23948ms)
+✔ online: ephemeral-only /changes bounds a held replacement (130.875684ms)
+✔ process: ephemeral-only /changes bounds a held replacement (229.669429ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (115.450723ms)
+✔ ephemeral periodic sampling is distinct from change evidence (1.747409ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (0.785237ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (228.431863ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (247.342649ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1546.807747ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1192.158001ms)
+✖ process: ordinary search offline classification (6148.884676ms)
+✖ process: ordinary search loading classification (7037.694158ms)
+✖ process: ordinary search denied classification (6358.113559ms)
+✖ wasm: ordinary search offline classification (6141.769338ms)
+✖ wasm: ordinary search loading classification (6100.829547ms)
+✖ wasm: ordinary search denied classification (6049.929417ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 29
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47648.512652
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ process: ordinary search offline classification (6148.884676ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ process: ordinary search loading classification (7037.694158ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ process: ordinary search denied classification (6358.113559ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ wasm: ordinary search offline classification (6141.769338ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ wasm: ordinary search loading classification (6100.829547ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ wasm: ordinary search denied classification (6049.929417ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:200:37)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -1,0 +1,10 @@
+{
+  "raw_bytes": 2040529,
+  "gzip_bytes": 592975,
+  "gzip_command": "gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "cap_gzip_bytes": 593719,
+  "headroom_bytes": 744,
+  "sha256": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b",
+  "built_by": "single round-2 scripts/test.sh invocation",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+}

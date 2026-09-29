@@ -276,7 +276,6 @@ impl Parser {
                     }
                 }
                 self.take(")")?;
-                if name == "len" { return Err(unsupported(&name_site, "len", format!("count({})", args.iter().map(print::expression).collect::<Vec<_>>().join(", ")))); }
                 value = Expr::Call { name, args, site };
             } else if self.at("[") && matches!(value, Expr::Name { .. }) {
                 let Expr::Name { name, site } = value else { unreachable!() };

@@ -1,0 +1,13 @@
+✔ reference rejects transient empty member answers and sign-out loading (0.892807ms)
+{"host":"process","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 300 independent histories (105948.715288ms)
+{"host":"wasm","seeds":300,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 300 independent histories (73809.612999ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180110.783035

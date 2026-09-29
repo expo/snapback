@@ -1,0 +1,112 @@
+process 1 initial sync
+process 1 synced
+process 1 cut 2
+process 1 sync-cut
+process 1 sync-cut-done
+process 1 replacement true
+process 1 await direct
+process 1 direct done
+process 1 cut 3
+process 1 sync-cut
+process 1 sync-cut-done
+process 1 await direct
+process 1 direct done
+process 1 cut 4
+process 1 sync-cut
+process 1 sync-cut-done
+process 1 replacement false
+process 1 await direct
+process 1 direct done
+process 1 cut 5
+process 1 sync-cut
+process 1 sync-cut-done
+process 1 await direct
+process 1 direct done
+process 1 plain failure
+process 2 initial sync
+process 2 synced
+process 2 cut 2
+process 2 sync-cut
+process 2 sync-cut-done
+process 2 replacement true
+process 2 await direct
+process 2 direct done
+process 2 cut 3
+process 2 sync-cut
+process 2 sync-cut-done
+process 2 await direct
+process 2 direct done
+process 2 cut 4
+process 2 sync-cut
+process 2 sync-cut-done
+process 2 replacement false
+process 2 await direct
+process 2 direct done
+process 2 cut 5
+process 2 sync-cut
+process 2 sync-cut-done
+process 2 await direct
+process 2 direct done
+process 2 plain failure
+{"host":"process","seeds":2,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule process: 300 independent histories (378.263469ms)
+wasm 1 initial sync
+wasm 1 synced
+wasm 1 cut 2
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 replacement true
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 3
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 4
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 replacement false
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 5
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 plain failure
+wasm 2 initial sync
+wasm 2 synced
+wasm 2 cut 2
+wasm 2 sync-cut
+wasm 2 sync-cut-done
+wasm 2 replacement true
+wasm 2 await direct
+wasm 2 direct done
+wasm 2 cut 3
+wasm 2 sync-cut
+wasm 2 sync-cut-done
+wasm 2 await direct
+wasm 2 direct done
+wasm 2 cut 4
+wasm 2 sync-cut
+wasm 2 sync-cut-done
+wasm 2 replacement false
+wasm 2 await direct
+wasm 2 direct done
+wasm 2 cut 5
+wasm 2 sync-cut
+wasm 2 sync-cut-done
+wasm 2 await direct
+wasm 2 direct done
+wasm 2 plain failure
+{"host":"wasm","seeds":2,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 300 independent histories (662.94827ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1204.724425

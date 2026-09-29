@@ -1,0 +1,82 @@
+✔ expiry retry chained permits wasm (897.874076ms)
+✔ expiry retry populated watch wasm (131.493391ms)
+✔ expiry retry server pagination wasm (127.768588ms)
+✖ expiry retry server pagination watch wasm (114.329357ms)
+✔ expiry retry remembered branch wasm (128.723249ms)
+✔ expiry retry remembered branch watch wasm (112.100807ms)
+✔ expiry retry remembered branch timer watch wasm (205.993425ms)
+✔ expiry retry chained permits process (187.657434ms)
+✔ expiry retry populated watch process (205.863181ms)
+✔ expiry retry server pagination process (190.315198ms)
+✖ expiry retry server pagination watch process (195.113819ms)
+✔ expiry retry remembered branch process (159.266164ms)
+✔ expiry retry remembered branch watch process (190.351522ms)
+✔ expiry retry remembered branch timer watch process (271.223286ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3332.402576
+
+✖ failing tests:
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry server pagination watch wasm (114.329357ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:293:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry server pagination watch process (195.113819ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:293:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

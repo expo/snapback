@@ -1,0 +1,42 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 6.79s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 7 tests
+test upsert_advice_withholds_key_changing_patches ... ok
+test upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images ... FAILED
+test upsert_advice_withholds_expiring_and_optional_result_images ... FAILED
+test mixed_key_upsert_advice_cannot_change_existing_row_identity ... ok
+test upsert_advice_keeps_hidden_writable_targets ... FAILED
+test upsert_advice_withholds_effectful_keys_and_patch_values ... ok
+test upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects ... ok
+
+failures:
+
+---- upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images stdout ----
+
+thread 'upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images' (3827034) panicked at crates/snapback4-lang/tests/first_paste.rs:203:9:
+ResidencySite { site: "schema.q:32:10 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, message: message, principal: viewer })" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- upsert_advice_withholds_expiring_and_optional_result_images stdout ----
+
+thread 'upsert_advice_withholds_expiring_and_optional_result_images' (3827032) panicked at crates/snapback4-lang/tests/first_paste.rs:161:9:
+  expiresAt: time
+  expire at .expiresAt
+: ResidencySite { site: "schema.q:34:9 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji, expiresAt: now }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, expiresAt: now, message: message, principal: viewer })" }
+
+---- upsert_advice_keeps_hidden_writable_targets stdout ----
+
+thread 'upsert_advice_keeps_hidden_writable_targets' (3827029) panicked at crates/snapback4-lang/tests/first_paste.rs:180:5:
+ResidencySite { site: "schema.q:33:9 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, message: message, principal: viewer })" }
+
+
+failures:
+    upsert_advice_keeps_hidden_writable_targets
+    upsert_advice_withholds_expiring_and_optional_result_images
+    upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images
+
+test result: FAILED. 4 passed; 3 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

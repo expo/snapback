@@ -1,0 +1,12 @@
+✔ ready list reads survive account restoration, new chat acquisition and pending unread counts (4438.353809ms)
+ℹ unavailable inbox device reply: {"ok":{"complete":false,"cut":null,"loading":true,"nextExpiry":null,"retained":false,"tables":["members","messages"],"unknown":true}}
+✔ unavailable server list responses end retention in both clients (1277.700595ms)
+✔ loading server replies retain expiry retries and missing data cannot become ready undefined (33.860964ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5860.31285

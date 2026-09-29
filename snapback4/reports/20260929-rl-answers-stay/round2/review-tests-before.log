@@ -1,0 +1,160 @@
+✖ pending change requires published sync or a whole server answer at its cut (1.058758ms)
+✖ process: item notification survives readable old replica and failed sync (5400.346836ms)
+✖ process: item notification survives throw old replica and failed sync (5264.638122ms)
+✖ process: mixed notification survives readable old replica and failed sync (134.494572ms)
+✔ process: mixed notification survives throw old replica and failed sync (1124.613208ms)
+✖ wasm: item notification survives readable old replica and failed sync (5525.316366ms)
+✖ wasm: item notification survives throw old replica and failed sync (5153.497699ms)
+✖ wasm: mixed notification survives readable old replica and failed sync (91.111495ms)
+✔ wasm: mixed notification survives throw old replica and failed sync (1085.375895ms)
+✖ process: ephemeral offline recovery preserves its classification and expiry (205.008083ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (216.919237ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (214.481975ms)
+✖ wasm: ephemeral offline recovery preserves its classification and expiry (172.545305ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (185.859262ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (180.663925ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 6
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25121.656563
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:14:1
+✖ pending change requires published sync or a whole server answer at its cut (1.058758ms)
+  TypeError: answers.current is not a function
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:20:26)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives readable old replica and failed sync (5400.346836ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives throw old replica and failed sync (5264.638122ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives readable old replica and failed sync (134.494572ms)
+  AssertionError [ERR_ASSERTION]: old replica answer cannot settle the notification
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:72:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives readable old replica and failed sync (5525.316366ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives throw old replica and failed sync (5153.497699ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives readable old replica and failed sync (91.111495ms)
+  AssertionError [ERR_ASSERTION]: old replica answer cannot settle the notification
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:72:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:85:3
+✖ process: ephemeral offline recovery preserves its classification and expiry (205.008083ms)
+  AssertionError [ERR_ASSERTION]: offline rerun never publishes loading before expiry
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:106:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:85:3
+✖ wasm: ephemeral offline recovery preserves its classification and expiry (172.545305ms)
+  AssertionError [ERR_ASSERTION]: offline rerun never publishes loading before expiry
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:106:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

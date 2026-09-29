@@ -1,0 +1,40 @@
+[
+  {
+    "model": "astra",
+    "bytes": 2757,
+    "sha256": "e2f485297d33da05c725fb2995aae2702f25bb087c2d10484cd336221302efaa",
+    "checked_utc": "2026-09-29T07:04:57.978204+00:00",
+    "complete": true
+  },
+  {
+    "model": "grok",
+    "bytes": 327,
+    "sha256": "8cd2407d43034c27958064f1114d82fba796885d5b1ff0f3ec6495ebcbee076c",
+    "checked_utc": "2026-09-29T07:04:57.978344+00:00",
+    "complete": false
+  },
+  {
+    "model": "grok",
+    "bytes": 10006,
+    "sha256": "b7b30a403678197447da57c5f44ce3a07324ae790a1996ede441aa8862dadc75",
+    "checked_utc": "2026-09-29T07:27:05.188073+00:00",
+    "complete": true,
+    "verdict": "READY; two Low coverage findings"
+  },
+  {
+    "model": "astra",
+    "bytes": 2757,
+    "sha256": "e2f485297d33da05c725fb2995aae2702f25bb087c2d10484cd336221302efaa",
+    "checked_utc": "2026-09-29T07:28:22.101347+00:00",
+    "complete": true,
+    "stage": "after full suite"
+  },
+  {
+    "model": "grok",
+    "bytes": 10006,
+    "sha256": "b7b30a403678197447da57c5f44ce3a07324ae790a1996ede441aa8862dadc75",
+    "checked_utc": "2026-09-29T07:28:22.101412+00:00",
+    "complete": true,
+    "stage": "after full suite"
+  }
+]
