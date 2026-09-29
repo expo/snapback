@@ -76,7 +76,7 @@ and opens a minted ID offline. The server atomically deduplicates both direction
 Settlement updates the route ID, keeping the composer under the opening write ID.
 Lookup rows have no horizon and survive leave; they grant no membership or content.
 Creation predicts with acquired key coverage; the server can choose another ID.
-A send to the provisional ID can then be refused; its saved text stays editable.
+Refused sends stay editable after reopening: account/backend-scoped storage links proposed IDs to the canonical ID.
 
 History uses `messages where .conversation = conversation last 20 by
 byConversationOrdinal after c`, as `guide sync` teaches. Its safe leading

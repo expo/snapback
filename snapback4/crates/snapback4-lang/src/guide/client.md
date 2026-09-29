@@ -52,8 +52,7 @@ Per-row `useQuery` is supported. Equal query names and wire-equivalent arguments
 share one live observation within the same retention policy. Object key order
 does not create another observation; changing `keep` does.
 
-For a large list, return fields in one paged query when they belong to the same read.
-In the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
+For a large list, return fields in one paged query: in the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
 The pre-port Linux/Chromium wasm sample mounted the same 1,000 fields in 23 ms as one
 list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
 Both do zero evaluations for a known unrelated table write. The client starts

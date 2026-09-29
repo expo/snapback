@@ -35,6 +35,7 @@ export function withIntentStorage(credentials: Credentials, storage: IntentStora
 }
 
 export type Intent = { id: string; args: ArgsOf<typeof import("../snapback/generated/api").api.send> };
+export type Proposal = { proposed: string; other: string; canonical?: string };
 
 // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — these are UI references, never an outbox or a resend loop.
 export class IntentJournal {
@@ -51,9 +52,22 @@ export class IntentJournal {
   }
   remember(intent: Intent) { this.save([...this.read(), intent]); }
   forget(id: string) { this.save(this.read().filter(i => i.id !== id)); }
-  private save(intents: Intent[]) {
+  // @ref LLP 3000.028#8 — durable route associations, never rewritten send arguments.
+  proposals(): Proposal[] {
+    if (!this.current()) return [];
+    const saved = JSON.parse(this.storage.getItem(this.key) ?? "{}") as { proposals?: Proposal[] };
+    return Array.isArray(saved.proposals) ? saved.proposals.filter(p => typeof p.proposed === "string" &&
+      typeof p.other === "string" && (p.canonical === undefined || typeof p.canonical === "string")) : [];
+  }
+  propose(proposed: string, other: string) {
+    this.save(this.read(), [...this.proposals().filter(p => p.proposed !== proposed), { proposed, other }]);
+  }
+  resolve(other: string, canonical: string) {
+    this.save(this.read(), this.proposals().map(p => p.other === other ? { ...p, canonical } : p));
+  }
+  private save(intents: Intent[], proposals = this.proposals()) {
     if (!this.current()) throw Error("This account is no longer active.");
-    this.storage.setItem(this.key, JSON.stringify({ intents }));
+    this.storage.setItem(this.key, JSON.stringify({ intents, proposals }));
   }
 }
 

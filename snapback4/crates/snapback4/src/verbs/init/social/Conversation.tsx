@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, Image, Text, TextInput, View, type ViewToken } from "react-native";
 import { useClient, useLink, useMutation, usePendingWrite, usePendingWrites, useQuery, useViewer } from "snapback4/react";
 import { mintId } from "snapback4/client";
-import { IntentJournal, intentOutcome, type Intent } from "./intents";
+import { IntentJournal, intentOutcome, type Intent, type Proposal } from "./intents";
 import { intentStorage } from "./intent-store";
 import type { Cursor, ResultOf, Write } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
@@ -32,6 +32,8 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
   const journal = useMemo(() => new IntentJournal(intentStorage, url, viewer,
     () => client.viewer() === viewer && client.link() !== "signed-out"), [client, url, viewer]);
   const [intents, setIntents] = useState<Intent[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const destinations = new Set([conversation, proposed, ...proposals.filter(p => p.canonical === conversation).map(p => p.proposed)]);
   const [outcomes, setOutcomes] = useState<Record<string, Write>>({});
   const [submitting, setSubmitting] = useState<string>();
   const lifetime = useRef({ active: true, admitting: false });
@@ -39,10 +41,19 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
     const owner = { active: true, admitting: false }; lifetime.current = owner;
     return () => { owner.active = false; };
   }, [journal]);
-  useEffect(() => {
-    try { setIntents(journal.read().filter(i => i.args.conversation === conversation || i.args.conversation === proposed)); }
+  const restore = useCallback(() => {
+    try {
+      const saved = journal.proposals(); setProposals(saved);
+      const ids = new Set([conversation, proposed, ...saved.filter(p => p.canonical === conversation).map(p => p.proposed)]);
+      setIntents(journal.read().filter(i => ids.has(i.args.conversation)));
+    }
     catch (error) { setProblem(`Could not read saved sends: ${String(error)}`); }
   }, [journal, conversation, proposed]);
+  useEffect(restore, [restore]);
+  const resolve = useCallback((other: string, canonical: string) => {
+    try { journal.resolve(other, canonical); restore(); }
+    catch (error) { setProblem(`Could not save conversation association: ${String(error)}`); }
+  }, [journal, restore]);
   const dismiss = useCallback((id: string) => {
     try {
       journal.forget(id); setIntents(saved => saved.filter(i => i.id !== id));
@@ -52,7 +63,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
   }, [journal]);
   const currentMember = "data" in member && !!member.data && !member.revalidating;
   // Custody is not authority: only a confirmed absence/refusal blocks a send.
-  const canSend = !("denied" in member || ("data" in member && !member.data && !member.revalidating));
+  const canSend = !("denied" in member || ("data" in member && !member.data && member.fresh && !member.revalidating));
   const seen = useRef(0);
   useEffect(() => { seen.current = 0; setSelected(undefined); }, [conversation]);
   const reportSeen = useCallback((through: number) => {
@@ -79,6 +90,8 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
     finally { if (owner.active) { owner.admitting = false; setSubmitting(undefined); } }
   }
   return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
+    {[...new Set(proposals.filter(p => !p.canonical).map(p => p.other))].map(other =>
+      <ResolveProposal key={other} other={other} resolve={resolve} />)}
     <Text accessibilityRole="header">{"data" in room && room.data ? room.data.title : "Conversation"}</Text>
     <ReadState read={room} /><Text>{link}</Text>
     {/* Composer lives above every transient read and the recycled message list. */}
@@ -93,13 +106,22 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
         setDraft(current => current ? `${current} ${args.text}` : args.text);
         setPhoto(current => args.photo?.id ?? current);
       }} attachmentBusy={!!photo} />)}
-    <Text>{pending.filter(write => write.args.conversation === conversation || write.args.conversation === proposed).length} pending sends</Text>
+    <Text>{pending.filter(write => destinations.has(write.args.conversation)).length} pending sends</Text>
     {!canSend && <Text>You are no longer a member. Your draft stays here.</Text>}
-    {canSend && !currentMember && <Text>Membership is being checked. You can queue a message.</Text>}
+    {canSend && (!currentMember || ("data" in member && !member.fresh)) && <Text>Membership is being checked. You can queue a message.</Text>}
     <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
     {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
     <History key={conversation} conversation={conversation} reportSeen={reportSeen} select={setSelected} />
   </View>;
+}
+
+// Reopening any route also recovers proposals that settled while unmounted.
+// Keys are immutable identity references; they confer no membership authority.
+function ResolveProposal({ other, resolve }: { other: string; resolve(other: string, canonical: string): void }) {
+  const pair = useQuery(api.directConversation, { other });
+  const id = "data" in pair && !pair.revalidating && pair.data && !pair.data.pending ? pair.data.conversation : null;
+  useEffect(() => { if (id) resolve(other, id); }, [other, id, resolve]);
+  return null;
 }
 
 function SendSettlement({ intent, outcome, submitting, dismiss, edit, attachmentBusy }: {

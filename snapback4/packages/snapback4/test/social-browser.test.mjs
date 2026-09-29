@@ -67,7 +67,7 @@ test("social recipes in React/browser: real online signals and media, controlled
       { find: "expo-image-picker", replacement: join(dir, "picker.js") },
       { find: "starter-route", replacement: join(dir, "app/conversation/[id].tsx") },
       { find: "expo-router", replacement: join(dir, "router.jsx") },
-      { find: "../../src/client", replacement: join(dir, "route-client.js") },
+      { find: /^(\.\.\/\.\.\/src|\.)\/client$/, replacement: join(dir, "route-client.js") },
       { find: "./intent-store", replacement: join(dir, "src/intent-store.web.ts") },
       { find: "real-client", replacement: join(root, "packages/snapback4/src/client.ts") },
       { find: "snapback4/client", replacement: join(dir, "online-client.js") },
@@ -500,7 +500,7 @@ test("social search in React/browser uses current server and retained device pag
 });
 
 // @ref LLP 3000.028#8 — route IDs belong to navigation, drafts survive settlement.
-test("social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft", { timeout: 60_000 }, async t => {
+test("social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft", { timeout: 120_000 }, async t => {
   const { directHarness, directRouter } = await import("./helpers/social-direct-browser.mjs");
   const dir = mkdtempSync(join(root, ".social-direct-"));
   let vite, browser;
@@ -534,7 +534,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
       { find: "react-native", replacement: join(dir, "native.jsx") },
       { find: "expo-router", replacement: join(dir, "router.jsx") },
       { find: "expo-image-picker", replacement: join(dir, "picker.js") },
-      { find: "../../src/client", replacement: join(dir, "route-client.js") },
+      { find: /^(\.\.\/\.\.\/src|\.)\/client$/, replacement: join(dir, "route-client.js") },
       { find: "./intent-store", replacement: join(dir, "src/intent-store.web.ts") },
       ...["client", "react", "app", "auth", "contract", "web"].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === "react" ? "tsx" : "ts"}`) })),
     ] }, esbuild: { jsx: "automatic" } });
@@ -603,6 +603,102 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   await page.evaluate(() => window.holdLookup(true));
   assert.equal(await page.getByTestId("composer").inputValue(), "draft while the peer wins", "later lookup withdrawal cannot unmount the route");
   assert.equal(await page.evaluate(() => window.dmAttempts.length), 2);
+  await page.evaluate(() => window.holdLookup(false));
+  await t.test("failed provisional sends survive Profile reopen and a full reload", async () => {
+    const original = (await page.evaluate(() => window.savedDM())).intents;
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(other => window.openDM(other), carol.principal);
+    await page.waitForFunction(id => window.routeDM().id === id, raced.result);
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => window.navigateDM({ id }), raced.result);
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, original, "admitted arguments never change");
+    assert.deepEqual(await page.evaluate(() => window.dmAttempts), [], "recovery never resubmits opening");
+    await page.getByRole("button", { name: "Edit unsent message" }).click();
+    assert.equal(await page.getByTestId("composer").inputValue(), original[0].args.text);
+    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    assert.equal(await page.locator('[data-testid^="send-"]').count(), 0);
+    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, []);
+  });
+
+  await t.test("a sent receipt without result recovers the route from its replicated key", async () => {
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.holdLookup(true));
+    await page.evaluate(({ opening, provisional, other }) => {
+      window.withoutResultDM = opening;
+      window.navigateDM({ id: provisional, proposed: provisional, opening, other });
+    }, { opening, provisional, other: carol.principal });
+    await page.waitForFunction(() => window.recoveredDM.length > 0);
+    const recovered = await page.evaluate(() => window.recoveredDM.at(-1));
+    assert.equal(recovered.state, "sent"); assert.equal("result" in recovered, false);
+    assert.equal(await page.evaluate(() => window.routeDM().id), provisional, "receipt alone supplies no destination");
+    await page.getByTestId("composer").fill("recovered receipt draft");
+    await page.evaluate(() => window.holdLookup(false));
+    await page.waitForFunction(id => window.routeDM().id === id, raced.result, { timeout: 5000 });
+    assert.equal(await page.getByTestId("composer").inputValue(), "recovered receipt draft");
+  });
+
+  await t.test("real stale negative membership after leave, sync, disconnect and re-invite permits Send", async () => {
+    await page.evaluate(id => window.navigateDM({ id }), canonical);
+    const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
+    assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await page.evaluate(() => window.syncDM());
+    const absent = await page.evaluate(id => window.memberDM(id), canonical);
+    assert.equal(absent.data, null); assert.equal(absent.fresh, true);
+    await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
+    await page.evaluate(() => window.dropDM());
+    assert.equal((await peer.mutate(api.add, { conversation: canonical, principal: alice.principal })).state, "sent");
+    const stale = await page.evaluate(id => window.memberDM(id), canonical);
+    assert.equal(stale.data, null); assert.equal(stale.complete, true); assert.equal(stale.fresh, false);
+    assert.ok(!stale.revalidating, "real completed offline absence, not injected loading");
+    await page.waitForFunction(id => {
+      const answer = window.membersDM[id];
+      return answer?.data === null && answer.complete && answer.fresh === false && !answer.revalidating;
+    }, canonical);
+    await page.getByText("Membership is being checked. You can queue a message.").waitFor({ timeout: 5000 });
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+    await page.getByTestId("composer").fill("queued after offline re-invite");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send" && w.args.text === "queued after offline re-invite"));
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.historyDM(id)).data?.some(row => row.text === "queued after offline re-invite"), canonical);
+  });
+
+  await t.test("leaving before settlement recovers failed sends on a bare canonical route", async () => {
+    await page.evaluate(() => window.connectDM());
+    const fourth = await guest(url); assert.equal(fourth.ok, true);
+    const latePeer = createClient({ url, token: fourth.session.token });
+    t.after(() => latePeer.close());
+    await page.evaluate(() => window.dropDM());
+    const winner = await latePeer.mutate(api.openDirect, { id: "unmounted-canonical", other: alice.principal });
+    assert.equal(winner.state, "sent");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(other => window.openDM(other), fourth.session.principal);
+    await page.getByTestId("composer").waitFor();
+    const proposed = await page.evaluate(() => window.routeDM().id);
+    assert.notEqual(proposed, winner.result);
+    await page.getByTestId("composer").fill("left before settlement");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w => w.op === "send" && w.args.conversation === proposed), "provisional send admitted");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => window.navigateDM({ id }), winner.result);
+    const failed = page.getByTestId(`send-${queued.id}`);
+    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.match(await failed.innerText(), /Not sent.*left before settlement/s);
+    const saved = (await page.evaluate(() => window.savedDM())).intents.find(i => i.id === queued.id);
+    assert.deepEqual(saved.args, queued.args, "recovery does not retarget an admitted send");
+    assert.deepEqual((await latePeer.query(api.history, { conversation: winner.result })).data, [], "no automatic resend to the canonical destination");
+    await failed.getByRole("button", { name: "Edit unsent message" }).click();
+    assert.equal(await page.getByTestId("composer").inputValue(), queued.args.text);
+    await failed.getByRole("button", { name: "Dismiss", exact: true }).click();
+    assert.equal(await failed.count(), 0);
+  });
   await page.evaluate(() => window.finishDM());
   assert.deepEqual(errors, []);
 });

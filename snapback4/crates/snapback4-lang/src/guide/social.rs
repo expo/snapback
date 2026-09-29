@@ -80,7 +80,7 @@ after the replacement attempt starts. Decorations withdraw immediately. No appli
 Loading, refusal and retained history leave draft and focus owned by the same
 screen; identity reset still clears them. Revealing/consuming protected content
 needs a current answer. Queueing a durable write needs no membership answer:
-only denial or a non-revalidating absent row disables Send; the server authorizes it. The SDK reports delivery; the screen reports only visible seen
+only denial or a fresh, non-revalidating absent row disables Send; the server authorizes it. The SDK reports delivery; the screen reports only visible seen
 positions. The starter passes foreground and navigation visibility explicitly.
 
 ```tsx
@@ -109,6 +109,6 @@ a replay may lack a result. Settlement uses `router.setParams({ id })` to replac
 the URL ID without replacing the screen. Its `opening` key keeps the composer;
 history changes keys and reads current rows. No answer is cached in a ref.
 An offline send to a provisional ID may be refused if the server chose another
-conversation; the route keeps its proposed ID to show those saved sends too.
-Their text stays editable; draft text and attachments survive settlement.
+conversation; account/backend-scoped storage links every proposal to its canonical ID.
+Reopening resolves unfinished links and shows those saved sends with Edit/Dismiss; admitted arguments stay unchanged.
 "##);

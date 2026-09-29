@@ -262,6 +262,15 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
     assert.deepEqual((await client.query(api.inbox, {})).data.map(r => r.conversation), [canonical]);
   }
   assert.equal((await outsider.query(api.directConversation, { other: peer })).data, null, "keys are private to their owner");
+  // Query authorization alone cannot detect a widened replication audience.
+  const outsiderDevice = tier === "native" ? processDevice({ binary, dir: join(dir, "outsider-device") }) :
+    webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const outsiderReplica = await createLocalClient({ url, session: sessions[2].session, device: outsiderDevice });
+  t.after(() => outsiderReplica.close());
+  await outsiderReplica.sync();
+  assert.equal(outsiderReplica.acquired, true);
+  assert.equal((await outsiderReplica.residency()).tables.directChats?.rows ?? 0, 0,
+    "outsider replica must acquire no other participant's DM key rows");
   offline = false; await local.sync();
   const settled = await until(async () => { const w = await local.write(opening); return w?.state === "sent" && w; }, "offline open settles");
   assert.equal(settled.state, "sent"); // Recovered receipts need not carry a historical result.
@@ -287,4 +296,30 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
   }
   const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
   assert.match(native.split("\n\n")[1], /Expo client.*guide client.*guide witness/);
+});
+
+test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
+  const dir = starter(t);
+  const source = readFileSync(join(dir, "src/intents.ts"), "utf8");
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+  const { IntentJournal } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+  const values = new Map(); let viewer = "alice";
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const open = (url = "https://one.test", account = "alice") => new IntentJournal(storage, url, account, () => viewer === account);
+  const original = ["proposal-a", "proposal-b"].map((conversation, n) => ({ id: `send-${n}`, args: { conversation, text: `unsent ${n}`, photo: null } }));
+  const journal = open();
+  for (const intent of original) { journal.propose(intent.args.conversation, "bob"); journal.remember(intent); }
+  open().resolve("bob", "canonical");
+  assert.deepEqual(open().proposals(), original.map(i => ({ proposed: i.args.conversation, other: "bob", canonical: "canonical" })));
+  assert.deepEqual(open().read(), original, "association never rewrites admitted arguments");
+  open().forget(original[0].id);
+  assert.equal(open().proposals().length, 2, "dismissing one send preserves both route associations");
+  assert.deepEqual(open("https://two.test").proposals(), []);
+  viewer = "bob";
+  assert.deepEqual(open("https://one.test", "bob").proposals(), []);
+  assert.deepEqual(journal.proposals(), []);
+  assert.throws(() => journal.resolve("bob", "wrong"), /no longer active/);
+  viewer = "alice";
+  assert.deepEqual(open().read(), [original[1]]);
+  assert.equal(open().proposals()[0].canonical, "canonical");
 });

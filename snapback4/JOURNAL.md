@@ -78123,3 +78123,44 @@ LLP 3000.007 §20.4 and the operations manual explain the semantic comparison.
 Report and all detecting controls: reports/20260929-ea-admit-before-identity/round6/REPORT.md.
 The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — SR round 1: stale absence and durable DM proposal recovery
+
+Addressed Astra's three round-0 findings after merging origin/main aee0273561
+(merge 0c5ac3e3f7), retaining EA's bounded identity wait and NP's native witness.
+Kept both append-only journal branches; condensed merged client-card prose back
+to its 130-line cap without removing either lane's content.
+
+Only denial or fresh, non-revalidating negative membership disables Send.
+A real leave/sync/disconnect/re-invite sequence produces complete stale absence;
+Send permits custody with the quiet hint and later reaches the server. Corrected
+LLP 3000.028 §8's offline-absence exception. Seen and protected-content authority
+remain unchanged.
+
+The starter journals each proposed DM ID and peer before opening. Conversation
+mounts resolve unfinished private keys and persist proposal-to-canonical links in
+account/backend-scoped storage. Failed sends stay available with text/Edit/Dismiss
+after Profile reopen, bare canonical navigation, full reload, and leaving before
+settlement. Multiple proposals retain their associations. No admitted argument is
+changed and no send is automatically resubmitted; SDK, server rules, retention,
+delivery, typing and once-media behavior remain unchanged.
+
+New outsider acquisition assertions inspect both process/native and wasm holdings.
+A legal public-key mutation acquires two rows instead of zero and fails both tests.
+Removing the replicated-key fallback fails a successful-receipt-without-result
+route recovery. Removing freshness fails the real stale-negative Send test;
+omitting proposal persistence fails both reopen cases. Fixed affected tests pass
+30/30; the whole guide passes 99/99. Generated check, installed web/Expo typecheck,
+production web export and iOS Hermes v98 export pass. Optional native runtime
+smoke was not run here; NP's merged witness is retained, not requalified by SR.
+
+One scripts/test.sh invocation: `== 0 failure(s) in 1277 s`, exit 0. Every stage
+passed, including 5,195 client tests (10 skips) and 79 model tests. Round 0's
+inherited keep-remount assertion passed. No final SR, baseline or environmental
+test failures. Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the 593,719 B cap.
+No budget increased. Earlier corrected setup/test failures and all negative
+controls remain classified in reports/20260929-sr-starter-routes/round1/REPORT.md.
+
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
