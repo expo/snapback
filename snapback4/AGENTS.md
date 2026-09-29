@@ -65,6 +65,21 @@ What exists, by week (LLP 3000 §5):
 Gotchas you cannot derive from the code:
 
 - Own Cargo and Bun workspaces; the repository root excludes them. Run cargo/bun from `snapback4/`. Node 24.x (`engines`): run the suite with the pinned runtime on PATH, not the ambient Homebrew node.
+- The suite schedules client files in one pool: `max(1, min(24,
+  floor(os.availableParallelism() / 3)))` slots (3 on 10 CPUs, 24 on 96).
+  This counts Linux CPU affinity and leaves room for each file's servers,
+  browser renderers and workers. Acquisition and server-e2e share that pool;
+  there are no extra shard processes outside it. The two full-count model
+  files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
+  still forces one client file at a time; publication needs no override.
+- Before a publication dry run, warm the test artifacts **in that publication
+  worktree**, while the host is free of calibration work:
+  `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.
+  Use the dry run's toolchain, target directory, profile/features, `RUSTFLAGS`
+  and Cargo profile environment. Do not add `--release` or `--profile production`:
+  the suite uses the default test profile. The suite still asks Cargo for the
+  complete test inventory, runs every binary and runs doctests separately.
+  Warming compiles without executing tests and supplies no qualification receipt.
 - One owner on the core (LLP 3000 decision 4): the engine, the store and the client contract are written by the lead session; Codex lanes take the fixture generator, the reference apps, the device witnesses and the periphery. Do not reshape `contract.ts` from a lane; propose the change in the journal.
 - No ceiling is raised in slice one (LLP 2000.000 §12). A thing that does not fit changes the design or waits.
 - The journal is append-only and dated; never rewrite an entry. LLP 3000 §7 carries decisions that must outlive it.

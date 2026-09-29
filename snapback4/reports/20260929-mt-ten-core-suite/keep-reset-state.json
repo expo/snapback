@@ -1,0 +1,25 @@
+{
+  "name": "process true false adoption",
+  "watch": {
+    "data": "new",
+    "complete": true,
+    "cut": null,
+    "fresh": true,
+    "next": null
+  },
+  "idle": {
+    "loading": true
+  },
+  "remount": {
+    "loading": true
+  },
+  "link": "online",
+  "generation": 2,
+  "marker": "new",
+  "store": "A",
+  "hold": false,
+  "heldReads": 2,
+  "commits": [
+    "adopt"
+  ]
+}

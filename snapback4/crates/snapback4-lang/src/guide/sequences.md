@@ -190,7 +190,8 @@ membership read (`.principal = viewer`) is another model, with a different
 roster audience. The runtime does not test a hidden counter for zero to decide
 whether to admit the insert.
 
-During development, the dev log and `snapback4 why recent` name the actual
+During development, the dev log (one counted line per cause in a one-second
+window) and `snapback4 why recent` name the actual
 refusing clause and its source site. When several dev instances run, select
 `why recent --instance ID`; the output identifies its store and instance.
 Those local records are not HTTP data;

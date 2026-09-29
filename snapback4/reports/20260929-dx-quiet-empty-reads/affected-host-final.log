@@ -1,0 +1,24 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 2.26s
+     Running unittests src/main.rs (target/debug/deps/snapback4-9e3f1489d21ea2d4)
+
+running 3 tests
+test serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication ... ok
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; store "4c2cb139ffd505329f26ca5cef5d741b"; instance "01M3NRGH5MZWV8F9PQFN5RB22W"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790657971541; first response 1; `snapback4 why recent --instance 01M3NRGH5MZWV8F9PQFN5RB22W`
+dev refusal: /uninstrumented:  — cause not instrumented at <generated>; execution site null; store "4c2cb139ffd505329f26ca5cef5d741b"; instance "01M3NRGH5MZWV8F9PQFN5RB22W"; code "E_RULE"; count 1; window 1s; first request 2; first job null; first time 1790657971543; first response 2; `snapback4 why recent --instance 01M3NRGH5MZWV8F9PQFN5RB22W`
+test serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause ... ok
+dev refusal: point: rows — authorization allowance (read) at schema.q:4:3; execution site "point:1"; store "84020e43829e896428de2793f6f9231c"; instance "01M3NRGH62CB9WB62XMFF62G0E"; code "E_RULE"; count 1; window 1s; first request 1; first job null; first time 1790657971556; first response 1; `snapback4 why recent --instance 01M3NRGH62CB9WB62XMFF62G0E`
+test serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 202 filtered out; finished in 0.20s
