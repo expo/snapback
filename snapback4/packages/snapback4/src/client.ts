@@ -803,7 +803,7 @@ export function createClient(options: ClientOptions): Client {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
           for (const watch of watches.values()) {
-            if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch, true);
+            if (changedGeneration || !json.tables || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch, true);
           }
         }
       } catch (error) {

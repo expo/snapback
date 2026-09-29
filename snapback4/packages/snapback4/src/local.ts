@@ -305,9 +305,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
         delivery.push(() => { if (!closed && !sessionDead) progress.page(request.page as Record<string, unknown>, request.first === true); });
       }
-      // A committed replacement has already retired the client's partition.
-      // Fence it before even media reconciliation can fail; native identity
-      // is read separately and must never be a prerequisite for invalidation.
+      // Fence a committed replacement before fallible media reconciliation or native identity reads.
       if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) {
         observeIncarnation(undefined, true, delivery);
         delivery.push(...retiredReceipts(history, (result.ok as { retired: Record<string, number> }).retired, completeWrite));
@@ -824,8 +822,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
-      if (replaced || shrank) observeIncarnation(json.store_id, shrank);
-      const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
+      // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
+      const generationChanged = json.generation !== undefined && json.generation !== generation;
+      if (replaced || shrank || generationChanged) observeIncarnation(json.store_id, shrank || generationChanged);
+      const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);

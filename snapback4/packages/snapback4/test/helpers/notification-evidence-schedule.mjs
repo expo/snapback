@@ -38,7 +38,7 @@ export async function notificationSchedule({ createLocalClient, answerObservatio
         if (sent) return parked(init.signal);
         sent = true;
         model.apply(2, clock.get());
-        return Response.json({ seq: frames[2].watermark, tables: ['members', 'messages'] });
+        return Response.json({ seq: frames[2].watermark, tables: ['members'] });
       }
       if (path === '/probe') return parked(init.signal);
       if (path === '/sync') {

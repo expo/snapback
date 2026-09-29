@@ -61,8 +61,8 @@ mutation restore():
 mutation erase():
   delete messages['item']
 `;
-export async function fixture(t, program = source) {
-  const f = await server(t, undefined, program);
+export async function fixture(t, program = source, options) {
+  const f = await server(t, undefined, program, options);
   const post = async (path, body, persona = 'alice') => (await fetch(f.url + path, { method: 'POST', headers: { 'x-snapback-persona': persona }, body: JSON.stringify(body) })).json();
   assert.equal((await post('/seed', [
     ...['alice', 'bob'].map(p => ({ table: 'members', row: { id: p, room: 'room', principal: `dev:${p}` } })),

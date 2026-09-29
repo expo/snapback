@@ -1,6 +1,16 @@
 // Ported from LV 11af2c7d5. Authority comes only from fixture inputs: committed
 // sync frames, injected failures and explicit sign-out, never emitted answers.
 export function random(seed) { let state = seed; return n => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return (state >>> 8) % n; }; }
+// Program authority is independent of the durable sequence. The fixture's
+// second program denies item at the very same cut, with no retention window.
+export class GenerationModel {
+  changed = false;
+  notify() { this.changed = true; }
+  observe(read) {
+    if (this.changed && 'data' in read) throw Error('answer from retired program after generation notification');
+    if (read.denied && !['APP_DENIED', 'E_CLOSED'].includes(read.denied.code)) throw Error(`unexpected generation refusal ${read.denied.code}`);
+  }
+}
 export class MixedModel {
   cut = 1;
   newest = 1;

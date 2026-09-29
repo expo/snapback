@@ -9,9 +9,10 @@ const sdk = process.env.RL_ORACLE_SDK ? pathToFileURL(resolve(process.env.RL_ORA
 const { createLocalClient } = await import(new URL('local.js', sdk));
 const { answerObservation } = await import(new URL('read-observation.js', sdk));
 import { fixture, opener, q, parked, until, source } from './helpers/answers-stay.mjs';
-import { MixedModel, random } from './helpers/mixed-evidence-oracle.mjs';
+import { GenerationModel, MixedModel, random } from './helpers/mixed-evidence-oracle.mjs';
 import { source as ephemeralSource } from './helpers/ephemeral-server.mjs';
 import { notificationSchedule } from './helpers/notification-evidence-schedule.mjs';
+import { generationSchedule } from './helpers/generation-evidence-schedule.mjs';
 const turn = () => new Promise(resolve => setImmediate(resolve));
 const seeds = Number(process.env.RL_SEEDS ?? 300);
 test('reference rejects transient empty member answers and sign-out loading', () => {
@@ -24,10 +25,14 @@ test('reference rejects transient empty member answers and sign-out loading', ()
   model.signOut();
   assert.throws(() => model.observe({ loading: true }, 1000), /sign-out must publish/);
   model.observe({ denied: { code: 'E_AUTH' } }, 1000);
+  const generation = new GenerationModel();
+  generation.observe({ data: { body: 'image-5' } }); generation.notify();
+  assert.throws(() => generation.observe({ data: { body: 'image-5' }, revalidating: true }), /retired program/);
+  generation.observe({ loading: true }); generation.observe({ denied: { code: 'APP_DENIED' } });
 });
 for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: 240000 }, async t => {
   const typingSource = ephemeralSource.slice(ephemeralSource.indexOf('table typing:'), ephemeralSource.indexOf('table durableTyping:'));
-  const f = await fixture(t, source + typingSource), headers = { 'x-snapback-persona': 'bob' };
+  const f = await fixture(t, source + typingSource, { watch: true }), headers = { 'x-snapback-persona': 'bob' };
   const backend = await fetch(f.url + '/schema', { headers }).then(r => r.json());
   await f.post('/m/setTyping', { id: 'typing', args: { room: 'room' } });
   const typing = await f.post('/q/typingIn', { args: { room: 'room' } }, 'bob');
@@ -46,6 +51,18 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
     replies[cut] = await f.post('/q/item', { args: {} }, 'bob');
     mixedReplies[cut] = await f.post('/q/mixed', { args: { cutoff, deny: false } }, 'bob');
   }
+  // Capture real program adoption once per host, then replay its envelopes in
+  // independently scheduled clients. Sequence and table contents do not change.
+  const generationFrames = { before: { snapshot: await f.post('/sync', { generation: backend.generation, from: 0, limit: 1000 }, 'bob'), empty: empty[5] } };
+  writeFileSync(join(f.dir, 'snapback/schema.q'), (source + typingSource).replace('query item():', 'query item():\n  require false else APP_DENIED'));
+  await until(async () => (await f.post('/q/item', { args: {} }, 'bob')).denied?.code === 'APP_DENIED');
+  const nextBackend = await fetch(f.url + '/schema', { headers }).then(r => r.json());
+  generationFrames.notification = await fetch(`${f.url}/changes?since=${from}&wait=0`, { headers }).then(r => r.json());
+  assert.equal(generationFrames.notification.seq, from); assert.deepEqual(generationFrames.notification.tables, []);
+  assert.notEqual(nextBackend.generation, backend.generation);
+  generationFrames.discovery = await f.post('/sync', { generation: backend.generation, from, limit: 1000 }, 'bob');
+  generationFrames.after = { snapshot: await f.post('/sync', { generation: nextBackend.generation, from: 0, limit: 1000 }, 'bob'), empty: await f.post('/sync', { generation: nextBackend.generation, from, limit: 1000 }, 'bob') };
+  generationFrames.denied = await f.post('/q/item', { args: {} }, 'bob');
   const results = [], closing = [];
   t.after(() => Promise.all(closing));
   let wall = Date.now(); t.mock.method(Date, 'now', () => wall);
@@ -175,6 +192,10 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
       signoutGate.release.resolve(); await ending; capture('signout-settled');
     } catch (error) { failures.push(String(error)); }
     finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); await client?.close(); }
+    try {
+      await generationSchedule({ createLocalClient, host, seed, f, oldBackend: backend, nextBackend, generationFrames, rand,
+        clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
+    } catch (error) { failures.push(String(error)); }
     try {
       await notificationSchedule({ createLocalClient, answerObservation, host, seed, f, backend, frames, empty, typing, rand,
         clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });

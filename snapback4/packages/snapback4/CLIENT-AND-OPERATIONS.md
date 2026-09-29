@@ -1219,6 +1219,15 @@ A whole server answer at or after the cut can replace the display while sync
 waits; older replica answers remain ineligible until it catches up. Plain offline
 ephemeral recovery keeps the answer through its original row expiry.
 
+A `/changes` program-generation mismatch withdraws immediately, even at the
+same sequence with no touched tables. Displayed answers, remembered answers
+and pending evaluations belong to the retired program. The old replica stays
+unavailable until adoption completes; failed sync does not restore its answers.
+Quiet presence samples also respect a pending durable cut: an older sample
+cannot clear the bound or restore a withdrawn answer.
+An omitted notification table list bounds every watch on either client; an
+explicit empty list keeps the usual dependency intersection.
+
 | `keep` | Plain revalidation | Change evidence | Last subscriber leaves |
 | --- | --- | --- | --- |
 | omitted | Retains until replaced | 1 s; withdraws on failure | Closes |

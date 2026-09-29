@@ -76263,3 +76263,61 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — Lane RL round 3: program generation retires displayed answers
+
+Fetched and merged origin/main first (merge f5d74035a, main b7d05baff),
+preserving both journal appends. Read all prior prompts/reports, Astra's full
+round 2 NOT READY review and Grok's completed READY review. Used llp-orient.
+Both review files were rechecked after the full suite and matched saved inputs.
+No push or publication.
+
+A local generation mismatch now enters the existing incarnation reset before
+table filtering, even at the same sequence with an empty touched-table list.
+It retires displayed and remembered answers, fences pending evaluations and
+keeps the old replica unavailable until adoption. No sequence floor substitutes
+for that boundary. The quiet-presence guard remains; its new pending-cut test
+fails if the guard is removed. Grok's two low findings are also addressed:
+members-only notification fixtures test intersection, and an omitted online
+table list bounds every watch while an explicit empty list keeps intersection.
+The conservative commit/receipt policy remains; no public type, ordering system,
+engine, budget or publication change. Updated LLP 3000.023 §10 and client docs.
+
+Real process/wasm dev adoption tests add APP_DENIED to item at unchanged sequence
+and tables [], fail sync, cover readable/throwing/held replicas and all keep
+policies, then adopt successfully. Held-server and remembered-answer cases also
+pass. Twenty generation cases fail on the copied round 2 SDK. Removing quiet
+eligibility fails both hosts; changing some to every fails both members-only
+cases. Four omitted-table online cases fail before the fix; four explicit-empty
+controls pin existing behavior. Every schedule seed now replays real generation
+adoption under an independent program-authority reference. Final schedules:
+300 seeds per host, zero failures; deleting the generation fix fails 3/3 per
+host. The full script independently passed another 300 per host.
+
+Affected checks: 739 passed, zero failed, one declared legacy-binary skip;
+Grok follow-up 120/120; final whole guide 98/98. Final round 3 file 30/30 and
+quiet-presence repetition 24/24 after correcting a test scheduling race. Build,
+typecheck, documentation budget and reference checks pass. local.ts stays at
+1,500 lines. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1388 s`, exit 1, stage
+client tests. Counts: 4,754 tests, 4,743 passed, one failed, ten skipped, zero
+cancelled. The sole failure was ours: the new quiet-presence case waited for
+another timer after a deadline could overtake a sample and end that cycle.
+All 20 generation cases had already passed. Terminated only that recorded test
+child and its two fixtures so the full script could finish; no restart. The
+corrected test holds time through the first sample, awaits completion, then
+advances to withdrawal and gates a second sample. Its waits are bounded; its
+removed-guard mutation still fails both hosts. The initial held-server suspicion
+was disproved by buffered output and 24 passing diagnostic repetitions. No
+production change was required for the stall. All other full stages passed,
+including 79/79 final models. Zero baseline or environmental failures. The red
+run is retained with scoped follow-up evidence, not claimed all-green. The
+inherited 60-second target remains missed; no timeout or ceiling increased.
+
+Report: reports/20260929-rl-answers-stay/round3/REPORT.md. Its failure ledger
+includes deliberate controls, the initial lingering-watch setup error, the full
+stall and every correction. Local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.
