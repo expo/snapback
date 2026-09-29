@@ -78816,3 +78816,33 @@ Its process case explicitly reloads the browser before the unchanged 1,000-row
 write assertions. All five focused tests pass and the process exits normally
 (13.970 s). No product semantics, assertion, count or deadline was relaxed.
 The required complete suite will run again from the beginning.
+
+Final complete qualification at 8c0a3dd10f (the merge plus only the fixture
+teardown correction): with Node 24.18.0 explicitly selected and the three
+Cargo variables exported, the required command was:
+
+```sh
+cd snapback4 && env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh
+```
+
+Exact result: `== 0 failure(s) in 4928 s`, exit 0. Rust passed in 809 s;
+client tests passed 5,280 with zero failures/cancellations and nine inherited
+optional external-fixture skips; final models passed all 79 in 199 s, with
+both 5,000-seed session runs intact. The 33 inherited ignored Rust cases and
+nine client skips are enumerated in the evidence. No skip was added.
+The repaired per-row React file completed normally in this full run.
+All 1,686 recorded product/test inputs stayed byte-identical during qualification.
+The affected-scope corpus audit found no unresolved drift.
+
+The complete run repeated `wasm 1954659 B raw, 581329 B gzip (budget 593719: ok)`.
+The selected artifact hash is
+751df32a7defddccb653acdd49bda0384d6c7092196b7756b4286dea64fe9381.
+Final measure-wasm.sh at 2026-09-29T23:50:35Z records 8c0a3dd10f, dirty=false,
+1,980,531 B raw / 584,177 B gzip / 444,177 B brotli, budget 593,719, over 0.
+The budget is byte-identical to main; both matched build variants still show
+zero growth, with 12,390 B selected / 9,542 B unoptimized gzip headroom.
+
+Final `./ref-check --verbose`: `ref-check: ok — 525 LLP docs, 9955 refs in 29817 files, 0 errors, 0 unchecked`.
+The merge, fixture correction and qualification evidence are committed on
+sb4/presence. Nothing was pushed or published. The final report is exported
+to /Users/ccheever/projects/snapback-sb5-program/presence-merge-2.final.md.
