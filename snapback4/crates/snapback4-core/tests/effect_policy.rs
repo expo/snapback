@@ -30,6 +30,13 @@ fn named_supervised_seats_keep_revision_fences_without_fencing_manual_seats() {
     let next = ServiceSample { now: 1, supervisor_revision: 1 };
     assert_eq!(identity::current_service(engine.store(), &supervised.token, next).unwrap(), None);
     assert_eq!(identity::current_service(engine.store(), &manual.token, next).unwrap().as_deref(), Some("service:push"));
+    assert!(identity::resolve_supervised(engine.store(), &supervised.token, sample(1)).unwrap().is_some());
+    assert!(identity::resolve_supervised(engine.store(), &supervised.token, next).unwrap().is_none());
+    assert!(identity::resolve_supervised(engine.store(), &manual.token, next).unwrap().is_some());
+    let store_id = engine.store().meta("store_id").unwrap();
+    assert!(identity::resolve_read_only_supervised(engine.store(), &supervised.token, sample(1), store_id.as_deref()).unwrap().is_some());
+    assert!(identity::resolve_read_only_supervised(engine.store(), &supervised.token, next, store_id.as_deref()).unwrap().is_none());
+    assert!(identity::resolve_read_only_supervised(engine.store(), &manual.token, next, store_id.as_deref()).unwrap().is_some());
 }
 fn adopt(engine: &mut Engine, settings: &str, legacy: bool) {
     let bound = compile(&[("schema.q".into(), format!("effect mail {settings}\nmutation send():\n  emit mail {{ n: 1 }}\n"))]);

@@ -3,6 +3,9 @@
 // @ref LLP 3000.009#5.3 — the whole worker process group belongs to the host lifetime.
 use std::{os::unix::process::CommandExt, process::{Command, Stdio}, time::{Duration, Instant}};
 
+static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+extern "C" fn stop_signal(_: libc::c_int) { STOP.store(true, std::sync::atomic::Ordering::Relaxed); }
+
 pub(super) fn isolate(command: &mut Command) { command.process_group(0); }
 
 pub(super) fn executable() -> std::path::PathBuf {
@@ -18,6 +21,16 @@ pub(super) fn executable() -> std::path::PathBuf {
 
 pub(crate) fn watchdog(args: &[String]) -> u8 {
     if args.len() != 2 { return 1; }
+    // A host-wide TERM can reach the watchdog too. Survive it long enough to
+    // perform the same bounded group cleanup as EOF, even if the host is gone.
+    for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {
+        let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
+        action.sa_sigaction = stop_signal as *const () as usize;
+        unsafe {
+            libc::sigemptyset(&mut action.sa_mask);
+            if libc::sigaction(signal, &action, std::ptr::null_mut()) != 0 { return 1; }
+        }
+    }
     let mut command = Command::new(&args[0]);
     isolate(&mut command);
     let mut child = match command.arg(&args[1]).stdin(Stdio::null()).stdout(Stdio::piped()).spawn() {
@@ -46,7 +59,7 @@ pub(crate) fn watchdog(args: &[String]) -> u8 {
         if exited || stopping.is_some_and(|at: Instant| at.elapsed() >= Duration::from_secs(2)) { break; }
         let mut pipe = libc::pollfd { fd: 0, events: libc::POLLIN | libc::POLLHUP, revents: 0 };
         let polled = unsafe { libc::poll(&mut pipe, 1, 50) };
-        if stopping.is_none() && ((polled > 0 && pipe.revents != 0) || (polled < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted)) {
+        if stopping.is_none() && (STOP.load(std::sync::atomic::Ordering::Relaxed) || (polled > 0 && pipe.revents != 0) || (polled < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted)) {
             unsafe { libc::kill(-group, libc::SIGTERM); }
             stopping = Some(Instant::now());
         }

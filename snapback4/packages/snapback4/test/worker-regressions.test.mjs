@@ -37,8 +37,8 @@ function fixture(t, source) {
     for (const row of rows(join(dir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   });
-  return { dir, async start(extra = [], env = {}) {
-    const child = spawn(binary, ['dev', '--port', '0', '--no-watch', ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  return { dir, async start(extra = [], env = {}, watch = false) {
+    const child = spawn(binary, ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     const s = { child, done: once(child, 'exit'), log: '', url: '', events: [] };
     servers.push(s);
     child.stderr.on('data', b => { s.log += b; s.events.push({ at: performance.now(), text: String(b) }); });
@@ -52,6 +52,155 @@ setInterval(()=>{},1000);`;
 async function claim(s, token) {
   return fetch(s.url + '/effects/claim', { method: 'POST', headers: { authorization: 'Bearer '+token, 'content-type': 'application/json' }, body: '{"wait":0}' });
 }
+
+for (const check of ['query fence', 'retirement custody']) test(`removed worker retains ${check} while deletion is locked`, { timeout: 35_000 }, async t => {
+  const f = fixture(t, idle + `\nprocess.on('SIGTERM',()=>{appendFileSync('terms','stopping');});`);
+  writeFileSync(join(f.dir, 'snapback/schema.q'), 'query who():\n  return viewer\nmutation send():\n  return true\n');
+  const s = await f.start([], {}, true);
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+  const first = rows(join(f.dir, 'starts'))[0];
+  const query = () => fetch(s.url+'/q/who', {method:'POST',headers:{authorization:'Bearer '+first.token,'content-type':'application/json'},body:'{"args":{}}'});
+  assert.equal((await query()).status, 200);
+  const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
+  t.after(() => db.close());
+  rmSync(join(f.dir, 'snapback/workers/push.mjs'));
+  await until(() => existsSync(join(f.dir, 'terms')));
+  db.exec('BEGIN IMMEDIATE');
+  let fenced;
+  try {
+    await until(() => s.log.includes("cannot close the child's session"));
+    assert.equal(db.prepare("SELECT count(*) n FROM _meta WHERE key LIKE 'worker:family:%'").get().n, 1);
+    if (check === 'query fence') {
+      fenced = (await query()).status;
+      if (fenced === 401) for (const path of ['/m/send', '/auth/refresh']) {
+        const response = await fetch(s.url+path, {method:'POST',headers:{authorization:'Bearer '+first.token,'content-type':'application/json'},body:'{"args":{}}'});
+        assert.equal(response.status, 401, `${path} must refuse the retired family while deletion is locked`);
+      }
+    }
+  } finally { db.exec('ROLLBACK'); }
+  if (check === 'query fence') assert.equal(fenced, 401, 'a pending retired family is refused even before deletion commits');
+  else {
+    await until(() => db.prepare("SELECT count(*) n FROM _meta WHERE key LIKE 'worker:family:%'").get().n === 0);
+    assert.equal(db.prepare("SELECT count(*) n FROM _sessions WHERE principal = 'service:push'").get().n, 0);
+    await until(() => JSON.parse(db.prepare("SELECT value FROM _meta WHERE key = 'worker:status:push'").get().value).state === 'stopped');
+    assert.equal((await query()).status, 401);
+  }
+  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+  assert.equal(alive(first.pid), false);
+});
+
+test('restart refuses an entry symlink already rejected by discovery', {timeout: 20_000}, async t => {
+  const f = fixture(t, idle), s = await f.start([], {}, true);
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+  const first = rows(join(f.dir, 'starts'))[0];
+  const outside = join(f.dir, 'outside.mjs');
+  writeFileSync(outside, "import {writeFileSync} from 'node:fs';writeFileSync('escaped','executed');setInterval(()=>{},1000);");
+  const entry = join(f.dir, 'snapback/workers/push.mjs');
+  rmSync(entry); symlinkSync(outside, entry);
+  await until(() => s.log.includes('serving the previous generation'));
+  process.kill(first.pid, 'SIGKILL');
+  await until(() => s.log.includes('restarting in'));
+  await sleep(1600);
+  assert.equal(existsSync(join(f.dir, 'escaped')), false, 'rejected source must never execute');
+  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+  rmSync(entry); writeFileSync(entry, idle);
+  await until(() => rows(join(f.dir, 'starts')).length === 2);
+});
+
+test('launch executes validated entry and helper bytes after source paths are replaced', {timeout: 20_000}, async t => {
+  const f = fixture(t, `import { value } from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  mkdirSync(join(f.dir, 'snapback/workers/helpers'));
+  writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "export const value='validated';");
+  const wrapper = join(f.dir, 'node-wrapper');
+  writeFileSync(wrapper, `#!/bin/bash\nif [ "$1" = --version ]; then exec '${process.execPath}' "$@"; fi\ntouch launch-ready\nwhile [ ! -f launch-go ]; do sleep 0.02; done\nexec '${process.execPath}' "$@"\n`);
+  chmodSync(wrapper, 0o700);
+  await f.start([], {SNAPBACK_NODE:wrapper});
+  await until(() => existsSync(join(f.dir, 'launch-ready')));
+  const outside = join(f.dir, 'outside.mjs');
+  writeFileSync(outside, "import {writeFileSync} from 'node:fs';writeFileSync('values','escaped');setInterval(()=>{},1000);");
+  rmSync(join(f.dir, 'snapback/workers/push.mjs'));
+  symlinkSync(outside, join(f.dir, 'snapback/workers/push.mjs'));
+  writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "export const value='changed';");
+  writeFileSync(join(f.dir, 'launch-go'), '');
+  await until(() => existsSync(join(f.dir, 'values')));
+  assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
+});
+
+test('watchdog SIGKILL terminates its Node group before replacement', {timeout: 20_000}, async t => {
+  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
+const helper=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
+appendFileSync('starts',JSON.stringify({pid:process.pid,watchdog:process.ppid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
+  await f.start();
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+  const first = rows(join(f.dir, 'starts'))[0];
+  process.kill(first.watchdog, 'SIGKILL');
+  await until(() => rows(join(f.dir, 'starts')).length === 2);
+  assert.equal(alive(first.pid), false, 'old Node must be dead when replacement starts');
+  assert.equal(alive(first.helper), false, 'old descendant must also be dead');
+});
+
+test('ledger commits with FULL synchronization and durable journaling', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-durability-'));
+  t.after(() => rmSync(dir, {recursive:true,force:true}));
+  const settings = [], original = DatabaseSync.prototype.exec;
+  t.mock.method(DatabaseSync.prototype, 'exec', function(sql) {
+    if (sql === 'COMMIT') settings.push({
+      synchronous:this.prepare('PRAGMA synchronous').get().synchronous,
+      journal:this.prepare('PRAGMA journal_mode').get().journal_mode,
+      busy:this.prepare('PRAGMA busy_timeout').get().timeout,
+    });
+    return original.call(this, sql);
+  });
+  const ledger = await WorkerLedger.open(join(dir, 'ledger.sqlite'), new AbortController().signal);
+  try { await ledger.run('one', async () => 'receipt', new AbortController().signal); }
+  finally { ledger.close(); }
+  assert.equal(settings.length, 2, 'observe initialization and completion commits on the real connection');
+  for (const setting of settings) {
+    assert.equal(setting.synchronous, 2, 'FULL must hold at each durable commit');
+    assert.ok(['delete','truncate','persist','wal'].includes(setting.journal));
+    assert.equal(setting.busy, 0, 'writer contention must wait asynchronously');
+  }
+});
+
+test('new declarations retry failed admission after Node is repaired without another source edit', {timeout:25_000}, async t => {
+  const f = fixture(t), wrapper = join(f.dir, 'node-wrapper');
+  writeFileSync(join(f.dir, 'bad-node'), '');
+  writeFileSync(wrapper, `#!/bin/bash\nif [ "$1" = --version ] && [ -f '${f.dir}/bad-node' ]; then printf 'v23.0.0\\n'; exit 0; fi\nexec '${process.execPath}' "$@"\n`);
+  chmodSync(wrapper, 0o700);
+  const s = await f.start([], {SNAPBACK_NODE:wrapper}, true);
+  writeFileSync(join(f.dir, 'snapback/workers/push.mjs'), idle);
+  await until(() => s.log.includes('worker needs Node 24'));
+  const adoptions = s.log.match(/schema adopted as generation/g)?.length ?? 0;
+  rmSync(join(f.dir, 'bad-node'));
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+  assert.equal(s.log.match(/schema adopted as generation/g)?.length ?? 0, adoptions);
+});
+
+for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} completes group cleanup without a live supervisor`, {timeout:10_000}, async t => {
+  const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
+const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
+process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
+  const watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs')],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
+  const done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
+  t.after(async()=>{watchdog.stdin.end();await done;});
+  await until(()=>rows(join(f.dir,'starts')).length===1);
+  const first=rows(join(f.dir,'starts'))[0];await sleep(150);
+  watchdog.kill(signal);await done;
+  assert.equal(alive(first.pid),false);
+  assert.equal(alive(first.helper),false);
+});
+
+test('ledger open waits for a busy writer before becoming ready', async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-ledger-open-busy-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const path=join(dir,'ledger.sqlite'), holder=new DatabaseSync(path);
+  t.after(()=>holder.close());holder.exec('BEGIN IMMEDIATE');
+  let ready=false;
+  const opening=WorkerLedger.open(path,new AbortController().signal).then(ledger=>{ready=true;return ledger;});
+  void opening.catch(()=>{});
+  await sleep(100);assert.equal(ready,false);holder.exec('ROLLBACK');
+  const ledger=await opening;ledger.close();assert.equal(ready,true);
+});
 
 test('failed revocation blocks restart until the retired bearer is refused', { timeout: 35_000 }, async t => {
   const f = fixture(t, idle), s = await f.start();

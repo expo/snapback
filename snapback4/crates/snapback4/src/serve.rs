@@ -807,17 +807,17 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
         let path = request.url().split('?').next().unwrap_or("");
         let read = detached_request(request.method(), path);
         let resolved = if let Some(engine) = owner {
-            snapback4_core::identity::resolve(engine.store(), &token, shared.now())
+            snapback4_core::identity::resolve_supervised(engine.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) })
         } else if read { match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
-                let result = snapback4_core::identity::resolve_read_only(reader.store(), &token, shared.now(), identity.as_deref());
+                let result = snapback4_core::identity::resolve_read_only_supervised(reader.store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }, identity.as_deref());
                 lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
-            Err(_) if shared.memory_store() => snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()),
+            Err(_) if shared.memory_store() => snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }),
             Err(error) => return Err(error.refusal()),
-        } } else { snapback4_core::identity::resolve(lock(&shared.engine).store(), &token, shared.now()) };
+        } } else { snapback4_core::identity::resolve_supervised(lock(&shared.engine).store(), &token, snapback4_core::identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire) }) };
         return match resolved {
             Ok(Some((principal, _))) => Ok(principal),
             Ok(None) => Err(Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas")),

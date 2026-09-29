@@ -42,11 +42,18 @@ Both `snapback4 dev` and `snapback4 serve` start it, inject its service token,
 prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
 stop its process group with the server, including abrupt server death. A failed
 token retirement stops the worker and suspends replacement until retirement
-succeeds. Tokens are never printed. `snapback4 doctor` shows
+succeeds, including when its declaration was removed. Retired revisions cannot
+use ordinary queries while deletion is pending. If a watchdog dies, the host
+kills its worker group before replacement. Signals sent to a live watchdog
+initiate its group cleanup. A new declaration that cannot start retries after
+repair without requiring another source edit. Tokens are never printed. `snapback4 doctor` shows
 all workers and their last reported states, starts, restarts and crashes.
 `deploy` copies the workers source subtree; put helpers in subdirectories and
 install package dependencies on the deployment host. Symlinks at any level and
-non-regular source files are refused. This is ordinary Node 24.
+non-regular source files are refused on every launch and restart, even after
+a source change was rejected. Named workers execute private copies of validated
+entry/helper bytes; replacing the original paths cannot change an in-flight launch.
+Package dependencies stay installed on the host. This is ordinary Node 24.
 
 ```js
 // snapback/workers/push.mjs

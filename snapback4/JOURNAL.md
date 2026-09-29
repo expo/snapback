@@ -76221,3 +76221,50 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — WK round 2: credential and source custody through retirement and restart
+
+First fetched and merged origin/main (69e02e475), preserving both journal sides
+and the complete round-1 worker state with main's managed-cleanup hook. Read all
+lane prompts/reports and both completed round-1 reviews: Astra NOT READY, Grok
+READY WITH CHANGES. Applied llp-orient; extended LLP 3000.009 §5.3 in place.
+
+Removed declarations retain their worker/family until deletion commits and
+retry blocked retirement. A failure never records successful retirement;
+shutdown leaves its durable marker for startup cleanup. Ordinary query,
+mutation, route and change-poll authentication share the service revision fence
+inside the session snapshot; refresh rechecks under the serving-engine guard.
+Manual seats retain ordinary liveness. Every named launch/restart validates the
+whole declaration tree and executes a private copy of opened regular entry/helper
+bytes. Secret selection uses that same copy. Host dependencies and Node's module
+scope remain usable; invalid source refuses launch before replacement minting.
+
+Watchdog SIGKILL/OOM makes the host kill the retained Node group before replacing
+it. TERM/INT/HUP sent to the watchdog initiate bounded group cleanup, including
+without a live supervisor. A new declaration that fails initial admission keeps
+its name/backoff and retries after repair without another source edit. Added real
+SQLite commit-setting and open-contention witnesses: both FULL→OFF and the
+open-path busy-code mutation now fail. Existing delivery/lease/meter policy and
+the provider-call/ledger-commit ambiguity remain unchanged.
+
+Expected red controls reproduced each review defect. Final affected checks:
+73/73 worker/client regressions, core effect policy 13/13, whole guide 98/98,
+host unit tests 203/203 with four declared ignores. One additional host-unit run
+at Cargo's ambient concurrency exhausted its 1,024-descriptor limit: three
+explicitly retained environmental failures; unchanged source passed at the
+canonical two-thread concurrency. No test assertion, timeout or ceiling changed.
+
+scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1400 s`.
+No full-suite failures (ours, baseline or environmental). Clients 4,595 passed /
+zero failed / ten declared skips; final models 79/79. The inherited 60-second
+process target remains missed. Grok's final follow-ups arrived after the Rust
+stage and were qualified separately by the final affected/host/guide runs;
+this is not an atomic final-source full-battery claim.
+
+Canonical wasm remains 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both reviews were rechecked before completion. Reference audit passes. Evidence,
+all failures and review dispositions: reports/20260929-wk-supervised-workers/round2/REPORT.md.
+Linux execution only; no macOS/provider qualification. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

@@ -1596,10 +1596,18 @@ Both dev and serve supervise it with an injected `service:<service>` token,
 name-prefixed redacted logs, bounded restart backoff and shutdown with the host.
 Each worker has a process group; its watchdog kills remaining group members on
 worker exit or server death, including SIGKILL. Failed token retirement keeps
-the worker stopped until revocation commits; a replacement never bypasses it.
+the worker stopped until revocation commits, even after its declaration is removed.
+Retired revisions are refused by ordinary queries as well as effect claims.
+Watchdog death makes the host kill its Node group before replacement; catchable
+watchdog signals initiate bounded group cleanup. Failed new-declaration startup
+retries after repair without another source edit.
 Deploy packages this source subtree; helpers belong in subdirectories. Install
 its package dependencies on the deployment host. Symlinks at every level and
-non-regular source files are refused. Doctor reports each worker.
+non-regular source files are refused on every launch/restart. Named workers execute
+private copies of validated entry/helper bytes; source-path replacement cannot
+change the code or selected secrets of that launch. Package dependencies remain
+host-installed code. Doctor reports each worker, including source-blocked and
+revocation-blocked states.
 Named workers start with no declared secrets. A source line such as
 `// snapback4 secrets: PUSH_API_KEY` opts into named schema-declared secrets.
 The conventional generated runtime retains the full registry's secret set;

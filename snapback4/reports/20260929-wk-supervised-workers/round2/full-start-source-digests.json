@@ -1,0 +1,14 @@
+{
+  "llp/3000.009-general-purpose-backend.rfc.md": "68194b668df2f30fc9740930e98d35f27129c62f6379b98fd7401e97a9d49e06",
+  "snapback4/crates/snapback4-core/src/identity.rs": "4b25659c5867dcf7325cdc0953cd97ebf330285aca5996cc9b26692e8b7f1fc0",
+  "snapback4/crates/snapback4-core/src/store/authority.rs": "b06c5462a3d36d551162970f3de85c83101e0da2b26d52fa785f73a993c3bbd3",
+  "snapback4/crates/snapback4-core/tests/effect_policy.rs": "97ed92e43209f1130c5b04191e7ff4ae6cea0e63293486270cd1cae0833a91b5",
+  "snapback4/crates/snapback4-lang/src/guide/effects.rs": "3db79cedbd4eb7802bcf7719f0e701d35eb26d26438cde299e8b54ce708c7656",
+  "snapback4/crates/snapback4/src/dev_worker.rs": "c217575fc7b9c30da2d13874bcf81537324a43d328e69a1ca25fdc589092ec4a",
+  "snapback4/crates/snapback4/src/serve.rs": "18df89af55109100e8ee364d5df8c9d9f3fdca63fa32d0823333e3c3c4613ce6",
+  "snapback4/crates/snapback4/src/serve_changes.rs": "3259c72939356a8529cb026e8bff3f59c4b2ace276a61fdada10164a612516f3",
+  "snapback4/crates/snapback4/src/serve_routes.rs": "646a22a149f363c021de1b7eae2f75905083619beafb763fa0289d4e3d01dd96",
+  "snapback4/crates/snapback4/src/worker_declarations.rs": "ea30870af09df7a87d5b9060a8734e1f76f10bae3a592794592332636e676ca4",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "9de6030633fffd43cd8fa60cd6f55b024e6603c7334d3a464810e25f350df3fd",
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "8897065ddfdb6bee774c202bb069e8f25f6939d61a9784ae831de58455c8906a"
+}

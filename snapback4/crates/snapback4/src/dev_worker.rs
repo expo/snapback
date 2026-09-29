@@ -62,6 +62,7 @@ pub(crate) struct Supervisor {
 impl Supervisor {
     pub(crate) fn start(project: Project, shared: Arc<Shared>, url: String, dev: bool, mut worker: Option<DevWorker>) -> Result<Self, String> {
         let mut named = Self::named(&project, &shared, &url, dev)?;
+        let mut pending = std::collections::BTreeMap::new();
         let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let stopping = stop.clone();
         let mut revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
@@ -75,12 +76,19 @@ impl Supervisor {
                     revision = next;
                     match declared(&project) {
                         Ok(entries) => {
-                            named.retain(|name, _| entries.contains_key(name));
+                            pending.retain(|name, _| entries.contains_key(name));
+                            for (name, worker) in &mut named {
+                                worker.retiring = !entries.contains_key(name);
+                                if worker.retiring { worker.begin_stop(); }
+                            }
                             for (name, source) in entries {
                                 if let Some(worker) = named.get_mut(&name) { worker.source = source; }
                                 else { match DevWorker::start_named(&project, shared.clone(), url.clone(), source, !dev, name.clone()) {
                                     Ok(worker) => { named.insert(name, worker); }
-                                    Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
+                                    Err(error) => {
+                                        snapback4_core::diagnostic!("snapback4 worker: {error}; declaration will retry");
+                                        pending.insert(name, (Instant::now() + Duration::from_millis(250), Duration::from_millis(250)));
+                                    },
                                 } }
                             }
                         }
@@ -95,6 +103,25 @@ impl Supervisor {
                 }
                 if let Some(worker) = &mut worker { worker.tick(); }
                 for worker in named.values_mut() { worker.tick(); }
+                // Removed declarations remain owned until deletion commits.
+                named.retain(|_, worker| !worker.retiring || worker.child_expires_at.is_some());
+                pending.retain(|name, (at, backoff)| {
+                    if named.contains_key(name) { return false; }
+                    if Instant::now() < *at { return true; }
+                    // Rediscover on every retry: a formerly valid pathname is
+                    // never sufficient custody for a new declaration either.
+                    let result = declared(&project).and_then(|mut entries| entries.remove(name).ok_or_else(|| format!("worker {name}: declaration is absent")))
+                        .and_then(|source| DevWorker::start_named(&project, shared.clone(), url.clone(), source, !dev, name.clone()));
+                    match result {
+                        Ok(worker) => { named.insert(name.clone(), worker); false }
+                        Err(error) => {
+                            snapback4_core::diagnostic!("snapback4 worker: {error}; declaration will retry");
+                            *backoff = (*backoff * 2).min(Duration::from_secs(5));
+                            *at = Instant::now() + *backoff;
+                            true
+                        }
+                    }
+                });
                 std::thread::park_timeout(Duration::from_millis(100));
             }
             // Start all group grace periods before waiting/revoking any one
@@ -130,6 +157,8 @@ pub(crate) struct DevWorker {
     family: Option<String>,
     ledger: PathBuf,
     source: PathBuf,
+    snapshot: Option<declarations::Snapshot>,
+    retiring: bool,
     node: PathBuf,
     url: String,
     explicit_env: bool,
@@ -173,7 +202,7 @@ impl DevWorker {
             let namespace = format!("{:x}", Sha256::digest(identity.as_bytes()));
             PathBuf::from(path).canonicalize().map_err(|e| e.to_string())?.parent().ok_or("store parent")?.join(format!("worker-ledger-{namespace}.sqlite"))
         };
-        let worker = Self { name: None, family: None, ledger, project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, worker_pid: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
+        let worker = Self { name: None, family: None, ledger, project: Project { root: project.root.clone() }, source, snapshot: None, retiring: false, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, worker_pid: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
         crate::lifecycle::managed_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
         Ok(worker)
@@ -186,6 +215,14 @@ impl DevWorker {
     }
 
     pub(crate) fn tick(&mut self) {
+        if self.retiring {
+            self.stop_child();
+            if Instant::now() >= self.restart {
+                if self.close_child_session() { self.record_status("stopped"); }
+                else { self.record_status("revocation-blocked"); self.retry_later(); }
+            }
+            return;
+        }
         let revision = self.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
         if !self.explicit_env && revision != self.revision {
             self.revision = revision;
@@ -207,15 +244,20 @@ impl DevWorker {
             match child.try_wait() {
                 Ok(None) => return,
                 Err(error) => { snapback4_core::diagnostic!("snapback4 worker: wait failed: {error}"); return; }
-                Ok(Some(status)) => snapback4_core::diagnostic!("snapback4 worker: exited {status}; restarting in {} ms", self.backoff.as_millis()),
+                Ok(Some(status)) => {
+                    use std::os::unix::process::ExitStatusExt;
+                    if status.signal().is_some() { self.kill_worker_group(); }
+                    else { self.worker_pid = None; }
+                    snapback4_core::diagnostic!("snapback4 worker: exited {status}; restarting in {} ms", self.backoff.as_millis());
+                }
             }
             self.child = None;
-            self.worker_pid = None;
+            self.snapshot = None;
             self.crashes += 1;
             // @ref LLP 3000.019#3.6 — revoke on the first writer turn: claims queued behind exit
             // detection must not lease work to this dead child during backoff.
-            self.close_child_session();
-            self.record_status("waiting");
+            let retired = self.close_child_session();
+            self.record_status(if retired { "waiting" } else { "revocation-blocked" });
             if self.started.elapsed() > Duration::from_secs(30) { self.backoff = Duration::from_millis(250); }
             self.restart = Instant::now() + self.backoff;
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));
@@ -229,6 +271,18 @@ impl DevWorker {
             return;
         }
         if !self.explicit_env && self.name.is_none() && source(&self.project).is_none() { return; }
+        // Never reopen a cached declaration pathname at exec time. Validate
+        // the whole declaration tree for every attempt and keep the copy alive.
+        self.snapshot = match self.name.as_deref() {
+            Some(name) => match declarations::Snapshot::new(&self.project, name) {
+                Ok(snapshot) => Some(snapshot),
+                Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.record_status("source-blocked"); self.retry_later(); return; }
+            },
+            None => {
+                if let Err(error) = declared(&self.project) { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.retry_later(); return; }
+                None
+            }
+        };
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let session = {
             let engine = lock(&self.shared.engine);
@@ -256,14 +310,15 @@ impl DevWorker {
             Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.close_child_session(); self.retry_later(); return; }
         };
         let mut redact: Vec<Vec<u8>> = secrets.values().map(|s| s.as_bytes().to_vec()).collect(); redact.push(token.as_bytes().to_vec());
-        let secrets = if self.name.is_some() { environment::for_entry(&self.source, &secrets) } else { Ok(secrets) };
+        let entry = self.snapshot.as_ref().map(|s| &s.entry).unwrap_or(&self.source);
+        let secrets = if self.name.is_some() { environment::for_entry(entry, &secrets) } else { Ok(secrets) };
         let secrets = match secrets {
             Ok(values) => values,
             Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.close_child_session(); self.retry_later(); return; }
         };
         let mut child_command = command(&process::executable());
         process::isolate(&mut child_command);
-        match child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(&self.source).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        match child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
                 use std::io::BufRead;
                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));
@@ -322,17 +377,26 @@ impl DevWorker {
         if let Some(mut child) = self.child.take() {
             // EOF reaches the watchdog even on abrupt host death. It owns
             // bounded graceful termination and the final descendant kill.
-            let _ = child.wait();
-            self.worker_pid = None;
+            let status = child.wait();
+            // A killed watchdog cannot clean up. Its Node group still belongs
+            // to us; terminate it before forgetting the PID or source bytes.
+            use std::os::unix::process::ExitStatusExt;
+            if status.as_ref().map_or(true, |s| s.signal().is_some()) { self.kill_worker_group(); }
+            else { self.worker_pid = None; }
         }
+        self.snapshot = None;
+    }
+
+    fn kill_worker_group(&mut self) {
+        if let Some(pid) = self.worker_pid.take() { unsafe { libc::kill(-(pid as libc::pid_t), libc::SIGKILL); } }
     }
 }
 
 impl Drop for DevWorker {
     fn drop(&mut self) {
         self.stop_child();
-        self.close_child_session();
-        self.record_status("stopped");
+        let retired = self.close_child_session();
+        self.record_status(if retired { "stopped" } else { "revocation-blocked" });
     }
 }
 

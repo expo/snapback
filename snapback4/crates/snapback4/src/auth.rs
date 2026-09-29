@@ -238,6 +238,10 @@ fn perform(
         "/auth/refresh" => {
             let token = bearer_token(request)?;
             let engine = shared.engine.lock().unwrap();
+            let sample = identity::ServiceSample { now: shared.now(), supervisor_revision: shared.worker_revision.load(std::sync::atomic::Ordering::Acquire) };
+            if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
+                return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+            }
             identity::rotate_session(engine.store(), token, shared.now())?
                 .map(Outcome::Session)
                 .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))
