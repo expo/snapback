@@ -65,7 +65,17 @@ impl WebDevice {
     /// The changes since the last drain, a JSON array of `{s, k, v}`, for
     /// the host to persist in one transaction.
     pub fn drain(&mut self) -> String {
-        snapback4_core::json_codec::to_text(&self.device.store().drain()).unwrap_or_else(|_| "[]".into())
+        // Both exports use the same encoded changes; the legacy bridge still
+        // returns one array, without materializing a second owned Change tree.
+        let mut text = String::from("[");
+        loop {
+            let chunk = self.device.store().drain_chunk();
+            if chunk == "[]" { break; }
+            if text.len() > 1 { text.push(','); }
+            text.push_str(&chunk[1..chunk.len() - 1]);
+        }
+        text.push(']');
+        text
     }
 
     /// Transfer bounded pieces of ONE durable batch. The host collects every

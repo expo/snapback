@@ -78190,3 +78190,52 @@ Report and raw evidence: reports/20260929-kr-keep-remount/REPORT.md. SR's ticket
 absent on this base; the report records its closure resolution for integration.
 One local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — HV round 1: fixed-cap reductions and apply attribution
+
+Read the round-0 prompt/report and governing acquisition/persistence design.
+Merged origin/main first in 30c3a13804, preserving EA's identity wait, KR's test
+fix and the macOS Worker snapshot fix. Resolved only the LLP header and journal
+conflicts by keeping both sides; regenerated the delivery await inventory through
+awaitBoundary(). Round-0 reviews remain for the later commissioned round.
+
+The fixed 593,719 B gzip cap is still missed. Final wasm is 2,033,735 B raw /
+602,389 B gzip: 5,233 B saved from round 0, 8,670 B still over. Withdrew the
+608,622 B ratchet. Sorted page directories, one bulk/index container, one drain
+codec, a shared base-image map and narrow Binaryen folding reduce bytes without
+removing an index or changing a persisted contract. The report has the measured
+per-change ladder and complete production/named-counterpart size inventories;
+its named counterpart is explicitly not byte-identical to production.
+
+Sixty paired browser samples retain the heavy gains: u0001 default 18.40 s /
+Worker 19.17 s, first answers 0.405 / 0.496 s, peak wasm about 307.69 / 307.63 MB.
+u0500 is 1.895 / 2.099 s. The small Worker is 123 ms slower than this run's
+control, including main integration; all five samples remain below about 2.2 s.
+Three full-SDK phase samples per account/device attribute heavy apply to words
+18–19%, ordinary indexes about 21%, and rows/publication about 60%. Word entries
+are 905,414 of 1,874,664, including 450,699 in each message word index.
+
+LLP 3000.007 §20.4.1 proposes bounded background word-index construction only
+for review. It keeps row/ordinary-index publication atomic, foreground key
+admission intact, pending search incomplete, and restore/crash/version fences
+explicit. Forecast row-ready is 16.8–17.5 / 17.6–18.3 s before new overhead;
+fully search-ready still pays all construction. Deferral is not implemented.
+The next row-cost work is separately identified; the under-8-second and 256 MB
+goals remain unmet. The sync guide records the final measured expectations.
+
+Affected device tests passed 1,389 with five declared ignores; browser checks
+59/59; await inventory 1/1; whole guide 99/99. Ran scripts/test.sh exactly once,
+exit 1: `== 1 failure(s) in 1248 s`. Its only failed stage is wasm build, ours
+(retained round-0 cap debt); baseline and environmental test failures are zero.
+Full Rust passed 4,348 with 33 ignores, clients 5,186 with ten skips, models
+79/79 at full counts, fixtures 9/9. The nominal 60-second suite budget remains
+missed. After tests finished, isolated native apply passed at 38,941.2 ms with
+96,000 KiB peak RSS; the generated regression retains a 20,551,766 B peak,
+54.5% of the old retained representation. These are diagnostic native results,
+not an iOS latency claim. Codec-family/absence checks and reference validation
+are recorded in the report.
+
+Report, failure ledger and raw evidence:
+reports/20260929-hv-heavy-acquisition/round1/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

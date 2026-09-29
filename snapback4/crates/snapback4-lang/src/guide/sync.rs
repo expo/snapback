@@ -359,12 +359,12 @@ package the Worker entry and wasm asset; Vite and the Clique Metro web export
 are exercised by browser witnesses. These are fixture measurements,
 not a cold-start deadline for other declarations.
 On eb1000 (96 logical CPUs, AMD EPYC 9454, Chromium 151), five fresh-device
-runs have median acquisition times of 1.95 s (default) and 2.08 s (Worker):
+runs have median acquisition times of 1.89 s (default) and 2.10 s (Worker):
 100 memberships, 500 Following edges, 500 held messages, 3.65 MB response bodies.
-A 1,000-membership account with 90,500 messages / 105,034 rows takes 18.61 s
-(default) or 19.52 s (Worker), with first inbox answers at 0.44 / 0.52 s and
-peak wasm heaps of 307.63 / 307.69 MB. These are five instrumented runs per
-mode, 39.76 MB transferred, 46.21 MB logical data, host load 3.24–10.71.
+A 1,000-membership account with 90,500 messages / 105,034 rows takes 18.40 s
+(default) or 19.17 s (Worker), with first inbox answers at 0.40 / 0.50 s and
+peak wasm heaps of 307.69 / 307.63 MB. These are five instrumented runs per
+mode, 39.76 MB transferred, 46.21 MB logical data, host load 3.98–11.16.
 Render the first answer while `useAcquisition()` shows progress; only `acquired`
 means the complete partition is durably ready offline. Group count alone does
 not predict bytes or time. The heavy account still exceeds an 8-second target.

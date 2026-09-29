@@ -94,7 +94,8 @@ struct State {
     entries: Entries,
     meta: BTreeMap<String, String>,
     outbox: BTreeMap<String, (u64, String)>,
-    base: BTreeMap<(String, String), Option<String>>,
+    // The same image map as rows, carrying the unchanged Option<String> JSON.
+    base: BTreeMap<(String, String), Image>,
     staged: BTreeMap<String, (String, Rc<str>)>,
 }
 
@@ -114,7 +115,7 @@ enum Undo {
     Rows(BTreeMap<(String, String), Image>),
     Meta(String, Option<String>),
     Outbox(String, Option<(u64, String)>),
-    Base((String, String), Option<Option<String>>),
+    Base((String, String), Option<Image>),
     Staged(String, Option<(String, Rc<str>)>),
 }
 
@@ -192,7 +193,8 @@ impl MemoryStore {
                     let key = parse_row_key(&change.k)?;
                     match change.v {
                         Some(image) => {
-                            state.base.insert(key, parsed("image", &image)?);
+                            let image: Option<String> = parsed("image", &image)?;
+                            state.base.insert(key, stored(&image).into());
                         }
                         None => {
                             state.base.remove(&key);
@@ -249,7 +251,7 @@ impl MemoryStore {
             out.push(Change { s: 'o', k: id.clone(), v: Some(entry.clone()) });
         }
         for ((table, id), image) in &state.base {
-            out.push(Change { s: 'b', k: row_key(table, id), v: Some(stored(image)) });
+            out.push(Change { s: 'b', k: row_key(table, id), v: Some(image.to_string()) });
         }
         for (key, staged) in &state.staged {
             out.push(Change { s: 's', k: key.clone(), v: Some(stored(staged)) });
@@ -425,7 +427,7 @@ impl DeviceStore for MemoryStore {
     }
 
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
-        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()), replacing: Cell::new(false), bulk: RefCell::new(BTreeMap::new()) })
+        Ok(MemoryTx { store: self, undo: RefCell::new(Vec::new()), savepoints: RefCell::new(Vec::new()), dirty: RefCell::new(BTreeSet::new()), replacing: Cell::new(false) })
     }
 }
 
@@ -435,7 +437,6 @@ pub struct MemoryTx<'a> {
     savepoints: RefCell<Vec<(String, usize)>>,
     dirty: RefCell<BTreeSet<Dirty>>,
     replacing: Cell<bool>,
-    bulk: RefCell<BTreeMap<String, Vec<(Key, Rc<str>)>>>,
 }
 
 impl MemoryTx<'_> {
@@ -454,7 +455,7 @@ impl MemoryTx<'_> {
             for key in after.into_iter().filter(|key| !before.contains(key)) {
                 let key = Key::packed(key, &tails);
                 if self.replacing.get() {
-                    self.bulk.borrow_mut().entry(ti.clone()).or_default().push((key, indexed_id.clone()));
+                    self.store.state.borrow_mut().entries.entry(ti.clone()).or_default().push_unsorted(key, indexed_id.clone());
                 } else { self.set_entry((ti.clone(), key), Some(indexed_id.clone())); }
                 written += 1;
             }
@@ -510,7 +511,7 @@ impl MemoryTx<'_> {
         self.undo.borrow_mut().push(Undo::Outbox(id.to_owned(), old));
         self.dirty.borrow_mut().insert(Dirty::Outbox(id.to_owned()));
     }
-    fn set_base(&self, key: (String, String), value: Option<Option<String>>) {
+    fn set_base(&self, key: (String, String), value: Option<Image>) {
         let mut state = self.store.state.borrow_mut();
         let old = match value {
             Some(image) => state.base.insert(key.clone(), image),
@@ -679,7 +680,7 @@ impl DeviceTx for MemoryTx<'_> {
                 Dirty::Row(table, id) => PendingChange { s: 'r', k: row_key(table, id), v: state.rows.get(&(table.clone(), id.clone())).cloned() },
                 Dirty::Meta(key) => Change { s: 'm', k: key.clone(), v: state.meta.get(key).cloned() }.into(),
                 Dirty::Outbox(id) => Change { s: 'o', k: id.clone(), v: state.outbox.get(id).map(|(_, entry)| entry.clone()) }.into(),
-                Dirty::Base(table, id) => Change { s: 'b', k: row_key(table, id), v: state.base.get(&(table.clone(), id.clone())).map(stored) }.into(),
+                Dirty::Base(table, id) => Change { s: 'b', k: row_key(table, id), v: state.base.get(&(table.clone(), id.clone())).map(|image| image.to_string()) }.into(),
                 Dirty::Staged(key) => Change { s: 's', k: key.clone(), v: state.staged.get(key).map(stored) }.into(),
             });
         }
@@ -753,10 +754,9 @@ impl DeviceTx for MemoryTx<'_> {
         self.replacing.set(true);
         let result = load();
         self.replacing.set(false);
-        let bulk = std::mem::take(&mut *self.bulk.borrow_mut());
         if result.is_ok() {
             let mut state = self.store.state.borrow_mut();
-            for (name, entries) in bulk { state.entries.insert(name, compact_index::Index::from_entries(entries)); }
+            for index in state.entries.values_mut() { index.finish(); }
         }
         result
     }
@@ -807,12 +807,12 @@ impl DeviceTx for MemoryTx<'_> {
     fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError> {
         let key = (table.to_owned(), id.to_owned());
         if !self.store.state.borrow().base.contains_key(&key) {
-            self.set_base(key, Some(image.map(str::to_owned)));
+            self.set_base(key, Some(stored(&image).into()));
         }
         Ok(())
     }
     fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
-        Ok(self.store.state.borrow().base.iter().map(|((table, id), image)| (table.clone(), id.clone(), image.clone())).collect())
+        self.store.state.borrow().base.iter().map(|((table, id), image)| Ok((table.clone(), id.clone(), parsed("image", image)?))).collect()
     }
     fn base_id_after(&self, table: &str, after: &str) -> Result<Option<String>, RuntimeError> {
         let mut next = String::with_capacity(after.len() + 1);
