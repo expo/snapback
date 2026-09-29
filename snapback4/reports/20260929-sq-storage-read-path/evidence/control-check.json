@@ -1,0 +1,149 @@
+[
+  {
+    "stage": "10pct",
+    "probe": "busyHistory",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "following500",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "following5",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "celebrityFollower",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "search100",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "insights",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "10pct",
+    "probe": "trending",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "busyHistory",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "following500",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "following5",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "celebrityFollower",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "search100",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "insights",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "50pct",
+    "probe": "trending",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "busyHistory",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "following500",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "following5",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "celebrityFollower",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "search100",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "insights",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  },
+  {
+    "stage": "full",
+    "probe": "trending",
+    "sameData": true,
+    "sameMeter": true,
+    "allComplete": true
+  }
+]
