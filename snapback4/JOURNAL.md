@@ -76050,3 +76050,48 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — DX round 1: flush real refusals before managed shutdown
+
+Merged origin/main first (1c3982a45), retaining both appended journal entries.
+Read Astra's NOT READY review and Grok's completed READY WITH CHANGES review.
+Fixed their shared shutdown finding: dev INT/TERM/HUP now takes managed cleanup
+with or without an application worker. An explicit writer marker drains accepted
+records, flushes console groups and releases the live-instance lock before
+acknowledgement. One two-second deadline includes admission to a full queue and
+the acknowledgement; outstanding request senders do not delay it. Stalled sinks,
+abrupt termination and requests finishing after shutdown starts remain outside
+the delivery guarantee. Production and fatal-signal behavior stay the same.
+
+Three initial process controls reproduced zero notices for eight E_RULE refusals
+while a 25-second poll remained held. Final coverage crosses SIGINT/SIGTERM with
+and without a worker; all four require one count-8 line, eight persisted records,
+no drops and stale-instance rejection after exit. Unit coverage verifies the
+full-queue and missing-ack deadlines and lock release with a held sender clone.
+Every console grouping field is varied independently, with identified counts
+2 and 3. Removing executionSite now fails by producing one count-5 line. Lines
+include phase and generation so these distinct causes can be identified.
+
+Grok additionally found missing trace-retention guidance. The EMPTY_READ card
+and manual now explain the shared 32-record stream/queue, eviction by polling
+empties, pending/dropped latest evidence, one quiet reproduction and restarting
+without --trace-empty afterward. The served-card regression failed before that
+prose fix. LLP 3000.015 §2.1, the refusal guide, signal description and operations
+manual document the shutdown contract. No ceiling or timeout changed.
+
+Affected checks: 20/20 refusal process tests, 21/21 lifecycle tests, 5/5 writer
+and console unit tests, whole guide 98/98. The card follow-up arrived as the full
+suite's Rust stage ended; final process/guide checks were rerun afterward and
+passed. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1332 s`. Every stage passed: 4,561 client tests with ten
+declared skips, then 79/79 final models. No full-suite failures are ours,
+baseline or environmental; deliberate red controls and setup corrections are
+attributed in the report. The inherited 60-second suite target remains exceeded.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both review files were rechecked after the suite and matched the saved inputs.
+Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

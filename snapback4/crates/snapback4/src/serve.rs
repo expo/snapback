@@ -330,6 +330,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         #[cfg(test)] mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
+    if dev { crate::lifecycle::managed_cleanup(); }
     let server = Arc::new(server);
     let address = server.server_addr();
     let worker_url = format!("http://{address}").replace("0.0.0.0", "127.0.0.1").replace("[::]", "[::1]");
@@ -394,7 +395,7 @@ fn serve_requests(
             }
             report_at = Instant::now();
         }
-        if stopping() { return Ok(()); }
+        if stopping() { shared.refusals.shutdown(); return Ok(()); }
         for (name, thread) in &background {
             if thread.is_finished() { return Err(format!("{name} thread stopped")); }
         }

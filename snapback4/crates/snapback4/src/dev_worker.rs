@@ -126,7 +126,7 @@ impl DevWorker {
         if !version.status.success() || !String::from_utf8_lossy(&version.stdout).starts_with("v24.") { return Err("worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable".into()); }
         let revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
         let worker = Self { project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
-        crate::lifecycle::worker_cleanup();
+        crate::lifecycle::managed_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
         Ok(worker)
     }

@@ -40,8 +40,8 @@ impl Console {
     fn emit_first(&mut self, identity: &Value, out: &mut impl Write) {
         let entry = self.entries.pop_front().unwrap();
         let r = entry.record;
-        let _ = writeln!(out, "dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`",
-            r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
+        let _ = writeln!(out, "dev refusal: {}: {} — {} at {}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`",
+            r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or(""));
     }
 }
 
@@ -60,18 +60,49 @@ mod tests {
             let mut r = record.clone(); r["requestId"] = json!(n);
             console.push_at(r, now + Duration::from_micros(n), &identity, &mut out);
         }
-        for key in ["operation", "code", "clause", "site", "generation"] {
-            let mut r = record.clone(); r[key] = json!("different");
-            console.push_at(r, now, &identity, &mut out);
-        }
         assert!(out.is_empty());
         console.flush_due(now + WINDOW, &identity, &mut out);
         let text = String::from_utf8(out.clone()).unwrap();
-        assert_eq!(text.lines().count(), 6);
+        assert_eq!(text.lines().count(), 1);
         assert!(text.contains("count 1000; window 1s; first request 0"));
         console.push_at(record, now + WINDOW, &identity, &mut out);
         console.flush_due(now + 2 * WINDOW, &identity, &mut out);
-        assert_eq!(String::from_utf8(out).unwrap().lines().count(), 7);
+        assert_eq!(String::from_utf8(out).unwrap().lines().count(), 2);
+    }
+    #[test]
+    fn every_cause_field_separates_identified_counts() {
+        let identity = json!({"storeId":"store", "instance":"instance"});
+        let record = json!({"operation":"add", "code":"E_RULE", "table":"rows",
+            "clause":"insert rule", "phase":"insert", "site":"schema.q:5:3",
+            "executionSite":"add:1", "generation":1, "requestId":11});
+        for (key, different) in [
+            ("operation", json!("update")), ("code", json!("E_FIELD_AUTHORITY")),
+            ("table", json!("otherRows")), ("clause", json!("update rule")),
+            ("phase", json!("read through capture")), ("site", json!("schema.q:9:3")),
+            ("executionSite", json!("add:2")), ("generation", json!(2)),
+        ] {
+            let mut console = Console::default();
+            let mut out = Vec::new();
+            let now = Instant::now();
+            let mut other = record.clone();
+            other[key] = different;
+            other["requestId"] = json!(22);
+            for _ in 0..2 { console.push_at(record.clone(), now, &identity, &mut out); }
+            for _ in 0..3 { console.push_at(other.clone(), now, &identity, &mut out); }
+            console.flush_all(&identity, &mut out);
+            let text = String::from_utf8(out).unwrap();
+            let lines: Vec<_> = text.lines().collect();
+            assert_eq!(lines.len(), 2, "grouping field {key}: {text}");
+            for (line, expected, count, request) in [(lines[0], &record, 2, 11), (lines[1], &other, 3, 22)] {
+                assert!(line.starts_with(&format!("dev refusal: {}: {} — {} at {};", expected["operation"].as_str().unwrap(), expected["table"].as_str().unwrap(), expected["clause"].as_str().unwrap(), expected["site"].as_str().unwrap())), "{key}: {line}");
+                for field in ["code", "phase", "generation"] {
+                    assert!(line.contains(&format!("{field} {};", expected[field])), "{key}: {line}");
+                }
+                assert!(line.contains(&format!("execution site {};", expected["executionSite"])), "{key}: {line}");
+                assert!(line.contains(&format!("count {count}; window 1s; first request {request};")), "{key}: {line}");
+                assert!(line.contains("store \"store\"; instance \"instance\";"), "{key}: {line}");
+            }
+        }
     }
     #[test]
     fn distinct_causes_are_bounded_and_counts_flush_on_disconnect() {

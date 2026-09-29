@@ -121,7 +121,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_LIVE_MAINTAIN_PROBE", "a rule cannot compare the value of a view over an expiring source. Read the view in the program; its live value cannot be probed at one unit. Existence probes still cost one unit; guide expire."),
     ("SNAPBACK4_EXIT", "the dev/serve loop returned; status, generation and the startup/listener error or normal-stop reason are on stderr. Generation 0 means it has not served yet. guide refusals."),
     ("SNAPBACK4_PANIC", "a Rust panic on any host thread; stderr names the thread, serving generation, reason, source location and abort/unwind action. guide refusals."),
-    ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow worker cleanup; fatal signals retain their OS status. guide refusals."),
+    ("SNAPBACK4_SIGNAL", "the host received a signal; stderr names it, its number and the serving generation. INT/TERM/HUP allow dev evidence and worker cleanup; fatal signals retain their OS status. guide refusals."),
     ("SNAPBACK4_THREAD_EXIT", "the watcher or maintenance thread stopped; stderr names the thread, serving generation and reason. An unexpected stop ends dev/serve instead of silently losing background work. guide refusals."),
     ("E_ACTION_AUTHORITY", "family action — the authority that admitted this action was revoked or has expired; the request fails terminally and no delegated session is minted (guide actions)."),
     ("E_ID_REUSED", "family input — this id already admitted another operation or different arguments; resend the original operation and arguments, or mint a new id (guide actions, writes)."),

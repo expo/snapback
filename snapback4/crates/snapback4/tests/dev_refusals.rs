@@ -6,6 +6,9 @@ const BIN: &str=env!("CARGO_BIN_EXE_snapback4");
 mod round3;
 #[path = "dev_refusals/quiet.rs"]
 mod quiet;
+#[cfg(unix)]
+#[path = "dev_refusals/shutdown.rs"]
+mod shutdown;
 const SOURCE: &str="use personas alice\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add(owner: principal):\n  return insert rows {owner}\n";
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Project(PathBuf);

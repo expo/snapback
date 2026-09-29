@@ -1,7 +1,7 @@
 //! Local developer evidence, deliberately absent from all HTTP envelopes.
 // @ref LLP 3000.015#2.1 — dev only; bounded asynchronous evidence scoped to one live store/instance.
 use serde_json::{Value, json};
-use std::{collections::{BTreeMap, VecDeque}, fs::{self, File}, io::Write, path::{Path, PathBuf}, sync::{Arc, atomic::{AtomicUsize, AtomicU64, Ordering}, mpsc::{self, SyncSender}}};
+use std::{collections::{BTreeMap, VecDeque}, fs::{self, File}, io::Write, path::{Path, PathBuf}, sync::{Arc, atomic::{AtomicBool, AtomicUsize, AtomicU64, Ordering}, mpsc::{self, SyncSender}}, time::{Duration, Instant}};
 
 #[path = "dev_refusal_response.rs"]
 pub(super) mod response;
@@ -13,10 +13,13 @@ pub(super) type Sites = BTreeMap<(String, String), String>;
 
 pub(crate) const DIRECTORY: &str = "dev-refusals";
 const LIMIT: usize = 32;
+const SHUTDOWN_WAIT: Duration = Duration::from_secs(2);
+enum Message { Record(Value), Shutdown(SyncSender<()>) }
 const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause are silent and unrecorded by default; dev --trace-empty records EMPTY_READ only in this stream, which does not prove denial. Inspect `snapback4 why EMPTY_READ`. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
 #[derive(Default, Clone)]
 pub(super) struct Recent {
-    sender: Option<SyncSender<Value>>,
+    sender: Option<SyncSender<Message>>,
+    closing: Arc<AtomicBool>,
     trace_empty: bool,
     dropped: Arc<AtomicUsize>,
     requests: Arc<AtomicU64>,
@@ -36,7 +39,7 @@ impl Recent {
         active.lock().map_err(|e| e.to_string())?;
         active.write_all(identity.to_string().as_bytes()).map_err(|e| e.to_string())?;
         save(&path, &identity, &VecDeque::new(), 0).map_err(|e| e.to_string())?;
-        let (sender, receiver) = mpsc::sync_channel::<Value>(LIMIT);
+        let (sender, receiver) = mpsc::sync_channel::<Message>(LIMIT);
         let dropped = Arc::new(AtomicUsize::new(0));
         let writer_dropped = dropped.clone();
         std::thread::Builder::new().name("dev-refusals".into()).spawn(move || {
@@ -44,11 +47,21 @@ impl Recent {
             let _active = active;
             let mut records = VecDeque::new();
             let mut console = console::Console::default();
+            let mut shutdown = None;
+            let mut remaining = LIMIT;
             loop {
                 let now = std::time::Instant::now();
                 console.flush_due(now, &identity, &mut std::io::stderr());
-                let record = match receiver.recv_timeout(console.wait(now)) {
-                    Ok(record) => record,
+                // The marker follows already accepted records. Drain any
+                // racing handoffs too, bounded by the channel capacity; held
+                // requests need not release their sender clones.
+                let next = if shutdown.is_some() {
+                    if remaining == 0 { Err(mpsc::RecvTimeoutError::Disconnected) }
+                    else { remaining -= 1; receiver.try_recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected) }
+                } else { receiver.recv_timeout(console.wait(now)) };
+                let record = match next {
+                    Ok(Message::Record(record)) => record,
+                    Ok(Message::Shutdown(done)) => { shutdown = Some(done); continue; },
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
                         console.flush_all(&identity, &mut std::io::stderr());
@@ -67,8 +80,32 @@ impl Recent {
                     console.push(record, &identity, &mut std::io::stderr());
                 }
             }
+            // Acknowledgement means records and console groups have been
+            // flushed and the live-instance lock released. No join or sender
+            // disconnection is needed, even with an outstanding held poll.
+            drop(_active);
+            if let Some(done) = shutdown { let _ = done.send(()); }
         }).map_err(|e| e.to_string())?;
-        Ok(Self { sender: Some(sender), trace_empty, dropped, requests: Default::default(), watermark: Some(watermark) })
+        Ok(Self { sender: Some(sender), closing: Default::default(), trace_empty, dropped, requests: Default::default(), watermark: Some(watermark) })
+    }
+    /// Only the server owner calls this after stopping admission. The single
+    /// deadline covers both a full queue and a blocked disk/stderr writer.
+    pub(super) fn shutdown(&self) -> bool {
+        let Some(sender) = &self.sender else { return true; };
+        self.closing.store(true, Ordering::Release);
+        let deadline = Instant::now() + SHUTDOWN_WAIT;
+        let (done, completed) = mpsc::sync_channel(1);
+        let mut message = Message::Shutdown(done);
+        loop {
+            match sender.try_send(message) {
+                Ok(()) => break,
+                Err(mpsc::TrySendError::Disconnected(_)) => return false,
+                Err(mpsc::TrySendError::Full(pending)) => message = pending,
+            }
+            if Instant::now() >= deadline { return false; }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        completed.recv_timeout(deadline.saturating_duration_since(Instant::now())).is_ok()
     }
     fn sequence(&self, mut record: Value) -> Value {
         record["responseSequence"] = json!(self.watermark.as_ref().map_or(0, |w| w.next()));
@@ -85,7 +122,7 @@ impl Recent {
     fn submit(&self, record: Value) {
         if let Some(sender) = &self.sender {
             // A stalled disk or stderr must never stall a request or grow memory.
-            if sender.try_send(record).is_err() { self.dropped.fetch_add(1, Ordering::Relaxed); }
+            if self.closing.load(Ordering::Acquire) || sender.try_send(Message::Record(record)).is_err() { self.dropped.fetch_add(1, Ordering::Relaxed); }
         }
     }
 }
@@ -162,6 +199,20 @@ pub(crate) fn recent(data: &Path, store: Option<&str>, instance: Option<&str>) -
 mod tests {
     use super::*;
     #[test]
+    fn shutdown_deadline_covers_full_queue_and_missing_acknowledgement() {
+        for full in [false, true] {
+            let (sender, receiver) = mpsc::sync_channel(LIMIT);
+            if full { for _ in 0..LIMIT { sender.try_send(Message::Record(Value::Null)).unwrap(); } }
+            let stream = Recent { sender: Some(sender), ..Default::default() };
+            let began = Instant::now();
+            assert!(!stream.shutdown());
+            assert!(began.elapsed() >= SHUTDOWN_WAIT);
+            assert!(began.elapsed() < SHUTDOWN_WAIT + Duration::from_secs(1));
+            // Receiver and sender remain alive throughout the bounded wait.
+            drop(receiver);
+        }
+    }
+    #[test]
     fn late_handoff_cannot_replace_a_newer_response() {
         let path = std::env::temp_dir().join(format!("sb4-response-order-{}-{}", std::process::id(), snapback4_core::now_ms()));
         fs::create_dir_all(&path).unwrap();
@@ -182,7 +233,10 @@ mod tests {
             assert!(std::time::Instant::now() < end);
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        drop(stream);
+        let held = stream.clone();
+        assert!(stream.shutdown());
+        assert!(recent(&path.join(".snapback4"), None, None).is_err());
+        drop(held);
         fs::remove_dir_all(path).unwrap();
     }
 }

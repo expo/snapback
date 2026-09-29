@@ -98,4 +98,7 @@ fn empty_read_card_is_served_by_both_verbs() {
         assert!(text.contains(command), "missing {command}: {text}");
     }
     assert!(text.contains("does not prove denial"));
+    for advice in ["one quiet reproduction", "shares the 32-record stream", "crowd out older refusals", "pending or dropped", "restart without --trace-empty"] {
+        assert!(text.contains(advice), "missing trace retention advice {advice}: {text}");
+    }
 }

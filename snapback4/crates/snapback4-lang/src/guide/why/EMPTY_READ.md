@@ -32,6 +32,12 @@ OPERATION, TABLE and DIR with your query, table and fixture directory:
   dev servers run). This is bounded, eventual evidence, not a rule verdict.
   It cannot recover a past unrecorded read or show a device-only read.
 
+Use one quiet reproduction: tracing shares the 32-record stream and 32-slot
+queue with real refusals. Polling empties can crowd out older refusals. A
+dropped latest record leaves `why recent` reporting `pending or dropped` until
+a newer record is saved. Pause polling, reproduce once, inspect promptly, then
+restart without --trace-empty when finished.
+
 Keep the rule and horizon that the application needs. Do not widen either
 solely to silence an empty answer. Real refusal envelopes and parked jobs
 still enter the local refusal stream by default.
