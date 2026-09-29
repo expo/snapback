@@ -1,4 +1,4 @@
-import { presence, isReady } from "snapback4/contract";
+import { presence } from "snapback4/contract";
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput } from "react-native";
 import { router } from "expo-router";

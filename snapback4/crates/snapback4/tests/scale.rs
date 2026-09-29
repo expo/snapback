@@ -65,7 +65,7 @@ fn chat_operation_classes() {
     let b = bound(include_str!("../../../apps/chat/snapback/schema.q"));
     // The external invite handler has no Quarry body to certify. Message
     // counts are non-expiring; membership caps bound authored write loops.
-    pin(&b, &["addMember", "edit", "inbox", "leave", "markRead", "room", "send", "sendPhoto", "thread", "unsend"], &["invite"]);
+    pin(&b, &["addMember", "edit", "inbox", "leave", "markRead", "myMembership", "room", "send", "sendPhoto", "thread", "unsend"], &["invite"]);
 }
 
 #[test]
