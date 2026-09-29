@@ -1,0 +1,18 @@
+{
+  "cliPath": "/Users/ccheever/sb4-np/lane/snapback4/target/debug/snapback4",
+  "cliBytes": 70572976,
+  "cliSha256": "e3095796cde9ce6339ed2373ae24d5ba07831362c8d5aa254bbb313d9dda5eae",
+  "nativeQualification": "incomplete; all measured full-smoke attempts exit 1; no restart",
+  "exposedPreparation": [
+    "build"
+  ],
+  "repack": "unqualified candidate patch only",
+  "wasmTouched": false,
+  "wasmGzipCap": 593719,
+  "simulatorsDeleted": [
+    "89FA416A-BFBB-4A2D-B651-6A659C31591C",
+    "232BFC30-86FA-4D6B-9980-C217AFAF3EF4"
+  ],
+  "push": false,
+  "publication": false
+}

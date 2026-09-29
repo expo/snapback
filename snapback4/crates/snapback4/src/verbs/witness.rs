@@ -1,6 +1,7 @@
 //! Installed-app witness driver. It owns its backend and capture children;
 //! simulator operations always name a resolved UDID, never `booted`.
 mod protocol;
+mod preparation;
 mod smoke;
 use protocol::*;
 use serde_json::{Value, json};
@@ -16,6 +17,7 @@ fn tick() -> Result<()> {
 struct Options {
     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
     port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
+    build: Option<PathBuf>,
 }
 impl Options {
     fn parse(args: &[String]) -> Result<Self> {
@@ -24,16 +26,22 @@ impl Options {
         let mut iter = args.iter().skip(1);
         while let Some(flag) = iter.next() {
             let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", format!("unexpected argument {flag}"))); };
-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
+            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
             };
             if flags.insert(key, value).is_some() { return Err(error("E_WITNESS_INPUT", format!("duplicate --{key}"))); }
         }
         let required = |key| flags.get(key).filter(|s| !s.is_empty()).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} is required; see snapback4 guide witness")));
-        let bundle = required("bundle-id")?;
+        let selectors = ["bundle-id", "build"].iter().filter(|k| flags.contains_key(**k)).count();
+        if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
+        if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
+        let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "invalid bundle identifier")); }
         let smoke = flags.contains_key("smoke");
+        if !smoke && flags.contains_key("build") {
+            return Err(error("E_WITNESS_INPUT", "prepared proof currently requires --smoke; application scenarios use installed-app mode"));
+        }
         if smoke && ["segment", "prime", "relaunch"].iter().any(|key| flags.contains_key(key)) {
             return Err(error("E_WITNESS_INPUT", "--smoke owns prime, offline and restart; omit --segment, --prime and --relaunch"));
         }
@@ -42,8 +50,14 @@ impl Options {
         let artifacts = PathBuf::from(required("artifacts")?);
         let port = flags.get("port").map_or(Ok(4400), |s| s.parse::<u16>()).ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke })
+        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
     }
+}
+
+// @ref LLP 3000.030#8 — legacy execution has unknown preparation, even after repack.
+fn artifact_segment(options: &Options) -> String {
+    if ["m6", "m8"].contains(&options.segment.as_str()) { format!("installed-{}", options.segment) }
+    else { options.segment.clone() }
 }
 
 /// A child is reaped before its PID can be reused. Every exit path drops it.
@@ -104,11 +118,12 @@ struct Run {
     options: Options, udid: String, container: PathBuf, run: String, dir: PathBuf,
     backend: Option<Owned>, video: Option<Owned>, logs: Option<Owned>, app_pid: Option<u32>,
     manifest: Value, events: Vec<Value>, observed: Vec<Value>,
+    _lease: File, proof: Option<Value>,
 }
 impl Run {
     fn event(&mut self, step: &str) { self.events.push(json!({ "step": step, "at": now() })); eprintln!("witness: {step}"); }
     fn receipts(&self) -> PathBuf { self.dir.join("receipts.jsonl") }
-    fn path(&self, suffix: &str) -> PathBuf { self.options.artifacts.join(format!("{}-ios-{suffix}", self.options.segment)) }
+    fn path(&self, suffix: &str) -> PathBuf { self.options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&self.options))) }
     fn running_app(&self) -> Result<Option<u32>> {
         app_pid(&simctl(&["spawn", &self.udid, "launchctl", "list"], self.options.timeout)?, &self.options.bundle)
     }
@@ -140,8 +155,9 @@ impl Run {
     }
     fn launch(&mut self, segment: &str) -> Result<()> {
         self.require_stopped()?;
+        if let Some(proof) = &self.proof { preparation::verify(&self.options, self.manifest["appPath"].as_str().unwrap(), &proof["installedApp"]["sha256"], &format!("verify-{segment}"))?; }
         let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis(),
-            "smoke": self.options.smoke, "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
+            "proof": self.proof.as_ref().map(|p| json!({ "sha256": p["sha256"], "proofKind": p["proofKind"], "nativeBase": p["nativeBase"], "executedApp": { "inventory": { "sha256": p["executedApp"]["inventory"]["sha256"] } } })), "origin": format!("http://127.0.0.1:{}", self.options.port), "smoke": self.options.smoke, "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
         let mut command = Command::new("xcrun");
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])
             .env("SIMCTL_CHILD_SNAPBACK4_WITNESS", config.to_string())
@@ -206,6 +222,9 @@ impl Run {
         let end = Instant::now() + self.options.timeout;
         loop {
             if let Some(child) = &mut self.video { child.alive("video recorder")?; }
+            if self.app_pid.is_some() && self.running_app()? != self.app_pid {
+                return Err(error("E_WITNESS_APP", "owned app exited or was replaced while awaiting its receipt"));
+            }
             if let Some(child) = &mut self.logs { child.alive("log capture")?; }
             if let Some(child) = &mut self.backend { child.alive("backend").map_err(|e| error("E_WITNESS_BACKEND", e))?; }
             if offline && !refused(self.options.port)? { return Err(error("E_WITNESS_BACKEND", "backend port became reachable during the offline step")); }
@@ -222,7 +241,13 @@ impl Run {
                 }
             }
             self.observed = rows;
-            if reached { self.event(expected); return Ok(()); }
+            if reached {
+                if let Some(proof) = &self.proof {
+                    let segment = match expected { "primed" => "prime", "offline-done" if self.options.smoke => "offline", "done" if self.options.smoke => "restart", _ => self.options.segment.as_str() };
+                    preparation::binding(&self.observed, proof, &self.run, segment)?;
+                }
+                self.event(expected); return Ok(());
+            }
             if Instant::now() >= end { return Err(error("E_WITNESS_TIMEOUT", format!("app did not reach {expected} within {} seconds", self.options.timeout.as_secs()))); }
             tick()?;
         }
@@ -290,7 +315,7 @@ impl Run {
         self.event("reconnect-signaled");
         self.wait_step("done", false)?;
         self.finish_capture()?;
-        self.terminate(false)?;
+        self.terminate(true)?;
         self.stop_backend()?;
         Ok(())
     }
@@ -301,6 +326,11 @@ impl Run {
         self.manifest["error"] = json!(result.as_ref().err());
         self.manifest["artifacts"] = json!({});
         let mut problem = None;
+        if let Some(proof) = &self.proof {
+            if artifact(&self.options.artifacts.join("proof.json"))?["sha256"] != proof["sha256"] { problem = Some(error("E_WITNESS_PROOF", "sealed proof changed during execution")); }
+            if let Err(e) = preparation::verify(&self.options, self.manifest["appPath"].as_str().unwrap(), &proof["installedApp"]["sha256"], "verify-collection") { problem = Some(e); }
+            self.manifest["proof"] = artifact(&self.options.artifacts.join("proof.json"))?;
+        }
         // Re-resolve the data container at collection, so the path itself is
         // recorded, and never replace a missing export with an empty file.
         match simctl(&["get_app_container", &self.udid, &self.options.bundle, "data"], self.options.timeout) {
@@ -316,6 +346,15 @@ impl Run {
                 Err(e) => { if problem.is_none() { problem = Some(e); } },
             }
         }
+        // Empty stderr logs are valid evidence. Keep every driver log bound,
+        // while video, receipts and the device log still require nonempty bytes.
+        for suffix in ["video.log", "launch.log", "backend.log", "backend-stdout.log", "log-stderr.log"] {
+            let path = self.path(suffix);
+            if let Ok(bytes) = fs::read(&path) {
+                use sha2::{Digest, Sha256};
+                self.manifest["artifacts"][suffix] = json!({ "path": path, "bytes": bytes.len(), "sha256": format!("{:x}", Sha256::digest(&bytes)) });
+            }
+        }
         if let Err(e) = read_rows(&self.path("receipts.jsonl"), true).and_then(|rows| {
             if !rows.starts_with(&self.observed) { return Err(error("E_WITNESS_RECEIPT", "previously observed receipts changed during the run")); }
             sequence(&rows, &self.expected(), true)
@@ -323,6 +362,8 @@ impl Run {
         if result.is_ok() && let Some(e) = &problem { self.manifest["exitStatus"] = json!(1); self.manifest["error"] = json!(e); }
         if self.options.smoke { self.save_smoke(&mut problem); }
         if result.is_ok() && let Some(e) = &problem { self.manifest["exitStatus"] = json!(1); self.manifest["error"] = json!(e); }
+        self.manifest["endedAt"] = json!(now());
+        self.manifest["durationMs"] = json!(now().saturating_sub(self.manifest["invokedAt"].as_u64().unwrap_or(0) as u128));
         fs::write(self.path("run.json"), serde_json::to_vec_pretty(&self.manifest).unwrap()).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         if let Some(e) = problem { return Err(e); } Ok(())
     }
@@ -336,11 +377,17 @@ impl Drop for Run {
 }
 
 // @ref LLP 3000.007#20.10 — explicit simulator, owned backend and bound artifacts
-fn prepare(options: Options) -> Result<Run> {
+fn prepare(mut options: Options) -> Result<Run> {
     platform(std::env::consts::OS)?;
     let list: Value = serde_json::from_str(&simctl(&["list", "devices", "booted", "--json"], options.timeout)?).map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
     let (udid, runtime) = device(&list, options.udid.as_deref())?;
-    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nBuild and install from your Expo project: npx expo run:ios --configuration Release --device {udid}", options.bundle)))?;
+    // The simulator's data root is shared across callers with different TMPDIRs.
+    let home = simctl(&["getenv", &udid, "HOME"], options.timeout)?;
+    let lease = preparation::lease(&Path::new(&home).join(".snapback4-witness-owner.lock"))?;
+    let _port = reserve(options.port)?;
+    let proof = preparation::prepare_app(&mut options, &udid)?;
+    drop(_port);
+    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the bounded adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
     let plist = Path::new(&app).join("Info.plist");
     let mut build = json!({});
@@ -365,22 +412,26 @@ fn prepare(options: Options) -> Result<Run> {
     let cwd = std::env::current_dir().map_err(|e| error("E_WITNESS_BACKEND", e))?;
     let project = cwd.ancestors().find(|p| p.join("snapback/schema.q").is_file()).ok_or_else(|| error("E_WITNESS_BACKEND", "no snapback/schema.q here or above; run the witness from your backend project"))?;
     let manifest = json!({ "bundleId": options.bundle, "udid": udid, "runtime": runtime, "appBuild": build, "appPath": app, "installed": installed, "cliVersion": env!("CARGO_PKG_VERSION"),
+        "proofKind": proof.as_ref().map_or(json!("installed-application"), |p| p["proofKind"].clone()),
         "mode": if options.smoke { "smoke" } else { "application" }, "segment": options.segment, "prime": options.prime, "relaunch": options.relaunch, "startedAt": now(), "timestampUnit": "unix-ms",
         "backend": { "command": [binary.to_string_lossy(), "dev", "--port", options.port.to_string(), "--no-watch"],
             "cwd": cwd, "store": project.join(".snapback4/store.sqlite"), "origin": format!("http://127.0.0.1:{}", options.port), "port": options.port },
-        "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", options.segment)),
-        "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", options.segment))).collect::<Vec<_>>() });
-    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new() })
+        "container": container, "run": run, "reservation": options.artifacts.join(format!("{}-ios-reserved", artifact_segment(&options))),
+        "outputs": OUTPUTS.iter().map(|suffix| options.artifacts.join(format!("{}-ios-{suffix}", artifact_segment(&options)))).collect::<Vec<_>>() });
+    Ok(Run { options, udid, container, run, dir, backend: None, video: None, logs: None, app_pid: None, manifest, events: Vec::new(), observed: Vec::new(), _lease: lease, proof })
 }
 
 pub fn run(args: &[String]) -> i32 {
     let execute = || -> Result<()> {
-        let options = Options::parse(args)?;
+        let invoked = now();
+        let mut options = Options::parse(args)?;
+        fs::create_dir_all(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+        options.artifacts = fs::canonicalize(&options.artifacts).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
         #[cfg(unix)]
         unsafe { libc::signal(libc::SIGINT, interrupt as *const () as libc::sighandler_t); libc::signal(libc::SIGTERM, interrupt as *const () as libc::sighandler_t); }
         platform(std::env::consts::OS)?;
-        reserve_artifacts(&options.artifacts, &options.segment)?;
-        let failure_path = options.artifacts.join(format!("{}-ios-run.json", options.segment));
+        reserve_artifacts(&options.artifacts, &artifact_segment(&options))?;
+        let failure_path = options.artifacts.join(format!("{}-ios-run.json", artifact_segment(&options)));
         let mut preparation = json!({ "bundleId": options.bundle, "segment": options.segment,
             "phase": "preparation", "startedAt": now(), "timestampUnit": "unix-ms",
             "cliVersion": env!("CARGO_PKG_VERSION"), "exitStatus": 1,
@@ -395,6 +446,7 @@ pub fn run(args: &[String]) -> i32 {
                 return Err(problem);
             }
         };
+        run.manifest["invokedAt"] = json!(invoked);
         let result = run.execute();
         INTERRUPTED.store(false, Ordering::Relaxed);
         // On failure finalize capture before collecting and hashing artifacts.
@@ -404,8 +456,31 @@ pub fn run(args: &[String]) -> i32 {
         let result = result.and(cleanup).and(app).and(backend);
         let saved = run.save(&result);
         result?; saved?;
-        println!("witness: complete — {}", run.path("run.json").display());
+        println!("witness: {} complete — {}", run.manifest["proofKind"].as_str().unwrap_or("installed-application (preparation unknown)"), run.path("run.json").display());
         Ok(())
     };
     match execute() { Ok(()) => 0, Err(problem) => { eprintln!("{problem}\nsee snapback4 guide witness"); 1 } }
+}
+
+#[cfg(test)]
+mod naming_tests {
+    use super::*;
+    fn options(args: &[&str]) -> Options {
+        Options::parse(&args.iter().map(|s| (*s).to_string()).collect::<Vec<_>>()).unwrap()
+    }
+    #[test]
+    fn installed_runs_cannot_emit_reserved_native_names() {
+        for segment in ["m6", "m8"] {
+            let o = options(&["ios", "--bundle-id", "app.test", "--segment", segment, "--artifacts", "unused"]);
+            assert_eq!(o.segment, segment, "application protocol stays unchanged");
+            assert_eq!(artifact_segment(&o), format!("installed-{segment}"));
+        }
+        let o = options(&["ios", "--build", ".", "--smoke", "--artifacts", "unused"]);
+        assert_eq!(artifact_segment(&o), "smoke");
+    }
+    #[test]
+    fn prepared_scenario_scope_is_explicit() {
+        let args = ["ios", "--build", ".", "--segment", "m6", "--artifacts", "unused"].map(String::from);
+        assert!(Options::parse(&args).err().unwrap().contains("requires --smoke"));
+    }
 }

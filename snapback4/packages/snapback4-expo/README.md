@@ -58,3 +58,13 @@ runner, commands and artifact contract are in `snapback4 guide witness`
 (aliases: `simulator`, `offline proof`) and the client package README's
 “Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
 Release witness.
+
+Own-build preparation (`witness ios --build … --smoke`) needs the updated native
+witness helper in this source revision. Its synchronous native observation hashes
+the executable and embedded HBC, records Release state and binds each launch to
+the external proof; JavaScript records Hermes state. Rebuild the native module
+when adopting it. Ordinary launches remain inactive. Linked expo-updates is
+outside this preparation adapter because an embedded hash cannot attest a cached
+update selected at runtime. The first cal25 experiment remains a partial native
+result: its published 0.4.7 client returns loading for an offline ephemeral query,
+so full smoke fails. See the witness card before interpreting a build receipt.

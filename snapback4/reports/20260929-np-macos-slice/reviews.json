@@ -1,0 +1,22 @@
+[
+  {
+    "file": "rfc030-r0.astra.md",
+    "bytes": 12604,
+    "sha256": "0fca585da1f739389da9fe15a9bd30858e6d58b76caf8b7bc81a2dacf3973e99"
+  },
+  {
+    "file": "rfc030-r0.grok.md",
+    "bytes": 15092,
+    "sha256": "269c1254ee9953746b24bfdc90f315f646968017eab7be9cfbdad54aed0405cc"
+  },
+  {
+    "file": "rfc030-r1.astra.md",
+    "bytes": 13280,
+    "sha256": "fafed2e43997247a5db2ed39409d8415f25bc28863e77829a104a1012c438285"
+  },
+  {
+    "file": "rfc030-r1.grok.md",
+    "bytes": 19824,
+    "sha256": "69ed30634719bc25e45d5f103e36b5a8fc6084c7a83b4ca17e37cb2e3e07d1cb"
+  }
+]

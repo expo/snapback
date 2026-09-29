@@ -10,6 +10,7 @@ export interface WitnessContainer {
   readonly witnessLaunch: string | null;
   witnessAppend(line: string): void;
   witnessSignaled(label: string): boolean;
+  witnessObservation?(): Record<string, unknown> | null;
 }
 
 // @ref LLP 3000.007#20.10 — app-owned receipts, completed steps and container-file signals
@@ -20,6 +21,13 @@ export function createWitness(container: WitnessContainer | null): Witness | nul
     throw new Error("E_WITNESS_INPUT: invalid witness launch configuration");
   }
   const native = container;
+  if (JSON.parse(container.witnessLaunch).proof) {
+    const startup = native.witnessObservation?.();
+    if (!startup) throw new Error("E_WITNESS_PROOF: rebuild the native witness helper");
+    native.witnessAppend(JSON.stringify({ startup: { ...startup,
+      hermes: !!(globalThis as typeof globalThis & { HermesInternal?: unknown }).HermesInternal },
+      witness: { at: new Date().toISOString(), step: "launched" } }) + "\n");
+  }
   let current = "launched";
   let active = false;
   const append = (object: Record<string, unknown>, step: string) => {

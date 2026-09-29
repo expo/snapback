@@ -4,6 +4,16 @@ import { mkdtempSync, appendFileSync, readFileSync, existsSync, writeFileSync, r
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+test('prepared launch requires a native observation and preserves its hashes in the strict envelope', async () => {
+  const { createWitness } = await import('../../snapback4-expo/src/witness-core.ts');
+  const lines = [], container = { witnessLaunch: JSON.stringify({ segment: 'prime', timeoutMs: 1000, proof: { sha256: 'expected' } }),
+    witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => true };
+  assert.throws(() => createWitness(container), /E_WITNESS_PROOF/);
+  createWitness({ ...container, witnessObservation: () => ({ format: 1, javascriptSha256: 'native-read', executableSha256: 'native-exe' }) });
+  assert.equal(lines[0].startup.javascriptSha256, 'native-read');
+  assert.deepEqual(Object.keys(lines[0].witness).sort(), ['at', 'step']);
+});
+
 test("witness is inert without a launch; a fake container preserves receipts and gates reconnect", async () => {
   const { createWitness } = await import("../../snapback4-expo/src/witness-core.ts");
   assert.equal(createWitness(null), null);

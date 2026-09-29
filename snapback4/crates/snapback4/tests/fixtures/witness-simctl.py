@@ -21,6 +21,9 @@ if a[0] == 'list':
     if mode == 'ambiguous':
         devices.append({'udid': 'someone-else', 'state': 'Booted'})
     print(json.dumps({'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices}}))
+elif a[0] == 'getenv':
+    assert a == ['getenv', udid, 'HOME']
+    print(root / 'data')
 elif a[0] == 'get_app_container':
     if mode == 'missing':
         print('No such app', file=sys.stderr)
@@ -54,9 +57,11 @@ elif a[0] == 'launch':
             store_id = db.execute("SELECT value FROM _meta WHERE key='store_id'").fetchone()[0]
             watermark = db.execute('SELECT COALESCE(MAX(seq),0) FROM _commits').fetchone()[0]
         smoke = dict(segment=segment, pass_=True, rows={}, errors=[], acquired=True, backendRequired=False,
-                     origin='test-origin', viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
+                     origin=config['origin'], viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
                      link='offline' if segment == 'offline' else 'online', queries=[])
         smoke['pass'] = smoke.pop('pass_')
+        if mode == 'smoke-wrong-origin':
+            smoke['origin'] = 'http://127.0.0.1:1'
         if segment == 'restart':
             assert config['barrierSeq'] == watermark
             if mode == 'smoke-stale-restart':

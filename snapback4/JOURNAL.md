@@ -75956,3 +75956,39 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — NP-mac round 0: own Release preparation; full-smoke blocker retained
+
+Merged origin/main first (7acbed690 over design a9f061013 and main 4fd338de5).
+Implemented the bounded `witness ios --build` adapter: stable private snapshot,
+project/simulator leases, CocoaPods and exact Release Xcode product, sealed
+build/proof receipts, complete app/native/HBC inventories, direct simctl install
+and bundle-ID launch, native startup hashing, client-origin binding and liveness
+checks. Linked expo-updates is excluded; legacy m6/m8 names now say installed,
+with unknown preparation. No host package, GUI automation, Metro or publication.
+
+The copied real cal25 app keeps published snapback4/client and native core 0.4.7
+bytes. Local witness-helper patches, ordinary unattended signup and eight-message
+fixture, config/asset/Router probes and the required iOS 27 UIScene migration
+are recorded. Both A and B actually render retained history offline. The
+candidate repack preserves every native Mach-O and changes JS/output/visible
+asset, with HBC 98 and equal Pod/export compiler hashes. Full smoke nevertheless
+fails: chat.typingInMyRooms returns loading offline; restart is unrun. Neither
+that result nor the smoke contract was altered. The open filesystem issue
+records their incompatibility. --repack is therefore omitted from the product;
+its unqualified implementation and failures remain in the report.
+
+Measured partial attempts: own A 181.436 s, B repack 31.413 s, warm own B
+144.606 s; final build-only route recheck 155.058 s. These include collection
+and are not successful complete-smoke or p95 measurements. Scheme/tamper,
+intentional cold error, post-success native death, concurrent owner and busy-port
+controls failed safely for their intended reasons. Final scoped checks: 27 driver,
+7 witness unit, 20 JS helper/payload/smoke and 98 guide tests pass. Earlier failed
+attempts/tests remain in the evidence. Subject typecheck retains seven generated
+rowKey/type-version errors against 0.4.7. No core/wasm source changed; cap stays
+593,719 B gzip, no new wasm measurement. Both owned simulators were deleted.
+
+[Full report](reports/20260929-np-macos-slice/REPORT.md), with raw logs, exact pins,
+phase times, hashes, patches and screenshots. LLP 3000.030 remains Draft and
+its §11 acceptance is incomplete. Nothing pushed or published.

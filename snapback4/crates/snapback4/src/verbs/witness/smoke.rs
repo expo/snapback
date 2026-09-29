@@ -53,6 +53,12 @@ impl Run {
             (receipt["segment"] == segment && receipt["pass"] == true).then(|| receipt.clone())
         }) { entry["receipt"] = receipt; }
         result?;
+        if self.manifest["segments"][segment]["receipt"]["origin"] != self.manifest["backend"]["origin"] {
+            let problem = error("E_WITNESS_ORIGIN", "smoke client origin differs from the witness-owned backend; rebundle or choose its matching --port");
+            self.manifest["segments"][segment]["status"] = json!("failed");
+            self.manifest["segments"][segment]["error"] = json!(problem);
+            return Err(problem);
+        }
         validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
     }
 
