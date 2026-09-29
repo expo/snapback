@@ -67,7 +67,7 @@ fn board_quotes_source_read_with_four_planner_variants() {
     assert!(cost.contains("selected index (org, at), chosen by the planner (org = org); result: page; read:"), "{cost}");
     assert!(!cost.contains("$intent:") && !cost.contains(" if "), "{cost}");
     let plain = p.run(&["check"]);
-    assert!(plain.contains("index (org, at), chosen by the planner"), "{plain}");
+    assert!(!plain.contains("selected index"), "{plain}");
     assert!(!plain.contains("$intent:"), "{plain}");
     let verbose = p.run(&["check", "--cost", "--verbose"]);
     assert!(verbose.contains("$intent:byOrgAt:"), "{verbose}");

@@ -47,14 +47,14 @@ fn builder_guesses_have_one_step_check_repairs() {
 }
 
 #[test]
-fn len_retains_its_mechanical_check_fix() {
+fn len_compiles_without_rewriting_the_authored_alias() {
     let directory = Directory::new();
     fs::create_dir(directory.path().join("snapback")).unwrap();
     let path = directory.path().join("snapback/schema.q");
     fs::write(&path, "query size(x: text):\n  return len(x)\n").unwrap();
     let result = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--fix"]).current_dir(directory.path()).output().unwrap();
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
-    assert_eq!(fs::read_to_string(path).unwrap(), "query size(x: text):\n  return count(x)\n");
+    assert_eq!(fs::read_to_string(path).unwrap(), "query size(x: text):\n  return len(x)\n");
 }
 
 #[test]

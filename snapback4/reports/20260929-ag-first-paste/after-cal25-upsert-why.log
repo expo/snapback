@@ -1,0 +1,33 @@
+mutation chat.setReaction(message: a messages reference, emoji: text <=32 ?)
+  returns a reactions row ?
+  chat.setReaction: predicts: never; queued without a row
+    Horizon: point messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal; selected byId (id = message); result: row or null; only declared unique key of this arity (site chat.q:293:7 (messages[message])); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: write target reactions by index (message, principal), chosen by the planner: held, no horizon (site chat.q:296:5)
+    Horizon: read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal (site chat.q:296:5); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site chat.q:296:5)
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site chat.q:296:5)
+    Held: point reactions by index (message, principal), chosen by the planner: held, no horizon; selected index (message, principal), chosen by the planner (message = message, principal = viewer); result: exists; only declared unique key of this arity (site chat.q:297:18 (reactions[message, viewer]))
+    Horizon: read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal (site chat.q:297:18 (reactions[message, viewer])); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site chat.q:297:18 (reactions[message, viewer]))
+    Held: write target reactions by index (message, principal), chosen by the planner: held, no horizon (site chat.q:298:5 (delete reactions))
+    Horizon: read through parent messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal (site chat.q:298:5 (delete reactions)); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site chat.q:298:5 (delete reactions))
+    Held: upsert insert into reactions: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site chat.q:296:5)
+    Server: upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon (site chat.q:296:5 (upsert reactions))
+      rewrite: (update reactions[message, viewer] { message, principal: viewer, emoji }) if exists reactions[message = message, principal = viewer] else (insert reactions { message, principal: viewer, emoji })
+    Horizon: read through capture messages by byId: sync to members[.conversation] last 500 by byConversationOrdinal (site chat.q:296:5 (upsert reactions)); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site chat.q:289:3 (reactions update rule: members by index (conversation, principal), chosen by the planner))
+  mutation chat.setReaction:
+    scale: constant once background cleanup catches up; until then at most 24684 rows examined: expired reactions rows not yet swept, skipped by the `index (message, principal), chosen by the planner` lookup (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work); per write: reactions using index (message, principal), chosen by the planner: constant full-key lookup plus only expired collisions on the same full key; skipping those collisions uses the internal ledger and shared 8,192-row physical authorization allowance; server expiry sweep: 1-second tick, at most 2,000 rows per pass (backlog, downtime or failures can leave older rows); reactions: cap uses a maintained physical count as an upper bound; below it no population scan is needed, otherwise live occupancy shares the 8,192-row physical authorization allowance; `reactionCounts`: at most 2 derived writes per source transition (old/new groups)
+      programs.setReaction.1: expired reactions rows not yet swept, skipped by the `index (message, principal), chosen by the planner` lookup (server expiry sweep: 1-second tick, at most 2,000 rows per pass; backlog, downtime or failures can leave older rows; the read meter bounds work); rewrite: read by id, or use a non-expiring keyed view
+    point messages.byId — one row, one rule check
+    write target reactions using index (message, principal), chosen by the planner — engine-private lookup; the update rule decides
+    point reactions using index (message, principal), chosen by the planner — one row, one rule check
+    write target reactions using index (message, principal), chosen by the planner — engine-private lookup; the update rule decides
+    upsert reactions, fans out to the members in members
+    delete reactions, fans out to the members in members

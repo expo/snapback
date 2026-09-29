@@ -35,11 +35,11 @@ Following that cursor does not clear the earlier page's incompleteness in `usePa
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server.
 
-Declare `query name(..) held:` for a device-only answer. `check` prints
+Declare `query name(..) held:` for a device-only answer. `check --verbose` prints
 `runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
 `dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;
 the local clients answer from held rows, online or offline, without server
-fallback even at a horizon or cut. With horizon-free sources, `check` reports
+fallback even at a horizon or cut. With horizon-free sources, `check --verbose` reports
 horizon-free source coverage. Answer completeness still depends on runtime
 authorization and limits; the marker does not acquire rows.
 An unscoped search through expiring memberships can remain non-uniform and

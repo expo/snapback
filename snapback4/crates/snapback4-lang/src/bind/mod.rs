@@ -5,6 +5,7 @@ pub mod catalog;
 mod columns;
 mod ephemeral;
 mod defaults;
+mod first_paste;
 mod maintains;
 mod own_keys;
 mod refusals;
@@ -444,13 +445,17 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             let existing = index.is_plain().then(|| table.indexes.iter().find(|(_, candidate)| candidate.is_plain() && candidate.columns() == leading)).flatten();
             let columns = leading.join(", ");
             let search_rewrite = matching_merge_rewrite(schema, scan, table);
+            let held_rewrite = (search_rewrite.is_none() && unpinned == ["id"] && table.sync.is_some()
+                && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
+                .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_NEVER_COMPLETE",
-                    format!("{} {}: {}the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
-                    search_rewrite.clone().or(scope_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "))),
+                    if held_rewrite.is_some() { format!("query {}: this lookup does not pin an authorized row's id; matching a name does not prove uniqueness or absence. The server may return matches but cannot certify complete. The held replacement (check --verbose) keeps the same matches and shape on the device; it requires acquired coverage and has no server fallback. Keep the original query if server lookup is required", bound.program.name) }
+                    else { format!("{} {}: {}the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
+                    held_rewrite.or(search_rewrite.clone()).or(scope_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", "))),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
             );

@@ -1,0 +1,41 @@
+{
+  "suite_invocations": 1,
+  "exit_code": 1,
+  "summary": "== 1 failure(s) in 1381 s",
+  "failed_stages": [
+    "cargo test"
+  ],
+  "failed_tests": [
+    {
+      "target": "snapback4-device::readauth",
+      "test": "census::authoring_census",
+      "attribution": "ours",
+      "resolution": "Add the single new prediction guide example to the expected corpus; readauth rerun 81 passed / 0 failed."
+    }
+  ],
+  "rust": {
+    "binaries": 274,
+    "executions": 987,
+    "passed": 4329,
+    "failed": 1,
+    "ignored": 33
+  },
+  "client": {
+    "passed": 4561,
+    "skipped": 10,
+    "failed": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "fixture_wrapper": {
+    "passed": 9,
+    "failed": 0
+  },
+  "attribution_counts": {
+    "ours": 1,
+    "baseline": 0,
+    "environmental": 0
+  }
+}

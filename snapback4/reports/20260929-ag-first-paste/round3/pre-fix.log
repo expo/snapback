@@ -1,0 +1,62 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2.00s
+     Running tests/first_paste.rs (snapback4/target/debug/deps/first_paste-45b40df4500bac59)
+
+running 16 tests
+test upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects ... FAILED
+test upsert_advice_withholds_expiring_and_optional_result_images ... FAILED
+test upsert_advice_withholds_key_changing_patches ... FAILED
+test upsert_advice_withholds_effectful_keys_and_patch_values ... FAILED
+test upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images ... FAILED
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test mixed_key_upsert_advice_cannot_change_existing_row_identity ... ok
+test row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+test count_alias_predicates_and_keys_keep_real_group_column_precedence ... ok
+
+failures:
+
+---- upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects stdout ----
+
+thread 'upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects' (3684448) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 30, col: 1 }, code: "E_SYNC", message: "sync public needs a public read rule; reactionCounts reads under `deny`", rewrite: "make the sync audience exactly match the table's read rule", guide: "sync", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- upsert_advice_withholds_expiring_and_optional_result_images stdout ----
+
+thread 'upsert_advice_withholds_expiring_and_optional_result_images' (3684450) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 32, col: 1 }, code: "E_SYNC", message: "sync public needs a public read rule; reactionCounts reads under `deny`", rewrite: "make the sync audience exactly match the table's read rule", guide: "sync", mechanical: false, cascade_of: None }]
+
+---- upsert_advice_withholds_key_changing_patches stdout ----
+
+thread 'upsert_advice_withholds_key_changing_patches' (3684451) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 30, col: 1 }, code: "E_SYNC", message: "sync public needs a public read rule; reactionCounts reads under `deny`", rewrite: "make the sync audience exactly match the table's read rule", guide: "sync", mechanical: false, cascade_of: None }]
+
+---- upsert_advice_withholds_effectful_keys_and_patch_values stdout ----
+
+thread 'upsert_advice_withholds_effectful_keys_and_patch_values' (3684449) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 30, col: 1 }, code: "E_SYNC", message: "sync public needs a public read rule; reactionCounts reads under `deny`", rewrite: "make the sync audience exactly match the table's read rule", guide: "sync", mechanical: false, cascade_of: None }]
+
+---- upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images stdout ----
+
+thread 'upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images' (3684452) panicked at crates/snapback4-lang/tests/first_paste.rs:179:9:
+ResidencySite { site: "schema.q:32:10 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; the explicit update/insert alternative needs read authority and held key coverage, and may still queue past a horizon", rewrite: "(update reactions[message, viewer] { emoji }) if exists reactions[message = message, principal = viewer] else (insert reactions { emoji, message: message, principal: viewer })" }
+
+
+failures:
+    upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects
+    upsert_advice_withholds_effectful_keys_and_patch_values
+    upsert_advice_withholds_expiring_and_optional_result_images
+    upsert_advice_withholds_key_changing_patches
+    upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images
+
+test result: FAILED. 11 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

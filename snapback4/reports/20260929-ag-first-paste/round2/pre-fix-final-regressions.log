@@ -1,0 +1,57 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 5.27s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 13 tests
+test count_alias_predicates_and_keys_keep_real_group_column_precedence ... FAILED
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test mixed_key_upsert_advice_cannot_change_existing_row_identity ... FAILED
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test upsert_advice_withholds_effectful_keys_and_patch_values ... ok
+test cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+
+failures:
+
+---- count_alias_predicates_and_keys_keep_real_group_column_precedence stdout ----
+
+thread 'count_alias_predicates_and_keys_keep_real_group_column_precedence' (2415301) panicked at crates/snapback4-lang/tests/first_paste.rs:12:5:
+[Diagnostic { site: Site { file: "schema.q", line: 6, col: 10 }, code: "E_SCHEMA_CONSTRAINT", message: "undeclared column count", rewrite: "fix the declaration named by this message", guide: "indexes", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- mixed_key_upsert_advice_cannot_change_existing_row_identity stdout ----
+
+thread 'mixed_key_upsert_advice_cannot_change_existing_row_identity' (2415302) panicked at crates/snapback4-lang/tests/first_paste.rs:197:13:
+assertion `left == right` failed: source=table parents:
+  public
+  sync public
+table children:
+  tag: id
+  parent: parents
+  body: text <=100
+  unique tag, id
+  immutable parent
+  read through .parent
+  insert <- allow
+  update <- allow
+  sync
+mutation save(id: id, tag: id, parent: parents, body: text <=100):
+  return (update children[id, tag = tag] { parent, body }) if exists children[tag = id, id = tag] else (insert children { parent, body, tag: id, id: tag })
+
+  left: 2
+ right: 1
+
+
+failures:
+    count_alias_predicates_and_keys_keep_real_group_column_precedence
+    mixed_key_upsert_advice_cannot_change_existing_row_identity
+
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

@@ -648,9 +648,16 @@ fn w10r1b_dev_reports_the_same_cascades_as_check() {
         fs::write(dir.0.join("snapback/chat.q"), "query apiHistory():\n  return messages where .body = 'hello'\n").unwrap();
         let check = dir.run(if verbose { &["check", "--verbose"] } else { &["check"] });
         assert_eq!(check.status.code(), Some(1));
-        let expected = String::from_utf8(check.stderr).unwrap().replace("check: ", "snapback4 dev: ")
-            .replace(" problem\n", " problem in snapback/; serving the previous generation\n")
-            .replace(" problems\n", " problems in snapback/; serving the previous generation\n");
+        // check puts its verdict first; the running dev host retains its
+        // adoption footer. The diagnostic bodies must still be identical.
+        let checked = String::from_utf8(check.stderr).unwrap();
+        let (verdict, reports) = checked.split_once('\n').unwrap();
+        let mut lines = reports.lines().collect::<Vec<_>>();
+        let hidden = lines.last().filter(|line| line.starts_with("check:")).map(|line| line.to_string());
+        if hidden.is_some() { lines.pop(); }
+        let expected = format!("{}\n{} in snapback/; serving the previous generation\n{}",
+            lines.join("\n"), verdict.replace("check: ", "snapback4 dev: "),
+            hidden.map_or_else(String::new, |line| format!("{}\n", line.replace("check: ", "snapback4 dev: "))));
         host.until(|h| h.log().contains(expected.lines().last().unwrap()));
         println!("W10R1b dev verbose={verbose}:\n{}", host.log());
         assert!(host.log().ends_with(&expected), "expected:\n{expected}actual:\n{}", host.log());

@@ -213,7 +213,7 @@ N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one
 note per mutation for lost eligibility or an added horizon risk, explicitly
 distinguishing a call that may queue from an operation that never predicts.
 Every check also summarizes all never-predicting mutations, blocked insert arms,
-and eligible mutations with horizon reads, naming their sites even when unchanged.
+and eligible mutations with horizon reads. `check --verbose` names every site.
 A header such as
 `mutation post(body: text <=200) predicts:` asserts eligibility; a server
 site refuses E_NOT_PREDICTABLE at that header. Inspect `snapback4 why <op>` and
