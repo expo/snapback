@@ -128,3 +128,102 @@ Object.assign(window,{pageStore:()=>indexedDbStore(indexedDbPersistence().claim,
   assert.deepEqual(result.loaded,[{s:'r',k:'new',v:'new row'},{s:'r',k:'old',v:'updated'},{s:'m',k:'watermark',v:'2'}]);
   assert.deepEqual(result.writes,['strict','strict','strict']);
 });
+
+for (const mode of ['save', 'conditional', 'worker-host']) test(`migration during a format-3 ${mode} rechecks layout in the writing transaction`, {timeout:120000}, async t => {
+  const witness = await launch({entrySource:`
+import { indexedDbStore } from '${join(root,'packages/snapback4/src/web-idb.ts')}';
+import { WebWorkerHost } from '${join(root,'packages/snapback4/src/web-worker-host.ts')}';
+Object.assign(window,{WebWorkerHost,pageStore:()=>indexedDbStore(indexedDbPersistence().claim,true)});
+`});
+  t.after(()=>witness.close());
+  const results = await witness.page.evaluate(async mode => {
+    const results = [];
+    for (const current of mode === 'save' ? [true] : [true, false]) {
+      const name = `interleaved-${mode}-${current}`, old = indexedDbPersistence(), modern = pageStore();
+      const original = [{s:'r',k:'old',v:'row'},{s:'s',k:'stage',v:'stage'},{s:'b',k:'base',v:'base'},{s:'m',k:'watermark',v:'1'}];
+      const delta = [{s:'r',k:'old',v:'updated'},{s:'r',k:'new',v:'new'},{s:'s',k:'stage',v:null},{s:'b',k:'base',v:'new base'},{s:'m',k:'watermark',v:'2'}];
+      await old.save(name,original);
+      // The durable state of an aborted migration: physical v3, logical 3.
+      await new Promise((resolve,reject)=>{
+        const q=indexedDB.open(name,3);
+        q.onupgradeneeded=()=>{q.result.createObjectStore('pages',{keyPath:'id'});q.result.createObjectStore('page-keys',{keyPath:'id'});};
+        q.onsuccess=()=>{q.result.close();resolve();};q.onerror=()=>reject(q.error);
+      });
+      let host, finished=0;
+      if(mode==='worker-host') {
+        // Exercise the real host's commitIf and page-realm IDB adapter. Only the
+        // Worker RPC is a fixture: today's Worker restricts conditional ops to
+        // metadata; a row delta makes the adapter's layout defect observable.
+        class PreparedWorker extends EventTarget {
+          postMessage(message) {
+            const control={predictions:[],queuedRevision:0};
+            let ok={journal:[],control};
+            if(message.action==='prepare-conditional')ok={changes:delta};
+            if(message.action==='finish-conditional')finished++;
+            queueMicrotask(()=>this.dispatchEvent(new MessageEvent('message',{data:{id:message.id,ok}})));
+          }
+          terminate() {}
+        }
+        host=new WebWorkerHost({name,release:async()=>{}},()=>new PreparedWorker());
+        await host.open();
+      }
+      let release, heldResolve;
+      const held=new Promise(resolve=>{heldResolve=resolve;});
+      const get=IDBObjectStore.prototype.get, put=IDBObjectStore.prototype.put;
+      const transaction=IDBDatabase.prototype.transaction;
+      let captured=false, migrated=false, bucketWrites=0;
+      const writes=[];
+      IDBDatabase.prototype.transaction=function(...args){const tx=transaction.apply(this,args);if(this.name===name&&tx.mode==='readwrite')writes.push(tx.durability);return tx;};
+      IDBObjectStore.prototype.put=function(value,...args){if(migrated&&this.transaction.db.name===name&&value.s==='$bucket')bucketWrites++;return put.call(this,value,...args);};
+      IDBObjectStore.prototype.get=function(key){
+        const q=get.call(this,key), tx=this.transaction;
+        if(!captured&&tx.db.name===name&&tx.mode==='readonly'&&JSON.stringify(key)==='["$format","row-buckets"]') {
+          captured=true;
+          // The physical read finishes normally, but its done() callback is
+          // held. No active transaction blocks the independent migration.
+          tx.addEventListener('complete',event=>{
+            event.stopImmediatePropagation();
+            const complete=tx.oncomplete;
+            release=()=>complete.call(tx,event);
+            heldResolve(q.result.v);
+          },{once:true});
+        }
+        return q;
+      };
+      let accepted, markerDuringHold;
+      try {
+        const saving=mode==='worker-host' ? host.transaction(async tx=>{await tx.commitIf(()=>current);return true;}).catch(error=>{if(error.constructor.name==='StaleWorkerCommit')return false;throw error;})
+          : mode==='conditional' ? old.saveIfCurrent(name,delta,()=>current) : old.save(name,delta).then(()=>true);
+        const observed=await held;
+        await modern.load(name);
+        markerDuringHold=await old.read(name,'$format','row-buckets');
+        migrated=true;release();
+        accepted=await saving;
+        if(observed!=='3')throw Error(`expected stale marker 3, got ${observed}`);
+      } finally {
+        IDBObjectStore.prototype.get=get;IDBObjectStore.prototype.put=put;IDBDatabase.prototype.transaction=transaction;
+        await host?.close();
+      }
+      const loaded=await pageStore().load(name), point=await old.read(name,'r','old');
+      const records=await new Promise((resolve,reject)=>{
+        const q=indexedDB.open(name);
+        q.onsuccess=()=>{const db=q.result,tx=db.transaction('changes'),r=tx.objectStore('changes').getAll();tx.oncomplete=()=>{db.close();resolve(r.result);};tx.onabort=()=>reject(tx.error);};q.onerror=()=>reject(q.error);
+      });
+      const canonical=rows=>rows.map(c=>JSON.stringify(c)).sort();
+      const expected=current?[delta[0],delta[1],delta[3],delta[4]]:original;
+      results.push({current,accepted,markerDuringHold,point,finished,bucketWrites,writes,
+        rows:canonical(loaded),expected:canonical(expected),stray:records.filter(c=>c.s==='$bucket'||['r','s','b'].includes(c.s))});
+    }
+    return results;
+  },mode);
+  for(const result of results) {
+    assert.equal(result.markerDuringHold,'4');
+    assert.equal(result.accepted,result.current);
+    assert.equal(result.bucketWrites,0,'no bucket may be written after migration, even in an aborted save');
+    assert.deepEqual(result.stray,[]);
+    assert.deepEqual(result.rows,result.expected);
+    assert.equal(result.point,result.current?'updated':'row');
+    assert.ok(result.writes.length>=2&&result.writes.every(d=>d==='strict'));
+    if(mode==='worker-host')assert.equal(result.finished,result.current?1:0,'publish the Worker only after an accepted strict save');
+  }
+});

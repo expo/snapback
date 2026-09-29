@@ -78514,3 +78514,60 @@ The whole guide separately passed 99/99; SDK build/typecheck and docs budgets
 pass. `awaitBoundary()` matches without regeneration; there was no merge
 conflict in that record. Wasm remains 2,040,727 B raw / 592,959 B gzip, 760 B
 below the unchanged 593,719 B cap. No push or publication.
+
+
+### 2026-09-29 — HV round 3: transaction-local format routing and full witness admission
+
+Merged origin/main 16fb4aa721 in 5b5e8db91c first, retaining LL/SR and both
+journal sides; regenerated delivery-await-boundary.json through awaitBoundary().
+Grok's two round-2 reproductions now have detecting regressions. A format-3
+writer samples the marker inside its strict write transaction before any row
+write; if migration won the interval after the preliminary read, it aborts and
+retries the complete delta through pages. Chromium holds that read callback
+while another built-in adapter migrates: ordinary/conditional page saves and
+WebWorkerHost.commitIf keep point/load agreement, write no stray buckets and
+preserve false-predicate rollback. The Worker RPC fixture supplies row changes;
+today's real Worker restricts conditional operations to metadata. The existing
+real Worker tests also pass. Metadata-only writes keep their original path.
+
+The one-candidate fallback now reserves decoder plus rule scratch before its
+prepaid scope, against the saved caller allowance. A real SQLite exists-members
+witness varies 1/80,000-byte private notes and 0/256-KiB source payloads, directly
+and nested. The old code decoded 87,085 B against a 23,136 B ceiling; the fixed
+case refuses with 249 B of error allocation and zero scans/lookups. Exact
+admission still executes the witness and returns the independent count.
+LLP 3000.015 §3 records the complete reservation. LLP 3000.007 §20.4 corrects
+the old in-save cache-fence claim and explicitly records that the pricing scanner
+still accepts canonical spellings only. Canonical publication/restore protect
+metered scans; debug-only checks assert the image invariant at store entry.
+
+Final wasm is byte-identical to the merged baseline: 2,065,883 B raw / 605,320 B
+gzip without wasm-opt; 2,033,727 B raw / 602,215 B gzip with Binaryen 132. No
+artifact growth. The optimized result remains 8,496 B over the fixed 593,719 B
+cap; WD's separate reductions are not in this main snapshot. No budget raised.
+The generated 6,000-row regression retains 20,551,766 B peak / 15,029,122 B
+retained (54.5% of the old retained representation), complete offline restore
+and a 302,739 B maximum bridge string. No heavy timing campaign or new timing
+claim; all word indexes still finish before publication/replay.
+
+Affected core: 169 passes plus one ignore; affected device: 1,390 passes plus
+five ignores; guide: 99/99; final memory checks: 3/3; generated fixture: 1/1;
+browser page/review/navigation recheck: 48/48; codec census: 26/26; await
+classification: 1/1. The single full scripts/test.sh run exits 1 with exactly:
+
+    == 2 failure(s) in 1405 s
+       wasm build
+       client tests
+
+Wasm size is ours (retained HV debt). The two client leaves are the before-commit
+and after-commit reset-IDB model cases: the old fake completed without delivering
+read callbacks. Corrected its scheduling, keeping all original fault/custody
+assertions; the focused recheck passes 2/2. The full run retains those failures.
+No baseline/environmental failure. Rust passes 4,350 including 17 doctests,
+clients pass 5,248 with two failed leaves and ten skips, fixtures pass 9/9,
+serial models pass 79/79 with unchanged counts. No full-suite rerun.
+
+Report, complete failure ledger, source/artifact hashes and unedited logs:
+reports/20260929-hv-heavy-acquisition/round3/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

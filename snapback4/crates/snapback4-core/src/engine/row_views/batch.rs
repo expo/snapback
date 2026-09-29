@@ -102,8 +102,10 @@ impl Runner<'_> {
     fn certify_acquisition_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
         let source = &self.schema.tables[&m.source];
         let decoder = crate::rows::disclosed::decode_reservation(source);
+        let scratch = self.rule_scratch(&source.rules.read);
+        let single_bytes = decoder.saturating_add(scratch);
         let page_bytes = decoder.saturating_mul(32)
-            .saturating_add(self.rule_scratch(&source.rules.read))
+            .saturating_add(scratch)
             .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
             .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32));
         let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
@@ -113,7 +115,7 @@ impl Runner<'_> {
         self.meter.ceilings.heap_bytes = limit;
         self.meter.used.heap_bytes = used;
         let result = (|| {
-            self.meter.heap(if page == 32 { page_bytes } else { decoder })?;
+            self.meter.heap(if page == 32 { page_bytes } else { single_bytes })?;
             // Nested public witnesses must see the reservation as occupied too.
             self.caller_heap_ceiling = Some((limit, self.meter.used.heap_bytes));
             self.prepaid_scan(&[(MeterKind::Examined, members.len() as u64), (MeterKind::Steps, members.len() as u64)], false,

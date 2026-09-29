@@ -97,35 +97,51 @@ export function indexedDbStore(claim: Persistence["claim"], preferPages = false)
         if (packing.get(name) === "4") return await rowPages.save(db, changes, done, current);
         const tx = db.transaction("changes", "readwrite", { durability: "strict" });
         const committed = done(tx), store = tx.objectStore("changes");
-        let stale = false;
-        try {
-          clearDeletedRanges(store, changes, cleared => {
-            const groups = new Map<string, Change[]>();
-            for (const change of changes) {
-              if (packing.get(name) === FORMAT.v && packedStore(change.s)) {
-                const key = bucket(change.s, change.k);
-                if (!groups.has(key)) groups.set(key, []);
-                groups.get(key)!.push(change);
-              } else if (change.v === null) { if (!cleared.has(change.s)) store.delete([change.s, change.k]); }
-              else store.put(change);
-            }
-            // Keep read/modify/write in this transaction. A split may queue
-            // child reads: check current only after every callback has issued
-            // its writes, with no asynchronous gap before the explicit commit.
-            const guardCommit = () => {
-              if (current) {
-                const guard = store.get([FORMAT.s, FORMAT.k]);
-                guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+        let stale = false, changedLayout = false, failure: unknown;
+        const write = (format?: string) => {
+          try {
+            // @ref LLP 3000.007#20.4 — the writing transaction owns the layout
+            // decision. A migration may have committed after the earlier read.
+            if (format === "4") { changedLayout = true; tx.abort(); return; }
+            if (format === "1" || format === "2") throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
+            clearDeletedRanges(store, changes, cleared => {
+              const groups = new Map<string, Change[]>();
+              for (const change of changes) {
+                if (format === FORMAT.v && packedStore(change.s)) {
+                  const key = bucket(change.s, change.k);
+                  if (!groups.has(key)) groups.set(key, []);
+                  groups.get(key)!.push(change);
+                } else if (change.v === null) { if (!cleared.has(change.s)) store.delete([change.s, change.k]); }
+                else store.put(change);
               }
-            };
-            let pending = groups.size;
-            if (!pending) guardCommit();
-            for (const [key, delta] of groups) {
-              writeGroup(store, key, delta, cleared.has(key.slice(0, 1)), () => { if (!--pending) guardCommit(); });
-            }
-          });
-        } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }
-        try { await committed; } catch (error) { if (!stale) throw error; }
+              // Keep read/modify/write in this transaction. A split may queue
+              // child reads: check current only after every callback has issued
+              // its writes, with no asynchronous gap before the explicit commit.
+              const guardCommit = () => {
+                if (current) {
+                  const guard = store.get([FORMAT.s, FORMAT.k]);
+                  guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+                }
+              };
+              let pending = groups.size;
+              if (!pending) guardCommit();
+              for (const [key, delta] of groups) {
+                writeGroup(store, key, delta, cleared.has(key.slice(0, 1)), () => { if (!--pending) guardCommit(); });
+              }
+            });
+          } catch (error) { failure = error; try { tx.abort(); } catch { /* Already aborted. */ } }
+        };
+        if (changes.some(c => packedStore(c.s))) {
+          const marker = store.get([FORMAT.s, FORMAT.k]);
+          marker.onsuccess = () => write(marker.result?.v);
+        } else write(); // Metadata does not depend on the row layout.
+        try { await committed; } catch (error) {
+          if (changedLayout) {
+            packing.set(name, "4"); rowPages.forget(name);
+            return await rowPages.save(db, changes, done, current);
+          }
+          if (!stale) throw failure ?? error;
+        }
         return !stale;
       } finally { db.close(); }
   };

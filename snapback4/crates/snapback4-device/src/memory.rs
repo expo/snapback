@@ -147,8 +147,8 @@ impl MemoryStore {
                     let key = parse_row_key(&change.k)?;
                     match change.v {
                         Some(image) => {
-                            let row: Value = parsed("row", &image)?;
-                            state.rows.insert(key, Image::from(stored(&row)));
+                            let row: Value = parsed("row", &image)?; #[cfg(debug_assertions)] let check_key = key.clone();
+                            state.rows.insert(key, Image::from(stored(&row))); #[cfg(debug_assertions)] debug_assert_eq!(&*state.rows[&check_key], stored(&row));
                         }
                         None => {
                             state.rows.remove(&key);
@@ -425,10 +425,10 @@ pub struct MemoryTx<'a> {
     dirty: RefCell<BTreeSet<Dirty>>,
     replacing: Cell<bool>,
 }
-
+// @ref LLP 3000.007#20.4 — the pricing scanner requires canonical row images at entry.
 impl MemoryTx<'_> {
     fn put_image(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>, image: Image) -> Result<u64, RuntimeError> {
-        let id = row.field("id")?.as_str()?.to_owned();
+        let id = row.field("id")?.as_str()?.to_owned(); #[cfg(debug_assertions)] debug_assert_eq!(&*image, stored(row));
         let keys = snapback4_core::rows::index_write(table_name, table, row, old, &id)?;
         let tails = Key::tails(&id);
         let indexed_id: Rc<str> = id.as_str().into();

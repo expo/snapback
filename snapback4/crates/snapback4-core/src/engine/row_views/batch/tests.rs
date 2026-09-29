@@ -465,3 +465,76 @@ fn cold_basis_scan_requests_obey_the_caller_allowance_before_decoding() {
         assert!(r.caller_heap_ceiling.is_none());
     }
 }
+
+// Count accesses without nesting the allocation counter: SQLite itself must
+// decode the private witness, rather than MemoryRows merely sharing an Arc.
+struct CountedReads<'a> { rows: &'a dyn Rows, reads: std::cell::Cell<usize>, limits: std::cell::RefCell<Vec<usize>> }
+impl Rows for CountedReads<'_> {
+    fn get(&self, t: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.reads.set(self.reads.get() + 1); self.rows.get(t, id) }
+    fn lookup(&self, t: &str, n: &str, i: &crate::schema::Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.reads.set(self.reads.get() + 1); self.rows.lookup(t, n, i, k) }
+    fn scan(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        self.reads.set(self.reads.get() + 1); self.limits.borrow_mut().push(limit); self.rows.scan(t, i, p, b, d, limit)
+    }
+    fn count_prefix(&self, t: &str, i: &str, p: &[Value], l: u64) -> Result<u64, RuntimeError> { self.reads.set(self.reads.get() + 1); self.rows.count_prefix(t, i, p, l) }
+    fn put(&self, n: &str, t: &crate::schema::Table, r: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.rows.put(n, t, r, old) }
+    fn delete(&self, n: &str, t: &crate::schema::Table, r: &Value) -> Result<u64, RuntimeError> { self.rows.delete(n, t, r) }
+}
+
+#[test]
+fn cold_basis_single_candidate_reserves_private_witness_before_storage_access() {
+    let mut schema = schema(true);
+    schema.tables.get_mut("members").unwrap().columns.insert("note".into(), crate::schema::ColumnType::Text { max: 80_000 });
+    let mut failures = Vec::new();
+    for payload in [0, 256 * 1024] {
+        schema.tables.get_mut("messages").unwrap().columns.insert("payload".into(), crate::schema::ColumnType::Text { max: payload as u32 });
+        let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+        let scratch = runner(&MemoryRows::new(), &schema, "reader").rule_scratch(&schema.tables["messages"].rules.read);
+        assert!(scratch > 80_000, "exists on non-uniform members needs witness scratch");
+        let single = decoder + scratch;
+        let mut admitted_allocations = Vec::new();
+        for note in [1, 80_000] {
+            let mut engine = crate::Engine::memory(schema.clone(), []).unwrap();
+            let mut member = member("mine", "one", "reader", 0);
+            let Value::Row(fields) = &mut member else { unreachable!() };
+            fields.insert("note".into(), Value::String("n".repeat(note)));
+            let mut row = message("m1", "one", 1, Value::Null);
+            let Value::Row(fields) = &mut row else { unreachable!() };
+            fields.insert("payload".into(), Value::String("x".repeat(payload)));
+            engine.seed_at([("members".into(), member.clone()), ("messages".into(), row)], 10).unwrap();
+            let schema = engine.schema().clone();
+            let tx = engine.store_mut().transaction().unwrap();
+            let rows = CountedReads { rows: &tx, reads: Default::default(), limits: Default::default() };
+            for (ceiling, used, admitted) in [(decoder, 0, false), (single - 1, 0, false), (single + 17, 18, false), (single, 0, true)] {
+                for nested in [false, true] {
+                    rows.reads.set(0); rows.limits.borrow_mut().clear();
+                    let mut r = runner(&rows, &schema, "reader");
+                    r.meter.ceilings.heap_bytes = ceiling; r.meter.heap(used).unwrap();
+                    let mut group = [(0, member.clone(), 0)];
+                    let parent = Value::Id("one".into());
+                    let mut read = |r: &mut Runner<'_>| r.certify_acquisition_group(&schema.maintains[0], &parent, &mut group);
+                    let (result, allocated) = crate::rows::word_heap::tests::measured(|| {
+                        if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }
+                    });
+                    eprintln!("single witness: payload={payload} note={note} decoder={decoder} scratch={scratch} ceiling={ceiling} used={used} nested={nested} allocated={allocated} reads={} peak={} result={result:?}", rows.reads.get(), r.meter.heap_peak);
+                    if admitted {
+                        assert!(result.is_ok(), "{result:?}");
+                        assert_eq!(group[0].2, 1);
+                        assert_eq!(r.rebuilt_source_rows, 1);
+                        assert!(rows.reads.get() > 0);
+                        assert!(rows.limits.borrow().iter().all(|limit| *limit == 1));
+                        assert!(allocated <= single, "real allocation must fit the admitted reservation");
+                        if !nested { admitted_allocations.push(allocated); }
+                    } else if !matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })) || rows.reads.get() != 0 || allocated >= decoder {
+                        failures.push(format!("payload={payload} note={note} ceiling={ceiling} used={used} nested={nested}: {result:?}, reads={}, allocated={allocated}", rows.reads.get()));
+                    }
+                    assert_eq!(r.meter.ceilings.heap_bytes, ceiling);
+                    assert_eq!(r.meter.used.heap_bytes, used);
+                    assert!(r.caller_heap_ceiling.is_none());
+                }
+            }
+        }
+        assert!(admitted_allocations[1] >= admitted_allocations[0] + 79_999,
+            "control must actually allocate the large private witness: {admitted_allocations:?}");
+    }
+    assert!(failures.is_empty(), "reserve decoder + witness before storage access:\n{}", failures.join("\n"));
+}
