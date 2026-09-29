@@ -29,7 +29,7 @@ fn durable_schema_and_types_keep_base_bytes() {
     // Pin the exact old and new strings; retain all other historical bytes.
     let record = &mut expected.get_mut("read-through-device.q").unwrap().0;
     let old_reason = "upsert on a read-through child queues without a row";
-    let new_reason = format!("{old_reason}; no branch rewrite: an expiring target can read back as null after insertion; keep the upsert and observe its queued/sent/failed state");
+    let new_reason = format!("{old_reason}; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits");
     let old_rewrite = "use a plain insert with a new id when prediction is needed";
     let new_rewrite = "";
     for (old, new) in [(old_reason, new_reason.as_str()), (old_rewrite, new_rewrite)] {

@@ -49,3 +49,5 @@ If no shape fits the product, this write queues until the server answers;
 show its pending state using the returned write's `state` and `client.onWrite`
 (guide writes). Changing `upsert` to an existence branch does not supply absence
 or cap coverage.
+
+Read-through upserts: no rewrite; adapt the explicit insert/update pattern in `guide prediction`.

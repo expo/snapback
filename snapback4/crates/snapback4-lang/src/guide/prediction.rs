@@ -316,13 +316,53 @@ rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
 invent an empty row or mint different IDs on replay.
 
-A synced read-through child's `upsert` can still queue without a predicted row.
-`why` offers update/insert advice only for always-readable, non-expiring targets
-with complete required images and stable, unchanged keys/values. Optional,
-defaulted, engine-owned or private fields, mixed/row keys, calls, reads and
-spreads withhold advice: insert's image can differ from upsert's read-back or
-branch selection. Keep upsert; observe queued/sent/failed state. Offered branches
-still need held coverage and additional read work. Do not widen read authority
-for this advice. This is not `check --fix`.
+## Read-through upserts: explicit insert/update
+
+An `upsert` on a read-through child queues without a row, even on a synced
+table. `why` points here; it generates no rewrite. Keep `upsert` and observe
+queued/sent/failed state, or adapt this explicit pattern to your schema:
+
+```quarry
+table messages:
+  body: text <=2000
+  cap 100
+  public
+  sync public
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text 1..32
+  immutable message
+  unique message, principal
+  cap 50 by message
+  read through .message
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync
+
+mutation setReaction(message: messages, emoji: text 1..32) predicts:
+  if exists reactions[message, viewer]:
+    update reactions[message, viewer] { emoji }
+  else:
+    insert reactions { message, principal: viewer, emoji }
+  return null
+```
+
+This example deliberately returns null. It is a design pattern, not an
+equivalent replacement expression. Evaluate effectful inputs in the intended
+order; map each named key explicitly. A shared helper must handle every
+caller's argument types, including rows versus references. Decide return values
+and downstream effects explicitly: insert returns its supplied image, whereas
+upsert reads back the row, which can include optional/defaulted fields or be
+null after expiry. An existence test also needs read authority: hidden writable
+rows cannot safely select the insert branch. Do not make private parents public
+to obtain prediction; this example's public messages are a product choice.
+
+Static eligibility still needs held facts at the call. Missing coverage, a
+horizon miss, Left groups, unknown authority or exhausted prediction allowances
+can queue without rows; expiring cap groups can block insert prediction too.
+The extra existence read consumes the meter. Inspect `snapback4 why <op>` and
+observe settlement with `guide writes`; changing syntax supplies no coverage.
 
 "##;

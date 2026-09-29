@@ -4,7 +4,6 @@ use snapback4_core::{Context, Engine, Value, WriteState, wire};
 use snapback4_lang::{Bound, compile};
 
 const AGGREGATE: &str = include_str!("fixtures/ag/aggregate.q");
-const UPSERT: &str = include_str!("fixtures/ag/upsert.q");
 
 fn bound(source: &str) -> Bound { compile(&[("schema.q".into(), source.into())]) }
 fn clean(source: &str) -> Bound {
@@ -82,215 +81,6 @@ fn cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_auth
         .replace("immutable conversation\n  read <- exists members[.conversation, viewer]", "immutable conversation\n  read <- exists members[.conversation, viewer] and .message = 'x'")
         .replace("read <- exists members[.message.conversation, viewer]", "read <- exists members[.message.conversation, viewer] and .message = 'x'");
     assert!(bound(&ambiguous).diagnostics.iter().all(|d| !d.mechanical), "the direct group reference is not the parent's same-named column");
-}
-
-// Advice has a deliberately small domain: the target is always readable and
-// every authored field is required and supplied. Private parents keep upsert.
-fn public_upsert() -> String {
-    UPSERT.replace("table messages:\n  conversation: conversations\n  immutable conversation\n  read <- exists members[.conversation, viewer]\n  sync to members[.conversation] last 500 by .id",
-        "table messages:\n  conversation: conversations\n  immutable conversation\n  public\n  sync public")
-        .replace("view reactionCounts: count reactions by .message, .emoji\n", "")
-}
-fn observes_result(source: &str) -> String {
-    source.replace("mutation setReaction", "effect notify\nmutation setReaction")
-        .replace("  return upsert", "  row = upsert")
-        + "  if row != null:\n    emit notify { row }\n  return row\n"
-}
-fn result_and_effects(e: &mut Engine, emoji: &str) -> (Value, Vec<(String, Value)>, Vec<Value>) {
-    let mut ctx = message_context();
-    ctx.args.insert("emoji".into(), Value::String(emoji.into()));
-    ctx.new_ids = ["00000000000000000000000001".into(), "00000000000000000000000002".into()].into();
-    let out = e.mutate("setReaction", None, ctx).unwrap();
-    let WriteState::Sent { result, .. } = out.state else { panic!("{out:?}") };
-    let effects = e.effects(None, 10).unwrap().into_iter().map(|effect| (effect.effect, effect.payload)).collect();
-    (result, effects, e.store().rows("reactions").unwrap())
-}
-
-#[test]
-fn upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects() {
-    // Positional, named, scalar-id and identical key fields in the patch.
-    for (keys, fields) in [
-        ("message, viewer", "emoji"),
-        ("principal = viewer, message = message", "emoji"),
-        ("message, viewer", "message, principal: viewer, emoji"),
-        ("id = 'reaction'", "message, principal: viewer, emoji"),
-    ] {
-        let expression = format!("upsert reactions[{keys}] {{ {fields} }}");
-        let source = if keys.starts_with("id =") {
-            public_upsert().replace("unique message, principal", "by byMessage: message")
-        } else { public_upsert() };
-        let original = observes_result(&source.replace("upsert reactions[message, viewer] { emoji }", &expression));
-        let b = clean(&original);
-        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-        assert!(site.rewrite.contains("else (insert reactions"), "{site:?}");
-        let fixed = original.replace(&expression, &site.rewrite);
-        let mut a = engine(&original);
-        let mut b = engine(&fixed);
-        for e in [&mut a, &mut b] { chat(e, "ours", "alice"); }
-        for (n, emoji) in ["heart", "laugh"].into_iter().enumerate() {
-            let original = result_and_effects(&mut a, emoji);
-            let pasted = result_and_effects(&mut b, emoji);
-            assert_eq!(original, pasted, "{expression}, {emoji}");
-            assert_ne!(original.0, Value::Null);
-            assert_eq!(original.1.len(), n + 1);
-            assert!(original.1.iter().any(|(_, payload)| payload.field("row").unwrap() == &original.0));
-            assert_eq!(original.2.len(), 1);
-            assert_eq!(original.0.field("emoji").unwrap(), &Value::String(emoji.into()));
-        }
-    }
-}
-
-#[test]
-fn upsert_advice_withholds_expiring_and_optional_result_images() {
-    for (extra, patch, expected_result, effects) in [
-        ("  expiresAt: time\n  expire at .expiresAt\n", "emoji, expiresAt: now", None, 0),
-        ("  expiresAt: time ?\n  expire at .expiresAt\n", "emoji, expiresAt: now", None, 0),
-        ("  extra: text ?\n", "emoji", Some(json!(null)), 1),
-        ("  extra: text ?\n", "emoji, extra: null", Some(json!(null)), 1),
-    ] {
-        let original = observes_result(&public_upsert().replace("table reactions:\n", &format!("table reactions:\n{extra}"))
-            .replace("{ emoji }", &format!("{{ {patch} }}")));
-        let b = clean(&original);
-        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-        let mut e = engine(&original);
-        chat(&mut e, "ours", "alice");
-        let (result, emitted, rows) = result_and_effects(&mut e, "heart");
-        if let Some(value) = expected_result { assert_eq!(wire::to_json(result.field("extra").unwrap()), value); }
-        else { assert_eq!(result, Value::Null); assert!(rows.is_empty()); }
-        assert_eq!(emitted.len(), effects);
-        assert!(site.rewrite.is_empty(), "{extra}: {site:?}");
-        let reason = if extra.contains("expire at") { "expiring target" } else { "optional result fields" };
-        assert!(site.reason.contains(reason) && site.reason.contains("keep the upsert"), "{site:?}");
-    }
-}
-
-#[test]
-fn upsert_advice_keeps_hidden_writable_targets() {
-    let original = observes_result(UPSERT);
-    let mut e = engine(&original);
-    chat(&mut e, "ours", "bob"); // Alice can write her reaction but cannot read this parent.
-    reaction(&mut e, "existing", "alice", "heart");
-    let (result, effects, rows) = result_and_effects(&mut e, "laugh");
-    assert_eq!(result, Value::Null);
-    assert!(effects.is_empty());
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("emoji").unwrap(), &Value::String("laugh".into()));
-    let b = clean(&original);
-    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-    assert!(site.rewrite.is_empty(), "{site:?}");
-    assert!(site.reason.contains("conditional read authority") && site.reason.contains("keep the upsert"), "{site:?}");
-}
-
-#[test]
-fn upsert_advice_withholds_key_changing_patches() {
-    let original = public_upsert().replace("emoji: text 1..32):", "emoji: text 1..32, other: principal):")
-        .replace("{ emoji }", "{ emoji, principal: other }");
-    let b = clean(&original);
-    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-    assert!(site.rewrite.is_empty(), "a different stable principal must not receive advice: {site:?}");
-}
-
-#[test]
-fn upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images() {
-    for original in [
-        UPSERT.to_owned(),
-        public_upsert().replace("  emoji: text 1..32", "  required: int\n  emoji: text 1..32"),
-        public_upsert().replace("  emoji: text 1..32", "  extra: int default 7\n  emoji: text 1..32"),
-        public_upsert().replace("table messages:\n", "table messages:\n  until: time ?\n  immutable until\n  expire at .until\n"),
-    ] {
-        let b = clean(&original);
-        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-        assert!(site.rewrite.is_empty(), "{site:?}");
-    }
-}
-
-#[test]
-fn upsert_advice_withholds_effectful_keys_and_patch_values() {
-    for (key, fields) in [
-        ("message", "emoji: reset(message, emoji)"),
-        ("resetKey(message)", "emoji"),
-        ("message", "emoji: (reactions[message, viewer] ! else NOT_FOUND).emoji"),
-    ] {
-        let original = public_upsert().replace("upsert reactions[message, viewer] { emoji }",
-            &format!("upsert reactions[{key}, viewer] {{ {fields} }}")) + r#"
-fn reset(message: messages, emoji: text 1..32):
-  delete reactions[message, viewer]
-  return emoji
-fn resetKey(message: messages):
-  delete reactions[message, viewer]
-  return message
-"#;
-        let b = clean(&original);
-        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-        assert!(site.rewrite.is_empty(), "{key}, {fields}: {site:?}");
-        let mut e = engine(&original);
-        chat(&mut e, "ours", "alice");
-        reaction(&mut e, "existing", "alice", "heart");
-        let mut ctx = message_context(); ctx.args.insert("emoji".into(), Value::String("laugh".into()));
-        let out = e.mutate("setReaction", None, ctx).unwrap();
-        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-        let rows = e.store().rows("reactions").unwrap();
-        assert_eq!(rows.len(), 1);
-        let expected = if fields.contains("reactions[") { "heart" } else { "laugh" };
-        assert_eq!(rows[0].field("emoji").unwrap(), &Value::String(expected.into()));
-    }
-}
-
-#[test]
-fn row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite() {
-    let original = public_upsert().replace("unique message, principal", "by byMessage: message")
-        .replace("  return upsert reactions[message, viewer] { emoji }",
-        "  row = reactions[id = 'existing'] ! else NOT_FOUND\n  return upsert reactions[row] { message, principal: viewer, emoji }");
-    let b = clean(&original);
-    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-    assert!(site.rewrite.is_empty(), "a row key needs row.id, not an inferred id = row: {site:?}");
-    let mut e = engine(&original);
-    chat(&mut e, "ours", "alice"); reaction(&mut e, "existing", "alice", "heart");
-    let mut ctx = message_context(); ctx.args.insert("emoji".into(), Value::String("laugh".into()));
-    assert!(matches!(e.mutate("setReaction", None, ctx).unwrap().state, WriteState::Sent { .. }));
-    let rows = e.store().rows("reactions").unwrap();
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("emoji").unwrap(), &Value::String("laugh".into()));
-}
-
-#[test]
-fn mixed_key_upsert_advice_cannot_change_existing_row_identity() {
-    let original = r"table parents:
-  public
-  sync public
-table children:
-  tag: id
-  parent: parents
-  body: text <=100
-  unique tag, id
-  immutable parent
-  read through .parent
-  insert <- allow
-  update <- allow
-  sync
-mutation save(id: id, tag: id, parent: parents, body: text <=100):
-  return upsert children[id, tag = tag] { parent, body }
-";
-    let b = clean(original);
-    let site = b.schema.operations["save"].sites.iter().find(|s| s.kind == "upsert").unwrap();
-    let fixed = original.replace("upsert children[id, tag = tag] { parent, body }", &site.rewrite);
-    for source in std::iter::once(original).chain((!site.rewrite.is_empty()).then_some(fixed.as_str())) {
-        let mut e = engine(source);
-        load(&mut e, "parents", json!({"id":"p"}));
-        load(&mut e, "children", json!({"id":"A","tag":"B","parent":"p","body":"old"}));
-        let ctx = Context::new("alice", [
-            ("id".into(), Value::Id("A".into())), ("tag".into(), Value::Id("B".into())),
-            ("parent".into(), Value::Id("p".into())), ("body".into(), Value::String("new".into())),
-        ].into()).at(100);
-        let out = e.mutate("save", None, ctx).unwrap();
-        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-        let rows = e.store().rows("children").unwrap();
-        assert_eq!(rows.len(), 1, "source={source}");
-        for (name, expected) in [("id", "A"), ("tag", "B"), ("parent", "p"), ("body", "new")] {
-            assert_eq!(wire::to_json(rows[0].field(name).unwrap()), json!(expected));
-        }
-    }
-    assert!(site.rewrite.is_empty(), "mixed keys must withhold speculative insert advice");
 }
 
 #[test]
@@ -375,8 +165,10 @@ fn cal24_length_guesses_share_unicode_list_and_meter_semantics() {
     }
     let mut e = engine("query sizes():\n  return [len([1, 2]), length([3]), count([])]\n");
     assert_eq!(wire::to_json(&e.query("sizes", context()).unwrap().data), json!([2,1,0]));
-    let mut e = engine("fn length(n: int): n + 1\nquery custom():\n  return length(41)\n");
-    assert_eq!(e.query("custom", context()).unwrap().data, Value::Int(42));
+    for alias in ["len", "length"] {
+        let mut e = engine(&format!("fn {alias}(n: int): n + 1\nquery custom():\n  return {alias}(41)\n"));
+        assert_eq!(e.query("custom", context()).unwrap().data, Value::Int(42), "{alias}");
+    }
 }
 
 #[test]

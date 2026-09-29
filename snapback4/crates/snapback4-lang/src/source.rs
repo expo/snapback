@@ -15,10 +15,6 @@ impl SourceMap {
         self.declarations.extend(other.declarations.clone());
     }
 
-    pub(crate) fn syntax_at(&self, site: &crate::diag::Site) -> Option<&Expr> {
-        self.expressions.get(&site.to_string()).map(|(expr, _, _)| expr)
-    }
-
     pub(crate) fn record(&mut self, expr: &Expr, lines: &[String], tokens: &[Token]) {
         // Block expressions consume layout tokens after their final source
         // token. A dedent's site can already be on the next declaration.

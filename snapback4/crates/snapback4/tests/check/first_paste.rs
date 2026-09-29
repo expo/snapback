@@ -14,6 +14,25 @@ fn failing_check_keeps_the_terse_prediction_reason() {
 }
 
 #[test]
+fn read_through_upsert_prints_the_reason_and_guide_without_a_rewrite() {
+    let project = Project::new();
+    project.source("table parents:\n  public\n  sync public\ntable children:\n  parent: parents\n  owner: principal\n  body: text\n  immutable parent\n  unique parent, owner\n  cap 50 by parent\n  read through .parent\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  sync\nmutation save(parent: parents, body: text):\n  return upsert children[parent, viewer] { body }\n");
+    for flags in [vec!["why", "save"], vec!["check"], vec!["check", "--verbose"], vec!["check", "--residency"]] {
+        let output = project.run(&flags);
+        assert!(output.status.success(), "{output:?}");
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("upsert on a read-through child queues without a row"), "{text}");
+        assert!(!text.contains("reads online-only table children"), "{text}");
+        let lines: Vec<_> = text.lines().collect();
+        for (i, line) in lines.iter().enumerate().filter(|(_, line)| line.contains("upsert on a read-through child queues without a row")) {
+            assert!(!line.contains("rewrite:"), "{text}");
+            assert!(!lines.get(i + 1).is_some_and(|next| next.trim_start().starts_with("rewrite:")), "{text}");
+            assert!(line.contains("snapback4 guide prediction") && line.contains("Read-through upserts: explicit insert/update"), "{text}");
+        }
+    }
+}
+
+#[test]
 fn terse_check_counts_and_explains_search_behavior_warnings() {
     let project = Project::new();
     let schema = r#"

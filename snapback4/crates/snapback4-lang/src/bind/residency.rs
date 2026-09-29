@@ -86,8 +86,13 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 if let Some(parent) = &definition.through {
                     if kind != "insert" {
+                        // @ref LLP 3000.007#23 — upsert branches are an author choice; give a guide pointer, never generated code.
+                        let mut reason = format!("{kind} on a read-through child queues without a row");
+                        if kind == "upsert" {
+                            reason.push_str("; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits");
+                        }
                         fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
-                            reason: format!("{kind} on a read-through child queues without a row"), rewrite: String::new() });
+                            reason, rewrite: String::new() });
                     }
                     fact.sites.push(site(schema,&format!("{kind} {table}"),&parent.parent,"byId","read through capture"));
                     rule_sites(schema,&schema.tables[&parent.parent].rules.read,&format!("{kind} {table} parent rule"),&mut fact.sites,&mut BTreeSet::new());
@@ -196,23 +201,6 @@ pub(super) fn locate_sites(catalog: &Catalog, program: &super::BoundProgram, fac
         else {
             for location in locations {
                 let mut copy = site.clone();
-                if copy.kind == "upsert" && let Some((source_site, _)) = program.sources.values()
-                    .find(|(source_site, name)| location == format!("{source_site} ({name})"))
-                    {
-                    let advice = if program.row_write_keys.contains(&source_site.to_string()) {
-                        Err("row-valued positional keys have no proven insert image")
-                    } else { super::first_paste::upsert(catalog, source_site) };
-                    match advice {
-                        Ok(rewrite) => {
-                            copy.rewrite = rewrite;
-                            copy.reason.push_str("; the explicit update/insert alternative needs held key coverage and additional read work, and may still queue past a horizon");
-                        }
-                        Err(reason) => {
-                            copy.rewrite.clear();
-                            copy.reason.push_str(&format!("; no branch rewrite: {reason}; keep the upsert and observe its queued/sent/failed state"));
-                        }
-                    }
-                }
                 copy.site = location;
                 if !located.contains(&copy) { located.push(copy); }
             }

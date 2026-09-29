@@ -1,0 +1,17 @@
+mutation setReaction(message: a messages reference, emoji: text <=32)
+  returns a reactions row ?
+  setReaction: predicts: never; queued without a row
+    Held: write target reactions by index (message, principal), chosen by the planner: held, no horizon (site schema.q:32:10)
+    Horizon: read through parent messages by byId: sync to members[.conversation] last 500 by index (conversation, id), chosen by the planner (site schema.q:32:10); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site schema.q:32:10)
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site schema.q:32:10)
+    Held: upsert insert into reactions: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site schema.q:32:10)
+    Server: upsert on a read-through child queues without a row; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits (site schema.q:32:10 (upsert reactions))
+    Horizon: read through capture messages by byId: sync to members[.conversation] last 500 by index (conversation, id), chosen by the planner (site schema.q:32:10 (upsert reactions)); server past the horizon
+      rewrite: remove a redundant guard, or read a synced fact without a horizon
+    Held: rule members by index (conversation, principal), chosen by the planner: held, no horizon (site schema.q:27:3 (reactions update rule: members by index (conversation, principal), chosen by the planner))
+  mutation setReaction:
+    scale: constant — at most 8197 rows examined, 8195 probes, 0 lanes; per write: `reactionCounts`: at most 2 derived writes per source transition (old/new groups)
+    write target reactions using index (message, principal), chosen by the planner — engine-private lookup; the update rule decides
+    upsert reactions, fans out to the members in members

@@ -1,0 +1,44 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 2.27s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 1 test
+test first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite ... FAILED
+
+failures:
+
+---- first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite stdout ----
+
+thread 'first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite' (1218319) panicked at crates/snapback4/tests/check/first_paste.rs:29:13:
+mutation save(parent: a parents reference, body: text <=10000)
+  returns a children row ?
+  save: predicts: never; queued without a row
+    Held: write target children by index (parent, owner), chosen by the planner: held, no horizon (site schema.q:16:10)
+    Held: read through parent parents by byId: held, no horizon (site schema.q:16:10)
+    Held: upsert insert into children: predicts only when the key, insert image and constraint groups are held and readable; otherwise queues without a row (site schema.q:16:10)
+    Server: upsert on a read-through child queues without a row; the explicit update/insert alternative needs held key coverage and additional read work, and may still queue past a horizon (site schema.q:16:10 (upsert children))
+      rewrite: (update children[parent, viewer] { body }) if exists children[parent = parent, owner = viewer] else (insert children { body, parent: parent, owner: viewer })
+    Held: read through capture parents by byId: held, no horizon (site schema.q:16:10 (upsert children))
+  mutation save:
+    scale: constant — at most 8194 rows examined, 8193 probes, 0 lanes
+    write target children using index (parent, owner), chosen by the planner — engine-private lookup; the update rule decides
+    upsert children, fans out to everyone
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

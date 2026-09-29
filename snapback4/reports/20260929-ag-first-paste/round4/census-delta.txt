@@ -1,0 +1,3 @@
+Added:
+card/prediction/4:setReaction | eligible
+Removed:

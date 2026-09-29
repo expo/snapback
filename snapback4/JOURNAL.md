@@ -76338,3 +76338,54 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — AG round 4: withdraw generated read-through upsert rewrites
+
+Fetched and merged origin/main first (b7d05baff), preserving both appended
+journal tails in merge 7dec18559. Read all prior prompts/reports, the Snapback 4
+fence and Astra's entire round-3 review. Following the supervisor's decision,
+removed the upsert rewrite generator, its eight dedicated tests, source-syntax
+lookup and row-key tracking. Four review rounds exposed effect order, mixed-key
+identity, expiry/optional result, surrounding-expression precedence and shared
+helper argument-type hazards. The shared-helper Low is now moot: no caller gets
+generated code. Existing upsert execution and prediction behavior are unchanged.
+
+The truthful reason remains "upsert on a read-through child queues without a
+row" and points to snapback4 guide prediction, section "Read-through upserts:
+explicit insert/update". Its compiled example is for the builder to adapt;
+return values/effects, authority and prediction limits are explicit. A new CLI
+regression rejects a rewrite line for this diagnostic in why, default, verbose
+and residency output. It detects the old compiler. Existing reason tests remain.
+The declared-helper assertion now executes both len and length; overriding only
+declared len makes it fail. The mutant is restored. LLP 3000.007 §23 records the
+withdrawal and supersedes the earlier claimed equivalent subset. No runtime,
+client, authority, disclosure, bound or meter implementation change.
+
+Affected checks: 1 compatibility, 9 first-paste, 99 whole-guide, 11 lowering and
+41 residency tests; 150 CLI tests; 2 device witnesses all pass. Reference checks
+and whitespace checks pass. Whole-guide development failures and red controls
+are retained and attributed in round4/FAILURES.md; no guide fact/block or budget
+was removed or raised to make them pass.
+
+Ran scripts/test.sh exactly once, exit 1. Exact summary:
+
+```text
+== 1 failure(s) in 1381 s
+   cargo test
+```
+
+The sole failure is ours: readauth's authoring census lacked the new guide
+example, card/prediction/4:setReaction | eligible. Its delta is one added entry,
+zero removals and no new private write site. Corrected that expected entry;
+the entire readauth target then passed 81/81. The original full-suite result
+remains failed, not replaced by the targeted rerun. Rust: 274 binaries / 987
+executions, 4,329 passed / 1 failed / 33 ignored. Client tests: 4,561 passed /
+ten skips / zero failed; client models 79/79; fixture wrapper 9/9. Every other
+stage passed. Attribution: ours 1 (fixed), baseline 0, environmental 0. The
+inherited 60-second suite target remains missed; no timeout or ceiling changed.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-ag-first-paste/round4/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 3.65s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... FAILED
+
+failures:
+
+---- cal24_length_guesses_share_unicode_list_and_meter_semantics stdout ----
+
+thread 'cal24_length_guesses_share_unicode_list_and_meter_semantics' (1292139) panicked at crates/snapback4-lang/tests/first_paste.rs:11:5:
+[Diagnostic { site: Site { file: "schema.q", line: 3, col: 14 }, code: "E_QUARRY_TYPE", message: "count takes present text, a list or a page, got int", rewrite: "count(text), count(list), or count(page); narrow optional values first", guide: "types", mechanical: false, cascade_of: None }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cal24_length_guesses_share_unicode_list_and_meter_semantics
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`
