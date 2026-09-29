@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 // @ref LLP 3000.023#3.4 — row deadlines stay exact, including without timer delivery.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +26,7 @@ function fixture(t, keep) {
     }, arm, () => {});
   });
   handle.subscribe(() => notifications++);
-  owner.publish({ data: "private", complete: true, fresh: true, next: null, cut: null });
+  owner.publish(readyRead({ data: "private", complete: true, fresh: true, next: null, cut: null }));
   t.after(() => { handle.close(); for (const watch of watches.values()) watch.lingering?.close(); });
   return { handle, owner, watches, peek: () => peekObservation(raw, q, {}, options),
     notifications: () => notifications, wall: n => { wall = n; },

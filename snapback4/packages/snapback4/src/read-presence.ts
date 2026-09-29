@@ -1,0 +1,12 @@
+import type { Ready, ReadyMetadata } from "./contract.ts";
+
+// @ref LLP 3000.031#1.1 — precedence is present, absent, partial; freshness never demotes.
+export function readyPresence(read: ReadyMetadata & { readonly data: unknown }, pending: boolean): "present" | "absent" | "partial" {
+  if (read.data !== null && !(Array.isArray(read.data) && read.data.length === 0)) return "present";
+  return read.complete && read.cut === null && read.next == null && !pending ? "absent" : "partial";
+}
+
+/** Internal publication constructor. No presence field crosses the wire. */
+export function readyRead<T>(read: ReadyMetadata & { readonly data: T }, pending = false): Ready<T> {
+  return { ...read, presence: readyPresence(read, pending) } as Ready<T>;
+}

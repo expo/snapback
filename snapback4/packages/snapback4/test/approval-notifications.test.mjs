@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ReadApprovals } from "../dist/read-approval.js";
@@ -5,7 +6,7 @@ import { ReadObservation } from "../dist/read-observation.js";
 import { fixture } from "./helpers/authority-fixture.mjs";
 
 const q = { kind: "query", name: "read" };
-const ready = data => ({ data, complete: true, fresh: true, next: null, cut: null });
+const ready = data => (readyRead({ data, complete: true, fresh: true, next: null, cut: null }));
 // Authority uses only promises here; no wall-time races or polling timers.
 async function settle() { for (let i = 0; i < 20; i++) await Promise.resolve(); }
 function gates(t, f, count) {

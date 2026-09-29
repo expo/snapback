@@ -1,5 +1,5 @@
 import type { Read } from "./contract.ts";
-import { answerIdentity, answerObservation, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
+import { answerPresence, answerIdentity, answerObservation, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { ReadEpisode } from "./read-episode.ts";
@@ -61,7 +61,7 @@ export class ReadApprovals {
     // Swap registrations without an intermediate loading notification.
     this.drops.get(owner)?.({ loading: true });
     answer.snapshot = read;
-    const held = answer;
+    const held = answer, pending = owner.pending;
     const notify = () => this.notify(owner);
     const withdraw = () => {
       held.snapshot = { loading: true };
@@ -76,7 +76,7 @@ export class ReadApprovals {
       return changed ? notify : undefined;
     };
     update(read);
-    held.read = () => { expiry.check(); episode.check(); return held.snapshot; };
+    held.read = () => { owner.read(null); expiry.check(); episode.check(); if (pending) held.snapshot = answerPresence(held.snapshot, pending()); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
       const next = owner.snapshot;
       if (change === "reset" || !("data" in next)) {
@@ -87,7 +87,7 @@ export class ReadApprovals {
         return drop({ loading: true });
       }
       return update(answerIdentity(next) === answerIdentity(held.snapshot) ? next
-        : revalidatingAnswer(held.snapshot, !owner.linger));
+        : revalidatingAnswer(held.snapshot, !owner.linger, pending?.()));
     };
     const release = () => {
       held.generation++;

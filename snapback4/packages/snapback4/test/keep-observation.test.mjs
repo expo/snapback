@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
@@ -9,7 +10,7 @@ import { createClient } from "../dist/client.js";
 import { createApp } from "../dist/app.js";
 import { keepSession, memorySessionStore } from "../dist/auth.js";
 import { ServerClock } from "../dist/clock.js";
-const ready = data => ({ data, complete: true, cut: null, fresh: true, next: null });
+const ready = data => (readyRead({ data, complete: true, cut: null, fresh: true, next: null }));
 const why = { code: "HIDDEN", family: "rule", message: "no longer visible" };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 async function until(check) { for (let i = 0; i < 600; i++) { if (check()) return; await delay(5); } assert.fail("read did not settle"); }

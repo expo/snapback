@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
@@ -14,7 +15,7 @@ import { binary, until } from "./helpers/app-server.mjs";
 import { ephemeralServer, api } from "./helpers/ephemeral-server.mjs";
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
-const ready = data => ({ data, complete: true, fresh: true, tables: [], seq: 10 });
+const ready = data => (readyRead({ data, complete: true, fresh: true, cut: null, tables: [], seq: 10 }));
 const parked = signal => new Promise((_, reject) => {
   if (signal.aborted) reject(Error("closed"));
   else signal.addEventListener("abort", () => reject(Error("closed")), { once: true });

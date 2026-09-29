@@ -78,7 +78,7 @@ class Observation<R> {
   private unsubscribe: (() => void) | null = null;
   private subs = new Set<() => void>();
   constructor(private open: () => Observed<R>, private peek: () => Read<R> | undefined) {}
-  getSnapshot = (): Read<R> => this.observed?.getSnapshot() ?? this.peek() ?? LOADING;
+  getSnapshot = (): Read<R> => this.observed?.getSnapshot() ?? this.peek() ?? (LOADING as Read<R>);
   subscribe = (notify: () => void) => {
     this.subs.add(notify);
     if (!this.observed) {

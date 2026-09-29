@@ -1,3 +1,4 @@
+import { readyRead } from "./read-presence.ts";
 // @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, combined keyset continuation.
 import type { SearchComposition } from "./backend.ts";
 import type { Cursor, Read, Refusal } from "./contract.ts";
@@ -246,8 +247,8 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       || (remote.nextExpiry != null && remote.nextExpiry <= env.serverNow())) return { ...loading, retryExpired: true };
     // A missing head after an undisclosed cut is not proven exhaustion.
     const remoteSafe = remote.complete !== false || !!remote.next;
-    if (!remoteSafe) return { ...loading, read: { data: [], complete: false, fresh: false,
-      cut: remote.cut ?? local.cut ?? null, next: null } };
+    if (!remoteSafe) return { ...loading, read: readyRead({ data: [], complete: false, fresh: false,
+      cut: remote.cut ?? local.cut ?? null, next: null }) };
     // @ref LLP 3000.028#3.3 — an unproved device head cannot erase proved server hits.
     // Discovery may have missed a newer retained word, so even returned local
     // candidates are not a global head. Publish only the proven current stream
@@ -325,9 +326,9 @@ export async function ordinarySearch(env: QueryEnvironment, name: string, input:
       ledger.charge("output_bytes", next.length);
     }
     const seq = [response.json.seq, response.json.head].find(x => typeof x === "number") as number | undefined;
-    return { read: { data, complete: local.complete !== false && remote.complete !== false,
+    return { read: readyRead({ data, complete: local.complete !== false && remote.complete !== false,
       cut: remote.cut ?? local.cut ?? null, fresh: !retainedEmitted, next: next as Cursor | null,
-      ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) },
+      ...(retainedEmitted && env.lastSyncAt ? { since: Math.min(env.lastSyncAt, Date.now()) } : {}) }),
       nextExpiry: local.nextExpiry ?? null, serverExpiry: remote.nextExpiry ?? null,
       credential, seq, served: true, searchAttempt: true };
   } catch (error) {

@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { answerIdentity } from "../dist/read-observation.js";
@@ -223,7 +224,7 @@ for (const keep of [undefined, true]) test(`release fences pending authority bef
   const watch = f.client.observe(q, {}, opts);
   await settle(); f.publish("A"); await settle();
   const [pending] = gates(t, f, 1); f.publish("B");
-  f.owner().reset({ data: "C", complete: true, fresh: true, cut: null, next: null });
+  f.owner().reset(readyRead({ data: "C", complete: true, fresh: true, cut: null, next: null }));
   const withdrawal = watch.getSnapshot(); assert.deepEqual(withdrawal, { loading: true });
   pending.resolve(true); await settle();
   assert.equal(watch.getSnapshot(), withdrawal, "release invalidates the check before raw subscribers run");

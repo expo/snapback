@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 // LLP 3000.018 §3.2: remembered server answers are ordered by the store cut a
 // reply read, then by when its read attempt began; a refetch within an attempt
 // is a new read, and a cut once named stays known.
@@ -6,7 +7,7 @@ import assert from "node:assert/strict";
 import { RememberedAnswers } from "../dist/local-reads.js";
 import { evaluateLocal } from "../dist/local-query.js";
 
-const answer = data => ({ read: { data, complete: true, cut: null, fresh: true, next: null }, at: 1, nextExpiry: null, tables: new Set() });
+const answer = data => ({ read: readyRead({ data, complete: true, cut: null, fresh: true, next: null }), at: 1, nextExpiry: null, tables: new Set() });
 
 test("a later cut wins; at one cut, or without one, the read that began later wins", () => {
   const answers = new RememberedAnswers();

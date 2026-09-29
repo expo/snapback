@@ -1,3 +1,4 @@
+import { readyRead } from "./read-presence.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
@@ -21,9 +22,8 @@ import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
-import { ReadObservation } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
-import { runsOnServer, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
+import { runsOnServer, localWatch, pendingTables, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
 import { BackendAuthError, BackendRefusalError, loadBackend, openLocalDevice } from "./local-backend.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
@@ -290,6 +290,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   async function call(request: Record<string, unknown>, committedTables?: Set<string>, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
+    const admission = request.op === "admit";
+    if (admission) { answers.admissions++; for (const watch of watches.values()) if (watch.updatePresence()) notify(watch); }
     let observed = false;
     const delivery: (() => void)[] = [];
     const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
@@ -324,7 +326,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile();
       return result;
     }
-    finally { active.delete(work); deliver(); }
+    finally { if (admission) { answers.admissions--; for (const watch of watches.values()) if (watch.updatePresence()) notify(watch); } active.delete(work); deliver(); }
   }
   let transportFailure: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
@@ -764,7 +766,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept) { void rerun(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
-          watch.publish({ ...read, fresh: true });
+          watch.publish(readyRead({ ...read, fresh: true }, watch.pending?.() ?? false));
           notify(watch);
         }
       }
@@ -972,7 +974,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
-          watch.tables = tables;
+          watch.tables = tables; watch.setPresenceTables(result.presenceTables ?? null);
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
           const denied = unavailable();
           watch.publish(denied ? { denied } : read);
@@ -1007,7 +1009,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
-        watch.tables = tables;
+        watch.tables = tables; watch.setPresenceTables(result.presenceTables ?? null);
         // @ref LLP 3000.018#3.2 — a server's answer decides the refresh interval; one from this device keeps it.
         if (served) watch.presenceEvery = after;
         armPresence(watch);
@@ -1040,7 +1042,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  function queued() { return readQueued(call, mutationIds, history, settling); }
+  function queued() { return answers.readQueued(() => readQueued(call, mutationIds, history, settling), watches.values()); }
   let reconcileNeeded = false; // @ref LLP 3000.019#3.3 — failed housekeeping retries without gating dispatch.
   const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
     committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
@@ -1195,7 +1197,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
-        () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation }),
+        () => localWatch(keep, op as Query<unknown, unknown>, args, key, incarnation, tables => {
+          const control = core[deviceControl]?.();
+          return answers.admissions > 0 || (control ? pendingTables(control.predictions, tables) : answers.pending(tables));
+        }),
         watch => {
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.

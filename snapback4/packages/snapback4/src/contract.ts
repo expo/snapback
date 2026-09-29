@@ -56,15 +56,38 @@ export type ReadCut = "meter" | "words" | null;
  * or the deadline withdraws to loading, even if a host timer has not run.
  * `keep: false` withdraws immediately; `keep: true` retains without that time cap
  * and lingers for 30 s after the last subscriber leaves. Retention can show
- * revoked rows during a re-read. Gate actions on `isReady(read) && !read.revalidating`;
+ * revoked rows during a re-read. Gate revealing/exporting actions on `isReady(read) && !read.revalidating`;
  * use `keep: false` for exports, copies or playback that must withdraw at once.
  * Every option withdraws on expiry, a refusal, a viewer or credential change,
  * store reset, adoption or close. Retention never grants authority.
  * @ref LLP 3000.023#3.1 — bounded retention is separate from server freshness.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
+// @ref LLP 3000.031#1.1 — presence describes the disclosed value, never hidden rows.
+export interface ReadyMetadata {
+  readonly complete: boolean;
+  readonly cut: ReadCut;
+  readonly fresh: boolean;
+  readonly revalidating?: true;
+  readonly since?: number;
+  readonly next?: Cursor | null;
+  readonly meter?: ReadMeter;
+}
+type Present<T> = { readonly presence: "present"; readonly data: T };
+type Partial<T> = { readonly presence: "partial"; readonly data: T };
+type Absent<T> = { readonly presence: "absent"; readonly data: T };
+// Keep the arms explicit so generic isReady callers still see data: T.
+// Intersections narrow nullable points; unknown remains the erased SDK carrier.
+export type Ready<T> = ReadyMetadata & (
+  Present<T & (unknown extends T ? unknown : null extends T ? NonNullable<unknown> : unknown)>
+  | Partial<T>
+  | (Absent<T> & (unknown extends T ? unknown
+    : [T] extends [readonly unknown[]] ? unknown
+    : null extends T ? { readonly data: T & null; readonly complete: true; readonly cut: null }
+    : never))
+);
 export type Read<T> =
-  | { readonly data: T; readonly complete: boolean; readonly cut: ReadCut; readonly fresh: boolean; readonly revalidating?: true; readonly since?: number; readonly next?: Cursor | null; readonly meter?: ReadMeter }
+  | Ready<T>
   | { readonly loading: true }
   | { readonly denied: Refusal };
 
@@ -305,4 +328,9 @@ export function isLoading<T>(read: Read<T>): read is { readonly loading: true } 
 }
 export function isDenied<T>(read: Read<T>): read is { readonly denied: Refusal } {
   return "denied" in read;
+}
+
+/** The five UI meanings; narrow on read.presence after isReady for typed data. */
+export function presence<T>(read: Read<T>): "loading" | "denied" | "present" | "absent" | "partial" {
+  return "loading" in read ? "loading" : "denied" in read ? "denied" : read.presence;
 }

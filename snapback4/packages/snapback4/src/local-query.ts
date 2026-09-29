@@ -1,3 +1,4 @@
+import { readyRead } from "./read-presence.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
@@ -26,7 +27,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { presenceTables?: Set<string> | null; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -111,10 +112,11 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
+  let pendingResult = false;
   const pending = async () => {
-    if (env.coldRead) return env.coldRead.pending(possible);
+    if (env.coldRead) return pendingResult = env.coldRead.pending(possible);
     const entries = await env.queued(); checkpoint();
-    return entries.some(entry => {
+    return pendingResult = entries.some(entry => {
       if (entry.observed_seq != null || entry.predictable !== true) return false;
       if (!entry.predicted) return true; // Legacy missing footprints are unknown.
       return [...predictedTables(entry.predicted)].some(table => possible === null || possible.has(table));
@@ -138,7 +140,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       env.serverAnswers.forget(key); last = undefined;
     }
     if (last) for (const table of last.tables) tables.add(table);
-    const read: Read<R> = last ? { ...last.read, fresh: false, since: Math.min(last.at, Date.now()) } as Read<R>
+    const read: Read<R> = last ? readyRead({ ...last.read, data: last.read.data as R, fresh: false, since: Math.min(last.at, Date.now()) })
       : watch ? { loading: true } : { denied: env.offline() };
     // Rules 4/5: recovery still depends on the local branch's next deadline.
     // Its wakeup is separate from the remembered answer's server-clock expiry.
@@ -163,7 +165,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     // Rules 3/4. `loading` is the engine's unavailable bit; placeholder values
     // are filtered separately. Local freshness is assigned only at publication.
     const read: Read<R> = denied ? { denied } : outcome.loading || !("data" in outcome) ? { loading: true }
-      : { data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null };
+      : readyRead({ data: outcome.data as R, complete: !outcome.unknown && outcome.complete !== false, cut: outcome.cut ?? null, fresh: false, next: (outcome.next as Cursor | null | undefined) ?? null });
     latest = { outcome, result: { read, tables, nextExpiry } };
     return latest;
   };
@@ -190,7 +192,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         for (const table of (json.tables as string[] | undefined) ?? []) tables.add(table);
         const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
         const read: Read<R> = json.denied ? { denied: json.denied as Refusal } : json.loading || !("data" in json) ? { loading: true }
-          : { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null };
+          : readyRead({ data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next: (json.next as Cursor | null | undefined) ?? null });
         const cut = [json.seq, json.head].find(value => typeof value === "number" && Number.isFinite(value)) as number | undefined;
         return { result: { read, delivery: json.delivery, credential: credentials, tables, nextExpiry: null, serverExpiry: nextExpiry, rowProvenance: json.rowProvenance, refresh: typeof json.refresh === "number" && Number.isFinite(json.refresh) ? json.refresh : undefined, served: true, seq: cut, ...(eph ? { ephemeralRequest: eph, ephemeral: json.ephemeral } : {}) }, origin: "server" };
       }
@@ -233,7 +235,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // @ref LLP 3000.014#5 — only engine source identities pair retained rows
       // with the current server page; routing and publication use Rules 1–5.
       return { origin: "composed", result: {
-        read: { ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false },
+        read: readyRead<R>({ ...remote.result.read, data: keepRetainedRows(remote.result.read.data, second.outcome.data, second.outcome.retainedRows, remote.result.rowProvenance) as R, fresh: false, complete: false }),
         tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential,
       } };
     }
@@ -243,7 +245,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const kept = coverage.filter(([, c]) => !wantsServer(c));
     const data = { ...remote.result.read.data as Record<string, unknown> };
     for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
-    return { origin: "composed", result: { read: { data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }, tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
+    return { origin: "composed", result: { read: readyRead({ data: data as R, complete: remote.result.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.result.read.cut ?? null, fresh: false, ...(composedSince ? { since: Math.min(composedSince, Date.now()) } : {}), next: null }), tables, nextExpiry: second.result.nextExpiry, serverExpiry: remote.result.serverExpiry ?? null, refresh: remote.result.refresh, served: true, seq: remote.result.seq, credential: remote.result.credential } };
   };
   const route = async (): Promise<Candidate<R>> => {
     checkpoint();
@@ -281,6 +283,13 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (stopped) candidate = localCandidate();
       }
       const { result, origin } = candidate;
+      // @ref LLP 3000.031#1.1 — reuse the external-answer pending predicate,
+      // including complete-local dependency narrowing, at final publication.
+      const empty = "data" in result.read && (result.read.data === null || Array.isArray(result.read.data) && result.read.data.length === 0);
+      const pendingHere = origin === "local" && empty ? await pending() : pendingResult;
+      checkpoint();
+      result.presenceTables = possible;
+      if ("data" in result.read) result.read = readyRead<R>(result.read, pendingHere);
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
         return { ...loading, ephemeralStale: true };
       }
@@ -329,7 +338,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       }
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
-      return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
+      return { ...result, read: readyRead<R>({ ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) }, pendingHere) };
     }
   };
   try {
@@ -337,9 +346,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const result = await publish(candidate); checkpoint();
     return { ...result, ...(searchAttempt ? { searchAttempt: true } : {}) };
   } catch (error) {
-    if (error instanceof Interrupted) return { ...error.result, ...(searchAttempt ? { searchAttempt: true } : {}) };
+    if (error instanceof Interrupted) return { ...error.result as Result<R>, ...(searchAttempt ? { searchAttempt: true } : {}) };
     // An await that rejects still crosses a session/incarnation boundary.
-    try { checkpoint(); } catch (interruption) { if (interruption instanceof Interrupted) return { ...interruption.result, ...(searchAttempt ? { searchAttempt: true } : {}) }; throw interruption; }
+    try { checkpoint(); } catch (interruption) { if (interruption instanceof Interrupted) return { ...interruption.result as Result<R>, ...(searchAttempt ? { searchAttempt: true } : {}) }; throw interruption; }
     throw error;
   }
 }

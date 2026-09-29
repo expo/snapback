@@ -1,3 +1,4 @@
+import { pendingTables } from "./local-reads.ts";
 import type { StoreCapture } from "./local-types.ts";
 import { restoreFloor, restoreRefusal } from "./device-restore.ts";
 
@@ -74,6 +75,6 @@ export function coldReadControl(read: () => DeviceControlSnapshot | undefined, c
         && now.queuedRevision === captured.queuedRevision && now.send_revision === captured.send_revision
         && now.issuedFloor === captured.issuedFloor;
     },
-    pending(tables) { return captured.predictions === null || captured.predictions.some(table => tables === null || tables.has(table)); },
+    pending(tables) { return pendingTables(captured.predictions, tables); },
   };
 }

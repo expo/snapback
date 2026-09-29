@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 // Protocol doubles for the authored optional B1d.3 invitation-handler source.
 // These are not engine, crash-process, authentication or provider qualification.
 import test from "node:test";
@@ -14,7 +15,7 @@ const { ParkStep } = await import("snapback4/server");
 const { Retry } = await import("snapback4/worker");
 
 const sha256 = value => createHash("sha256").update(value, "utf8").digest("hex");
-const fresh = (data, extra = {}) => ({ data, complete: true, cut: null, fresh: true, ...extra });
+const fresh = (data, extra = {}) => (readyRead({ data, complete: true, cut: null, fresh: true, ...extra }));
 const denied = { denied: { code: "ORGANIZATION_ADMIN_REQUIRED", family: "rule", message: "admin required" } };
 const operations = {
   adminOrganizationSummary: { kind: "query", name: "organizations.adminOrganizationSummary" },

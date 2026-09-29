@@ -1,3 +1,4 @@
+import { readyRead } from "../dist/read-presence.js";
 // @ref LLP 3000.016#2.2 — every publication uses possible reads, not just the reads a speculative branch took.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -166,7 +167,7 @@ for (const available of [false, true]) for (const wait of ["delivery", "publicat
 for (const available of [false, true]) test(`rules 3/4: remembered pages cannot replace ${available ? "local data" : "withholding"}`, async () => {
   const f = routing(); f.program.runs = "server";
   f.env.serverAnswers.set(`read:${JSON.stringify(input)}`, {
-    read: { data: ["old"], complete: true, cut: null, fresh: true, next: "stale-next" }, at: 1, tables: new Set(["switches"]),
+    read: readyRead({ data: ["old"], complete: true, cut: null, fresh: true, next: "stale-next" }), at: 1, tables: new Set(["switches"]),
   });
   f.outcome = available ? { data: [{ id: "own" }], speculative: false, held: true, unknown: true, complete: false, tables: ["posts"] } : { loading: true, unknown: true, tables: ["posts"] };
   for (const online of [true, false]) for (const entries of [[prediction], []]) {
@@ -631,7 +632,7 @@ for (const deadline of [null, 300, 200]) for (const observing of [false, true]) 
   test(`rules 4/5: offline speculative expiry retry recovers independent memory (deadline=${deadline}, watch=${observing})`, async t => {
     const { f, calls } = expiryRetry(t, unknownRetry(true)); f.env.link = "offline";
     const key = `read:${JSON.stringify(input)}`;
-    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "remembered-cursor" }, at: 50, nextExpiry: deadline, tables: new Set(["posts"]) };
+    const remembered = { read: readyRead({ data: ["remembered"], complete: true, fresh: true, cut: null, next: "remembered-cursor" }), at: 50, nextExpiry: deadline, tables: new Set(["posts"]) };
     f.env.serverAnswers.set(key, remembered);
     const watch = observing ? retryWatch() : undefined;
     const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
@@ -752,7 +753,7 @@ for (const transport of ["offline", "failed fallback"]) for (const memory of ["m
     if (transport === "offline") f.env.link = "offline";
     else f.env.post = async () => { posts++; f.env.link = "offline"; return { ok: false }; };
     const key = `read:${JSON.stringify(input)}`;
-    const remembered = { read: { data: ["remembered"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memory, tables: new Set(["posts"]) };
+    const remembered = { read: readyRead({ data: ["remembered"], complete: true, fresh: true, cut: null, next: "memory-cursor" }), at: 25, nextExpiry: memory, tables: new Set(["posts"]) };
     if (memory !== "missing") f.env.serverAnswers.set(key, remembered);
     const watch = observing ? retryWatch() : undefined;
     const result = await evaluateLocal(f.env, op, input, 0, 0, watch);
@@ -789,7 +790,7 @@ for (const retry of [false, true]) for (const transport of ["offline", "failed f
     if (transport === "offline") f.env.link = "offline";
     else f.env.post = async () => { f.env.link = "offline"; return { ok: false }; };
     const key = `read:${JSON.stringify(input)}`;
-    const memory = { read: { data: ["permanent"], complete: true, fresh: true, cut: null, next: "memory-cursor" }, at: 25, nextExpiry: memoryExpiry, tables: new Set(["posts"]) };
+    const memory = { read: readyRead({ data: ["permanent"], complete: true, fresh: true, cut: null, next: "memory-cursor" }), at: 25, nextExpiry: memoryExpiry, tables: new Set(["posts"]) };
     f.env.serverAnswers.set(key, memory);
     const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
     f.env.serverAnswers.get = key => { recovered = true; return get(key); };
@@ -823,7 +824,7 @@ for (const retry of [false, true]) for (const localDue of [false, true]) for (co
       return { ok: { ...unknownRetry(true), nextExpiry: localDeadline } };
     };
     const key = `read:${JSON.stringify(input)}`;
-    f.env.serverAnswers.set(key, { read: { data: ["private"], complete: true, fresh: true, cut: null, next: null }, at: 25, nextExpiry: 60, tables: new Set(["posts"]) });
+    f.env.serverAnswers.set(key, { read: readyRead({ data: ["private"], complete: true, fresh: true, cut: null, next: null }), at: 25, nextExpiry: 60, tables: new Set(["posts"]) });
     const get = f.env.serverAnswers.get.bind(f.env.serverAnswers);
     f.env.serverAnswers.get = key => { recovered = true; return get(key); };
     f.env.queued = async () => { if (recovered) { estimated = 60; if (localDue) issued = localDeadline; } return []; };
@@ -856,7 +857,7 @@ for (const keep of [undefined, true]) test(`retaining fallback keeps A while the
   const f = routing(); f.entries = [];
   const gate = Promise.withResolvers(), entered = Promise.withResolvers();
   const watch = new ReadObservation(keep), publications = [];
-  watch.publish({ data: "A", complete: true, cut: null, fresh: true, since: 500 });
+  watch.publish(readyRead({ data: "A", complete: true, cut: null, fresh: true, since: 500 }));
   watch.reload();
   const deadline = episodeDeadline(watch.read(null));
   let calls = 0;
@@ -870,7 +871,7 @@ for (const keep of [undefined, true]) test(`retaining fallback keeps A while the
   const work = evaluateLocal(f.env, op, input, 0, 0, watch);
   await entered.promise;
   now = 1999;
-  assert.deepEqual(watch.read(null), { data: "A", complete: true, cut: null, fresh: true, since: 500, revalidating: true });
+  assert.deepEqual(watch.read(null), readyRead({ data: "A", complete: true, cut: null, fresh: true, since: 500, revalidating: true }));
   assert.equal(episodeDeadline(watch.snapshot), deadline);
   assert.ok(publications.every(read => read.data === "A"));
   gate.resolve();

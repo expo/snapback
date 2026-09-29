@@ -1,3 +1,4 @@
+import { readyRead, readyPresence } from "./read-presence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
@@ -5,7 +6,7 @@ import { beginEpisode, copyEpisode, ReadEpisode } from "./read-episode.ts";
 
 // @ref LLP 3000.019#3.3 — freshness copies remain the same authorized answer; replacements and resets do not.
 const identities = new WeakMap<Read<unknown>, object>();
-const owners = new WeakMap<Read<unknown>, ReadObservation<unknown>>();
+const owners = new WeakMap<Read<unknown>, ReadObservation<any>>();
 export function answerIdentity(read: Read<unknown>): object { return identities.get(read) ?? read; }
 export function answerObservation(read: Read<unknown>): ReadObservation<unknown> | undefined { return owners.get(read); }
 
@@ -17,11 +18,19 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   return to;
 }
 
+/** Reclassify a copy without renewing its answer identity or retention episode. */
+export function answerPresence<T>(read: Read<T>, pending: boolean): Read<T> {
+  return "data" in read && read.presence !== readyPresence(read, pending)
+    ? copyAnswer<T>(read, readyRead<T>(read, pending)) : read;
+}
+
 // @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
-export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean): Read<T> {
-  if (!("data" in read) || read.revalidating) return read;
-  const copy = copyAnswer(read, { ...read, revalidating: true });
-  beginEpisode(read, copy, bounded);
+export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean, pending?: boolean): Read<T> {
+  if (!("data" in read)) return read;
+  const blocked = pending ?? answerObservation(read)?.pending?.() ?? read.presence === "partial";
+  if (read.revalidating && read.presence === readyPresence(read, blocked)) return read;
+  const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
+  if (!read.revalidating) beginEpisode(read, copy, bounded);
   return copy;
 }
 
@@ -33,6 +42,17 @@ export class ReadObservation<T> {
     this.retain = keep !== false; this.linger = keep === true;
     // Opening facades can share notification ownership before the first answer.
     owners.set(this.snapshot, this);
+  }
+  /** Local observations supply the current queue predicate, including admissions. */
+  pending: (() => boolean) | undefined;
+  updatePresence(): boolean {
+    const read = this.snapshot;
+    if (!("data" in read) || !this.pending) return false;
+    const next = answerPresence<T>(read, this.pending());
+    if (read === next) return false;
+    this.snapshot = next;
+    this.deliver("answer")();
+    return true;
   }
   onWithdrawal: () => void = () => {};
   private readonly episode = new ReadEpisode(() => {
@@ -62,6 +82,7 @@ export class ReadObservation<T> {
     if (denied) return this.snapshot;
     checkReadExpiry(this);
     this.episode.check();
+    this.updatePresence();
     return this.snapshot;
   }
 
@@ -111,7 +132,7 @@ export class ReadObservation<T> {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger);
+    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger, this.pending?.());
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
