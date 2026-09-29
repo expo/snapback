@@ -1271,7 +1271,8 @@ fn handle(mut request: Request, shared: &Shared) {
                         }
                     }
                     Err(refusal) => {
-                        let mut reply = json!({ "denied": refusal_json(&refusal), "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
+                        // @ref LLP 3000.029#11 — evaluated native codes may collide with SDK diagnostics.
+                        let mut reply = json!({ "denied": refusal_json(&refusal), "refusalOrigin": if cut.is_some() { "evaluated" } else { "admission" }, "generation": query_generation, "complete": false, "store_id": store_id, "head": head });
                         // @ref LLP 3000.018#3.2 — a refusal names the cut its evaluation read, which the head
                         // taken before it may predate, so a client can order it against a remembered answer.
                         if let Some(cut) = cut { reply["seq"] = json!(cut); }

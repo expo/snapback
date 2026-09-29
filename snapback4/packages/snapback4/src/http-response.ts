@@ -10,17 +10,23 @@ export function refusal(value: unknown): Refusal | undefined {
   return value as Refusal;
 }
 export const overloaded = (why?: Refusal): boolean => why?.code === 'E_RATE_LIMIT' && why.retryable === true;
-// @ref LLP 3000.029#11 — diagnostics without evaluated authority cannot replace a read.
-export const nonAuthoritativeRefusal = (why?: Refusal): boolean =>
-  why?.code === 'E_RATE_LIMIT' || why?.code === 'E_HTTP_RESPONSE' || why?.code === 'E_OFFLINE'
-  || why?.code === 'E_STORE_BUSY' || (why?.retryable === true && (why.code === 'E_STORE' || why.code === 'E_AUTH'));
+// @ref LLP 3000.029#11 — origin, never an application-controlled code, decides authority.
+type FailureOrigin = 'transport' | 'decoder' | 'admission';
+const failureOrigin = Symbol('refusal origin');
+type OriginRefusal = Refusal & { [failureOrigin]?: FailureOrigin };
+function failed(why: Refusal, origin: FailureOrigin): Refusal {
+  Object.defineProperty(why, failureOrigin, { value: origin });
+  return why;
+}
+export const nonAuthoritativeRefusal = (why?: Refusal): boolean => (why as OriginRefusal | undefined)?.[failureOrigin] !== undefined;
+export const decoderRefusal = (why?: Refusal): boolean => (why as OriginRefusal | undefined)?.[failureOrigin] === 'decoder';
 export function transportRefusal(error?: unknown): Refusal {
   const failure = error as { code?: string; message?: string; cause?: { code?: string; message?: string } } | undefined;
   const cause = failure?.cause?.code ?? failure?.cause?.message ?? failure?.code ?? failure?.message;
-  return { code: 'E_OFFLINE', family: 'link', message: `the request did not complete${cause ? `: ${cause}` : '; the host supplied no transport cause'}; check the connection and server logs before retrying`, retryable: true };
+  return failed({ code: 'E_OFFLINE', family: 'link', message: `the request did not complete${cause ? `: ${cause}` : '; the host supplied no transport cause'}; check the connection and server logs before retrying`, retryable: true }, 'transport');
 }
 export function invalidResponse(status: number, outcome = 'request'): Refusal {
-  return { code: 'E_HTTP_RESPONSE', family: 'link', message: `the server answered HTTP ${status} without a valid ${outcome} response; the ${outcome} outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true };
+  return failed({ code: 'E_HTTP_RESPONSE', family: 'link', message: `the server answered HTTP ${status} without a valid ${outcome} response; the ${outcome} outcome is unknown; inspect the server or proxy logs before retrying`, retryable: true }, 'decoder');
 }
 export function retryAfter(value: string | null): number {
   if (!value) return 0;
@@ -48,6 +54,10 @@ export async function readResponse(response: Response, decode?: (response: Respo
   if (!json || typeof json !== 'object' || Array.isArray(json)) return { denied: invalidResponse(response.status) };
   const why = json.denied ?? json.why;
   if (why !== undefined && !refusal(why) || !response.ok && !refusal(why)) return { denied: invalidResponse(response.status) };
+  // 429/503 are the HTTP admission lane. An evaluated query explicitly names
+  // its origin, including when its refusal uses an admission status or code.
+  if (refusal(why) && (json.refusalOrigin === 'admission'
+    || json.refusalOrigin !== 'evaluated' && (response.status === 429 || response.status === 503))) failed(why as Refusal, 'admission');
   return json;
 }
 /** Only safe reads use this helper. Same-ID mutations retain their outbox's

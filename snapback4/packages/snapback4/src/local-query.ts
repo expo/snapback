@@ -339,7 +339,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
           if (!accepted) return loading;
         } else {
           const accepted = env.serverAnswers.delete(key, result.seq);
-          result.invalidated = accepted && ((ephemeral && "data" in result.read) || ("denied" in result.read && result.read.denied.code !== "E_OFFLINE"));
+          result.invalidated = accepted && ((ephemeral && "data" in result.read) || "denied" in result.read);
           if (!accepted) return loading;
         }
       }

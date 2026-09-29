@@ -75769,3 +75769,43 @@ No product TypeScript/Rust, contract, meter, dependency, timeout or budget chang
 Every failure, expected control and setup error is recorded under
 reports/20260928-lv-hook-retention/round8/. One local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>; push and publication unperformed.
+
+
+## 2026-09-29 — Lane LV round 9: refusal authority follows origin
+
+Started from round-8 364ae21f1 on sb4-intent/lv-hook-retention. Read rounds 0–8,
+their prompts/reports/journal, LLP 3000.029 and Astra's complete rounds-7–8 review;
+applied llp-orient and read the client/reads guide. Fetch found origin/main at
+74fee301b; merge-tree found no conflicts, so no merge was made. scripts/test.sh
+was not run; the supervisor owns full landing qualification.
+
+Replaced the refusal-code exclusions with private origin metadata carried by
+transport/decoder/admission refusals. Query error replies explicitly distinguish
+evaluated origin at their existing transaction/cut boundary; that origin wins
+over HTTP admission status. Decoder 5xx handling also checks origin. Evaluated
+native codes never substitute for transport evidence. Removed the residual local
+E_OFFLINE exclusion after two native regressions exposed it. LLP 3000.029 §11
+and Revised correct the classification. FU retry/link behavior, original retained
+deadlines, evidence fences, meters and budgets remain. No new production awaits.
+
+All six requested native E_HTTP_RESPONSE/E_STORE_BUSY cases fail on round 8 and
+pass now; three additional native E_OFFLINE cases pass after removing the local
+exclusion. Existing decoder/admission cases remain green. Final frozen-source
+affected run: 1,031/1,031, including FU overload, all 333 delivery matrix checks
+and three browser witnesses (profile gates: one mount, zero loading flashes).
+Whole guide 98/98; server overload 3/3; scoped HTTP 159 pass / 4 ignored. Client
+build/declarations/typecheck, server build, reference and whitespace checks pass.
+
+Earlier affected run: 1,027 pass / one initial-ephemeral-owner timeout, ours with
+cause unconfirmed. The unchanged full file passes 20/20, ten repetitions of the
+exact case pass, and final affected qualification passes. No baseline/environmental
+exemption or timeout relaxation. Initial native fixture type errors (six cases),
+negative controls and orientation lookup errors are ours and recorded under
+reports/20260928-lv-hook-retention/round9/FAILURES.md. No full-suite success claimed.
+
+Existing wasm remains 2,042,203 B raw / 593,641 B gzip, zero growth and 78 B under
+the unchanged 593,719 B cap; SHA-256
+ d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
+No wasm source changed or fresh wasm build claimed. Report:
+reports/20260928-lv-hook-retention/round9/REPORT.md. No tool installation, push or
+publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

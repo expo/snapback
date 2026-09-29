@@ -15,6 +15,27 @@ import { createClient } from "../dist/client.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
 import { processDevice } from "../dist/native.js";
 import { changeFeed } from "../dist/changes.js";
+import { readResponse, nonAuthoritativeRefusal, decoderRefusal, transportRefusal } from "../dist/http-response.js";
+
+test("refusal authority follows decoder/transport/admission origin, never the code", async () => {
+  for (const code of ['E_HTTP_RESPONSE', 'E_STORE_BUSY', 'E_OFFLINE', 'E_RATE_LIMIT', 'E_STORE', 'E_AUTH', 'APP_DENIED']) {
+    const denied = { code, family: 'native', message: 'evaluated', retryable: true };
+    for (const status of [200, 503]) {
+      const reply = await readResponse(Response.json({ denied, refusalOrigin: 'evaluated' }, { status }));
+      assert.equal(nonAuthoritativeRefusal(reply.denied), false, `${code} at ${status} was evaluated`);
+      assert.equal(decoderRefusal(reply.denied), false);
+      assert.deepEqual(reply.denied, denied, 'internal origin does not change the public refusal');
+    }
+    const reply = await readResponse(Response.json({ denied, refusalOrigin: 'admission' }));
+    assert.equal(nonAuthoritativeRefusal(reply.denied), true, `${code} was refused before evaluation`);
+  }
+  for (const status of [200, 404, 503]) {
+    const reply = await readResponse(new Response('{broken', { status }));
+    assert.equal(nonAuthoritativeRefusal(reply.denied), true);
+    assert.equal(decoderRefusal(reply.denied), true);
+  }
+  assert.equal(nonAuthoritativeRefusal(transportRefusal(new Error('connection lost'))), true);
+});
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");

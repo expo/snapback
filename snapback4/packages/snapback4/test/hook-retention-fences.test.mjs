@@ -2,7 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, symlinkSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
@@ -354,6 +355,60 @@ for (const tier of ['online', 'process']) for (const order of ['old-refusal', 'o
 
 // Round 6: admission has not evaluated row or asset authority.
 // Round 7: neither a decoder diagnostic nor a transport refusal evaluated it.
+// Round 9: native codes do not identify where a failure originated.
+for (const tier of ['online', 'process', 'wasm']) for (const code of ['E_HTTP_RESPONSE', 'E_STORE_BUSY', 'E_OFFLINE']) test(`round 9 ${tier}: evaluated native ${code} withdraws retained authority`, { timeout: 120000 }, async t => {
+  const root = fileURLToPath(new URL('../../../', import.meta.url));
+  const f = await server(t, undefined, `use personas alice
+table flags:
+  read <- allow
+  delete <- allow
+  online only
+table secrets:
+  body: text
+  read <- allow
+  sync public
+query nativeSecret(code: text): native
+query secretAlias():
+  return secrets['secret']
+mutation revoke():
+  delete flags['flag']
+`, { startupTimeout: 90000, prepare(dir) {
+    const native = join(dir, 'snapback/native');
+    mkdirSync(join(native, 'src'), { recursive: true });
+    writeFileSync(join(native, 'Cargo.toml'), readFileSync(join(root, 'native-fixtures/following/Cargo.toml'), 'utf8')
+      .replace('sb4-fixture-following', 'sb4-fixture-retention-denials')
+      .replace('../../crates/snapback4-native', join(root, 'crates/snapback4-native')));
+    writeFileSync(join(native, 'src/lib.rs'), `use snapback4_native::{Ctx, Json, Result, Error};
+snapback4_native::module! { reads: [nativeSecret] }
+#[allow(non_snake_case)]
+fn nativeSecret(ctx: &Ctx, args: &Json) -> Result<Json> {
+    if ctx.get("flags", "flag")?.is_none() {
+        return Err(Error::new(args["code"].as_str().unwrap(), "native authorization flag revoked"));
+    }
+    Ok(ctx.get("secrets", "secret")?.map(Json::Object).unwrap_or(Json::Null))
+}
+`);
+    mkdirSync(join(dir, 'snapback/generated'), { recursive: true });
+    mkdirSync(join(root, 'target/native-fixture'), { recursive: true });
+    symlinkSync(join(root, 'target/native-fixture'), join(dir, 'snapback/generated/native-target'), 'dir');
+  } });
+  const post = (path, body) => fetch(f.url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
+  assert.equal((await post('/seed', [{ table: 'flags', row: { id: 'flag' } }, { table: 'secrets', row: { id: 'secret', body: 'secret' } }])).seeded, 2);
+  const client = tier === 'online' ? createClient({ url: f.url, persona: 'alice', fetch: parked }) : await createLocalClient({ url: f.url, persona: 'alice', fetch: parked,
+    device: tier === 'process' ? processDevice({ dir: join(f.dir, 'device'), binary }) : webDevice({ wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence() }) });
+  t.after(() => client.close());
+  const op = q('nativeSecret'), args = { code }, watch = client.observe(op, args);
+  watch.subscribe(() => {}); t.after(() => watch.close());
+  await until(() => watch.getSnapshot().data?.body === 'secret');
+  assert.equal((await post('/m/revoke', { id: 'revoke', args: {} })).state, 'sent');
+  assert.equal(watch.getSnapshot().data?.body, 'secret', 'changes are held until direct evidence arrives');
+  const read = await client.query(op, args);
+  assert.equal(read.denied?.code, code);
+  assert.equal(read.denied?.message, 'native authorization flag revoked');
+  assert.equal(watch.getSnapshot().denied?.code, code, 'evaluated denial must replace the mounted secret before return');
+  assert.equal(client.link(), 'online');
+});
+
 for (const tier of ['online', 'process', 'wasm']) for (const failure of [200, 404, 'E_OFFLINE', 'E_STORE', 'E_STORE_BUSY', 'E_AUTH']) test(`round 7 ${tier}: ${typeof failure === 'number' ? `malformed HTTP ${failure}` : failure} preserves query authority and deadlines`, async t => {
   const f = await fixture(t); let malformed = false, offline = false, attempts = 0, aliasRequests = 0;
   const deadline = Date.now() + 60_000;

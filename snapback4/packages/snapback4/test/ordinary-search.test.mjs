@@ -100,7 +100,7 @@ for (const tier of ['process', 'wasm']) for (const code of ['E_HTTP_RESPONSE', '
   let failed = false;
   const why = { code, family: code.startsWith('E_STORE') ? 'store' : code === 'E_AUTH' ? 'auth' : code === 'E_RATE_LIMIT' ? 'limit' : 'link', message: 'not evaluated', retryable: code !== 'E_STORE_BUSY' };
   const f = await setup(t, tier, null, { queryResponse: () => !failed ? null : code === 'E_HTTP_RESPONSE'
-    ? new Response('{broken', { status: 404 }) : Response.json({ denied: why }, { headers: { 'Retry-After': '11' } }) });
+    ? new Response('{broken', { status: 404 }) : Response.json({ denied: why, refusalOrigin: 'admission' }, { headers: { 'Retry-After': '11' } }) });
   const args = { q: 'coffee', c: null }, watch = f.client.observe(q, args);
   watch.subscribe(() => {}); t.after(() => watch.close());
   await until(() => watch.getSnapshot().data?.length);

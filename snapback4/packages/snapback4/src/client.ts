@@ -2,7 +2,7 @@ import { ReadIndex } from "./read-index.ts";
 import { RememberedAnswers } from "./local-reads.ts";
 import { readKey, readInputs, invalidateReadEvidence } from "./read-observation.ts";
 import { AssetLifetime } from "./asset-lifetime.ts";
-import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded, nonAuthoritativeRefusal } from "./http-response.ts";
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded, nonAuthoritativeRefusal, decoderRefusal } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
@@ -554,7 +554,7 @@ export function createClient(options: ClientOptions): Client {
       observeStore(json, floor, path.startsWith("/m/"), path.startsWith("/q/"));
       if (storeRefusal) return { ok: false };
       const why = (json.why ?? json.denied) as Refusal | undefined;
-      if (why?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
+      if (decoderRefusal(why) && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
       const entry = path.startsWith("/m/") ? pending.find(entry => entry.id === (body as { id: string }).id) : undefined;
       if (entry && why?.retryable) {
         await hold(entry, why.code);

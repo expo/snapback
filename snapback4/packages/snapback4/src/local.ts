@@ -2,7 +2,7 @@ import { ReadIndex } from "./read-index.ts";
 import { reconcileLocalRead, localReadDeadlines } from "./local-read-publication.ts";
 import { PredictionEffects, outstandingPredictions, nonRevokingPuts, putRetention } from "./read-nonrevoking.ts";
 import { AssetLifetime } from "./asset-lifetime.ts";
-import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
+import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded, decoderRefusal } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
@@ -525,7 +525,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!reply || (eph && !ephemeralReads.current(eph))) return { ok: false };
       const { response, json } = reply;
       const why = (json.denied ?? json.why) as Refusal | undefined;
-      if (why?.code === "E_HTTP_RESPONSE" && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
+      if (decoderRefusal(why) && response.status >= 500) { transportFailure = why; if (!quiet) setLink("offline"); return { ok: false }; }
       if (path.startsWith("/m/") && why?.retryable && !closed && !sessionDead && request.revision === credentialRevision) {
         await holds.record((body as { id: string }).id, why.code);
         retryAfterMs = retryAfter(response.headers.get("retry-after")); retryOverload = why.code === "E_RATE_LIMIT";
