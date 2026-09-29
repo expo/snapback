@@ -1,0 +1,46 @@
+{
+  "merge_commit": "afe6c62d92cf14972419b8f498c06ea25ade6477",
+  "merged_main": "a2e3876b60565d7fd3e9bf53d892d309b4d615e3",
+  "node": "v24.13.1",
+  "exportedSourceMatches": {
+    "Conversation.tsx": true,
+    "Direct.tsx": true,
+    "intents.ts": true,
+    "schema.q": true,
+    "conversation-route.tsx": true
+  },
+  "wasm": {
+    "raw": 2040531,
+    "gzip": 592979,
+    "cap": 593719,
+    "headroom": 740
+  },
+  "sha256": {
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95",
+    "crates/snapback4/src/verbs/init/social/Conversation.tsx": "3fe5b788ff25b55556b2c73d2524014db31f8e7e1c5b0abe7d2ea857cfd4b14f",
+    "crates/snapback4/src/verbs/init/social/Direct.tsx": "b461829828f40d0e0af4b14dd92e7e37d41bc9a41cba95507ff3f8e85f564967",
+    "crates/snapback4/src/verbs/init/social/intents.ts": "a8d3715199231847f7bad27ef34d04b39df9e1504ea59ad261dba249bac55a61",
+    "crates/snapback4/src/verbs/init/social/schema.q": "98b66af8cb4bc2a0b3ded12703b72bb87724551949e79233c8e206d0c6437a16",
+    "crates/snapback4/src/verbs/init/social/conversation-route.tsx": "1af3979d9dfe9a510d9df344c9d15a001f2558e8d1ceb0cde55b8df719e01c23",
+    "target/sr-export/dist-ios-round2/_expo/static/js/ios/web-worker-entry-3243cf7f2faa184b9ff59ec13dc7815d.hbc": "cd6e3e14a90157c1bf97d13e39678c7251b817db894618840690a0977c7f3c96",
+    "target/sr-export/dist-ios-round2/_expo/static/js/ios/entry-dab110269757dfcd0843fc1f94196d9a.hbc": "3927d6127e4ab8024b87360b306d654751ab138eefa7ce99910cafd6b4d46ec1",
+    "/home/ccheever/sb4-intent/reviews/sr-r1.astra.md": "4817946bc544ffa1d4627d53aa674d2d856942c4b4f0d628fcabfae62fd32357",
+    "/home/ccheever/sb4-intent/reviews/sr-r0.grok.md": "1d45ccb90d364802e57391a0c628f7de04697a059bbade79e5e48043a2373503"
+  },
+  "suite": {
+    "summary": "== 0 failure(s) in 1269 s",
+    "exit": 0,
+    "rustPass": 4341,
+    "rustIgnored": 33,
+    "clientPass": 5197,
+    "clientSkipped": 10,
+    "fixturePass": 9,
+    "modelPass": 79,
+    "failures": {
+      "ours": 0,
+      "baseline": 0,
+      "environmental": 0
+    },
+    "sourceHashesUnchanged": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "llp/3000.028-one-query-online-or-offline.rfc.md": "f2d2b0b05f4b658333ab1ccab7ae1fbea2ca80b711b8baa3f424cc0e5e84dd6f",
+  "snapback4/crates/snapback4-lang/src/guide/social.rs": "4fa4b0631160b445fcbcc8d9a4d75c64e7a8a776de885d0bc5b1da5a7a1ef735",
+  "snapback4/crates/snapback4/src/verbs/init/social/Conversation.tsx": "3fe5b788ff25b55556b2c73d2524014db31f8e7e1c5b0abe7d2ea857cfd4b14f",
+  "snapback4/crates/snapback4/src/verbs/init/social/Direct.tsx": "b461829828f40d0e0af4b14dd92e7e37d41bc9a41cba95507ff3f8e85f564967",
+  "snapback4/crates/snapback4/src/verbs/init/social/README.md": "bb78e0302aa9b4b9d985dc1883a3a7f853dfdf4f1763aaa90abb79ea0b88d2af",
+  "snapback4/crates/snapback4/src/verbs/init/social/conversation-route.tsx": "1af3979d9dfe9a510d9df344c9d15a001f2558e8d1ceb0cde55b8df719e01c23",
+  "snapback4/crates/snapback4/src/verbs/init/social/intents.ts": "a8d3715199231847f7bad27ef34d04b39df9e1504ea59ad261dba249bac55a61",
+  "snapback4/crates/snapback4/src/verbs/init/social/schema.q": "98b66af8cb4bc2a0b3ded12703b72bb87724551949e79233c8e206d0c6437a16",
+  "snapback4/packages/snapback4/test/helpers/social-direct-browser.mjs": "a802bcbc2db3e23ed794e8171605953343ae4f783ff42e40b226e9a8ac1380f1",
+  "snapback4/packages/snapback4/test/social-browser.test.mjs": "3556cee0ab6cb653ef346aee67be03ac4bf7d0ef1edf5e30d66b9e1a8dca16f4",
+  "snapback4/packages/snapback4/test/social-starter.test.mjs": "591c437efd640ae0b4e5708232ee47b6722c8c364d918b111e122acb7bb01b72"
+}

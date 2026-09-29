@@ -1,0 +1,33 @@
+{
+  "merge_commit": "0c5ac3e3f74a2042e5dc9b37fb9bded87b85a28a",
+  "merged_main": "aee02735615b08a07096228bf60ae540fe9f5a5b",
+  "node": "v24.13.1",
+  "exportedSourceMatches": {
+    "Conversation.tsx": true,
+    "Direct.tsx": true,
+    "intents.ts": true
+  },
+  "wasm": {
+    "raw": 2040531,
+    "gzip": 592979,
+    "cap": 593719,
+    "headroom": 740
+  },
+  "sha256": {
+    "crates/snapback4/src/verbs/init/social/Conversation.tsx": "0ef1cae0d89fa5f3e973ee87ebc3ebb8763dcdeb6aae57aa2a20efae8b27d43b",
+    "crates/snapback4/src/verbs/init/social/Direct.tsx": "eae580397a77cbfa90b877d5c1bc6c8ae5ac8ca8430ecbc663e7f8feab08c41e",
+    "crates/snapback4/src/verbs/init/social/intents.ts": "3f9a239810957e3c6812196a52e42b7171c99786251416dd1304f798c06ca0ed",
+    "crates/snapback4/src/verbs/init/social/conversation-route.tsx": "4e228fbeb3b4e67a3adf786279d35592cedef1d4869039d1993206eca9f07e34",
+    "crates/snapback4/src/verbs/init/social/schema.q": "e3659047245649bb3f50b96f2338c4e7292f8c14db2877c2370693e3ad549589",
+    "target/sr-export/dist-ios-round1/_expo/static/js/ios/entry-8772f591d3b7703536c60967ab099d90.hbc": "9f947b97358a95ae906e321049c983bd8de43845bbf51963560a2c8915df66f3",
+    "target/sr-export/dist-ios-round1/_expo/static/js/ios/web-worker-entry-3243cf7f2faa184b9ff59ec13dc7815d.hbc": "f9b63bb2b5f3c5a77922c72242ad7f0e0ec147139a96e7ba8ebf4386f8f94df9",
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95"
+  },
+  "suite": {
+    "summary": "== 0 failure(s) in 1277 s",
+    "exit": 0,
+    "clientPass": 5195,
+    "clientSkipped": 10,
+    "modelPass": 79
+  }
+}

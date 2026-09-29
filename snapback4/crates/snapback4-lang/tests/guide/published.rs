@@ -35,6 +35,7 @@ const APP_FILES: &[&str] = &[
     "snapback/generated/package.json", "snapback/generated/residency.json",
     "snapback/native/Cargo.toml", ".snapback4/store.sqlite",
     ".snapback4/dev-refusals/<storeId>/<instance>.json",
+    "app/dm/[other].tsx", "app/conversation/[id].tsx", "src/Direct.tsx",
     "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",

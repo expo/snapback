@@ -4,8 +4,10 @@ import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import ts from "typescript";
+import { DatabaseSync } from "node:sqlite";
+import { createServer } from "node:http";
 import { createApp } from "snapback4/app";
-import { createClient } from "snapback4/client";
+import { createClient, mintId } from "snapback4/client";
 import { memorySessionStore } from "snapback4/auth";
 import { webDevice, memoryPersistence } from "snapback4/web";
 import { createLocalClient } from "snapback4/local";
@@ -102,7 +104,7 @@ test("published social starter and guide snippets typecheck against generated op
   const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
-  assert.equal(snippets.length, 4);
+  assert.equal(snippets.length, 5);
   for (const [, name, source] of snippets) {
     assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
     writeFileSync(join(dir, name), source); // Compile the emitted guide text.
@@ -216,4 +218,183 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   await bob.auth.logout(); await bob.auth.guest();
   assert.notEqual(bob.client.viewer(), previous);
   assert.deepEqual((await bob.client.query(api.history, { conversation })).data, [], "new account has no retained old history");
+});
+
+// Both stores read a horizon-free private key; the server owns creation races.
+for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: 30_000 }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const sessions = await Promise.all([0, 1, 2].map(() => fetch(url + "/auth/guest", { method: "POST", body: "{}" }).then(r => r.json())));
+  // Accept both complete HTTP mutation requests before forwarding either to dev.
+  // This barrier proves overlap before any transaction can commit, without
+  // depending on two Promise.all calls happening to outrun the first response.
+  const release = Promise.withResolvers(), arrivals = [];
+  const gate = createServer(async (req, res) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const body = Buffer.concat(chunks);
+    arrivals.push(JSON.parse(body));
+    await release.promise;
+    try {
+      const reply = await fetch(url + req.url, { method: req.method, headers: req.headers, body });
+      res.writeHead(reply.status, { "content-type": "application/json" });
+      res.end(Buffer.from(await reply.arrayBuffer()));
+    } catch (error) { res.writeHead(500); res.end(String(error)); }
+  });
+  await new Promise(resolve => gate.listen(0, "127.0.0.1", resolve));
+  t.after(async () => { release.resolve(); await new Promise(resolve => gate.close(resolve)); });
+  let holdOpens = true;
+  const [a, b, outsider] = sessions.map(({ session }) => createClient({ url, token: session.token,
+    fetch: (input, init) => fetch(holdOpens && new URL(input).pathname === "/m/openDirect"
+      ? `http://127.0.0.1:${gate.address().port}/m/openDirect` : input, init),
+  }));
+  const db = new DatabaseSync(join(dir, ".snapback4/store.sqlite"), { readOnly: true });
+  t.after(() => db.close());
+  const exists = id => !!db.prepare("SELECT 1 FROM r WHERE id = ?").get(id);
+  t.after(() => Promise.all([a.close(), b.close(), outsider.close()]));
+  let offline = false;
+  const device = tier === "native" ? processDevice({ binary, dir: join(dir, "dm-device") }) :
+    webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const local = await createLocalClient({ url, session: sessions[0].session, device, fetch: (input, init) => {
+    if (offline) throw Error("offline");
+    return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
+  } });
+  t.after(() => local.close());
+  await local.sync();
+  const peer = sessions[1].session.principal;
+  const absent = await local.query(api.directConversation, { other: peer });
+  assert.equal(absent.data, null); assert.equal(absent.complete, true);
+  offline = true; await local.sync();
+  const provisional = mintId(), opening = mintId();
+  const queued = await local.mutate(api.openDirect, { id: provisional, other: peer }, { id: opening, waitSeconds: 0 });
+  assert.equal(queued.state, "pending", JSON.stringify(queued));
+  const admission = (await local.pendingWrites()).find(w => w.id === opening);
+  assert.ok(admission, "creation enters SDK custody offline");
+  assert.ok(admission.predicted.includes(`conversations/${provisional}`), "covered creation predicts its proposed conversation");
+  const predicted = await local.query(api.directConversation, { other: peer });
+  assert.equal(predicted.data?.conversation, provisional, JSON.stringify(predicted));
+  assert.equal(predicted.data.pending, true);
+  const proposals = [mintId(), mintId()];
+  let completed = 0;
+  const concurrent = [
+    a.mutate(api.openDirect, { id: proposals[0], other: peer }),
+    b.mutate(api.openDirect, { id: proposals[1], other: sessions[0].session.principal }),
+  ].map(call => call.then(write => { completed++; return write; }));
+  await until(() => arrivals.length === 2, "both opposite-direction HTTP mutations in flight");
+  assert.equal(completed, 0);
+  assert.deepEqual(proposals.map(exists), [false, false], "neither opening has committed at the barrier");
+  holdOpens = false; release.resolve();
+  const opens = await Promise.all(concurrent);
+  opens.forEach(w => assert.equal(w.state, "sent", JSON.stringify(w)));
+  const canonical = opens[0].result;
+  assert.equal(opens[1].result, canonical, "opposite directions deduplicate atomically");
+  assert.notEqual(canonical, provisional);
+  assert.ok(proposals.includes(canonical));
+  assert.equal(exists(canonical), true);
+  assert.equal(exists(proposals.find(id => id !== canonical)), false, "losing proposal leaves no conversation row");
+  for (const [client, other] of [[a, peer], [b, sessions[0].session.principal]]) {
+    const again = await client.mutate(api.openDirect, { id: mintId(), other });
+    assert.equal(again.result, canonical);
+    assert.equal((await client.query(api.directConversation, { other })).data.conversation, canonical);
+    assert.deepEqual((await client.query(api.inbox, {})).data.map(r => r.conversation), [canonical]);
+  }
+  assert.equal((await outsider.query(api.directConversation, { other: peer })).data, null, "keys are private to their owner");
+  // Query authorization alone cannot detect a widened replication audience.
+  const outsiderDevice = tier === "native" ? processDevice({ binary, dir: join(dir, "outsider-device") }) :
+    webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const outsiderReplica = await createLocalClient({ url, session: sessions[2].session, device: outsiderDevice });
+  t.after(() => outsiderReplica.close());
+  await outsiderReplica.sync();
+  assert.equal(outsiderReplica.acquired, true);
+  assert.equal((await outsiderReplica.residency()).tables.directChats?.rows ?? 0, 0,
+    "outsider replica must acquire no other participant's DM key rows");
+  offline = false; await local.sync();
+  const settled = await until(async () => { const w = await local.write(opening); return w?.state === "sent" && w; }, "offline open settles");
+  assert.equal(settled.state, "sent"); // Recovered receipts need not carry a historical result.
+  await local.sync(); offline = true; await local.sync();
+  const held = await local.query(api.directConversation, { other: peer });
+  assert.equal(held.data.conversation, canonical);
+  assert.equal(held.complete, true); assert.equal(held.fresh, false);
+  const reverse = await local.query(api.directPeer, { conversation: canonical });
+  assert.equal(reverse.data.peer, peer); assert.equal(reverse.fresh, false);
+  assert.equal(exists(provisional), false, "offline losing proposal also leaves no row");
+
+  assert.equal((await a.mutate(api.leave, { conversation: canonical })).state, "sent");
+  const reopened = await a.mutate(api.openDirect, { id: mintId(), other: peer });
+  assert.equal(reopened.state, "sent"); assert.equal(reopened.result, canonical);
+  assert.equal((await a.query(api.receiptMember, { conversation: canonical })).data, null,
+    "reopening must not restore the caller's membership");
+  assert.deepEqual((await a.query(api.inbox, {})).data, []);
+  assert.equal((await b.mutate(api.send, { conversation: canonical, text: "private after leave", photo: null })).state, "sent");
+  assert.equal((await a.query(api.conversationScreen, { conversation: canonical })).data, null);
+  assert.deepEqual((await a.query(api.history, { conversation: canonical })).data, [], "no access to new content after reopen");
+  const refused = await a.mutate(api.send, { conversation: canonical, text: "must refuse", photo: null });
+  assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "NOT_MEMBER");
+  assert.equal((await a.query(api.directConversation, { other: peer })).data.conversation, canonical);
+  assert.equal((await a.query(api.directPeer, { conversation: canonical })).data.peer, peer,
+    "private route identity survives leave, independently of content authority");
+});
+
+test("guide aliases send schedules, DMs and Expo readers to their owning cards", () => {
+  for (const [target, aliases] of [["jobs", ["schedule", "schedules", "cron"]],
+    ["social", ["dm", "direct message", "chat"]], ["client", ["expo", "ios", "react native"]]]) {
+    const expected = spawnSync(binary, ["guide", target], { encoding: "utf8" });
+    assert.equal(expected.status, 0);
+    for (const alias of aliases) {
+      const result = spawnSync(binary, ["guide", alias], { encoding: "utf8" });
+      assert.equal(result.status, 0, alias); assert.equal(result.stdout, expected.stdout, alias);
+      if (alias.includes(" ")) {
+        const unquoted = spawnSync(binary, ["guide", ...alias.split(" ")], { encoding: "utf8" });
+        assert.equal(unquoted.status, 0, alias); assert.equal(unquoted.stdout, expected.stdout, alias);
+      }
+    }
+  }
+  const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
+  assert.match(native.split("\n\n")[1], /Expo client.*guide client.*guide witness/);
+});
+
+test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
+  const dir = starter(t);
+  const source = readFileSync(join(dir, "src/intents.ts"), "utf8");
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+  const { IntentJournal } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+  const values = new Map(); let viewer = "alice";
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const open = (url = "https://one.test", account = "alice") => new IntentJournal(storage, url, account, () => viewer === account);
+  const original = ["proposal-a", "proposal-b"].map((conversation, n) => ({ id: `send-${n}`, args: { conversation, text: `unsent ${n}`, photo: null } }));
+  const journal = open();
+  for (const intent of original) journal.remember(intent, "bob");
+  open().resolve("bob", "canonical");
+  assert.deepEqual(open().proposals(), original.map(i => ({ proposed: i.args.conversation, other: "bob", canonical: "canonical" })));
+  assert.deepEqual(open().read(), original, "association never rewrites admitted arguments");
+  open().forget(original[0].id);
+  assert.equal(open().proposals().length, 1, "dismissing a proposal's last send retires its association");
+  assert.deepEqual(open("https://two.test").proposals(), []);
+  viewer = "bob";
+  assert.deepEqual(open("https://one.test", "bob").proposals(), []);
+  assert.deepEqual(journal.proposals(), []);
+  assert.throws(() => journal.resolve("bob", "wrong"), /no longer active/);
+  viewer = "alice";
+  assert.deepEqual(open().read(), [original[1]]);
+  assert.equal(open().proposals()[0].canonical, "canonical");
+  const second = { ...original[1], id: "another-send-on-same-proposal" };
+  open().remember(second, "bob");
+  open().forget(original[1].id);
+  assert.deepEqual(open().proposals(), [{ proposed: second.args.conversation, other: "bob", canonical: "canonical" }],
+    "another pending or recoverable send keeps the association, with no TTL or count eviction");
+  open().forget(second.id);
+  assert.equal(values.size, 0, "final dismissal empties the store");
+
+  // Clean old successful/failed/abandoned openings which never had saved sends,
+  // without dropping an unresolved association still needed for recovery.
+  storage.setItem(journal.key, JSON.stringify({ intents: [original[0]], proposals: [
+    { proposed: original[0].args.conversation, other: "bob" },
+    ...Array.from({ length: 1101 }, (_, n) => ({ proposed: `orphan-${n}`, other: `peer-${n}`,
+      ...(n < 1001 ? { canonical: `settled-${n}` } : {}) })),
+  ] }));
+  open().prune();
+  assert.deepEqual(open().proposals(), [{ proposed: original[0].args.conversation, other: "bob" }]);
+  assert.deepEqual(open().read(), [original[0]], "pruning preserves the recoverable intent verbatim");
+  open().forget(original[0].id);
+  assert.equal(values.size, 0);
 });
