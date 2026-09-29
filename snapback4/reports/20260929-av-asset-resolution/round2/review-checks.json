@@ -1,0 +1,19 @@
+{
+  "checked_at_utc": "2026-09-29T08:28:16.743192+00:00",
+  "reviews": {
+    "astra": {
+      "source": "/home/ccheever/sb4-intent/reviews/av-r1.astra.md",
+      "bytes": 4787,
+      "sha256": "362f30bda711e4fbdddcc1cc5ae9f4a1e7fd8f573964131869231317d9fbde76",
+      "unchanged_since_complete_read": true,
+      "verdict": "NOT READY (round 1)"
+    },
+    "grok": {
+      "source": "/home/ccheever/sb4-intent/reviews/av-r1.grok.md",
+      "bytes": 11977,
+      "sha256": "a851625083f5653ea5475ebb40d83774933a3231c997dbfd5740d3381725fedc",
+      "unchanged_since_complete_read": true,
+      "verdict": "NOT READY (round 1)"
+    }
+  }
+}

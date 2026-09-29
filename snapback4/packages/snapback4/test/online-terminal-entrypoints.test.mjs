@@ -51,7 +51,8 @@ for (const replacement of [true, false]) test(`in-flight assets and action are f
   assert.equal((await upload).why?.code, code);
   assert.equal((await asset).denied?.code, code);
   assert.equal((await action).denied?.code, code, 'a terminal action must not become retryable pending');
-  assert.deepEqual(revoked, ['blob:late-private']); assert.deepEqual(closedBlobs, [true]);
+  await until(() => closedBlobs.length === 1);
+  assert.deepEqual(revoked, [], 'aborted responses never allocate display URLs'); assert.deepEqual(closedBlobs, [true]);
 });
 
 for (const refusal of [false, true]) for (const authGap of [false, true])

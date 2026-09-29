@@ -1406,8 +1406,37 @@ Rebuild the app with `snapback4-expo` 0.2.24 or later to include this host repai
 
 For one-view photos, own the handle above the list: `snapback4 guide client`'s viewer recipe.
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
-without fetching. A client-side fetch or blob-URL failure returns a typed
-`denied` state.
+without fetching. Transport and blob-URL failures return `status: "error"`
+with `why.code` and `why.message`; authorization, revocation and consumed views
+return `status: "denied"`. Display both explanations. Safe downloads make up to
+four attempts with exponential backoff, jitter and Retry-After, and ten seconds
+of backoff. After headers, a stream stalls after five seconds without bytes;
+empty chunks do not count. Progressing streams have no total-duration deadline.
+A buffered body allows one minute plus Content-Length at 32 KiB/s; unknown size
+uses the server's 64 MiB maximum (35 min 8 s). Before fetch resolves, headers can
+be hidden by buffering, so that same unknown-size allowance applies, including
+to a host that never returns headers. Queue/backoff has a separate thirty-second
+budget renewed only by bytes, excluding transfer time. Refusal bodies keep their
+five-second bound. Retry-After survives stalled error bodies and credential rotation. Each client
+admits six transfers. SDK wait deadlines and post-body storage/display failures
+report E_CLIENT and do not mark the device offline. Ordinary construction
+failures can recover on a later event; ambiguous once failures cannot. A queue
+budget expiring during Retry-After preserves that refusal and minimum.
+Completed bytes survive same-principal bearer rotation without another fetch;
+local downloads starting during refresh wait for the new bearer. A full-file Range request makes ordinary retries non-consuming; a once asset refuses Range before its one
+non-range transfer. An ambiguous once response is never automatically retried.
+The hook retries safe errors on reconnect/refocus/visibility return, never ready
+handles or terminal refusals. An early recovery event schedules one retry after
+Retry-After (or after the in-flight outcome); unmount cancels it. It does not loop. Raw `client.asset` returns `{ denied }` after the
+bound; call it again when connectivity returns. `assetSource` uses host fetching.
+For sender avatars inside DM/group messages, `snapback4 guide media` shows the
+complete `profileById(message.sender)` → `useAsset(profile.avatar.id)` recipe,
+including profile loading and asset refusals. The profile remains the asset's
+home; a conversation reference is no extra grant. Ordinary avatars may mount
+independently in bubbles and feeds. A changed id or client hides the old handle
+immediately; account switches replace the client. Raw sign-out returns `denied`
+with `E_AUTH` for a non-null id; null remains empty. Viewer discovery alone
+does not fetch again, nor does an offline link refetch a ready handle.
 
 An `image <=N` or `video <=N` column holds an upload: the client sends
 the bytes first (`upload` → `{ ok: true, asset: { id, type, bytes, width,

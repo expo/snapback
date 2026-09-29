@@ -31,9 +31,9 @@ for (const body of ['busy', JSON.stringify({ denied: {} }), 'null']) test(`downl
   assert.equal(read.denied.code, 'E_HTTP_RESPONSE'); assert.match(read.denied.message, /HTTP 503/);
 });
 test('one-view download retries explicit admission refusals, never an ambiguous reset', async t => {
-  t.mock.method(globalThis, 'setTimeout', callback => { queueMicrotask(callback); return 0; });
   let attempts = 0;
-  const read = await fetchAsset('http://asset.invalid', {}, async () => {
+  const read = await fetchAsset('http://asset.invalid', {}, async (_url, init) => {
+    if (init.headers.range) return Response.json({ denied: { code: 'E_ASSET_RANGE', family: 'asset', message: 'once' } }, { status: 416 });
     attempts++;
     if (attempts <= 2) return Response.json({ denied: refusal }, { status: 503 });
     throw Object.assign(Error('fetch failed'), { cause: { code: 'ECONNRESET' } });
@@ -171,7 +171,8 @@ for (const outcome of ['ECONNRESET', 'invalid', 'success', 'auth', 'terminal-ove
   assert.equal((await client.refreshSession()).ok, true); release.resolve();
   const result = await read;
   assert.equal(gets, outcome === 'auth' ? 2 : 1);
-  assert.equal(result.denied?.code, { ECONNRESET: 'E_OFFLINE', invalid: 'E_HTTP_RESPONSE', success: 'E_AUTH', auth: 'E_ASSET_VIEWED', 'terminal-overload': 'E_RATE_LIMIT' }[outcome]);
+  if (outcome === 'success') { assert.ok('url' in result, 'rotation does not discard completed bytes or consume another view'); result.revoke(); }
+  else assert.equal(result.denied?.code, { ECONNRESET: 'E_OFFLINE', invalid: 'E_HTTP_RESPONSE', auth: 'E_ASSET_VIEWED', 'terminal-overload': 'E_RATE_LIMIT' }[outcome]);
   if (outcome === 'ECONNRESET') assert.match(result.denied.message, /ECONNRESET/);
 });
 
@@ -351,6 +352,7 @@ for (const rotating of [false, true]) for (const mode of ['overload', 'reset', '
     const path = new URL(input).pathname;
     if (path === '/auth/refresh') return Response.json({ session: session('new') });
     if (path === '/assets/once') {
+      if (init.headers.range) return Response.json({ denied: { code: 'E_ASSET_RANGE', family: 'asset', message: 'once' } }, { status: 416 });
       gets++; entered.resolve(); await release.promise;
       if (mode === 'overload') return Response.json({ denied: refusal }, { status: 503 });
       if (mode === 'invalid') return new Response('busy', { status: 503 });
@@ -364,7 +366,7 @@ for (const rotating of [false, true]) for (const mode of ['overload', 'reset', '
   if (rotating) assert.equal((await client.refreshSession()).ok, true);
   release.resolve(); const read = await reading;
   assert.equal(read.denied?.code, mode === 'overload' ? 'E_RATE_LIMIT' : mode === 'invalid' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE');
-  assert.equal(gets, mode === 'overload' ? 4 : 1);
+  assert.equal(gets, mode === 'overload' && !rotating ? 4 : 1);
   if (['reset', 'unreachable'].includes(mode)) assert.match(read.denied.message, new RegExp(mode === 'reset' ? 'ECONNRESET' : 'ECONNREFUSED'));
   else assert.equal(client.link(), 'online');
 });
@@ -404,7 +406,11 @@ for (const tier of ['online', 'web']) for (const door of ['probe', 'sync']) {
 
 test('public transfers jitter beyond Retry-After and stop within their cumulative budget', async t => {
   const delays = []; t.mock.method(Math, 'random', () => 0.5);
-  t.mock.method(globalThis, 'setTimeout', (fn, ms) => { delays.push(ms); queueMicrotask(fn); return 0; });
+  // This checks exact jitter for zero body-reading time. Asset Retry-After is
+  // now an absolute deadline captured at headers, before body consumption.
+  const now = Date.now(); t.mock.method(Date, 'now', () => now);
+  const realTimeout = globalThis.setTimeout;
+  t.mock.method(globalThis, 'setTimeout', (fn, ms) => { if (ms >= 5000) return realTimeout(fn, ms); delays.push(ms); queueMicrotask(fn); return 0; });
   const client = createClient({ url: 'http://asset.invalid', persona: 'alice', fetch: async () => Response.json({ denied: refusal }, { status: 503, headers: { 'Retry-After': '1' } }) });
   t.after(() => client.close());
   assert.equal((await client.upload(new Uint8Array([1]))).why.code, 'E_RATE_LIMIT');
@@ -461,6 +467,9 @@ for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'qu
     clients.push(client); t.after(() => client.close());
   }
   const timeout = globalThis.setTimeout; let sample = 0;
+  // Keep decoding at zero virtual elapsed time for the exact jitter samples;
+  // elapsed-body/minimum preservation is covered by asset-retry.test.mjs.
+  const now = Date.now(); t.mock.method(Date, 'now', () => now);
   t.mock.method(Math, 'random', () => [0, 0.25, 0.5, 0.75][sample++ % 4]);
   t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
     if (ms >= 1000 && ms <= 1250) timers.push({ ms });

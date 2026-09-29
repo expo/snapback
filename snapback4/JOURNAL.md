@@ -76556,6 +76556,46 @@ Report: [PQ round 4](./reports/20260929-pq-per-row-hooks/round4/REPORT.md).
 The last pre-commit fetch added main's scheduled backstop ticket records
 (7f540f094), merged as b5803c3d7; runtime and affected test inputs are unchanged.
 Reference audit: 523 LLPs, 9,863 refs, zero errors or unchecked.
+## 2026-09-29 — Lane AV: author avatars and asset-handle ownership
+
+Calibration #26 d-02's permanent-loading claim did not reproduce. The builder's
+seven-file Quarry program and exact profileById → useAsset pattern paint all
+20 DM, 20 group, 20 feed and two inbox avatars on online, process and wasm,
+using both published 0.4.8 and this checkout. The supplied frozen Expo export
+also paints every avatar; instrumented hooks reach ready, and an uninstrumented
+control passes. Its missing wasm was restored with the exact published bytes
+matching the baked filename hash. The original failing browser/backend state
+remains necessary; the open d-02 ticket preserves that gap. The app was not
+edited, and the separate fix below is not claimed as d-02's cause or closure.
+
+Proved and fixed useAsset exposing an old ready URL in a render after changing
+id/client, reviving a cleared id's revoked handle, and retaining a raw client's
+handle after sign-out. Outcomes now belong to the current selection and explicit
+signed-out boundary; unknown-viewer bearer discovery does not consume another
+one-view fetch. Added the complete author-avatar recipe to the media card and
+recorded the decision in LLP 3000.008.002.000 §6. Authorization, retention,
+private-media membership revocation and one-view rules are unchanged.
+
+Final affected tests: 56 passed; complete guide: 98 passed; existing media
+lifecycle checks: 72 passed, one macOS-only skip. Published lifecycle controls
+pass on all three tiers, including replacement, independent handles, revoked
+ids, one-view consumption and sign-out. The single full-suite run's exact
+summary was `== 2 failure(s) in 1380 s`: cargo test and client tests. Its two
+guide failures were ours (unbounded-sync example and refusal-definition order),
+both corrected and verified by the complete guide rerun. Its ordinary/exit
+orphan-binding response waits timed out at 5,000 ms: baseline intermittent
+failures, both passing unchanged in isolation, with an open follow-up ticket.
+No environmental test exemption. Full-run totals: 4,297 Rust passed / two failed
+/ 33 ignored; 4,564 clients passed / three failed including their parent /
+ten skipped; 79 models and nine fixture-wrapper tests passed. The 60-second
+target remains missed. No second full run or relaxed assertion/timeout.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report, provenance and every failed diagnostic execution:
+[Lane AV report](./reports/20260929-av-asset-resolution/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.
 
 ## 2026-09-29 — Lane RL round 2: pending notifications survive old replica reads
 
@@ -76743,6 +76783,100 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
 No tools installed, push or publication. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Report: [PQ round 6](./reports/20260929-pq-per-row-hooks/round6/REPORT.md).
+## 2026-09-29 — Lane AV round 1: bounded asset recovery
+
+First fetched and merged origin/main (b7d05baff), preserving both appended
+journal entries; merge b0e693b31. Read both completed round-0 reviews and
+addressed their findings. The supervisor's d-02 mechanism reproduces on published
+0.4.8: one reset/503 leaves a hook denied for its selection, while a hung fetch
+stays loading after 31 seconds. The builder hides both as initials. Actual
+122-socket pressure against the unchanged 128 cap leaves only 4/40 online and
+3/40 process/wasm downloads ready on 0.4.8. FU recovers a short 503 burst on main,
+but resets/hangs and sustained concurrency still expose permanent non-readiness.
+The original grading session's transport cause remains unproven; attribution
+stays open separately from the reproduced and repaired mechanism.
+
+Full-file Range requests allow safe ordinary retries; once assets refuse Range
+before the one non-range transfer. Never replay ambiguous once downloads or
+terminal refusals. Four attempts, exponential backoff/jitter, Retry-After,
+five-second attempt and thirty-second overall transfer deadlines, ten seconds
+backoff and six concurrent transfers per client. Exhaustion becomes a coded
+hook error; reconnect/refocus retries only safe failures. Complete 206 bodies
+retain under existing home receipts; partial bodies never retain. Local expiry
+runs before network backoff. Late native buffers close without creating URLs.
+
+Review fixes add effect-lifetime ownership for Activity, microtask dispatch for
+initial StrictMode replay, reverse-completion coverage and independently
+unmounted hooks. Guide wording now names client/id/signed-out ownership exactly.
+The media card and governing LLPs describe recovery and error states.
+
+Final affected groups pass: 66 asset/lifecycle tests, 55 React tests, 83 final
+cleanup/session/Blob tests; complete guide 98/98. All three tiers recover injected
+reset/503/timeout and forty-call bursts, expose error after four resets, and
+recover on reconnect/refocus. The fixed client also passes 8/8 against the
+published 0.4.8 host, including once and revocation controls.
+
+scripts/test.sh ran once: `== 1 failure(s) in 1334 s`, stage `client tests`.
+Rust 4,311 passed / 33 ignored; clients 4,591 passed / five failed / ten skipped;
+models 79/79 and fixture wrapper 9/9. All five failures are ours, corrected and
+rerun: the ordinary-media request count, await fingerprint classification, and
+three late-native-response cleanup assertions. No baseline/environmental
+exemption; no second full run or green-full-suite claim after corrections.
+No timeout, model count or size ceiling was relaxed; the 60-second target is
+still exceeded. Every failure is recorded in the report.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-av-asset-resolution/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-29 — Lane AV round 2: asset progress and cooldown custody
+
+First fetched and merged origin/main; already up to date at round-1 HEAD
+99427c205. Read both earlier prompts/reports, Astra's complete NOT READY review,
+and Grok's completed NOT READY review, which arrived during this round. Both
+complete review files were rechecked before committing and were unchanged.
+
+Downloads now bound silence, not a progressing stream's total duration:
+nonempty chunks renew five-second attempt and thirty-second queue/inactivity
+bounds. Real HTTP bytes finish at six seconds; ordinary and one-view bodies
+finish at 36 virtual seconds. Buffered native fetch exposes no intermediate
+progress and retains its opaque five-second wait bound, documented explicitly.
+Retry-After is captured at headers and survives stalled bodies and credential
+rotation, including rotation during backoff. Unknown error bodies retain HTTP
+status without inventing proof that a one-view request was refused. Six active
+transfers, four attempts, ten seconds backoff and all authority/once rules stay.
+
+Local queued calls safely cross credential rotation before invalidating media:
+34/34 queued avatars now resolve on both process and wasm under the new bearer,
+with receipt-confirmed retained bytes and the old live handle intact. Early
+focus/reconnect events coalesce into one recovery at the deadline; busy events
+wait for a safe failure. Unmount cancels recovery, and a failure does not loop.
+The final guard-removal mutation fails specifically on premature focus retry.
+Bare 408/429/500/502/503/504 recovery now has detecting controls. Guide timing,
+its why-property wording and LLP 3000.008.002.000 §6 match. Original d-02 incident
+attribution remains unproven, separately from its reproduced failure mechanism.
+
+Affected checks pass: final React 57/57; retry/online-session 41/41; final
+session/terminal/avatar group 32/32; existing broad lifecycle group 104/104;
+process/wasm retained-byte rotation 3/3; entire final guide 98/98. Final boundary
+and elapsed-body checks pass. scripts/test.sh ran once, exit 1, exact summary:
+`== 1 failure(s) in 1324 s`, stage `client tests`. Rust 4,311 passed / 33 ignored;
+clients 4,612 passed / one failed / ten skipped; models 79/79; wrapper 9/9.
+The one failure is ours: the exact-jitter fixture omitted a valid wait below
+1,000 ms after body decoding. Holding its zero-body-time clock fixed preserves
+all exact jitter assertions; the entire overload file then passes 109/109.
+A separate elapsed-body regression requires the retry at the original minimum.
+No baseline/environmental exemption or second full run; no green-full claim
+after that correction. The inherited 60-second target remains exceeded.
+Every failed setup, red control and correction is in the report's failure ledger.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip-9, 744 B under the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-av-asset-resolution/round2/REPORT.md.
 
 ## 2026-09-29 — Lane RL round 3: program generation retires displayed answers
 
@@ -77018,3 +77152,52 @@ The broad and full invocations did not run those 15 original cases. The final
 follow-up runs both retry files and the corrected store-order file: 40/40 pass.
 No runtime source changed; the report records this qualification limit and the
 setup correction for the first follow-up launch. The one full result stays red.
+## 2026-09-29 — AV round 3: buffered transfers, rotation and queue boundaries
+
+Fetched and merged origin/main (6d8e53067) first, preserving both journal and
+LLP revision sides and regenerating the combined client's await fingerprint.
+Merge 8f937a1ee retains both parents' journal lines in order. Read all prior
+prompts/reports and Astra's entire round-2 NOT READY review. Grok completed
+READY WITH CHANGES during finalization; its two Mediums and Low are addressed.
+
+Successful streaming bodies retain a five-second byte-inactivity bound. Buffered
+Blobs allow one minute plus Content-Length at 32 KiB/s, capped using the server's
+64 MiB maximum (35 min 8 s). Before fetch resolves headers, capability and size
+are unknown: completion-only hosts require the same maximum allowance, which
+also delays detecting a never-returning first response. Queue/backoff has a
+separate cumulative thirty-second budget, excluding active body transfers.
+Real six-second HTTP PNGs now reach ready and paint through completion-only
+fetch and streamless Blob adapters, ordinary and once: four images, six requests.
+This fails on merged round-2 source. Empty chunks already did not count as
+progress; the detecting regression requires cancellation and bounded exhaustion.
+
+Grok's additional rotation latch is corrected: completed bytes remain with the
+same known principal without replay, and local requests wait for refresh before
+capturing credentials. Sign-out, close, store and unknown-principal fences stay.
+A queue/SDK timeout is E_CLIENT, preserving the local link and held media; real
+socket failures remain E_OFFLINE with retained-byte fallback. Expiry during
+backoff preserves the preceding refusal and Retry-After. Ordinary post-body
+retention/display errors can recover; once errors remain non-retryable. Updated
+LLP 3000 §7, LLP 3000.008.002.000 §6, media/refusals cards and client manual.
+
+Negative controls detect the empty-chunk guard, refresh wait, local timeout
+classification, cumulative queue bound, ordinary construction retryability and
+real socket-offline transition. Real online/process/wasm rotation and once tests
+pass. The first late-review probe's queue double and result-shape mistakes are
+retained and classified as ours; no environmental exemption. This models buffered
+hosts and does not qualify a physical React Native device.
+
+Ran scripts/test.sh exactly once: `== 0 failure(s) in 1404 s`, exit 0.
+Rust 4,329 passed / 33 ignored; clients 4,819 passed / ten skips; final models
+79/79 and fixture wrappers 9/9. Zero full-run failures, whether ours, baseline or
+environmental. That green snapshot includes Astra's fixes and precedes Grok's
+later fixes; it is not a final-tree full-suite claim. Subsequent affected checks:
+352/352, final retention/avatar/pressure/retry 98/98, whole guide 99/99; build,
+typecheck and await classification pass. Initial focused checks also passed.
+The inherited 60-second target remains missed; no count or ceiling changed.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: [AV round 3](reports/20260929-av-asset-resolution/round3/REPORT.md).
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

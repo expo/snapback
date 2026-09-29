@@ -1,0 +1,19 @@
+{
+  "checked_at_utc": "2026-09-29T09:45:34.459974+00:00",
+  "reviews": {
+    "astra": {
+      "source": "/home/ccheever/sb4-intent/reviews/av-r2.astra.md",
+      "bytes": 5395,
+      "sha256": "eb17aa033e3ec770472d079909fcfde128579574e7cffa2905611140a529b5ae",
+      "status": "NOT READY round 2; both findings addressed",
+      "unchanged_since_complete_read": true
+    },
+    "grok": {
+      "source": "/home/ccheever/sb4-intent/reviews/av-r2.grok.md",
+      "bytes": 12532,
+      "sha256": "67bbcb3c35465f7493088ca750204bbc4bcee9918b5c37d39cb4871ec6f564da",
+      "status": "READY WITH CHANGES round 2; two Mediums, Low and coverage findings addressed",
+      "unchanged_since_complete_read": true
+    }
+  }
+}

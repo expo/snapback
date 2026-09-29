@@ -151,7 +151,9 @@ export class MediaCache {
       if (entry?.confirmed && receipt && entry.home.store_id !== receipt.store_id) return;
       await this.drop(id); await this.save(); this.schedule();
     });
-    if (response.status !== 200 || response.headers.get("accept-ranges") !== "bytes" || this.options.keep !== "viewed" || blob.size > this.options.maxBytes) return Promise.resolve();
+    const range = /^bytes 0-(\d+)\/(\d+)$/.exec(response.headers.get("content-range") ?? "");
+    const complete = response.status === 200 || response.status === 206 && range && Number(range[1]) + 1 === Number(range[2]) && Number(range[2]) === blob.size;
+    if (!complete || response.headers.get("accept-ranges") !== "bytes" || this.options.keep !== "viewed" || blob.size > this.options.maxBytes) return Promise.resolve();
     return this.serial(async () => {
       if (this.stopped) return;
       const home = receipt ? await this.home(id, receipt) : null;

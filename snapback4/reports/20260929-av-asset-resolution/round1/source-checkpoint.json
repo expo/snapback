@@ -1,0 +1,13 @@
+{
+  "merged_head": "b0e693b3153143320edd2189a738399f7fb7fec9",
+  "origin_main_at_merge": "b7d05baff661db08bb99250d80b1090a8ed99346",
+  "node": "v24.13.1",
+  "files": {
+    "snapback4/packages/snapback4/src/assets.ts": "5223ec31a991ec0059579a25b07c2c40e397c14edc4c0172488c3f5e9fc4b3e4",
+    "snapback4/packages/snapback4/src/asset-download.ts": "c1133d8910e9f4abfe5166925b7c810d0eca7570f31a534206ad7af7a3a3f56c",
+    "snapback4/packages/snapback4/src/client.ts": "55d68118b672022c358d183aa79d8d022ff5ceacf6564e6d140641d27bdf0f9f",
+    "snapback4/packages/snapback4/src/local.ts": "2ed859e696ce36c26f47b7922ae1f15ba5b53a496f3526605b5fb9c1014062d3",
+    "snapback4/packages/snapback4/src/local-assets.ts": "ece32b45d4efcf563025f6ac80730eb09bd5b4a24f06759d1dea2835a62344bd",
+    "snapback4/packages/snapback4/src/react.tsx": "a956a6564ff0d0e44479581d199e5c42ed3d78963e8d96d4d67a6983f5c197d5"
+  }
+}

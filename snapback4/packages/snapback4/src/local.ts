@@ -43,6 +43,7 @@ export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
 import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
@@ -133,6 +134,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
+  const downloads = assetQueue();
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
   // Web mutations can arrive after publication but before startup validation.
@@ -1309,12 +1311,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return uploaded;
     },
     async asset(id) {
-      const denied = unavailable();
-      if (denied) return { denied };
+      const denied = unavailable(); if (denied) return { denied };
+      await media!.reconcile(); if (refreshing) await refreshing; // @ref LLP 3000.008.002.000#6 — reconcile expiry, then wait for the active bearer.
+      if (unavailable()) return { denied: unavailable()! };
       if (link !== "online") return media!.read(id);
       const request = requestCredentials();
       const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
-        unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response));
+        unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response), aborter.signal,
+        () => !unavailable() && request.revision === credentialRevision, downloads);
+      // @ref LLP 3000.008.002.000#6 — a rotated pre-dispatch refusal has no asset authority to invalidate.
+      if ("denied" in read && !unavailable() && request.revision !== credentialRevision) {
+        return read.denied.code === "E_AUTH" ? client.asset(id) : read;
+      }
       if ("denied" in read) {
         await refusedSession(read.denied, request.revision);
         if (read.denied.code === "E_OFFLINE" && !unavailable()) {
@@ -1322,11 +1330,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const retained = await media!.read(id);
           return "url" in retained ? retained : read;
         }
-        await media!.invalidate(id);
+        if (read.denied.code !== "E_CLIENT") await media!.invalidate(id);
       }
-      if (unavailable() || request.revision !== credentialRevision) {
+      if (unavailable()) {
         if ("url" in read) read.revoke();
-        return unavailable() ? { denied: unavailable()! } : "denied" in read ? read : { denied: { code: "E_AUTH", family: "auth", message: "the session changed during download; the view may already have been consumed" } };
+        return { denied: unavailable()! };
       }
       return read;
     },

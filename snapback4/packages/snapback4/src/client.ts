@@ -28,6 +28,7 @@ import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
+import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
@@ -174,6 +175,7 @@ export function createClient(options: ClientOptions): Client {
   let closed = false;
   let delivery: ReturnType<typeof onlineDelivery> | undefined;
   const aborter = new AbortController();
+  const downloads = assetQueue();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
@@ -1019,16 +1021,19 @@ export function createClient(options: ClientOptions): Client {
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      const revision = credentialRevision;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal);
+      const revision = credentialRevision, assetPrincipal = viewer;
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
+      // @ref LLP 3000.008.002.000#6 — completed bytes stay with the same principal; rotation cannot authorize a replay.
       if (revision !== credentialRevision) {
+        if ("url" in read && assetPrincipal !== null && assetPrincipal === viewer) return read;
         if ("denied" in read) {
-          if (read.denied.code === "E_AUTH" || (read.denied.code === "E_RATE_LIMIT" && read.denied.retryable)) return client.asset(id);
+          // Admission backoff belongs to the transfer, not its bearer. Keep
+          // the outcome (including Retry-After) for permitted hook recovery.
+          if (read.denied.code === "E_AUTH") return client.asset(id);
           return read;
         }
         read.revoke();
