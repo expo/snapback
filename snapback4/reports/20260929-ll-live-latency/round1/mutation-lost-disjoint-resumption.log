@@ -1,0 +1,29 @@
+TAP version 13
+# Subtest: wasm: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers
+not ok 1 - wasm: unknown-footprint keep=undefined expire=false held=true drives mounted reads from change through apply without elapsed timers
+  ---
+  duration_ms: 10635.289219
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/live-propagation.test.mjs:31:3'
+  failureType: 'testCodeFailure'
+  error: 'unknown notification wakes a parked disjoint watch after its cut applies'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    eventTurns (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/live-propagation.test.mjs:26:10)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/live-propagation.test.mjs:100:43)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10806.334442

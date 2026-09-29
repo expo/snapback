@@ -1,0 +1,5 @@
+[
+  { name: 'lost-child-dependency', status: 1, signal: null },
+  { name: 'lost-disjoint-resumption', status: 1, signal: null },
+  { name: 'media-misses-authorization', status: 1, signal: null }
+]

@@ -1,0 +1,39 @@
+TAP version 13
+# node:internal/modules/esm/resolve:301
+#   return new ERR_PACKAGE_IMPORT_NOT_DEFINED(
+#          ^
+# TypeError [ERR_PACKAGE_IMPORT_NOT_DEFINED]: Package import specifier "\#fetch" is not defined in package /home/ccheever/sb4-intent/lane-ll/snapback4/target/ll-round1-mutant-lY2WP3/package.json imported from /home/ccheever/sb4-intent/lane-ll/snapback4/target/ll-round1-mutant-lY2WP3/dist/client.js
+#     at importNotDefined (node:internal/modules/esm/resolve:301:10)
+#     at packageImportsResolve (node:internal/modules/esm/resolve:752:9)
+#     at moduleResolve (node:internal/modules/esm/resolve:849:16)
+#     at defaultResolve (node:internal/modules/esm/resolve:992:11)
+#     at \#cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+#     at \#resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+#     at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+#     at \#resolve (node:internal/modules/esm/loader:701:17)
+#     at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+#     at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33) {
+#   code: 'ERR_PACKAGE_IMPORT_NOT_DEFINED'
+# }
+# Node.js v24.13.1
+# Subtest: /home/ccheever/sb4-intent/lane-ll/snapback4/target/ll-round1-mutant-lY2WP3/test/live-propagation-fallback.test.mjs
+not ok 1 - /home/ccheever/sb4-intent/lane-ll/snapback4/target/ll-round1-mutant-lY2WP3/test/live-propagation-fallback.test.mjs
+  ---
+  duration_ms: 47.224344
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ll/snapback4/target/ll-round1-mutant-lY2WP3/test/live-propagation-fallback.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53.446338

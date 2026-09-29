@@ -50,7 +50,7 @@
   },
   {
     "index": 7,
-    "id": "local.ts:call:media?.reconcile()#1",
+    "id": "local.ts:call:media?.reconcile( [\"apply\", \"admit\", \"settle\"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)#1",
     "recipe": "media",
     "classification": "optional",
     "absorbs": false
