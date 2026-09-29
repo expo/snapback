@@ -36,7 +36,7 @@ pub fn upsert_absence(schema: &Schema, name: &str, index: &str, key: &[Expr]) ->
     // is a separate decision; do not infer it merely from the public read rule.
     if rule.is_uniformly_readable() && sync.audience != crate::schema::Audience::Public { return Err("the key's synced group is not established"); }
     let index = table.index(index).ok_or("the key does not pin readability")?;
-    let pinned = index.components.iter().zip(key).filter_map(|(part, expression)| part.column().map(|column| (column, expression))).collect();
+    let pinned = crate::small_map::collect(index.components.iter().zip(key).filter_map(|(part, expression)| part.column().map(|column| (column, expression))));
     let visibility = prefix_visibility(name, table, &rule, &pinned);
     if !visibility.uniform { return Err("the key does not pin readability"); }
     Ok(visibility)
@@ -46,7 +46,7 @@ pub fn upsert_absence(schema: &Schema, name: &str, index: &str, key: &[Expr]) ->
 pub(super) fn prefix_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let index = table.index(&scan.index)?;
-    let pinned: BTreeMap<_,_> = index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
+    let pinned: BTreeMap<_,_> = crate::small_map::collect(index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())));
     if table.through.as_ref().is_some_and(|t| pinned.contains_key(&t.reference)) { return Some(table.rules.read.clone()); }
     let rule = simplify_prefix(&table.rules.read, &scan.table, table, &pinned);
     if matches!(rule, RuleExpr::Allow) { return None; }

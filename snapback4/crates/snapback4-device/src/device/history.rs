@@ -34,9 +34,9 @@ pub(super) fn events(tx: &dyn crate::store::StreamTx, schema: &Schema, events: &
     if joined.is_empty() && !events.iter().any(|event| schema.table(&event.table).is_some_and(|table| table.leave == LeavePolicy::DeliveredHistory)) { return Ok(()); }
     let meta = if staged { STAGED_GROUPS } else { GROUPS };
     let mut groups = load(tx, meta)?;
-    let joined: BTreeMap<String, BTreeSet<String>> = joined.iter().map(|(name, groups)| {
+    let joined: BTreeMap<String, BTreeSet<String>> = snapback4_core::small_map::try_collect(joined.iter().map(|(name, groups)| -> Result<_, RuntimeError> {
         Ok((name.clone(), groups.iter().map(encoded).collect::<Result<_, RuntimeError>>()?))
-    }).collect::<Result<_, RuntimeError>>()?;
+    }))?;
     // The server includes actual acquisitions only, never continuous renewals.
     // Reset every old epoch before collecting this page's delivered ids.
     for (name, joined) in &joined {
@@ -93,7 +93,7 @@ pub(super) fn coverage_state(schema: &Schema, groups: &Groups, name: &str, cover
         Coverage::Row(row) => row_key(table, row)?,
         Coverage::Range(index, prefix) => {
             let Some(index) = table.index(index) else { return Ok(CoverageState::Unknown) };
-            let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
+            let pinned: BTreeMap<_, _> = snapback4_core::small_map::collect(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))));
             let Some(group) = audience_prefix(table).iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(CoverageState::Unknown) };
             // An empty audience is the whole public table, for every lookup key
             // and scan prefix, including a read that finds no rows.

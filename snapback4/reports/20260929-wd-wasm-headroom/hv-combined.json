@@ -1,0 +1,7 @@
+{
+  "hvCommit": "611f957f85d08109dcb39044fe77e870c7613197",
+  "scope": "HV committed source snapshot plus WD core/device source changes, including small_map.rs; uses HV existing folding script. Size/build check only, not a combined behavior qualification.",
+  "raw": 1955673,
+  "gzip": 592385,
+  "sha256": "5a9e80051b6bd140ec4950efb6e862d26564e7ee5941e49468258abca2d58878"
+}
