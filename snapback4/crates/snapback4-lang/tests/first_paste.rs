@@ -84,34 +84,124 @@ fn cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_auth
     assert!(bound(&ambiguous).diagnostics.iter().all(|d| !d.mechanical), "the direct group reference is not the parent's same-named column");
 }
 
+// Advice has a deliberately small domain: the target is always readable and
+// every authored field is required and supplied. Private parents keep upsert.
+fn public_upsert() -> String {
+    UPSERT.replace("table messages:\n  conversation: conversations\n  immutable conversation\n  read <- exists members[.conversation, viewer]\n  sync to members[.conversation] last 500 by .id",
+        "table messages:\n  conversation: conversations\n  immutable conversation\n  public\n  sync public")
+        .replace("view reactionCounts: count reactions by .message, .emoji\n", "")
+}
+fn observes_result(source: &str) -> String {
+    source.replace("mutation setReaction", "effect notify\nmutation setReaction")
+        .replace("  return upsert", "  row = upsert")
+        + "  if row != null:\n    emit notify { row }\n  return row\n"
+}
+fn result_and_effects(e: &mut Engine, emoji: &str) -> (Value, Vec<(String, Value)>, Vec<Value>) {
+    let mut ctx = message_context();
+    ctx.args.insert("emoji".into(), Value::String(emoji.into()));
+    ctx.new_ids = ["00000000000000000000000001".into(), "00000000000000000000000002".into()].into();
+    let out = e.mutate("setReaction", None, ctx).unwrap();
+    let WriteState::Sent { result, .. } = out.state else { panic!("{out:?}") };
+    let effects = e.effects(None, 10).unwrap().into_iter().map(|effect| (effect.effect, effect.payload)).collect();
+    (result, effects, e.store().rows("reactions").unwrap())
+}
+
 #[test]
-fn cal23_to_cal25_upsert_reason_and_verbatim_expression_keep_insert_and_update() {
-    for fields in ["emoji", "message, principal: viewer, emoji"] {
-        let original = UPSERT.replace("{ emoji }", &format!("{{ {fields} }}"));
+fn upsert_advice_preserves_returned_values_committed_rows_and_downstream_effects() {
+    // Positional, named, scalar-id and identical key fields in the patch.
+    for (keys, fields) in [
+        ("message, viewer", "emoji"),
+        ("principal = viewer, message = message", "emoji"),
+        ("message, viewer", "message, principal: viewer, emoji"),
+        ("id = 'reaction'", "message, principal: viewer, emoji"),
+    ] {
+        let expression = format!("upsert reactions[{keys}] {{ {fields} }}");
+        let source = if keys.starts_with("id =") {
+            public_upsert().replace("unique message, principal", "by byMessage: message")
+        } else { public_upsert() };
+        let original = observes_result(&source.replace("upsert reactions[message, viewer] { emoji }", &expression));
         let b = clean(&original);
-        let summary = snapback4_lang::bind::residency::prediction_summary(&b).unwrap();
-        assert!(summary.contains("upsert on a read-through child queues without a row"), "{summary}");
-        assert!(!summary.contains("online-only table reactions"));
         let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
         assert!(site.rewrite.contains("else (insert reactions"), "{site:?}");
-        let fixed = original.replace(&format!("upsert reactions[message, viewer] {{ {fields} }}"), &site.rewrite);
-        assert_eq!(clean(&fixed).schema.operations["setReaction"].predicts.as_deref(), Some("eligible"));
-        for source in [&original, &fixed] {
-            let mut e = engine(source);
-            chat(&mut e, "ours", "alice");
-            for emoji in ["heart", "laugh"] {
-                let mut ctx = message_context(); ctx.args.insert("emoji".into(), Value::String(emoji.into()));
-                let out = e.mutate("setReaction", None, ctx).unwrap();
-                assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
-                let rows = e.store().rows("reactions").unwrap();
-                assert_eq!(rows.len(), 1);
-                assert_eq!(rows[0].field("emoji").unwrap(), &Value::String(emoji.into()));
-            }
+        let fixed = original.replace(&expression, &site.rewrite);
+        let mut a = engine(&original);
+        let mut b = engine(&fixed);
+        for e in [&mut a, &mut b] { chat(e, "ours", "alice"); }
+        for (n, emoji) in ["heart", "laugh"].into_iter().enumerate() {
+            let original = result_and_effects(&mut a, emoji);
+            let pasted = result_and_effects(&mut b, emoji);
+            assert_eq!(original, pasted, "{expression}, {emoji}");
+            assert_ne!(original.0, Value::Null);
+            assert_eq!(original.1.len(), n + 1);
+            assert!(original.1.iter().any(|(_, payload)| payload.field("row").unwrap() == &original.0));
+            assert_eq!(original.2.len(), 1);
+            assert_eq!(original.0.field("emoji").unwrap(), &Value::String(emoji.into()));
         }
     }
-    // An update-only patch has no compilable direct-insert equivalent.
-    let b = clean(&UPSERT.replace("  emoji: text 1..32", "  required: int\n  emoji: text 1..32"));
-    assert!(b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap().rewrite.is_empty());
+}
+
+#[test]
+fn upsert_advice_withholds_expiring_and_optional_result_images() {
+    for (extra, patch, expected_result, effects) in [
+        ("  expiresAt: time\n  expire at .expiresAt\n", "emoji, expiresAt: now", None, 0),
+        ("  expiresAt: time ?\n  expire at .expiresAt\n", "emoji, expiresAt: now", None, 0),
+        ("  extra: text ?\n", "emoji", Some(json!(null)), 1),
+        ("  extra: text ?\n", "emoji, extra: null", Some(json!(null)), 1),
+    ] {
+        let original = observes_result(&public_upsert().replace("table reactions:\n", &format!("table reactions:\n{extra}"))
+            .replace("{ emoji }", &format!("{{ {patch} }}")));
+        let b = clean(&original);
+        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+        let mut e = engine(&original);
+        chat(&mut e, "ours", "alice");
+        let (result, emitted, rows) = result_and_effects(&mut e, "heart");
+        if let Some(value) = expected_result { assert_eq!(wire::to_json(result.field("extra").unwrap()), value); }
+        else { assert_eq!(result, Value::Null); assert!(rows.is_empty()); }
+        assert_eq!(emitted.len(), effects);
+        assert!(site.rewrite.is_empty(), "{extra}: {site:?}");
+        let reason = if extra.contains("expire at") { "expiring target" } else { "optional result fields" };
+        assert!(site.reason.contains(reason) && site.reason.contains("keep the upsert"), "{site:?}");
+    }
+}
+
+#[test]
+fn upsert_advice_keeps_hidden_writable_targets() {
+    let original = observes_result(UPSERT);
+    let mut e = engine(&original);
+    chat(&mut e, "ours", "bob"); // Alice can write her reaction but cannot read this parent.
+    reaction(&mut e, "existing", "alice", "heart");
+    let (result, effects, rows) = result_and_effects(&mut e, "laugh");
+    assert_eq!(result, Value::Null);
+    assert!(effects.is_empty());
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("emoji").unwrap(), &Value::String("laugh".into()));
+    let b = clean(&original);
+    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+    assert!(site.rewrite.is_empty(), "{site:?}");
+    assert!(site.reason.contains("conditional read authority") && site.reason.contains("keep the upsert"), "{site:?}");
+}
+
+#[test]
+fn upsert_advice_withholds_key_changing_patches() {
+    let original = public_upsert().replace("emoji: text 1..32):", "emoji: text 1..32, other: principal):")
+        .replace("{ emoji }", "{ emoji, principal: other }");
+    let b = clean(&original);
+    let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+    assert!(site.rewrite.is_empty(), "a different stable principal must not receive advice: {site:?}");
+}
+
+#[test]
+fn upsert_advice_withholds_private_incomplete_defaulted_and_inherited_expiry_images() {
+    for original in [
+        UPSERT.to_owned(),
+        public_upsert().replace("  emoji: text 1..32", "  required: int\n  emoji: text 1..32"),
+        public_upsert().replace("  emoji: text 1..32", "  extra: int default 7\n  emoji: text 1..32"),
+        public_upsert().replace("table messages:\n", "table messages:\n  until: time ?\n  immutable until\n  expire at .until\n"),
+    ] {
+        let b = clean(&original);
+        let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+        assert!(site.rewrite.is_empty(), "{site:?}");
+    }
 }
 
 #[test]
@@ -121,7 +211,7 @@ fn upsert_advice_withholds_effectful_keys_and_patch_values() {
         ("resetKey(message)", "emoji"),
         ("message", "emoji: (reactions[message, viewer] ! else NOT_FOUND).emoji"),
     ] {
-        let original = UPSERT.replace("upsert reactions[message, viewer] { emoji }",
+        let original = public_upsert().replace("upsert reactions[message, viewer] { emoji }",
             &format!("upsert reactions[{key}, viewer] {{ {fields} }}")) + r#"
 fn reset(message: messages, emoji: text 1..32):
   delete reactions[message, viewer]
@@ -148,8 +238,9 @@ fn resetKey(message: messages):
 
 #[test]
 fn row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite() {
-    let original = UPSERT.replace("  return upsert reactions[message, viewer] { emoji }",
-        "  row = reactions[message, viewer] ! else NOT_FOUND\n  return upsert reactions[row] { message, principal: viewer, emoji }");
+    let original = public_upsert().replace("unique message, principal", "by byMessage: message")
+        .replace("  return upsert reactions[message, viewer] { emoji }",
+        "  row = reactions[id = 'existing'] ! else NOT_FOUND\n  return upsert reactions[row] { message, principal: viewer, emoji }");
     let b = clean(&original);
     let site = b.schema.operations["setReaction"].sites.iter().find(|s| s.kind == "upsert").unwrap();
     assert!(site.rewrite.is_empty(), "a row key needs row.id, not an inferred id = row: {site:?}");

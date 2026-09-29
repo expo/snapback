@@ -76110,3 +76110,50 @@ SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Rechecked both final reviews. Report:
 reports/20260929-ag-first-paste/round2/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — AG round 3: conservative upsert advice and result/effect equivalence
+
+Read the binding prompts/reports from rounds 0–2 and Astra's complete round-2
+review. Branch advice now requires a complete required plain scalar image,
+stable keys and values, unchanged unique keys, a non-expiring target (including
+inherited expiry), and unconditional read authority from a direct public/allow
+parent. Optional, incomplete, defaulted, engine-owned and private images withhold
+advice. A hidden writable row also invalidates an existence branch, so the
+private Clique reaction fixture now keeps upsert. Each withheld site explains
+why and says to keep the upsert and observe queued/sent/failed state. Do not widen
+product authority to obtain advice. Offered branches still need held coverage
+and runtime meter headroom. No interpreter, client, authority or budget changes.
+
+The positive witness pastes each printed expression and compares returned
+values, stored reaction rows and durable effect names/payloads on both insert
+and update, using identical supplied IDs. Covers positional, named, repeated-key
+and scalar-id forms. Expiry returns null and emits nothing; optional extra is
+materialized as null; a hidden writable target updates one row, returns null
+and emits nothing. All withhold advice. Disabling the addressed-key-change,
+expiry, optional-image or unconditional-read guard fails its detecting test.
+The round-2 source fails the new regressions; all mutants are restored. Existing
+non-stable and row-valued key witnesses remain otherwise eligible so the new
+read-authority gate cannot mask them. LLP 3000.007 §23 and the prediction card
+record this deliberately smaller surface.
+
+Final affected checks: 17 first-paste, 99 whole-guide, 41 residency-note and
+one frozen-compatibility test pass. Eleven lowering comparisons passed; historical
+IR digests remain unchanged. The CLI why output names the withholding reason
+without printing a branch or stale insert hint. Docs budget, ref-check and
+whitespace checks pass. Every control/development failure and its resolution is
+attributed in reports/20260929-ag-first-paste/round3/FAILURES.md.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1387 s
+```
+
+All stages pass: 274 Rust binaries / 987 executions; 4,561 client tests with ten
+declared skips; 79 client-model tests. Full-suite failures: ours 0, baseline 0,
+environmental 0. The inherited 60-second target remains missed; no timeout or
+ceiling changes. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the unchanged 593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-ag-first-paste/round3/REPORT.md. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2.98s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-45b40df4500bac59)
+
+running 1 test
+test upsert_advice_withholds_expiring_and_optional_result_images ... FAILED
+
+failures:
+
+---- upsert_advice_withholds_expiring_and_optional_result_images stdout ----
+
+thread 'upsert_advice_withholds_expiring_and_optional_result_images' (3840778) panicked at crates/snapback4-lang/tests/first_paste.rs:163:9:
+ResidencySite { site: "schema.q:33:9 (upsert reactions)", table: "reactions", index: "byId", kind: "upsert", class: Server, reason: "upsert on a read-through child queues without a row; no branch rewrite: the insert result image is incomplete; keep the upsert and observe its queued/sent/failed state", rewrite: "" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    upsert_advice_withholds_expiring_and_optional_result_images
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p snapback4-lang --test first_paste`

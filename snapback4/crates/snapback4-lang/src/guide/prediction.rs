@@ -317,12 +317,12 @@ the required partition, or redesign the read to need held facts; never
 invent an empty row or mint different IDs on replay.
 
 A synced read-through child's `upsert` can still queue without a predicted row.
-`why` names that limit. For stable keys and field values it prints an
-update/insert replacement. That choice
-adds a readable-key test; it needs held absence, parent and cap coverage and
-can still queue past a horizon. Mixed or row-valued positional keys receive no rewrite.
-Calls, row reads, spreads and key-changing patches
-receive no branch rewrite: testing existence first could change their meaning.
-It is not a `check --fix` repair.
+`why` offers update/insert advice only for always-readable, non-expiring targets
+with complete required images and stable, unchanged keys/values. Optional,
+defaulted, engine-owned or private fields, mixed/row keys, calls, reads and
+spreads withhold advice: insert's image can differ from upsert's read-back or
+branch selection. Keep upsert; observe queued/sent/failed state. Offered branches
+still need held coverage and additional read work. Do not widen read authority
+for this advice. This is not `check --fix`.
 
 "##;
