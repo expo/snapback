@@ -42,11 +42,7 @@ for (const accepted of [true, false]) test(`online app reopens after replacement
   await until(() => watch.getSnapshot().data?.[0] === 'A');
   app.auth.onChange(() => states.push([app.auth.state, app.client]));
   const ids = [mintId(), mintId()];
-  // Pin the intended handoff explicitly: first request in flight, then a
-  // second custody save held. Dispatch locking can add microtasks before POST.
-  const writes = [app.mutate(m, {}, { id: ids[0] })];
-  await until(() => posts === 1);
-  writes.push(app.mutate(m, {}, { id: ids[1] }));
+  const writes = ids.map(id => app.mutate(m, {}, { id }));
   await until(() => posts === 1 && heldAdmission);
   store = 'B'; assert.equal((await prior.query(q, {})).denied.code, 'E_STORE_REPLACED');
   assert.equal(app.auth.state, 'restoring');
@@ -125,10 +121,7 @@ for (const fail of [false, true]) test(`replacement waits for durable retirement
   t.after(async () => { releaseAdmission(); releaseRetirement(); await app.close(); });
   await app.ready; const prior = app.client; await prior.query(q, {});
   const ids = [mintId(), mintId()], results = [];
-  const submit = id => app.mutate(m, {}, { id }).then(write => { results.push(write); return write; });
-  const submitted = [submit(ids[0])];
-  await until(() => posts === 1);
-  submitted.push(submit(ids[1]));
+  const submitted = ids.map(id => app.mutate(m, {}, { id }).then(write => { results.push(write); return write; }));
   const overlapping = prior.mutate(m, {}, { id: ids[0] }).then(write => { results.push(write); return write; });
   await until(() => heldAdmission && posts === 1);
   replacing = true; store = 'B';

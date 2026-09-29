@@ -4,11 +4,10 @@ import { storeLock } from "./app-storage.ts";
 // Synchronous custody until the web device's ordinary admission commits.
 // Exit dispatch evidence also survives until its ordinary status commit.
 // No transport, result, or server settlement lives here.
+import { identityRefusal } from "./identity-admission.ts";
 import type { Change } from "./web.ts";
 import type { Refusal } from "./contract.ts";
 import { runJournal, runJournalAsync, type JournalPlan, type JournalInvoke, type JournalDevice } from "./web-journal-execution.ts";
-import { IdentityAdmissions, IDENTITY_ADMISSIONS, IDENTITY_WAIT_MS, type AdmissionIdentity } from "./identity-admission.ts";
-import type { Queued } from "./local-types.ts";
 
 interface Entry {
   id: string;
@@ -23,7 +22,7 @@ interface Entry {
   replay_candidate?: boolean;
 }
 
-export interface AdmissionRecord { key: string; storeId: string; entry: Entry; authority?: AdmissionAuthority; identity?: AdmissionIdentity }
+export interface AdmissionRecord { key: string; storeId: string; entry: Entry; authority?: AdmissionAuthority }
 interface Transfer { key: string; storeId: string; recovered: boolean }
 const PREFIX = "snapback4-admission:";
 const RECORD_BYTES = 64 * 1024;
@@ -103,32 +102,25 @@ export class AdmissionJournal {
   private stagedExits = new Map<string, string>();
   private storeId: string | undefined;
   private backendId: string | undefined;
-  private transferId: string | undefined;
-  readonly identity: IdentityAdmissions;
   private sequence = 0;
-  constructor(private readonly name: string, private readonly exclusive: boolean, private readonly captured?: (id: string) => void, wake?: () => void) { this.identity = new IdentityAdmissions(wake); }
+  constructor(private readonly name: string, private readonly exclusive: boolean, private readonly captured?: (id: string) => void) {}
 
   // Keep the captured identity on the wire even if the endpoint changes after
   // local validation. Legacy outboxes use their kept device's identity.
-  boundStore(id: string): string | undefined { return this.transfers.get(id)?.storeId || this.identity.bound(id) || this.storeId; }
+  boundStore(id: string): string | undefined { return this.transfers.get(id)?.storeId ?? this.storeId; }
 
   load(saved: Change[]): void {
     this.transfers.clear();
     this.exits.clear(); this.stagedExits.clear();
-    this.storeId = undefined;
-    this.backendId = undefined;
-    this.transferId = undefined;
-    this.identity.remember(null);
+    this.storeId = undefined; this.backendId = undefined;
     this.remember(saved);
     for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
   }
 
   remember(changes: Change[]): void {
     for (const c of changes) {
-      if (c.s === "m" && c.k === "device:store_id") this.storeId = c.v ?? undefined;
       if (c.s === "m" && c.k === "device:backend-identity") this.backendId = c.v ?? undefined;
-      if (c.s === "m" && c.k === "device:deferred:identity") this.transferId = c.v ?? undefined;
-      if (c.s === "m" && c.k === `client:${IDENTITY_ADMISSIONS}`) this.identity.remember(c.v);
+      if (c.s === "m" && c.k === "device:store_id") this.storeId = c.v ?? undefined;
       if (c.s === "j") {
         if (c.k.startsWith("exit:")) {
           if (c.v === null) this.exits.delete(c.k);
@@ -203,15 +195,16 @@ export class AdmissionJournal {
   capture(request: Record<string, unknown>): AdmissionRecord | undefined {
     const refuse = (message: string): never => { throw new AdmissionError(message); };
     if (!this.exclusive) refuse("no exclusive provider claim; open a webDevice before writing");
+    if ((request.expected_store !== undefined && request.expected_store !== this.storeId)
+      || (request.expected_backend !== undefined && request.expected_backend !== this.backendId)) throw new AdmissionError(identityRefusal(false));
     try {
       const store = storage();
       if (!store) return refuse("localStorage is unavailable; mutation was not admitted");
-      if (!this.storeId && !this.backendId) return refuse("the backend has not loaded; reopen the client before writing");
+      if (!this.storeId) return refuse("the backend store is not identified yet; mutation was not admitted");
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
-      const key = `${prefix(this.name)}${encodeURIComponent(this.storeId ?? "")}:${entry.id}`;
-      const identity = this.storeId ? undefined : { backend: this.backendId!, store: (typeof request.expected_store === "string" && request.expected_store ? request.expected_store : undefined) ?? this.transferId, deadline: Date.now() + IDENTITY_WAIT_MS };
-      const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId ?? "", identity, entry, authority: this.authority?.capture() })) as AdmissionRecord;
+      const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;
+      const record = JSON.parse(JSON.stringify({ key, storeId: this.storeId, entry, authority: this.authority?.capture() })) as AdmissionRecord;
       const text = JSON.stringify(record);
       if (bytes(text) > RECORD_BYTES) return refuse("mutation admission exceeds 64 KiB; reduce the arguments before retrying");
       const held = keys(store).filter(key => key.startsWith(prefix(this.name)));
@@ -265,7 +258,7 @@ export class AdmissionJournal {
 
   private *fencing(): JournalPlan<void> {
     const state = (yield { op: "sync_state", capture: false }).ok;
-    for (const [id, transfer] of this.transfers) if ((transfer.storeId || this.identity.bound(id)) && journalStoreBinding(transfer.storeId || this.identity.bound(id), state?.store_id) === "retire") {
+    for (const [id, transfer] of this.transfers) if (journalStoreBinding(transfer.storeId, state?.store_id) === "retire") {
       const reply = yield { op: "dequeue", id };
       if (reply.denied) throw new Error(JSON.stringify(reply));
     }
@@ -273,7 +266,7 @@ export class AdmissionJournal {
 
   binding(device: JournalDevice, id: string): ReturnType<typeof journalStoreBinding> {
     const destination = invoke(device, { op: "sync_state", capture: false }).ok?.store_id;
-    return journalStoreBinding(this.boundStore(id), destination);
+    return journalStoreBinding(this.transfers.get(id)?.storeId, destination);
   }
 
   async recover(device: JournalDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
@@ -287,7 +280,7 @@ export class AdmissionJournal {
     await this.recoverExitsWith(call);
     if (this.stagedExits.size) await settle([...this.stagedExits].map(([k, v]) => ({ s: "j", k, v })));
     const state = (await call({ op: "sync_state", capture: false })).ok;
-    if (state.restore_refusal || state.backend_required) return;
+    if (!state?.store_id || state.restore_refusal || state.backend_required) return;
     for (const record of records(this.name, true)) {
       const id = record.entry.id;
       if (live.has(id)) continue;
@@ -301,8 +294,7 @@ export class AdmissionJournal {
       // A bare device cannot validate an app-owned journal. Already committed
       // outbox custody above is independent of this unadmitted record's epoch.
       if (record.authority && !this.authority) continue;
-      if (!state?.store_id && !record.identity) continue;
-      const binding = record.identity ? "allow" : journalStoreBinding(record.storeId, state.store_id);
+      const binding = journalStoreBinding(record.storeId, state.store_id);
       if (binding === "defer") continue;
       if (binding === "retire") {
         await settle([this.transfer(record, false)]);
@@ -313,7 +305,7 @@ export class AdmissionJournal {
       // local authored refusal cannot settle the intent. Replay admission keeps
       // a successful prediction, or rolls refusal back and lets the server decide.
       await this.authorize(record, async () => {
-        const reply = await this.admitWith(call, { ...record.entry, replay_candidate: true }, record.storeId || undefined, record.identity);
+        const reply = await this.admitWith(call, { ...record.entry, replay_candidate: true }, record.storeId);
         if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
         await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
       }, async () => { await settle(this.refused(record)); });
@@ -341,16 +333,17 @@ export class AdmissionJournal {
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
-  admit(device: JournalDevice, entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): Record<string, unknown> {
-    return runJournal(this.admission(entry, storeId, identity, custody), request => invoke(device, request));
+  admit(device: JournalDevice, entry: unknown, storeId?: string, generation?: number): Record<string, unknown> {
+    return runJournal(this.admission(entry, storeId, generation), request => invoke(device, request));
   }
 
-  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): Promise<Record<string, unknown>> {
-    return runJournalAsync(this.admission(entry, storeId, identity, custody), call);
+  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, generation?: number): Promise<Record<string, unknown>> {
+    return runJournalAsync(this.admission(entry, storeId, generation), call);
   }
 
-  private *admission(entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): JournalPlan<Record<string, unknown>> {
+  private *admission(entry: unknown, storeId?: string, generation?: number): JournalPlan<Record<string, unknown>> {
     const state = yield { op: "sync_state", capture: false };
+    if (generation !== undefined && (state.ok?.generation !== generation || state.ok?.restore_refusal || state.ok?.backend_required)) return { denied: identityRefusal(false) };
     const binding = journalStoreBinding(storeId, state.ok?.store_id);
     if (binding !== "allow") return { denied: bindingRefusal(binding) };
     const next = yield { op: "next_submission" };
@@ -361,18 +354,7 @@ export class AdmissionJournal {
     // device chain may have advanced time since capture, including after a crash.
     const issued = Number(floor.ok), requested = entry as Entry;
     const now = Number.isSafeInteger(issued) && issued >= 0 ? Math.max(requested.now, issued) : requested.now;
-    const captured = { ...requested, now, seq: next.ok };
-    return identity || custody ? yield* this.identity.admit(captured, identity, custody?.store) : yield { op: "admit", entry: captured };
-  }
-
-  call(device: JournalDevice, request: Record<string, unknown>): Record<string, unknown> {
-    return runJournal(this.operation(request), request => invoke(device, request));
-  }
-  callWith(call: JournalInvoke, request: Record<string, unknown>): Promise<Record<string, unknown>> { return runJournalAsync(this.operation(request), call); }
-  private *operation(request: Record<string, unknown>): JournalPlan<Record<string, unknown>> {
-    if (request.op === "queued") return yield* this.identity.queued(request);
-    if (request.op === "settle" || request.op === "dequeue") return yield* this.identity.settle(request);
-    return yield request;
+    return yield { op: "admit", entry: { ...requested, now, seq: next.ok } };
   }
 }
 
@@ -383,5 +365,5 @@ export function writeRefusal(reply: Record<string, unknown>): boolean {
 
 export class AdmissionError extends Error {
   readonly why: Refusal;
-  constructor(message: string) { super(message); this.why = admissionRefusal(message); }
+  constructor(value: string | Refusal) { super(typeof value === "string" ? value : value.message); this.why = typeof value === "string" ? admissionRefusal(value) : value; }
 }

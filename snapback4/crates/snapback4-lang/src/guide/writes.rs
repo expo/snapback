@@ -166,7 +166,7 @@ refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 
-Identification: 30 seconds across reload; recovery: `why E_ADMISSION`.
+Identification: 15 seconds without custody; `why E_ADMISSION`.
 
 ## A constraint across rows you cannot read
 

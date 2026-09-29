@@ -164,15 +164,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0), &request["home"])?,
             "admit" => {
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(backend) = request.get("identity_backend").and_then(Json::as_str) {
-                    device.require_admission_identity(backend, text(&request, "identity_store")?)?;
+                if let Some(generation) = request.get("expected_generation").and_then(Json::as_u64) {
+                    device.require_admission_identity(generation, text(&request, "expected_store")?, request.get("expected_backend").and_then(Json::as_str))?;
                 }
                 let entry = take(&mut request, "entry")?;
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
-                #[cfg(not(target_arch = "wasm32"))]
-                if request.get("identity_expected").is_some() {
-                    return encoded(&device.admit_with_identity(queued_entry(entry)?, replay, request.get("identity_expected").and_then(Json::as_str))?);
-                }
                 encoded(&device.admit_with_replay(queued_entry(entry)?, replay)?)?
             }
             "settle" => {
@@ -206,18 +202,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.dequeue(text(&request, "id")?)?;
                 Json::Null
             }
-            "meta" => {
-                let key = text(&request, "key")?;
-                #[cfg(not(target_arch = "wasm32"))]
-                if key == "identity-admissions" { return Ok(json!(device.read_identity_admissions()?)); }
-                json!(device.meta(key)?)
-            },
+            "meta" => json!(device.meta(text(&request, "key")?)?),
             "set_meta" => {
                 device.set_meta(text(&request, "key")?, text(&request, "value")?)?;
                 Json::Null
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            "compare_identity_admissions" => json!(device.compare_identity_admissions(request.get("expected").and_then(Json::as_str), text(&request, "value")?)?),
             "keep_write" => {
                 device.keep_write(text(&request, "value")?)?;
                 Json::Null

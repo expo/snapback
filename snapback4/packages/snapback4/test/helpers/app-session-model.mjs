@@ -8,9 +8,6 @@ import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
 import { modelBackend, modelDevice, modelPage, modelClock, modelReady } from "./app-model-device.mjs";
 
-import { nativeCustodySchedule, onlineExpirySchedule } from "./identity-custody-model.mjs";
-import { identityPublicationSchedule, nativePublicationOverlapSchedule, nativeHandoffSchedule, restoreHandoffSchedule } from "./identity-handoffs.mjs";
-
 const sessionOperations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling", "retireOffline", "retireOnline"];
 export const operations = [...sessionOperations, "receiptOffline", "receiptOnline", "handleWrite"];
 export function generate(seed, length = 24) {
@@ -22,9 +19,7 @@ export function generate(seed, length = 24) {
     { op: "release", app: 1 }, { op: "handleWrite", app: 1 },
     { op: "receiptOnline", app: 1 }, { op: "handleWrite", app: 1 },
   ] : [];
-  return [{ op: "identityCustody", schedule: seed % 3, variant: Math.floor(seed / 3) },
-    { op: "identityCustody", schedule: 3 + seed % 5, variant: Math.floor(seed / 5) },
-    { op: "identityCustody", schedule: 8 + seed % 2, variant: Math.floor(seed / 2) }, { op: "guest", app: 0 }, { op: "reopen", app: 1 }, ...receipts, ...Array.from({ length }, () => ({
+  return [{ op: "guest", app: 0 }, { op: "reopen", app: 1 }, ...receipts, ...Array.from({ length }, () => ({
     op: sessionOperations[choose(sessionOperations.length)], app: choose(3), account: choose(2),
     hold: choose(5) === 0, fault: choose(3) === 0 ? { kind: ["get", "set", "delete"][choose(3)], at: 1 + choose(12) } : null,
     holdDispatch: choose(7) === 0,
@@ -42,22 +37,6 @@ export function execute(...args) {
   return result;
 }
 async function run(commands, coverage = {}, tier = "online", audit = {}) {
-  // Real overlapping-owner schedules run before this sequence owns its session
-  // clock. Their oracles inspect custody and execution, not implementation state.
-  for (const command of commands.filter(command => command.op === "identityCustody")) {
-    const name = ["read-overlap", "dedup", "expiry", "freeze", "binding", "fifo", "native-expiry", "restore", "publication", "successful-probe"][command.schedule];
-    if (name === "publication") {
-      await identityPublicationSchedule(command.variant % 2 === 0, Math.floor(command.variant / 2) % 2 === 0, command.variant % 3 === 0);
-      if (command.variant % 5 === 0) await nativePublicationOverlapSchedule();
-    }
-    else if (name === "successful-probe") await onlineExpirySchedule(command.variant % 2 === 0, command.variant, Math.floor(command.variant / 2) % 2 === 0 ? "original-store" : "replacement-store");
-    else if (name === "expiry") await onlineExpirySchedule(command.variant % 2 === 0, command.variant);
-    else if (name === "restore") await restoreHandoffSchedule(command.variant);
-    else if (command.schedule >= 3) await nativeHandoffSchedule(name === "native-expiry" ? "expiry" : name, command.variant);
-    else await nativeCustodySchedule(name, command.variant);
-    coverage[`custody.${name}`] = (coverage[`custody.${name}`] ?? 0) + 1;
-  }
-  commands = commands.filter(command => command.op !== "identityCustody");
   if (tier === "local") await modelReady();
   const devices = tier === "local" ? Array.from({ length: 3 }, () => {
     const device = modelDevice();
@@ -507,15 +486,9 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
                 audit.mutateOutcome?.(result, ended);
                 const known = (closedDeliveries.get(h.runtime) ?? delivered).has(`${h.runtime}/${id}`);
                 if (result.state === "pending") {
-                  // A first-store probe may return pending while this runtime
-                  // retains durable custody. A peer can dispatch that same ID
-                  // before this callback without delivering its body here.
-                  const awaitingIdentity = result.reason === "waiting for backend identification" && [...values.values()].some(text => {
-                    try { const journal = JSON.parse(text); return [...(journal.pending ?? []), ...(journal.receipts ?? [])].some(write => write.id === id); } catch { return false; }
-                  });
-                  invariant("I12", !known && (ended || awaitingIdentity), `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
+                  invariant("I12", ended && !known, `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
                   invariant("I12", result.id === id, `unknown ${id} lost its retry id`);
-                  count(ended ? "write.unknownAtClose" : "write.awaitingIdentity");
+                  count("write.unknownAtClose");
                 } else {
                   invariant("I12", known && isDeepStrictEqual(JSON.parse(JSON.stringify(result)), writeReceipts.get(id)), `known ${id} outcome replaced by ${JSON.stringify(result)}`);
                   count("write.knownAtDelivery");

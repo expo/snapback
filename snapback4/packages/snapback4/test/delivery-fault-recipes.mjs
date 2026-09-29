@@ -23,7 +23,6 @@ export const groups = {
   hold: [10,130,131,132],
   clock: [134],
   auth: [11,18,26,27],
-  identity: [158],
   closing: [159,160],
 };
 // Keep the existing fixture cases attached to their semantic await after the
@@ -31,11 +30,8 @@ export const groups = {
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
   // EA round 2: close reads both custody sources before reporting unknown.
-  if (index === 96 || index === 97) return index + 63;
-  if (index > 97) index -= 2;
-  // EA: a deferred identity refusal settles before entering transport.
-  if (index === 53) return 158;
-  if (index > 53) index -= 1;
+  if (index === 95 || index === 96) return index + 64;
+  if (index > 96) index -= 2;
   // Round 3: the probe's admission refusal owns one paced recovery wait.
   if (index === 35) return 157;
   if (index > 35) index -= 1;
@@ -56,5 +52,5 @@ export function recipe(ordinal) {
   return matches[0][0];
 }
 
-export const required = new Set([0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154,158]);
+export const required = new Set([0,1,2,6,9,11,48,55,57,58,59,60,61,62,69,70,71,72,73,74,75,76,77,78,79,84,85,86,87,88,89,90,91,92,93,94,99,100,101,102,103,104,105,106,115,117,133,154]);
 export const absorbs = new Set([37,44,47,49,51,56]);

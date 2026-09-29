@@ -1,0 +1,63 @@
+✔ online session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (1315.681348ms)
+ℹ tier=online sequences=100 seed=1..100 coverage={"open.online":652,"storage.get.epoch":3024,"storage.get.session":11264,"storage.get.retirement":4925,"op.guest":209,"wire./auth/guest":181,"storage.get.writes":672,"storage.set.session":998,"op.reopen":199,"op.readObservation":105,"handle.captured":331,"op.release":119,"op.sibling":78,"server.externalSibling":50,"op.handleMutate":105,"wire./probe":46,"storage.set.writes":266,"wire./m/write":42,"wire.handleWrite":42,"write.failed":22,"consistent.onWrite.failed":20,"handle.resultSettled":349,"write.outcome":41,"write.outcome.failed":21,"write.knownAtDelivery":40,"consistent.mutate.failed":20,"op.handleWrite":130,"consistent.write.failed":32,"op.handleQuery":105,"wire./q/viewer":60,"op.query":86,"op.close":104,"handle.hidden":138,"handle.sessionNotification":159,"handle.viewerNotification":138,"storage.set.retirement":653,"fault.set":7,"fault.set.1":1,"op.retireOffline":97,"op.logout":91,"wire./auth/logout":672,"wire.retirementOffline":60,"op.reopenOffline":86,"wire.offline":93,"storage.delete.retirement":325,"retirement.removed":488,"op.refreshFault":98,"op.signup":98,"wire./auth/signup":71,"op.handleRefresh":105,"op.capture":94,"op.refresh":90,"op.closeClient":97,"wire./auth/refresh":73,"held./auth/refresh":15,"op.logoutEverywhere":95,"op.revokeCurrent":104,"held./auth/guest":16,"held./auth/logout":29,"op.holdStore":93,"op.observeHandle":103,"observation.created":103,"observation.notification":131,"held.storage.set":53,"interleaving.storage.peer":373,"op.retireOnline":111,"op.revoke":89,"server.revoke":84,"op.login":89,"op.receiptOffline":25,"write.sent":20,"fault.receiptSave":75,"consistent.onWrite.sent":20,"write.outcome.sent":20,"consistent.mutate.sent":20,"consistent.write.sent":32,"consistent.writeDuringReceiptFailure":25,"op.receiptOnline":25,"wire./auth/login":66,"fault.get":56,"fault.get.9":6,"fault.set.3":1,"handle.hidden.handleQuery":20,"fault.get.5":5,"held./q/viewer":5,"fault.get.3":6,"wire./auth/logout-all":82,"global.attempt":80,"global.acknowledged":17,"fault.set.5":2,"global.publicAcknowledgement":13,"fault.rotationSave":3,"handle.hidden.handleRefresh":23,"held.dispatch/auth/guest":8,"held./auth/signup":4,"wire./changes":12,"observation.data":138,"observation.hidden":11,"fault.get.7":8,"global.externalSiblingRevoked":2,"fault.get.2":5,"held./m/write":10,"fault.set.2":3,"global.attemptRefused":63,"fault.get.8":4,"handle.hidden.handleMutate":12,"handle.hidden.handleWrite":17,"held.dispatch/auth/login":7,"global.peerHeldRotation":4,"global.rotatedBearer":6,"fault.get.10":4,"held./auth/logout-all":2,"fault.get.6":2,"fault.get.12":3,"fault.get.4":5,"fault.get.1":5,"held.dispatch/auth/signup":6,"fault.get.11":3,"held./auth/login":1,"global.peerPersistedRotation":1,"write.outcomeAfterFence":1,"write.outcomeAfterFence.failed":1,"write.unknownAtClose":1}
+✔ local session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences (3006.379182ms)
+ℹ tier=local sequences=100 seed=1..100 coverage={"open.local":646,"storage.get.epoch":5162,"storage.get.session":13785,"storage.get.retirement":4963,"op.guest":209,"wire./auth/guest":183,"wire./schema":378,"storage.set.session":1005,"wire./sync":810,"wire./changes":447,"op.reopen":199,"op.readObservation":105,"handle.captured":331,"op.release":119,"op.sibling":78,"server.externalSibling":50,"wire./probe":152,"op.handleMutate":105,"wire./m/write":47,"wire.handleWrite":46,"write.failed":27,"consistent.onWrite.failed":23,"handle.resultSettled":346,"write.outcome":41,"write.outcome.failed":23,"write.knownAtDelivery":39,"consistent.mutate.failed":20,"op.handleWrite":130,"consistent.write.failed":34,"op.handleQuery":105,"op.query":86,"op.close":104,"handle.hidden":119,"handle.sessionNotification":135,"handle.viewerNotification":119,"storage.set.retirement":683,"fault.set":5,"fault.set.1":1,"op.retireOffline":97,"op.logout":91,"wire./auth/logout":675,"wire.retirementOffline":56,"op.reopenOffline":86,"wire.offline":178,"storage.delete.retirement":357,"retirement.removed":520,"op.refreshFault":98,"op.signup":98,"wire./auth/signup":73,"op.handleRefresh":105,"op.capture":94,"op.refresh":90,"op.closeClient":97,"wire./auth/refresh":67,"held./auth/refresh":15,"op.logoutEverywhere":95,"op.revokeCurrent":104,"held./auth/logout":24,"held./auth/guest":16,"op.holdStore":93,"op.observeHandle":103,"observation.created":103,"observation.notification":165,"held./m/write":13,"held.storage.set":52,"interleaving.storage.peer":362,"op.retireOnline":111,"op.revoke":89,"server.revoke":81,"op.login":89,"op.receiptOffline":25,"write.sent":19,"fault.receiptSave":184,"consistent.onWrite.sent":19,"write.outcome.sent":18,"consistent.mutate.sent":18,"consistent.write.sent":32,"consistent.writeDuringReceiptFailure":25,"op.receiptOnline":25,"wire./auth/login":68,"fault.get":55,"fault.get.6":4,"wire./q/viewer":46,"fault.set.3":1,"handle.hidden.handleQuery":18,"fault.get.5":5,"held./q/viewer":5,"fault.get.3":5,"wire./auth/logout-all":72,"global.attempt":68,"global.acknowledged":16,"fault.set.5":1,"global.publicAcknowledgement":12,"fault.rotationSave":3,"handle.hidden.handleRefresh":23,"held.dispatch/auth/guest":8,"held./auth/signup":4,"observation.data":178,"observation.hidden":12,"fault.get.9":6,"global.externalSiblingRevoked":2,"fault.get.11":3,"write.outcomeAfterFence":3,"write.outcomeAfterFence.failed":3,"write.unknownAtClose":2,"fault.set.2":2,"global.attemptRefused":52,"fault.get.7":5,"fault.get.8":5,"held.dispatch/auth/login":8,"global.peerHeldRotation":4,"wire.obsoleteAuth":2,"handle.hidden.handleWrite":15,"global.rotatedBearer":5,"fault.get.10":6,"held./auth/logout-all":2,"handle.hidden.handleMutate":12,"fault.get.12":4,"fault.get.4":5,"fault.get.1":4,"held.dispatch/auth/signup":6,"held./auth/login":1,"fault.get.2":3,"fault.delete":1,"fault.delete.1":1,"global.peerPersistedRotation":3}
+✔ I13 online: sent stays known through receipt-store failure and repair (4.716401ms)
+✔ I13 online: failed stays known through receipt-store failure and repair (4.373927ms)
+✔ I13 local: sent stays known through receipt-store failure and repair (11.393392ms)
+✔ I13 local: failed stays known through receipt-store failure and repair (9.694334ms)
+✔ model regression: a peer-fenced provisional local opener cannot leave auth restoring (22.039753ms)
+✔ model regression: online held commit remains pending with its id across close (3.865576ms)
+✔ model regression: online held commit remains pending with its id across logout (3.859496ms)
+✔ model regression: online held refusal remains pending with its id across close (3.747879ms)
+✔ model regression: online held refusal remains pending with its id across logout (3.705425ms)
+✔ model regression: local held commit remains pending with its id across close (7.429008ms)
+✔ model regression: local held commit remains pending with its id across logout (34.483139ms)
+✔ model regression: local held refusal remains pending with its id across close (7.49712ms)
+✔ model regression: local held refusal remains pending with its id across logout (7.487516ms)
+✔ model regression: failed local rotation persistence cannot be committed by a second notification save (8.33033ms)
+snapback4: the server refused the partition: E_AUTH: refused
+✔ model regression: obsolete predecessor refusal waits for the held local rotation (17.062801ms)
+✔ model regression: a global caller waiting for rotation cannot select an intervening replacement (5.727276ms)
+✔ model regression: receipt storage failure retains custody without replacing a dispatched outcome (5.018714ms)
+✔ model regression: an undelivered write remains pending with its id across logout (3.964785ms)
+✔ model regression: a facade hidden after dispatch preserves the raw rotation outcome (4.111083ms)
+✔ model regression: a refresh result fulfilled before hiding is not a new disclosure by its later handler (5.464563ms)
+✔ model regression: storage observation follows delivery, not entry into the backing adapter (6.471433ms)
+✔ model regression: an acknowledgement cannot retire a login minted after its attempt (7.776298ms)
+✔ model regression: a dormant global caller cannot adopt a later login's account epoch (6.000627ms)
+✔ model regression: a queued login cannot suppress the committed global logout's publication (3.615441ms)
+✔ model regression: a stale global retry does not recreate an acknowledged retirement (4.851274ms)
+✔ model regression: global logout selects a peer's persisted successor (30.891525ms)
+✔ model regression: a late successor inherits a closed peer's global fence (5.996561ms)
+✔ model regression: offline reopening starts after close commits the owned rotation (4.878495ms)
+✔ model regression: refusal after a failed rotation save also excludes its consumed predecessor (4.420418ms)
+✔ model regression: failed global fencing keeps retained handles and observations usable (5.82926ms)
+✔ model regression: a failed read during signup cannot revoke the saved session (3.287448ms)
+✔ model regression: close retains custody of a late guest response (2.575461ms)
+✔ model regression: replacement retires a rotation whose persistence read failed (4.834538ms)
+✔ model regression: a closed runtime cannot return to restoring after a peer's replacement (6.955188ms)
+✔ model regression: refusal fencing retries a transient tombstone failure before offline reopen (4.876562ms)
+✔ model regression: refusal cleanup cannot wait behind a held sign-in (4.773066ms)
+✔ model regression: an older queued global logout cannot suppress a newer logout's completion (2.530964ms)
+✔ model regression: closed auth actions cannot leave a held logout restoring (2.338135ms)
+✔ model regression: a queued global retry completes the signed-out public view (4.795009ms)
+✔ model regression: late refusal cannot republish restoring after close (5.926616ms)
+✔ model regression: acknowledged global revocation retries cleanup after a failed deletion (3.52818ms)
+✔ model regression: epoch fencing hides the public client before retirement notifications (3.723733ms)
+✔ model regression: a retiring runtime clears its acknowledged global tombstone after a read failure (5.746035ms)
+✔ session model sweeps 120 failure points after an unpersisted rotation (770.223299ms)
+✔ I12 local close retains a body delivered while cleanup awaits another runtime (14.099378ms)
+✔ I12 online: the full terminal oracle catches an in-memory refusal-message corruption (7.328377ms)
+✔ I12 local: the full terminal oracle catches an in-memory refusal-message corruption (39.296255ms)
+✔ I12 online: full refusal equality also holds after the caller is fenced (11.504828ms)
+✔ I12 local: full refusal equality also holds after the caller is fenced (34.674867ms)
+✔ publication seed 11: fair recovery waits for overlapping model work before owning its clock (1019.917154ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6707.604309

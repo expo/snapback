@@ -162,10 +162,6 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let adopt_identity = incoming.is_some() && previous.as_ref() != incoming && (publish_first || reset || previous.is_some());
     if adopt_identity {
         tx.set_meta(STORE_ID, incoming.expect("changed identity"))?;
-        // @ref LLP 3000.007#20.4 — a late admission poll must distinguish
-        // timely identification from identity first published after expiry.
-        if let Some(at) = page.identity_at { tx.set_meta("client:identity-established", &at.to_string())?; }
-        else { tx.delete_meta(&["client:identity-established"])?; }
     } else if previous.is_none() {
         // Observation may be followed by backend adoption without applying
         // this page. Remember its authenticated identity independently of rows.
@@ -231,8 +227,6 @@ pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), Runtime
     }
     if adopting { entries.splice(..0, added); } else { entries.extend(added); }
     if entries.len() > 256 { entries.drain(..entries.len() - 256); }
-    #[cfg(not(target_arch = "wasm32"))]
-    identity_admission::keep_inputs(tx, entries)?;
     tx.set_meta("client:write-history", &history.to_string())?;
     Ok(())
 }

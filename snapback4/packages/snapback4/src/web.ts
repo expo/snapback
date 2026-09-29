@@ -22,8 +22,6 @@ import { AdmissionError, AdmissionJournal, bindingRefusal, journalStoreBinding, 
 import { cachedWasm, wasmMemoryBytes, type WasmSource } from "./web-wasm.ts";
 import { WebDevice } from "./wasm/snapback4_device.js";
 import { openWorkerDevice } from "./web-worker-device.ts";
-import { IdentityAdmissions, IDENTITY_ADMISSIONS } from "./identity-admission.ts";
-import { runJournal } from "./web-journal-execution.ts";
 import type { WorkerWasmSource } from "./web-worker-host.ts";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -102,7 +100,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       await ready;
       const store = await claimStore(persist, name, true);
       if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
-      const journal = new AdmissionJournal(store.name, true, undefined, () => { for (const notify of outboxListeners) notify(); });
+      const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
       const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
       const capture = (request: Record<string, unknown>) => {
@@ -381,9 +379,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                     return { denied: bindingRefusal(binding === "defer" ? "defer" : "retire") };
                   }
                 }
-                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId || undefined, admission?.identity, Object.hasOwn(request, "expected_store") ? { store: request.expected_store as string | undefined } : undefined) : journal.call(device!, request);
+                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId, request.expected_generation as number | undefined) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 if (request.op === "queued" && Array.isArray(reply.ok)) {
-                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? entry.store_id ?? journal.boundStore(entry.id) }));
+                  reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
                 }
                 const observesStore = request.op === "observe_store" || request.op === "apply";
                 if (!reply.denied && (observesStore || request.op === "adopt")) journal.fence(device!);
@@ -427,7 +425,6 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           return answer;
         },
         close() {
-          journal.identity.close();
           stopRecovery();
           outboxListeners.clear();
           for (const stop of suspendListeners) stop();
@@ -487,7 +484,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
         // Leave it intact for a later matching open; never guess from the key.
-        if (!saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
+        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
         const sourceJournal = new AdmissionJournal(orphan, true);
         sourceJournal.authority = authority;
         sourceJournal.load(saved);
@@ -515,11 +512,6 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // A busy receipt writer leaves this whole source intact for the retry.
       const history = saved.find(c => c.s === "m" && c.k === "client:write-history")?.v;
       if (history && !await shareReceipts(persist, name, history)) { waitForLock(`${name}:receipts`); continue; }
-      const deferred = saved.find(c => c.s === "m" && c.k === `client:${IDENTITY_ADMISSIONS}`)?.v;
-      if (deferred) {
-        destinationDirty = true;
-        runJournal(new IdentityAdmissions().adopt(deferred), request => JSON.parse(device.call(JSON.stringify(request))));
-      }
       let source: string | null | undefined;
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
       const latest = new Map<string, string | null>();
@@ -548,7 +540,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
-      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (deferred) removed.push({ s: "m", k: `client:${IDENTITY_ADMISSIONS}`, v: null }); if (removed.length) await persist.save(orphan, removed); }
+      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (removed.length) await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {
       // A broken orphan stays intact and must not prevent opening healthy stores.

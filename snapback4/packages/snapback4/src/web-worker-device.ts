@@ -31,7 +31,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     }
   } catch (error) { await claim.release(); throw error; }
   const host = new WebWorkerHost(claim);
-  const journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id), () => { for (const notify of listeners) notify(); });
+  const journal = new AdmissionJournal(claim.name, true, id => host.control.capture(id));
   journal.load(await host.open(backend, wasm));
   const suspension = new WebWorkerSuspend(host, journal);
   const prepared = new WeakMap<Record<string, unknown>, ReturnType<AdmissionJournal["capture"]>>();
@@ -129,8 +129,8 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     }
     // Remove page closures before structured cloning.
     const wire = Object.fromEntries(Object.entries(request));
-    const reply = request.op === "admit" ? await journal.admitWith(tx.invoke, request.entry, admission?.storeId || undefined, admission?.identity, Object.hasOwn(request, "expected_store") ? { store: request.expected_store as string | undefined } : undefined) : await journal.callWith(tx.invoke, wire);
-    if (request.op === "queued" && Array.isArray(reply.ok)) reply.ok = reply.ok.map((entry: Queued) => ({ ...entry, store_id: entry.receipt_store?.id ?? entry.store_id ?? journal.boundStore(entry.id) }));
+    const reply = request.op === "admit" ? await journal.admitWith(tx.invoke, request.entry, admission?.storeId, request.expected_generation as number | undefined) : await tx.invoke(wire);
+    if (request.op === "queued" && Array.isArray(reply.ok)) reply.ok = reply.ok.map((entry: Queued) => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
     const observes = ["observe_store", "apply", "adopt"].includes(String(request.op));
     if (!reply.denied && observes) await journal.fenceWith(tx.invoke);
     if (current) { await tx.commitIf(current); committed?.(reply); }
@@ -147,7 +147,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     if (admission) host.control.admitted(admission.entry.id);
     if (!reply.denied && observes) await recover(tx, true);
     if (request.op === "meta" && request.key === "write-history" && request.lookup === true && !reply.denied) {
-      reply.ok = JSON.stringify(lookupReceipts(await receiptHistory(persist, name), terminalReceipts(reply.ok as string | null)));
+      reply.ok = JSON.stringify(lookupReceipts(await receiptHistory(persist, name), terminalReceipts(reply.ok)));
     }
     return reply;
   };
@@ -200,7 +200,6 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
       });
     },
     close() {
-      journal.identity.close();
       suspension.close(); listeners.clear(); clearTimeout(timer);
       for (const waiter of waiting.values()) waiter.abort(); waiting.clear();
       return closing ??= chain.then(() => host.close());

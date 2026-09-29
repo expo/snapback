@@ -496,7 +496,7 @@ test("a refused device adopt keeps the previous backend active in JavaScript", {
   const newBackend = { generation: 2, schema: { tables: {} }, programs: [] };
   let schemas = 0, serverGeneration = 1, admitted;
   const changePoll = deferred();
-  const device = emptyDevice({ call: async (request) => {
+  const device = emptyDevice({ storeId: "adopt-fixture", call: async (request) => {
     if (request.op === "adopt") return { denied: { code: "E_GENERATION", family: "generation", message: "refused adopt" } };
     if (request.op === "admit") { admitted = request.entry; return { ok: request.entry }; }
   } });
@@ -586,7 +586,7 @@ test("every local prediction invalidates observations, including unrelated table
   };
   const runs = { readA: 0, readB: 0 };
   const change = deferred();
-  const device = emptyDevice({ call: async (request) => {
+  const device = emptyDevice({ storeId: "prediction-fixture", call: async (request) => {
     if (request.op === "query") {
       runs[request.name]++;
       return { ok: { data: [], complete: true, tables: [request.name === "readA" ? "a" : "b"], unknown: false, nextExpiry: null } };
@@ -888,7 +888,11 @@ for (const tier of ["wasm", "native"]) {
     assert.equal(observed.data.pending, undefined);
     await observer.close();
     await sender.close();
-    assert.equal((await write).state, "pending", "the committed write keeps its ID while its full reply is unavailable");
+    const outcome = await write;
+    // Only native owners share this outbox. The observer's durable correlation
+    // proves execution to a closing native sender even without its HTTP reply.
+    assert.equal(outcome.state, tier === "native" ? "sent" : "pending");
+    if (tier === "native") { assert.equal(outcome.replayed, true); assert.ok(outcome.seq > 0); }
   });
 
   // Two clients over one store is a native host's case (two processes on
@@ -951,7 +955,9 @@ for (const tier of ["wasm", "native"]) {
     assert.equal(confirmed.data.value, 1);
     assert.equal(confirmed.data.pending, undefined);
     await sender.close();
-    assert.equal((await write).state, "pending");
+    const outcome = await write;
+    assert.equal(outcome.state, "sent", "close retains the peer's durable stream correlation");
+    assert.equal(outcome.replayed, true); assert.ok(outcome.seq > 0);
   });
 
   test(`${tier}: a sync started before admission finishes before that write can be sent`, { timeout: 12_000 }, async (t) => {

@@ -622,13 +622,14 @@ The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store, and at most 64 KiB per serialized record. A browser mutation that
 cannot synchronously acquire custody refuses with `E_ADMISSION`, a site and a
 rewrite. This includes unavailable, throwing or full localStorage, exceeded
-journal limits, an unidentified backend store, an unrestored session, and a
+journal limits, an unrestored session, and a
 `createApp` without a durable device or with an asynchronous-only session store.
 The test-only `memoryPersistence()` provider also refuses browser mutations:
 transferring custody to memory cannot preserve a write across page restarts.
 No new intent is admitted in those cases. The returned promise is already
 fulfilled with a failed write and exposes `state: "failed"`, `id` and `why`
-in the calling stack. Awaiting it still uses the ordinary Write API:
+in the calling stack. Before backend identification, the call instead waits up to
+15 seconds without custody (see the pending-write section). Awaiting it uses the ordinary Write API:
 
 ```ts
 import { createApp } from "snapback4/app";
@@ -968,7 +969,7 @@ prediction sentence in `reason`; `sent` has no reason and is not a receipt.
 A bounded custody wait returning `pending` keeps the entry in its current outbox
 state. Settlement removes the entry and still emits `onWrite`. Subscribe with
 `client.onPendingWrites(notify)` and read again on notification; call the
-returned function to unsubscribe. Local and `createApp` custody survives
+returned function to unsubscribe. Admitted local and `createApp` custody survives
 reload; the raw `createClient` queue is in memory only. Closed and signed-out
 handles return `[]`. Legacy entries without dispatch metadata start queued
 unless retained sequence evidence proves dispatch.
@@ -996,18 +997,16 @@ next send. Disable Send only with `inFlight`. `last` is the Write;
 that queues without a row reports `reason: "queued without a row: not acquired yet"`.
 Other missing local evidence reports `reason: "queued without a row: local data does not justify prediction"`.
 A predicted write has no such reason; predictions remain visible on rows.
-Writes require no acquisition gate. Before store identification they keep durable
-custody with `reason: "waiting for backend identification"`; a 30-second deadline
-survives reload. `E_ADMISSION_TIMEOUT` or `E_ADMISSION_STORE` means no send: repair
-the connection/current backend and review the draft before submitting a new id.
-A restore disables transport while unsent deferred refusals finish settlement.
-Pending custody stays visible until its terminal receipt commits, including a
-held or failed receipt save; `onWrite` then reports that outcome. Native owners
-consult the shared queue and receipts, so a cached empty queue cannot bypass
-capture order or the original store binding, and expiry cannot overwrite a
-peer's executed outcome. Identity published before the deadline remains valid
-when a delayed poll or reopen observes it later. Online owners wait for an
-in-flight peer's durable outcome before dispatching that id.
+Writes require no acquisition gate after session readiness. Before identification,
+`mutate()` keeps its promise pending for up to 15 seconds, including with
+`waitSeconds: 0`. `usePendingWrites()` reports “waiting for backend identification;
+not yet admitted”. This is memory only: reload loses the unadmitted call. Keep
+an editable draft while the call is in flight. After identification, concurrent
+calls enter ordinary admission in call order, with normal prediction and custody.
+`E_ADMISSION_TIMEOUT` or `E_ADMISSION_STORE` means no admission or send: repair
+the connection/current backend, review the draft and submit a new id. The same
+mounted form can retry normally. `onWrite` reports terminal outcomes; already
+admitted writes retain their ordinary durable recovery.
 
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";

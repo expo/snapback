@@ -753,13 +753,13 @@ test("an unidentified Node device defers both transports until its first store b
   assert.equal((await f.cores.at(-1).call({ op: "sync_state", capture: false })).ok.store_id, null);
   let write;
   assert.doesNotThrow(() => { write = client.mutate(mark, { digit: 1 }); });
-  assert.equal(journalEntries(f).length, 1, "the unidentified click has synchronous custody");
-  const pending = await write;
-  assert.equal(pending.state, "pending");
+  assert.equal(journalEntries(f).length, 0, "the unidentified call has no durable custody");
   f.window.dispatchEvent(new Event("pagehide")); await tick();
   assert.deepEqual(sends, [], "neither transport may send without a store_id");
   assert.equal(await f.audit(), null);
   identified = true; await client.sync();
+  const pending = await write;
+  t.diagnostic(`identity wait result: ${JSON.stringify(pending)}`);
   assert.ok(await until(async () => (await client.write(pending.id))?.state === "sent"));
   const store = (await f.cores.at(-1).call({ op: "sync_state", capture: false })).ok.store_id;
   assert.ok(store);
@@ -857,7 +857,9 @@ test("W11R1a: background outbox adoption keeps one sender and never takes a live
   assert.ok((await f.persist.load(source)).some(c => c.s === "o" && c.k === pending.id));
   await secondary.close();
   // No backend change or explicit sync wakes the adopters after the close.
-  assert.ok(await until(() => posts.length > 0, 5000)); await sending.promise;
+  const arrived = await until(() => posts.length > 0, 5000);
+  if (!arrived) t.diagnostic(JSON.stringify({ pending: await primary.pendingWrites(), replacement: await replacement.pendingWrites(), stores: [...f.persist.stores.keys()], durable: f.durable() }));
+  assert.ok(arrived); await sending.promise;
   assert.equal(posts.length, 1); assert.equal(f.durable().length, 1);
   assert.ok(!f.persist.stores.has(source));
   release.resolve();

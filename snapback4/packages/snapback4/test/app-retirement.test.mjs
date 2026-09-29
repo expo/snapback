@@ -19,7 +19,7 @@ function transport(result) {
     async mutate(_op, _args, { id }) { posts.push(id); return result(id); } };
   // This unit transport isolates receipt retirement; real dispatch binding is
   // covered by online-intent-store and the independent online model.
-  trackDispatch(raw, { store: "retirement-unit-store" });
+  trackDispatch(raw, { store: 'retirement-test-store' });
   return { posts, raw };
 }
 
@@ -94,7 +94,6 @@ test('a saturated journal recovers an already-admitted intent as pending while i
   const custody = await onlineCustody(wire.raw, url, store, error => { throw error; });
   try {
     assert.deepEqual(await custody.client.write(pending.id), { state: 'pending', id: pending.id });
-    await new Promise(resolve => setTimeout(resolve, 0));
     assert.equal(wire.posts.length, 1, 'the held request belongs to the durable intent admitted before saturation');
     const duplicate = custody.client.mutate(op, {}, { id: pending.id });
     release();

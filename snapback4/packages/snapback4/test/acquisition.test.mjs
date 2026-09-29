@@ -195,8 +195,11 @@ for (const tier of ["wasm", "process"]) {
       catch (error) { await client.close(); throw error; }
     })();
     assert.equal(opened, client); assert.equal(client.acquired, false); assert.equal(client.link(), "offline");
-    assert.equal((await client.mutate({ kind: "mutation", name: "add" }, { body: "opens offline" })).state, "pending");
+    const writing = client.mutate({ kind: "mutation", name: "add" }, { body: "opens offline" });
+    await until(async () => (await client.pendingWrites()).length === 1, "unidentified call waits");
+    assert.deepEqual((await f.core().call({ op: "queued" })).ok, []);
     f.mode("online"); await client.sync(); assert.equal(client.acquired, true);
+    assert.equal((await writing).state, "sent");
   });
 
   test(`W5R1x ${tier}: replacement stays unacquired until the new catch-up completes`, { timeout: 30000 }, async t => {
@@ -242,30 +245,27 @@ function assertUnknown(answers) {
 async function unknown(client, t) { assert.equal(client.acquired, false); assertUnknown(await observations(client, t)); }
 
 for (const tier of ["wasm", "process"]) {
-  test(`${tier}: schema alone is not acquisition; queued guarded writes survive offline reopen`, { timeout: 30000 }, async (t) => {
+  test(`${tier}: schema alone is not acquisition; unadmitted writes disappear on close`, { timeout: 30000 }, async (t) => {
     const f = await fixture(t, tier);
     let client = await f.open();
     const first = await observations(client, t);
-    const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "queued before acquisition" });
+    const writing = client.mutate({ kind: "mutation", name: "add" }, { body: "queued before acquisition" });
+    await until(async () => (await client.pendingWrites()).length === 1, "waiting call is visible");
     const held = await client.pendingWrites();
-    t.diagnostic(`before acquisition write: ${JSON.stringify(pending)}; durable queue: ${JSON.stringify(held)}`);
-    await client.close(); f.mode("offline");
+    assert.match(held[0].reason, /not yet admitted/);
+    assert.deepEqual((await f.core().call({ op: "queued" })).ok, []);
+    await client.close(); assert.equal((await writing).why.code, "E_CLOSED"); f.mode("offline");
     client = await f.open();
     const reopened = await observations(client, t);
     assertUnknown(first); assertUnknown(reopened);
-    assert.equal(pending.state, "pending");
-    assert.equal(held.length, 1); assert.equal(held[0].id, pending.id);
-    assert.equal(held[0].state, "queued"); assert.deepEqual(held[0].predicted, []);
-    assert.equal((await client.pendingWrites())[0].id, pending.id);
-    const terminal = []; client.onWrite((write) => terminal.push(write));
+    assert.deepEqual(await client.pendingWrites(), []);
     f.mode("online"); await client.sync();
-    await until(() => terminal.some((write) => write.id === pending.id), "guarded write did not settle");
-    assert.equal(terminal.find((write) => write.id === pending.id).state, "sent");
-    await client.sync();
+    const sent = await client.mutate({ kind: "mutation", name: "add" }, { body: "queued before acquisition" });
+    assert.equal(sent.state, "sent"); await client.sync();
     const rows = await client.query(query("all"), {});
     assert.equal(rows.complete, true); assert.equal(rows.data.length, 7);
     assert.equal(rows.data.filter((row) => row.body === "queued before acquisition").length, 1);
-    assert.equal(f.counts().posts, 1, "one stable write was submitted");
+    assert.equal(f.counts().posts, 1, "only the new admitted attempt was submitted");
   });
 
   test(`${tier}: snapshot and catch-up publish readiness together; later failures preserve acquired rows`, { timeout: 30000 }, async (t) => {
@@ -342,12 +342,13 @@ for (const tier of ["wasm", "process"]) {
     assert.equal(client.acquired, false);
     assert.equal((await client.query(query("all"), {})).data.length, 6);
     const changes = []; client.onAcquired(value => changes.push(value));
-    const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "before acquisition" });
-    assert.equal(pending.state, "pending");
-    assert.equal(pending.reason, "waiting for backend identification");
-    assert.equal(client.link(), "online", "pending does not imply a lost link");
+    const writing = client.mutate({ kind: "mutation", name: "add" }, { body: "before acquisition" });
+    await until(async () => (await client.pendingWrites()).length === 1, "waiting call visible");
+    assert.match((await client.pendingWrites())[0].reason, /not yet admitted/);
+    assert.equal(client.link(), "online", "waiting does not imply a lost link");
     assert.deepEqual((await client.pendingWrites())[0].predicted, []);
     f.mode("online"); await client.sync();
+    const pending = await writing;
     assert.equal(client.acquired, true);
     assert.deepEqual(changes, [true]);
     await until(async () => (await client.write(pending.id))?.state === "sent", "queued write did not settle");
@@ -365,10 +366,10 @@ for (const tier of ["wasm", "process"]) {
 
   test(`W5c ${tier}: pending writes recover by id through sent and failed, including settlement before reopen returns`, { timeout: 30000 }, async (t) => {
     const f = await fixture(t, tier);
-    // Hold delivery while arranging pending writes: a failed sync alone does
-    // not prevent a successful mutation response from settling them first.
-    f.mode("busy");
+    // This recovery case starts with identified, unacquired ordinary custody.
+    f.mode("online");
     let client = await f.open();
+    assert.ok(!(await f.core().call({ op: "clear_rows" })).denied);
     // Keep the pending phase offline, including close: failed sync alone does
     // not prevent a retry timer from reaching the mutation endpoint.
     f.mode("offline");

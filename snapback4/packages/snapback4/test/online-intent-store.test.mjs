@@ -85,7 +85,7 @@ test("a persisted terminal receipt never reposts on reopen", async t => {
   assert.equal(f.sends.length, 1); assert.equal(f.executions.get(`A/${id}`), 1);
 });
 
-test("an unidentified write from the old store is refused before dispatch; a new attempt can use B", async t => {
+test("the first fresh write after replacement binds B even when the pending journal is empty", async t => {
   const f = await fixture(t), app = await f.open(), oldId = mintId(), freshId = mintId();
   assert.equal((await app.mutate(op, {}, { id: oldId })).state, "sent");
   await app.close();
@@ -95,14 +95,10 @@ test("an unidentified write from the old store is refused before dispatch; a new
   // No query establishes B first: this is the builder's dev --fresh path.
   const writing = reopened.mutate(op, {}, { id: freshId });
   await until(() => probe.entered);
-  assert.equal((await f.journal()).pending[0].id, freshId, "custody precedes current store discovery");
-  probe.release(); const refused = await writing;
-  assert.equal(refused.state, "failed"); assert.equal(refused.why.code, "E_ADMISSION_STORE");
-  assert.equal(f.executions.has(`B/${freshId}`), false);
-  const repairedId = mintId();
-  assert.equal((await reopened.mutate(op, {}, { id: repairedId })).state, "sent");
-  assert.deepEqual(f.sends.map(write => [write.id, write.store_id]), [[oldId, "A"], [repairedId, "B"]]);
-  assert.equal((await reopened.client.write(freshId)).why.code, "E_ADMISSION_STORE");
+  assert.deepEqual((await f.journal()).pending, [], "fresh admission waits for current store discovery");
+  probe.release(); assert.equal((await writing).state, "sent");
+  assert.deepEqual(f.sends.map(write => [write.id, write.store_id]), [[oldId, "A"], [freshId, "B"]]);
+  assert.equal(f.executions.get(`B/${freshId}`), 1);
   assert.equal((await f.journal()).changedStore, true);
 });
 
@@ -110,7 +106,6 @@ test("retrying the first fresh replacement id recovers its receipt without retir
   const f = await fixture(t), app = await f.open(), oldId = mintId(), freshId = mintId();
   assert.equal((await app.mutate(op, {}, { id: oldId })).state, "sent"); await app.close();
   f.replace(); const reopened = await f.open();
-  await reopened.client.query(page, {});
   const first = await reopened.mutate(op, { value: "fresh" }, { id: freshId });
   assert.equal(first.state, "sent");
   const again = await reopened.mutate(op, { value: "fresh" }, { id: freshId });
@@ -123,7 +118,6 @@ test("retrying the first fresh replacement id recovers its receipt without retir
 
 test("failed intent identity persistence refuses admission before any dispatch", async t => {
   const f = await fixture(t), app = await f.open();
-  await app.client.query(page, {});
   f.failIdentity(true);
   for (const waitSeconds of [undefined, 0]) {
     const refused = await app.mutate(op, {}, { waitSeconds });
@@ -134,16 +128,17 @@ test("failed intent identity persistence refuses admission before any dispatch",
   await app.close(); f.failIdentity(false); await f.open(); assert.equal(f.sends.length, 0);
 });
 
-test("close detaches a held first-store probe and preserves the pending intent for reopen", { timeout: 5000 }, async t => {
+test("close detaches a held first-store probe without admitting its call", { timeout: 5000 }, async t => {
   const f = await fixture(t), app = await f.open(), id = mintId(), probe = f.holdProbe();
   const writing = app.mutate(op, {}, { id }); await until(() => probe.entered);
   await app.close();
-  assert.equal((await f.journal()).pending[0].id, id, "public close finishes local admission without waiting for the probe");
-  assert.deepEqual(await writing, { state: "pending", id, reason: "waiting for backend identification" });
+  assert.deepEqual((await f.journal())?.pending ?? [], []);
+  assert.equal((await writing).why.code, "E_CLOSED");
   assert.equal(f.sends.length, 0);
   probe.release(); const reopened = await f.open();
-  await until(async () => (await reopened.client.write(id))?.state === "sent");
-  assert.equal(f.executions.get(`A/${id}`), 1);
+  assert.equal(await reopened.client.write(id), undefined);
+  assert.equal((await reopened.client.mutate(op, {}, { id: mintId() })).state, "sent");
+  assert.equal(f.executions.has(`A/${id}`), false);
 });
 
 for (const scenario of [

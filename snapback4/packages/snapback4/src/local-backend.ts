@@ -2,7 +2,6 @@ import type { Refusal } from "./contract.ts";
 import type { BackendJson } from "./backend.ts";
 import type { DeviceOpener } from "./local-device.ts";
 import { readWithAdmissionRetry, refusal, transportRefusal } from "./http-response.ts";
-import { nativeAdmission } from "./native-admission.ts";
 
 export class BackendRefusalError extends Error {
   constructor(readonly denied: Refusal) {
@@ -19,7 +18,7 @@ export function openLocalDevice(device: DeviceOpener, name: string, backend: Bac
     if (!message.includes("E_AUTH") || !message.includes("this device has never synced: the server must be reachable once to open")) throw error;
     if (!backend) throw startupRefusal ?? error;
     return device.open(name, { initial_backend: backend });
-  }).then(nativeAdmission);
+  });
 }
 
 export async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {

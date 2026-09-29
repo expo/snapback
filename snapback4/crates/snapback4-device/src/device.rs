@@ -21,8 +21,6 @@ use std::collections::{BTreeMap, BTreeSet};
 mod predictions;
 mod delivery;
 mod deferred;
-#[cfg(not(target_arch = "wasm32"))]
-mod identity_admission;
 mod media;
 mod snapshot;
 mod history;
@@ -84,9 +82,6 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
-    /// Local wall time of this publication, supplied by the SDK, never the server.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub identity_at: Option<u64>,
     /// Pinned server time of this authoritative page; old transports may omit it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub now: Option<i64>,
@@ -1018,6 +1013,16 @@ impl<S: DeviceStore> Device<S> {
         tx.commit()
     }
 
+    // @ref LLP 3000.007#20.4 — an in-memory identity wait cannot cross adoption.
+    // The following ordinary admission also verifies ownership under its writer lock.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn require_admission_identity(&self, generation: u64, store: &str, backend: Option<&str>) -> Result<(), RuntimeError> {
+        if self.generation != generation || self.store_identity.as_deref() != Some(store) || backend.is_some_and(|value| value != self.backend_identity) {
+            return Err(RuntimeError::Structural { code: "E_ADMISSION_STORE", message: "The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.".into() });
+        }
+        Ok(())
+    }
+
     /// Admit a write: predict it where the device can (its rows land
     /// pending over their confirmed images) and queue it durably in
     /// submission order, in one transaction.
@@ -1027,16 +1032,7 @@ impl<S: DeviceStore> Device<S> {
 
     /// A caller-supplied id may already have executed beyond the local receipt
     /// window. Its prediction refusal cannot decide the server's replay outcome.
-    pub fn admit_with_replay(&mut self, entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
-        self.admit_inner(entry, replay_candidate, #[cfg(not(target_arch = "wasm32"))] None)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn admit_with_identity(&mut self, entry: Queued, replay_candidate: bool, expected: Option<&str>) -> Result<Queued, RuntimeError> {
-        self.admit_inner(entry, replay_candidate, Some(expected))
-    }
-
-    fn admit_inner(&mut self, mut entry: Queued, replay_candidate: bool, #[cfg(not(target_arch = "wasm32"))] expected: Option<Option<&str>>) -> Result<Queued, RuntimeError> {
+    pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
         // @ref LLP 3000.017#4.5 — memory writes never enter durable admission or replay.
         if self.schema.operations.get(&entry.op).is_some_and(|f| f.ephemeral) {
             return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "ephemeral writes cannot enter the device outbox; call the online ephemeral lane".into() });
@@ -1045,8 +1041,6 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;
         // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
-        #[cfg(not(target_arch = "wasm32"))]
-        identity_admission::admit(&tx, &mut entry, expected)?;
         if let Some(data) = tx.outbox_get(&entry.id)? {
             let original: Queued = decoded(&data)?;
             if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
@@ -1166,34 +1160,6 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> {
         self.store.set_meta(&format!("client:{key}"), value)
-    }
-
-    // @ref LLP 3000.007#20.4 — native owners share SQLite; custody changes
-    // compare under its writer transaction. Web hosts already hold an exclusive claim.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn require_admission_identity(&self, backend: &str, store: &str) -> Result<(), RuntimeError> {
-        if self.backend_identity != backend || self.store_identity.as_deref() != Some(store) {
-            return Err(RuntimeError::Structural { code: "E_ADMISSION_STORE", message: "The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.".into() });
-        }
-        Ok(())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn read_identity_admissions(&mut self) -> Result<Option<String>, RuntimeError> {
-        let tx = self.store.transaction()?;
-        let value = tx.meta("client:identity-admissions")?;
-        if let Some(value) = &value { identity_admission::compare(&tx, Some(value), value)?; }
-        let value = tx.meta("client:identity-admissions")?;
-        tx.commit()?;
-        Ok(value)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn compare_identity_admissions(&mut self, expected: Option<&str>, value: &str) -> Result<bool, RuntimeError> {
-        let tx = self.store.transaction()?;
-        let matched = identity_admission::compare(&tx, expected, value)?;
-        tx.commit()?;
-        Ok(matched)
     }
 
     /// Replace the bounded terminal history atomically, also across native owners.

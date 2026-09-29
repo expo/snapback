@@ -96,7 +96,7 @@ export async function lookupWrite(history: WriteHistory, queued: () => Promise<Q
   if (unavailable()) return;
   if (!entry || (receipt && receipt.state !== "pending")) return receipt;
   return receipt ?? { state: "pending", id, ...(!entry.predictable && !entry.predicted.length
-    ? { reason: entry.admission_waiting ? "waiting for backend identification" : !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
+    ? { reason: !acquired() ? "queued without a row: not acquired yet" : "queued without a row: local data does not justify prediction" } : {}) };
 }
 
 // A host may fail after reporting a durable commit. Keep that result and retry

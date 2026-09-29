@@ -1,0 +1,19 @@
+(node:2390210) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a refused device adopt keeps the previous backend active in JavaScript (33.105312ms)
+✔ every local prediction invalidates observations, including unrelated tables (24.488645ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (678.153552ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (241.718631ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (223.233604ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (322.237981ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1149.239841ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (264.449802ms)
+✔ native: sync before a lost write reply does not apply an increment twice (271.287532ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3366.183688

@@ -1,0 +1,12 @@
+✔ an unidentified Node device defers both transports until its first store binding (627.859861ms)
+ℹ identity wait result: {"state":"sent","id":"01M3PCYQMAYH1GW2X0TBKEBDGC","seq":2,"replayed":true}
+✔ W11R1a: background outbox adoption keeps one sender and never takes a live owner (5251.040956ms)
+ℹ live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6037.030085

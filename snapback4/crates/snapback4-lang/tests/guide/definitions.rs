@@ -311,7 +311,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_STEP", "E_WITNESS_STEP means an application assertion failed, milestones arrived out of order, or steps overlapped."),
     ("E_WITNESS_TIMEOUT", "E_WITNESS_TIMEOUT means a step, child command or signal did not arrive within its timeout, 120 seconds by default per driver step."),
     ("E_ADMISSION_STORE", "`E_ADMISSION_STORE` means the backend changed before admission."),
-    ("E_ADMISSION_TIMEOUT", "`E_ADMISSION_TIMEOUT` means identity did not arrive within 30 seconds."),
+    ("E_ADMISSION_TIMEOUT", "`E_ADMISSION_TIMEOUT` means identity did not arrive within 15 seconds."),
     ("E_ADMISSION", "A browser call that cannot synchronously keep its intent refuses `E_ADMISSION` with a site and rewrite: no new intent is accepted."),
     ("E_WRITE_ID", "The id must have the `mintId()` form: 26 uppercase Crockford base32 digits (0123456789ABCDEFGHJKMNPQRSTVWXYZ), with the first digit 0–7; malformed ids return local `failed` with `E_WRITE_ID`."),
     ("E_WRITE_ID_REUSE", "Reusing an id with different operation names or JSON arguments returns local `E_WRITE_ID_REUSE` while the client knows the input: unresolved submissions, its last 256 terminal input identities, or its recovered outbox."),

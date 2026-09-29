@@ -1,0 +1,11 @@
+✔ process generation at ordinary admission refuses unsent (270.751882ms)
+✔ process incarnation at ordinary admission refuses unsent (245.688598ms)
+✔ ordinary native settlement stamps a live outbox before replacement (Grok round 2) (239.051378ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 859.006884

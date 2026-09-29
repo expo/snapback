@@ -76802,3 +76802,47 @@ Report: [EA round 2](reports/20260929-ea-admit-before-identity/round2/REPORT.md)
 with review snapshots, detecting controls, full logs, every failure's
 classification, model coverage and final source hashes. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — EA round 3: wait for identity, then admit normally
+
+Fetched and merged origin/main first (already up to date), preserving RL, AG,
+AQ and the prior integrations. Read all EA prompts/reports and both complete
+round-2 NOT READY reviews. Applied the supervisor's narrower decision in LLP
+3000.007 §20.4: mutate waits in memory up to 15 seconds, with a pending promise
+and visible not-yet-admitted state, then enters ordinary admission in per-client
+call order. The bound is ten times calibration #26's 1.5-second settling
+observation; controlled first-save/burst fixtures took 25–193 ms, and real
+missing-identity refusals arrived at 15.001/15.012 seconds. These are fixture
+measurements, not acquisition performance claims.
+
+Removed durable deferred custody, native binding/CAS/FIFO and settle wrappers,
+publication timestamps/freeze saves, deferred orphan adoption, and online
+pre-identity journal capture/deadlines/claims. Removed their handoff-only test
+and model extensions. Kept public actionable refusal cards, store/generation
+fences, ordinary admission/prediction/recovery/deduplication, and the genuine
+ordinary close-receipt and explicit-sync follow-up fixes with tests. Reload
+loses an unadmitted call, which was never acknowledged as queued. The mounted
+form succeeds on its first call after identification and on a second click;
+timeout repair also works without remounting. A new native regression proves
+ordinary settlement stamps both receipt sequences and replacement retires it,
+covering Grok's history-before-outbox finding without the removed wrapper.
+
+Final admission/startup checks 61/61, delivery matrix 321/321, whole guide
+99/99. scripts/test.sh ran exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1386 s` (`client tests`). Client stage: 4,797 tests,
+4,764 passed, 20 failed, three cancelled, ten existing skips. All unsuccessful
+cases are ours: obsolete unidentified-custody fixtures, stale native close
+expectations, and stale sync instrumentation with a timeout cascade. Corrected
+scoped runs pass 9/9, 9/9 and the complete browser review 55/55. No product
+source changed during the full run. All other stages passed; models passed
+79/79 with the original I1–I13 and 10,000 session sequences plus 3,000 online
+interleavings. No timeout/count/ceiling was raised; the inherited 60-second
+whole-suite budget remains missed.
+
+Canonical wasm: 2,040,529 B raw / 592,974 B gzip, 745 B below the unchanged
+593,719 B cap. SHA-256:
+c5ef5e618918176ef74c65f1424ba40fd054aa4c73cd7983bd6ceff1f590c4d9.
+Report: [EA round 3](reports/20260929-ea-admit-before-identity/round3/REPORT.md),
+including exact removals/retentions, both reviews, every failure classification,
+measurements and logs. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
