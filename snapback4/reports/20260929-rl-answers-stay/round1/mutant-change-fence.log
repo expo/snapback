@@ -1,0 +1,42 @@
+✖ process: pre-change replica completion cannot erase a pending change bound (148.807499ms)
+✖ wasm: pre-change replica completion cannot erase a pending change bound (438.626061ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 704.018835
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:211:41
+✖ process: pre-change replica completion cannot erase a pending change bound (148.807499ms)
+  AssertionError [ERR_ASSERTION]: pre-change completion cannot publish a settled answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:244:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:211:41
+✖ wasm: pre-change replica completion cannot erase a pending change bound (438.626061ms)
+  AssertionError [ERR_ASSERTION]: pre-change completion cannot publish a settled answer
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:244:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

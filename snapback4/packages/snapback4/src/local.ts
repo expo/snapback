@@ -341,7 +341,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (next === "signed-out") endLingering(watches.values());
         for (const watch of watches.values()) {
           if (next === "signed-out") watch.publish({ denied: unavailable()! });
-          else if (watch.serverRead && episodeDeadline(watch.snapshot) === undefined) watch.reload(); // Recovery must select its ordered memory first.
           else if ("data" in watch.snapshot) watch.failed(true);
         }
       });
@@ -922,14 +921,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function watchEphemeral(watch: Watch) {
     const tables = backend!.schema.operations?.[watch.op.name]?.ephemeralReads ?? [];
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, reset => {
+    ephemeralReads.add(watch, tables, (reset, changed) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
       if (reset) scheduleExpiry(watch, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void rerun(watch);
+        void rerun(watch, changed);
       };
     });
   }
@@ -988,6 +987,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   async function rerun(watch: Watch, changed = false) {
     if (closed) return;
+    if (changed) answers.changed(watch);
     if (watch.retain) { watch.reload(changed); notify(watch); }
     if (watch.running) {
       watch.dirty = true;
@@ -1029,7 +1029,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!accepted) { watch.dirty = true; retryExpired = true; }
     } catch {
       if (!closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) {
-        watch.failed(); notify(watch);
+        watch.failed(link === "offline"); notify(watch);
         armPresence(watch);
       }
     } finally {

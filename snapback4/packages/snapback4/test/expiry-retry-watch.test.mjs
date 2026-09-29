@@ -111,6 +111,9 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       fetch: clock.wrap(async (input, init) => {
         if (offline) throw new TypeError("test offline");
         const path = new URL(input).pathname;
+        // Isolate expiry retry from change evidence, including a poll whose
+        // streaming headers arrived before freezeSync but whose body did not.
+        if (path === "/changes") return parked(init.signal);
         if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
         if (path.startsWith("/q/")) {
           requests.push({ path, args: JSON.parse(init.body).args });

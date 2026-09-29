@@ -1,5 +1,5 @@
 // LLP 3000.019 §3.3: a same-store commit can withdraw read authority.
-// Explicit false withdraws at commit; online change evidence bounds retained answers.
+// Explicit false withdraws at commit; all change evidence bounds retained answers.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -162,10 +162,10 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
         assert.equal(snapshotAtCommit.revalidating, true);
         const deadline = episodeDeadline(snapshotAtCommit);
         if (mode === "held") {
-          assert.equal(deadline, undefined, "the local commit does not start an online-change episode");
-          const now = Date.now() + 3000;
+          assert.equal(typeof deadline, "number", "the local commit carries the change bound");
+          const now = deadline;
           t.mock.method(Date, "now", () => now);
-          assert.equal(body(watch.getSnapshot()), "private answer", "the committed replica re-read replaces directly when released");
+          assert.equal(watch.getSnapshot().loading, true, "visibility after membership removal ends at the bound");
         }
       }
     }

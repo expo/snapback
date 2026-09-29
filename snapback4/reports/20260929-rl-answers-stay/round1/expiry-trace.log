@@ -1,0 +1,49 @@
+RL_CHANGED expiryPage 0
+RL_RETRY expiryPage {
+  revision: 1,
+  incarnation: 1,
+  authority: 4,
+  current: 4,
+  resetVersion: 0,
+  reset: 1
+}
+✖ expiry retry server pagination watch wasm (529.729251ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 660.407711
+
+✖ failing tests:
+
+test at target/rl-expiry-debug/expiry-probe.mjs:75:3
+✖ expiry retry server pagination watch wasm (529.729251ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/target/rl-expiry-debug/expiry-probe.mjs:293:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

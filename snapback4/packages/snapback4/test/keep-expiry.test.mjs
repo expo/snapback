@@ -136,16 +136,12 @@ for (const tier of ["wasm", "process", "online"]) {
     });
   }
   for (const mode of tier === "online" ? ["loading", "failure"] : ["failure"]) {
-    test(`${tier} keep: a ${mode} re-read preserves the displayed deadline`, async t => {
+    test(`${tier} keep: a ${mode} re-read after change evidence withdraws before expiry`, async t => {
       const f = await fixture(t, tier), watch = f.client.observe(q, {}, { keep: true });
       await until(() => watch.getSnapshot().data?.body === "private answer");
       await f.change("apply", mode);
       await until(() => f.failed() > 0);
-      if (mode === "loading") await until(() => watch.getSnapshot().loading, "explicit loading still replaces");
-      else {
-        assert.equal(watch.getSnapshot().data?.body, "private answer");
-        assert.equal(watch.getSnapshot().revalidating, true);
-      }
+      await until(() => watch.getSnapshot().loading, "change evidence withdraws on failure or explicit loading");
       f.hold(true); f.expire();
       await until(() => watch.getSnapshot().loading, "failed/loading re-read left the old deadline armed");
     });

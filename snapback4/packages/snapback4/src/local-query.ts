@@ -282,7 +282,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // server, composed and remembered answers (and E_OFFLINE).
       if (candidate.origin !== "local") {
         const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
-        if (stopped) candidate = localCandidate();
+        if (stopped) {
+          const fallback = localCandidate();
+          // A failed search request can change the link during this attempt.
+          // Preserve that failure when the final gate has no replacement;
+          // completed local data and explicit denials still decide the answer.
+          if (candidate.result.transportOffline && "loading" in fallback.result.read) fallback.result.transportOffline = true;
+          candidate = fallback;
+        }
       }
       const { result, origin } = candidate;
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {

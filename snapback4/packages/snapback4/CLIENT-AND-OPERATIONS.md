@@ -872,8 +872,8 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 By default, mounted same-key observations retain their answer through plain
-revalidation without a timeout, marked `revalidating: true`. Online `/changes`
-evidence alone starts a one-second bound and withdraws on failure. Use
+revalidation without a timeout, marked `revalidating: true`. All change
+evidence starts a one-second bound and withdraws on failure. Use
 `keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
@@ -913,11 +913,11 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion keeps a retaining watch marked `revalidating` unless online change
+exhaustion keeps a retaining watch marked `revalidating` unless change
 evidence already bounded that answer. Closing the last observation owner cancels its retries.
 A local server fallback joins the displayed answer's existing revalidation
 episode. Successful transport does not withdraw it while device composition
-continues; an accepted answer, an existing online-change episode cap, or a hard
+continues; an accepted answer, an existing change episode cap, or a hard
 withdrawal ends retention.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
@@ -1199,7 +1199,7 @@ function useThread(conversationId: string) {
 }
 ```
 
-<!-- @ref LLP 3000.023#10 — plain revalidation keeps the displayed answer; online change evidence bounds it. -->
+<!-- @ref LLP 3000.023#10 — plain revalidation keeps the displayed answer; all change evidence bounds it. -->
 A mounted observation with an unchanged key keeps its answer marked
 `revalidating: true` through explicit refetch, reconnect, slow reads, transport
 failure and retry exhaustion. There is no plain-revalidation time limit.
@@ -1207,13 +1207,14 @@ Transport failure marks `fresh: false` and preserves the answer's `since` (or
 uses its last confirmation time). No new public flag is needed. Local commits
 (`apply`, `admit`, `settle`) re-read and replace directly from the replica.
 
-Online `/changes` evidence starts one non-renewable second for the displayed
+Local commits, acknowledged online mutations, durable and ephemeral `/changes`,
+and `/sync` publications start one non-renewable second for the displayed
 answer, including when it is already revalidating. Failure withdraws immediately;
 timeout withdraws to one stable `loading` snapshot, while a late accepted answer
 can still replace it. Further refetches, change bursts and facade holds cannot
 restart or erase the bound. Snapshots and peeks enforce it without timer delivery.
 
-| `keep` | Plain revalidation | Online change evidence | Last subscriber leaves |
+| `keep` | Plain revalidation | Change evidence | Last subscriber leaves |
 | --- | --- | --- | --- |
 | omitted | Retains until replaced | 1 s; withdraws on failure | Closes |
 | `false` | Withdraws immediately | Withdraws immediately | Closes |

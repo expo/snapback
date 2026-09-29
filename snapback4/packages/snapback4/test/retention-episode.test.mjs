@@ -280,13 +280,13 @@ for (const keep of [undefined, true]) test(`online change bounds an older facade
 });
 
 for (const keep of [undefined, true]) for (const operation of ["apply", "admit", "settle"]) {
-  test(`local ${operation} retains without an online-change episode, keep=${keep}`, t => {
+  test(`local ${operation} retains within a change episode, keep=${keep}`, t => {
     let now = 1000; t.mock.method(Date, "now", () => now);
     const watch = Object.assign(new ReadObservation(keep), { presenceRefresh: null });
     t.after(() => watch.retire()); watch.publish(ready("A"));
     new LocalReads().committed([watch], operation);
-    assert.equal(episodeDeadline(watch.snapshot), undefined);
-    now = 5000; assert.equal(watch.read(null).data, "A");
+    assert.equal(episodeDeadline(watch.snapshot), 2000);
+    now = 1999; assert.equal(watch.read(null).data, "A");
     assert.equal(watch.read(null).revalidating, true);
     watch.publish(ready(null)); assert.equal(watch.read(null).data, null);
   });

@@ -1,0 +1,44 @@
+✖ process: ordinary search offline classification (257.193116ms)
+✔ process: ordinary search loading classification (220.46186ms)
+✔ process: ordinary search denied classification (225.796576ms)
+✖ wasm: ordinary search offline classification (646.87515ms)
+✔ wasm: ordinary search loading classification (198.301464ms)
+✔ wasm: ordinary search denied classification (201.891986ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1897.289624
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ process: ordinary search offline classification (257.193116ms)
+  AssertionError [ERR_ASSERTION]: plain search failure never publishes loading
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:202:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:183:98
+✖ wasm: ordinary search offline classification (646.87515ms)
+  AssertionError [ERR_ASSERTION]: plain search failure never publishes loading
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:202:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

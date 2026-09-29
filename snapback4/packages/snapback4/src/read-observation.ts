@@ -17,6 +17,11 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
   return to;
 }
 
+export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
+  if (!("data" in read) || (!read.fresh && read.since !== undefined)) return read;
+  return copyAnswer(read, { ...read, fresh: false, since: read.since ?? confirmedAt ?? Date.now() });
+}
+
 // @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
 export function revalidatingAnswer<T>(read: Read<T>, bounded = false): Read<T> {
   if (!("data" in read) || (read.revalidating && (!bounded || episodeDeadline(read) !== undefined))) return read;
@@ -52,6 +57,8 @@ export class ReadObservation<T> {
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null = null;
   since: number | undefined;
+  // Transport metadata also applies to an older approved facade answer.
+  transportOffline = false;
   // @ref LLP 3000.019#3.3 — facade holds belong to this live watch and end with its scope.
   readonly followers = new Set<(change: "answer" | "reset" | "expiry") => (() => void) | void>();
   private revision = 0;
@@ -104,7 +111,7 @@ export class ReadObservation<T> {
     }
   }
 
-  // @ref LLP 3000.023#10 — only online change evidence starts a bounded episode.
+  // @ref LLP 3000.023#10 — all change evidence starts a bounded episode.
   reload(bounded = false): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
@@ -117,7 +124,7 @@ export class ReadObservation<T> {
     this.deliver("answer")();
   }
 
-  // Failure is not an answer. A known online change still withdraws on failure;
+  // Failure is not an answer. A known change still withdraws on failure;
   // plain revalidation keeps the displayed identity and all its row deadlines.
   // @ref LLP 3000.023#10 — transport loss marks existing freshness false, with no new flag.
   failed(offline = false): void {
@@ -126,8 +133,9 @@ export class ReadObservation<T> {
       this.publish({ loading: true });
       return;
     }
-    if (offline && this.snapshot.fresh) {
-      this.snapshot = copyAnswer(this.snapshot, { ...this.snapshot, fresh: false, since: this.snapshot.since ?? this.since ?? Date.now() });
+    if (offline) {
+      this.transportOffline = true;
+      this.snapshot = offlineAnswer(this.snapshot, this.since);
     }
     this.reload();
   }
@@ -144,6 +152,7 @@ export class ReadObservation<T> {
     this.episode.clear();
     if ("data" in read && read.since !== undefined) read = { ...read, since: Math.min(read.since, Date.now()) };
     this.snapshot = { ...read };
+    this.transportOffline = this.transportOffline && "data" in read && !read.fresh;
     identities.set(this.snapshot, {});
     owners.set(this.snapshot, this);
     this.kept = false;

@@ -1,0 +1,22 @@
+✖ mixed evidence schedule process: 300 independent histories (240005.271225ms)
+{"host":"wasm","seeds":3,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 300 independent histories (753.631329ms)
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (729819.512534ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 729830.233813
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:14:41
+✖ mixed evidence schedule process: 300 independent histories (240005.271225ms)
+  'test timed out after 240000ms'
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:1:1
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (729819.512534ms)
+  'Promise resolution is still pending but the event loop has already resolved'

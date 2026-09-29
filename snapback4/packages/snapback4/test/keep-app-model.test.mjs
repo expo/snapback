@@ -89,7 +89,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
         stop(); watch.close(); watch = app.client.observe(op, {}, { keep });
         if (keep === true) assert.ok("data" in watch.getSnapshot(), `seed ${seed}, trace ${trace}`);
         else await until(() => "data" in watch.getSnapshot(), "a non-lingering remount opens a fresh watch");
-        lastDeadline = undefined; stop = watch.subscribe(record);
+        lastDeadline = episodeDeadline(watch.getSnapshot()); stop = watch.subscribe(record);
         continue;
       }
       if (action === "local") assert.equal((await app.mutate(edit, { body })).state, "sent");

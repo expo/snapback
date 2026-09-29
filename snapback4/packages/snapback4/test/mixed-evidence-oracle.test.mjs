@@ -11,7 +11,8 @@ const { answerObservation } = await import(new URL('read-observation.js', sdk));
 import { fixture, opener, q, parked, until } from './helpers/answers-stay.mjs';
 import { MixedModel, random } from './helpers/mixed-evidence-oracle.mjs';
 const turn = () => new Promise(resolve => setImmediate(resolve));
-for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: 300 independent histories`, { timeout: 240000 }, async t => {
+const seeds = Number(process.env.RL_SEEDS ?? 300);
+for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: 240000 }, async t => {
   const f = await fixture(t), headers = { 'x-snapback-persona': 'bob' };
   const backend = await fetch(f.url + '/schema', { headers }).then(r => r.json());
   const frames = [], replies = [], mixedReplies = [], empty = [], cutoff = Date.now() + 600000;
@@ -29,25 +30,43 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: 3
     mixedReplies[cut] = await f.post('/q/mixed', { args: { cutoff, deny: false } }, 'bob');
   }
   const results = [];
-  for (let seed = 1; seed <= Number(process.env.RL_SEEDS ?? 300); seed++) {
+  let wall = Date.now(); t.mock.method(Date, 'now', () => wall);
+  for (let seed = 1; seed <= seeds; seed++) {
     const model = new MixedModel(), rand = random(seed), trace = [], failures = [], pending = [];
-    let head = 1, hold, remoteHold, client, watch, checking = false, sawData = false, localTime = cutoff - 1;
+    let head = 1, hold, remoteHold, replacement, client, watch, localTime = cutoff - 1;
+    const removalMode = rand(2);
     const device = opener(host, join(f.dir, `device-${seed}`));
     const gated = { async open(...args) {
       const core = await device.open(...args);
       return { ...core, async call(request, committed) {
-        const result = await core.call(request.op === 'query' && request.name === 'mixed' ? { ...request, now: localTime } : request, committed);
+        const beganAt = model.cut;
+        let committedOnce = false;
+        const onCommit = result => {
+          if (committedOnce) return; committedOnce = true;
+          if (request.op === 'apply' && !result.denied) {
+            const fixtureCut = frames.findIndex(frame => frame?.watermark === request.page.watermark);
+            if (fixtureCut > 0) { model.apply(fixtureCut, wall); trace.push(['fixture-commit', fixtureCut, wall]); }
+          }
+          committed?.(result);
+        };
+        const result = await core.call(request.op === 'query' && request.name === 'mixed' ? { ...request, now: localTime } : request, onCommit);
+        onCommit(result);
+        if (request.op === 'query' && request.name === 'item' && replacement && beganAt === replacement.cut) {
+          const scheduled = replacement;
+          scheduled.arrived.done = true; scheduled.arrived.resolve();
+          if (scheduled.failure) { model.failed(); throw Error('injected replacement failure'); }
+          await scheduled.release.promise;
+        }
         if (request.op === 'query' && hold) {
           const gate = hold; hold = undefined; gate.arrived.resolve(); await gate.release.promise;
+          if (gate.failure) throw Error('late replica failure');
         }
         return result;
       } };
     } };
     const capture = label => {
       const read = watch.getSnapshot(); trace.push([label, model.cut, read]);
-      try { model.observe(read); if (checking) model.check(read); } catch (e) { failures.push(e.message); }
-      if (sawData && read.loading) failures.push('loading after data without remote evidence');
-      if ('data' in read) sawData = true;
+      try { model.observe(read, wall); } catch (e) { failures.push(e.message); }
     };
     try {
       client = await createLocalClient({ url: f.url, persona: 'bob', device: gated, fetch: async (input, init) => {
@@ -76,15 +95,26 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: 3
         // before or after a membership commit. The public SDK owns all fences.
         const gate = { arrived: Promise.withResolvers(), release: Promise.withResolvers() }; hold = gate;
         const read = client.query(q('item'), {}); pending.push({ gate, read }); await gate.arrived.promise;
-        checking = false;
+        if (cut % 2 === 0) replacement = { cut, failure: (cut === 2 ? removalMode : 1 - removalMode) === 1, arrived: Promise.withResolvers(), release: Promise.withResolvers() };
         const early = rand(2);
         if (early) { gate.release.resolve(); await read; trace.push(['complete-before', cut]); }
-        head = cut; model.head = cut; await client.sync();
+        head = cut; await client.sync();
         gate.release.resolve();
-        const direct = await read; model.apply(cut);
+        if (replacement) {
+          await until(() => replacement.arrived.done, 'replacement entered');
+          if (replacement.failure) await until(() => watch.getSnapshot().loading, 'failed removal replacement');
+          else {
+            wall = model.deadline - 1; capture('held-before-bound');
+            wall++; capture('held-at-bound');
+            assert.equal(watch.getSnapshot().loading, true, 'held removal replacement withdraws at fixture deadline');
+          }
+          capture('removal-withdrawn');
+          const scheduled = replacement; replacement = undefined; scheduled.release.resolve();
+        }
+        const direct = await read;
         if (!early) model.check(direct);
         await until(() => !watch.getSnapshot().revalidating && (cut % 2 ? watch.getSnapshot().data?.body === model.answer() : watch.getSnapshot().data === null));
-        checking = true; capture('settled');
+        capture('settled');
         for (let n = rand(5); n >= 0; n--) { await turn(); capture('later'); }
       }
       // Mixed remote/local branch: capture a real server image, then evaluate
@@ -105,11 +135,28 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: 3
         trace.push(['mixed', step, 'local-clock-denial']); capture('mixed-settled');
       }
       // LV's no-local-loading invariant also covers failed plain refetches.
+      model.plain();
       const owner = answerObservation(watch.getSnapshot());
-      await owner.fetch(async () => ({ read: { loading: true }, transportOffline: true }), () => capture('offline'));
+      // The clock was fixed while the fixture's final answer completed, so its
+      // confirmation time is independently known, without reading owner.since.
+      const confirmedAt = wall; wall += 50 + rand(500);
+      await owner.fetch(async () => {
+        model.offline(confirmedAt);
+        return { read: { loading: true }, transportOffline: true };
+      }, () => capture('offline'));
       capture('offline-finished');
+      assert.equal(watch.getSnapshot().fresh, false);
+      assert.equal(watch.getSnapshot().since, confirmedAt);
+      // Start a real SDK replica re-read on the same local handle and hold its
+      // completion across the public sign-out boundary, with randomized failure.
+      const signoutGate = { arrived: Promise.withResolvers(), release: Promise.withResolvers(), failure: !!rand(2) };
+      hold = signoutGate;
+      watch.close(); watch.subscribe(() => capture('signout-read'));
+      await signoutGate.arrived.promise;
+      model.signOut(); const ending = client.signOut(); capture('signout-immediate');
+      signoutGate.release.resolve(); await ending; capture('signout-settled');
     } catch (error) { failures.push(String(error)); }
-    finally { for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); await client?.close(); }
+    finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); await client?.close(); }
     results.push({ host, seed, failures: [...new Set(failures)], ...(failures.length && seed <= 2 ? { trace } : {}) });
   }
   if (process.env.RL_ORACLE_OUT) writeFileSync(`${process.env.RL_ORACLE_OUT}-${host}.json`, JSON.stringify(results, null, 2));

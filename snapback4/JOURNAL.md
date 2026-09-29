@@ -75949,3 +75949,41 @@ Fresh wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the 593,719 B cap;
 SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: `reports/20260929-rl-answers-stay/REPORT.md`. Local commit only,
 with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push/publication.
+
+## 2026-09-29 — RL round 1: bound revalidation after change evidence
+
+Read both round 0 reviews (Astra and Grok, both NOT READY) and applied the
+clarified rule in LLP 3000.023 §10. Plain same-key revalidation remains
+unbounded. Local `apply`/`admit`/`settle`, acknowledged online receipts,
+durable and ephemeral change notifications, and sync publications retain the
+one-second episode and withdraw on failed replacement or timeout. Immediate
+successful replica replacements still show no loading render. Sampling stays
+plain. Change evidence retires affected remembered answers with the existing
+ticket barrier; the observation version fences a pre-change local completion
+so it cannot erase the new deadline. No new ordering algorithm.
+
+Offline metadata now reaches local server-backed watches and the facade's held
+answer independently of replacement selection, preserving each answer's
+identity, confirmation time and deadlines. Ordinary search carries transport
+failure through final candidate selection; explicit unavailable answers and
+denials still withdraw. Updated the governing LLPs and client documentation.
+Removed the stale execution test of the profile-route workaround deleted in
+round 0; the real mounted React route-gate proof remains.
+
+Evidence: 37 review regressions pass; the saved round 0 SDK fails 31 of the
+original 35 cases (four pin unchanged withdrawals). The independent fixture
+schedule passes 300 seeds each on process and wasm, including held/failed reads
+across membership removal and public sign-out. Removing offline freshness
+fails every sampled seed; removing the pre-change completion fence fails both
+hosts. Whole guide 98/98; wasm 592,975 B gzip, 744 B below the 593,719 B cap.
+
+Ran `scripts/test.sh` exactly once: `== 1 failure(s) in 1231 s`. Client stage:
+4,644 tests, 4,625 passed, nine failed, ten skipped; all nine failures were ours,
+none baseline or environmental. They were stale expiry/remount assertions and
+the removed route example's test, corrected in 32/32 and 6/6 scoped reruns.
+Other stages passed, including 79/79 models. The initial affected run's 17
+stale assertions were corrected and its affected files pass 96/96. The full
+script's red result is retained, not represented as a green final full run.
+Every failure, including test setup errors and intentional mutation checks,
+is recorded under `reports/20260929-rl-answers-stay/round1/`. Local commit with
+the requested co-author trailer; no push or publication.

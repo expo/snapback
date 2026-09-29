@@ -605,14 +605,14 @@ export function createClient(options: ClientOptions): Client {
   function watchEphemeral(watch: Watch) {
     const tables = ephemeralTables(watch.op);
     if (!tables.length) { ephemeralReads.remove(watch); return; }
-    ephemeralReads.add(watch, tables, reset => {
+    ephemeralReads.add(watch, tables, (reset, changed) => {
       const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
       if (reset) scheduleExpiry(watch, null);
       return () => {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void refresh(watch);
+        void refresh(watch, changed);
       };
     });
   }
@@ -694,7 +694,7 @@ export function createClient(options: ClientOptions): Client {
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
-        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed();
+        if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
         notify(watch);
@@ -708,7 +708,7 @@ export function createClient(options: ClientOptions): Client {
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } catch {
-      if (!closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(); notify(watch); }
+      if (!closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -840,7 +840,7 @@ export function createClient(options: ClientOptions): Client {
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void refresh(watch);
+      for (const watch of watches.values()) void refresh(watch, true);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.

@@ -52,16 +52,16 @@ export type ReadCut = "meter" | "words" | null;
  * client leave the sample on screen, with the same flag, and no bound on its age.
  * A mounted same-key observation retains its answer during plain revalidation,
  * marked `revalidating: true`, until replacement, with no timeout. Transport
- * failure marks `fresh: false`; retry exhaustion also keeps the answer. Online
- * /changes evidence starts one non-renewable second: failure or the deadline
- * withdraws to loading. Commits re-read and replace directly from the replica.
+ * failure marks `fresh: false`; retry exhaustion also keeps the answer. Local
+ * commits, online receipts, durable/ephemeral /changes and /sync publications
+ * start one non-renewable second: failure or the deadline withdraws to loading. Commits re-read and replace directly from the replica.
  * `keep: false` withdraws immediately; `keep: true` adds a 30 s subscriber-free
  * linger to the default retention policy. Visibility after membership removal
- * ends at the replacement answer, or the online-change bound. Gate actions on
+ * ends at the replacement answer, or the change bound. Gate actions on
  * `isReady(read) && !read.revalidating` when they require a completed re-read.
  * Every option withdraws on expiry, a refusal, a viewer or credential change,
  * store reset, adoption or close. Retention never grants authority.
- * @ref LLP 3000.023#10 — only online change evidence bounds retention.
+ * @ref LLP 3000.023#10 — all change evidence bounds retention.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
 export type Read<T> =

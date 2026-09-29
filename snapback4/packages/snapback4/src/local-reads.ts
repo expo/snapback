@@ -139,10 +139,17 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit fences reads; retaining watches keep an ordinary reload. */
+/** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
+
+  // @ref LLP 3000.023#10 — change evidence retires recovery memory and
+  // pre-change evaluations without resetting the displayed answer.
+  changed(watch: LocalWatch): void {
+    this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
+    watch.resetVersion++;
+  }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
   expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
@@ -158,7 +165,7 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear();
     for (const watch of watches) {
-      if (reset) watch.reset({ loading: true }); else watch.reload();
+      if (reset) watch.reset({ loading: true }); else watch.reload(true);
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;
