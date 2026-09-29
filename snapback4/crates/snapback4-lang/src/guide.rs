@@ -511,18 +511,24 @@ export function AuthorAvatar({ sender }: { sender: string }) {
 ```
 
 `null` means `empty`, not a failed download. Inspect the profile read and the
-asset's `denied.why` or `error.why` separately; an initials placeholder must not hide a refusal.
+asset's `why` when its status is `denied` or `error` separately; an initials placeholder must not hide a refusal.
 Transient transport failures report `status: "error"` with `why.code` (for
 example `E_OFFLINE`, `E_HTTP_RESPONSE` or exhausted `E_RATE_LIMIT`) and a
 message. Authorization, missing/revoked assets and consumed views remain
 `status: "denied"`. The hook retries safe transport errors on reconnect,
-window refocus or return to a visible document, honoring Retry-After; it never
+window refocus or return to a visible document. An event during Retry-After
+waits for its deadline; an event during a transfer waits for its outcome, then
+retries only a safe failure once. Unmount cancels recovery. The hook never
 refetches a ready handle or automatically retries a refused/revoked asset.
 
 Ordinary downloads use a full-file Range request, which cannot consume a
 one-view grant. They retry resets, timeouts and transient HTTP failures with
-backoff and jitter: at most four attempts, five seconds per network attempt,
-ten seconds total backoff, and a thirty-second deadline including queue wait.
+backoff and jitter: at most four attempts and ten seconds total backoff.
+Five seconds without response/body progress ends an attempt; body bytes renew
+the thirty-second inactivity deadline including queue wait. A progressing
+stream may take longer. Buffered native fetches expose only completion, so
+their opaque waits still have the five-second bound. Retry-After remains a
+minimum through stalled error bodies, credential rotation and hook recovery.
 At most six asset transfers run per client, including their response bodies.
 A once asset refuses Range before consumption; the SDK then requests it without
 Range. A lost once response returns an explained error and is never replayed;

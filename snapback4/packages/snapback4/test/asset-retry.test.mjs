@@ -1,12 +1,31 @@
 // @ref LLP 3000.008.002.000#6 — retry only transfers that cannot consume a view.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { once } from 'node:events';
 import { fetchAsset } from '../dist/assets.js';
 import { assetQueue, assetRetryAt } from '../dist/asset-download.js';
 const denied = (code, retryable = false, headers) => Response.json({ denied: { code, family: 'asset', message: code, retryable } }, { status: code === 'E_RATE_LIMIT' ? 503 : 416, headers });
 const bytes = () => new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'image/png', 'accept-ranges': 'bytes' } });
 const download = (send, ...rest) => fetchAsset('http://assets.invalid', {}, send, 'avatar', ...rest);
 const reset = () => { throw Object.assign(new Error('connection reset'), { code: 'ECONNRESET' }); };
+
+for (const status of [408, 429, 500, 502, 503, 504]) test(`bare HTTP ${status} retries ordinary bytes without a refusal envelope`, async () => {
+  let calls = 0;
+  const read = await download(async () => ++calls === 1 ? new Response('proxy unavailable', { status }) : bytes());
+  assert.ok('url' in read, JSON.stringify(read)); read.revoke(); assert.equal(calls, 2);
+});
+
+test('rotation during admission backoff returns the existing refusal instead of resetting custody', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  let calls = 0, current = true;
+  const reading = download(async () => { calls++; return denied('E_RATE_LIMIT', true, { 'Retry-After': '1' }); }, undefined, undefined, () => current);
+  await new Promise(resolve => setImmediate(resolve)); current = false;
+  t.mock.timers.tick(1500); await new Promise(resolve => setImmediate(resolve));
+  const read = await reading;
+  assert.equal(calls, 1); assert.equal(read.denied.code, 'E_RATE_LIMIT');
+  assert.equal(assetRetryAt(read.denied), 101000);
+});
 
 for (const kind of ['reset', 'body reset', '503', 'timeout']) test(`ordinary ${kind} recovers with a non-consuming full-file Range`, { timeout: 10000 }, async () => {
   let calls = 0; const times = [];
@@ -16,13 +35,13 @@ for (const kind of ['reset', 'body reset', '503', 'timeout']) test(`ordinary ${k
     if (kind === 'reset') return reset();
     if (kind === '503') return denied('E_RATE_LIMIT', true, { 'Retry-After': '0.5' });
     if (kind === 'timeout') return new Promise(() => {}); // host ignores abort
-    const response = bytes(); response.blob = async () => reset(); return response;
+    return new Response(new ReadableStream({ start(stream) { try { reset(); } catch (error) { stream.error(error); } } }));
   });
   assert.ok('url' in read, JSON.stringify(read)); read.revoke(); assert.equal(calls, 2);
   assert.ok(times[1] - times[0] >= (kind === '503' ? 500 : kind === 'timeout' ? 5000 : 250));
 });
 
-test('exhaustion is bounded, retains its cause, and long retry guidance survives refocus', async () => {
+test('exhaustion is bounded, retains its cause, and preserves long retry guidance', async () => {
   let calls = 0;
   const read = await download(async () => { calls++; return reset(); });
   assert.equal(calls, 4); assert.equal(read.denied.code, 'E_OFFLINE'); assert.equal(read.denied.retryable, true);
@@ -31,6 +50,113 @@ test('exhaustion is bounded, retains its cause, and long retry guidance survives
   const start = Date.now();
   const limited = await download(async () => { calls++; return denied('E_RATE_LIMIT', true, { 'Retry-After': '60' }); });
   assert.equal(calls, 1); assert.equal(limited.denied.code, 'E_RATE_LIMIT'); assert.ok(assetRetryAt(limited.denied) >= start + 60000);
+});
+
+test('a real HTTP video progressing for over five seconds completes in one transfer', { timeout: 15000 }, async t => {
+  let calls = 0;
+  const server = createServer((_request, response) => {
+    calls++;
+    response.writeHead(200, { 'content-type': 'video/mp4', 'content-length': '12' });
+    let sent = 0;
+    const timer = setInterval(() => {
+      response.write(Buffer.from([++sent]));
+      if (sent === 12) { clearInterval(timer); response.end(); }
+    }, 500);
+    response.on('close', () => clearInterval(timer));
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  const controller = new AbortController();
+  t.after(() => { controller.abort(); server.closeAllConnections(); server.close(); });
+  // A retry returns a diagnostic response, so the unfixed implementation fails
+  // promptly rather than spending four identical five-second attempts.
+  const result = await fetchAsset(`http://127.0.0.1:${server.address().port}`, {}, async (...args) => calls ? denied('E_RULE') : fetch(...args), 'video', undefined, controller.signal);
+  assert.ok('url' in result, JSON.stringify(result));
+  try {
+    assert.equal(calls, 1); assert.equal(result.type, 'video/mp4');
+    assert.deepEqual([...new Uint8Array(await (await fetch(result.url)).arrayBuffer())], Array.from({ length: 12 }, (_, i) => i + 1));
+  } finally { result.revoke(); }
+});
+
+test('body progress extends the thirty-second inactivity deadline; an actual stall still recovers', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  const drain = () => new Promise(resolve => setImmediate(resolve));
+  let stream, request, calls = 0, settled;
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const reading = download(async (_url, init) => {
+    calls++; request = init;
+    if (calls > 1) return bytes();
+    return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'content-type': 'video/mp4' } });
+  }, undefined, controller.signal).then(value => { settled = value; return value; });
+  await drain();
+  for (let chunk = 0; chunk < 18; chunk++) {
+    t.mock.timers.tick(2000); stream.enqueue(new Uint8Array([chunk])); await drain();
+    assert.equal(request.signal.aborted, false, `progress at ${(chunk + 1) * 2}s must not abort`);
+    assert.equal(calls, 1); assert.equal(settled, undefined);
+  }
+  stream.close(); await drain();
+  const read = await reading; assert.ok('url' in read); assert.equal(read.bytes, 18); read.revoke();
+
+  let probes = 0, views = 0;
+  const onceReading = download(async (_url, init) => {
+    if (init.headers.range) { probes++; return denied('E_ASSET_RANGE'); }
+    views++; request = init;
+    return new Response(new ReadableStream({ start(value) { stream = value; } }));
+  });
+  await drain();
+  for (let chunk = 0; chunk < 18; chunk++) {
+    t.mock.timers.tick(2000); stream.enqueue(new Uint8Array([chunk])); await drain();
+    assert.equal(request.signal.aborted, false, 'a progressing one-view body is allowed to finish');
+  }
+  stream.close();
+  const onceRead = await onceReading;
+  assert.ok('url' in onceRead); assert.equal(onceRead.bytes, 18); onceRead.revoke();
+  assert.equal(probes, 1); assert.equal(views, 1);
+
+  calls = 0; settled = undefined;
+  const stalled = download(async () => {
+    if (++calls > 1) return bytes();
+    return new Response(new ReadableStream({ start(value) { value.enqueue(new Uint8Array([1])); } }));
+  }).then(value => { settled = value; return value; });
+  await drain(); t.mock.timers.tick(4999); await drain(); assert.equal(calls, 1);
+  t.mock.timers.tick(1); await drain(); t.mock.timers.tick(400); await drain();
+  const recovered = await stalled; assert.equal(calls, 2); assert.ok('url' in recovered); recovered.revoke();
+});
+
+test('body decoding consumes Retry-After time without an early request', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  t.mock.method(Math, 'random', () => 0);
+  let body, calls = 0;
+  const reading = download(async () => {
+    if (++calls > 1) return bytes();
+    return new Response(new ReadableStream({ start(stream) { body = stream; } }), { status: 503, headers: { 'Retry-After': '1' } });
+  });
+  const drain = () => new Promise(resolve => setImmediate(resolve));
+  await drain(); t.mock.timers.tick(500);
+  body.enqueue(new TextEncoder().encode(JSON.stringify({ denied: { code: 'E_RATE_LIMIT', family: 'limit', message: 'busy', retryable: true } })));
+  body.close(); await drain();
+  t.mock.timers.tick(499); await drain(); assert.equal(calls, 1);
+  t.mock.timers.tick(1); await drain(); assert.equal(calls, 2, 'only the remaining 500 ms is waited');
+  const read = await reading; assert.ok('url' in read); read.revoke();
+});
+
+for (const guidance of ['60', 'Thu, 01 Jan 1970 00:02:40 GMT']) test(`a stalled 503 error body preserves Retry-After ${guidance}`, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 100000 });
+  let calls = 0, canceled = 0;
+  const controller = new AbortController(); t.after(() => controller.abort());
+  const reading = download(async () => {
+    calls++;
+    return new Response(new ReadableStream({ start(stream) { stream.enqueue(new TextEncoder().encode('{"denied":')); }, cancel() { canceled++; } }), { status: 503, headers: { 'Retry-After': guidance } });
+  }, undefined, controller.signal);
+  await new Promise(resolve => setImmediate(resolve));
+  t.mock.timers.tick(5000); await new Promise(resolve => setImmediate(resolve));
+  // Let a buggy premature retry start, then terminate it for a finite red control.
+  t.mock.timers.tick(400); await new Promise(resolve => setImmediate(resolve));
+  if (calls > 1) controller.abort();
+  const read = await reading;
+  assert.equal(calls, 1, 'no early request when refusal JSON stalls');
+  assert.equal(read.denied.code, 'E_HTTP_RESPONSE'); assert.match(read.denied.message, /503/);
+  assert.equal(read.denied.retryable, true); assert.equal(assetRetryAt(read.denied), 160000);
+  assert.equal(canceled, 1);
 });
 
 for (const code of ['E_ASSET_UNKNOWN', 'E_ASSET_VIEWED', 'E_AUTH', 'E_RULE']) test(`${code} is final even when mislabelled retryable`, async () => {
@@ -53,7 +179,7 @@ for (const kind of ['reset', 'body reset', 'timeout', 'malformed refusal']) test
     if (kind === 'reset') return reset();
     if (kind === 'malformed refusal') return new Response('lost outcome', { status: 404 });
     if (kind === 'timeout') return new Promise(() => {});
-    const response = bytes(); response.blob = async () => reset(); return response;
+    return new Response(new ReadableStream({ start(stream) { try { reset(); } catch (error) { stream.error(error); } } }));
   });
   assert.equal(probes, 1); assert.equal(views, 1); assert.equal(read.denied.code, kind === 'malformed refusal' ? 'E_HTTP_RESPONSE' : 'E_OFFLINE');
   assert.equal(read.denied.retryable, false); assert.match(read.denied.message, /one-view.*consumed/);

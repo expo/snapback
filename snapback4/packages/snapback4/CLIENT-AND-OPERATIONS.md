@@ -1391,13 +1391,17 @@ Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. Transport and blob-URL failures return `status: "error"`
 with `why.code` and `why.message`; authorization, revocation and consumed views
 return `status: "denied"`. Display both explanations. Safe downloads make up to
-four attempts with exponential backoff, jitter and Retry-After, with a five-second
-network deadline per attempt, ten seconds of backoff and thirty seconds including
-queue wait. Each client admits six transfers. A full-file Range request makes
-ordinary retries non-consuming; a once asset refuses Range before its one
+four attempts with exponential backoff, jitter and Retry-After, with five seconds
+without response/body progress, ten seconds of backoff and thirty seconds without
+body progress including queue wait. Received bytes renew both inactivity timers;
+a progressing stream has no total-duration deadline. Buffered native fetches
+expose only completion, so their opaque waits retain the five-second bound.
+Retry-After survives stalled error bodies and credential rotation. Each client
+admits six transfers. A full-file Range request makes ordinary retries non-consuming; a once asset refuses Range before its one
 non-range transfer. An ambiguous once response is never automatically retried.
 The hook retries safe errors on reconnect/refocus/visibility return, never ready
-handles or terminal refusals. Raw `client.asset` returns `{ denied }` after the
+handles or terminal refusals. An early recovery event schedules one retry after
+Retry-After (or after the in-flight outcome); unmount cancels it. It does not loop. Raw `client.asset` returns `{ denied }` after the
 bound; call it again when connectivity returns. `assetSource` uses host fetching.
 For sender avatars inside DM/group messages, `snapback4 guide media` shows the
 complete `profileById(message.sender)` → `useAsset(profile.avatar.id)` recipe,

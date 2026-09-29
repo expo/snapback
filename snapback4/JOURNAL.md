@@ -76227,3 +76227,51 @@ Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged
 Report: reports/20260929-av-asset-resolution/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — Lane AV round 2: asset progress and cooldown custody
+
+First fetched and merged origin/main; already up to date at round-1 HEAD
+99427c205. Read both earlier prompts/reports, Astra's complete NOT READY review,
+and Grok's completed NOT READY review, which arrived during this round. Both
+complete review files were rechecked before committing and were unchanged.
+
+Downloads now bound silence, not a progressing stream's total duration:
+nonempty chunks renew five-second attempt and thirty-second queue/inactivity
+bounds. Real HTTP bytes finish at six seconds; ordinary and one-view bodies
+finish at 36 virtual seconds. Buffered native fetch exposes no intermediate
+progress and retains its opaque five-second wait bound, documented explicitly.
+Retry-After is captured at headers and survives stalled bodies and credential
+rotation, including rotation during backoff. Unknown error bodies retain HTTP
+status without inventing proof that a one-view request was refused. Six active
+transfers, four attempts, ten seconds backoff and all authority/once rules stay.
+
+Local queued calls safely cross credential rotation before invalidating media:
+34/34 queued avatars now resolve on both process and wasm under the new bearer,
+with receipt-confirmed retained bytes and the old live handle intact. Early
+focus/reconnect events coalesce into one recovery at the deadline; busy events
+wait for a safe failure. Unmount cancels recovery, and a failure does not loop.
+The final guard-removal mutation fails specifically on premature focus retry.
+Bare 408/429/500/502/503/504 recovery now has detecting controls. Guide timing,
+its why-property wording and LLP 3000.008.002.000 §6 match. Original d-02 incident
+attribution remains unproven, separately from its reproduced failure mechanism.
+
+Affected checks pass: final React 57/57; retry/online-session 41/41; final
+session/terminal/avatar group 32/32; existing broad lifecycle group 104/104;
+process/wasm retained-byte rotation 3/3; entire final guide 98/98. Final boundary
+and elapsed-body checks pass. scripts/test.sh ran once, exit 1, exact summary:
+`== 1 failure(s) in 1324 s`, stage `client tests`. Rust 4,311 passed / 33 ignored;
+clients 4,612 passed / one failed / ten skipped; models 79/79; wrapper 9/9.
+The one failure is ours: the exact-jitter fixture omitted a valid wait below
+1,000 ms after body decoding. Holding its zero-body-time clock fixed preserves
+all exact jitter assertions; the entire overload file then passes 109/109.
+A separate elapsed-body regression requires the retry at the original minimum.
+No baseline/environmental exemption or second full run; no green-full claim
+after that correction. The inherited 60-second target remains exceeded.
+Every failed setup, red control and correction is in the report's failure ledger.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip-9, 744 B under the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-av-asset-resolution/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

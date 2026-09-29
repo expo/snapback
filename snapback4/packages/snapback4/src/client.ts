@@ -1002,7 +1002,9 @@ export function createClient(options: ClientOptions): Client {
       // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
       if (revision !== credentialRevision) {
         if ("denied" in read) {
-          if (read.denied.code === "E_AUTH" || (read.denied.code === "E_RATE_LIMIT" && read.denied.retryable)) return client.asset(id);
+          // Admission backoff belongs to the transfer, not its bearer. Keep
+          // the outcome (including Retry-After) for permitted hook recovery.
+          if (read.denied.code === "E_AUTH") return client.asset(id);
           return read;
         }
         read.revoke();

@@ -3,19 +3,66 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { processDevice } from "../dist/native.js";
 import { mintId } from "../dist/client.js";
 import { login } from "../dist/auth.js";
+import { createLocalClient } from "../dist/local.js";
+import { webDevice, memoryPersistence } from "../dist/web.js";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
 import { binary } from "./helpers/app-server.mjs";
 import { avatarFixture } from "./helpers/avatar-fixture.mjs";
 
 const root = resolve(import.meta.dirname, "../../..");
 const clientDir = process.env.AV_CLIENT_DIR ?? join(root, "packages/snapback4/dist");
+
+test('queued local avatars survive credential rotation without invalidating retained handles', { timeout: 60000 }, async t => {
+  const fixture = await avatarFixture(t);
+  for (const tier of ['process', 'wasm']) await t.test(tier, async t => {
+    const signed = await login(fixture.url, 'bob@avatars.test', 'password-avatars'); assert.equal(signed.ok, true);
+    let unblock, blocked = 0, queued = false, core;
+    const gate = new Promise(resolve => { unblock = resolve; });
+    const assetBearers = [];
+    const device = tier === 'process' ? processDevice({ binary, dir: join(fixture.dir, 'rotation') }) : webDevice({ wasm: readFileSync(join(root, 'packages/snapback4/src/wasm/snapback4_device_bg.wasm')), persist: memoryPersistence() });
+    const client = await createLocalClient({ url: fixture.url, session: signed.session,
+      device: { open: async (...args) => (core = await device.open(...args)) },
+      assets: { keep: 'viewed', maxBytes: 1000000 },
+      fetch: async (url, init) => {
+        if (new URL(url).pathname === '/assets/blocker') {
+          blocked++; await gate;
+          return Response.json({ denied: { code: 'E_RULE', family: 'rule', message: 'test blocker finished' } }, { status: 403 });
+        }
+        if (queued && new URL(url).pathname.startsWith('/assets/')) assetBearers.push(new Headers(init.headers).get('authorization'));
+        return fetch(url, init);
+      },
+    });
+    t.after(async () => { unblock(); await client.close(); });
+    await client.sync();
+    const id = fixture.users.alice.avatar.id;
+    const held = await client.asset(id); assert.ok('url' in held, JSON.stringify(held));
+    const manifest = JSON.parse((await core.call({ op: 'meta', key: 'media:manifest' })).ok);
+    assert.ok(manifest.some(entry => entry.id === id && entry.confirmed), 'start with retained, receipt-confirmed bytes');
+    const before = await (await fetch(held.url)).arrayBuffer();
+    const blockers = Array.from({ length: 6 }, () => client.asset('blocker'));
+    while (blocked < 6) await new Promise(resolve => setTimeout(resolve, 1));
+    queued = true;
+    const pending = Array.from({ length: 34 }, () => client.asset(id));
+    await new Promise(resolve => setTimeout(resolve, 25));
+    assert.equal(assetBearers.length, 0, 'all 34 avatar calls wait behind six active transfers');
+    assert.equal((await client.refreshSession()).ok, true);
+    const next = client.session().token; assert.notEqual(next, signed.session.token);
+    unblock(); await Promise.all(blockers);
+    const reads = await Promise.all(pending);
+    try {
+      assert.equal(reads.filter(read => 'url' in read).length, 34, JSON.stringify(reads));
+      assert.deepEqual(assetBearers, Array(34).fill('Bearer ' + next));
+      assert.deepEqual(await (await fetch(held.url)).arrayBuffer(), before, 'rotation never revokes a retained live handle');
+    } finally { held.revoke(); for (const read of reads) if ('url' in read) read.revoke(); }
+  });
+});
 
 test("message authors and feed avatars share ordinary home-row authority", { timeout: 180_000 }, async t => {
   const fixture = await avatarFixture(t);

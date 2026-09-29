@@ -405,6 +405,9 @@ for (const tier of ['online', 'web']) for (const door of ['probe', 'sync']) {
 
 test('public transfers jitter beyond Retry-After and stop within their cumulative budget', async t => {
   const delays = []; t.mock.method(Math, 'random', () => 0.5);
+  // This checks exact jitter for zero body-reading time. Asset Retry-After is
+  // now an absolute deadline captured at headers, before body consumption.
+  const now = Date.now(); t.mock.method(Date, 'now', () => now);
   const realTimeout = globalThis.setTimeout;
   t.mock.method(globalThis, 'setTimeout', (fn, ms) => { if (ms >= 5000) return realTimeout(fn, ms); delays.push(ms); queueMicrotask(fn); return 0; });
   const client = createClient({ url: 'http://asset.invalid', persona: 'alice', fetch: async () => Response.json({ denied: refusal }, { status: 503, headers: { 'Retry-After': '1' } }) });
@@ -463,6 +466,9 @@ for (const tier of ['online', 'web']) for (const kind of ['upload', 'asset', 'qu
     clients.push(client); t.after(() => client.close());
   }
   const timeout = globalThis.setTimeout; let sample = 0;
+  // Keep decoding at zero virtual elapsed time for the exact jitter samples;
+  // elapsed-body/minimum preservation is covered by asset-retry.test.mjs.
+  const now = Date.now(); t.mock.method(Date, 'now', () => now);
   t.mock.method(Math, 'random', () => [0, 0.25, 0.5, 0.75][sample++ % 4]);
   t.mock.method(globalThis, 'setTimeout', (fn, ms, ...args) => {
     if (ms >= 1000 && ms <= 1250) timers.push({ ms });

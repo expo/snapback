@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { memorySessionStore } from "../dist/auth.js";
+import { assetRetryAt } from "../dist/asset-download.js";
 
 const session = (token, expiresAt = Date.now() + 7 * 86400_000) => ({ principal: "user:alice", kind: "user", token, expiresAt });
 const denied = () => Response.json({ denied: { code: "E_AUTH", family: "auth", message: "session ended" } }, { status: 401 });
@@ -287,6 +288,33 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   assert.equal(result.denied.code, "E_AUTH");
   assert.deepEqual(revoked, ["blob:asset-1"]);
   assert.deepEqual(closed, ["response-1", "response-2", "response-3"], "the old response is released without consuming another view");
+});
+
+test("credential rotation preserves an asset admission refusal and its recovery deadline", async t => {
+  const entered = deferred(), release = deferred(), bearers = [];
+  const client = createClient({ url: "https://asset.invalid", session: session("old"), fetch: async (url, init) => {
+    if (new URL(url).pathname === "/auth/refresh") return Response.json({ session: session("next") });
+    bearers.push(bearer(init));
+    if (bearers.length === 1) {
+      entered.resolve(); await release.promise;
+      return Response.json({ denied: { code: "E_RATE_LIMIT", family: "limit", message: "wait for admission", retryable: true } }, { status: 503, headers: { 'Retry-After': '60' } });
+    }
+    return new Response(new Uint8Array([1]), { headers: { 'content-type': 'image/png' } });
+  } });
+  t.after(() => client.close());
+  const reading = client.asset("photo"); await entered.promise;
+  assert.equal((await client.refreshSession()).ok, true);
+  const start = Date.now(); release.resolve();
+  const result = await reading;
+  if ('url' in result) result.revoke();
+  assert.deepEqual(bearers, ["Bearer old"], 'rotation must not start a fresh retry budget');
+  assert.equal(result.denied.code, "E_RATE_LIMIT"); assert.equal(result.denied.retryable, true);
+  assert.ok(assetRetryAt(result.denied) >= start + 60000);
+  const now = Date.now;
+  t.mock.method(Date, 'now', () => now() + 61000);
+  const recovered = await client.asset("photo");
+  assert.ok('url' in recovered); recovered.revoke();
+  assert.deepEqual(bearers, ["Bearer old", "Bearer next"]);
 });
 
 test("mintId keeps burst and rollback ids monotonic without advancing their timestamp", () => {

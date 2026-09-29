@@ -332,12 +332,14 @@ export function useAsset(id: string | null | undefined): AssetState {
   useEffect(() => {
     const { client, signedOut, id } = owner;
     if (!id || signedOut) return;
-    let live = true, busy = false;
+    let live = true, busy = false, recoveryRequested = false;
+    let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
     const lifetime = { live: true };
     let read: AssetRead | null = null;
     const publish = (state: AssetState) => setResolved({ owner, state, lifetime });
     const load = () => {
       if (!live || busy || client.link() === "signed-out") return;
+      clearTimeout(recoveryTimer); recoveryTimer = undefined;
       busy = true;
       publish({ status: "loading" });
       void client.asset(id).then((result) => {
@@ -351,10 +353,20 @@ export function useAsset(id: string | null | undefined): AssetState {
       }).catch((error) => {
         read = null;
         if (live) publish({ status: "error", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
-      }).finally(() => { busy = false; });
+      }).finally(() => {
+        busy = false;
+        if (recoveryRequested) { recoveryRequested = false; recover(); }
+      });
     };
     const recover = () => {
-      if (read && "denied" in read && assetError(read.denied) && read.denied.retryable === true && Date.now() >= assetRetryAt(read.denied)) load();
+      if (!live) return;
+      if (busy) { recoveryRequested = true; return; }
+      if (read && "denied" in read && assetError(read.denied) && read.denied.retryable === true) {
+        if (Date.now() >= assetRetryAt(read.denied)) load();
+        else if (recoveryTimer === undefined) recoveryTimer = setTimeout(() => {
+          recoveryTimer = undefined; recover();
+        }, Math.min(2_147_483_647, assetRetryAt(read.denied) - Date.now()));
+      }
     };
     let link = client.link();
     const unsubscribe = client.onLink(next => { const before = link; link = next; if (next === "online" && before !== "online") recover(); });
@@ -365,6 +377,7 @@ export function useAsset(id: string | null | undefined): AssetState {
     queueMicrotask(() => { if (live) load(); });
     return () => {
       live = false; lifetime.live = false;
+      clearTimeout(recoveryTimer);
       unsubscribe();
       globalThis.removeEventListener?.("focus", recover);
       globalThis.removeEventListener?.("online", recover);

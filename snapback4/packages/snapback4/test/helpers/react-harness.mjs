@@ -1,3 +1,4 @@
+import { assetRecoveryHarness } from "./react-asset-recovery.mjs";
 import { pendingPeerHarness } from "./react-pending-peer.mjs";
 
 export const reactHarness = (expiryRecipe, receiptsRecipe) => `
@@ -795,6 +796,7 @@ const cases = {
     }
     equal(listeners.size, 0, "recovery listeners released"); check(revokes >= 2, "held handles released");
   },
+${assetRecoveryHarness}
   async "useAsset with a bearer before viewer discovery fetches only once"() {
     const client = controlled(); client.setViewer(null);
     let asset, calls = 0, revoked = 0;

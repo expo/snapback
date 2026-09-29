@@ -6,7 +6,7 @@ const retryTimes = new WeakMap<Refusal, number>();
 export const assetRetryAt = (why: Refusal): number => retryTimes.get(why) ?? 0;
 export const assetError = (why: Refusal): boolean => ["E_OFFLINE", "E_HTTP_RESPONSE", "E_RATE_LIMIT", "E_CLIENT"].includes(why.code);
 const stopped = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "the client or session changed during download", retryable: false });
-const timeout = () => new Error("asset download timed out after 5000 ms");
+const timeout = () => new Error("asset download made no observable progress for 5000 ms");
 
 /** Six transfers per client; waiting calls are abortable and never share URLs,
  * bytes, grants or outcomes. A permit spans response-body consumption. */
@@ -57,6 +57,25 @@ function pause(ms: number, signal: AbortSignal) {
   });
 }
 
+/** Streaming hosts report byte progress. Buffered native hosts expose only
+ * the fetch/Blob completion, so their opaque waits retain the stall bound. */
+async function readBlob(response: Response, signal: AbortSignal, progress: () => void): Promise<Blob> {
+  if (!response.body) return bounded(response.blob(), signal, closeBlob);
+  const reader = response.body.getReader(), chunks: Uint8Array<ArrayBuffer>[] = [];
+  let complete = false;
+  try {
+    for (;;) {
+      const { done, value } = await bounded(reader.read(), signal, () => {});
+      if (done) { complete = true; break; }
+      if (value.byteLength) { chunks.push(value as Uint8Array<ArrayBuffer>); progress(); }
+    }
+    return new Blob(chunks, { type: response.headers.get("content-type") ?? "" });
+  } finally {
+    if (!complete) void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
+
 export async function downloadAsset(source: { uri: string; headers: Record<string, string> }, doFetch: typeof fetch,
   signal?: AbortSignal, current: () => boolean = () => true, queue?: Queue,
 ): Promise<{ blob: Blob; response: Response } | { denied: Refusal }> {
@@ -64,31 +83,48 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
   const end = () => lifetime.abort(signal?.reason);
   signal?.addEventListener("abort", end, { once: true });
   if (signal?.aborted) end();
-  // Includes admission wait, all attempts and backoff. A screen cannot remain
-  // loading forever, even when a host fetch never resolves or honors abort.
-  const deadline = setTimeout(() => lifetime.abort(new Error("asset download exceeded its 30000 ms deadline")), 30_000);
+  // Bound admission/backoff without imposing a total duration on healthy
+  // streams. Every nonempty body chunk renews this inactivity deadline.
+  let deadline: ReturnType<typeof setTimeout>;
+  const progress = () => {
+    clearTimeout(deadline);
+    deadline = setTimeout(() => lifetime.abort(new Error("asset download made no byte progress for 30000 ms including queue wait")), 30_000);
+  };
+  progress();
   let ranged = true, waited = 0;
+  let previous: Refusal | undefined;
   try {
     for (let attempt = 0; ; attempt++) {
-      if (!current() || signal?.aborted) return { denied: stopped() };
+      if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
       const release = queue ? await queue(lifetime.signal) : () => {};
-      let why: Refusal, minimum = 0, transient = false;
+      let why: Refusal | undefined, retryAt = 0, transient = false;
       const request = new AbortController();
       const abort = () => request.abort(lifetime.signal.reason);
       lifetime.signal.addEventListener("abort", abort, { once: true });
       if (lifetime.signal.aborted) abort();
-      const timer = setTimeout(() => request.abort(timeout()), 5000);
+      let timer: ReturnType<typeof setTimeout>;
+      const activity = () => { clearTimeout(timer); timer = setTimeout(() => request.abort(timeout()), 5000); };
+      activity();
       let response: Response | undefined, bodyStarted = false;
       try {
-        if (!current() || signal?.aborted) return { denied: stopped() };
+        if (!current() || signal?.aborted) return { denied: previous ?? stopped() };
         if (request.signal.aborted || !release) throw request.signal.reason ?? timeout();
         response = await bounded(doFetch(source.uri, { headers: { ...source.headers, ...(ranged ? { range: "bytes=0-" } : {}) }, signal: request.signal }), request.signal, closeResponse);
+        activity();
         if (response.ok) {
           bodyStarted = true;
-          const blob = await bounded(response.blob(), request.signal, closeBlob);
+          const blob = await readBlob(response, request.signal, () => { activity(); progress(); });
           return { blob, response };
         }
-        const json = await bounded(response.json().catch(() => null), request.signal, () => {}) as { denied?: unknown } | null;
+        // Headers survive a missing/stalled refusal body. An HTTP status alone
+        // does not prove a non-range one-view request was refused at admission.
+        retryAt = Date.now() + retryAfter(response.headers.get("retry-after"));
+        why = invalidResponse(response.status, "download");
+        transient = [408, 429, 500, 502, 503, 504].includes(response.status);
+        bodyStarted = true;
+        const json = response.body
+          ? JSON.parse(await (await readBlob(response, request.signal, () => {})).text()) as { denied?: unknown } | null
+          : await bounded(response.json(), request.signal, () => {}) as { denied?: unknown } | null;
         const explicit = refusal(json?.denied);
         why = explicit ?? invalidResponse(response.status, "download");
         if (ranged && why.code === "E_ASSET_RANGE") {
@@ -97,22 +133,22 @@ export async function downloadAsset(source: { uri: string; headers: Record<strin
           ranged = false; attempt--; continue;
         }
         transient = overloaded(why) || (!explicit && [408, 429, 500, 502, 503, 504].includes(response.status));
-        minimum = retryAfter(response.headers.get("retry-after"));
       } catch (error) {
-        why = transportRefusal(error); transient = true;
+        if (!why) { why = transportRefusal(error); transient = true; }
       } finally {
-        clearTimeout(timer); lifetime.signal.removeEventListener("abort", abort);
-        if (request.signal.aborted && response && (!bodyStarted || response.body)) closeResponse(response);
+        clearTimeout(timer!); lifetime.signal.removeEventListener("abort", abort);
+        if (request.signal.aborted && response && !bodyStarted) closeResponse(response);
         release?.();
       }
       if (!transient && !assetError(why)) return { denied: why };
       const safe = transient && (ranged || overloaded(why));
       why = { ...why, retryable: safe };
       if (!ranged && !overloaded(why) && assetError(why)) why = { ...why, message: why.message + "; a one-view response may have been consumed; it will not be retried automatically" };
-      const delay = jitter(Math.max(250 * 2 ** attempt, minimum));
-      retryTimes.set(why, Date.now() + minimum);
+      const delay = jitter(Math.max(250 * 2 ** attempt, retryAt - Date.now()));
+      retryTimes.set(why, retryAt);
+      previous = why;
       if (!safe || attempt >= 3 || waited + delay > 10_000 || lifetime.signal.aborted || !current()) return { denied: why };
       await pause(delay, lifetime.signal); waited += delay;
     }
-  } finally { clearTimeout(deadline); signal?.removeEventListener("abort", end); }
+  } finally { clearTimeout(deadline!); signal?.removeEventListener("abort", end); }
 }

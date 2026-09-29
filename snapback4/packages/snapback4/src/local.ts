@@ -1301,8 +1301,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return uploaded;
     },
     async asset(id) {
-      const denied = unavailable();
-      if (denied) return { denied };
+      const denied = unavailable(); if (denied) return { denied };
       await media!.reconcile(); // @ref LLP 3000.008.002.000#6 — retire expired handles before network backoff.
       if (unavailable()) return { denied: unavailable()! };
       if (link !== "online") return media!.read(id);
@@ -1310,6 +1309,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const read = await fetchAsset(base, request.headers, doFetch, id, (blob, response) =>
         unavailable() || request.revision !== credentialRevision ? Promise.resolve() : media!.viewed(id, blob, response), aborter.signal,
         () => !unavailable() && request.revision === credentialRevision, downloads);
+      // @ref LLP 3000.008.002.000#6 — a rotated pre-dispatch refusal has no asset authority to invalidate.
+      if ("denied" in read && !unavailable() && request.revision !== credentialRevision) {
+        return read.denied.code === "E_AUTH" ? client.asset(id) : read;
+      }
       if ("denied" in read) {
         await refusedSession(read.denied, request.revision);
         if (read.denied.code === "E_OFFLINE" && !unavailable()) {
