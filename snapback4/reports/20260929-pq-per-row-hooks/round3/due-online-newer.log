@@ -1,0 +1,64 @@
+✖ online keep=undefined: a due completion preserves a newer answer and retries (87.49576ms)
+✖ online keep=false: a due completion preserves a newer answer and retries (51.141171ms)
+✖ online keep=true: a due completion preserves a newer answer and retries (50.87312ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.15694
+
+✖ failing tests:
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:34:3
+✖ online keep=undefined: a due completion preserves a newer answer and retries (87.49576ms)
+  AssertionError [ERR_ASSERTION]: the due attempt cannot publish synthetic loading over a newer answer
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:34:3
+✖ online keep=false: a due completion preserves a newer answer and retries (51.141171ms)
+  AssertionError [ERR_ASSERTION]: the due attempt cannot publish synthetic loading over a newer answer
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:34:3
+✖ online keep=true: a due completion preserves a newer answer and retries (50.87312ms)
+  AssertionError [ERR_ASSERTION]: the due attempt cannot publish synthetic loading over a newer answer
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:66:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

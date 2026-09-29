@@ -1,0 +1,130 @@
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (551.917183ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (89.51174ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (97.548605ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (134.366764ms)
+✔ process keep=false: a full queue cannot postpone the change transition (126.542558ms)
+✔ process keep=true: a full queue cannot postpone the change transition (134.072263ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (83.388213ms)
+✖ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (331.539635ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (94.412415ms)
+✖ wasm keep=false: presence publication rechecks a floor raised after evaluation (333.768075ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (81.416899ms)
+✖ wasm keep=true: presence publication rechecks a floor raised after evaluation (315.006818ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (121.498108ms)
+✖ process keep=undefined: presence publication rechecks a floor raised after evaluation (351.941041ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (111.350831ms)
+✖ process keep=false: presence publication rechecks a floor raised after evaluation (354.792654ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (118.591362ms)
+✖ process keep=true: presence publication rechecks a floor raised after evaluation (353.249471ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 12
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3939.740564
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (331.539635ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=false: presence publication rechecks a floor raised after evaluation (333.768075ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=true: presence publication rechecks a floor raised after evaluation (315.006818ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=undefined: presence publication rechecks a floor raised after evaluation (351.941041ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=false: presence publication rechecks a floor raised after evaluation (354.792654ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=true: presence publication rechecks a floor raised after evaluation (353.249471ms)
+  AssertionError [ERR_ASSERTION]: a scope reset cannot mask the final floor check
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:148:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

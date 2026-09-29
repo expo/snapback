@@ -131,3 +131,56 @@ for (const tier of ['wasm', 'process']) test(`${tier}: acquired unknown apply fo
   assert.ok(withdrawals > 0, 'keep=false still withdraws during revalidation');
   assert.ok(queries > 0, 'replacement comes from new evaluations');
 });
+
+for (const tier of ['online', 'wasm', 'process']) test(`${tier}: cancelled transport preserves the earlier failure diagnostic`, async t => {
+  const { url, dir } = await server(t, '', `use personas alice
+table rows:
+  value: int
+  read <- allow
+  online only
+query remote(id: rows):
+  return rows[id]
+`);
+  let held = false, cancelled = false, failed = false;
+  const options = { url, persona: 'alice', fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/changes' || (failed && !path.startsWith('/q/'))) return parked(init.signal);
+    if (path.startsWith('/q/')) {
+      const { id } = JSON.parse(init.body).args;
+      if (id === 'held') {
+        held = true;
+        return new Promise((_, reject) => init.signal.addEventListener('abort', event => {
+          // This adapter consumes the event and reports cancellation by rejecting.
+          // Local postForCaller otherwise wins the race with its own abort waiter,
+          // never reaching sendPost's catch (which is the regression under test).
+          event.stopImmediatePropagation();
+          cancelled = true;
+          reject(Object.assign(Error('observation cancelled'), { code: 'ABORT_ERR' }));
+        }, { once: true }));
+      }
+      if (id === 'failure') {
+        failed = true;
+        throw Object.assign(Error('connection refused'), { code: 'ECONNREFUSED' });
+      }
+    }
+    return fetch(input, init);
+  } };
+  const client = tier === 'online' ? createClient(options) : await createLocalClient({ ...options,
+    device: tier === 'process' ? processDevice({ binary, dir: join(dir, 'device') }) : webDevice({
+      wasm: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)), persist: memoryPersistence(),
+    }),
+  });
+  t.after(() => client.close());
+  if (client.sync) await client.sync(); else await client.query({ kind: 'query', name: 'remote' }, { id: 'warm' });
+  const watch = client.observe({ kind: 'query', name: 'remote' }, { id: 'held' }); watch.subscribe(() => {});
+  t.after(() => watch.close()); await until(() => held, 'cancellable request dispatched');
+  await client.query({ kind: 'query', name: 'remote' }, { id: 'failure' });
+  const diagnostic = () => client.act({ kind: 'action', name: 'offlineDiagnostic' }, {});
+  const before = await diagnostic();
+  assert.equal(before.denied?.code, 'E_OFFLINE');
+  assert.match(before.denied.message, /ECONNREFUSED/);
+  watch.close(); await until(() => cancelled, 'adapter rejected on cancellation');
+  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  const after = await diagnostic();
+  assert.deepEqual(after.denied, before.denied, 'cancellation cannot replace the recorded transport failure');
+});

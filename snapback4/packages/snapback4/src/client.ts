@@ -20,7 +20,7 @@ import { deferStart, trackRotation } from "./client-start.ts";
 // and applies at most once, and waits as `pending` while the link is down.
 // Every word a screen reads is on the card (contract.ts).
 
-import { ReadObservation } from "./read-observation.ts";
+import { ReadObservation, answerIdentity } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
@@ -695,7 +695,8 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.5 — every option follows the reset fence; retention never renews an episode.
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
-    let exhausted = false;
+    const startedWith = answerIdentity(watch.snapshot);
+    let exhausted = false, retryExpired = false;
     try {
       const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, accept: result => {
         if (signal.aborted) return true;
@@ -712,6 +713,8 @@ export function createClient(options: ClientOptions): Client {
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
+        if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()
+          && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) { retryExpired = true; return; }
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.publish({ loading: true });
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
@@ -729,8 +732,9 @@ export function createClient(options: ClientOptions): Client {
       watch.inFlight = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if ((dirty || signal.reason === READ_WORK_EXPIRED) && credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
-        void scheduleRead(watch);
+      if (credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
+        if (retryExpired && !signal.aborted) readWork.retry(watch, 25, signal => refresh(watch, signal));
+        else if (dirty || signal.reason === READ_WORK_EXPIRED) void scheduleRead(watch);
       }
     }
   }

@@ -33,20 +33,36 @@ export function duringRead<T>(work: Promise<T>, signal?: AbortSignal): Promise<T
 export class ReadWork<W> {
   private readonly pending = new Map<W, (signal: AbortSignal) => Promise<void>>();
   private readonly active = new Map<W, AbortController>();
+  private readonly delayed = new Map<W, ReturnType<typeof setTimeout>>();
   private starts = 0;
   private queued = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(private readonly later: (run: () => void) => ReturnType<typeof setTimeout> = run => setTimeout(run, 0)) {}
   schedule(watch: W, run: (signal: AbortSignal) => Promise<void>): void {
+    this.stopDelay(watch);
     this.pending.set(watch, run);
     this.arm();
   }
+  retry(watch: W, delay: number, run: (signal: AbortSignal) => Promise<void>): void {
+    this.stopDelay(watch);
+    const timer = setTimeout(() => {
+      if (this.delayed.get(watch) !== timer) return;
+      this.delayed.delete(watch); this.schedule(watch, run);
+    }, delay);
+    this.delayed.set(watch, timer);
+  }
+  private stopDelay(watch: W): boolean {
+    const timer = this.delayed.get(watch);
+    if (timer === undefined) return false;
+    clearTimeout(timer); this.delayed.delete(watch); return true;
+  }
   cancel(watch: W): boolean {
-    const pending = this.pending.delete(watch), active = this.active.get(watch);
+    const delayed = this.stopDelay(watch), pending = this.pending.delete(watch), active = this.active.get(watch);
     active?.abort();
-    return pending || !!active;
+    return delayed || pending || !!active;
   }
   clear(): void {
+    for (const watch of this.delayed.keys()) this.stopDelay(watch);
     this.pending.clear();
     for (const attempt of this.active.values()) attempt.abort();
     if (this.timer !== undefined) clearTimeout(this.timer);

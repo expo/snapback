@@ -76005,3 +76005,49 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Lane PQ round 3: queue transitions and final publication floors
+
+Read rounds 0–2 prompts/reports, the governing client documents and Astra's full
+round-2 review; applied llp-orient. Required fetch/merge brought in origin/main
+4fd338de5 through efd29e4a7, preserving both journal entries at the only conflict.
+Grok completed during qualification; all three additional Low findings are
+addressed. Final fetch is still 4fd338de5: RL has not landed. No retention episode
+or contract change; LLP 3000.029 remains shelved.
+
+Every invalidated local watch now reloads and notifies before queueing, including
+keep:false withdrawal; saved-answer resubscription uses separate acquisition.
+Queued and presence publication rechecks the current matching deadline floor
+after evaluation, dropping rejected results before changing the watch. Late
+already-due results likewise preserve a newer answer while scheduling recovery.
+Expiry backoff uses cancellable timers outside active queue slots; retries rejoin
+FIFO, invalidation replaces a delay, and cancelled callbacks cannot enqueue work.
+The existing abort guards now have detecting diagnostic tests on all three tiers.
+LLP 3000.023 §7 and the client card record the boundaries; RL policy stays intact.
+
+Initial affected 339/339; corrected boundary/liveness regressions 35/35; unchanged
+retention lifecycle and typing expiry 188/188. Expanded affected 915/916 had one
+stale await-record failure, ours. Corrected full delivery matrix plus Grok cases
+passes 332/332; final per-row and expiry-close files pass 94/94, including both
+React witnesses. Twelve isolated mutations produce 34 intended failures. Whole
+guide 98/98; final build, typecheck, references and whitespace pass. One awaited
+local retry pause is removed (160 to 159 total local.ts awaits); all 158 classified
+delivery sites and their 317 cases remain unchanged. local.ts is 1,499 lines.
+
+The single scripts/test.sh invocation exits 1, exact summary:
+`== 1 failure(s) in 1255 s`, phase `client tests`. Main client group: 4,599 pass,
+two fail, ten declared skips; separate shards pass. Both failures are ours and
+fixed: the stale await fingerprint and an already-delivered cancelled retry
+callback for a lingering watch. The latter reproduces in the unchanged file and
+passes after the timer-identity fence. All other full phases pass, including
+79/79 models. No baseline or environmental exemption, second full run or final-tree
+green full-suite claim. Every fixture correction, control and failure is in the
+round3 failure ledger; final affected evidence qualifies the later correction.
+
+Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, zero growth from round 2
+and 744 B below the unchanged 593,719 B cap. SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Grok was checked at startup, when complete and again at completion; its completed
+copy is unchanged. Report: reports/20260929-pq-per-row-hooks/round3/REPORT.md.
+No tool installation, push or publication. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

@@ -1,7 +1,15 @@
-import type { Refusal } from "./contract.ts";
+import type { Read, Refusal } from "./contract.ts";
 import type { ServerClock } from "./clock.ts";
-import { armReadExpiry, correctReadExpiries, type ReadDeadlines } from "./read-expiry.ts";
+import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn, type ReadDeadlines } from "./read-expiry.ts";
+import { matchingReads } from "./read-key.ts";
 import { LocalReads, notifyLocalWatch as notify, type LocalWatch as Watch } from "./local-reads.ts";
+
+// @ref LLP 3000.023#7 — held expiry may raise the floor after evaluation returns.
+export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
+  result: { read: Read<unknown>; deadlineWithdrawn?: true; serverExpiry?: number | null }): boolean {
+  return !!result.deadlineWithdrawn || ("data" in result.read
+    && readDeadlineWithdrawn(matchingReads(watches, watch.op, watch.args), result.serverExpiry));
+}
 
 export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalReads, clock: ServerClock,
   closed: () => boolean, unavailable: () => Refusal | null, scheduleRead: (watch: Watch) => void) {

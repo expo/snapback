@@ -9,7 +9,7 @@ import { publishDelivery } from "./local-publication.ts";
 import { localDelivery } from "./local-delivery.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import { readDeadlineWithdrawn } from "./read-expiry.ts";
-import { localReadDeadlines } from "./local-read-deadlines.ts";
+import { localReadDeadlines, withdrawnLocalResult } from "./local-read-deadlines.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
@@ -24,7 +24,7 @@ import type { Queued, StoreCapture } from "./local-types.ts";
 import { deferStart, startDeferred, trackRotation } from "./client-start.ts";
 // LLP 3000 §7: Rust owns the replica; this transport serves wasm, Expo and native.
 import { evaluateLocal } from "./local-query.ts";
-import { ReadObservation } from "./read-observation.ts";
+import { ReadObservation, answerIdentity } from "./read-observation.ts";
 import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { runsOnServer, predictedTables, armLocalPresence, notifyLocalWatch as notify, rerunLocalTables, LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { nativeInstaller } from "./local-native.ts";
@@ -957,7 +957,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try {
       const result = await runLocal(watch.op, watch.args, undefined, true, watch);
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
-      if (result.deadlineWithdrawn) { armPresence(watch); return; }
+      if (withdrawnLocalResult(watches.values(), watch, result)) { armPresence(watch); return; }
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
       if (watch.snapshot !== shown || watch.running) return;
@@ -981,7 +981,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const readWork = new ReadWork<Watch>();
   function scheduleRead(watch: Watch) {
     if (closed) return;
-    if (watch.retain) { watch.reload(); notify(watch); }
+    watch.reload(); notify(watch); acquireRead(watch);
+  }
+  function acquireRead(watch: Watch) {
+    if (closed) return;
     if (watch.running) { watch.dirty = true; return; }
     readWork.schedule(watch, signal => rerun(watch, signal));
   }
@@ -993,16 +996,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
     watch.running = true;
     const resetVersion = watch.resetVersion;
+    const startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
-      if (result.deadlineWithdrawn) return;
+      if (withdrawnLocalResult(watches.values(), watch, result)) return;
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (revision !== incarnation || authority !== answers.revision || (resetVersion !== watch.resetVersion)) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
+      if (retryExpired && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) return;
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
         if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
@@ -1028,17 +1033,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         armPresence(watch);
       }
     } finally {
-      // @ref LLP 3000.019#3.3 — keep the expired value withdrawn while its live observation recovers.
-      if (retryExpired && !signal.aborted && !closed && watches.get(watch.key) === watch) {
-        watch.expiredRetries = Math.min((watch.expiredRetries ?? 0) + 1, 7);
-        const pause = Math.min(25 * 2 ** (watch.expiredRetries - 1), 1000);
-        await new Promise(resolve => setTimeout(resolve, pause));
-      }
       watch.running = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if ((dirty || (retryExpired && !signal.aborted) || signal.reason === READ_WORK_EXPIRED) && !closed && !sessionDead && watches.get(watch.key) === watch) {
-        void scheduleRead(watch);
+      if (!closed && !sessionDead && watches.get(watch.key) === watch) {
+        if (retryExpired && !signal.aborted) {
+          watch.expiredRetries = Math.min((watch.expiredRetries ?? 0) + 1, 7);
+          readWork.retry(watch, Math.min(25 * 2 ** (watch.expiredRetries - 1), 1000), signal => rerun(watch, signal));
+        } else if (dirty || signal.reason === READ_WORK_EXPIRED) void scheduleRead(watch);
       }
     }
   }
@@ -1203,7 +1205,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
-          void scheduleRead(watch); },
+          void acquireRead(watch); },
         watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },

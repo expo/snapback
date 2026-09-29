@@ -57,7 +57,7 @@ list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
 Both do zero evaluations for a known unrelated table write. The client starts
 at most eight queued observation attempts per event-loop turn, with at most eight
 active; direct queries and timed presence refreshes use separate paths.
-Queued revalidation keeps the previous answer under its retention policy; expiry and scope resets remain immediate.
+`keep: false` withdraws before a re-read is queued; retaining watches keep the answer marked `revalidating`. Expiry and scope resets remain immediate.
 Dependencies include authorization inputs: a write can re-evaluate every row on the table even when only one id changed.
 
 ```tsx
