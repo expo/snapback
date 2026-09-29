@@ -76503,3 +76503,48 @@ Report: reports/20260929-rl-answers-stay/round3/REPORT.md. Its failure ledger
 includes deliberate controls, the initial lingering-watch setup error, the full
 stall and every correction. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-09-29 — WK round 4: preserve completed ledger receipts through contention
+
+Read all prior lane prompts/reports and both complete round-3 reviews; checked
+Astra again before commit, unchanged. First fetched and merged origin/main
+in d22e97335, retaining both appended journal histories. Both reviews' high
+ledger finding is repaired: SQLITE_BUSY at COMMIT retains the completed
+transaction and retries only COMMIT. Two actual processes and a held reader
+reproduce two calls before repair and one call with two identical receipts
+afterward, including cancellation after provider success. Closed the intermittent
+ledger-duplicate ticket with this evidence and the honest remaining provider-call
+window for process death, unrecoverable storage or result-encoding failure.
+
+Serve now finds schema-local packages before project-root packages. Ledger
+initialization stops supervised children even with application timers and doctor
+records ledger-unavailable through bounded retries. Workers receive an explicit
+environment without parent NODE_OPTIONS. Failed credential retirement advances
+the original child's revision once on dev and serve, refuses the retired credential
+while deletion is held, renews peers and leaves manual seats live. Deleting the
+FULL setting, the busy-waiter abort check or the retirement CAS now fails its
+control. Only validated project source runs; credential lifecycle and keeping
+credentials out of logs retain their earlier guarantees and documented limits.
+
+Ran scripts/test.sh exactly once: `== 2 failure(s) in 1358 s`, exit 1; stages
+cargo test and client tests. Cargo lifecycle: 20 passed / 1 failed. Clients:
+4,820 tests, 4,792 passed, 18 failed, 10 skipped, zero cancelled. All 19 failures
+are ours from round 3: one lifecycle, thirteen routes and four server fixture
+paths addressed the new private module location, and one server case exposed
+missing checked project imports outside snapback/. Corrected fixture outputs
+and added descriptor-validated copies using the existing checker dependency
+graph. Final scoped checks pass: 114/114 affected, 13/13 routes, 9/9 server,
+1/1 lifecycle (both dev/serve), 1/1 production rotation (named/conventional),
+and 98/98 whole guide. Final build/docs budget/reference checks pass. Full
+models passed 79/79; all other full stages passed. No baseline or environmental
+test failures; the inherited 60-second budget remains missed. No full rerun or
+all-green claim. Every failed test and setup/control error is in the report.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+LLP 3000.009 and effects/actions/server/operations docs co-evolve. The prior Low
+watchdog fallback group-ID ticket stays open. No actual-provider or macOS claim.
+Report: reports/20260929-wk-supervised-workers/round4/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

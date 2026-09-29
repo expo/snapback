@@ -105,7 +105,7 @@ export interface WorkerOptions {
 }
 
 export interface Worker {
-  /** Resolves when the loop has stopped (the signal aborted). */
+  /** Resolves when polling stops, including an unavailable ledger. */
   readonly done: Promise<void>;
   /** The worker's principal once the first claim answered. */
   principal(): string | null;
@@ -150,6 +150,12 @@ export function runWorker(options: WorkerOptions): Worker {
   const redact = options.redact ?? ((message: string) => message);
   const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error)).split(options.token).join("[REDACTED]");
   const report = (error: unknown) => rawReport(options.redact || message(error) !== (error instanceof Error ? error.message : String(error)) ? new Error(message(error)) : error);
+  const storageStopped = () => {
+    stop.abort();
+    // The supervisor owns this process, including unrelated application timers.
+    // Exit 78 is its ledger-unavailable status; standalone callers own done.
+    if (typeof process !== "undefined" && process.env.SNAPBACK_WORKER_SUPERVISED === "1") process.exit(78);
+  };
   const authenticationEnded = (why?: Refusal) => {
     if (why?.family !== "auth" || overloaded(why) || stop.signal.aborted) return;
     stop.abort();
@@ -189,7 +195,7 @@ export function runWorker(options: WorkerOptions): Worker {
     } catch (error) {
       if (ledger?.isUnavailable(error)) {
         if (!stop.signal.aborted) report(error);
-        stop.abort();
+        storageStopped();
         return;
       }
       if (ledger && stop.signal.aborted) return;
@@ -292,9 +298,8 @@ export function runWorker(options: WorkerOptions): Worker {
         ledger = await WorkerLedger.open(options.ledger === true ? process.env.SNAPBACK_WORKER_LEDGER ?? "" : options.ledger, stop.signal);
       } catch (error) {
         if (stop.signal.aborted) return;
-        report(new Error(`worker ledger initialization failed; polling suspended: ${message(error)}`));
-        // Stay stopped until the owner aborts/restarts us after repairing storage.
-        if (!stop.signal.aborted) await new Promise<void>(resolve => stop.signal.addEventListener("abort", () => resolve(), { once: true }));
+        report(new Error(`worker ledger initialization failed; polling stopped: ${message(error)}`));
+        storageStopped();
         return;
       }
     }

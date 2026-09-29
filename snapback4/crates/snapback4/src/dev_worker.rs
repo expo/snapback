@@ -171,6 +171,7 @@ pub(crate) struct DevWorker {
     // child's long poll then fails its next reauthentication instead of
     // claiming work for a connection nobody reads.
     child_expires_at: Option<i64>,
+    child_revision: Option<usize>,
     restart: Instant,
     started: Instant,
     backoff: Duration,
@@ -204,7 +205,7 @@ impl DevWorker {
             let namespace = format!("{:x}", Sha256::digest(identity.as_bytes()));
             PathBuf::from(path).canonicalize().map_err(|e| e.to_string())?.parent().ok_or("store parent")?.join(format!("worker-ledger-{namespace}.sqlite"))
         };
-        let worker = Self { name: None, family: None, ledger, project: Project { root: project.root.clone() }, source, snapshot: None, retiring: false, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, worker_pid: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
+        let worker = Self { name: None, family: None, ledger, project: Project { root: project.root.clone() }, source, snapshot: None, retiring: false, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, worker_pid: None, child_expires_at: None, child_revision: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
         crate::lifecycle::managed_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
         Ok(worker)
@@ -226,10 +227,10 @@ impl DevWorker {
             return;
         }
         let revision = self.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
-        if !self.explicit_env && revision != self.revision {
+        if revision != self.revision {
             self.revision = revision;
             self.stop_child(); self.close_child_session();
-            if self.name.is_none() { if let Some(source) = source(&self.project) { self.source = source; } }
+            if !self.explicit_env && self.name.is_none() { if let Some(source) = source(&self.project) { self.source = source; } }
             self.restart = Instant::now();
         }
         // Renew through a new child, so the process receives its new token.
@@ -243,10 +244,12 @@ impl DevWorker {
             self.restart = Instant::now();
         }
         if let Some(child) = &mut self.child {
+            let ledger_unavailable;
             match child.try_wait() {
                 Ok(None) => return,
                 Err(error) => { snapback4_core::diagnostic!("snapback4 worker: wait failed: {error}"); return; }
                 Ok(Some(status)) => {
+                    ledger_unavailable = status.code() == Some(78);
                     use std::os::unix::process::ExitStatusExt;
                     if status.signal().is_some() { self.kill_worker_group(); }
                     else { self.worker_pid = None; }
@@ -259,7 +262,7 @@ impl DevWorker {
             // @ref LLP 3000.019#3.6 — revoke on the first writer turn: claims queued behind exit
             // detection must not lease work to this dead child during backoff.
             let retired = self.close_child_session();
-            self.record_status(if retired { "waiting" } else { "revocation-blocked" });
+            self.record_status(if !retired { "revocation-blocked" } else if ledger_unavailable { "ledger-unavailable" } else { "waiting" });
             if self.started.elapsed() > Duration::from_secs(30) { self.backoff = Duration::from_millis(250); }
             self.restart = Instant::now() + self.backoff;
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));
@@ -293,6 +296,7 @@ impl DevWorker {
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let session = {
             let engine = lock(&self.shared.engine);
+            self.revision = self.shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
             if let Some(name) = &self.name {
                 (|| -> Result<identity::Session, RuntimeError> {
                     let tx = engine.store().conn().unchecked_transaction()?;
@@ -311,6 +315,7 @@ impl DevWorker {
         };
         let token = session.token;
         self.child_expires_at = Some(session.expires_at);
+        self.child_revision = Some(self.revision);
         let secrets = { environment::values(&lock(&self.shared.bound).schema) };
         let secrets = match secrets {
             Ok(values) => values,
@@ -325,7 +330,7 @@ impl DevWorker {
         };
         let mut child_command = command(&process::executable());
         process::isolate(&mut child_command);
-        match child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        match child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).env("SNAPBACK_WORKER_SUPERVISED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
                 use std::io::BufRead;
                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));
@@ -367,10 +372,19 @@ impl DevWorker {
             Ok(())
         })();
         if let Err(error) = result {
+            // @ref LLP 3000.009#5.3 — failed retirement fences the original revision once.
+            // A blocked DELETE cannot keep the retired credential current.
+            // Fence its revision once, including on serve. Other supervised
+            // children renew under the new revision; manual seats are unchanged.
+            // Keep the child's original revision across every retirement retry.
+            if let Some(revision) = self.child_revision {
+                let _ = self.shared.worker_revision.compare_exchange(revision, revision + 1, std::sync::atomic::Ordering::AcqRel, std::sync::atomic::Ordering::Acquire);
+            }
             snapback4_core::diagnostic!("snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: {error}");
             return false;
         }
         self.child_expires_at = None;
+        self.child_revision = None;
         self.family = None;
         true
     }
@@ -444,7 +458,7 @@ fn warn_if_esm_entry_is_not_declared(source: &std::path::Path) {
 fn command(node: &std::path::Path) -> Command {
     let mut command = Command::new(node);
     command.env_clear();
-    for name in ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS"] {
+    for name in ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ"] {
         if let Some(value) = std::env::var_os(name) { command.env(name, value); }
     }
     command

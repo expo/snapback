@@ -137,9 +137,43 @@ impl Snapshot {
             output.set_permissions(source.metadata()?.permissions())?;
             Ok(())
         })?;
+        Self::checked_imports(&root, &project_root, &stage)?;
         owned.entry = schema_stage.join(source.file_name().ok_or_else(|| io::Error::other("worker entry has no filename"))?);
         if !owned.entry.is_file() { return Err(io::Error::other("automatic worker entry is absent")); }
         Ok(owned)
+    }
+
+    // @ref LLP 3000.009#5.3 — checked project imports share source custody with the entry.
+    fn checked_imports(root: &File, project_root: &Path, stage: &Path) -> io::Result<()> {
+        // Read the already pinned copy of the checker's existing dependency
+        // graph. It includes missing lookup candidates and host packages too;
+        // only present files inside this project belong in the source snapshot.
+        let graph = match std::fs::read(stage.join("snapback/generated/server-watch.json")) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error),
+        };
+        type Dependency = (PathBuf, Option<(String, String)>);
+        let dependencies: Vec<Dependency> = serde_json::from_slice(&graph).map_err(io::Error::other)?;
+        for (path, state) in dependencies {
+            let Ok(relative) = path.strip_prefix(project_root) else { continue; };
+            if state.is_none() || relative.starts_with("snapback") || relative.components().any(|part| part.as_os_str() == "node_modules") { continue; }
+            let mut source = root.try_clone()?;
+            for component in relative.components() {
+                let std::path::Component::Normal(name) = component else { return Err(io::Error::other("checked worker imports must stay inside the project")); };
+                source = open(&source, name)?;
+            }
+            if !source.metadata()?.is_file() { return Err(io::Error::other("checked worker imports must be regular files")); }
+            let target = stage.join(relative);
+            std::fs::create_dir_all(target.parent().unwrap())?;
+            // scope() may have copied the project's package type. Replace it
+            // with these descriptor-validated bytes, not another pathname read.
+            if target.exists() { std::fs::remove_file(&target)?; }
+            let mut output = File::options().write(true).create_new(true).open(target)?;
+            io::copy(&mut source, &mut output)?;
+            output.set_permissions(source.metadata()?.permissions())?;
+        }
+        Ok(())
     }
 
     fn scope(project: &Project) -> io::Result<(Self, PathBuf)> {
@@ -166,8 +200,8 @@ impl Snapshot {
         // using the same trusted host-dependency links as the ancestor scopes.
         // Entry/helper custody still belongs to collect's no-follow copies.
         std::fs::create_dir(stage.join("snapback"))?;
-        if project_root.join("snapback/node_modules").is_dir() {
-            std::os::unix::fs::symlink(project_root.join("snapback/node_modules"), stage.join("snapback/node_modules"))?;
+        if let Some(packages) = project_root.ancestors().map(|root| root.join("snapback/node_modules")).find(|path| path.is_dir()) {
+            std::os::unix::fs::symlink(packages, stage.join("snapback/node_modules"))?;
         }
         if project_root.join("snapback/package.json").is_file() {
             std::fs::copy(project_root.join("snapback/package.json"), stage.join("snapback/package.json"))?;

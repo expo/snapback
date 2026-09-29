@@ -152,8 +152,9 @@ its value out of Quarry, generated files and logs.
 
 `snapback4 serve <release-dir> --worker <path>` supervises that Node 24 entry
 with the same restart backoff and shutdown. Its environment contains only
-`PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, `NODE_OPTIONS`, the supplied
-`SNAPBACK_URL`, `SNAPBACK_SERVICE_TOKEN` and `SNAPBACK_WORKER_LEDGER`, and declared secrets. The path may
+`PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, the supplied
+`SNAPBACK_URL`, `SNAPBACK_SERVICE_TOKEN` and `SNAPBACK_WORKER_LEDGER`, declared
+secrets and an internal supervision marker. Parent `NODE_OPTIONS` is not copied. The path may
 name the application's `server.ts`; deployment does not automatically package
 its TypeScript import graph. The service:worker token is minted
 for each child and never printed by serve. Each child session lasts at most

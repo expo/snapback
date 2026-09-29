@@ -158,7 +158,7 @@ await runWorker({ url: 'http://test', token: 'test-seat', ledger: 'completions.s
     }
     if (!completed) process.exitCode = 1;
     throw Error('server unreachable');
-  }, onError() {},
+  }, onError(error) { console.error(error); process.exitCode = 1; },
 }).done;
 `);
   function start() {

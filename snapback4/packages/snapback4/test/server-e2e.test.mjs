@@ -336,7 +336,7 @@ schedule pulse every 1m as service:clock: tick
 const worker = server({actions:{async tick(args, ctx) {
   const written = await ctx.mutate(api.save, {body:"scheduled"}, {id:ctx.writeIdFor("scheduled")});
   const read = await ctx.query(api.mine, {});
-  appendFileSync(new URL("../scheduled.jsonl", import.meta.url), JSON.stringify({principal:ctx.principal, args, written, read}) + "\\n", {flush:true});
+  appendFileSync(process.cwd() + "/scheduled.jsonl", JSON.stringify({principal:ctx.principal, args, written, read}) + "\\n", {flush:true});
   return {};
 }}}, ${options});
 export default worker; await worker.done;
@@ -379,10 +379,10 @@ use server
 action wait() returns {} cancellation allow
 `, `${imports}
 const worker = server({actions:{async wait(_, ctx) {
-  writeFileSync(new URL("../started-" + ctx.invocation.id + ".json", import.meta.url), JSON.stringify({id:ctx.invocation.id, pid:process.pid}));
+  writeFileSync(process.cwd() + "/started-" + ctx.invocation.id + ".json", JSON.stringify({id:ctx.invocation.id, pid:process.pid}));
   if (!ctx.invocation.signal.aborted) await new Promise<void>(resolve => ctx.invocation.signal.addEventListener("abort", () => resolve(), {once:true}));
   const attempted = await ctx.mutate(api.save, {body:"must not land"});
-  writeFileSync(new URL("../ended-" + ctx.invocation.id + ".json", import.meta.url), JSON.stringify({cancelled:ctx.invocation.cancelled, attempted}));
+  writeFileSync(process.cwd() + "/ended-" + ctx.invocation.id + ".json", JSON.stringify({cancelled:ctx.invocation.cancelled, attempted}));
   return {};
 }}}, {...${options}, lease:10});
 export default worker; await worker.done;
@@ -460,11 +460,11 @@ test("actual worker crashes distinguish the pre-provider cut, reconcile only aut
 use server
 action work(mode: enum('done', 'reconcile', 'park', 'changed', 'before', 'lookup-timeout', 'lookup-5xx', 'lookup-unreadable')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
-appendFileSync(new URL("../worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
+appendFileSync(process.cwd() + "/worker-starts.jsonl", JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
 const worker = server({actions:{async work({mode}, ctx) {
   const writeId = ctx.writeIdFor("save");
   const write = await ctx.mutate(api.save, {body:mode}, {id:writeId});
-  appendFileSync(new URL("../attempts.jsonl", import.meta.url), JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, writeId, write, pid:process.pid}) + "\\n", {flush:true});
+  appendFileSync(process.cwd() + "/attempts.jsonl", JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, writeId, write, pid:process.pid}) + "\\n", {flush:true});
   async function contact(key:string):Promise<{value:string}> {
     const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + "/accept", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({key})});
     if (!response.ok) throw Error("provider did not establish an outcome");
@@ -485,7 +485,7 @@ const worker = server({actions:{async work({mode}, ctx) {
     }
   }
   async function crash(stage:string, key:string):Promise<never> {
-    appendFileSync(new URL("../crashes.jsonl", import.meta.url), JSON.stringify({stage, mode, id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
+    appendFileSync(process.cwd() + "/crashes.jsonl", JSON.stringify({stage, mode, id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
     process.kill(process.pid, "SIGKILL");
     return new Promise<never>(() => {});
   }
@@ -493,10 +493,10 @@ const worker = server({actions:{async work({mode}, ctx) {
   let providerKey = "";
   const result = await ctx.step("provider/__proto__", input, async key => {
     providerKey = key;
-    appendFileSync(new URL("../step-callbacks.jsonl", import.meta.url), JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
+    appendFileSync(process.cwd() + "/step-callbacks.jsonl", JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
     if (["before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"].includes(mode)) {
       const stage = "after durable begin, before provider request/acceptance";
-      if (mode === "before") writeFileSync(new URL("../before-provider-cut.json", import.meta.url), JSON.stringify({stage, mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}), {flush:true});
+      if (mode === "before") writeFileSync(process.cwd() + "/before-provider-cut.json", JSON.stringify({stage, mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}), {flush:true});
       return crash(stage, key);
     }
     const result = await contact(key);
@@ -505,10 +505,10 @@ const worker = server({actions:{async work({mode}, ctx) {
   }, ["reconcile", "before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"].includes(mode) ? {reconcile} : undefined);
   if (mode === "before") {
     const replay = await ctx.step("provider/__proto__", input, async key => {
-      appendFileSync(new URL("../unexpected-replay-callbacks.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
+      appendFileSync(process.cwd() + "/unexpected-replay-callbacks.jsonl", JSON.stringify({id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
       return contact(key);
     }, {reconcile});
-    appendFileSync(new URL("../completed-step-replays.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, value:replay.value, pid:process.pid}) + "\\n", {flush:true});
+    appendFileSync(process.cwd() + "/completed-step-replays.jsonl", JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, value:replay.value, pid:process.pid}) + "\\n", {flush:true});
   }
   if (ctx.invocation.attempt === 1 && mode === "done") return crash("recorded-before-action-settlement", providerKey);
   return {value:result.value, attempt:ctx.invocation.attempt, writeId};
@@ -605,15 +605,15 @@ query dispositionsFor(originalActionId: text <=128):
 use server
 action send() returns { value: text <=80 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
-appendFileSync(new URL("../operator-worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
+appendFileSync(process.cwd() + "/operator-worker-starts.jsonl", JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
 const worker = server({actions:{async send(_, ctx) {
-  appendFileSync(new URL("../operator-attempts.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, pid:process.pid}) + "\\n", {flush:true});
+  appendFileSync(process.cwd() + "/operator-attempts.jsonl", JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, pid:process.pid}) + "\\n", {flush:true});
   const result = await ctx.step("provider", {intent:"send-once"}, async (key):Promise<{value:string}> => {
-    appendFileSync(new URL("../operator-step-callbacks.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
+    appendFileSync(process.cwd() + "/operator-step-callbacks.jsonl", JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
     const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + "/accept", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({key})});
     if (!response.ok) throw Error("provider did not accept");
     const accepted = await response.json() as {value:string};
-    writeFileSync(new URL("../operator-accepted-crash.json", import.meta.url), JSON.stringify({id:ctx.invocation.id, key, receipt:accepted.value, pid:process.pid}), {flush:true});
+    writeFileSync(process.cwd() + "/operator-accepted-crash.json", JSON.stringify({id:ctx.invocation.id, key, receipt:accepted.value, pid:process.pid}), {flush:true});
     process.kill(process.pid, "SIGKILL");
     return new Promise<never>(() => {});
   });
@@ -693,7 +693,7 @@ export default worker; await worker.done;
   await until(() => starts().length === 2, "serve restarts its killed child");
   assert.notEqual(starts()[1].pid, owned);
   assert.deepEqual((await f.collect("echo", "serve-second", { message: "second" }, f.token)).result, { value: "second", principal: "service:test-driver" });
-  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER", "MAIL_KEY"]);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER", "SNAPBACK_WORKER_SUPERVISED", "MAIL_KEY"]);
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
   for (const start of starts()) { assert.equal(start.declared, true); assert.equal(start.unrelated, null); assert.ok(start.keys.every(key => allowed.has(key)), JSON.stringify(start.keys)); }
   assert.equal(f.log().includes(secret), false); assert.doesNotMatch(f.log(), /token \(printed once\)/);

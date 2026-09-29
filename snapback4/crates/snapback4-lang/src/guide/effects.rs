@@ -42,7 +42,8 @@ Both `snapback4 dev` and `snapback4 serve` start it, inject its service token,
 prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
 stop its process group with the server, including abrupt server death. A failed
 token retirement stops the worker and suspends replacement until retirement
-succeeds, including when its declaration was removed. Retired revisions cannot
+succeeds, including when its declaration was removed. A failed deletion fences
+the old revision immediately on dev and serve; peers renew under that revision. Retired revisions cannot
 use ordinary queries while deletion is pending. If a watchdog dies, the host
 kills its worker group before replacement. Signals sent to a live watchdog
 initiate its group cleanup. A new declaration that cannot start retries after
@@ -54,18 +55,24 @@ code for named and conventional workers. Keep using the injected token;
 the refusal leaves it live. Manually minted service seats can still refresh.
 
 `snapback4 doctor` shows
-all workers and their last reported states, starts, restarts and crashes.
+all workers and their last reported states, starts, restarts and crashes,
+including `ledger-unavailable` while retrying a stopped child.
 `deploy` copies the workers source subtree; put helpers in subdirectories and
 install package dependencies on the deployment host. Symlinks at any level and
 non-regular source files are refused on every launch and restart, even after
 a source change was rejected. Named workers execute private copies of validated
 entry/helper bytes; replacing the original paths cannot change an in-flight launch.
 Package dependencies stay installed on the host, preserving schema-local
-`snapback/node_modules` lookup before project-root packages. This is ordinary Node 24.
+`snapback/node_modules` lookup before project-root packages. For numbered releases,
+serve uses the nearest ancestor containing `snapback/node_modules`; install there.
+This is ordinary Node 24.
 Automatic dev `snapback/server.*` and `snapback/worker.*` entries also execute
 validated private copies of the schema tree, including generated modules.
-Keep their relative helpers inside `snapback/`; source symlinks are refused at
-startup and restart. The working directory remains the original project.
+Server imports tracked by the TypeScript checker elsewhere inside the project
+also use validated copies. Other relative helpers stay inside `snapback/`; source
+symlinks are refused at startup and restart. The working directory remains the
+original project. Use it or an explicit durable path for runtime files; module
+URLs refer to the private source copy.
 
 ```js
 // snapback/workers/push.mjs
@@ -106,16 +113,22 @@ opted-in handlers sharing that local file, including across processes; hosts
 with separate disks do not share deduplication. Failures record no completion.
 One hung provider call therefore stalls all handlers sharing that file; set a
 provider timeout, as above. Keeping the lock prevents simultaneous duplicate
-calls for one key. This is a shared-file serialization tradeoff.
+calls for one key. A busy commit retains its transaction and retries only the
+commit, even if cancellation arrives after the handler succeeded. A blocked
+reader can delay completion too. This is a shared-file serialization tradeoff.
 Delivery remains **at least once**: a crash after the external call but before
-the ledger write/commit can repeat the action. Provider idempotency covers that
+the ledger write/commit, or an unrecoverable storage/result-encoding failure
+in that interval, can repeat the action. Provider idempotency covers that
 remaining window. Losing/deleting the ledger also loses its completions.
 The worker validates ledger storage before claiming work. Initialization errors
-are reported once and suspend polling without consuming attempts. Repair the
-file/permissions and restart the worker to resume.
+stop polling without consuming attempts. A supervised child exits, reports
+`ledger-unavailable` in doctor and retries with bounded backoff; repair storage
+to resume. Standalone `done` resolves so its owner can repair and restart.
 Later storage/commit failures close the ledger and stop polling without settling
 claimed work as a handler failure; its ordinary lease can expire for redelivery.
 
+Worker environments contain only runtime paths/locale, supervisor settings and
+selected declared secrets; parent `NODE_OPTIONS` is not copied.
 Named entries receive no declared secrets by default. List just the names the
 entry needs with `// snapback4 secrets: PUSH_API_KEY, OTHER_KEY`; each must also
 be declared by an effect, action or route. The conventional generated server

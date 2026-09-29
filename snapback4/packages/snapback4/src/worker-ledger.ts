@@ -52,14 +52,14 @@ export class WorkerLedger {
       let handlerFailed = false;
       try {
         const previous = this.db.prepare("SELECT result FROM completions WHERE key = ?").get(key);
-        if (previous) { this.db.exec("COMMIT"); return JSON.parse(previous.result as string); }
+        if (previous) { await this.commit(); return JSON.parse(previous.result as string); }
         let result: unknown;
         try { result = (await handler()) ?? null; }
         catch (error) { handlerFailed = true; throw error; }
         const encoded = JSON.stringify(result);
         if (encoded === undefined) throw new Error("worker ledger result must be JSON serializable");
         this.db.prepare("INSERT INTO completions VALUES (?, ?)").run(key, encoded);
-        this.db.exec("COMMIT");
+        await this.commit();
         return JSON.parse(encoded);
       } catch (error) {
         try { this.db.exec("ROLLBACK"); }
@@ -72,6 +72,19 @@ export class WorkerLedger {
     return result;
   }
   isUnavailable(error: unknown): boolean { return error instanceof LedgerUnavailable; }
+  private async commit(): Promise<void> {
+    // Rollback journals need an exclusive lock at COMMIT. SQLITE_BUSY leaves
+    // this transaction intact: retain its writer reservation and retry only
+    // the commit, never the handler. Even cancellation after provider success
+    // must preserve the receipt before another process can claim this key.
+    for (;;) {
+      try { this.db.exec("COMMIT"); return; }
+      catch (error) {
+        if ((error as { errcode?: number }).errcode !== 5) throw error;
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+    }
+  }
   private unavailable(error: unknown): LedgerUnavailable {
     this.close();
     return new LedgerUnavailable(`worker ledger unavailable; polling stopped: ${error instanceof Error ? error.message : String(error)}`);

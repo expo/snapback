@@ -384,12 +384,12 @@
     "sha256": "22ee8531c1b3f8ec2c3c359155a8031e5aa2ac0d7c931be0f322c7736905ec9f"
   },
   "worker-ledger.ts": {
-    "count": 3,
-    "sha256": "c1810613e548b9bec11b3026293d10b7bcd8c8743398c6eb62fc69048f922c6f"
+    "count": 6,
+    "sha256": "c7e2ab494bcb18a4d0f44dbd499bd18681baa53506d14b3c097818fe8c99769f"
   },
   "worker.ts": {
-    "count": 41,
-    "sha256": "cae5a1c1afc146d948a88f7e94896c5483e7f40f85d762e14e405a859af618f3"
+    "count": 40,
+    "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
   },
   "writes.ts": {
     "count": 10,

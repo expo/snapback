@@ -37,9 +37,11 @@ function fixture(t, source) {
     for (const row of rows(join(dir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   });
-  return { dir, async start(extra = [], env = {}, watch = false) {
-    const child = spawn(binary, ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
-    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [] };
+  return { dir, async start(extra = [], env = {}, watch = false, mode = "dev") {
+    const release = join(dir, 'release');
+    if (mode === 'serve') { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
+    const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
     servers.push(s);
     child.stderr.on('data', b => { s.log += b; s.events.push({ at: performance.now(), text: String(b) }); });
     child.stdout.on('data', b => { s.url ||= String(b).match(/http:\/\/127\.0\.0\.1:\d+/)?.[0] ?? ''; });
@@ -91,7 +93,7 @@ console.error('refresh-logged');setInterval(()=>{},1000);`);
   assert.equal((await claim(s, successor.session.token)).status, 200);
 });
 
-for (const shadowed of [false, true]) test(`private worker snapshot resolves schema-local packages${shadowed ? ' before project packages' : ''}`, async t => {
+for (const mode of ['dev', 'serve']) for (const shadowed of [false, true]) test(`${mode} private worker snapshot resolves schema-local packages${shadowed ? ' before project packages' : ''}`, async t => {
   const f = fixture(t, `import local from 'schema-package';import {helper} from './helpers/value.mjs';
 import {writeFileSync} from 'node:fs';
 const values={local,helper};
@@ -109,10 +111,10 @@ else console.log(JSON.stringify(values));`);
   assert.equal(direct.status, 0, direct.stderr);
   const expected = JSON.parse(direct.stdout);
   assert.deepEqual(expected, {local:'schema',helper:'schema'});
-  const s = await f.start();
-  await until(() => existsSync(join(f.dir, 'package-result')) || s.log.includes('ERR_MODULE_NOT_FOUND'));
+  const s = await f.start([], {}, false, mode);
+  await until(() => existsSync(join(s.workdir, 'package-result')) || s.log.includes('ERR_MODULE_NOT_FOUND'));
   assert.equal(s.log.includes('ERR_MODULE_NOT_FOUND'), false, s.log);
-  assert.deepEqual(JSON.parse(readFileSync(join(f.dir, 'package-result'), 'utf8')), expected);
+  assert.deepEqual(JSON.parse(readFileSync(join(s.workdir, 'package-result'), 'utf8')), expected);
 });
 
 test('standalone worker reports errors containing its bearer with automatic redaction', async () => {
@@ -262,7 +264,11 @@ test('ledger commits with FULL synchronization and durable journaling', async t 
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-durability-'));
   t.after(() => rmSync(dir, {recursive:true,force:true}));
   const settings = [], original = DatabaseSync.prototype.exec;
+  const configured = new WeakSet();
   t.mock.method(DatabaseSync.prototype, 'exec', function(sql) {
+    // Start each real connection with a non-FULL default so omitting the
+    // setup pragma is observable, not masked by this Node build's default.
+    if (!configured.has(this)) { original.call(this, 'PRAGMA synchronous = OFF'); configured.add(this); }
     if (sql === 'COMMIT') settings.push({
       synchronous:this.prepare('PRAGMA synchronous').get().synchronous,
       journal:this.prepare('PRAGMA journal_mode').get().journal_mode,
@@ -535,4 +541,104 @@ for (const failure of ['disk-full', 'commit-and-rollback']) test(`ledger ${failu
   assert.match(errors[0], /ledger unavailable/);
   const db = new DatabaseSync(path); db.exec('BEGIN IMMEDIATE; ROLLBACK');
   assert.equal(db.prepare('SELECT count(*) AS n FROM completions').get().n, 0); db.close();
+});
+
+for (const mode of ['dev', 'serve']) test(`${mode} credentialed worker receives only the explicit runtime environment`, async t => {
+  const f = fixture(t, `import {writeFileSync} from 'node:fs';
+writeFileSync('environment-result',JSON.stringify({keys:Object.keys(process.env).sort(),preloaded:!!globalThis.preloaded}));setInterval(()=>{},1000);`);
+  const preload = join(f.dir, 'preload.cjs');
+  writeFileSync(preload, 'globalThis.preloaded=true;');
+  const s = await f.start([], {NODE_OPTIONS:`--require=${preload}`, NODE_PATH:f.dir, WK_UNDECLARED:'unused'}, false, mode);
+  await until(() => existsSync(join(s.workdir, 'environment-result')));
+  const actual = JSON.parse(readFileSync(join(s.workdir, 'environment-result'), 'utf8'));
+  assert.equal(actual.preloaded, false, 'only validated project source runs before its declared imports');
+  const allowed = ['PATH','HOME','TMPDIR','LANG','LC_ALL','TZ','SNAPBACK_URL','SNAPBACK_SERVICE_TOKEN','SNAPBACK_WORKER_LEDGER','SNAPBACK_WORKER_SUPERVISED'];
+  if (process.platform === 'darwin') allowed.push('__CF_USER_TEXT_ENCODING');
+  assert.deepEqual(actual.keys.filter(key => !allowed.includes(key)), []);
+});
+
+for (const mode of ['dev', 'serve']) test(`${mode} ledger initialization stops the child and doctor reports ledger-unavailable`, async t => {
+  const f = fixture(t, `import {runWorker} from ${JSON.stringify(workerModule)};
+import {appendFileSync} from 'node:fs';
+appendFileSync('starts',JSON.stringify({pid:process.pid})+'\\n');
+setInterval(()=>{},1000);
+await runWorker({url:process.env.SNAPBACK_URL,token:process.env.SNAPBACK_SERVICE_TOKEN,ledger:'snapback',
+ effects:{notify:()=>{throw Error('must not perform');}},fetch:async()=>{appendFileSync('claims','claim');return Response.json({effects:[]});}}).done;`);
+  const s = await f.start([], {}, false, mode);
+  await until(() => s.log.includes('worker ledger initialization failed'));
+  const status = () => {
+    const result = spawnSync(binary, ['doctor', ...(mode === 'serve' ? ['--release',join(f.dir,'release')] : [])], {cwd:f.dir,encoding:'utf8'});
+    assert.equal(result.status, 0, result.stderr); return result.stdout;
+  };
+  await until(() => status().includes('ledger-unavailable'));
+  const starts = rows(join(s.workdir,'starts'));
+  assert.ok(starts.length > 0);
+  assert.equal(alive(starts[0].pid), false);
+  assert.equal(existsSync(join(s.workdir,'claims')), false);
+});
+
+test('serve renews peers once after a failed credential retirement fences their revision', async t => {
+  const f = fixture(t);
+  writeFileSync(join(f.dir,'snapback/schema.q'),'query who():\n  return viewer\n');
+  for (const name of ['push','digest']) writeFileSync(join(f.dir,`snapback/workers/${name}.mjs`),
+    `import {appendFileSync} from 'node:fs';
+appendFileSync('starts',JSON.stringify({name:'${name}',pid:process.pid,token:process.env.SNAPBACK_SERVICE_TOKEN})+'\\n');setInterval(()=>{},1000);`);
+  const s = await f.start([], {}, false, 'serve');
+  const starts = () => rows(join(s.workdir,'starts'));
+  await until(() => starts().length===2);
+  const original = starts(), db = new DatabaseSync(join(f.dir,'release/store.sqlite'));
+  t.after(() => db.close());
+  // Refuse deletion without blocking status writes, so both stopped states
+  // and repeated retries can be observed while the original rows stay valid.
+  db.exec("CREATE TRIGGER hold_retirement BEFORE DELETE ON _sessions BEGIN SELECT RAISE(FAIL,'retirement held'); END");
+  try {
+    process.kill(original.find(row=>row.name==='push').pid,'SIGKILL');
+    const statuses = () => db.prepare("SELECT value FROM _meta WHERE key LIKE 'worker:status:%'").all().map(row=>JSON.parse(row.value));
+    await until(() => statuses().length===2 && statuses().every(row=>row.state==='revocation-blocked'));
+    assert.equal(starts().length,2,'no replacement may overtake its retained credential');
+    for (const row of original) {
+      assert.equal(alive(row.pid),false);
+      const response=await fetch(s.url+'/q/who',{method:'POST',headers:{authorization:'Bearer '+row.token},body:'{}'});
+      assert.equal(response.status,401);
+    }
+  } finally {db.exec('DROP TRIGGER hold_retirement');}
+  await until(() => starts().length===4);
+  const replacements=starts().slice(2);
+  assert.deepEqual(replacements.map(row=>row.name).sort(),['digest','push']);
+  for (const row of replacements) {
+    const response=await fetch(s.url+'/q/who',{method:'POST',headers:{authorization:'Bearer '+row.token},body:'{}'});
+    assert.equal(response.status,200,'both peers must receive the new revision');
+  }
+  await sleep(300);
+  assert.equal(starts().length,4,'retirement retries must not cause repeated revision changes');
+});
+
+for (const kind of ['entry-copy', 'linked-helper']) test(`automatic snapshot validates checked project imports: ${kind}`, async t => {
+  const f = fixture(t);
+  mkdirSync(join(f.dir,'src'));
+  mkdirSync(join(f.dir,'snapback/generated'));
+  const helper=join(f.dir,'src/provider.mjs');
+  writeFileSync(helper,"export const value='validated';");
+  writeFileSync(join(f.dir,'snapback/generated/server-watch.json'),JSON.stringify([[helper,['0','0']]]));
+  writeFileSync(join(f.dir,'snapback/worker.mjs'),`import {value} from '../src/provider.mjs';
+import {writeFileSync} from 'node:fs';writeFileSync('checked-value',value);setInterval(()=>{},1000);`);
+  const wrapper=join(f.dir,'node-wrapper');
+  writeFileSync(wrapper,`#!/bin/bash\nif [ "$1" = --version ]; then exec '${process.execPath}' "$@"; fi\ntouch launch-ready\nwhile [ ! -f launch-go ]; do sleep 0.02; done\nexec '${process.execPath}' "$@"\n`);
+  chmodSync(wrapper,0o700);
+  if(kind==='linked-helper') {
+    writeFileSync(join(f.dir,'replacement.mjs'),"export const value='changed';");
+    rmSync(helper);symlinkSync(join(f.dir,'replacement.mjs'),helper);
+    const s=await f.start();
+    await until(()=>s.log.includes('workers:'));
+    assert.equal(existsSync(join(f.dir,'checked-value')),false);
+    const db=new DatabaseSync(join(f.dir,'.snapback4/store.sqlite'),{readOnly:true});
+    try {assert.equal(db.prepare("SELECT count(*) n FROM _sessions WHERE kind='service'").get().n,0);}
+    finally {db.close();}
+  } else {
+    await f.start([], {SNAPBACK_NODE:wrapper});
+    await until(()=>existsSync(join(f.dir,'launch-ready')));
+    writeFileSync(helper,"export const value='changed';");writeFileSync(join(f.dir,'launch-go'),'');
+    await until(()=>existsSync(join(f.dir,'checked-value')));
+    assert.equal(readFileSync(join(f.dir,'checked-value'),'utf8'),'validated');
+  }
 });
