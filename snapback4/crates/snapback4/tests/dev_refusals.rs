@@ -4,6 +4,8 @@ use std::{fs, io::{BufRead,BufReader,Read,Write}, net::TcpStream, process::{Chil
 const BIN: &str=env!("CARGO_BIN_EXE_snapback4");
 #[path = "dev_refusals/round3.rs"]
 mod round3;
+#[path = "dev_refusals/quiet.rs"]
+mod quiet;
 const SOURCE: &str="use personas alice\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add(owner: principal):\n  return insert rows {owner}\n";
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 struct Project(PathBuf);
@@ -38,10 +40,13 @@ struct Host { child: Child, project: Arc<Project>, address: String, stderr: Path
 impl Drop for Host {fn drop(&mut self) {let _=self.child.kill();let _=self.child.wait();}}
 impl Host {
  fn start(project:Arc<Project>,dev:bool,blocked_stderr:bool)->Self {
+  Self::start_with(project, dev, blocked_stderr, &[])
+ }
+ fn start_with(project:Arc<Project>,dev:bool,blocked_stderr:bool,extra:&[&str])->Self {
   if !dev {let out=Command::new(BIN).current_dir(&project.0).args(["deploy","release"]).output().unwrap();assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));}
   let stderr=project.0.join(format!("stderr-{}.log",NEXT.fetch_add(1,Ordering::Relaxed)));
   let sink=if blocked_stderr {Stdio::piped()} else {Stdio::from(fs::File::create(&stderr).unwrap())};
-  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev {vec!["dev","--fresh","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
+  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev {vec!["dev","--fresh","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(extra).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
   let mut line=String::new();BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
   assert!(line.starts_with("http://"),"{line}: {:?}",fs::read_to_string(&stderr));
   Self{child,project,address:line.trim().trim_start_matches("http://").into(),stderr}
@@ -114,8 +119,9 @@ fn blocked_stderr_cannot_block_responses_or_later_mutations() {
   assert_eq!(unsafe {libc::fcntl(fd,libc::F_SETPIPE_SZ,4096)},4096);
  }
  // Keep the pipe unread: this exceeds its capacity even on hosts with 64 KiB
- // pipes. A synchronous logger blocks subsequent requests while holding Engine.
- for _ in 0..4096 {dev.refuse("add");}
+ // pipes. Cycle distinct operations past the 32 console windows so coalescing
+ // cannot prevent this deliberately blocked sink from filling.
+ for n in 0..4096 {dev.refuse(&format!("add{}", n % 40));}
  let reply=dev.request("add","dev:alice","x-snapback-persona: alice");assert_eq!(reply["state"],"sent","{reply}");
  let stale=dev.project.why(&[]);
  assert!(!stale.status.success(),"a blocked writer must never advertise its older cause");
@@ -173,7 +179,7 @@ fn real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actua
 fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
  let project=Project::new();
  let source=format!("{SOURCE}\nquery injected():\n  require false else NOT_FOUND\n  return null\nmutation injectedWrite():\n  require false else NOT_FOUND\n  return null\nquery missing():\n  require false else NOT_FOUND\n  return null\nquery page():\n  return rows first 5 by .id\nquery absent():\n  return rows['absent']\nquery afterRead():\n  ignored = rows['hidden']\n  require false else NOT_FOUND\n  return ignored\n");
- fs::write(project.0.join("snapback/schema.q"),source).unwrap();let dev=Host::start(project,true,false);
+ fs::write(project.0.join("snapback/schema.q"),source).unwrap();let dev=Host::start_with(project,true,false,&["--trace-empty"]);
  let previous=dev.refuse("add");let store=previous["store_id"].as_str().unwrap();dev.project.wait_record(store,"add");
  let mut last_id=0;
  for (path,op,code,payload) in [

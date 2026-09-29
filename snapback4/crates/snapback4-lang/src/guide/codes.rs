@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("EMPTY_READ", "optional local evidence of an empty query answer, not proof of denial. Use dev --trace-empty and why recent; inspect why TABLE and check --residency. guide rules."),
     ("RUNS_FULL", "the receipts reporter cannot record another disjoint run: 64 are already held for this member. Keep the owed interval and retry after a merge frees a slot. A successful delivered call always records coverage. guide receipts."),
     ("E_DELIVERY_BINDING", "the report names a changed or removed delivery binding. Drop that binding’s debt and collect under the current fingerprint; do not retry the old report. guide receipts."),
     ("E_DELIVERY_CLAUSE", "reports delivery requires a mutation with exactly a group reference and two int arguments, immutable group/position columns and their unique key. Declare one reporter per tracked table. Success promises coverage of every position; refuse what cannot be recorded. The located diagnostic gives the rewrite. guide receipts."),

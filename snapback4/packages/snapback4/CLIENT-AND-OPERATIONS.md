@@ -2094,11 +2094,27 @@ Query sites belong to their reader's generation; capture exhaustion points to
 `read through`, even before an insert rule runs.
 Visibility filtering in sync and reads is not recorded: inspect `snapback4 why TABLE`
 for read rules and sync residency, and `snapback4 guide rules`. Empty/null query
-answers without a known cause use local EMPTY_READ, also within composed results;
-this does not prove a rule denial. Each record describes only its named request
+answers without a known cause are silent and unrecorded by default, including
+empty fields in composed results. Opt in with `snapback4 dev --trace-empty` to
+record local EMPTY_READ evidence in `why recent`, still without console notices.
+`snapback4 why EMPTY_READ` (also `snapback4 guide EMPTY_READ`) gives exact commands
+to inspect the read rule, sync coverage and horizon; an empty answer does not
+prove denial. The stream identifies this opt-in with `traceEmpty: true`. Each record describes only its named request
 or job at that time, never the outcome of a later sync or read. `why recent`
 rejects a snapshot while its latest refusal is pending or dropped, until the
-writer catches up or you reproduce it.
+writer catches up or you reproduce it. Empty successes do not advance that
+watermark or replace the last refusal unless tracing was requested.
+
+Each remaining dev refusal console line combines identical operation, code and
+cause (table, clause, phase, source/execution site and generation) for a fixed
+one-second window beginning when the writer receives the first record. It prints
+once at the window's end with `count N` and the first request/job identity and
+time. Repeats do not extend the window; idle windows still flush. The console
+holds at most 32 distinct groups and prints the oldest early on overflow. Counts
+cover accepted writer records; dropped evidence remains reported separately.
+Individual `why recent` records and its 32-record limit are unchanged. Save
+errors also use counted console windows. A killed process may lose an unprinted
+window, just as it may lose queued records.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 

@@ -1,0 +1,16 @@
+   Compiling dx-response-cost v0.0.0 (/tmp/sb4-dx-response-cost-vqe65cyq)
+warning: type `Recent` is more private than the item `Shared::refusals`
+  --> src/main.rs:3:45
+   |
+ 3 |     pub struct Shared { pub personas: bool, pub refusals: dev_refusals::Recent }
+   |                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ field `Shared::refusals` is reachable at visibility `pub(crate)`
+   |
+note: but type `Recent` is only usable at visibility `pub(in crate::serve)`
+  --> /tmp/sb4-dx-response-cost-vqe65cyq/after/dev_refusals.rs:18:1
+   |
+18 | pub(super) struct Recent {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: `#[warn(private_interfaces)]` on by default
+
+warning: `dx-response-cost` (bin "dx-response-cost") generated 1 warning
+    Finished `dev` profile [unoptimized] target(s) in 0.40s

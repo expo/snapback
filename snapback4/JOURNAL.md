@@ -75956,3 +75956,52 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — DX round 0: ordinary empty reads are quiet
+
+Calibration #26 reported 14,802 milestone-backend and 55,210 scale-backend
+refusal lines, dominated by empty typing, reactions, feeds and missing profiles.
+The default dev path now leaves unknown empty answers out of both console and
+`why recent`: no evidence record, recursive emptiness walk, watermark update,
+queue submission, console formatting or store replacement for those answers.
+`dev --trace-empty` explicitly records EMPTY_READ locally without console
+notices. Its why/guide card explains that emptiness does not prove denial and
+gives exact rule, operation, residency, fixture and horizon investigation commands.
+LLP 3000.015 §2.1 supersedes MP's earlier unknown-empty fallback accordingly;
+the operations manual and guide changed with the implementation.
+
+Real mutation/query/asset refusals, replays and parked jobs keep individual
+records and MP's queue/ring, source generation, liveness and watermark checks.
+An application-authored refusal named EMPTY_READ is still a real refusal.
+Console repeats group by operation, code and cause in a non-sliding one-second
+window, then print once with a count and the first event identity/time. The
+32-group bound flushes the oldest early under distinct-cause pressure; save
+errors coalesce too. Counts cover accepted queue records. Abrupt termination
+can lose an unprinted group. Caller bytes, rules, meters and production
+collection behavior are unchanged.
+
+Exact-module response measurements (seven 55,210-call rounds) give median
+9.846 → 2.944 µs per call, with zero new-default records, queue entries or
+watermark updates. A matching-profile old HTTP burst printed 54,669 lines,
+dropped 541 records and wrote 437,955,712 bytes through file descriptors. Both
+new 55,210-read bursts printed nothing, wrote nothing, retained no records and
+dropped no evidence. Separate old console formatting/I/O and refusal-store
+measurements are retained. I/O was already asynchronous; no general HTTP
+latency speedup is claimed. An initial optimized-test/ordinary-dev comparison
+was excluded and rerun with matching builds.
+
+Affected process tests 16/16, console/ordering tests 3/3, memory/reader host tests
+3/3, whole guide 98/98, ref-check clean. scripts/test.sh ran once, exit 0, exact
+summary: `== 0 failure(s) in 1520 s`. Every stage passed: 4,561 client tests with
+10 declared skips, then 79/79 final models. No full-suite failures in any
+attribution category. Earlier lane-owned expectation/card-size failures and
+measurement/setup corrections are named in the report. The inherited
+60-second suite target remains exceeded; no limit or timeout changed.
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+
+Report: reports/20260929-dx-quiet-empty-reads/REPORT.md. Local commit on
+sb4-intent/dx-quiet-empty-reads with Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. Nothing pushed or published.

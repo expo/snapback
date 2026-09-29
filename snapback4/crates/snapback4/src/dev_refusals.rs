@@ -7,26 +7,29 @@ use std::{collections::{BTreeMap, VecDeque}, fs::{self, File}, io::Write, path::
 pub(super) mod response;
 #[path = "dev_refusal_watermark.rs"]
 mod watermark;
+#[path = "dev_refusal_console.rs"]
+mod console;
 pub(super) type Sites = BTreeMap<(String, String), String>;
 
 pub(crate) const DIRECTORY: &str = "dev-refusals";
 const LIMIT: usize = 32;
-const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause use EMPTY_READ (cause not instrumented), which does not prove denial. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
+const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause are silent and unrecorded by default; dev --trace-empty records EMPTY_READ only in this stream, which does not prove denial. Inspect `snapback4 why EMPTY_READ`. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
 #[derive(Default, Clone)]
 pub(super) struct Recent {
     sender: Option<SyncSender<Value>>,
+    trace_empty: bool,
     dropped: Arc<AtomicUsize>,
     requests: Arc<AtomicU64>,
     watermark: Option<Arc<watermark::Watermark>>,
 }
 impl Recent {
-    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr) -> Result<Self, String> {
+    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr, trace_empty: bool) -> Result<Self, String> {
         if !component(store) { return Err("invalid store identity for dev evidence".into()); }
         let now = snapback4_core::now_ms();
         let instance = snapback4_core::ids::mint(now, &mut 0).map_err(|e| e.to_string())?;
         let dir = project.join(".snapback4").join(DIRECTORY).join(store);
         snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
-        let identity = json!({"storeId":store,"instance":instance,"pid":std::process::id(),"address":address.to_string(),"startedAt":now});
+        let identity = json!({"storeId":store,"instance":instance,"pid":std::process::id(),"address":address.to_string(),"startedAt":now,"traceEmpty":trace_empty});
         let path = dir.join(format!("{instance}.json"));
         let watermark = Arc::new(watermark::Watermark::create(&path.with_extension("watermark")).map_err(|e| e.to_string())?);
         let mut active = private_file(&path.with_extension("lock")).map_err(|e| e.to_string())?;
@@ -40,19 +43,32 @@ impl Recent {
             // Holding this lock, not a PID or an old timestamp, proves liveness.
             let _active = active;
             let mut records = VecDeque::new();
-            for record in receiver {
+            let mut console = console::Console::default();
+            loop {
+                let now = std::time::Instant::now();
+                console.flush_due(now, &identity, &mut std::io::stderr());
+                let record = match receiver.recv_timeout(console.wait(now)) {
+                    Ok(record) => record,
+                    Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        console.flush_all(&identity, &mut std::io::stderr());
+                        break;
+                    }
+                };
                 let at = records.iter().position(|r: &Value| r["responseSequence"].as_u64() > record["responseSequence"].as_u64()).unwrap_or(records.len());
                 records.insert(at, record.clone());
                 if records.len() > LIMIT { records.pop_front(); }
                 if let Err(error) = save(&path, &identity, &records, writer_dropped.load(Ordering::Relaxed)) {
-                    let _ = writeln!(std::io::stderr().lock(), "dev refusal: could not save local record: {error}");
+                    console.push(json!({"operation":"local evidence writer", "code":"save failed",
+                        "clause":error.to_string()}), &identity, &mut std::io::stderr());
                 }
-                let r = &record;
-                let _ = writeln!(std::io::stderr().lock(), "dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
-                    r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap());
+                // EMPTY_READ is requested local evidence, never a refusal line.
+                if record["emptyRead"] != true {
+                    console.push(record, &identity, &mut std::io::stderr());
+                }
             }
         }).map_err(|e| e.to_string())?;
-        Ok(Self { sender: Some(sender), dropped, requests: Default::default(), watermark: Some(watermark) })
+        Ok(Self { sender: Some(sender), trace_empty, dropped, requests: Default::default(), watermark: Some(watermark) })
     }
     fn sequence(&self, mut record: Value) -> Value {
         record["responseSequence"] = json!(self.watermark.as_ref().map_or(0, |w| w.next()));
@@ -149,7 +165,7 @@ mod tests {
     fn late_handoff_cannot_replace_a_newer_response() {
         let path = std::env::temp_dir().join(format!("sb4-response-order-{}-{}", std::process::id(), snapback4_core::now_ms()));
         fs::create_dir_all(&path).unwrap();
-        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap()).unwrap();
+        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap(), false).unwrap();
         let first = stream.watermark.as_ref().unwrap().next();
         let second = stream.watermark.as_ref().unwrap().next();
         for (sequence, operation) in [(second, "newer"), (first, "older")] {
