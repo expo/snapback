@@ -680,6 +680,10 @@ pub fn doctor(options: &Options) -> i32 {
     lines.push(format!("project   {}", project.root.display()));
     lines.push(format!("host      {}", crate::host_limits::describe()));
     lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
+    match crate::dev_worker::declared(&project) {
+        Ok(workers) => for (name, path) in workers { lines.push(format!("worker    {name}: {} (dev and serve)", path.display())); },
+        Err(error) => { lines.push(format!("worker    {error}")); ok = false; }
+    }
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
             lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.visible_tables().count(), bound.schema.synced().count(), bound.programs.len()));
@@ -737,7 +741,11 @@ pub fn doctor(options: &Options) -> i32 {
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
-            if let Ok(Some(status)) = store.meta("worker:status") { lines.push(format!("worker    last report: {status}")); }
+            if let Ok(mut statement) = store.conn().prepare("SELECT value FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%' ORDER BY key") {
+                if let Ok(rows) = statement.query_map([], |row| row.get::<_, String>(0)) {
+                    for status in rows.flatten() { lines.push(format!("worker    last report: {status}")); }
+                }
+            }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
             if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {

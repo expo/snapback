@@ -1,4 +1,4 @@
-//! The host owns exactly one application worker and only stops the child it started.
+//! The host owns its declared workers and only stops the children it started.
 use crate::{project::Project, serve::{Shared, lock}};
 use sha2::{Digest, Sha256};
 use snapback4_core::{Store, RuntimeError, identity};
@@ -7,6 +7,10 @@ use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Arc, time::{Dur
 #[path = "worker_environment.rs"]
 mod environment;
 pub(crate) use environment::validate_environment;
+#[path = "worker_declarations.rs"]
+mod declarations;
+pub(crate) use declarations::package;
+pub(crate) fn declared(project: &Project) -> Result<std::collections::BTreeMap<String, PathBuf>, String> { declarations::declared(project) }
 
 const CHILD_WINDOW: Duration = Duration::from_secs(24 * 60 * 60);
 
@@ -17,6 +21,8 @@ pub(crate) fn clear_child_session(store: &Store) -> Result<(), RuntimeError> {
     let tx = store.conn().unchecked_transaction()?;
     tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
     tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
+    tx.execute("DELETE FROM _sessions WHERE COALESCE(family, token_digest) IN (SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [])?;
+    tx.execute("DELETE FROM _meta WHERE key LIKE 'worker:family:%'", [])?;
     tx.commit()?;
     Ok(())
 }
@@ -53,6 +59,7 @@ pub(crate) struct Supervisor {
 
 impl Supervisor {
     pub(crate) fn start(project: Project, shared: Arc<Shared>, url: String, dev: bool, mut worker: Option<DevWorker>) -> Result<Self, String> {
+        let mut named = Self::named(&project, &shared, &url, dev)?;
         let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let stopping = stop.clone();
         let mut revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
@@ -61,18 +68,41 @@ impl Supervisor {
             // child cleanup on every return or unwind. The host joins it on exit.
             while !stopping.load(std::sync::atomic::Ordering::Acquire) && !crate::lifecycle::stopping() {
                 let next = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
-                if worker.is_none() && dev && next != revision {
+                let changed = next != revision;
+                if dev && changed {
                     revision = next;
+                    match declared(&project) {
+                        Ok(entries) => {
+                            named.retain(|name, _| entries.contains_key(name));
+                            for (name, source) in entries {
+                                if let Some(worker) = named.get_mut(&name) { worker.source = source; }
+                                else { match DevWorker::start_named(&project, shared.clone(), url.clone(), source, !dev, name.clone()) {
+                                    Ok(worker) => { named.insert(name, worker); }
+                                    Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
+                                } }
+                            }
+                        }
+                        Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
+                    }
+                }
+                if worker.is_none() && dev && changed {
                     match DevWorker::start(&project, shared.clone(), url.clone()) {
                         Ok(next) => worker = next,
                         Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
                     }
                 }
                 if let Some(worker) = &mut worker { worker.tick(); }
+                for worker in named.values_mut() { worker.tick(); }
                 std::thread::park_timeout(Duration::from_millis(100));
             }
         })?;
         Ok(Self { stop, thread: Some(thread) })
+    }
+
+    fn named(project: &Project, shared: &Arc<Shared>, url: &str, dev: bool) -> Result<std::collections::BTreeMap<String, DevWorker>, String> {
+        declared(project)?.into_iter().map(|(name, source)| {
+            DevWorker::start_named(project, shared.clone(), url.to_owned(), source, !dev, name.clone()).map(|worker| (name, worker))
+        }).collect()
     }
 
     pub(crate) fn is_finished(&self) -> bool { self.thread.as_ref().unwrap().is_finished() }
@@ -90,6 +120,8 @@ impl Drop for Supervisor {
 
 pub(crate) struct DevWorker {
     project: Project,
+    name: Option<String>,
+    family: Option<String>,
     source: PathBuf,
     node: PathBuf,
     url: String,
@@ -125,9 +157,15 @@ impl DevWorker {
         let version = command(&node).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
         if !version.status.success() || !String::from_utf8_lossy(&version.stdout).starts_with("v24.") { return Err("worker needs Node 24; put it on PATH or set SNAPBACK_NODE to its executable".into()); }
         let revision = shared.worker_revision.load(std::sync::atomic::Ordering::Acquire);
-        let worker = Self { project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
+        let worker = Self { name: None, family: None, project: Project { root: project.root.clone() }, source, node, url, explicit_env, starts: 0, crashes: 0, shared, child: None, child_expires_at: None, restart: Instant::now(), started: Instant::now(), backoff: Duration::from_millis(250), revision };
         crate::lifecycle::worker_cleanup();
         // The host's first tick follows its listening URL; keep that readiness line first on stdout.
+        Ok(worker)
+    }
+
+    fn start_named(project: &Project, shared: Arc<Shared>, url: String, source: PathBuf, explicit_env: bool, name: String) -> Result<Self, String> {
+        let mut worker = Self::start_source(project, shared, url, source, explicit_env)?;
+        worker.name = Some(name);
         Ok(worker)
     }
 
@@ -136,7 +174,7 @@ impl DevWorker {
         if !self.explicit_env && revision != self.revision {
             self.revision = revision;
             self.close_child_session(); self.stop_child();
-            if let Some(source) = source(&self.project) { self.source = source; }
+            if self.name.is_none() { if let Some(source) = source(&self.project) { self.source = source; } }
             self.restart = Instant::now();
         }
         // Renew through a new child, so the process receives its new token.
@@ -166,11 +204,21 @@ impl DevWorker {
             self.backoff = (self.backoff * 2).min(Duration::from_secs(5));
         }
         if crate::lifecycle::stopping() || Instant::now() < self.restart { return; }
-        if !self.explicit_env && source(&self.project).is_none() { return; }
+        if !self.explicit_env && self.name.is_none() && source(&self.project).is_none() { return; }
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.
         let session = {
             let engine = lock(&self.shared.engine);
-            clear_child_session(engine.store()).and_then(|()| child_session(engine.store(), self.shared.now(), self.revision))
+            if let Some(name) = &self.name {
+                (|| -> Result<identity::Session, RuntimeError> {
+                    let tx = engine.store().conn().unchecked_transaction()?;
+                    let session = identity::service_session(engine.store(), name, self.shared.now(), 1)?;
+                    let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
+                    engine.store().set_meta(&format!("worker:family:{family}"), &self.revision.to_string())?;
+                    tx.commit()?;
+                    self.family = Some(family);
+                    Ok(session)
+                })()
+            } else { child_session(engine.store(), self.shared.now(), self.revision) }
         };
         let session = match session {
             Ok(session) => session,
@@ -178,22 +226,19 @@ impl DevWorker {
         };
         let token = session.token;
         self.child_expires_at = Some(session.expires_at);
-        // Witness artifacts must not contain the supervisor's bearer. The child
-        // still receives it through its environment and its output is redacted below.
-        if !self.explicit_env && self.starts == 0 && server_source(&self.project).is_none()
-            && std::env::var_os("SNAPBACK4_WITNESS_DRIVER").is_none() {
-            snapback4_core::diagnostic_stdout!("snapback4 dev worker: service:worker token (printed once): {token}");
-        }
         let secrets = { environment::values(&lock(&self.shared.bound).schema) };
         let secrets = match secrets {
             Ok(values) => values,
             Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; return; }
         };
         let mut redact: Vec<Vec<u8>> = secrets.values().map(|s| s.as_bytes().to_vec()).collect(); redact.push(token.as_bytes().to_vec());
-        match command(&self.node).arg(&self.source).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        // The store directory survives release activation; never put receipts in a source release.
+        let ledger = self.project.store_path().canonicalize().unwrap_or_else(|_| self.project.store_path());
+        let ledger = ledger.parent().expect("store parent").join("worker-ledger.sqlite");
+        match command(&self.node).arg(&self.source).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &ledger).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
-                environment::pipe(child.stdout.take().expect("piped stdout"), redact.clone());
-                environment::pipe(child.stderr.take().expect("piped stderr"), redact);
+                environment::pipe(child.stdout.take().expect("piped stdout"), redact.clone(), self.name.as_deref().unwrap_or("worker").to_owned());
+                environment::pipe(child.stderr.take().expect("piped stderr"), redact, self.name.as_deref().unwrap_or("worker").to_owned());
                 snapback4_core::diagnostic!("snapback4 worker: {} (pid {})", self.source.display(), child.id()); self.child = Some(child); self.started = Instant::now(); self.starts += 1; self.record_status("running");
             }
             Err(error) => { snapback4_core::diagnostic!("snapback4 worker: cannot start: {error}"); self.close_child_session(); self.restart = Instant::now() + self.backoff; self.backoff = (self.backoff * 2).min(Duration::from_secs(5)); }
@@ -201,18 +246,29 @@ impl DevWorker {
     }
 
     fn record_status(&self, state: &str) {
-        let record = serde_json::json!({ "source": self.source, "mode": if self.explicit_env { "serve" } else { "dev" }, "state": state, "starts": self.starts, "restarts": self.starts.saturating_sub(1), "crashes": self.crashes, "pid": self.child.as_ref().map(Child::id) });
-        if let Err(error) = lock(&self.shared.engine).store().set_meta("worker:status", &record.to_string()) {
+        let record = serde_json::json!({ "name": self.name.as_deref().unwrap_or("worker"), "source": self.source, "mode": if self.explicit_env { "serve" } else { "dev" }, "state": state, "starts": self.starts, "restarts": self.starts.saturating_sub(1), "crashes": self.crashes, "pid": self.child.as_ref().map(Child::id) });
+        if let Err(error) = lock(&self.shared.engine).store().set_meta(&self.name.as_ref().map(|name| format!("worker:status:{name}")).unwrap_or_else(|| "worker:status".into()), &record.to_string()) {
             snapback4_core::diagnostic!("snapback4 worker: cannot record status: {error}");
         }
     }
 
     fn close_child_session(&mut self) {
-        if self.child_expires_at.take().is_some() {
-            if let Err(error) = clear_child_session(lock(&self.shared.engine).store()) {
-                snapback4_core::diagnostic!("snapback4 worker: cannot close the child's session: {error}");
+        if self.child_expires_at.take().is_none() { return; }
+        let engine = lock(&self.shared.engine);
+        let result = (|| -> Result<(), RuntimeError> {
+            let tx = engine.store().conn().unchecked_transaction()?;
+            if let Some(family) = &self.family {
+                tx.execute("DELETE FROM _sessions WHERE COALESCE(family, token_digest) = ?1", [family])?;
+                tx.execute("DELETE FROM _meta WHERE key = ?1", [format!("worker:family:{family}")])?;
+            } else {
+                tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
+                tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
             }
-        }
+            tx.commit()?;
+            Ok(())
+        })();
+        if let Err(error) = result { snapback4_core::diagnostic!("snapback4 worker: cannot close the child's session: {error}"); }
+        self.family = None;
     }
 
     fn stop_child(&mut self) {

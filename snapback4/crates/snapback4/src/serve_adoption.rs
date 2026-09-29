@@ -172,7 +172,14 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                     snapback4_core::diagnostic!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
                     continue;
                 }
-                if crate::dev_worker::source(&project).is_some() {
+                let declared = match crate::dev_worker::declared(&project) {
+                    Ok(workers) => workers,
+                    Err(error) => {
+                        snapback4_core::diagnostic!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
+                        continue;
+                    }
+                };
+                if crate::dev_worker::source(&project).is_some() || !declared.is_empty() {
                     if let Err(error) = crate::dev_worker::validate_environment(&bound.schema) {
                         snapback4_core::diagnostic!("snapback4 dev: {error}\nsnapback4 dev: serving the previous generation");
                         continue;

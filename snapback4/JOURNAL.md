@@ -75956,3 +75956,42 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Lane WK round 0: supervised workers and completion ledger
+
+Builders no longer need a detached launcher or a JSONL completion set. Each
+`snapback/workers/<service>.mjs` (also `.mts`/`.ts`) declares a Node worker;
+dev and serve own its start, bounded restart backoff and shutdown. Deploy
+snapshots this source subtree. Children receive independent service families,
+name-prefixed redacted logs and a store-owned ledger path. Automatic service
+tokens are never printed, including the historical dev entry. Doctor reports
+each declaration and its last recorded state and restart counts. Manual seats,
+standalone runWorker and conventional server/worker entries remain available.
+
+`meta.idempotencyKey` is the effect's stable existing id. `ledger: true` durably
+commits successful JSON results before settlement; redelivery replays them.
+Standalone workers can supply a durable file path. SQLite serializes handlers
+sharing that file, including across processes; it survives release changes and
+must travel with backups. Delivery remains at least once: a crash after provider
+I/O but before ledger commit still needs the provider's idempotency key. Generated
+step reconciliation, native jobs, effect policies, ordering, meters and authority
+are unchanged. The host-only service check preserves the revision fence for each
+named family. LLP 3000.009 §5.2/§5.3 records the convention and its limits. The
+guide listing/cards and social starter expose the worker and ledger at setup.
+
+Focused checks: new supervision/ledger 5/5; real HTTP lost-settlement redelivery
+1/1 with one handler call; existing worker/context/starter 60/60; effect policy
+13/13; final whole guide 98/98; typecheck/build, docs budget and references pass.
+Ran scripts/test.sh once, exit 1, exact summary: `== 1 failure(s) in 1506 s`.
+Only failure: our stale all-module await inventory. Updated the two worker
+entries after reachability review; exact failed check rerun passes 1/1. Every
+other full-suite stage passed: clients 4,566 pass/1 fail/10 declared skips,
+models 79/79. No baseline/environmental test failures in that run. The baseline
+60-second process target remains missed; no ceiling changed. Earlier authoring,
+log-prefix and guide failures, plus the repaired missing-wasm precondition, are
+retained and attributed in the report's FAILURES.md.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap. Report: reports/20260929-wk-supervised-workers/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+No push or publication.

@@ -34,6 +34,61 @@ mutation send(roomId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
+## Start here: declared workers and delivery deduplication
+
+Put each worker at `snapback/workers/<service>.mjs` (also `.mts` or `.ts`).
+For example, `snapback/workers/push.mjs` declares the `service:push` worker.
+Both `snapback4 dev` and `snapback4 serve` start it, inject its service token,
+prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
+stop it with the server. Tokens are never printed. `snapback4 doctor` shows
+all workers and their last reported states, starts, restarts and crashes.
+`deploy` copies the workers source subtree; put helpers in subdirectories and
+install package dependencies on the deployment host. This is ordinary Node 24.
+
+```js
+// snapback/workers/push.mjs
+import { runWorker } from "snapback4/worker";
+const stop = new AbortController();
+process.once("SIGTERM", () => stop.abort());
+await runWorker({
+  url: process.env.SNAPBACK_URL,
+  token: process.env.SNAPBACK_SERVICE_TOKEN,
+  ledger: true,
+  signal: stop.signal,
+  effects: { notify: async (payload, meta) => {
+    const response = await fetch("https://push.example.com/send", {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": meta.idempotencyKey },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`push provider: ${response.status}`);
+    return { providerId: meta.idempotencyKey };
+  } },
+}).done;
+```
+
+`meta.idempotencyKey` equals the effect's `meta.id` and is **stable across
+redelivery**, attempts and restarts. Pass it to providers accepting idempotency
+keys. It identifies one admitted effect: use `emit ... once [...]` below to
+prevent repeated admission of the same digest period.
+
+`ledger: true` uses the supervisor's durable SQLite completion file beside the
+backend store. Successful JSON results commit before acknowledgement; redelivery
+replays the result without repeating the handler. Keep the ledger with the store
+across releases and backups. There is no automatic pruning. It serializes
+opted-in handlers sharing that local file, including across processes; hosts
+with separate disks do not share deduplication. Failures record no completion.
+Delivery remains **at least once**: a crash after the external call but before
+the ledger write/commit can repeat the action. Provider idempotency covers that
+remaining window. Losing/deleting the ledger also loses its completions.
+
+Standalone `runWorker` still accepts explicit `url` and `token` (mint with
+`token --service push`). Use `ledger: "/durable/path/effects.sqlite"` there,
+or omit it to retain the ordinary loop. The ledger applies to low-level effects;
+generated `ctx.step` handlers keep their durable step/reconciliation contract.
+Do not register an effect in multiple entries unless that is intentional.
+
+
 Effects are global declarations shared by every file; jobs are module-qualified
 operations. The worker dispatches by the declared effect name, while schedules
 and `run` address an operation. If `digest.q` declares `effect notify` and
@@ -63,7 +118,7 @@ An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancel
 Effects use the shared external-step transition policy through their own
 `_effect_steps` records and the provider-key domain
 `snapback4:effect-step:v1`; action rows and keys are unchanged. A generated
-handler receives frozen `ctx.effect` metadata (`id`, `effect`, `attempt`, `seq`,
+handler receives frozen `ctx.effect` metadata (`id`, `idempotencyKey`, `effect`, `attempt`, `seq`,
 `at`, `worker`), live `ctx.invocation` (`id`, `attempt`, `deadline`,
 `cancelled`, `signal`), its declared `ctx.secrets`, and `ctx.step`. It receives no principal, query,
 mutation, write-id, raw lease, service token or administrative surface.

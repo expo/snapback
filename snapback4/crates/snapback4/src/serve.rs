@@ -339,7 +339,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
         _ => None,
     };
     crate::lifecycle::generation(generation);
-    // The URL is stdout's first line; the dev token follows, while lifecycle and worker logs use stderr.
+    // The URL is stdout's first line; lifecycle and redacted worker logs use stderr.
     snapback4_core::diagnostic_stdout!("http://{address}");
     match &generated {
         Some(generated) => snapback4_core::diagnostic!("snapback4 dev: http://{address}  (schema: snapback/, types: {})", generated.display()),

@@ -17,6 +17,20 @@ fn service(engine: &Engine) -> identity::Session {
     identity::service_session(engine.store(), "worker", 0, 1).unwrap()
 }
 fn sample(now: i64) -> ServiceSample { ServiceSample { now, supervisor_revision: 0 } }
+
+#[test]
+fn named_supervised_seats_keep_revision_fences_without_fencing_manual_seats() {
+    use sha2::{Digest, Sha256};
+    let engine = engine("");
+    let supervised = identity::service_session(engine.store(), "push", 0, 1).unwrap();
+    let manual = identity::service_session(engine.store(), "push", 0, 1).unwrap();
+    let family = format!("{:x}", Sha256::digest(supervised.token.as_bytes()));
+    engine.store().set_meta(&format!("worker:family:{family}"), "0").unwrap();
+    assert_eq!(identity::current_service(engine.store(), &supervised.token, sample(1)).unwrap().as_deref(), Some("service:push"));
+    let next = ServiceSample { now: 1, supervisor_revision: 1 };
+    assert_eq!(identity::current_service(engine.store(), &supervised.token, next).unwrap(), None);
+    assert_eq!(identity::current_service(engine.store(), &manual.token, next).unwrap().as_deref(), Some("service:push"));
+}
 fn adopt(engine: &mut Engine, settings: &str, legacy: bool) {
     let bound = compile(&[("schema.q".into(), format!("effect mail {settings}\nmutation send():\n  emit mail {{ n: 1 }}\n"))]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

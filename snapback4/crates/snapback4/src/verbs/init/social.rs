@@ -15,6 +15,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
     value["scripts"]["web"] = json!("expo start --web");
     package.1 = super::pretty(&value);
     files.extend([
+        ("snapback/workers/notifications.mjs", include_str!("social/notifications.mjs").to_owned()),
         ("snapback/schema.q", include_str!("social/schema.q").to_owned()),
         ("README.md", include_str!("social/README.md").to_owned()),
         ("src/intents.ts", include_str!("social/intents.ts").to_owned()),

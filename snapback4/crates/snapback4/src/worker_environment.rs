@@ -50,18 +50,35 @@ impl Redactor {
     }
 }
 
-pub(super) fn pipe(mut input: impl Read + Send + 'static, secrets: Vec<Vec<u8>>) {
+pub(super) fn pipe(mut input: impl Read + Send + 'static, secrets: Vec<Vec<u8>>, name: String) {
     std::thread::spawn(move || {
         let mut redactor = Redactor::new(secrets);
         let mut bytes = [0; 4096];
-        let mut output = std::io::stderr();
+        let output = std::io::stderr();
         let mut ready = Vec::new();
+        let mut pending = Vec::new();
+        let mut emit = |bytes: &[u8], eof: bool| -> std::io::Result<()> {
+            pending.extend_from_slice(bytes);
+            loop {
+                let size = pending.iter().position(|b| *b == b'\n').map(|n| n + 1)
+                    .or_else(|| (pending.len() >= 8192).then_some(8192))
+                    .or_else(|| (eof && !pending.is_empty()).then_some(pending.len()));
+                let Some(size) = size else { break; };
+                let mut out = output.lock();
+                write!(out, "[worker:{name}] ")?;
+                out.write_all(&pending[..size])?;
+                if pending[size - 1] != b'\n' { out.write_all(b"\n")?; }
+                out.flush()?;
+                pending.drain(..size);
+            }
+            Ok(())
+        };
         loop {
             ready.clear();
             match input.read(&mut bytes) {
-                Ok(0) => { let _ = redactor.write(&[], true, &mut ready); let _ = output.write_all(&ready); break; }
+                Ok(0) => { let _ = redactor.write(&[], true, &mut ready); let _ = emit(&ready, true); break; }
                 Ok(n) => {
-                    if redactor.write(&bytes[..n], false, &mut ready).is_err() || output.write_all(&ready).is_err() { break; }
+                    if redactor.write(&bytes[..n], false, &mut ready).is_err() || emit(&ready, false).is_err() { break; }
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(_) => break,

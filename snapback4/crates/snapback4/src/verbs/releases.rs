@@ -111,6 +111,7 @@ pub fn deploy(options: &Options) -> i32 {
             std::fs::create_dir_all(&generated).map_err(|e| e.to_string())?;
             std::fs::copy(&built.path, generated.join("native.wasm")).map_err(|e| e.to_string())?;
         }
+        crate::dev_worker::package(&project, &stage)?;
         let staged_bound = bound_at(stage.clone())?;
         if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
         std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;

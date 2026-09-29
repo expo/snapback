@@ -47,6 +47,10 @@ pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample
     {
         return Ok(None);
     }
+    // @ref LLP 3000.009#5.3 — each named worker has an independently revoked family.
+    if let Some(revision) = tx.meta(&format!("worker:family:{}", session.family))? {
+        if revision != sample.supervisor_revision.to_string() { return Ok(None); }
+    }
     Ok(Some(session.principal))
 }
 

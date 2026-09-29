@@ -13,6 +13,16 @@ npm start
 # or npm run web, npm run ios:dev
 ```
 
+Background notifications are declared in `snapback/workers/notifications.mjs`:
+dev and serve start, restart and stop this worker with a service token injected.
+`ledger: true` records successful completions durably beside the backend store;
+keep that file with backups. Add your provider call, passing
+`meta.idempotencyKey`, then emit `notify` from your mutation or digest job.
+The starter does not send or emit notifications until you connect it. Delivery
+is at least once: provider idempotency covers a crash after the call but before
+the ledger commit. `npx snapback4 doctor` shows worker state; `guide effects`
+contains the complete provider example. There is no separate worker launcher.
+
 Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses
 `snapback4-expo`. Expo Go uses the online tier and has no retained history

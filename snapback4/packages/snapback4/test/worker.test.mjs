@@ -315,19 +315,23 @@ for (const resolvable of [true, false]) test(`provider test double: killed accep
   t.diagnostic(`loopback provider double only: requests=${requests}, accepted=1, worker=SIGKILL before settlement, outcome=${resolvable ? "reconciled/sent" : "unknown/parked"}, stale claim refused; real provider and device receipt untested`);
 });
 
-test("w10c dev worker prints its one-time token on stdout, outside captured diagnostics", { timeout: 20_000 }, async t => {
-  const f = await actionFixture(t, { worker: { ext: "mjs", text: "console.error(process.env.SNAPBACK_SERVICE_TOKEN); setInterval(() => {}, 1000);" } });
-  await until(() => f.log().includes("worker.mjs (pid") && f.log().includes("[REDACTED]"));
-  // Never put either raw stream in assertion output, even on the unfixed binary.
-  assert.equal(/^http:\/\/127\.0\.0\.1:\d+$/.test(f.stdout().split("\n")[0]), true, "the listening URL remains the first stdout line");
-  assert.equal(f.stderr().includes("token (printed once):"), false, "the credential announcement must stay off stderr");
-  const matches = [...f.stdout().matchAll(/service:worker token \(printed once\): (\S+)/g)];
-  assert.equal(matches.length, 1, "an interactive user sees the token once without an extra flag");
-  const token = matches[0][1];
-  assert.equal(f.stderr().includes(token), false, "the worker's echo must also be redacted");
-  const response = await f.post("/auth/session", { principal: "directory-user" }, token);
-  assert.equal(response.status, 200);
-  assert.equal(response.session?.principal, "directory-user", "the displayed token is usable by the worker");
+test("dev injects a usable service token and redacts both child log streams", { timeout: 20_000 }, async t => {
+  const f = await actionFixture(t, { worker: { ext: "mjs", text: `
+const token = process.env.SNAPBACK_SERVICE_TOKEN;
+console.log('stdout-token:' + token); console.error('stderr-token:' + token);
+const response = await fetch(process.env.SNAPBACK_URL + '/auth/session', {
+  method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+  body: JSON.stringify({ principal: 'directory-user' })
+});
+const reply = await response.json();
+console.log('injected-auth:' + (reply.session?.principal === 'directory-user'));
+setInterval(() => {}, 1000);
+` } });
+  await until(() => f.log().includes("injected-auth:true"));
+  assert.equal(/^http:\/\/127\.0\.0\.1:\d+$/.test(f.stdout().trim()), true, "stdout contains only readiness, never a credential");
+  assert.match(f.stderr(), /\[worker:worker\] stdout-token:\[REDACTED\]/);
+  assert.match(f.stderr(), /\[worker:worker\] stderr-token:\[REDACTED\]/);
+  assert.equal(f.log().includes("printed once"), false);
 });
 
 test("actions run as the requesting viewer; client done/failed and replay reach both client tiers", { timeout: 30_000 }, async t => {
@@ -485,7 +489,7 @@ test("chat's real TypeScript invite worker is supervised by dev, restarts and st
   process.kill(pid, "SIGKILL");
   await until(() => (f.log().match(/worker\.ts \(pid (\d+)\)/g) ?? []).length === 2);
   assert.match(f.log(), /restarting in 250 ms/);
-  assert.equal(f.log().match(/token \(printed once\)/g).length, 1);
+  assert.equal((f.log().match(/token \(printed once\)/g) ?? []).length, 0);
   const result2 = await client.act(action("invite"), { email: "another@example.com" });
   assert.equal(result2.state, "done");
   const failed = await client.act(action("invite"), { email: "invalid" });
@@ -736,7 +740,7 @@ await worker.done; writeFileSync(new URL('../stopped', import.meta.url), 'yes');
   await until(() => { if (child.exitCode != null) throw Error(log); return url; });
   const starts = () => { try { return readFileSync(join(directory, "starts.jsonl"), "utf8").trim().split("\n").map(JSON.parse); } catch { return []; } };
   await until(() => starts().length === 1);
-  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN"]);
+  const allowed = new Set(["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TZ", "NODE_OPTIONS", "SNAPBACK_URL", "SNAPBACK_SERVICE_TOKEN", "SNAPBACK_WORKER_LEDGER"]);
   assert.equal(starts()[0].inherited, null);
   // macOS synthesizes this variable inside the child; it is not inherited.
   if (process.platform === "darwin") allowed.add("__CF_USER_TEXT_ENCODING");
@@ -804,4 +808,32 @@ test("dev replaces its supervised worker when the one-day session window ends", 
   await until(() => (f.log().match(/worker\.mjs \(pid \d+\)/g) ?? []).length === 2);
   assert.match(f.log(), /supervision window ended/);
   assert.throws(() => process.kill(first, 0), { code: "ESRCH" });
+});
+
+test("real HTTP redelivery after a lost settlement acknowledgement replays the durable ledger", { timeout: 15_000 }, async t => {
+  const f = await actionFixture(t, { source: actionSource + "\nmutation sendNotification():\n  emit notify { message: 'hello' }\n  return true\n" });
+  assert.equal((await f.post("/m/sendNotification", { args: {} })).state, "sent");
+  const ledger = join(f.directory, "effects.sqlite");
+  let calls = 0, key;
+  const firstStop = new AbortController();
+  const first = runWorker({ url: f.url, token: f.token, ledger, lease: 1, wait: 0, signal: firstStop.signal,
+    effects: { notify: (_payload, meta) => { calls++; key = meta.idempotencyKey; return { receipt: key }; } },
+    fetch: async (url, init) => {
+      if (url.endsWith("/done")) { firstStop.abort(); throw Error("lost settlement acknowledgement"); }
+      if (url.endsWith("/failed")) throw Error("settlement unavailable");
+      return fetch(url, init);
+    }, onError() {},
+  });
+  f.workers.push(first);
+  t.after(() => firstStop.abort());
+  await first.done;
+  assert.equal(calls, 1);
+  assert.equal((await listEffects(f.url, f.token, "running")).length, 1);
+  await sleep(1100); // Expire the real claim; the next runWorker polls the actual server.
+  f.launch({ ledger, wait: 0, effects: { notify: () => { calls++; throw Error("must replay the ledger"); } } });
+  const [sent] = await until(async () => { const rows = await listEffects(f.url, f.token, "sent"); return rows.length ? rows : false; });
+  assert.equal(sent.id, key);
+  assert.equal(sent.attempt, 2);
+  assert.deepEqual(sent.result, { receipt: key });
+  assert.equal(calls, 1);
 });

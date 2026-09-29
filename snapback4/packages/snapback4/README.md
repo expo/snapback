@@ -265,12 +265,12 @@ site. A constant verdict proves a degradation rule; timing one measures noise. C
 `complete` means the query answered its declared request within known coverage and execution limits. A full `first N` or `last N` is complete without a cursor. Indexes and job chunk sizes are chosen by the engine.
 Streaming aggregates count a domain under the meter; maintained views read stored totals. A cut total is unavailable.
 Jobs run as the system: select the recipient's authorized data before emitting. `once` prevents repeated emission;
-the worker still deduplicates provider delivery. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
+declare `snapback/workers/push.mjs` and opt into `runWorker({ ledger: true, ... })` for durable completion deduplication; pass `meta.idempotencyKey` to the provider. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
 
 Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
 items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds joins the lingering live watch with its current snapshot. `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
-`api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
+`api.name`; module files use `api.module.name`. Effects run in declared Node entries `snapback/workers/<service>.mjs`: dev and serve start, restart and stop them, with service tokens injected and logs redacted. `guide effects` shows `ledger: true` and the stable `meta.idempotencyKey`; a crash after the provider call but before the ledger commit still needs provider idempotency.
 
 Public feeds share an activity union. Following delivers it to each reader; Trending ranks a finite time window.
 See `npx snapback4 guide feeds` for the complete tested program.

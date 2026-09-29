@@ -2,7 +2,7 @@
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
 }
 
 fn distance(a: &str, b: &str) -> usize {
