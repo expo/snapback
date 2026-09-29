@@ -1,0 +1,14 @@
+✔ composed watch wasm: revocation fences pre-revocation server fields (616.639321ms)
+✔ composed query wasm: revocation fences pre-revocation server fields (169.67051ms)
+✔ composed query return wasm: revocation fences pre-revocation server fields (173.5798ms)
+✔ composed watch process: revocation fences pre-revocation server fields (221.014793ms)
+✔ composed query process: revocation fences pre-revocation server fields (210.193884ms)
+✔ composed query return process: revocation fences pre-revocation server fields (220.590217ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1729.703766

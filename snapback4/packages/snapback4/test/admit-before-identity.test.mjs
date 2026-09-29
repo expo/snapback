@@ -130,12 +130,32 @@ for (const worker of [false, true]) {
     assert.equal(await f.page.evaluate(() => events[0].id), id);
     assert.equal(await f.page.evaluate(() => posts.length), 1);
   });
-  for (const failure of ["timeout", "adoption"]) test(`identification ${failure} settles visibly without sending (${tier})`, { timeout: 90_000 }, async t => {
+  test(`an unidentified closed tab transfers custody in order (${tier})`, { timeout: 90_000 }, async t => {
+    const f = await browser(t, worker);
+    const primary = await f.page.evaluate(() => save('primary'));
+    const other = await f.page.context().newPage();
+    await other.goto(f.page.url()); await other.waitForFunction(() => typeof openFresh === 'function');
+    await other.evaluate(url => openFresh(url), f.api);
+    const orphaned = await other.evaluate(() => Promise.all([save('orphan one'), save('orphan two')]));
+    await other.close();
+    await f.page.evaluate(() => start());
+    await f.page.waitForFunction(() => events.length === 3);
+    assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), [primary.id, ...orphaned.map(w => w.id)]);
+    assert.ok((await f.page.evaluate(() => events)).every(w => w.state === 'sent'));
+  });
+  for (const failure of ["timeout", "adoption", "incarnation"]) test(`identification ${failure} settles visibly without sending (${tier})`, { timeout: 90_000 }, async t => {
     const f = await browser(t, worker);
     if (failure === "timeout") await f.page.clock.install();
     const write = await f.page.evaluate(() => save('never sent'));
     if (failure === "timeout") await f.page.clock.fastForward(30_001);
-    else await f.page.evaluate(async () => {
+    else if (failure === "incarnation") {
+      await f.page.route(`${f.api}/sync`, async route => {
+        const response = await route.fetch(), body = await response.json();
+        body.store_id = 'replacement-before-first-identification';
+        await route.fulfill({ response, json: body });
+      });
+      await f.page.evaluate(() => start());
+    } else await f.page.evaluate(async () => {
       const backend = (await core.call({ op: 'backend' })).ok; backend.generation++;
       const result = await core.call({ op: 'adopt', backend });
       if (result.denied) throw Error(JSON.stringify(result));
@@ -146,6 +166,13 @@ for (const worker of [false, true]) {
     assert.equal(failed.why.code, failure === "timeout" ? "E_ADMISSION_TIMEOUT" : "E_ADMISSION_STORE");
     assert.match(failed.why.message, /new attempt/);
     assert.equal(await f.page.evaluate(() => posts.length), 0);
+    if (failure === "timeout") {
+      const retry = await f.page.evaluate(() => save('new attempt after timeout'));
+      await f.page.evaluate(() => start());
+      await f.page.waitForFunction(() => events.length === 2);
+      assert.equal(await f.page.evaluate(() => events[1].state), 'sent');
+      assert.deepEqual(await f.page.evaluate(() => posts.map(w => w.id)), [retry.id]);
+    }
     await f.reload(); await f.page.evaluate(url => openFresh(url), f.api);
     assert.equal((await f.page.evaluate(id => client.write(id), write.id)).why.code, failed.why.code);
     assert.equal(await f.page.evaluate(async () => (await client.pendingWrites()).length), 0);
@@ -197,7 +224,7 @@ if (!baseline) test("online app takes custody before a held identity probe, incl
   };
   const first = await open();
   const writes = await Promise.race([
-    Promise.all(['one', 'two', 'three'].map(body => first.mutate(op, args(body), { waitSeconds: 0 }))),
+    Promise.all(['one', 'two', 'three'].map(body => first.mutate(op, args(body), { waitSeconds: body === 'one' ? 1 : 0 }))),
     new Promise((_, reject) => setTimeout(() => reject(Error('identity probe blocked custody')), 2000).unref()),
   ]);
   assert.deepEqual(writes.map(w => w.state), ['pending', 'pending', 'pending']);
@@ -209,4 +236,87 @@ if (!baseline) test("online app takes custody before a held identity probe, incl
   held = false; probes.splice(0).forEach(f => f());
   await until(() => events.length === 4, 'online recovered settlements');
   assert.deepEqual(posts.map(w => w.id), [...writes.map(w => w.id), fourth.id]);
+});
+
+if (!baseline) test("two native owners compare deferred custody without losing or replacing writes", { timeout: 90_000 }, async t => {
+  const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), "sb4-identity-owners-")), clients = [];
+  t.after(async () => { for (const c of clients) await c.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); });
+  const open = async () => {
+    const options = { url: server.api, persona: "alice", device: processDevice({ dir, binary: binary() }) };
+    const p = await prepareClient(options, () => createLocalClient(options)); clients.push(p.client); return p;
+  };
+  const a = await open(), b = await open();
+  const writes = await Promise.all(Array.from({ length: 8 }, (_, i) => (i % 2 ? a : b).client.mutate(op, args(`write ${i}`), { waitSeconds: 0 })));
+  assert.ok(writes.every(w => w.state === 'pending'), JSON.stringify(writes));
+  const { mintId } = await import('../dist/client.js'); const id = mintId();
+  const raced = await Promise.all([a.client.mutate(op, args('winner A'), { id, waitSeconds: 0 }), b.client.mutate(op, args('winner B'), { id, waitSeconds: 0 })]);
+  assert.equal(raced.filter(w => w.state === 'pending').length, 1);
+  assert.equal(raced.find(w => w.state === 'failed').why.code, 'E_WRITE_ID_REUSE');
+  await a.client.close(); await b.client.close();
+  const reopened = await open(), pending = await reopened.client.pendingWrites();
+  assert.equal(pending.length, 9);
+  assert.equal(new Set(pending.map(w => w.id)).size, 9);
+  const events = []; reopened.client.onWrite(w => events.push(w));
+  await reopened.start(); await until(() => events.length === 9, 'all native owners settled');
+  assert.deepEqual(events.map(w => w.id), pending.map(w => w.id));
+});
+
+if (!baseline) test("native adoption between identity validation and admission refuses the original write unsent", { timeout: 90_000 }, async t => {
+  const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), 'sb4-identity-race-')), posts = [];
+  const opener = processDevice({ dir, binary: binary() });
+  let raced = false, client;
+  t.after(async () => { await client?.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); });
+  const options = { url: server.api, persona: 'alice', device: { async open(...args) {
+    const core = await opener.open(...args);
+    return { ...core, async call(request, committed) {
+      if (request.identity_backend && !raced) {
+        raced = true;
+        const backend = (await core.call({ op: 'backend' })).ok; backend.generation++;
+        assert.ok(!(await core.call({ op: 'adopt', backend })).denied);
+      }
+      return core.call(request, committed);
+    } };
+  } }, fetch: (url, init) => { if (String(url).includes('/m/')) posts.push(JSON.parse(init.body)); return fetch(url, init); } };
+  const prepared = await prepareClient(options, () => createLocalClient(options)); client = prepared.client;
+  const events = []; client.onWrite(write => events.push(write));
+  const write = await client.mutate(op, args('original draft'), { waitSeconds: 0 });
+  assert.equal(write.state, 'pending');
+  await prepared.start(); await until(() => events.length === 1, 'adoption refusal');
+  assert.ok(raced); assert.equal(events[0].id, write.id);
+  assert.equal(events[0].why.code, 'E_ADMISSION_STORE'); assert.match(events[0].why.message, /new attempt/);
+  assert.equal(posts.length, 0); assert.equal((await client.pendingWrites()).length, 0);
+});
+
+for (const online of [false, true]) if (!baseline) test(`expired identification deadline survives reopen (${online ? 'online' : 'process'})`, { timeout: 90_000 }, async t => {
+  const server = await devServer({ seed }), dir = mkdtempSync(join(tmpdir(), 'sb4-expired-')), clients = [], posts = [];
+  const { createClient } = await import('../dist/client.js');
+  const { onlineCustody } = await import('../dist/app-online.js');
+  const values = new Map();
+  const store = { async get(k) { return values.get(k) ?? null; }, async set(k, v) { values.set(k, v); }, async remove(k) { values.delete(k); } };
+  t.after(async () => { for (const c of clients) await c.close(); await server.close(); rmSync(dir, { recursive: true, force: true }); });
+  const offlineProbe = async (url, init) => {
+    if (String(url).endsWith('/probe')) throw Error('test identity unavailable');
+    if (String(url).includes('/m/')) posts.push(JSON.parse(init.body));
+    return fetch(url, init);
+  };
+  const open = async () => {
+    const options = { url: server.api, persona: 'alice', fetch: offlineProbe, device: processDevice({ dir, binary: binary() }) };
+    const prepared = online ? await onlineCustody(createClient(options), server.api, store, error => { throw error; }, false)
+      : await prepareClient(options, () => createLocalClient(options));
+    clients.push(prepared.client); return prepared;
+  };
+  const first = await open(), write = await first.client.mutate(op, args('expires'), { waitSeconds: 0 });
+  assert.equal(write.state, 'pending');
+  assert.match((await first.client.pendingWrites())[0].reason, /identification/);
+  await first.client.close();
+  const afterDeadline = Date.now() + 30_001;
+  t.mock.method(Date, 'now', () => afterDeadline);
+  const second = await open(), events = []; second.client.onWrite(w => events.push(w));
+  await second.start();
+  await until(async () => (await second.client.write(write.id))?.state === 'failed', 'durable identification deadline');
+  const failed = await second.client.write(write.id);
+  assert.equal(failed.why.code, 'E_ADMISSION_TIMEOUT');
+  assert.match(failed.why.message, /new attempt/);
+  assert.equal(posts.length, 0);
+  assert.equal((await second.client.pendingWrites()).length, 0);
 });

@@ -2,6 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
+test("identity custody: offline first save remains pending while a peer recovers its stable ID (seed 1807)", () => execute([
+  { op: "guest", app: 0 },
+  { op: "reopenOffline", app: 2, account: 1, hold: false, fault: { kind: "delete", at: 9 }, holdDispatch: false },
+  { op: "handleMutate", app: 2, account: 0, hold: false, fault: { kind: "set", at: 10 }, holdDispatch: false },
+  { op: "reopen", app: 1, account: 1, hold: false, fault: { kind: "set", at: 11 }, holdDispatch: false },
+], {}, "online"));
+
 for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {

@@ -1,0 +1,68 @@
+✔ wasm: keep=undefined across apply publishes no loading and replaces the old answer (1689.081527ms)
+✔ wasm: keep=undefined across admit publishes no loading and replaces the old answer (1576.811795ms)
+✔ wasm: keep=undefined across settle publishes no loading and replaces the old answer (1562.006653ms)
+✔ wasm: keep=undefined across revoke publishes no loading and replaces the old answer (1237.80284ms)
+✔ wasm: keep=undefined across leave publishes no loading and replaces the old answer (1585.190744ms)
+✔ wasm: keep=undefined across refusal publishes no loading and replaces the old answer (1210.021347ms)
+✔ process: keep=undefined across apply publishes no loading and replaces the old answer (290.732893ms)
+✔ process: keep=undefined across admit publishes no loading and replaces the old answer (212.946488ms)
+✔ process: keep=undefined across settle publishes no loading and replaces the old answer (188.822028ms)
+✔ process: keep=undefined across revoke publishes no loading and replaces the old answer (1298.299038ms)
+✔ process: keep=undefined across leave publishes no loading and replaces the old answer (185.008582ms)
+✔ process: keep=undefined across refusal publishes no loading and replaces the old answer (286.489964ms)
+✔ wasm: keep=true across apply publishes no loading and replaces the old answer (1223.154392ms)
+✔ wasm: keep=true across admit publishes no loading and replaces the old answer (1104.013521ms)
+✔ wasm: keep=true across settle publishes no loading and replaces the old answer (1560.84379ms)
+✔ wasm: keep=true across revoke publishes no loading and replaces the old answer (1204.236776ms)
+✔ wasm: keep=true across leave publishes no loading and replaces the old answer (1107.931763ms)
+✔ wasm: keep=true across refusal publishes no loading and replaces the old answer (1251.864086ms)
+✔ process: keep=true across apply publishes no loading and replaces the old answer (289.075519ms)
+✔ process: keep=true across admit publishes no loading and replaces the old answer (174.698768ms)
+✔ process: keep=true across settle publishes no loading and replaces the old answer (185.492197ms)
+✔ process: keep=true across revoke publishes no loading and replaces the old answer (276.734691ms)
+✔ process: keep=true across leave publishes no loading and replaces the old answer (201.394463ms)
+✔ process: keep=true across refusal publishes no loading and replaces the old answer (298.237162ms)
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (188.424202ms)
+✔ process: keep remount lifetime, isolation, last subscriber and sign-out (240.81462ms)
+✔ online: keep remount lifetime, isolation, last subscriber and sign-out (188.517791ms)
+✔ wasm: keep=undefined never publishes an evaluation captured before a newer commit (1192.31723ms)
+✔ process: keep=undefined never publishes an evaluation captured before a newer commit (1264.820255ms)
+✔ wasm: keep=true never publishes an evaluation captured before a newer commit (1195.856725ms)
+✔ process: keep=true never publishes an evaluation captured before a newer commit (1278.784426ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (231.078828ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (2030.875497ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1341.347484ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1490.941272ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (2491.314345ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (2228.908962ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (2244.784979ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (2719.556179ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (6275.767621ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":21248.504338,"cutMs":21748.602171,"rejectionMs":25250.858679,"notificationMs":25251.444778,"detectionMs":3502.8426070000023}
+{"store":"native","offsetMs":500,"requestStartMs":21309.642259,"cutMs":21809.47193,"rejectionMs":25310.559666,"notificationMs":25310.996621,"detectionMs":3501.5246909999987}
+{"store":"wasm","offsetMs":5000,"requestStartMs":21243.656933,"cutMs":26243.704438,"rejectionMs":29246.152837,"notificationMs":29246.626497,"detectionMs":3002.9220590000004}
+{"store":"native","offsetMs":5000,"requestStartMs":21307.318316,"cutMs":26307.157058,"rejectionMs":29309.406629,"notificationMs":29309.910173,"detectionMs":3002.7531149999995}
+{"store":"wasm","offsetMs":15000,"requestStartMs":21248.723917,"cutMs":36249.106863,"rejectionMs":39251.719767,"notificationMs":39252.490352,"detectionMs":3003.383489}
+{"store":"native","offsetMs":15000,"requestStartMs":21312.76559,"cutMs":36313.307995,"rejectionMs":39315.749572,"notificationMs":39316.079076,"detectionMs":3002.771080999999}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20291.760998ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11168.808012ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1064.822936ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53711.88989

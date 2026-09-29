@@ -129,7 +129,7 @@ export async function openWorkerDevice(name: string, backend: DeviceOpening | nu
     }
     // Remove page closures before structured cloning.
     const wire = Object.fromEntries(Object.entries(request));
-    const reply = request.op === "admit" ? await journal.admitWith(tx.invoke, request.entry, admission?.storeId || undefined, admission?.identity) : await journal.callWith(tx.invoke, wire);
+    const reply = request.op === "admit" ? await journal.admitWith(tx.invoke, request.entry, admission?.storeId || undefined, admission?.identity, Object.hasOwn(request, "expected_store") ? { store: request.expected_store as string | undefined } : undefined) : await journal.callWith(tx.invoke, wire);
     if (request.op === "queued" && Array.isArray(reply.ok)) reply.ok = reply.ok.map((entry: Queued) => ({ ...entry, store_id: entry.receipt_store?.id ?? entry.store_id ?? journal.boundStore(entry.id) }));
     const observes = ["observe_store", "apply", "adopt"].includes(String(request.op));
     if (!reply.denied && observes) await journal.fenceWith(tx.invoke);

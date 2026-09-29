@@ -89,7 +89,7 @@ A Write queued without a row before acquisition carries
 says `queued without a row: local data does not justify prediction`.
 Predicted rows carry pending; a pending Write has no predicted result.
 
-`await client.pendingWrites()` lists admitted, unsettled writes oldest first:
+`await client.pendingWrites()` lists custodied, unsettled writes oldest first:
 `{ id, op, args, state, reason?, predicted }`. `op` is the mutation name and
 `predicted` names its rows as `table/id`; a write without a prediction still
 appears. `state` is `queued` before dispatch, `sent` after dispatch starts with
@@ -130,8 +130,8 @@ answers `client.write(id)` once that sync completes, not at the moment it opens.
 Recovery and new admissions take submission numbers from the same device counter;
 already-queued writes precede recovered orphan records. A matching orphan waiting
 for backend adoption installs the destination's authenticated backend first. An
-orphan missing its kept backend or store identity is skipped with its journal
-intact until a later matching open can establish ownership; a broken orphan does
+orphan missing its kept backend is skipped with its journal intact until a
+later matching open can establish ownership; a broken orphan does
 not prevent healthy stores from opening.
 Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
@@ -166,17 +166,8 @@ refusal alone does not guarantee preserved cancellation in that case.
 A device write-target miss that cannot prove the insert conditions above
 queues without a predicted row and still sends `/m`.
 
-Writes need no acquisition gate. A fresh replica accepts custody before store
-identification; its pending-write view says “waiting for backend identification”.
-It retains input, write/row IDs, order, backend binding and a 30-second wall-clock
-deadline through reload. Once identified, the ordinary outbox admits and predicts
-where eligible, then sends in order. `onWrite` reports terminal outcomes.
-An incompatible backend refuses `E_ADMISSION_STORE`; no identity by the deadline
-refuses `E_ADMISSION_TIMEOUT`, without sending. A suspended/closed runtime checks
-the deadline when it resumes/reopens. Reconnect or reload the current backend,
-review the draft and submit a new id. `createApp`'s online journal likewise takes
-custody before its first identity probe. These deadlines never expire a write
-whose dispatch may already have executed.
+Writes need no acquisition gate. Pending custody waits up to 30 seconds for
+store identification, including reload; see `why E_ADMISSION` for recovery.
 
 ## A constraint across rows you cannot read
 

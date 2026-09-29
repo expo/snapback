@@ -30,7 +30,7 @@ export async function localPendingWrites(queued: () => Promise<Queued[]>, histor
   if (unavailable()) return [];
   return unsettled.map(entry => {
     const reason = entry.admission_waiting ? "waiting for backend identification" : reasons?.get(entry.id) ?? entry.dispatch;
-    const state = reason ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued";
+    const state = entry.admission_waiting ? "queued" : reason ? "held" : entry.dispatch != null || entry.sent_seq != null || entry.observed_seq != null ? "sent" : "queued";
     return {
       id: entry.id, op: entry.op, args: entry.args,
       state,

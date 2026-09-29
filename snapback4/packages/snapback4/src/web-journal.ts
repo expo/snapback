@@ -341,15 +341,15 @@ export class AdmissionJournal {
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
-  admit(device: JournalDevice, entry: unknown, storeId?: string, identity?: AdmissionIdentity): Record<string, unknown> {
-    return runJournal(this.admission(entry, storeId, identity), request => invoke(device, request));
+  admit(device: JournalDevice, entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): Record<string, unknown> {
+    return runJournal(this.admission(entry, storeId, identity, custody), request => invoke(device, request));
   }
 
-  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, identity?: AdmissionIdentity): Promise<Record<string, unknown>> {
-    return runJournalAsync(this.admission(entry, storeId, identity), call);
+  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): Promise<Record<string, unknown>> {
+    return runJournalAsync(this.admission(entry, storeId, identity, custody), call);
   }
 
-  private *admission(entry: unknown, storeId?: string, identity?: AdmissionIdentity): JournalPlan<Record<string, unknown>> {
+  private *admission(entry: unknown, storeId?: string, identity?: AdmissionIdentity, custody?: { store?: string | undefined }): JournalPlan<Record<string, unknown>> {
     const state = yield { op: "sync_state", capture: false };
     const binding = journalStoreBinding(storeId, state.ok?.store_id);
     if (binding !== "allow") return { denied: bindingRefusal(binding) };
@@ -361,7 +361,8 @@ export class AdmissionJournal {
     // device chain may have advanced time since capture, including after a crash.
     const issued = Number(floor.ok), requested = entry as Entry;
     const now = Number.isSafeInteger(issued) && issued >= 0 ? Math.max(requested.now, issued) : requested.now;
-    return yield* this.identity.admit({ ...requested, now, seq: next.ok }, identity);
+    const captured = { ...requested, now, seq: next.ok };
+    return identity || custody ? yield* this.identity.admit(captured, identity, custody?.store) : yield { op: "admit", entry: captured };
   }
 
   call(device: JournalDevice, request: Record<string, unknown>): Record<string, unknown> {

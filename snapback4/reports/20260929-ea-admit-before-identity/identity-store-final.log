@@ -1,0 +1,70 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3P08SE9ZKQ8X9W95W51RDPP","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P08SGA2NCT4QHFZY0A1N8D","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1533.013601ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1458.399381ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1484.394636ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1659.725151ms)
+✔ identification timeout settles visibly without sending (wasm) (1470.068742ms)
+✔ identification adoption settles visibly without sending (wasm) (1659.203239ms)
+✔ identification incarnation settles visibly without sending (wasm) (1408.026876ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3P093M95FNDDMJXRK2NM801","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P093P944MVJEJJ4S1959VE","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1435.464593ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1662.55315ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1677.249328ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2218.630184ms)
+✔ identification timeout settles visibly without sending (Worker) (1613.98479ms)
+✔ identification adoption settles visibly without sending (Worker) (1698.180192ms)
+✔ identification incarnation settles visibly without sending (Worker) (1572.315511ms)
+✔ process device persists immediate writes before identity and resumes in order (397.403195ms)
+✔ online app takes custody before a held identity probe, including reload (1198.065401ms)
+✔ two native owners compare deferred custody without losing or replacing writes (586.118073ms)
+✔ expired identification deadline survives reopen (process) (307.733687ms)
+✔ expired identification deadline survives reopen (online) (167.874509ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=false (39.640047ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=true (17.660962ms)
+✔ a persisted terminal receipt never reposts on reopen (3.408729ms)
+✔ an unidentified write from the old store is refused before dispatch; a new attempt can use B (16.593372ms)
+✔ retrying the first fresh replacement id recovers its receipt without retiring or executing it twice (6.714805ms)
+✔ failed intent identity persistence refuses admission before any dispatch (3.693937ms)
+✖ close detaches a held first-store probe and preserves the pending intent for reopen (12.966947ms)
+✔ intent without an identity: first observed store; dispatched=undefined (12.73597ms)
+✔ intent without an identity: first observed store; dispatched=false (11.304735ms)
+✔ intent without an identity: same first store; dispatched=undefined (11.187529ms)
+✔ intent without an identity: same first store; dispatched=false (11.324835ms)
+✔ intent without an identity: replacement; dispatched=undefined (11.971775ms)
+✔ intent without an identity: replacement; dispatched=false (13.216751ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=undefined (11.156533ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=false (10.917083ms)
+✔ store precondition prevents execution when the endpoint changes after the probe (2.598114ms)
+✔ unpersisted receipt notifications survive the ordinary 256-receipt history window (389.757534ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 35
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25369.330392
+
+✖ failing tests:
+
+test at packages/snapback4/test/online-intent-store.test.mjs:137:1
+✖ close detaches a held first-store probe and preserves the pending intent for reopen (12.966947ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      id: '01M3P08RDWCAG9A4QWBA96B3Y6',
+  +   reason: 'waiting for backend identification',
+      state: 'pending'
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/online-intent-store.test.mjs:142:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'pending', id: '01M3P08RDWCAG9A4QWBA96B3Y6', reason: 'waiting for backend identification' },
+    expected: { state: 'pending', id: '01M3P08RDWCAG9A4QWBA96B3Y6' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

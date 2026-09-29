@@ -1,0 +1,29 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NZ0DRJYMZ6FZ5ZRTH40HKJ","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NZ0DTHX7RQGPQSCSFP948H","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1994.661311ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1546.314858ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1900.785198ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (2182.152291ms)
+✔ identification timeout settles visibly without sending (wasm) (1423.649262ms)
+✔ identification adoption settles visibly without sending (wasm) (1820.418737ms)
+✔ identification incarnation settles visibly without sending (wasm) (1897.084972ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NZ0T0QPKH79FEPNJ1QJZ34","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NZ0T2QYHGQRAC3RD08P8JT","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1620.905644ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1779.544723ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1672.230446ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2284.453664ms)
+✔ identification timeout settles visibly without sending (Worker) (1756.423414ms)
+✔ identification adoption settles visibly without sending (Worker) (2527.236796ms)
+✔ identification incarnation settles visibly without sending (Worker) (1495.84258ms)
+✔ process device persists immediate writes before identity and resumes in order (353.549948ms)
+✔ online app takes custody before a held identity probe, including reload (1204.247613ms)
+✔ two native owners compare deferred custody without losing or replacing writes (613.598439ms)
+✔ expired identification deadline survives reopen (process) (282.108734ms)
+✔ expired identification deadline survives reopen (online) (173.677245ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 28735.939524

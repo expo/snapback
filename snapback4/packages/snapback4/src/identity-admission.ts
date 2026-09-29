@@ -56,7 +56,7 @@ export class IdentityAdmissions {
     }
   }
   bound(id: string): string | undefined { return this.kept.find(r => r.entry.id === id)?.store; }
-  deadline(): number | undefined { return this.kept.filter(r => !r.admitted && !r.why).reduce<number | undefined>((n, r) => n === undefined ? r.identity.deadline : Math.min(n, r.identity.deadline), undefined); }
+  deadline(): number | undefined { return this.kept.filter(r => !r.admitted && !r.why && !r.store).reduce<number | undefined>((n, r) => n === undefined ? r.identity.deadline : Math.min(n, r.identity.deadline), undefined); }
   private *load(): JournalPlan<Deferred[]> {
     const text = check(yield { op: "meta", key: IDENTITY_ADMISSIONS });
     return text ? JSON.parse(text) : [];
@@ -119,7 +119,7 @@ export class IdentityAdmissions {
       // A native process may have committed admission before dying during
       // this metadata handoff. Recover that exact outbox entry, never re-mint.
       const existing = actual.find(e => e.id === record.entry.id);
-      const reply = existing ? { ok: existing } : yield { op: "admit", entry: record.entry };
+      const reply = existing ? { ok: existing } : yield { op: "admit", entry: record.entry, identity_backend: record.identity.backend, identity_store: record.store };
       if (reply.denied?.retryable || ["E_STORE", "E_PREDICT", "E_GENERATION"].includes(reply.denied?.code)) break;
       if (reply.denied) record.why = reply.denied;
       else { record.admitted = true; record.store = state.store_id; actual.push(reply.ok); }

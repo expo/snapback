@@ -28,8 +28,8 @@
     "sha256": "7b69513a6cbbd9fc7526d1205d3b02976cb52c3e9c95f6f03d7dc6329c93b4e1"
   },
   "app-online.ts": {
-    "count": 20,
-    "sha256": "fd619008d9be0bf3b2aea45bcc4fd8c33922e555d66d2a453d6d36166be333a6"
+    "count": 23,
+    "sha256": "88ae2ebd412f382e4bd370c5d5f3eea06f7ce174c64e587c30483f62e2401cea"
   },
   "app-revocations.ts": {
     "count": 28,
@@ -115,6 +115,10 @@
     "count": 6,
     "sha256": "9f3ec1e7c2b70598362b8d181ed156ba8074448dbad50cb5ec06e3fda78e3c68"
   },
+  "identity-admission.ts": {
+    "count": 1,
+    "sha256": "6b4907148e4fae6add6ca10e8baed24d65f1966c462614b4f50da14ee5c91a98"
+  },
   "identity-principal.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -192,8 +196,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local.ts": {
-    "count": 160,
-    "sha256": "c37bc7fcf24e535dd2b8399c1018341c894c1dde5a2b7f07a3e932a625d5fbba"
+    "count": 161,
+    "sha256": "f49cf1dcc2612226c32816dce6673253f2c9949953f75c69a29755590376ad5f"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -202,6 +206,10 @@
   "mock.ts": {
     "count": 6,
     "sha256": "42f76b806df91eadedb3f09b933d5c449850b22ac5f10b4dd5f88dd7a599180b"
+  },
+  "native-admission.ts": {
+    "count": 8,
+    "sha256": "e3ba28b4e17d9cbcef36b8d759a931392e0f00ffa4cbe8fe21df4f2346916356"
   },
   "native.ts": {
     "count": 12,
@@ -341,7 +349,7 @@
   },
   "web-journal.ts": {
     "count": 12,
-    "sha256": "08b580d8a7b91fc5e534da233e5361364d87c34b77890caca8b03249ba9a6a20"
+    "sha256": "61f3f96091fd6b7c85d03d9e8c0ee4d9a28e293e9fe4e48245071792fa0b6a2e"
   },
   "web-ownership.ts": {
     "count": 10,
@@ -361,15 +369,15 @@
   },
   "web-worker-device.ts": {
     "count": 35,
-    "sha256": "9d7e8b84dd4d16842f66820496b917defd41f3458fd8e75a473e2541b928894a"
+    "sha256": "b79c3b1542c5ee506a0949c4072f6891758db26026ce1e153f021fe140ad0be5"
   },
   "web-worker-host.ts": {
     "count": 28,
     "sha256": "a5b4eb0f1f905078360a7db6a46a07d74359e09af1ae7015cc5b8248eeb7979f"
   },
   "web-worker-orphans.ts": {
-    "count": 30,
-    "sha256": "87ecbad299856f85b2b1cb217c4378abdbf3fe40ef8043ca94d1f9a5b3ef3a2e"
+    "count": 32,
+    "sha256": "4fbff864f9b6448c8d78add7cdbb626c9eddb8d3d9a885668c6a9e292716debd"
   },
   "web-worker-runtime.ts": {
     "count": 7,

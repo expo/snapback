@@ -1091,8 +1091,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (entry.admission_refusal) {
         const write = { state: "failed" as const, id: entry.id, why: entry.admission_refusal };
         await settleReceipt(history, receiptCall, write);
-        completeWrite(write);
-        continue;
+        completeWrite(write); continue;
       }
       if (entry.admission_waiting || !sendingAllowed) { retryFlush(); return; }
       const success = successSequence(entry);
@@ -1212,7 +1211,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         watch => ephemeralReads.remove(watch), unavailable, false);
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
-      const id = options?.id === undefined ? mintId() : options.id;
+      const id = options?.id === undefined ? mintId() : options.id, onlineAtSubmission = link === "online";
       const unavailableWhy = unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null);
       if (unavailableWhy) {
         const failed = { state: "failed" as const, id, why: unavailableWhy };
@@ -1256,7 +1255,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (closed) { settled.delete(id); return pending; }
         void flush();
         const wait = mutationWaitSeconds(options?.waitSeconds) ?? 4;
-        if (link !== "online" || wait === 0) { settled.delete(id); return pending; }
+        if (!onlineAtSubmission || wait === 0) { settled.delete(id); return pending; }
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
           const outcome = await Promise.race([result, new Promise<Write>((resolve) => { timer = setTimeout(() => resolve(pending), wait * 1_000); })]) as Write<R>;

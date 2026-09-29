@@ -1,6 +1,7 @@
 import type { Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { StorageWarning } from "./app-storage.ts";
+import { identityRefusal } from "./identity-admission.ts";
 import { mintId } from "./client.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 
@@ -22,7 +23,7 @@ export function bindIntentStore(journal: Journal, intent: Intent, store: string 
     ? intent.storeId !== store
     : journal.changedStore || (journal.firstStore !== undefined && journal.firstStore !== store);
   if (mismatched) {
-    const refused: Terminal = { state: "failed", id: intent.id, why: { code: "E_STORE_REPLACED", family: "store",
+    const refused: Terminal = { state: "failed", id: intent.id, why: intent.admissionDeadline && !intent.dispatched ? identityRefusal(false) : { code: "E_STORE_REPLACED", family: "store",
       message: "the intent belongs to a different or unprovable store; whether it executed is unknown; do not retry automatically",
       site: "app.mutate", rewrite: "reconcile this write with its original store before submitting new intent", guide: "sync" } };
     journal.pending = journal.pending.filter(entry => entry.id !== intent.id);
@@ -87,6 +88,7 @@ function valid(value: unknown, owner: string, backend: string): value is Journal
   if (!value.pending.every(item => record(item) && item.owner === owner && id(item.id) && typeof item.op === "string" && item.op.length > 0 && Object.hasOwn(item, "args"))) return false;
   if (!value.pending.every(item => (item.storeId == null || (typeof item.storeId === "string" && item.storeId.length > 0))
     && (item.dispatched === undefined || typeof item.dispatched === "boolean"))) return false;
+  if (!value.pending.every(item => item.admissionDeadline === undefined || (Number.isSafeInteger(item.admissionDeadline) && (item.admissionDeadline as number) > 0))) return false;
   if (!value.pending.every(item => item.holdReason === undefined || typeof item.holdReason === "string")) return false;
   if (!value.pending.every(item => item.statusRevision === undefined || id(item.statusRevision))) return false;
   if (new Set(value.pending.map(item => item.id)).size !== value.pending.length) return false;

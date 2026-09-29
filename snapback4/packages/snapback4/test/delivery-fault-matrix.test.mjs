@@ -65,6 +65,12 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
         if (scenario === 'search' && prepared && request.op === 'query' && request.name === 'matrixQuery') return {ok:{data:[],complete:index !== 153,unknown:index === 153,tables:[],metered:request.spent ?? counts()}};
         if(index === 98 && prepared && request.op === 'keep_write' && JSON.parse(request.value).id === first.id && !stack.getStore()?.includes(target)) throw Error('another path cannot repair the receipt before the target read'); },
       afterCall(request, reply) {
+        // Exercise the real pre-transport settlement branch; the independent
+        // identity suite covers creation/recovery of the deferred custody row.
+        if (scenario === 'identity' && prepared && request.op === 'queued' && reply.ok) {
+          const entry = reply.ok.find(entry => entry.id === queueIds[1]);
+          if (entry) Object.assign(entry, { admission_waiting: true, admission_refusal: { code: 'E_ADMISSION_TIMEOUT', family: 'store', message: 'identification expired' } });
+        }
         if (!enabled) return;
         if (scenario === 'postcommit' && failures < budget) { failures++; throw error; }
         if (scenario === 'reset' && failures < budget && request.op === 'observe_store' && !reply.denied) reply.ok.reset = true;

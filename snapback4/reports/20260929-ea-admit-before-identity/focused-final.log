@@ -1,0 +1,27 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NYPFSZHWKEM35C196ZHHDA","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYPFVZ6JT2AVPM8KJT9ESQ","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1609.219237ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1629.113505ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1500.997144ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1641.713612ms)
+✔ identification timeout settles visibly without sending (wasm) (1456.216361ms)
+✔ identification adoption settles visibly without sending (wasm) (1669.536625ms)
+✔ identification incarnation settles visibly without sending (wasm) (1526.889028ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NYPTEJY9P12N013955H6A1","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYPTH3VW1G5XWHBA6BVV0S","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1803.342848ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1786.742913ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1616.653577ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2385.636972ms)
+✔ identification timeout settles visibly without sending (Worker) (1597.706049ms)
+✔ identification adoption settles visibly without sending (Worker) (1864.949085ms)
+✔ identification incarnation settles visibly without sending (Worker) (1724.027837ms)
+✔ process device persists immediate writes before identity and resumes in order (364.715273ms)
+✔ online app takes custody before a held identity probe, including reload (194.928305ms)
+✔ two native owners compare deferred custody without losing or replacing writes (435.468994ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24990.242272

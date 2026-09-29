@@ -1,0 +1,84 @@
+TAP version 13
+# {"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NY6XWREKYM17GW397W7NN4","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NY6XYSP6Y2HDP24ZTPVDC1","reason":"waiting for backend identification"}]}
+# Subtest: immediate mounted form before identity (wasm)
+ok 1 - immediate mounted form before identity (wasm)
+  ---
+  duration_ms: 1635.803794
+  type: 'test'
+  ...
+# Subtest: deferred burst, prediction, ids and reload (wasm)
+ok 2 - deferred burst, prediction, ids and reload (wasm)
+  ---
+  duration_ms: 1547.085198
+  type: 'test'
+  ...
+# Subtest: same-turn navigation before deferred custody commits (wasm)
+ok 3 - same-turn navigation before deferred custody commits (wasm)
+  ---
+  duration_ms: 1508.695702
+  type: 'test'
+  ...
+# Subtest: identification timeout settles visibly without sending (wasm)
+ok 4 - identification timeout settles visibly without sending (wasm)
+  ---
+  duration_ms: 1467.824418
+  type: 'test'
+  ...
+# Subtest: identification adoption settles visibly without sending (wasm)
+ok 5 - identification adoption settles visibly without sending (wasm)
+  ---
+  duration_ms: 1834.6807
+  type: 'test'
+  ...
+# {"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NY75EY729H3WJ7SFFZ0KGX","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NY75GY5KCWJGVE2M5K94EB","reason":"waiting for backend identification"}]}
+# Subtest: immediate mounted form before identity (Worker)
+ok 6 - immediate mounted form before identity (Worker)
+  ---
+  duration_ms: 1598.691133
+  type: 'test'
+  ...
+# Subtest: deferred burst, prediction, ids and reload (Worker)
+ok 7 - deferred burst, prediction, ids and reload (Worker)
+  ---
+  duration_ms: 2113.433407
+  type: 'test'
+  ...
+# Subtest: same-turn navigation before deferred custody commits (Worker)
+ok 8 - same-turn navigation before deferred custody commits (Worker)
+  ---
+  duration_ms: 1697.084529
+  type: 'test'
+  ...
+# Subtest: identification timeout settles visibly without sending (Worker)
+ok 9 - identification timeout settles visibly without sending (Worker)
+  ---
+  duration_ms: 1621.363844
+  type: 'test'
+  ...
+# Subtest: identification adoption settles visibly without sending (Worker)
+ok 10 - identification adoption settles visibly without sending (Worker)
+  ---
+  duration_ms: 1850.18045
+  type: 'test'
+  ...
+# Subtest: process device persists immediate writes before identity and resumes in order
+ok 11 - process device persists immediate writes before identity and resumes in order
+  ---
+  duration_ms: 339.855155
+  type: 'test'
+  ...
+# Subtest: online app takes custody before a held identity probe, including reload
+ok 12 - online app takes custody before a held identity probe, including reload
+  ---
+  duration_ms: 121.670632
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17512.937873

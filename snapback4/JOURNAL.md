@@ -76138,3 +76138,48 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+### 2026-09-29 — EA round 0: custody before backend store identification
+
+On `sb4-intent/ea-admit-before-identity`, merged `origin/main` at `b7d05baff`
+before final verification. Reproduced calibration d-01's immediate first and
+second `E_ADMISSION` refusal on one mounted form in wasm and Worker. The trace's
+trial table and controlled test both allow a later same-form save after identity;
+there is no demonstrated permanent post-identification latch. Rejected clicks
+had no custody or automatic recovery, leaving the app to retry.
+
+The SDK now takes bounded durable custody with original IDs/input/order before
+identity, exposes it in pending writes, then performs ordinary admission,
+eligible prediction and FIFO delivery. Process SQLite, page-wasm, Worker,
+reload/navigation/orphan recovery and online app custody share the rule.
+Identification expires after 30 wall-clock seconds retained across reload;
+unsent terminal refusals are actionable `E_ADMISSION_TIMEOUT` and
+`E_ADMISSION_STORE`. The native handoff uses compare transactions and an identity
+check at admission; it preserves ordinary commit callbacks, scheduling and the
+initial protocol compatibility diagnostic. Raw device admission keeps its ABI.
+LLP 3000.007 §20.4 records the decision; client/write/why cards and manual updated.
+The paved starter already has no acquisition gate on writes.
+
+Final affected identity/lifecycle/clock run: 96/96, including 20 identity tests.
+Delivery fault matrix: 319/319. Authority/retention: 64/64; retained-answer and
+transport checks: 43/43. Session model: 53/53, including 5,000 online and 5,000
+local sequences. Whole guide: 98/98; doctor/why CLI checks: 1/1 each. Typecheck,
+docs budget and delivery await classification pass. No cap or timeout increased.
+
+Ran `scripts/test.sh` once, exit 1, exact summary:
+`== 3 failure(s) in 1967 s` — cargo test, client tests, client models.
+All full-run failures are lane-owned: guide/diagnostic pins, changed custody
+expectations, wrapper scheduling/callback and online admission defects, plus the
+identity-pending model expectation. Corrected affected reruns are recorded in the
+report. The full-run delivery-matrix child stalled for over 15 minutes and was
+explicitly terminated so the script could finish; its final separate traversal
+passes 319/319. The full suite remains a red recorded snapshot, not a green claim.
+No full-run failure is labelled baseline or environmental; exploratory browser
+response timeouts and missing generated prerequisites are separately itemized.
+
+Canonical wasm: 2,040,529 B raw / 592,974 B gzip; 745 B below the unchanged
+593,719 B cap. Report and complete failure ledger:
+`reports/20260929-ea-admit-before-identity/REPORT.md` and `FAILURES.md`.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing pushed or published; calibration app left unchanged.

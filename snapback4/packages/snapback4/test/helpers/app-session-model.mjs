@@ -486,9 +486,15 @@ async function run(commands, coverage = {}, tier = "online", audit = {}) {
                 audit.mutateOutcome?.(result, ended);
                 const known = (closedDeliveries.get(h.runtime) ?? delivered).has(`${h.runtime}/${id}`);
                 if (result.state === "pending") {
-                  invariant("I12", ended && !known, `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
+                  // A first-store probe may return pending while this runtime
+                  // retains durable custody. A peer can dispatch that same ID
+                  // before this callback without delivering its body here.
+                  const awaitingIdentity = result.reason === "waiting for backend identification" && [...values.values()].some(text => {
+                    try { const journal = JSON.parse(text); return [...(journal.pending ?? []), ...(journal.receipts ?? [])].some(write => write.id === id); } catch { return false; }
+                  });
+                  invariant("I12", !known && (ended || awaitingIdentity), `known/live ${id} outcome replaced by pending (ended=${ended}, known=${known})`);
                   invariant("I12", result.id === id, `unknown ${id} lost its retry id`);
-                  count("write.unknownAtClose");
+                  count(ended ? "write.unknownAtClose" : "write.awaitingIdentity");
                 } else {
                   invariant("I12", known && isDeepStrictEqual(JSON.parse(JSON.stringify(result)), writeReceipts.get(id)), `known ${id} outcome replaced by ${JSON.stringify(result)}`);
                   count("write.knownAtDelivery");

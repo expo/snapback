@@ -158,10 +158,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
-        let refusal: Write | undefined;
+        let refusal: Write | undefined, admissionDeadline: number | undefined;
         try { refusal = await change(journal => {
           const previous = journal.pending.find(intent => intent.id === id);
           if (previous) {
+            admissionDeadline = previous.admissionDeadline;
             // MutationIds below checks normalized input without replacing its owner.
             const check = new MutationIds();
             check.remember(id, previous.op, previous.args);
@@ -170,8 +171,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const receipt = journal.receipts.find(write => write.id === id) ?? retiredReceipt(journal, id);
           if (receipt) return Promise.resolve(receipt);
           if (identity) observeJournalStore(journal, identity);
+          admissionDeadline = !identity ? Date.now() + IDENTITY_WAIT_MS : undefined;
           journal.pending.push({ owner: viewer, id, op: op.name, args: snapshot, storeId: identity ?? null, dispatched: false,
-            ...(!identity ? { admissionDeadline: Date.now() + IDENTITY_WAIT_MS } : {}) });
+            ...(admissionDeadline ? { admissionDeadline } : {}) });
           return undefined;
         }, true); } catch (error) {
           return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
@@ -179,9 +181,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
+        let waitForIdentity!: () => void;
+        const identityPending = new Promise<Write<R>>(resolve => { waitForIdentity = () => resolve({ state: "pending", id, reason: "waiting for backend identification" }); });
         const dispatch = async (release: () => void): Promise<Write<R>> => {
-          const intent = (await locked(key, read)).pending.find(entry => entry.id === id);
-          const deadline = intent?.admissionDeadline;
+          const deadline = admissionDeadline;
           while (deadline !== undefined && !dispatchIdentity(raw) && active && !storeRefusal) {
             const remaining = deadline - Date.now();
             if (remaining <= 0) {
@@ -192,6 +195,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
             let timer: ReturnType<typeof setTimeout> | undefined;
             try { await Promise.race([identifyDispatch(raw), new Promise<void>(resolve => { timer = setTimeout(resolve, remaining); })]); }
             finally { clearTimeout(timer); }
+            if (!dispatchIdentity(raw)) waitForIdentity();
             if (!dispatchIdentity(raw) && active && !storeRefusal && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, Math.min(250, deadline - Date.now())));
           }
           if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
@@ -214,12 +218,16 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // a server receipt. A caller's wait budget cannot reorder intents.
         admissions = new Promise<void>(resolve => { release = resolve; });
         const attempt = previous.then(() => dispatch(release)).finally(release);
-        if (mutationWaitSeconds(options?.waitSeconds) === 0) {
+        const wait = mutationWaitSeconds(options?.waitSeconds);
+        if (wait === 0) {
           // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — the committed journal owns recovery after this return.
           void attempt.catch(error => { try { report(error); } catch { /* Reporting must not reject a detached continuation. */ } });
           return { state: "pending", id };
         }
-        return attempt;
+        if (wait === undefined) return Promise.race([attempt, identityPending]);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try { return await Promise.race([attempt, identityPending, new Promise<Write<R>>(resolve => { timer = setTimeout(() => resolve({ state: "pending", id }), wait * 1000); })]); }
+        finally { clearTimeout(timer); }
       });
     }),
     async write(id) {
@@ -261,7 +269,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         const reason = unsavedHolds.get(intent.id)?.reason ?? intent.holdReason;
         return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
           ...(reason ? { state: "held" as const, reason }
-            : { state: intent.dispatched ? "sent" as const : "queued" as const }),
+            : { state: intent.dispatched ? "sent" as const : "queued" as const, ...(intent.admissionDeadline ? { reason: "waiting for backend identification" } : {}) }),
         };
       });
     },

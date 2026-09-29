@@ -247,7 +247,7 @@ for (const tier of ["wasm", "process"]) {
     let client = await f.open();
     const first = await observations(client, t);
     const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "queued before acquisition" });
-    const held = (await f.core().call({ op: "queued" })).ok;
+    const held = await client.pendingWrites();
     t.diagnostic(`before acquisition write: ${JSON.stringify(pending)}; durable queue: ${JSON.stringify(held)}`);
     await client.close(); f.mode("offline");
     client = await f.open();
@@ -255,8 +255,8 @@ for (const tier of ["wasm", "process"]) {
     assertUnknown(first); assertUnknown(reopened);
     assert.equal(pending.state, "pending");
     assert.equal(held.length, 1); assert.equal(held[0].id, pending.id);
-    assert.equal(held[0].predictable, false); assert.deepEqual(held[0].predicted, []);
-    assert.equal((await f.core().call({ op: "queued" })).ok[0].id, pending.id);
+    assert.equal(held[0].state, "queued"); assert.deepEqual(held[0].predicted, []);
+    assert.equal((await client.pendingWrites())[0].id, pending.id);
     const terminal = []; client.onWrite((write) => terminal.push(write));
     f.mode("online"); await client.sync();
     await until(() => terminal.some((write) => write.id === pending.id), "guarded write did not settle");
@@ -344,9 +344,9 @@ for (const tier of ["wasm", "process"]) {
     const changes = []; client.onAcquired(value => changes.push(value));
     const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "before acquisition" });
     assert.equal(pending.state, "pending");
-    assert.equal(pending.reason, "queued without a row: not acquired yet");
+    assert.equal(pending.reason, "waiting for backend identification");
     assert.equal(client.link(), "online", "pending does not imply a lost link");
-    assert.deepEqual((await f.core().call({ op: "queued" })).ok[0].predicted, []);
+    assert.deepEqual((await client.pendingWrites())[0].predicted, []);
     f.mode("online"); await client.sync();
     assert.equal(client.acquired, true);
     assert.deepEqual(changes, [true]);
@@ -458,7 +458,9 @@ function receiptLocks(t) {
 }
 
 test("W5R2a: two native owners recover 600 completions without stale pending memory", { timeout: 60000 }, async t => {
-  const f = await fixture(t, "process"), client = await f.open(), a = f.core();
+  const f = await fixture(t, "process"); f.mode("online");
+  // This test injects server receipts into the ordinary outbox, after identity.
+  const client = await f.open(), a = f.core();
   await f.open(); const b = f.core(); f.mode("offline");
   const history = new WriteHistory({
     read: async () => ok(await a.call({ op: "meta", key: "write-history" })),
@@ -510,14 +512,16 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
 });
 
 test("W5 confirmation N3: another owner's durable receipt still notifies this client once", { timeout: 60000 }, async t => {
-  const f = await fixture(t, "process"), client = await f.open(), a = f.core();
+  const f = await fixture(t, "process"); f.mode("online");
+  // This test injects server receipts into the ordinary outbox, after identity.
+  const client = await f.open(), a = f.core();
   await f.open(); const b = f.core(); f.mode("offline");
   const events = []; client.onWrite(write => events.push(write));
   const pending = await client.mutate({ kind: "mutation", name: "add" }, { body: "settled by the other owner" });
   assert.equal(pending.state, "pending");
-  await keepReceipt(b, sentReceipt(pending.id, 1));
-  ok(await b.call({ op: "settle", id: pending.id, seq: 1 }));
-  assert.equal(ok(await a.call({ op: "queued" }))[0].sent_seq, 1, "the shared entry stays queued until catch-up");
+  await keepReceipt(b, sentReceipt(pending.id, 1000));
+  ok(await b.call({ op: "settle", id: pending.id, seq: 1000 }));
+  assert.equal(ok(await a.call({ op: "queued" }))[0].sent_seq, 1000, "the shared entry stays queued until catch-up");
   f.mode("sent-queued");
   // Only /sync is refused, so catch-up leaves the shared entry queued while flushes run.
   await client.mutate({ kind: "mutation", name: "add" }, { body: "first flush" });

@@ -1,0 +1,16 @@
+(node:1217644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local pending writes emit once with the kept device identity (82.487757ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (62.251884ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (722.974373ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (232.202754ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (252.4811ms)
+✔ native: sync before a lost write reply does not apply an increment twice (252.241382ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1751.419267

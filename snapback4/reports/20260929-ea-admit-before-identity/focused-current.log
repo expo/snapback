@@ -1,0 +1,166 @@
+TAP version 13
+# {"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NY0KNPXRH7XRTPQQCP2BAK","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NY0KQ4B002PJKE7666GT9S","reason":"waiting for backend identification"}]}
+# Subtest: immediate mounted form before identity (wasm)
+ok 1 - immediate mounted form before identity (wasm)
+  ---
+  duration_ms: 1633.734091
+  type: 'test'
+  ...
+# Subtest: deferred burst, prediction, ids and reload (wasm)
+not ok 2 - deferred burst, prediction, ids and reload (wasm)
+  ---
+  duration_ms: 1419.269708
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:91:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+        at queued (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:8221:62)
+        at async createLocalClient (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:7115:23)
+        at async prepareClient (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:2544:12)
+        at async window.openFresh (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:25485:19)
+        at async <anonymous>:317:30
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    queued (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:8221:62)
+    async createLocalClient (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:7115:23)
+    async prepareClient (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:2544:12)
+    async window.openFresh (http://127.0.0.1:35473/assets/index-B7Xbo6bH.js:25485:19)
+    async <anonymous>:317:30
+    TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:103:18)
+  ...
+# Subtest: same-turn navigation before deferred custody commits (wasm)
+not ok 3 - same-turn navigation before deferred custody commits (wasm)
+  ---
+  duration_ms: 1451.648385
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:118:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+        at queued (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:8221:62)
+        at async createLocalClient (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:7115:23)
+        at async prepareClient (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:2544:12)
+        at async window.openFresh (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:25485:19)
+        at async <anonymous>:317:30
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    queued (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:8221:62)
+    async createLocalClient (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:7115:23)
+    async prepareClient (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:2544:12)
+    async window.openFresh (http://127.0.0.1:32883/assets/index-BmvfXhMH.js:25485:19)
+    async <anonymous>:317:30
+    TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:124:18)
+  ...
+# Subtest: identification timeout settles visibly without sending (wasm)
+ok 4 - identification timeout settles visibly without sending (wasm)
+  ---
+  duration_ms: 1322.045095
+  type: 'test'
+  ...
+# Subtest: identification adoption settles visibly without sending (wasm)
+ok 5 - identification adoption settles visibly without sending (wasm)
+  ---
+  duration_ms: 1739.825695
+  type: 'test'
+  ...
+# {"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NY0TSSS57R5SEQ372WEH1M","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NY0TW9C6XSWYGMSCRKWAKC","reason":"waiting for backend identification"}]}
+# Subtest: immediate mounted form before identity (Worker)
+ok 6 - immediate mounted form before identity (Worker)
+  ---
+  duration_ms: 1590.926506
+  type: 'test'
+  ...
+# Subtest: deferred burst, prediction, ids and reload (Worker)
+not ok 7 - deferred burst, prediction, ids and reload (Worker)
+  ---
+  duration_ms: 1502.304195
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:91:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+        at queued (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:8221:62)
+        at async createLocalClient (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:7115:23)
+        at async prepareClient (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:2544:12)
+        at async window.openFresh (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:25485:19)
+        at async <anonymous>:317:30
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    queued (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:8221:62)
+    async createLocalClient (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:7115:23)
+    async prepareClient (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:2544:12)
+    async window.openFresh (http://127.0.0.1:44663/assets/index-CVzsqN9_.js:25485:19)
+    async <anonymous>:317:30
+    TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:103:18)
+  ...
+# Subtest: same-turn navigation before deferred custody commits (Worker)
+not ok 8 - same-turn navigation before deferred custody commits (Worker)
+  ---
+  duration_ms: 1558.279337
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:118:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+        at queued (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:8221:62)
+        at async createLocalClient (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:7115:23)
+        at async prepareClient (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:2544:12)
+        at async window.openFresh (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:25485:19)
+        at async <anonymous>:317:30
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    queued (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:8221:62)
+    async createLocalClient (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:7115:23)
+    async prepareClient (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:2544:12)
+    async window.openFresh (http://127.0.0.1:36633/assets/index-ngqlSHiA.js:25485:19)
+    async <anonymous>:317:30
+    TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:124:18)
+  ...
+# Subtest: identification timeout settles visibly without sending (Worker)
+ok 9 - identification timeout settles visibly without sending (Worker)
+  ---
+  duration_ms: 1571.200682
+  type: 'test'
+  ...
+# Subtest: identification adoption settles visibly without sending (Worker)
+ok 10 - identification adoption settles visibly without sending (Worker)
+  ---
+  duration_ms: 1832.960589
+  type: 'test'
+  ...
+# Subtest: process device persists immediate writes before identity and resumes in order
+not ok 11 - process device persists immediate writes before identity and resumes in order
+  ---
+  duration_ms: 213.962763
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:154:16'
+  failureType: 'testCodeFailure'
+  error: "Cannot access 'waitingForIdentity' before initialization"
+  code: 'ERR_TEST_FAILURE'
+  name: 'ReferenceError'
+  stack: |-
+    queued (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local.js:1339:21)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async createLocalClient (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local.js:249:29)
+    async prepareClient (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/client-start.js:14:24)
+    async open (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:163:22)
+    async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:171:16)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: online app takes custody before a held identity probe, including reload
+ok 12 - online app takes custody before a held identity probe, including reload
+  ---
+  duration_ms: 116.985459
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 7
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 16134.013589

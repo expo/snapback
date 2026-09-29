@@ -1155,6 +1155,14 @@ impl<S: DeviceStore> Device<S> {
     // @ref LLP 3000.007#20.4 — native owners share SQLite; custody changes
     // compare under its writer transaction. Web hosts already hold an exclusive claim.
     #[cfg(not(target_arch = "wasm32"))]
+    pub fn require_admission_identity(&self, backend: &str, store: &str) -> Result<(), RuntimeError> {
+        if self.backend_identity != backend || self.store_identity.as_deref() != Some(store) {
+            return Err(RuntimeError::Structural { code: "E_ADMISSION_STORE", message: "The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.".into() });
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn compare_identity_admissions(&mut self, expected: Option<&str>, value: &str) -> Result<bool, RuntimeError> {
         let tx = self.store.transaction()?;
         let key = "client:identity-admissions";

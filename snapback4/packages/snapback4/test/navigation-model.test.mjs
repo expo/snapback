@@ -753,7 +753,7 @@ test("an unidentified Node device defers both transports until its first store b
   assert.equal((await f.cores.at(-1).call({ op: "sync_state", capture: false })).ok.store_id, null);
   let write;
   assert.doesNotThrow(() => { write = client.mutate(mark, { digit: 1 }); });
-  assert.equal(journalEntries(f).length, 0);
+  assert.equal(journalEntries(f).length, 1, "the unidentified click has synchronous custody");
   const pending = await write;
   assert.equal(pending.state, "pending");
   f.window.dispatchEvent(new Event("pagehide")); await tick();

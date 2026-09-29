@@ -1,0 +1,20 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+src/identity-admission.ts(20,63): error TS2375: Type '{ backend: string; store: string | undefined; deadline: number; }' is not assignable to type 'AdmissionIdentity' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'store' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/identity-admission.ts(57,5): error TS2375: Type '{ predictable: false; predicted: never[]; store_id: string | undefined; admission_waiting: boolean; admission_refusal: Refusal | undefined; id: string; seq: number; op: string; ... 8 more ...; now?: number; }' is not assignable to type 'Queued' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'store_id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/identity-admission.ts(116,18): error TS2379: Argument of type 'Queued' is not assignable to parameter of type '{ store_id: string | undefined; id: string; seq: number; op: string; args: unknown; new_ids: string[]; predicted: string[]; predictable?: boolean; replay_candidate?: boolean; sent_seq?: number | null; ... 6 more ...; admission_refusal?: Refusal; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Property 'store_id' is optional in type 'Queued' but required in type '{ store_id: string | undefined; id: string; seq: number; op: string; args: unknown; new_ids: string[]; predicted: string[]; predictable?: boolean; replay_candidate?: boolean; sent_seq?: number | null; observed_seq?: number | null; ... 5 more ...; admission_refusal?: Refusal; }'.
+src/identity-admission.ts(118,34): error TS2379: Argument of type '{ store_id: string | undefined; id: string; seq: number; op: string; args: unknown; new_ids: string[]; predicted: string[]; predictable?: boolean; replay_candidate?: boolean; sent_seq?: number | null; ... 6 more ...; admission_refusal?: Refusal; }' is not assignable to parameter of type 'Queued' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'store_id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/identity-admission.ts(118,45): error TS2379: Argument of type '{ store_id: string | undefined; id: string; seq: number; op: string; args: unknown; new_ids: string[]; predicted: string[]; predictable?: boolean; replay_candidate?: boolean; sent_seq?: number | null; ... 6 more ...; admission_refusal?: Refusal; }' is not assignable to parameter of type 'Queued' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'store_id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/web-worker-device.ts(150,102): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | null | undefined'.

@@ -232,12 +232,14 @@ for (const waitSeconds of [undefined, 0]) test(`CCP existing custody is not repl
   const id = mintId(), op = { kind: "mutation", name: "send" }, args = { body: "original" };
   const first = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
   assert.equal((await first.client.mutate(op, args, { id, waitSeconds: 0 })).state, "pending");
+  await delay(0); // This case specifically starts a dispatch before closing its owner.
   await first.client.close();
   const second = await onlineCustody(raw(), "https://reopen.invalid", store, () => {}, false);
   t.after(() => second.client.close()); fail = true;
   assert.equal((await second.client.mutate(op, args, { id, waitSeconds })).state, "pending");
   assert.equal((await second.client.write(id)).state, "pending");
   assert.equal((await second.client.mutate(op, { body: "conflicting" }, { id, waitSeconds })).why.code, "E_WRITE_ID_REUSE");
+  await delay(0); // Custody precedes the ordered dispatcher continuation.
   assert.equal(dispatches, 2, "recovery keeps the original intent");
 });
 

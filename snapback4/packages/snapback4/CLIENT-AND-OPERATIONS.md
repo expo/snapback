@@ -995,6 +995,10 @@ next send. Disable Send only with `inFlight`. `last` is the Write;
 that queues without a row reports `reason: "queued without a row: not acquired yet"`.
 Other missing local evidence reports `reason: "queued without a row: local data does not justify prediction"`.
 A predicted write has no such reason; predictions remain visible on rows.
+Writes require no acquisition gate. Before store identification they keep durable
+custody with `reason: "waiting for backend identification"`; a 30-second deadline
+survives reload. `E_ADMISSION_TIMEOUT` or `E_ADMISSION_STORE` means no send: repair
+the connection/current backend and review the draft before submitting a new id.
 
 ```tsx
 import { useAcquired, usePendingWrite } from "snapback4/react";
