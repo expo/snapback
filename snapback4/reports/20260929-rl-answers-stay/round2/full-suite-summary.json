@@ -1,0 +1,27 @@
+{
+  "summary": "== 1 failure(s) in 1363 s",
+  "exit": 1,
+  "client": {
+    "tests": 4732,
+    "passed": 4720,
+    "failed": 2,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "failedStages": [
+    "client tests"
+  ],
+  "attribution": {
+    "ours": 2,
+    "baseline": 0,
+    "environmental": 0
+  },
+  "failedTests": [
+    "local observations skip idle polls and rerun after a committed page",
+    "every delivery await is explicitly classified"
+  ]
+}

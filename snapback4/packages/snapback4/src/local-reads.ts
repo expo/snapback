@@ -31,6 +31,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  /** Reported change not yet published by this replica. */
+  changeCut?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -146,9 +148,24 @@ export class LocalReads {
 
   // @ref LLP 3000.023#10 — change evidence retires recovery memory and
   // pre-change evaluations without resetting the displayed answer.
-  changed(watch: LocalWatch): void {
+  changed(watch: LocalWatch, cut?: number): void {
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
     watch.resetVersion++;
+    if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
+  }
+
+  // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
+  // evidence. Only published sync progress or a whole server answer at the cut
+  // qualifies; a composed answer may still contain pre-change local rows.
+  applied(watches: Iterable<LocalWatch>, watermark: number): void {
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  }
+
+  current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
+    return watch.changeCut === undefined || !("data" in result.read)
+      || (result.serverOnly === true && result.seq !== undefined && result.seq >= watch.changeCut);
+    // Keep the replica floor even after a qualifying server replacement: an
+    // offline re-read must not reinstall its older local rows before sync.
   }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
@@ -165,6 +182,7 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear();
     for (const watch of watches) {
+      if (reset) delete watch.changeCut;
       if (reset) watch.reset({ loading: true }); else watch.reload(true);
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);

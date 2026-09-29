@@ -731,6 +731,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           observeIncarnation(publishedStore ?? undefined);
           storeIdentity = publishedStore ?? undefined;
           watermark = publishedState?.watermark ?? watermark;
+          if (publishedState) answers.applied(watches.values(), publishedState.watermark);
         }
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
@@ -762,7 +763,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const watch of watches.values()) if (watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void rerun(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
-          if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept) { void rerun(watch); continue; }
+          if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void rerun(watch); continue; }
           if (watch.incarnation !== incarnation || !("data" in watch.snapshot) || watch.snapshot.fresh) continue;
           const { since: _, ...read } = watch.snapshot;
           watch.publish({ ...read, fresh: true });
@@ -829,7 +830,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
         for (const watch of watches.values()) {
-          if (runsOnServer(backend!, watch.op, nativeReady) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) void rerun(watch, true);
+          if (!json.tables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void rerun(watch, true, json.seq);
         }
       }
       return changed;
@@ -858,7 +859,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     })();
   }
-  // ----- reads -----
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
@@ -970,7 +970,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (watch.snapshot !== shown || watch.running) return;
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || !answers.current(watch, result)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables;
@@ -985,10 +985,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {}
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
-  async function rerun(watch: Watch, changed = false) {
+  async function rerun(watch: Watch, changed = false, cut?: number) {
     if (closed) return;
-    if (changed) answers.changed(watch);
-    if (watch.retain) { watch.reload(changed); notify(watch); }
+    if (changed) answers.changed(watch, cut);
+    if (watch.retain || changed) { watch.reload(changed); notify(watch); }
     if (watch.running) {
       watch.dirty = true;
       return;
@@ -1004,6 +1004,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
       if (!retryExpired) watch.expiredRetries = 0;
+      if (!answers.current(watch, result)) return;
       const accepted = publishLocal(result, () => {
         if (closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }

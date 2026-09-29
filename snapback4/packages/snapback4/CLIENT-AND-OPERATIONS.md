@@ -1213,6 +1213,11 @@ answer, including when it is already revalidating. Failure withdraws immediately
 timeout withdraws to one stable `loading` snapshot, while a late accepted answer
 can still replace it. Further refetches, change bursts and facade holds cannot
 restart or erase the bound. Snapshots and peeks enforce it without timer delivery.
+For local watches, a reported durable cut remains pending until sync publishes
+it. An older replica read cannot settle that bound or reinstall withdrawn rows.
+A whole server answer at or after the cut can replace the display while sync
+waits; older replica answers remain ineligible until it catches up. Plain offline
+ephemeral recovery keeps the answer through its original row expiry.
 
 | `keep` | Plain revalidation | Change evidence | Last subscriber leaves |
 | --- | --- | --- | --- |

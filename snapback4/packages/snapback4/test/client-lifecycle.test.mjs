@@ -266,10 +266,11 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
 
 test("local observations skip idle polls and rerun after a committed page", { timeout: 5000 }, async (t) => {
   const changes = [], log = [];
-  let syncs = 0;
+  let syncs = 0, watermark = 0;
   const device = emptyDevice({ call: async (request) => {
-    if (request.op === "apply") { log.push("apply"); return { ok: { touched: request.page.watermark ? ["rows"] : [] } }; }
-    if (request.op === "query") { log.push("query"); return { ok: { data: [], complete: true, tables: ["rows"], unknown: false, nextExpiry: null } }; }
+    if (request.op === "sync_state") return { ok: { acquired: true, backend_required: false, store_id: null, watermark, generation: 1, restore_watermark: 0, restore_images_at: 0, receipt_outcomes: true, outbox_status: true, adoption_capture: {}, pending_ids: [], send_revision: 0 } };
+    if (request.op === "apply") { watermark = request.page.watermark; log.push("apply"); return { ok: { touched: watermark ? ["rows"] : [] } }; }
+    if (request.op === "query") { log.push("query"); return { ok: { data: [watermark], complete: true, tables: ["rows"], unknown: false, nextExpiry: null } }; }
   } });
   const backend = { generation: 1, schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } }, programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "rows" }] }] };
   const client = await createLocalClient({ url: "http://idle.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
@@ -282,16 +283,20 @@ test("local observations skip idle polls and rerun after a committed page", { ti
   t.after(() => client.close());
   log.length = 0;
   const observed = client.observe(query("read"), {});
-  const unsubscribe = observed.subscribe(() => {});
-  await until(() => log.filter((entry) => entry === "query").length === 1, "initial observation did not run");
+  const seen = [], unsubscribe = observed.subscribe(() => seen.push(observed.getSnapshot()));
+  await until(() => observed.getSnapshot().data?.[0] === 0, "initial observation did not run");
   await until(() => changes.length === 1, "follower did not start its first poll");
   changes[0].answer = Response.json({ seq: 0, tables: [], generation: 1 }); changes[0].resolve();
   await until(() => changes.length === 2, "idle poll did not continue");
   assert.deepEqual(log, ["query"], "an idle poll neither applies an empty sync page nor reruns the query");
+  seen.length = 0;
   changes[1].answer = Response.json({ seq: 1, tables: ["rows"], generation: 1 }); changes[1].resolve();
-  await until(() => log.length >= 3, "changed poll did not apply and rerun");
-  assert.deepEqual(log.slice(0, 2), ["query", "apply"], "the commit precedes its reruns");
-  assert.ok(log.slice(2).every(entry => entry === "query"), "committed invalidation and sync completion may both request a rerun");
+  await until(() => observed.getSnapshot().data?.[0] === 1, "changed poll did not apply and replace");
+  const applied = log.indexOf("apply");
+  assert.ok(applied > 0 && log.length > applied + 1, "notification and commit both rerun the query");
+  assert.ok(log.slice(applied + 1).every(entry => entry === "query"), "committed invalidation and sync completion may both request a rerun");
+  assert.ok(seen.every(read => "data" in read && (read.data[0] === 1 || read.revalidating)), "pre-sync reads keep the change pending without a loading render");
+  assert.equal(observed.getSnapshot().revalidating, undefined, "published sync qualifies the new answer");
   unsubscribe(); observed.close(); await client.close();
 });
 

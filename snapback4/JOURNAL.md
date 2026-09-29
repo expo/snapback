@@ -76122,3 +76122,52 @@ duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-s
 Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — Lane RL round 2: pending notifications survive old replica reads
+
+Fetched and merged origin/main first (125723c11), preserving both journal sides.
+Read rounds 0–1, Astra's full round 1 review, and Grok's completed NOT READY
+review after its initial progress-only file. Used llp-orient and the current
+client guide. No push or publication.
+
+Every affected local watch now bounds durable notification evidence, including
+locally runnable queries. It keeps the reported cut until published sync reaches
+it; an old replica cannot settle the episode or restore a withdrawn row. A whole
+server answer at/after the cut can replace earlier, while the older replica
+remains ineligible until sync. Existing commit, reset and memory fences remain.
+The eligibility check precedes delivery publication. Plain offline ephemeral
+recovery carries transport classification through the existing failed(true)
+path; held/prediction refusals, explicit loading/denial, expiry and incarnation
+reset remain withdrawals. keep:false withdraws at notification immediately.
+
+Grok's High matches the fixed notification gap. Its model observations led to
+independent checks against transient empty member answers and sign-out loading.
+Its suggested disjoint-commit/receipt relaxation is not adopted: the binding
+round 1 prompt bounds those events absent an existing non-revocation proof;
+this round introduces none. A slow unrelated profile replacement after a
+commit can still reach loading. The report records that policy difference,
+without claiming reviewer approval or elimination of that limitation.
+
+Focused final regressions 33/33; identical behavioral cases on round 1 dist:
+22 fail, ten pass. Expanded affected checks 409/409; final publication and
+delivery follow-up 77/77. Final strengthened schedule: 300 seeds per host,
+process and wasm, zero failures plus its negative reference test. Every seed
+adds notification followed by failed sync on an old replica and plain offline
+ephemeral recovery. Deleting answers.changed fails 2/3 sampled seeds per host;
+removing ephemeral classification fails 3/3. Whole guide 98/98. Wasm:
+2,040,529 B raw / 592,975 B gzip, 744 B below the 593,719 B cap.
+
+Ran scripts/test.sh exactly once: `== 1 failure(s) in 1363 s`, stage client
+tests. Client counts: 4,732 tests, 4,720 passed, two failed, ten skipped,
+zero cancelled. Both failures were ours: the obsolete commit-before-all-reruns
+assertion and the missed read-only ephemeral await classification. Corrected;
+whole lifecycle file 57/57 and classification 1/1 afterward. Every other stage
+passed, including 79/79 final models and another 300 seeds per host. The red
+full run is retained; no second full run or final-tree all-green claim. The
+60-second target remains missed; no ceiling or timeout changed. Setup mistakes,
+an interrupted wasm schedule caused by overlapping the full rebuild, before
+comparisons and deliberate mutation failures are all retained and attributed.
+
+Report: reports/20260929-rl-answers-stay/round2/REPORT.md. Updated LLP 3000.023
+§10, the guide, README and operations manual with the implementation. Local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

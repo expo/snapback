@@ -22,7 +22,7 @@ export class MixedModel {
   answer() { return this.cut % 2 ? `image-${this.cut}` : null; }
   observe(read, now) {
     if (this.signedOut) {
-      if ('data' in read) throw Error('answer visible after sign-out');
+      if (!['E_AUTH', 'E_CLOSED'].includes(read.denied?.code)) throw Error('sign-out must publish its denial');
       return;
     }
     if (!('data' in read)) {
@@ -34,7 +34,10 @@ export class MixedModel {
       if (read.fresh !== false) throw Error('offline answer still fresh');
       if (read.since !== this.offlineSince) throw Error(`offline since ${read.since}, expected ${this.offlineSince}`);
     }
-    if (read.data === null) return;
+    if (read.data === null) {
+      if (this.cut % 2 && !(read.revalidating && this.newest < this.cut && now < this.deadline)) throw Error('empty answer while fixture membership permits the row');
+      return;
+    }
     const image = Number(read.data.body.slice('image-'.length));
     if (!Number.isInteger(image) || image < this.newest || image > this.cut) throw Error(`older or unknown answer ${image}, newest ${this.newest}, fixture ${this.cut}`);
     if (this.cut % 2 === 0 && !(read.revalidating && !this.replacementFailed && now < this.deadline)) {
@@ -45,6 +48,7 @@ export class MixedModel {
   check(read) {
     if (!('data' in read)) return;
     if (this.signedOut || (this.cut % 2 === 0 && read.data !== null)) throw Error(`visibility after membership removal at ${this.cut}`);
+    if (this.cut % 2 && read.data === null) throw Error('empty direct answer while fixture membership permits the row');
     if (read.data !== null && read.data.body !== this.answer()) throw Error(`older answer: ${read.data.body}, expected ${this.answer()}`);
   }
 }

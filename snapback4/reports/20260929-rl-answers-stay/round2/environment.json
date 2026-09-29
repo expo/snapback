@@ -1,0 +1,11 @@
+{
+  "mergeCommit": "125723c11f3d38a34fee0a9a55f2d6fe8ecc390d",
+  "mergeParents": [
+    "5629f8080c1f72a778be16841828ab7c60775e85",
+    "29db707397106f89019dfcd4c1d6bdd9d4e2a6b6"
+  ],
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "host": "Linux 6.8.0-138-generic x86_64"
+}

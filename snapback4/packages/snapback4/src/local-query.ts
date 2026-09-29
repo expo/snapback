@@ -129,7 +129,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
-    if (ephemeral) return { result: loading, origin: "local" };
+    if (ephemeral) return { result: { ...loading, transportOffline: env.link === "offline" && !held && !await pending() }, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();

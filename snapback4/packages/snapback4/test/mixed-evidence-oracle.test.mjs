@@ -8,13 +8,30 @@ import { resolve } from 'node:path';
 const sdk = process.env.RL_ORACLE_SDK ? pathToFileURL(resolve(process.env.RL_ORACLE_SDK) + '/') : new URL('../dist/', import.meta.url);
 const { createLocalClient } = await import(new URL('local.js', sdk));
 const { answerObservation } = await import(new URL('read-observation.js', sdk));
-import { fixture, opener, q, parked, until } from './helpers/answers-stay.mjs';
+import { fixture, opener, q, parked, until, source } from './helpers/answers-stay.mjs';
 import { MixedModel, random } from './helpers/mixed-evidence-oracle.mjs';
+import { source as ephemeralSource } from './helpers/ephemeral-server.mjs';
+import { notificationSchedule } from './helpers/notification-evidence-schedule.mjs';
 const turn = () => new Promise(resolve => setImmediate(resolve));
 const seeds = Number(process.env.RL_SEEDS ?? 300);
+test('reference rejects transient empty member answers and sign-out loading', () => {
+  const model = new MixedModel(), empty = { data: null, complete: true, fresh: true, cut: null };
+  assert.throws(() => model.observe(empty, 1000), /empty answer/);
+  assert.throws(() => model.check(empty), /empty direct answer/);
+  model.apply(2, 1000); model.observe(empty, 1000);
+  model.apply(3, 1000); model.observe({ ...empty, revalidating: true }, 1000);
+  assert.throws(() => model.observe(empty, 1000), /empty answer/);
+  model.signOut();
+  assert.throws(() => model.observe({ loading: true }, 1000), /sign-out must publish/);
+  model.observe({ denied: { code: 'E_AUTH' } }, 1000);
+});
 for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: 240000 }, async t => {
-  const f = await fixture(t), headers = { 'x-snapback-persona': 'bob' };
+  const typingSource = ephemeralSource.slice(ephemeralSource.indexOf('table typing:'), ephemeralSource.indexOf('table durableTyping:'));
+  const f = await fixture(t, source + typingSource), headers = { 'x-snapback-persona': 'bob' };
   const backend = await fetch(f.url + '/schema', { headers }).then(r => r.json());
+  await f.post('/m/setTyping', { id: 'typing', args: { room: 'room' } });
+  const typing = await f.post('/q/typingIn', { args: { room: 'room' } }, 'bob');
+  assert.equal(typing.data.length, 1);
   const frames = [], replies = [], mixedReplies = [], empty = [], cutoff = Date.now() + 600000;
   let from = 0;
   for (let cut = 1; cut <= 5; cut++) {
@@ -29,7 +46,8 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
     replies[cut] = await f.post('/q/item', { args: {} }, 'bob');
     mixedReplies[cut] = await f.post('/q/mixed', { args: { cutoff, deny: false } }, 'bob');
   }
-  const results = [];
+  const results = [], closing = [];
+  t.after(() => Promise.all(closing));
   let wall = Date.now(); t.mock.method(Date, 'now', () => wall);
   for (let seed = 1; seed <= seeds; seed++) {
     const model = new MixedModel(), rand = random(seed), trace = [], failures = [], pending = [];
@@ -157,8 +175,14 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
       signoutGate.release.resolve(); await ending; capture('signout-settled');
     } catch (error) { failures.push(String(error)); }
     finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); await client?.close(); }
+    try {
+      await notificationSchedule({ createLocalClient, answerObservation, host, seed, f, backend, frames, empty, typing, rand,
+        clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
+    } catch (error) { failures.push(String(error)); }
+    if (closing.length >= 8) await Promise.all(closing.splice(0));
     results.push({ host, seed, failures: [...new Set(failures)], ...(failures.length && seed <= 2 ? { trace } : {}) });
   }
+  await Promise.all(closing.splice(0));
   if (process.env.RL_ORACLE_OUT) writeFileSync(`${process.env.RL_ORACLE_OUT}-${host}.json`, JSON.stringify(results, null, 2));
   const bad = results.filter(r => r.failures.length);
   console.log(JSON.stringify({ host, seeds: results.length, failedSeeds: bad.length, failures: [...new Set(bad.flatMap(r => r.failures))] }));
