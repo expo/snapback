@@ -125,8 +125,8 @@ test("social recipes in React/browser: real online signals and media, controlled
   });
 
   await t.test("loading, revalidating and offline membership allow custody and eventual server delivery", async () => {
-    for (const state of ["loading", "revalidating", "offline"]) {
-      await page.evaluate(state => window.setRead("receiptMember", state === "revalidating" ? window.ready(null, { revalidating: true }) : { loading: true }), state);
+    for (const state of ["loading", "revalidating", "offline", "incomplete"]) {
+      await page.evaluate(state => window.setRead("receiptMember", state === "revalidating" ? window.ready(null, { revalidating: true }) : state === "incomplete" ? window.ready(null, { complete: false }) : { loading: true }), state);
       await page.getByText("Membership is being checked. You can queue a message.").waitFor();
       assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
       await page.evaluate(() => window.drop());
@@ -561,6 +561,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   }, "online DM visible at peer").catch(async error => { throw Error(String(error) + await page.locator("body").innerText() + JSON.stringify(await page.evaluate(() => window.dmAttempts))); });
   assert.ok(online.data?.conversation, JSON.stringify(online));
   const canonical = online.data.conversation;
+  assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "successful opening without sends leaves no association");
   await page.waitForFunction(id => window.routeDM().id === id, canonical);
   const repeat = await peer.mutate(api.openDirect, { id: "peer-proposal", other: alice.principal });
   assert.equal(repeat.state, "sent"); assert.equal(repeat.result, canonical);
@@ -620,7 +621,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     assert.equal(await page.getByTestId("composer").inputValue(), original[0].args.text);
     await page.getByRole("button", { name: "Dismiss", exact: true }).click();
     assert.equal(await page.locator('[data-testid^="send-"]').count(), 0);
-    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, []);
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "final dismissal empties the journal store");
   });
 
   await t.test("a sent receipt without result recovers the route from its replicated key", async () => {
@@ -698,6 +699,51 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     assert.equal(await page.getByTestId("composer").inputValue(), queued.args.text);
     await failed.getByRole("button", { name: "Dismiss", exact: true }).click();
     assert.equal(await failed.count(), 0);
+  });
+  await t.test("failed and abandoned openings without sends leave no associations", async () => {
+    await page.evaluate(() => window.profileDM());
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {});
+    await page.evaluate(other => window.openDM(other), alice.principal);
+    await page.waitForFunction(async () => {
+      const attempt = window.dmAttempts.at(-1);
+      const receipt = attempt && await window.writeDM(attempt.options.id);
+      return receipt?.state === "failed" && receipt.why.code === "SELF_DM";
+    });
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "terminal failed opening has no journal reference");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.dropDM());
+    const abandonedPeer = await guest(url);
+    assert.equal(abandonedPeer.ok, true);
+    await page.evaluate(other => window.openDM(other), abandonedPeer.session.principal);
+    await page.getByTestId("composer").waitFor();
+    const abandoned = await page.evaluate(() => window.routeDM().opening);
+    assert.ok((await page.evaluate(() => window.pendingDM())).some(w => w.id === abandoned));
+    await page.evaluate(() => window.profileDM());
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "abandoned pending opening has no sends needing recovery");
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", abandoned);
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "unmounted successful opening leaves no association");
+  });
+
+  await t.test("a bare route recovers its sends with one lookup despite 100 unresolved peers", async () => {
+    const intents = Array.from({ length: 101 }, (_, n) => ({ id: `unknown-send-${n}`,
+      args: { conversation: `unresolved-${n}`, text: `recoverable ${n}`, photo: null } }));
+    const proposals = intents.map((intent, n) => ({ proposed: intent.args.conversation,
+      other: n === 100 ? bob.principal : `unknown-peer-${n}` }));
+    await page.evaluate(saved => window.seedSavedDM(saved), { intents, proposals });
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => { window.dmLookups = []; window.navigateDM({ id }); }, canonical);
+    const recovery = page.getByTestId("send-unknown-send-100");
+    await recovery.getByRole("button", { name: "Dismiss", exact: true }).waitFor();
+    assert.match(await recovery.innerText(), /recoverable 100/);
+    const lookups = await page.evaluate(() => window.dmLookups);
+    assert.deepEqual(lookups, [{ op: "directPeer", args: { conversation: canonical } }],
+      "the screen mounts one route lookup, never a lookup for each unresolved peer");
+    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, intents, "unrelated recoverable sends remain intact");
+    await recovery.getByRole("button", { name: "Dismiss", exact: true }).click();
+    const kept = await page.evaluate(() => window.savedDM());
+    assert.deepEqual(kept.intents, intents.slice(0, 100));
+    assert.deepEqual(kept.proposals, proposals.slice(0, 100), "dismissal retires only the final send's association");
   });
   await page.evaluate(() => window.finishDM());
   assert.deepEqual(errors, []);

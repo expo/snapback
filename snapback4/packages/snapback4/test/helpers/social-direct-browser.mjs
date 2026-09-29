@@ -16,6 +16,7 @@ const store = localStorageSessionStore();
 await keepSession(url, session, store);
 let offline = false, held = false;
 window.dmAttempts = [];
+window.dmLookups = [];
 const app = createApp({ url, sessionStore: store, device: webDevice({ wasm: fetch("/device.wasm") }),
   fetch(input, init) {
     if (offline) throw Error("offline");
@@ -48,6 +49,7 @@ app.client.write = async id => {
   return recovered;
 };
 window.savedDM = () => JSON.parse(localStorage.getItem('snapback4-social:' + JSON.stringify([url, session.principal])) ?? '{}');
+window.seedSavedDM = value => localStorage.setItem('snapback4-social:' + JSON.stringify([url, session.principal]), JSON.stringify(value));
 const waiting = new Set(), loading = { loading: true };
 window.membersDM = {};
 app.client.mutate = (op, args, options) => {
@@ -56,6 +58,7 @@ app.client.mutate = (op, args, options) => {
 };
 app.client.observe = (op, args, options) => {
   const watch = observe(op, args, options);
+  if (op.name === "directConversation" || op.name === "directPeer") window.dmLookups.push({ op: op.name, args });
   if (op.name === "receiptMember") return { ...watch, getSnapshot() {
     const answer = watch.getSnapshot(); window.membersDM[args.conversation] = answer; return answer;
   } };

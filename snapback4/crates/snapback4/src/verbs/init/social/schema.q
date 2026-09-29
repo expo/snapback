@@ -170,6 +170,10 @@ table directChats:
 query directConversation(other: principal):
   return directChats[owner = viewer, peer = other]
 
+-- One indexed lookup recovers sends on a bare canonical route, even after leave.
+query directPeer(conversation: id):
+  return first(directChats where .owner = viewer and .conversation = conversation first 1 by .id)
+
 mutation openDirect(id: id, other: principal):
   require other != viewer else SELF_DM
   pair = directChats[owner = viewer, peer = other]

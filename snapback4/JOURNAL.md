@@ -78215,3 +78215,50 @@ Report and raw evidence: reports/20260929-kr-keep-remount/REPORT.md. SR's ticket
 absent on this base; the report records its closure resolution for integration.
 One local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — SR round 2: retire unused associations and bound route recovery
+
+Read the prior SR prompts/reports and the full Astra round-1/Grok round-0 reviews.
+Merged origin/main a2e3876b60 first in afe6c62d92, retaining both append-only journal
+histories and the KR keep-remount/macOS fixes. Addressed the remaining P2 and both
+Grok test gaps; LLP 3000.028 §8 records the implementation and residual limitation.
+
+A provisional send atomically saves its peer association before SDK dispatch.
+Opening/navigation alone saves none, so successful, failed and abandoned openings
+without sends leave no journal entry. Every save retires associations with no
+remaining saved send; a conversation mount also prunes legacy orphans. Final
+success/dismissal removes the link and an empty journal removes its storage key.
+Pending, failed, restoring and unknown sends keep their links without age/count
+eviction. One private indexed directPeer lookup recovers the current canonical
+route; it never mounts a query for every unresolved peer. The compiler bounds
+that lookup to two examined rows on the device. Admitted arguments and replay
+ownership remain unchanged.
+
+The two HTTP opening requests are held in flight before either reaches a server
+transaction; both return one ID and the losing conversation is absent in raw
+SQLite. Leave/reopen retains the key without membership, inbox, new content or
+send access. Both replica hosts pass. Browser/storage tests cover final dismissal,
+failed/abandoned openings, 1,101 legacy orphans, still-recoverable sends, and one
+lookup despite 100 unrelated peers. Detecting controls reject orphan retention,
+fanout, missing associations, losing conversation rows and restored membership.
+The Send gate now defensively requires complete as well as fresh, non-revalidating
+null; its negative control fails. The key insert rule's dependence on openDirect
+creating both memberships stays documented; no membership/key rule is changed.
+
+Affected tests pass 32/32; whole guide 99/99; generated check reports 17 tables,
+30 operations, no problems and six notes. Installed web/Expo typecheck, production
+web export and iOS Hermes v98 export pass. Reference validation: 524 LLPs,
+9,931 refs, zero errors/unchecked. Native runtime smoke remains unqualified.
+Ran scripts/test.sh exactly once, exit 0: `== 0 failure(s) in 1269 s`.
+Rust passed 4,341 with 33 declared ignores; clients passed 5,197 with ten existing
+skips and zero cancellations; fixture wrappers passed 9/9; models passed 79/79.
+Every stage passed. Full-run failures: ours 0, baseline 0, environmental 0.
+Source/test/LLP hashes stayed fixed through the full run. The inherited 60-second
+process budget remains exceeded; no ceiling, count or timeout was relaxed.
+
+Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged 593,719 B cap.
+Report and every failure/control disposition:
+reports/20260929-sr-starter-routes/round2/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

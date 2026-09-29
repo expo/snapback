@@ -1,23 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text } from "react-native";
 import { router } from "expo-router";
 import { mintId } from "snapback4/client";
 import { useClient, usePendingWrites, useQuery, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 import { ReadState } from "./ui";
-import { IntentJournal } from "./intents";
-import { intentStorage } from "./intent-store";
 import { url } from "./client";
 
 // @ref LLP 3000.028#8 — resolve once into navigation; never cache protected answers.
 export default function Direct({ other }: { other: string }) {
   const viewer = useViewer();
-  return viewer ? <Resolve key={JSON.stringify([url, viewer, other])} other={other} viewer={viewer} /> : null;
+  return viewer ? <Resolve key={JSON.stringify([url, viewer, other])} other={other} /> : null;
 }
-function Resolve({ other, viewer }: { other: string; viewer: string }) {
+function Resolve({ other }: { other: string }) {
   const client = useClient(), read = useQuery(api.directConversation, { other });
-  const journal = useMemo(() => new IntentJournal(intentStorage, url, viewer,
-    () => client.viewer() === viewer && client.link() !== "signed-out"), [client, viewer]);
   const pending = usePendingWrites(api.openDirect);
   const creation = "data" in read && read.data?.pending ? pending.find(write =>
     write.args.other === other && write.args.id === read.data?.conversation) : undefined;
@@ -35,9 +31,6 @@ function Resolve({ other, viewer }: { other: string; viewer: string }) {
       return;
     }
     const id = mintId(), opening = mintId();
-    // Save before dispatch so leaving this route cannot lose the proposal.
-    try { journal.propose(id, other); }
-    catch (error) { setProblem(`Could not save conversation proposal: ${String(error)}`); return; }
     // A complete absent lookup permits this attempt. Only the SDK replays it.
     void client.mutate(api.openDirect, { id, other }, { id: opening, waitSeconds: 0 }).then(write => {
       if (!alive.current) return;
@@ -46,6 +39,6 @@ function Resolve({ other, viewer }: { other: string; viewer: string }) {
         id: write.state === "sent" && write.result ? write.result : id, opening, proposed: id, other,
       } });
     }).catch(error => { if (alive.current) setProblem(`Opening outcome unknown: ${String(error)}`); });
-  }, [client, other, read, creation, journal]);
+  }, [client, other, read, creation]);
   return <><ReadState read={read} /><Text>{problem || "Opening direct message…"}</Text></>;
 }

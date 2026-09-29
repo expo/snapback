@@ -12,11 +12,11 @@ import { useOnceMedia } from "./useOnceMedia";
 import { ReadState, PhotoPicker } from "./ui";
 
 // @ref LLP 3000.028#8 — route and composer ownership do not follow query status.
-export function ConversationScreen({ conversation, url, visible = true, ownerKey = conversation, proposed }: { conversation: string; url: string; visible?: boolean; ownerKey?: string; proposed?: string }) {
+export function ConversationScreen({ conversation, url, visible = true, ownerKey = conversation, proposed, other }: { conversation: string; url: string; visible?: boolean; ownerKey?: string; proposed?: string; other?: string }) {
   const viewer = useViewer();
-  return viewer ? <OwnedConversation key={JSON.stringify([url, viewer, ownerKey])} conversation={conversation} url={url} visible={visible} viewer={viewer} proposed={proposed} /> : null;
+  return viewer ? <OwnedConversation key={JSON.stringify([url, viewer, ownerKey])} conversation={conversation} url={url} visible={visible} viewer={viewer} proposed={proposed} other={other} /> : null;
 }
-function OwnedConversation({ conversation, url, visible, viewer, proposed }: { conversation: string; url: string; visible: boolean; viewer: string; proposed?: string }) {
+function OwnedConversation({ conversation, url, visible, viewer, proposed, other }: { conversation: string; url: string; visible: boolean; viewer: string; proposed?: string; other?: string }) {
   const client = useClient(), link = useLink();
   const online = useOnlineArm(url);
   const typing = useTyping(online, conversation);
@@ -43,6 +43,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
   }, [journal]);
   const restore = useCallback(() => {
     try {
+      journal.prune();
       const saved = journal.proposals(); setProposals(saved);
       const ids = new Set([conversation, proposed, ...saved.filter(p => p.canonical === conversation).map(p => p.proposed)]);
       setIntents(journal.read().filter(i => ids.has(i.args.conversation)));
@@ -56,14 +57,14 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
   }, [journal, restore]);
   const dismiss = useCallback((id: string) => {
     try {
-      journal.forget(id); setIntents(saved => saved.filter(i => i.id !== id));
+      journal.forget(id); restore();
       setOutcomes(saved => { const next = { ...saved }; delete next[id]; return next; });
     }
     catch (error) { setProblem(String(error)); }
-  }, [journal]);
+  }, [journal, restore]);
   const currentMember = "data" in member && !!member.data && !member.revalidating;
   // Custody is not authority: only a confirmed absence/refusal blocks a send.
-  const canSend = !("denied" in member || ("data" in member && !member.data && member.fresh && !member.revalidating));
+  const canSend = !("denied" in member || ("data" in member && !member.data && member.complete && member.fresh && !member.revalidating));
   const seen = useRef(0);
   useEffect(() => { seen.current = 0; setSelected(undefined); }, [conversation]);
   const reportSeen = useCallback((through: number) => {
@@ -79,7 +80,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
     if (!owner.active || owner.admitting || !canSend || (!draft.trim() && !photo)) return;
     const intent: Intent = { id: mintId(), args: { conversation, text: draft, photo: photo ? { id: photo } : null } };
     // UI references are saved before dispatch; only the SDK owns replay.
-    try { journal.remember(intent); }
+    try { journal.remember(intent, conversation === proposed ? other : undefined); setProposals(journal.proposals()); }
     catch (error) { setProblem(`Not sent; draft kept: ${String(error)}`); return; }
     owner.admitting = true; setSubmitting(intent.id); typing.stop(); setProblem("");
     setIntents(saved => [...saved, intent]); setDraft(""); setPhoto(undefined);
@@ -90,8 +91,7 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
     finally { if (owner.active) { owner.admitting = false; setSubmitting(undefined); } }
   }
   return <View style={{ flex: 1, padding: 16 }} testID="conversation-screen">
-    {[...new Set(proposals.filter(p => !p.canonical).map(p => p.other))].map(other =>
-      <ResolveProposal key={other} other={other} resolve={resolve} />)}
+    {proposals.some(p => !p.canonical) && <ResolveProposal conversation={conversation} resolve={resolve} />}
     <Text accessibilityRole="header">{"data" in room && room.data ? room.data.title : "Conversation"}</Text>
     <ReadState read={room} /><Text>{link}</Text>
     {/* Composer lives above every transient read and the recycled message list. */}
@@ -115,12 +115,12 @@ function OwnedConversation({ conversation, url, visible, viewer, proposed }: { c
   </View>;
 }
 
-// Reopening any route also recovers proposals that settled while unmounted.
+// One reverse lookup for this route, regardless of how many other peers have saved sends.
 // Keys are immutable identity references; they confer no membership authority.
-function ResolveProposal({ other, resolve }: { other: string; resolve(other: string, canonical: string): void }) {
-  const pair = useQuery(api.directConversation, { other });
-  const id = "data" in pair && !pair.revalidating && pair.data && !pair.data.pending ? pair.data.conversation : null;
-  useEffect(() => { if (id) resolve(other, id); }, [other, id, resolve]);
+function ResolveProposal({ conversation, resolve }: { conversation: string; resolve(other: string, canonical: string): void }) {
+  const pair = useQuery(api.directPeer, { conversation });
+  const other = "data" in pair && !pair.revalidating && pair.data && !pair.data.pending ? pair.data.peer : null;
+  useEffect(() => { if (other) resolve(other, conversation); }, [other, conversation, resolve]);
   return null;
 }
 

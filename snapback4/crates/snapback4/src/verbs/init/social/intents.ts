@@ -50,8 +50,14 @@ export class IntentJournal {
     const saved = JSON.parse(raw) as { intents?: Intent[] };
     return Array.isArray(saved.intents) ? saved.intents.filter(i => typeof i.id === "string" && i.args && typeof i.args.conversation === "string" && typeof i.args.text === "string" && (i.args.photo === null || typeof i.args.photo?.id === "string")) : [];
   }
-  remember(intent: Intent) { this.save([...this.read(), intent]); }
+  remember(intent: Intent, other?: string) {
+    const proposals = this.proposals();
+    if (other && !proposals.some(p => p.proposed === intent.args.conversation))
+      proposals.push({ proposed: intent.args.conversation, other });
+    this.save([...this.read(), intent], proposals);
+  }
   forget(id: string) { this.save(this.read().filter(i => i.id !== id)); }
+  prune() { this.save(this.read()); }
   // @ref LLP 3000.028#8 — durable route associations, never rewritten send arguments.
   proposals(): Proposal[] {
     if (!this.current()) return [];
@@ -59,15 +65,16 @@ export class IntentJournal {
     return Array.isArray(saved.proposals) ? saved.proposals.filter(p => typeof p.proposed === "string" &&
       typeof p.other === "string" && (p.canonical === undefined || typeof p.canonical === "string")) : [];
   }
-  propose(proposed: string, other: string) {
-    this.save(this.read(), [...this.proposals().filter(p => p.proposed !== proposed), { proposed, other }]);
-  }
   resolve(other: string, canonical: string) {
     this.save(this.read(), this.proposals().map(p => p.other === other ? { ...p, canonical } : p));
   }
   private save(intents: Intent[], proposals = this.proposals()) {
     if (!this.current()) throw Error("This account is no longer active.");
-    this.storage.setItem(this.key, JSON.stringify({ intents, proposals }));
+    // Only saved sends need recovery links. Opening/navigation is owned by the SDK/router.
+    const needed = new Set(intents.map(i => i.args.conversation));
+    proposals = proposals.filter(p => needed.has(p.proposed));
+    if (intents.length || proposals.length) this.storage.setItem(this.key, JSON.stringify({ intents, proposals }));
+    else this.storage.removeItem(this.key);
   }
 }
 

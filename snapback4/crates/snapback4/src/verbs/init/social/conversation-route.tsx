@@ -20,7 +20,7 @@ function PinnedConversation({ conversation, opening, other, proposed }: { conver
   useEffect(() => { const sub = AppState.addEventListener("change", state => setForeground(state === "active")); return () => sub.remove(); }, []);
   return <View style={{ flex: 1 }}>
     {opening && other && <Opening conversation={conversation} opening={opening} other={other} />}
-    <ConversationScreen conversation={conversation} ownerKey={opening} proposed={proposed} url={url} visible={focused && foreground} />
+    <ConversationScreen conversation={conversation} ownerKey={opening} proposed={proposed} other={other} url={url} visible={focused && foreground} />
     <TextInput accessibilityLabel="Account to invite" value={principal} onChangeText={setPrincipal} />
     <Button title="Invite account" disabled={!principal || add.inFlight} onPress={() => void add.run({ conversation, principal })} />
     <Button title="Leave chat" disabled={leave.inFlight} onPress={() => void leave.run({ conversation })} />
