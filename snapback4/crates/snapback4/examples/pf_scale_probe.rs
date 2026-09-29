@@ -1,5 +1,7 @@
 //! Read-only operation/SQLite work census on a COPY of a calibration store.
 //! Usage: pf_scale_probe store.sqlite viewer [now-ms]
+//! PF_PROBES_JSON optionally names [{op,viewer,args}]; PF_RUNS defaults to 3.
+//! PF_CACHE_KIB / PF_MMAP_BYTES are diagnostic overrides, never store defaults.
 //! @ref LLP 3000.024#3 — distinguish bounded heads from posting population.
 use rusqlite::{
     StatementStatus,
@@ -78,29 +80,81 @@ fn main() {
     let now = args
         .get(2)
         .map_or_else(snapback4_core::now_ms, |s| s.parse().unwrap());
-    let mut engine =
-        Engine::open_at(Store::open(std::path::Path::new(&args[0])).unwrap(), now).unwrap();
+    let mut engine = Engine::open_at(
+        Store::open_read_only(std::path::Path::new(&args[0]))
+            .unwrap()
+            .reader()
+            .unwrap(),
+        now,
+    )
+    .unwrap();
+    for (var, pragma, sign) in [
+        ("PF_CACHE_KIB", "cache_size", -1),
+        ("PF_MMAP_BYTES", "mmap_size", 1),
+    ] {
+        if let Ok(value) = std::env::var(var) {
+            engine
+                .store()
+                .conn()
+                .pragma_update(None, pragma, value.parse::<i64>().unwrap() * sign)
+                .unwrap();
+        }
+    }
+    let settings: BTreeMap<String, i64> = [
+        "cache_size",
+        "mmap_size",
+        "synchronous",
+        "wal_autocheckpoint",
+        "journal_size_limit",
+    ]
+    .into_iter()
+    .map(|name| {
+        (
+            name.into(),
+            engine
+                .store()
+                .conn()
+                .query_row(&format!("PRAGMA {name}"), [], |r| r.get(0))
+                .unwrap(),
+        )
+    })
+    .collect();
     engine.store().conn().trace_v2(
         TraceEventCodes::SQLITE_TRACE_PROFILE | TraceEventCodes::SQLITE_TRACE_STMT,
         Some(trace),
     );
-    for (name, params) in [
-        (
-            "chat.searchMessages",
-            BTreeMap::from([
-                ("q".into(), Value::String("coffee".into())),
-                ("conversation".into(), Value::Null),
-                ("c".into(), Value::Null),
-            ]),
-        ),
-        ("insights.summary", BTreeMap::new()),
-    ] {
-        for run in 0..3 {
+    let probes: Vec<Json> = match std::env::var("PF_PROBES_JSON") {
+        Ok(path) => serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap(),
+        Err(_) => vec![
+            json!({"op":"chat.searchMessages","viewer":args[1],"args":{"q":"coffee","conversation":null,"c":null}}),
+            json!({"op":"insights.summary","viewer":args[1],"args":{}}),
+        ],
+    };
+    for probe in probes {
+        let name = probe["op"].as_str().unwrap();
+        let viewer = probe["viewer"].as_str().unwrap();
+        let params: BTreeMap<String, Value> = probe["args"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(key, value)| {
+                (
+                    key.clone(),
+                    snapback4_core::wire::from_json(
+                        &engine.program(name).unwrap().args[key],
+                        value,
+                    )
+                    .unwrap(),
+                )
+            })
+            .collect();
+        let runs = std::env::var("PF_RUNS").map_or(3, |v| v.parse().unwrap());
+        for run in 0..runs {
             SQL.with(|s| s.borrow_mut().clear());
             cache(&engine);
             let started = Instant::now();
             let result = engine
-                .query(name, Context::new(&args[1], params.clone()).at(now))
+                .query(name, Context::new(viewer, params.clone()).at(now))
                 .unwrap();
             let elapsed = started.elapsed().as_secs_f64() * 1000.0;
             let cache = cache(&engine);
@@ -127,7 +181,7 @@ fn main() {
                 .collect();
             println!(
                 "{}",
-                json!({"op":name,"run":run,"ms":elapsed,"cache":cache,"meter":result.metered,"complete":result.complete,"rows":result.data.as_array().ok().map(|r|r.len()),"sql":sql,"plans":plans})
+                json!({"settings":settings,"op":name,"run":run,"ms":elapsed,"cache":cache,"meter":result.metered,"complete":result.complete,"rows":result.data.as_array().ok().map(|r|r.len()),"sql":sql,"plans":plans})
             );
         }
     }
