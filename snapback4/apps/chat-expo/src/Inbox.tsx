@@ -1,4 +1,4 @@
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useRef } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { isReady } from "snapback4/contract";
@@ -10,12 +10,12 @@ export function Inbox({ onSelect }: { onSelect(id: string): void }) {
   const answered = useRef(false);
   if (isReady(inbox)) answered.current = true;
   return <View style={{ flex: 1 }}>
-    {presence(inbox) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
+    {existence(inbox) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
     {"denied" in inbox ? <Text style={styles.note}>{inbox.denied.message}</Text> : null}
-    {presence(inbox) === "partial" ? <Text style={styles.note}>Conversations may be incomplete.</Text> : null}
+    {existence(inbox) === "partial" ? <Text style={styles.note}>Conversations may be incomplete.</Text> : null}
     <FlatList data={isReady(inbox) ? inbox.data : []}
       keyExtractor={row => row.conversationId}
-      ListEmptyComponent={presence(inbox) === "absent" ? <Text style={styles.note}>No conversations yet.</Text> : null}
+      ListEmptyComponent={existence(inbox) === "absent" ? <Text style={styles.note}>No conversations yet.</Text> : null}
       renderItem={({ item }) => <Pressable style={styles.row} onPress={() => onSelect(item.conversationId)}>
         <Text style={styles.name}>{item.conversation?.title ?? item.conversationId}</Text>
         <Text style={styles.count}>{item.count ?? "–"}</Text>

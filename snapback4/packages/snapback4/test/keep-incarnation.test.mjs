@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";

@@ -1,4 +1,4 @@
-import { pendingRead, readyRead } from "./read-presence.ts";
+import { pendingRead, readyRead } from "./read-existence.ts";
 import type { Client, Query, Read, Observed, ObserveOptions, Cursor } from "./contract.ts";
 import { isReady } from "./contract.ts";
 import { peekObservation } from "./observe-watch.ts";

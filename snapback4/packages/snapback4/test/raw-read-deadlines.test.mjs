@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#3.4 — row deadlines stay exact, including without timer delivery.
 import test from "node:test";
 import assert from "node:assert/strict";

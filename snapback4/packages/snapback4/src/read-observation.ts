@@ -1,4 +1,4 @@
-import { pendingRead, readyRead, readyPresence } from "./read-presence.ts";
+import { pendingRead, readyRead, readyExistence } from "./read-existence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
@@ -19,11 +19,11 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
 }
 
 /** Reclassify a copy without renewing its answer identity or retention episode. */
-export function answerPresence<T>(read: Read<T>, pending: boolean): Read<T> {
+export function answerExistence<T>(read: Read<T>, pending: boolean): Read<T> {
   if (!("data" in read)) return read;
-  const next = readyPresence(read, pending);
+  const next = readyExistence(read, pending);
   // Empty page chains notify pending changes even while a cursor keeps them partial.
-  return read.presence !== next || next !== "present" && pendingRead(read) !== pending
+  return read.existence !== next || next !== "present" && pendingRead(read) !== pending
     ? copyAnswer<T>(read, readyRead<T>(read, pending)) : read;
 }
 
@@ -37,9 +37,9 @@ export function offlineAnswer<T>(read: Read<T>, confirmedAt?: number): Read<T> {
 export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: boolean): Read<T> {
   if (!("data" in read)) return read;
   const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
-  const next = readyPresence(read, blocked);
+  const next = readyExistence(read, blocked);
   if (read.revalidating && (!bounded || episodeDeadline(read) !== undefined)
-    && read.presence === next && (next === "present" || pendingRead(read) === blocked)) return read;
+    && read.existence === next && (next === "present" || pendingRead(read) === blocked)) return read;
   const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
   beginEpisode(read, copy, bounded);
   return copy;
@@ -56,10 +56,10 @@ export class ReadObservation<T> {
   }
   /** Local observations supply the current queue predicate, including admissions. */
   pending: (() => boolean) | undefined;
-  updatePresence(): boolean {
+  updateExistence(): boolean {
     const read = this.snapshot;
     if (!("data" in read) || !this.pending) return false;
-    const next = answerPresence<T>(read, this.pending());
+    const next = answerExistence<T>(read, this.pending());
     if (read === next) return false;
     this.snapshot = next;
     this.deliver("answer")();
@@ -95,7 +95,7 @@ export class ReadObservation<T> {
     if (denied) return this.snapshot;
     checkReadExpiry(this);
     this.episode.check();
-    this.updatePresence();
+    this.updateExistence();
     return this.snapshot;
   }
 
@@ -178,7 +178,7 @@ export class ReadObservation<T> {
     this.revision++;
     this.episode.clear();
     // Every replacement classifies its own value and facts, never the previous answer.
-    // @ref LLP 3000.031#1.1 — presence is recomputed on each published answer.
+    // @ref LLP 3000.031#1.1 — existence is recomputed on each published answer.
     this.snapshot = "data" in read ? readyRead<T>({ ...read,
       ...(read.since !== undefined ? { since: Math.min(read.since, Date.now()) } : {}),
     }, this.pending?.() ?? pendingRead(read)) : { ...read };

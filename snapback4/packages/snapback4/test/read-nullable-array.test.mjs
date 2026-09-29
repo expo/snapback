@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { server } from './helpers/app-server.mjs';
 import { createClient } from '../dist/client.js';
-import { presence } from '../dist/contract.js';
+import { existence } from '../dist/contract.js';
 
 const source = `use personas alice
 table rows:
@@ -25,12 +25,12 @@ test('generated nullable array: absent admits both [] and null, present keeps th
   const query = { kind: 'query', name: 'maybe', runs: 'server' };
   for (const flag of [true, false]) {
     const read = await client.query(query, { flag });
-    assert.equal(presence(read), 'absent');
+    assert.equal(existence(read), 'absent');
     assert.deepEqual(read.data, flag ? [] : null);
     assert.equal(read.complete, true); assert.equal(read.cut, null);
   }
   const seeded = await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'rows', row: { id: 'one', label: 'row' } }]) });
   assert.equal((await seeded.json()).seeded, 1);
   const read = await client.query(query, { flag: true });
-  assert.equal(presence(read), 'present'); assert.equal(read.data[0].id, 'one');
+  assert.equal(existence(read), 'present'); assert.equal(read.data[0].id, 'one');
 });

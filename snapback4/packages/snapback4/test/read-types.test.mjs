@@ -38,7 +38,7 @@ function unknown<T>(read: Read<T>): Read<unknown> { return read; }
 function ready<T>(read: Read<T>) { if (isReady(read)) { const value: T = read.data; } }
 function point(read: Read<Row | null>) {
   if (!isReady(read)) return;
-  switch (read.presence) {
+  switch (read.existence) {
     case 'present': { const row: Row = read.data; break; }
     case 'absent': { const empty: null | (Row & []) = read.data; const complete: true = read.complete; const cut: null = read.cut; break; }
     case 'partial': { const value: Row | null = read.data; break; }
@@ -46,7 +46,7 @@ function point(read: Read<Row | null>) {
 }
 function arrays<T extends readonly Row[]>(read: Read<T>) {
   if (!isReady(read)) return;
-  switch (read.presence) {
+  switch (read.existence) {
     case 'present': { const rows: T = read.data; break; }
     case 'absent': { const rows: T = read.data; break; }
     case 'partial': { const rows: T = read.data; break; }
@@ -54,7 +54,7 @@ function arrays<T extends readonly Row[]>(read: Read<T>) {
 }
 function maybeArray(read: Read<Row[] | null>) {
   if (!isReady(read)) return;
-  switch (read.presence) {
+  switch (read.existence) {
     case 'present': { const rows: Row[] = read.data; break; }
     case 'absent': { const empty: null | [] = read.data; break; }
     case 'partial': { const value: Row[] | null = read.data; break; }
@@ -63,7 +63,7 @@ function maybeArray(read: Read<Row[] | null>) {
 function scalar(read: Read<boolean | number | string | undefined>) {
   if (!isReady(read)) return;
   const value: boolean | number | string | undefined = read.data;
-  if (read.presence === 'absent') { const empty: null | [] = read.data; }
+  if (read.existence === 'absent') { const empty: null | [] = read.data; }
 }
 `);
   assert.deepEqual(result.codes, [], result.text);

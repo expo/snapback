@@ -56,7 +56,7 @@ production offline-reopen journey; fixture residency remains
 
 ## 4. The client
 
-**Constructor compatibility:** ready `Read<T>` values now require `presence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.
+**Constructor compatibility:** ready `Read<T>` values now require `existence`. Readers keep `isReady`/`isLoading`/`isDenied`; custom clients and mocks must classify their published value as `present`, `absent` or `partial`. No wire field was added. See `guide client` for the rules and point-read narrowing.
 
 `createApp` is the ordinary entry point. Construct it once outside React render.
 Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
@@ -789,7 +789,7 @@ Every word a screen reads is on the card (`snapback4/contract`):
 ```ts
 import type { Cursor, ReadMeter, Ready } from "snapback4/contract";
 type Read<T> =
-  | Ready<T> // required presence: present | absent | partial, narrowed by result type
+  | Ready<T> // required existence: present | absent | partial, narrowed by result type
   | { loading: true }
   | { denied: Refusal };
 type Write<R> =
@@ -1141,7 +1141,7 @@ Start with `snapback4 guide client` for composers, stable routes, receipts and o
 
 ```tsx
 import { SnapbackProvider, useClient, useQuery, usePage, useMutation, useAction, useLink, useViewer, useSession, useAsset } from "snapback4/react";
-import { presence, type Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 import { Image, Text, View } from "react-native";
 function Thread({ conversationId }: { conversationId: string }) {
@@ -1324,16 +1324,16 @@ Render loading, continuation, refusal and incomplete answers explicitly:
 ```tsx
 import { Button, Text, View } from "react-native";
 import { usePage } from "snapback4/react";
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 
 export function InboxList() {
   const { items, hasMore, loadMore, read } = usePage(api.inbox, {});
   return <View>
-    {presence(read) === "loading" && <Text>Loading…</Text>}
+    {existence(read) === "loading" && <Text>Loading…</Text>}
     {"denied" in read && <Text>{read.denied.message}</Text>}
     {items.map(item => <Text key={item.conversationId}>{item.conversationId}</Text>)}
-    {presence(read) === "partial" && <Text>Partial results</Text>}
+    {existence(read) === "partial" && <Text>Partial results</Text>}
     {"data" in read && !read.fresh && <Text>As of {read.since === undefined ? "the last available answer" : new Date(read.since).toISOString()}</Text>}
     {hasMore && <Button title="Load more" onPress={loadMore} />}
   </View>;
@@ -1368,7 +1368,7 @@ removal before returning a session refusal. If storage refuses that cleanup,
 `close()` waits for the cleanup attempt to finish.
 
 ```ts
-import { presence, type Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 async function sendPhoto(client: Client, conversationId: string, file: Blob) {
   const uploaded = await client.upload(file); // also accepts ArrayBuffer | Uint8Array
@@ -1557,13 +1557,13 @@ Reuse the signed-in client on the profile screen:
 ```ts
 import { createClient } from "snapback4/client";
 import { guest, signup } from "snapback4/auth";
-import { presence, type Client } from "snapback4/contract";
+import { existence, type Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 
 async function profileScreen(client: Client) {
   const profile = await client.query(api.myProfile, {});
-  const state = presence(profile);
+  const state = existence(profile);
   if (state === "loading" || state === "partial") return "loading";
   if (state === "denied") return "error";
   return state === "absent" ? "profile" : "app";

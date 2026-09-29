@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.016#2.2 — every publication uses possible reads, not just the reads a speculative branch took.
 import test from "node:test";
 import assert from "node:assert/strict";

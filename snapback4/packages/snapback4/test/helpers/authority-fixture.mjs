@@ -1,4 +1,4 @@
-import { readyRead } from "../../dist/read-presence.js";
+import { readyRead } from "../../dist/read-existence.js";
 import { guardClient } from "../../dist/app-client.js";
 import { ReadObservation } from "../../dist/read-observation.js";
 import { armReadExpiry, correctReadExpiries } from "../../dist/read-expiry.js";

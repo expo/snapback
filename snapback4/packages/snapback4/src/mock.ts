@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { readyRead } from "./read-existence.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { mockSignals } from "./mock-ephemeral.ts";
 // MOCK — labelled as LLP 2000 §4 requires. No server, no store, no

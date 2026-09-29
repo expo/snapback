@@ -1,4 +1,4 @@
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useEffect, useMemo, useState } from "react";
 import { AppProvider, useAuth, useClient, useAcquired, useLink, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
@@ -57,13 +57,13 @@ function Home({ view }: { view: ViewState }) {
 
 function Room({ conversationId, view }: { conversationId: string; view: ViewState }) {
   const room = useQuery(api.room, { conversationId });
-  const member = presence(useQuery(api.myMembership, { conversationId }));
+  const member = existence(useQuery(api.myMembership, { conversationId }));
   // These memberships have no horizon and share the messages' group/audience.
   // First acquisition is loading, never denial; the route keeps owning its draft.
   return <>
-    <h2>{"data" in room && room.presence === "present" ? room.data.conversation?.title ?? "Conversation" : "Conversation"}</h2>
-    {presence(room) === "loading" && <p role="status">Checking this room…</p>}
-    {presence(room) === "partial" && <p role="status">Some room information is not available on this device.</p>}
+    <h2>{"data" in room && room.existence === "present" ? room.data.conversation?.title ?? "Conversation" : "Conversation"}</h2>
+    {existence(room) === "loading" && <p role="status">Checking this room…</p>}
+    {existence(room) === "partial" && <p role="status">Some room information is not available on this device.</p>}
     {"denied" in room && <p role="alert">{room.denied.message}</p>}
     <Thread conversationId={conversationId} />
     <Composer conversationId={conversationId} view={view} canCompose={member !== "absent" && member !== "denied"} />

@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // LLP 3000.018 §3.2: remembered server answers are ordered by the store cut a
 // reply read, then by when its read attempt began; a refetch within an attempt
 // is a new read, and a cut once named stays known.

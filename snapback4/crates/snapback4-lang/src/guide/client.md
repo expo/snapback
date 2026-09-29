@@ -1,17 +1,17 @@
 # Client: answers stay on screen
 
-Render current reads: same-key observations keep their answer during revalidation.
+Same-key observations retain answers during revalidation.
 Submit once at custody, then let the user continue.
 
 ```tsx
 import { useState } from "react";
 import { useMutation, useQuery } from "snapback4/react";
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 export function Composer({ conversationId }: { conversationId: string }) {
   const [draft, setDraft] = useState("");
   const send = useMutation(api.send);
-  const member = presence(useQuery(api.myMembership, { conversationId }));
+  const member = existence(useQuery(api.myMembership, { conversationId }));
   const blocked = member === "absent" || member === "denied";
   const [submitted, setSubmitted] = useState("");
   async function submit() {
@@ -26,14 +26,14 @@ export function Composer({ conversationId }: { conversationId: string }) {
 }
 ```
 
-This recipe requires membership with no horizon, synced within the conversation's own group with the messages' audience, after that group's first acquisition. Membership is then `present` or `absent` offline; `loading` means acquisition, not denial. Disable send on `absent`/`denied`, never `loading`/`partial`. Do not add `with own keys` to admin-written memberships.
+This recipe requires membership with no horizon, synced within the conversation's own group with the messages' audience, after that group's first acquisition. Membership is then `present` or `absent` offline unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal, not denial. Disable send on `absent`/`denied`, never `loading`/`partial`. Do not add `with own keys` to admin-written memberships.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers that call, not settlement. Clear at submit; restore refused text into an empty draft, otherwise offer Edit/Dismiss. Predicted rows carry `pending: true` (“Sending…”).
 For recovery, save `{ id: mintId(), args }` in account/backend-scoped storage before submission. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; only afterward is an undefined receipt unknown. Never automatically resend it. Offer failed text to edit; Dismiss after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
-Use `presence(read)` for status; after `isReady(read)`, branch on `read.presence` to narrow point data.
+Use `existence(read)` for status; after `isReady(read)`, branch on `read.existence` to narrow point data.
 
 | Meaning | UI decision |
 | --- | --- |
@@ -43,13 +43,13 @@ Use `presence(read)` for status; after `isReady(read)`, branch on `read.presence
 | `absent` | Proven empty answer: resolve the missing route/row. |
 | `partial` | Empty, uncertain answer: show “Partial results”; never infer absence or denial. |
 
-Only top-level `null` or `[]` is empty: `false`, `0`, and nested nulls are present. Empty means `absent` only when `complete`, `cut === null`, no `next`, and no intersecting pending prediction. An unknown prediction footprint blocks every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden and missing rows are indistinguishable.
+Only top-level `null` or `[]` is empty: `false`, `0`, and nested nulls are present. Empty means `absent` only when `complete`, `cut === null`, no `next`, and no admission or intersecting pending prediction. An unknown prediction footprint blocks every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden and missing rows are indistinguishable.
 
 Route on `present`/`absent`, never `loading`/`partial`. The signed-in tree follows `useAuth().state`; keep drafts above transient rows, resetting on account/backend change. Retention grants no authority.
 
-Same-key reads retain answers marked `revalidating` through plain refetch, reconnect, slow reads, transport failure and retry exhaustion, without timeout. Completed answers replace directly and recompute presence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. An older replica cannot clear a pending notification. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential/store/schema resets still withdraw; generation changes withdraw before adoption even without changed tables. No route latch is needed for refetch.
+Same-key reads retain answers marked `revalidating` through plain refetch, reconnect, slow reads, transport failure and retry exhaustion, without timeout. Completed answers replace directly and recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. An older replica cannot clear a pending notification. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential/store/schema resets still withdraw; generation changes withdraw before adoption even without changed tables. No route latch is needed for refetch.
 
-Search uses one query per scope through `usePage`: render `page.items`, classify `page.read` (`items: []` also occurs during loading). Show “Partial results” only for `presence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present with cuts/continuations. An unavailable unread aggregate is unknown, not zero; never hide its conversation.
+Search uses one query per scope through `usePage`: render `page.items`, classify `page.read` (`items: []` also occurs during loading). Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present with cuts/continuations. An unavailable unread aggregate is unknown, not zero; never hide its conversation.
 
 ## Measure cold acquisition
 
@@ -70,28 +70,28 @@ The point read closes/revokes on a ready `absent`, denied, tombstoned, changed a
 ```tsx
 import { useEffect, useRef, useState } from "react";
 import { useClient, useNow, useQuery } from "snapback4/react";
-import { isReady, presence } from "snapback4/contract";
+import { isReady, existence } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 export function OneView({ messageId, assetId }: { messageId: string; assetId: string }) {
   const client = useClient(), row = useQuery(api.messagePhoto, { id: messageId });
   const handle = useRef<{ revoke(): void } | null>(null), alive = useRef(false), deadline = useRef<number | null>(null);
   const [started, setStarted] = useState(false), [url, setUrl] = useState<string | null>(null), [problem, setProblem] = useState("");
   const opened = useRef(false);
-  if (isReady(row) && row.presence === "present") deadline.current = row.data.expiresAt;
+  if (isReady(row) && row.existence === "present") deadline.current = row.data.expiresAt;
   const now = useNow(deadline.current);
-  const closed = presence(row) === "denied" || presence(row) === "absent" || (isReady(row) && row.presence === "present" && (row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);
+  const closed = existence(row) === "denied" || existence(row) === "absent" || (isReady(row) && row.existence === "present" && (row.data.tombstone || row.data.photo?.id !== assetId)) || (deadline.current !== null && now >= deadline.current);
   const invalid = useRef(false); invalid.current ||= closed;
   useEffect(() => { alive.current = true; return () => { alive.current = false; handle.current?.revoke(); }; }, []);
   useEffect(() => { if (closed) { handle.current?.revoke(); handle.current = null; setUrl(null); } }, [closed]);
   async function open() {
-    if (opened.current || invalid.current || (!isReady(row) || row.presence !== "present" || row.revalidating)) return;
+    if (opened.current || invalid.current || (!isReady(row) || row.existence !== "present" || row.revalidating)) return;
     opened.current = true; setStarted(true);
     const result = await client.asset(assetId);
     if ("denied" in result) { if (alive.current) setProblem(result.denied.message); return; }
     if (!alive.current || invalid.current) { result.revoke(); return; }
     handle.current = result; setUrl(result.url);
   }
-  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.presence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
+  return invalid.current ? null : <>{url ? <img src={url} alt="One-view photo" /> : <button disabled={started || !isReady(row) || row.existence !== "present" || row.revalidating} onClick={() => void open()}>Open photo</button>}{problem}</>;
 }
 ```
 

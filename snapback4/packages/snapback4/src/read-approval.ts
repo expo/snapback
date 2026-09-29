@@ -1,5 +1,5 @@
 import type { Read } from "./contract.ts";
-import { answerPresence, answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
+import { answerExistence, answerIdentity, answerObservation, offlineAnswer, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
 import { copyEpisode, ReadEpisode } from "./read-episode.ts";
@@ -77,7 +77,7 @@ export class ReadApprovals {
       return changed ? notify : undefined;
     };
     update(read);
-    held.read = () => { owner.read(null); expiry.check(); episode.check(); if (pending) held.snapshot = answerPresence(held.snapshot, pending()); return held.snapshot; };
+    held.read = () => { owner.read(null); expiry.check(); episode.check(); if (pending) held.snapshot = answerExistence(held.snapshot, pending()); return held.snapshot; };
     const follow: Parameters<typeof owner.followers.add>[0] = change => {
       const next = owner.snapshot;
       if (change === "reset" || !("data" in next)) {

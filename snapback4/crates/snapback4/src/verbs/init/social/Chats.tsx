@@ -1,4 +1,4 @@
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput } from "react-native";
 import { router } from "expo-router";
@@ -17,7 +17,7 @@ export default function Chats() {
     <Button title="Create chat" disabled={!title.trim() || create.inFlight} onPress={() => void start()} />
     {create.last?.state === "pending" && <Text>Chat creation pending; it appears here when confirmed.</Text>}
     {create.last?.state === "failed" && <Text>{create.last.why.message}</Text>}
-    <Text>{presence(inbox.read) === "loading" ? "Loading…" : presence(inbox.read) === "partial" ? "Partial results" : "denied" in inbox.read ? inbox.read.denied.message : ""}</Text>
+    <Text>{existence(inbox.read) === "loading" ? "Loading…" : existence(inbox.read) === "partial" ? "Partial results" : "denied" in inbox.read ? inbox.read.denied.message : ""}</Text>
     {inbox.items.map(row => <Button key={row.conversation} title={row.chat?.title ?? row.conversation}
       onPress={() => router.push({ pathname: "/conversation/[id]", params: { id: row.conversation } })} />)}
     <Button title="More chats" disabled={!inbox.hasMore} onPress={inbox.loadMore} />

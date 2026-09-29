@@ -24,7 +24,7 @@ const query = { kind: "query", name: "read" };
 const mutation = { kind: "mutation", name: "write" };
 const ready = (data, next = null, flags = {}) => {
   const read = { data, complete: true, cut: null, fresh: true, since: 100, next, ...flags };
-  return { ...read, presence: data !== null && !(Array.isArray(data) && !data.length) ? "present" : read.complete && read.cut === null && read.next == null ? "absent" : "partial" };
+  return { ...read, existence: data !== null && !(Array.isArray(data) && !data.length) ? "present" : read.complete && read.cut === null && read.next == null ? "absent" : "partial" };
 };
 const check = (condition, message) => { if (!condition) throw Error(message); };
 const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), message + ": " + JSON.stringify(actual));

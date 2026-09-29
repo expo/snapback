@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { readyRead } from "./read-existence.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit } from "./local-device.ts";
@@ -292,7 +292,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function call(request: Record<string, unknown>, committedTables?: Set<string>, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     const admission = request.op === "admit";
-    if (admission) { answers.admissions++; for (const watch of watches.values()) if (watch.updatePresence()) notify(watch); }
+    if (admission) { answers.admissions++; for (const watch of watches.values()) if (watch.updateExistence()) notify(watch); }
     let observed = false;
     const delivery: (() => void)[] = [];
     const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
@@ -325,7 +325,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile();
       return result;
     }
-    finally { if (admission) { answers.admissions--; for (const watch of watches.values()) if (watch.updatePresence()) notify(watch); } active.delete(work); deliver(); }
+    finally { if (admission) { answers.admissions--; for (const watch of watches.values()) if (watch.updateExistence()) notify(watch); } active.delete(work); deliver(); }
   }
   let transportFailure: Refusal | undefined;
   const offline = (): Refusal => transportFailure ?? transportRefusal();
@@ -977,7 +977,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || !answers.current(watch, result)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
-          watch.tables = tables; watch.setPresenceTables(result.presenceTables ?? null);
+          watch.tables = tables; watch.setExistenceTables(result.existenceTables ?? null);
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
           const denied = unavailable();
           watch.publish(denied ? { denied } : read);
@@ -1025,7 +1025,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup);
         if (watch.snapshot !== read) {
-          watch.setPresenceTables(result.presenceTables ?? null);
+          watch.setExistenceTables(result.existenceTables ?? null);
           const denied = unavailable(); // Rule 1: immediately before notifying observers.
           watch.publish(denied ? { denied } : result.transportOffline && "data" in read ? { ...read, revalidating: true } : read);
           notify(watch);

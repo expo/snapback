@@ -1,4 +1,4 @@
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { mintId } from "snapback4/client";
@@ -19,7 +19,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
   // No-horizon membership shares the messages' group and audience; loading is acquisition.
   const membership = useQuery(api.myMembership, { conversationId });
-  const member = presence(membership), blocked = member === "absent" || member === "denied";
+  const member = existence(membership), blocked = member === "absent" || member === "denied";
   const answered = useRef(false);
   if ("data" in read) answered.current = true;
   const journal = useMemo(() => new IntentJournal(intentStorage, backend, viewer,
@@ -70,9 +70,9 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
       <Button title="Back" onPress={onBack} />
       {"data" in read && !read.fresh ? <Text style={styles.note}>As of {read.since ? new Date(read.since).toLocaleTimeString() : "the last sync"}</Text> : null}
     </View>
-    {presence(read) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
+    {existence(read) === "loading" ? <Text style={styles.note}>{answered.current ? "Updating…" : "Loading…"}</Text> : null}
     {"denied" in read ? <Text style={styles.alert}>{read.denied.message}</Text> : null}
-    {presence(read) === "partial" ? <Text style={styles.note}>History may be incomplete.</Text> : null}
+    {existence(read) === "partial" ? <Text style={styles.note}>History may be incomplete.</Text> : null}
     <FlatList inverted data={"denied" in read ? [] : items}
       keyExtractor={message => message.id} onEndReached={hasMore ? loadMore : undefined}
       renderItem={({ item }) => <View style={[styles.bubble, item.authorId === viewer ? styles.own : null, item.pending ? styles.pending : null]}>

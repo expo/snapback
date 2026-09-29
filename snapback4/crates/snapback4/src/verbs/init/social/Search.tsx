@@ -1,4 +1,4 @@
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
@@ -24,7 +24,7 @@ function ChatResults({ q, conversation }: { q: string; conversation: string }) {
 function Hits({ page, label }: { page: ReturnType<typeof usePage<ArgsOf<typeof api.search>, ResultOf<typeof api.search>>>; label: string }) {
   return <ScrollView>
     <Text>{label}</Text>
-    <Text>{presence(page.read) === "loading" ? "Loading…" : presence(page.read) === "partial" ? "Partial results" : "denied" in page.read ? page.read.denied.message : ""}</Text>
+    <Text>{existence(page.read) === "loading" ? "Loading…" : existence(page.read) === "partial" ? "Partial results" : "denied" in page.read ? page.read.denied.message : ""}</Text>
     {page.items.map(row => <Button key={row.id} title={row.text || "Photo"}
       onPress={() => router.push({ pathname: "/conversation/[id]", params: { id: row.conversation } })} />)}
     <Button title="More matches" disabled={!page.hasMore} onPress={page.loadMore} />

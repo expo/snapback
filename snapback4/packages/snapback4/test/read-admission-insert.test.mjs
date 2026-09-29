@@ -8,12 +8,12 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
-import { presence } from '../dist/contract.js';
+import { existence } from '../dist/contract.js';
 import { processDevice } from '../dist/native.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('presence integration did not settle'); };
+const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('existence integration did not settle'); };
 const source = `use personas alice, bob
 table rows:
   owner: principal
@@ -29,7 +29,7 @@ mutation add(label: text <=40):
   return insert rows {owner: viewer, label}
 `;
 for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads match and an admitted insert demotes retained absence`, { timeout: 60_000 }, async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-presence-'));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-existence-'));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = once(host, 'exit'); let log = '', local, online, observed;
@@ -45,10 +45,10 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   const hidden = await (await post('/q/point', { args: hiddenArgs })).text();
   const missing = await (await post('/q/point', { args: missingArgs })).text();
   assert.equal(hidden, missing, 'byte-identical entire wire answers, including dev meter, at one watermark');
-  assert.equal('presence' in JSON.parse(hidden), false);
+  assert.equal('existence' in JSON.parse(hidden), false);
   online = createClient({ url, persona: 'alice' });
   const onlineHidden = await online.query(op, hiddenArgs), onlineMissing = await online.query(op, missingArgs);
-  assert.equal(presence(onlineHidden), 'absent'); assert.deepEqual(onlineHidden, onlineMissing);
+  assert.equal(existence(onlineHidden), 'absent'); assert.deepEqual(onlineHidden, onlineMissing);
   const opener = tier === 'wasm' ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(dir, 'replica'), binary });
   const device = { async open(...args) {
     const core = await opener.open(...args);
@@ -66,8 +66,8 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   assert.deepEqual(await local.query(op, hiddenArgs), await local.query(op, missingArgs));
   const args = { owner: 'dev:alice', label: 'new' };
   const published = [];
-  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => { published.push(presence(observed.getSnapshot())); }); t.after(stop);
-  await until(() => presence(observed.getSnapshot()) === 'absent');
+  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => { published.push(existence(observed.getSnapshot())); }); t.after(stop);
+  await until(() => existence(observed.getSnapshot()) === 'absent');
   refuseAdmission = true;
   const pending = local.mutate({ kind: 'mutation', name: 'add' }, { label: 'new' }, { waitSeconds: 0 });
   await until(() => published.at(-1) === 'partial');
@@ -75,8 +75,8 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   const retained = observed.getSnapshot();
   refusal.resolve();
   const write = await pending;
-  await until(() => presence(observed.getSnapshot()) === 'present');
+  await until(() => existence(observed.getSnapshot()) === 'present');
   const next = observed.getSnapshot();
   t.diagnostic(JSON.stringify({ oneShot, retained, writeState: write.state, next }));
-  assert.equal(presence(oneShot), 'partial', 'one-shot reads must share the in-flight admission predicate');
+  assert.equal(existence(oneShot), 'partial', 'one-shot reads must share the in-flight admission predicate');
 });

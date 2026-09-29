@@ -21,7 +21,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   args: unknown;
   key: string;
   tables: Set<string>;
-  setPresenceTables(tables: Set<string> | null): void;
+  setExistenceTables(tables: Set<string> | null): void;
   /** Re-runs a watch whose server answer read presence (LLP 3000.018), every
    * `presenceEvery` ms from then on. */
   presenceRefresh: ReturnType<typeof setTimeout> | null;
@@ -160,7 +160,7 @@ export class LocalReads {
     const revision = this.revision, entries = await run();
     if (revision === this.revision) {
       this.queued(entries);
-      for (const watch of watches) if (watch.updatePresence()) notifyLocalWatch(watch);
+      for (const watch of watches) if (watch.updateExistence()) notifyLocalWatch(watch);
     }
     return entries;
   }
@@ -229,7 +229,7 @@ export function pendingTables(predictions: readonly string[] | null, tables: Set
 export function localWatch(keep: boolean | undefined, op: Query<unknown, unknown>, args: unknown, key: string, incarnation: number,
   pending: (tables: Set<string> | null) => boolean): LocalWatch {
   const watch: LocalWatch = Object.assign(new ReadObservation<unknown>(keep), { op, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), running: false, dirty: false, expiryTimer: null, incarnation,
-    setPresenceTables(tables: Set<string> | null) { watch.pending = () => pending(tables); } });
-  watch.setPresenceTables(null);
+    setExistenceTables(tables: Set<string> | null) { watch.pending = () => pending(tables); } });
+  watch.setExistenceTables(null);
   return watch;
 }

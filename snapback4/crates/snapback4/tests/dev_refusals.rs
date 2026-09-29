@@ -280,7 +280,7 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
   for (op,args,cause) in [("point",json!({"id":"absent"}),"no-candidate"), ("publicPoint",json!({}),"no-candidate"), ("expiredPoint",json!({}),"unrecorded"), ("literal",json!({}),"unrecorded")] {
    let before=snapshot();
    let reply=dev.post(&format!("/q/{op}"),json!({"args":args}));
-   assert!(reply["data"].is_null()); assert!(reply.get("presence").is_none());
+   assert!(reply["data"].is_null()); assert!(reply.get("existence").is_none());
    if op=="point" { missing=reply; }
    if trace_empty {
     let record=dev.project.wait_record(store,op);

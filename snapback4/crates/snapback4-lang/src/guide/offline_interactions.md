@@ -42,14 +42,14 @@ its four-key size is neither a lifetime bound nor this policy's byte cost.
 
 ## Conversation membership
 
-A no-horizon membership table synced within the conversation's own group with the messages' audience holds every current readable membership after that group's first acquisition. The viewer's row is `present` or `absent`, never `partial` merely offline; `loading` there is first acquisition, not denial or absence. Offline `absent` is absence at the acquired watermark, including after leaving. This does not apply to windowed, online-only or differently partitioned memberships, or follow from retained messages.
+A no-horizon membership table synced within the conversation's own group with the messages' audience holds every current readable membership after that group's first acquisition. The viewer's row is `present` or `absent` offline unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal, not denial or absence. Offline `absent` is absence at the acquired watermark, including after leaving. This does not apply to windowed, online-only or differently partitioned memberships, or follow from retained messages.
 
 ```tsx
-import { presence } from "snapback4/contract";
+import { existence } from "snapback4/contract";
 import { useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function SendPermission({ conversationId }: { conversationId: string }) {
-  const member = presence(useQuery(api.myMembership, { conversationId }));
+  const member = existence(useQuery(api.myMembership, { conversationId }));
   return <button disabled={member === "absent" || member === "denied"}>Send</button>;
 }
 ```
@@ -113,5 +113,5 @@ Online, its replica client merges current server hits with certified retained
 hits from departed conversations. Offline it searches this device's holdings;
 an online-only client has no retained history. Keep the message's conversation
 and order column immutable, and render `usePage`'s identity-keyed accumulation.
-“Partial results” follows `presence(page.read) === "partial"`; nonempty answers are `present`, even with incomplete coverage. Freshness is separate. Missing acquisition ranges and
+“Partial results” follows `existence(page.read) === "partial"`; nonempty answers are `present`, even with incomplete coverage. Freshness is separate. Missing acquisition ranges and
 cuts stay incomplete. See `guide search` for the compiling form and limits.

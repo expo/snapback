@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // A kept answer's live deadlines survive commits, unavailable reads and lingering.
 import test from "node:test";
 import assert from "node:assert/strict";

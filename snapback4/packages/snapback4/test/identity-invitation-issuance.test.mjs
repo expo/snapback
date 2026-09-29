@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // Protocol doubles for the authored optional B1d.3 invitation-handler source.
 // These are not engine, crash-process, authentication or provider qualification.
 import test from "node:test";

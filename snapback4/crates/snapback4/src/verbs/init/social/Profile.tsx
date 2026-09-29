@@ -1,4 +1,4 @@
-import { presence, isReady } from "snapback4/contract";
+import { existence, isReady } from "snapback4/contract";
 import { useState } from "react";
 import { Button, ScrollView, Text, TextInput } from "react-native";
 import { useAuth, useMutation, useQuery, useViewer } from "snapback4/react";
@@ -13,11 +13,11 @@ export default function Profile() {
   const [name, setName] = useState(""), [principal, setPrincipal] = useState("");
   return <ScrollView contentContainerStyle={{ padding: 16 }}>
     <Text selectable>{viewer}</Text><Text>Share this account ID to follow or invite.</Text>
-    <Text>{presence(profile) === "loading" ? "Loading…" : presence(profile) === "partial" ? "Partial results" : "denied" in profile ? profile.denied.message : ""}</Text>
-    {isReady(profile) && profile.presence === "present" && <><Text>{profile.data.name}</Text><Avatar id={profile.data.avatar?.id ?? null} /></>}
+    <Text>{existence(profile) === "loading" ? "Loading…" : existence(profile) === "partial" ? "Partial results" : "denied" in profile ? profile.denied.message : ""}</Text>
+    {isReady(profile) && profile.existence === "present" && <><Text>{profile.data.name}</Text><Avatar id={profile.data.avatar?.id ?? null} /></>}
     <TextInput accessibilityLabel="Display name" value={name} onChangeText={setName} maxLength={80} />
     <Button title="Save profile" disabled={!name.trim() || save.inFlight} onPress={() => void save.run({ name })} />
-    {isReady(profile) && profile.presence === "present" && <PhotoPicker title="Choose avatar" onUploaded={id => { void avatar.run({ avatar: { id } }); }} />}
+    {isReady(profile) && profile.existence === "present" && <PhotoPicker title="Choose avatar" onUploaded={id => { void avatar.run({ avatar: { id } }); }} />}
     <TextInput accessibilityLabel="Account to follow" value={principal} onChangeText={setPrincipal} />
     <Button title="Follow" disabled={!principal || follow.inFlight} onPress={() => void follow.run({ principal })} />
     <Button title="Unfollow" disabled={!principal || unfollow.inFlight} onPress={() => void unfollow.run({ principal })} />

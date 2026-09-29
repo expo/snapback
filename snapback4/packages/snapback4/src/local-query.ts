@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { readyRead } from "./read-existence.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
@@ -27,7 +27,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { transportOffline?: boolean; retryExhausted?: boolean; presenceTables?: Set<string> | null; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { transportOffline?: boolean; retryExhausted?: boolean; existenceTables?: Set<string> | null; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -295,7 +295,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       const empty = "data" in result.read && (result.read.data === null || Array.isArray(result.read.data) && result.read.data.length === 0);
       const pendingHere = origin === "local" && empty ? await pending() : pendingResult;
       checkpoint();
-      result.presenceTables = possible;
+      result.existenceTables = possible;
       if ("data" in result.read) result.read = readyRead<R>(result.read, pendingHere);
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
         return { ...loading, ephemeralStale: true };

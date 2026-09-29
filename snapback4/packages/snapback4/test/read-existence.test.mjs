@@ -1,8 +1,8 @@
 // @ref LLP 3000.031#4 — total publication table, retention and page semantics.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { presence, isReady, isLoading, isDenied } from '../dist/contract.js';
-import { readyRead } from '../dist/read-presence.js';
+import { existence, isReady, isLoading, isDenied } from '../dist/contract.js';
+import { readyRead } from '../dist/read-existence.js';
 import { evaluateLocal } from '../dist/local-query.js';
 import { LocalReads, RememberedAnswers, localWatch, pendingTables } from '../dist/local-reads.js';
 import { ReadObservation, revalidatingAnswer, answerIdentity } from '../dist/read-observation.js';
@@ -35,7 +35,7 @@ test('publication decision table: top level × completeness/cut/next × freshnes
       // Complete local execution narrows away the unexecuted branch only then.
       const blocked = predicted === 'unknown' || predicted === 'rows' || !complete && predicted === 'unexecuted';
       const expected = !empty ? 'present' : complete && cut === null && next === null && !blocked ? 'absent' : 'partial';
-      assert.equal(presence(read), expected, JSON.stringify({ shape, data, complete, cut, next, fresh, predicted }));
+      assert.equal(existence(read), expected, JSON.stringify({ shape, data, complete, cut, next, fresh, predicted }));
       assert.equal(read.fresh, fresh); assert.deepEqual(read.data, data); cases++;
     }
   }
@@ -43,9 +43,9 @@ test('publication decision table: top level × completeness/cut/next × freshnes
 });
 
 test('whole-union helper and cold pending predicate use the same five words', () => {
-  assert.equal(presence({ loading: true }), 'loading'); assert.ok(isLoading({ loading: true }));
+  assert.equal(existence({ loading: true }), 'loading'); assert.ok(isLoading({ loading: true }));
   const denied = { denied: { code: 'X', family: 'test', message: 'no' } };
-  assert.equal(presence(denied), 'denied'); assert.ok(isDenied(denied));
+  assert.equal(existence(denied), 'denied'); assert.ok(isDenied(denied));
   for (const predictions of [null, [], ['rows'], ['other']]) for (const tables of [null, new Set(), new Set(['rows'])]) {
     const captured = { predictions };
     assert.equal(coldReadControl(() => captured, captured).pending(tables), pendingTables(predictions, tables));
@@ -64,15 +64,15 @@ test('empty publication cannot prove absence when pending storage fails or the i
     env.queued = () => { entered(); return new Promise((resolve, fail) => { release = () => reject ? fail(failure) : resolve([]); }); };
     const result = evaluateLocal(env, { kind: 'query', name: 'point' }, {}, 0, 0);
     await started; env.incarnation++; release();
-    assert.equal(presence((await result).read), 'loading', 'both success and rejection recheck incarnation');
+    assert.equal(existence((await result).read), 'loading', 'both success and rejection recheck incarnation');
   }
 });
 
-test('queued presence cache propagates failure and fences stale results before notifying', async () => {
+test('queued existence cache propagates failure and fences stale results before notifying', async () => {
   const reads = new LocalReads();
   reads.queued([{ predictable: true, predicted: ['rows/pending'] }]);
   let updates = 0, notifications = 0;
-  const watches = [{ updatePresence() { updates++; return true; }, subscribers: new Set([() => notifications++]) }];
+  const watches = [{ updateExistence() { updates++; return true; }, subscribers: new Set([() => notifications++]) }];
   const failure = Error('receipt storage unavailable');
   await assert.rejects(reads.readQueued(async () => { throw failure; }, watches), error => error === failure);
   assert.equal(reads.pending(new Set(['rows'])), true);
@@ -95,20 +95,20 @@ test('pending inserts recompute retained absence, including already revalidating
   reads.queued([]);
   watch.publish(readyRead({ data: null, complete: true, cut: null, next: null, fresh: false, since: 1 }));
   const identity = answerIdentity(watch.snapshot), held = approvals.approve(watch.snapshot);
-  watch.reload(); assert.equal(watch.read(null).presence, 'absent');
+  watch.reload(); assert.equal(watch.read(null).existence, 'absent');
   reads.queued([{ predictable: true, predicted: ['rows/inserted'] }]);
-  assert.equal(held.read().presence, 'partial');
+  assert.equal(held.read().existence, 'partial');
   assert.equal(watch.read(null).revalidating, true);
   assert.equal(watch.snapshot.fresh, false); assert.equal(watch.snapshot.since, 1);
   assert.equal(answerIdentity(watch.snapshot), identity);
-  assert.equal(revalidatingAnswer(watch.snapshot, false, true).presence, 'partial');
+  assert.equal(revalidatingAnswer(watch.snapshot, false, true).existence, 'partial');
   reads.queued([{ predictable: true, predicted: ['other/row'] }]);
-  assert.equal(held.read().presence, 'absent');
+  assert.equal(held.read().existence, 'absent');
   reads.queued([{ predictable: true }]);
-  assert.equal(held.read().presence, 'partial');
+  assert.equal(held.read().existence, 'partial');
   watch.publish(readyRead({ data: { id: 'inserted' }, complete: true, cut: null, fresh: false }, true));
-  assert.equal(presence(watch.read(null)), 'present');
-  watch.publish({ loading: true }); assert.equal(presence(watch.read(null)), 'loading');
+  assert.equal(existence(watch.read(null)), 'present');
+  watch.publish({ loading: true }); assert.equal(existence(watch.read(null)), 'loading');
 });
 
 test('facade-held answers keep their own dependency set before replacement approval', t => {
@@ -116,32 +116,32 @@ test('facade-held answers keep their own dependency set before replacement appro
   reads.queued([]);
   const watch = localWatch(true, { kind: 'query', name: 'point' }, {}, 'point', 0, tables => reads.pending(tables));
   t.after(() => { approvals.close(); watch.retire(); });
-  watch.setPresenceTables(new Set(['a']));
+  watch.setExistenceTables(new Set(['a']));
   watch.publish(readyRead({ data: null, complete: true, cut: null, fresh: false }));
   const held = approvals.approve(watch.snapshot);
-  watch.setPresenceTables(new Set(['b']));
+  watch.setExistenceTables(new Set(['b']));
   watch.publish(readyRead({ data: null, complete: true, cut: null, fresh: false }));
   reads.queued([{ predictable: true, predicted: ['a/row'] }]);
-  assert.equal(watch.read(null).presence, 'absent', 'B reads b only');
-  assert.equal(held.read().presence, 'partial', 'A still reads a until B is approved');
+  assert.equal(watch.read(null).existence, 'absent', 'B reads b only');
+  assert.equal(held.read().existence, 'partial', 'A still reads a until B is approved');
   assert.equal(held.read().revalidating, true);
   approvals.approve(watch.snapshot);
-  assert.equal(held.read().presence, 'absent');
+  assert.equal(held.read().existence, 'absent');
   reads.queued([{ predictable: true, predicted: ['b/row'] }]);
-  assert.equal(held.read().presence, 'partial', 'approval installs B dependencies');
+  assert.equal(held.read().existence, 'partial', 'approval installs B dependencies');
 });
 
-test('usePage publishes presence on the combined read; items alone prove nothing', t => {
+test('usePage publishes existence on the combined read; items alone prove nothing', t => {
   const watch = new ReadObservation(true);
   const client = { observe: () => ({ getSnapshot: () => watch.read(null), subscribe: () => () => {}, close() {} }) };
   const pages = new Pages(client, { kind: 'query', name: 'page' }, {});
   const stop = pages.subscribe(() => {}); t.after(() => { stop(); watch.retire(); });
-  assert.deepEqual(pages.getSnapshot().items, []); assert.equal(presence(pages.getSnapshot().read), 'loading');
+  assert.deepEqual(pages.getSnapshot().items, []); assert.equal(existence(pages.getSnapshot().read), 'loading');
   for (const data of [[], ['row']]) for (const complete of [false, true]) for (const next of [null, 'more']) for (const cut of [null, 'meter']) for (const pending of [false, true]) {
     watch.publish(readyRead({ data, complete, next, cut, fresh: false }, pending));
     const result = pages.getSnapshot();
     assert.ok(isReady(result.read)); assert.deepEqual(result.items, data);
-    assert.equal(result.read.presence, data.length ? 'present' : complete && next === null && cut === null && !pending ? 'absent' : 'partial');
+    assert.equal(result.read.existence, data.length ? 'present' : complete && next === null && cut === null && !pending ? 'absent' : 'partial');
   }
 });
 
@@ -150,7 +150,7 @@ test('completed empty page chains use pending facts, not a predecessor cursor pa
   const op = { kind: 'query', name: 'page' };
   const make = table => {
     const watch = localWatch(true, op, {}, table, 0, tables => reads.pending(tables));
-    watch.setPresenceTables(new Set([table])); return watch;
+    watch.setExistenceTables(new Set([table])); return watch;
   };
   const first = make('rows'), last = make('tail');
   first.publish(readyRead({ data: [], complete: true, cut: null, next: 'cursor', fresh: false }));
@@ -162,9 +162,9 @@ test('completed empty page chains use pending facts, not a predecessor cursor pa
   const pages = new Pages(client, op, {}); let notifications = 0;
   const stop = pages.subscribe(() => notifications++);
   t.after(() => { stop(); first.retire(); last.retire(); });
-  assert.equal(pages.getSnapshot().read.presence, 'partial');
+  assert.equal(pages.getSnapshot().read.existence, 'partial');
   pages.loadMore();
-  assert.equal(pages.getSnapshot().read.presence, 'absent', 'the final cursor proves the empty chain complete');
+  assert.equal(pages.getSnapshot().read.existence, 'absent', 'the final cursor proves the empty chain complete');
   first.reload();
   const identity = answerIdentity(first.snapshot);
   for (const [entries, expected] of [
@@ -176,15 +176,15 @@ test('completed empty page chains use pending facts, not a predecessor cursor pa
     const before = notifications;
     await reads.readQueued(async () => entries, [first, last]);
     assert.ok(notifications > before, 'pending changes notify even when the predecessor stays partial');
-    assert.equal(first.snapshot.presence, 'partial');
+    assert.equal(first.snapshot.existence, 'partial');
     assert.equal(first.snapshot.revalidating, true);
     assert.equal(answerIdentity(first.snapshot), identity);
-    assert.equal(pages.getSnapshot().read.presence, expected);
+    assert.equal(pages.getSnapshot().read.existence, expected);
     assert.deepEqual(pages.getSnapshot().items, []);
   }
 });
 
-test('two-page presence combines coverage and the final cursor with actual pending predicates', () => {
+test('two-page existence combines coverage and the final cursor with actual pending predicates', () => {
   let cases = 0;
   for (const a of [[], ['a']]) for (const b of [[], ['b']])
   for (const ca of [false, true]) for (const cb of [false, true])
@@ -197,24 +197,24 @@ test('two-page presence combines coverage and the final cursor with actual pendi
     pages.loadMore();
     const { items, read } = pages.getSnapshot();
     assert.deepEqual(items, [...a, ...b]);
-    assert.equal(read.presence, items.length ? 'present' : ca && cb && xa === null && xb === null && next === null && !pa && !pb ? 'absent' : 'partial');
+    assert.equal(read.existence, items.length ? 'present' : ca && cb && xa === null && xb === null && next === null && !pa && !pb ? 'absent' : 'partial');
     assert.equal(read.fresh, fresh); stop(); cases++;
   }
   assert.equal(cases, 1024);
 });
 
-test('published replacements recompute presence even when a caller spreads the predecessor', t => {
+test('published replacements recompute existence even when a caller spreads the predecessor', t => {
   for (const keep of [undefined, true, false]) {
     const watch = new ReadObservation(keep);
     t.after(() => watch.retire());
     watch.publish(readyRead({ data: null, complete: true, cut: null, fresh: true }));
     const absent = watch.snapshot;
     watch.publish({ ...absent, data: { id: 'arrived' } });
-    assert.equal(watch.snapshot.presence, 'present');
+    assert.equal(watch.snapshot.existence, 'present');
     assert.notEqual(answerIdentity(watch.snapshot), answerIdentity(absent));
     const present = watch.snapshot;
     watch.publish({ ...present, data: null });
-    assert.equal(watch.snapshot.presence, 'absent');
+    assert.equal(watch.snapshot.existence, 'absent');
     assert.notEqual(answerIdentity(watch.snapshot), answerIdentity(present));
   }
 });

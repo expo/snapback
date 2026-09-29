@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // Protocol doubles: the core/CLI suite separately proves durable HTTP behavior.
 import test from "node:test";
 import assert from "node:assert/strict";

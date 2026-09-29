@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { readyRead } from "./read-existence.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";

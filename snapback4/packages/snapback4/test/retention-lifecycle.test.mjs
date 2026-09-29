@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#3.4 — lifecycle withdrawals finish across peers before application callbacks.
 import test from "node:test";
 import assert from "node:assert/strict";

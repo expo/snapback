@@ -1,5 +1,5 @@
-import { presence } from "../dist/contract.js";
-import { readyRead } from "../dist/read-presence.js";
+import { existence } from "../dist/contract.js";
+import { readyRead } from "../dist/read-existence.js";
 import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -229,7 +229,7 @@ test("client card composer clears at submit and offers refused text without repl
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      presence, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -273,23 +273,23 @@ test("client card composer disables only refused or proven absent membership", a
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, presence, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },
     });
     const button = Composer({ conversationId: 'room' }).children[1];
-    const blocked = ['absent', 'denied'].includes(presence(member));
-    assert.equal(button.props.disabled, blocked, presence(member));
+    const blocked = ['absent', 'denied'].includes(existence(member));
+    assert.equal(button.props.disabled, blocked, existence(member));
     button.props.onClick();
     assert.equal(called, !blocked, 'the handler guards a stale click too');
   }
 });
 
-test("profile screen waits for proven presence and uses each replacement", async () => {
+test("profile screen waits for proven existence and uses each replacement", async () => {
   const source = read(join(root, "CLIENT-AND-OPERATIONS.md")).match(/async function profileScreen[\s\S]*?\n}/)?.[0];
   assert.ok(source);
-  const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, presence });
+  const screen = runInNewContext(`${ts.transpile(source, { target: ts.ScriptTarget.ES2022 })}\nprofileScreen;`, { api: { myProfile: {} }, existence });
   for (const [answer, expected] of [
     [{ loading: true }, "loading"],
     [readyRead({ data: null, complete: false, cut: null, fresh: false }), "loading"],

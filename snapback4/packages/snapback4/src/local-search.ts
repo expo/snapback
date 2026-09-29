@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { readyRead } from "./read-existence.ts";
 // @ref LLP 3000.028#3.3 — SDK-owned merge, one remote invocation, combined keyset continuation.
 import type { SearchComposition } from "./backend.ts";
 import type { Cursor, Read, Refusal } from "./contract.ts";

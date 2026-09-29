@@ -1,4 +1,4 @@
-import { readyRead } from "../dist/read-presence.js";
+import { readyRead } from "../dist/read-existence.js";
 // @ref LLP 3000.023#6 — policy, progress, deadline access and facade evidence.
 import test from "node:test";
 import assert from "node:assert/strict";

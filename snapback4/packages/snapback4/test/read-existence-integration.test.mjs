@@ -8,12 +8,12 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
-import { presence } from '../dist/contract.js';
+import { existence } from '../dist/contract.js';
 import { processDevice } from '../dist/native.js';
 import { memoryPersistence, webDevice } from '../dist/web.js';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
 const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
-const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('presence integration did not settle'); };
+const until = async check => { for (let n = 0; n < 500; n++) { if (await check()) return; await delay(10); } assert.fail('existence integration did not settle'); };
 const source = `use personas alice, bob
 table rows:
   owner: principal
@@ -29,7 +29,7 @@ mutation add(label: text <=40):
   return insert rows {owner: viewer, label}
 `;
 for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads match and an admitted insert demotes retained absence`, { timeout: 60_000 }, async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-presence-'));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-proven-existence-'));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = once(host, 'exit'); let log = '', local, online, observed;
@@ -45,10 +45,10 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   const hidden = await (await post('/q/point', { args: hiddenArgs })).text();
   const missing = await (await post('/q/point', { args: missingArgs })).text();
   assert.equal(hidden, missing, 'byte-identical entire wire answers, including dev meter, at one watermark');
-  assert.equal('presence' in JSON.parse(hidden), false);
+  assert.equal('existence' in JSON.parse(hidden), false);
   online = createClient({ url, persona: 'alice' });
   const onlineHidden = await online.query(op, hiddenArgs), onlineMissing = await online.query(op, missingArgs);
-  assert.equal(presence(onlineHidden), 'absent'); assert.deepEqual(onlineHidden, onlineMissing);
+  assert.equal(existence(onlineHidden), 'absent'); assert.deepEqual(onlineHidden, onlineMissing);
   const opener = tier === 'wasm' ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(dir, 'replica'), binary });
   const device = { async open(...args) {
     const core = await opener.open(...args);
@@ -66,8 +66,8 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   assert.deepEqual(await local.query(op, hiddenArgs), await local.query(op, missingArgs));
   const args = { owner: 'dev:alice', label: 'new' };
   const published = [];
-  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => { published.push(presence(observed.getSnapshot())); }); t.after(stop);
-  await until(() => presence(observed.getSnapshot()) === 'absent');
+  observed = local.observe(op, args, { keep: true }); const stop = observed.subscribe(() => { published.push(existence(observed.getSnapshot())); }); t.after(stop);
+  await until(() => existence(observed.getSnapshot()) === 'absent');
   refuseAdmission = true;
   const rejected = local.mutate({ kind: 'mutation', name: 'add' }, { label: 'refused' }, { waitSeconds: 0 });
   await until(() => published.at(-1) === 'partial');
@@ -79,15 +79,15 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   const admitted = await local.mutate({ kind: 'mutation', name: 'add' }, { label: 'new' }, { waitSeconds: 0 });
   assert.equal(admitted.state, 'pending');
   await until(() => observed.getSnapshot().revalidating === true);
-  const retained = observed.getSnapshot(); assert.equal(retained.data, null); assert.equal(retained.presence, 'partial');
+  const retained = observed.getSnapshot(); assert.equal(retained.data, null); assert.equal(retained.existence, 'partial');
   gate.resolve();
-  await until(() => presence(observed.getSnapshot()) === 'present');
+  await until(() => existence(observed.getSnapshot()) === 'present');
   assert.equal(observed.getSnapshot().data.label, 'new');
 });
 
 // @ref LLP 3000.023#10 — same-key completed replacements always replace data.
 // @ref LLP 3000.031#1.1 — each replacement classifies its own disclosed value.
-for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row arrival and delete replace absent/present presence`, { timeout: 60_000 }, async t => {
+for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row arrival and delete replace absent/present existence`, { timeout: 60_000 }, async t => {
   const { fixture, open, q, until } = await import('./helpers/answers-stay.mjs');
   const f = await fixture(t);
   assert.equal((await f.post('/m/erase', {})).state, 'sent');
@@ -96,23 +96,23 @@ for (const host of ['online', 'process', 'wasm']) test(`${host}: same-key row ar
   const published = [];
   const stop = watch.subscribe(() => published.push(watch.getSnapshot()));
   t.after(() => { stop(); watch.close(); });
-  await until(() => presence(watch.getSnapshot()) === 'absent');
+  await until(() => existence(watch.getSnapshot()) === 'absent');
   const absent = watch.getSnapshot();
   published.length = 0;
   assert.equal((await f.post('/seed', [{ table: 'messages', row: { id: 'item', room: 'room', body: 'arrived', at: 2 } }])).seeded, 1);
   if (client.sync) await client.sync();
-  await until(() => presence(watch.getSnapshot()) === 'present' && watch.getSnapshot().data.body === 'arrived');
+  await until(() => existence(watch.getSnapshot()) === 'present' && watch.getSnapshot().data.body === 'arrived');
   const present = watch.getSnapshot();
   assert.notEqual(present, absent);
   assert.equal((await f.post('/m/erase', {})).state, 'sent');
   if (client.sync) await client.sync();
-  await until(() => presence(watch.getSnapshot()) === 'absent');
+  await until(() => existence(watch.getSnapshot()) === 'absent');
   assert.equal(watch.getSnapshot().data, null);
   assert.notEqual(watch.getSnapshot(), present);
-  assert.ok(published.some(read => presence(read) === 'present'));
+  assert.ok(published.some(read => existence(read) === 'present'));
   assert.ok(published.every(read => 'data' in read), 'immediate same-key replacements never flash loading');
   for (const read of published) {
-    if (read.data === null) assert.notEqual(read.presence, 'present', 'an empty replacement never inherits present');
-    else assert.equal(read.presence, 'present', 'an arriving row never inherits absent/partial');
+    if (read.data === null) assert.notEqual(read.existence, 'present', 'an empty replacement never inherits present');
+    else assert.equal(read.existence, 'present', 'an arriving row never inherits absent/partial');
   }
 });
