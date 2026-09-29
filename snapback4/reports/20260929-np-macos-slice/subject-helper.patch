@@ -1,0 +1,67 @@
+--- a/node_modules/snapback4-expo/src/witness-core.ts
++++ b/node_modules/snapback4-expo/src/witness-core.ts
+@@ -10,6 +10,7 @@
+   readonly witnessLaunch: string | null;
+   witnessAppend(line: string): void;
+   witnessSignaled(label: string): boolean;
++  witnessObservation?(): Record<string, unknown> | null;
+ }
+ 
+ // @ref LLP 3000.007#20.10 — app-owned receipts, completed steps and container-file signals
+@@ -20,6 +21,13 @@
+     throw new Error("E_WITNESS_INPUT: invalid witness launch configuration");
+   }
+   const native = container;
++  if (JSON.parse(container.witnessLaunch).proof) {
++    const startup = native.witnessObservation?.();
++    if (!startup) throw new Error("E_WITNESS_PROOF: rebuild the native witness helper");
++    native.witnessAppend(JSON.stringify({ startup: { ...startup,
++      hermes: !!(globalThis as typeof globalThis & { HermesInternal?: unknown }).HermesInternal },
++      witness: { at: new Date().toISOString(), step: "launched" } }) + "\n");
++  }
+   let current = "launched";
+   let active = false;
+   const append = (object: Record<string, unknown>, step: string) => {
+--- a/node_modules/snapback4-expo/ios/WitnessContainer.swift
++++ b/node_modules/snapback4-expo/ios/WitnessContainer.swift
+@@ -1,8 +1,30 @@
+ import Foundation
++import CryptoKit
+ 
+ // Runtime environment is not exposed to Hermes by Expo. This small bridge
+ // supplies it and durable file append; the scenario and protocol live in JS.
+ enum WitnessContainer {
++  // @ref LLP 3000.030#6 — native reads bind the embedded payload on every cold launch.
++  static func observation() throws -> [String: Any]? {
++    guard let launch, let bytes = launch.data(using: .utf8),
++      let config = try JSONSerialization.jsonObject(with: bytes) as? [String: Any],
++      let proof = config["proof"] as? [String: Any] else { return nil }
++    func digest(_ url: URL?) throws -> String {
++      guard let url else { throw Snapback4OpenException("E_WITNESS_PROOF: missing embedded payload") }
++      return SHA256.hash(data: try Data(contentsOf: url, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
++    }
++    #if DEBUG
++    let release = false
++    #else
++    let release = true
++    #endif
++    return ["format": 1, "run": config["run"] ?? "", "segment": config["segment"] ?? "",
++      "proofSha256": proof["sha256"] ?? "", "nativeBase": (proof["nativeBase"] as? [String: Any])?["app"] ?? "",
++      "output": ((proof["executedApp"] as? [String: Any])?["inventory"] as? [String: Any])?["sha256"] ?? "",
++      "bundleId": Bundle.main.bundleIdentifier ?? "", "release": release, "helper": "native-proof-v1",
++      "javascriptSha256": try digest(Bundle.main.url(forResource: "main", withExtension: "jsbundle")),
++      "executableSha256": try digest(Bundle.main.executableURL)]
++  }
+   static var launch: String? {
+     #if targetEnvironment(simulator)
+     return ProcessInfo.processInfo.environment["SNAPBACK4_WITNESS"]
+--- a/node_modules/snapback4-expo/ios/Snapback4Module.swift
++++ b/node_modules/snapback4-expo/ios/Snapback4Module.swift
+@@ -14,6 +14,7 @@
+     Name("Snapback4")
+ 
+     Constant("witnessLaunch") { WitnessContainer.launch }
++    Function("witnessObservation") { () -> [String: Any]? in try WitnessContainer.observation() }
+     Function("witnessAppend") { (line: String) in try WitnessContainer.append(line) }
+     Function("witnessSignaled") { (label: String) -> Bool in try WitnessContainer.signaled(label) }
+ 

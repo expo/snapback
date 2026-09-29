@@ -1,0 +1,267 @@
+--- a/node_modules/snapback4-expo/src/smoke.ts
++++ b/node_modules/snapback4-expo/src/smoke.ts
+@@ -8,15 +8,18 @@
+   storeId: string; acquired: boolean; backendRequired: boolean;
+ };
+ type Backend = {
+-  programs: { name: string; kind: string; args: Record<string, unknown> }[];
++  generation: number;
++  programs: { name: string; kind: string; native?: boolean; args: Record<string, unknown> }[];
+   schema: { operations?: Record<string, { runs?: "device" | "server"; held?: boolean }> };
+ };
++type Fact = { runs: "device" | "server"; held: boolean };
+ type Baseline = State & { origin: string; viewer: string };
+ type ErrorUtils = {
+   getGlobalHandler(): (error: Error, fatal?: boolean) => void;
+   setGlobalHandler(handler: (error: Error, fatal?: boolean) => void): void;
+ };
+ type Environment = {
++  runtime?: Parameters<typeof createWitness>[1];
+   errors?: ErrorUtils;
+   now?: () => number;
+   pause?: () => Promise<void>;
+@@ -31,7 +34,7 @@
+   const config = JSON.parse(container.witnessLaunch);
+   if (config.smoke !== true) return null;
+   assert(["prime", "offline", "restart"].includes(config.segment), "unknown smoke segment");
+-  const w = createWitness(container)!;
++  const w = createWitness(container, environment.runtime)!;
+   const now = environment.now ?? Date.now;
+   const pause = environment.pause ?? (() => new Promise<void>(resolve => setTimeout(resolve, 100)));
+   const startedAt = now();
+@@ -108,7 +111,7 @@
+     };
+     const receipt = (pass: boolean, error?: unknown) => w.receipt({ smoke: {
+       segment: w.segment, pass, startedAt, endedAt: now(), durationMs: now() - startedAt,
+-      origin, viewer: client.viewer(), link: client.link(), ...state, queries, errors: [...errors],
++      origin, viewer: client.viewer(), link: client.link(), ...state, queryFacts: config.queryFacts, queryGeneration: config.queryGeneration, queries, errors: [...errors],
+       ...(w.segment === "restart" ? { barrierSeq: config.barrierSeq } : {}),
+       ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
+     } });
+@@ -116,23 +119,56 @@
+       assert(errorUtils, "the native JavaScript error handler is unavailable");
+       await wait(async () => { await snapshot(); return ready(); });
+       identity();
+-      if (w.segment === "offline") {
+-        const backend = await read<Backend>("backend");
+-        for (const program of backend.programs) {
+-          if (program.kind !== "Query" || !Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type)) continue;
+-          const fact = backend.schema.operations?.[program.name] ?? {};
+-          const op = { kind: "query", name: program.name, ...(fact.runs ? { runs: fact.runs } : {}), ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
+-          const result = await client.query(op, {});
+-          current();
+-          if ("data" in result) {
+-            queries.push({ name: program.name, state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
+-              complete: result.complete, fresh: result.fresh, cut: result.cut });
+-          } else if ("denied" in result && result.denied.code && result.denied.message) {
+-            queries.push({ name: program.name, state: "refused", code: result.denied.code, message: result.denied.message });
+-          } else { throw new Error(`query ${program.name} returned neither ready nor an explained refusal`); }
++      if (w.segment === "restart") {
++        await wait(async () => { await snapshot(); identity(); return ready() && barrier(); });
++      }
++      // @ref LLP 3000.011.005.000#2 — residency comes from compiler facts, never a loading result.
++      const facts = config.queryFacts as Record<string, Fact> | undefined;
++      assert(facts && typeof facts === "object" && !Array.isArray(facts), "missing compiler query facts");
++      const backend = await read<Backend>("backend");
++      assert(Number.isSafeInteger(config.queryGeneration) && config.queryGeneration > 0
++        && backend.generation === config.queryGeneration && state!.generation === config.queryGeneration,
++        "compiler query facts do not match the kept backend generation");
++      const eligible = backend.programs.filter(program => program.kind === "Query"
++        && Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type));
++      assert(JSON.stringify(eligible.map(p => p.name).sort()) === JSON.stringify(Object.keys(facts).sort()),
++        "compiler query facts do not match the kept program");
++      assert(eligible.every(program => program.native !== true),
++        "native queries require an application witness; generic smoke cannot classify conditional module availability");
++      const validated = eligible.map(program => {
++        const fact = facts[program.name];
++        assert(fact && ["device", "server"].includes(fact.runs) && typeof fact.held === "boolean",
++          `missing compiler residency for ${program.name}`);
++        const kept = backend.schema.operations?.[program.name];
++        assert(kept && kept.runs === fact.runs && (kept.held ?? false) === fact.held,
++          `compiler residency differs from kept backend for ${program.name}`);
++        return { program, fact };
++      });
++      // Validate the entire supplied set before issuing even the first query.
++      for (const { program, fact } of validated) {
++        const classification = fact.runs === "server" ? "online-only" : "device-answerable";
++        if (w.segment !== "offline" && fact.runs !== "server") continue;
++        const op = { kind: "query", name: program.name, runs: fact.runs, ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
++        const result = await client.query(op, {});
++        current();
++        const query: Record<string, unknown> = { name: program.name, classification };
++        queries.push(query);
++        if ("data" in result) {
++          Object.assign(query, { state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
++            complete: result.complete, fresh: result.fresh, cut: result.cut });
++        } else if ("denied" in result && result.denied.code && result.denied.message) {
++          Object.assign(query, { state: "refused", code: result.denied.code, message: result.denied.message });
++        } else if ("loading" in result) { query.state = "loading"; }
++        else { throw new Error(`query ${program.name} returned an unknown result`); }
++        if (w.segment === "offline" && fact.runs === "server") {
++          assert(query.state === "loading" || (query.state === "refused" && /^E_OFFLINE(?:_|$)/.test(String(query.code))),
++            `online-only query ${program.name} did not report offline unavailability`);
++          query.expectation = "online-only: unavailable offline (expected)";
++        } else if (fact.runs === "server") {
++          assert(query.state === "ready", `online-only query ${program.name} did not answer online`);
++        } else {
++          assert(query.state === "ready" || query.state === "refused", `query ${program.name} returned neither ready nor an explained refusal`);
+         }
+-      } else if (w.segment === "restart") {
+-        await wait(async () => { await snapshot(); identity(); return ready() && barrier(); });
+       }
+       // Give the mounted app a turn, then attest the state that exists now.
+       await pause();
+--- a/node_modules/snapback4-expo/src/witness-core.ts
++++ b/node_modules/snapback4-expo/src/witness-core.ts
+@@ -10,16 +10,42 @@
+   readonly witnessLaunch: string | null;
+   witnessAppend(line: string): void;
+   witnessSignaled(label: string): boolean;
++  witnessObservation?(scriptURL: string | null): Record<string, unknown> | null;
++}
++
++export function manifestPresent(value: unknown): boolean {
++  if (value == null || value === "") return false;
++  if (typeof value === "string") {
++    try { value = JSON.parse(value); } catch { return true; }
++  }
++  return value === null || typeof value !== "object" || Object.keys(value).length > 0;
+ }
+ 
+ // @ref LLP 3000.007#20.10 — app-owned receipts, completed steps and container-file signals
+-export function createWitness(container: WitnessContainer | null): Witness | null {
++export function createWitness(container: WitnessContainer | null, runtime?: { scriptURL: string | null; dev: boolean; hermes: boolean; launcherManifestPresent: boolean; updatesPresent: boolean; updatesManifestPresent: boolean }): Witness | null {
+   if (!container?.witnessLaunch) return null;
+   const { segment, timeoutMs } = JSON.parse(container.witnessLaunch);
+   if (typeof segment !== "string" || !segment || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+     throw new Error("E_WITNESS_INPUT: invalid witness launch configuration");
+   }
+   const native = container;
++  if (JSON.parse(container.witnessLaunch).proof) {
++    try {
++    if (!runtime || runtime.launcherManifestPresent !== false || runtime.updatesPresent !== false || runtime.updatesManifestPresent !== false || runtime.dev !== false || runtime.hermes !== true || !runtime.scriptURL?.startsWith("file://")) {
++      throw new Error("E_WITNESS_PROOF: prepared launch requires a selected local bundle in Release Hermes with no launcher/updates manifest");
++    }
++    const startup = native.witnessObservation?.(runtime.scriptURL);
++    if (!startup) throw new Error("E_WITNESS_PROOF: rebuild the native witness helper");
++    native.witnessAppend(JSON.stringify({ startup: { ...startup,
++      hermes: runtime.hermes, dev: runtime.dev, launcherManifestPresent: runtime.launcherManifestPresent,
++      updatesPresent: runtime.updatesPresent, updatesManifestPresent: runtime.updatesManifestPresent },
++      witness: { at: new Date().toISOString(), step: "launched" } }) + "\n");
++    } catch (error) {
++      native.witnessAppend(JSON.stringify({ error: String(error), witness: {
++        at: new Date().toISOString(), step: "launched:failed" } }) + "\n");
++      throw error;
++    }
++  }
+   let current = "launched";
+   let active = false;
+   const append = (object: Record<string, unknown>, step: string) => {
+--- a/node_modules/snapback4-expo/src/witness-runtime.ts
++++ b/node_modules/snapback4-expo/src/witness-runtime.ts
+@@ -0,0 +1,15 @@
++import { NativeModules } from "react-native";
++import { requireOptionalNativeModule } from "expo-modules-core";
++import { manifestPresent } from "./witness-core";
++
++/** SourceCode is React Native's native observation of the selected bundle. */
++export function witnessRuntime() {
++  const source = NativeModules.SourceCode;
++  const updates = requireOptionalNativeModule<Record<string, unknown>>("ExpoUpdates");
++  return { scriptURL: source?.getConstants?.().scriptURL ?? source?.scriptURL ?? null,
++    dev: (globalThis as typeof globalThis & { __DEV__?: boolean }).__DEV__ !== false,
++    hermes: !!(globalThis as typeof globalThis & { HermesInternal?: unknown }).HermesInternal,
++    launcherManifestPresent: manifestPresent(NativeModules.EXDevLauncher?.manifestString),
++    updatesPresent: updates !== null,
++    updatesManifestPresent: manifestPresent(updates?.manifest) || manifestPresent(updates?.manifestString) };
++}
+--- a/node_modules/snapback4-expo/src/witness.ts
++++ b/node_modules/snapback4-expo/src/witness.ts
+@@ -1,13 +1,15 @@
+ import { requireOptionalNativeModule } from "expo-modules-core";
+ import { createWitness, type Witness, type WitnessContainer } from "./witness-core";
+ export type { Witness } from "./witness-core";
++
++import { witnessRuntime } from "./witness-runtime";
+ 
+ let instance: Witness | null | undefined;
+ /** Null on ordinary launches and outside an iOS simulator driven by `snapback4 witness ios`. */
+ export function witness(): Witness | null {
+   if (instance === undefined) {
+     const container = requireOptionalNativeModule<WitnessContainer>("Snapback4");
+-    instance = container?.witnessLaunch && JSON.parse(container.witnessLaunch).smoke === true ? null : createWitness(container);
++    instance = container?.witnessLaunch && JSON.parse(container.witnessLaunch).smoke === true ? null : createWitness(container, witnessRuntime());
+   }
+   return instance;
+ }
+--- a/node_modules/snapback4-expo/src/index.ts
++++ b/node_modules/snapback4-expo/src/index.ts
+@@ -4,6 +4,7 @@
+ // online tier (`snapback4/client`) when it is not.
+ import { requireOptionalNativeModule } from "expo-modules-core";
+ import type { DeviceCore, DeviceOpener } from "snapback4/local";
++import { witnessRuntime } from "./witness-runtime";
+ import type { WitnessContainer } from "./witness-core";
+ 
+ interface Snapback4Native extends WitnessContainer {
+@@ -22,7 +23,7 @@
+ const trace = Boolean(process.env.EXPO_PUBLIC_SNAPBACK_TRACE);
+ // Metro includes the runner but does not evaluate it on an ordinary launch.
+ const smoke = native?.witnessLaunch && JSON.parse(native.witnessLaunch).smoke === true
+-  ? (require("./smoke") as typeof import("./smoke")).createSmoke(native) : null;
++  ? (require("./smoke") as typeof import("./smoke")).createSmoke(native, { runtime: witnessRuntime() }) : null;
+ 
+ export function nativeAvailable(): boolean {
+   return native !== null;
+--- a/node_modules/snapback4-expo/ios/WitnessContainer.swift
++++ b/node_modules/snapback4-expo/ios/WitnessContainer.swift
+@@ -1,8 +1,39 @@
+ import Foundation
++import CryptoKit
+ 
+ // Runtime environment is not exposed to Hermes by Expo. This small bridge
+ // supplies it and durable file append; the scenario and protocol live in JS.
+ enum WitnessContainer {
++  // @ref LLP 3000.030#6 — native reads bind the selected payload on every cold launch.
++  static func observation(_ scriptURL: String?) throws -> [String: Any]? {
++    guard let launch, let bytes = launch.data(using: .utf8),
++      let config = try JSONSerialization.jsonObject(with: bytes) as? [String: Any],
++      let proof = config["proof"] as? [String: Any] else { return nil }
++    func digest(_ url: URL?) throws -> String {
++      guard let url else { throw Snapback4OpenException("E_WITNESS_PROOF: missing embedded payload") }
++      return SHA256.hash(data: try Data(contentsOf: url, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
++    }
++    guard let scriptURL, let selected = URL(string: scriptURL), selected.isFileURL,
++      selected.host == nil || selected.host == "" || selected.host == "localhost",
++      selected.query == nil, selected.fragment == nil,
++      let embedded = Bundle.main.url(forResource: "main", withExtension: "jsbundle")
++    else { throw Snapback4OpenException("E_WITNESS_PROOF: unknown or remote selected JavaScript") }
++    let actual = selected.standardizedFileURL.resolvingSymlinksInPath()
++    guard actual == embedded.standardizedFileURL.resolvingSymlinksInPath() else {
++      throw Snapback4OpenException("E_WITNESS_PROOF: selected JavaScript differs from installed main.jsbundle: \(scriptURL)")
++    }
++    #if DEBUG
++    let release = false
++    #else
++    let release = true
++    #endif
++    return ["format": 2, "run": config["run"] ?? "", "segment": config["segment"] ?? "",
++      "proofSha256": proof["sha256"] ?? "", "nativeBase": (proof["nativeBase"] as? [String: Any])?["app"] ?? "",
++      "output": ((proof["executedApp"] as? [String: Any])?["inventory"] as? [String: Any])?["sha256"] ?? "",
++      "bundleId": Bundle.main.bundleIdentifier ?? "", "release": release, "helper": "native-proof-v2", "scriptURL": actual.absoluteString, "selectedScriptURL": scriptURL, "selectedBundlePath": actual.path,
++      "javascriptSha256": try digest(actual),
++      "executableSha256": try digest(Bundle.main.executableURL)]
++  }
+   static var launch: String? {
+     #if targetEnvironment(simulator)
+     return ProcessInfo.processInfo.environment["SNAPBACK4_WITNESS"]
+--- a/node_modules/snapback4-expo/ios/Snapback4Module.swift
++++ b/node_modules/snapback4-expo/ios/Snapback4Module.swift
+@@ -14,6 +14,7 @@
+     Name("Snapback4")
+ 
+     Constant("witnessLaunch") { WitnessContainer.launch }
++    Function("witnessObservation") { (scriptURL: String?) -> [String: Any]? in try WitnessContainer.observation(scriptURL) }
+     Function("witnessAppend") { (line: String) in try WitnessContainer.append(line) }
+     Function("witnessSignaled") { (label: String) -> Bool in try WitnessContainer.signaled(label) }
+ 

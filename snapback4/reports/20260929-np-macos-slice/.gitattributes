@@ -1,0 +1,2 @@
+# Evidence patches retain unified-diff context prefixes and exact source bytes.
+*.patch -whitespace

@@ -1,0 +1,42 @@
+[
+  {
+    "command": "cargo test --manifest-path snapback4/Cargo.toml -p snapback4 --test witness -- --test-threads=4",
+    "cwd": "/Users/ccheever/sb4-np/lane",
+    "log": "driver-tests-delivery.log",
+    "sha256": "4c6169b0ffe823398154ca0f2b2a4a560af785f5113c317de62c1b600ca60d43",
+    "exitStatus": 0,
+    "passedTests": 27
+  },
+  {
+    "command": "cargo test --manifest-path snapback4/Cargo.toml -p snapback4 --bin snapback4 witness",
+    "cwd": "/Users/ccheever/sb4-np/lane",
+    "log": "witness-unit-tests-final.log",
+    "sha256": "9a2008108edb27be0ff6cdb9b2b98a649936462a175c61b60276d5808dd16114",
+    "exitStatus": 0,
+    "passedTests": 7
+  },
+  {
+    "command": "node --test snapback4/packages/snapback4/test/witness.test.mjs snapback4/packages/snapback4/test/native-smoke.test.mjs snapback4/packages/snapback4/test/witness-preparation.test.mjs",
+    "cwd": "/Users/ccheever/sb4-np/lane",
+    "log": "helper-tests-delivery-2.log",
+    "sha256": "e2424bbcbe7b982949a9a2681f1c015cb1b696bb4d8151768472ecc4783cd66b",
+    "exitStatus": 0,
+    "passedTests": 20
+  },
+  {
+    "command": "cargo test --manifest-path snapback4/Cargo.toml -p snapback4-lang --test guide",
+    "cwd": "/Users/ccheever/sb4-np/lane",
+    "log": "guide-tests-final-2.log",
+    "sha256": "3fbd956c2866afbf639d0b68a1ac9e2315c4b2b4ca34b65d28cb9614eed84fb7",
+    "exitStatus": 0,
+    "passedTests": 98
+  },
+  {
+    "command": "cargo build --manifest-path snapback4/Cargo.toml -p snapback4",
+    "cwd": "/Users/ccheever/sb4-np/lane",
+    "log": "cargo-build-delivery-3.log",
+    "sha256": "e60298a3f5257bc7e9a1c8ccbf0f1f58725fd0076e0c1e5ccb08438088ccc432",
+    "exitStatus": 0,
+    "passedTests": null
+  }
+]

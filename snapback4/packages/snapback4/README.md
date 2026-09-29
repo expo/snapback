@@ -71,19 +71,22 @@ mutation placeAvatar(avatar: image <=10000000):
   update profiles[principal = viewer] { avatar }
 ```
 
-A post-signup availability check uses the new session. The unique handle index still decides races: keep the session
-after a failed save and choose another handle. An incomplete or stale availability answer is not permission to claim it.
-Availability and handle saves use the server; your private profile is held locally.
+A post-signup availability check uses the new session. Incomplete or stale availability is not permission to claim a handle.
+Availability and handle saves use the server; your private profile is held locally. The unique index decides races.
 
 ### 3. Create the app
 
-Replace `src/client.ts`. The app restores the session, opens the right client, and owns pending writes across restarts.
-Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Expo Go
-uses the online client. Keep the starter's Metro config and wasm transformer.
-`assets` retains viewed media within its byte budget when a device is available; Expo Go's online tier ignores it.
+Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
+Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage.
+Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-Prove the native runtime: `npx snapback4 witness ios --smoke --bundle-id ID --udid "$UDID" --artifacts artifacts/native-smoke` (no app code).
-Build/install Release first; `npx snapback4 guide witness` explains the three receipts and the deeper application runner.
+For an own Release build and native smoke, run `npx snapback4 witness ios --build . --smoke --udid "$UDID" --artifacts artifacts/native-smoke`.
+The bounded Expo 57.0.22 / RN 0.86.3 / Xcode 27 adapter installs and launches without GUI automation or Metro.
+Read `npx snapback4 guide witness` for exact pins, helper/session requirements, immutable proofs, output restrictions, installed-app mode and deeper scenarios.
+After edits, repeat `--build` with fresh artifacts; the private Xcode cache stays warm. Repack is withdrawn.
+Five complete warm runs on the shared M5 Pro mini passed: **159.841 s median / 197.562 s p95** (2.7 / 3.3 minutes).
+Cold native preparation took about six minutes, plus smoke and tool/dependency setup; these are pinned-app observations, not timing guarantees.
+Compiler-declared server-only reads must answer online and record expected offline unavailability. A build receipt alone proves neither smoke nor M6/M8 application behavior.
 
 ```ts
 // src/client.ts
@@ -165,10 +168,8 @@ function Profile() {
 }
 ```
 
-The unique handle constraint decides races. A failed save keeps the session so you can choose another handle. Existing
-hooks work under `AppProvider`; online mutations persist their IDs and arguments before dispatch, and local devices own
-their durable outbox. Pending writes stay with their original account. A terminal `sent` receipt confirms execution;
-`failed` carries the refusal.
+A failed handle save keeps the session; choose another handle. Under `AppProvider`, online mutations persist IDs and arguments before dispatch;
+local devices own a durable outbox. Pending writes stay with their original account. Terminal `sent` confirms execution; `failed` carries the refusal.
 
 Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged
 arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
@@ -272,8 +273,7 @@ items, `hasMore`, `loadMore` and read completeness. For generated queries return
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in declared Node entries `snapback/workers/<service>.mjs`: dev and serve start, restart and stop them, with service tokens injected and logs redacted. `guide effects` shows `ledger: true` and the stable `meta.idempotencyKey`; a crash after the provider call but before the ledger commit still needs provider idempotency.
 
-Public feeds share an activity union. Following delivers it to each reader; Trending ranks a finite time window.
-See `npx snapback4 guide feeds` for the complete tested program.
+Public feeds share an activity union: Following delivers it to each reader; Trending ranks a finite time window (`npx snapback4 guide feeds`).
 
 ## Reference map: open only what the feature needs
 

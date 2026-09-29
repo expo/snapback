@@ -76368,6 +76368,40 @@ the unchanged 593,719 B cap. SHA-256:
 Report: reports/20260929-ag-first-paste/round3/REPORT.md. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
 
+## 2026-09-29 — NP-mac round 0: own Release preparation; full-smoke blocker retained
+
+Merged origin/main first (7acbed690 over design a9f061013 and main 4fd338de5).
+Implemented the bounded `witness ios --build` adapter: stable private snapshot,
+project/simulator leases, CocoaPods and exact Release Xcode product, sealed
+build/proof receipts, complete app/native/HBC inventories, direct simctl install
+and bundle-ID launch, native startup hashing, client-origin binding and liveness
+checks. Linked expo-updates is excluded; legacy m6/m8 names now say installed,
+with unknown preparation. No host package, GUI automation, Metro or publication.
+
+The copied real cal25 app keeps published snapback4/client and native core 0.4.7
+bytes. Local witness-helper patches, ordinary unattended signup and eight-message
+fixture, config/asset/Router probes and the required iOS 27 UIScene migration
+are recorded. Both A and B actually render retained history offline. The
+candidate repack preserves every native Mach-O and changes JS/output/visible
+asset, with HBC 98 and equal Pod/export compiler hashes. Full smoke nevertheless
+fails: chat.typingInMyRooms returns loading offline; restart is unrun. Neither
+that result nor the smoke contract was altered. The open filesystem issue
+records their incompatibility. --repack is therefore omitted from the product;
+its unqualified implementation and failures remain in the report.
+
+Measured partial attempts: own A 181.436 s, B repack 31.413 s, warm own B
+144.606 s; final build-only route recheck 155.058 s. These include collection
+and are not successful complete-smoke or p95 measurements. Scheme/tamper,
+intentional cold error, post-success native death, concurrent owner and busy-port
+controls failed safely for their intended reasons. Final scoped checks: 27 driver,
+7 witness unit, 20 JS helper/payload/smoke and 98 guide tests pass. Earlier failed
+attempts/tests remain in the evidence. Subject typecheck retains seven generated
+rowKey/type-version errors against 0.4.7. No core/wasm source changed; cap stays
+593,719 B gzip, no new wasm measurement. Both owned simulators were deleted.
+
+[Full report](reports/20260929-np-macos-slice/REPORT.md), with raw logs, exact pins,
+phase times, hashes, patches and screenshots. LLP 3000.030 remains Draft and
+its §11 acceptance is incomplete. Nothing pushed or published.
 ## 2026-09-29 — DX round 0: ordinary empty reads are quiet
 
 Calibration #26 reported 14,802 milestone-backend and 55,210 scale-backend
@@ -76461,6 +76495,51 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+
+## 2026-09-29 — NP-mac round 1: complete native A/B smoke; repack accepted
+
+Merged origin/main first (ac6a6076d8 over f9620c815b), preserving both journal
+entries in the sole conflict. Applied the supervisor's smoke ruling: compile
+all eligible query residency facts in the owned backend, carry them in launch
+payloads and receipts, and validate coverage/classification in the driver.
+Device-answerable loading still fails; server-only typing/Insights record
+expected offline loading/E_OFFLINE and must answer online in prime/restart.
+Closed the smoke-contract issue and filed a separate one-shot-refusal follow-up;
+no client semantics or published client/native engine bytes changed.
+
+Own A and warm own B passed all three segments, in 230.746 / 149.000 seconds
+complete invocation. Five B repack+smoke runs passed in 42.666 / 44.714 / 50.521 /
+56.639 / 46.109 seconds: median 46.109 s, nearest-rank p95 56.639 s, including
+hashing, install, prime, cold offline, restart, capture and collection. Warm
+installed dependencies/tools, one preserved native base and booted owned iOS 27
+simulator; same normal session and eight-message fixture throughout. No cold
+package-install or broader-host timing claim. Simulator boot was 19.828 s,
+separate. A's build cache was already warm.
+
+A/B fingerprints and every native Mach-O file agree; HBC 98, actual JS/app
+hashes differ. B changes only main.jsbundle and three scaled image files;
+assets now match the pinned export:embed output exactly. --repack is exposed
+for the bounded static Expo 57.0.22/RN 0.86.3/Xcode 27 adapter, using app-local
+locked @expo/repack-app 0.10.3 and --js-bundle-only. Native/config differences
+refuse to --build. Both routes exclude expo-updates; no identity rewrite,
+bytecode converter, new package dependency or signing repair. The four local
+unpublished witness-helper changes remain separate from 0.4.7 client/core bytes.
+
+Scheme/tamper refusals precede install; injected cold error persists and fails;
+killing owned PID 2287 after its successful restart receipt prevents a pass;
+held simulator lease and busy listener survive refusal. All source controls
+restored, only our UDID 87959305-8A14-4FE5-9EF7-4CE303C03DB0 shut down/deleted.
+Independent Python verification recomputes payloads, HBC and artifact hashes.
+27 driver, 9 witness unit, 23 JS helper/payload/smoke and 98 guide checks pass;
+ref-check has zero errors/unchecked refs. Initial root-workspace invocations,
+stale flag expectation and new guide-output path omissions remain in the logs.
+No core/wasm change; the 593,719 B gzip cap is unchanged, no fresh wasm claim.
+
+LLP 3000.030 §11 steps 1–4 pass and Status is Accepted under the supervisor's
+ruling. M6/M8, physical devices, general SDK coverage, the M1 discovery study,
+wider repeatability and publication remain separate increments. Report and
+raw evidence: reports/20260929-np-macos-slice/round1/REPORT.md. Nothing pushed
+or published. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 ## 2026-09-29 — Lane WK round 1: retire tokens and bind worker lifetime
 
@@ -76587,6 +76666,37 @@ Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
 
+
+## 2026-09-29 — NP-mac round 2 — selected bundle, kept facts and preparation ownership
+
+Requalified LLP 3000.030 §11 after Astra's round-1 NOT READY review. Native
+startup now hashes the actual RN-selected installed file and rejects unknown,
+remote/alternate selection, runtime dev and launcher/updates state. Smoke facts
+come from the committed served generation; every runs/held fact and generation
+matches the kept backend before querying. The bounded adapter refuses external
+native/config/build inputs, custom scripts/flags/tools and uncovered Pods links;
+the full source Pods tree and generated header target tree are keyed. Preparation retains its leader identity and
+project lease through bounded group SIGTERM/SIGKILL cleanup. Preparation-level
+wrong-HBC tests kill the formerly surviving both-guards deletion.
+
+Both reviews were read in full. Grok's Pods and conditional-native issues are
+addressed; eligible native queries now require an application witness. Its
+requested device E_OFFLINE ban is not adopted because the supervisor explicitly
+preserved data-or-explained-refusal in round 1. No core/compiler/client semantics,
+published package or wasm bytes changed.
+
+A and the final warm own B pass all three segments. Five final-code repacks pass:
+median 41.385 s, nearest-rank p95 53.816 s
+(round 1: 46.109 / 56.639 s; changes -4.724 /
+-2.823 s). Real alternate bundle/dev/stale facts, external
+native/Pods inputs, interrupted descendant, scheme/base, cold error, post-success
+death and owner/port controls fail as intended. 28 helper, 28 driver, 10 witness
+unit and 98 guide checks pass; eight guard-removal mutations are killed.
+LLP 3000.030 remains Accepted. [Round-2 report](reports/20260929-np-macos-slice/round2/REPORT.md)
+retains commands, hashes, timings, every failed/development attempt and review
+dispositions. Only owned simulator 13ABE380-D739-4436-A348-E8C23B959C0C was used;
+it was deleted after collection. No push/publication. Required merge
+859d250c39 preserved both journal sides; this is one appended round-2 entry.
 
 ## 2026-09-29 — Lane PQ round 4: dependency memory and queued episode start
 
@@ -76771,6 +76881,32 @@ Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+
+## 2026-09-29 — NP-mac round 3: close native inputs and private outputs
+
+Merged origin/main first (b65817c6b7), retaining both journal sides. Read Astra's
+round-2 NOT READY review and Grok's later review in full. Closed their native
+input and output-directory findings with all-target app/Pods graph checks,
+compiler/linker coverage, actual dependency hashes, strict script/tool pins,
+private Xcode output roots and conservative copy-phase refusal. Fixed the
+additional wrong-stage baseline: both routes compare complete post-Pods/codegen
+inputs, separately from live provenance and Xcode-generated changes.
+
+Corrected round 2's Pods-link control to inconclusive. The replacement final
+control follows a passing unmodified repack and asserts the exact injected link
+and target in its refusal. Real arm64 compiler controls, ten killed guard
+mutations, all §11 bounded controls and independent artifact verification pass.
+Affected tests: 32 helper/preparation, 28 driver, 10 witness unit, 98 guide.
+
+Final own A 114,943 ms; five complete repacks 54,618, 53,454, 53,430, 53,260, 53,090 ms;
+median/p95 53,430/54,618 ms; warm own B 112,343 ms. All three smoke segments
+pass. Retained all earlier attempts, including load-affected slow successes and
+wrong-stage refusals. LLP 3000.030 remains Accepted for this narrow qualification.
+Published client/native-core bytes and the disclosed round-2 helper patch are
+unchanged; no client/query/smoke relaxation, wasm change or budget increase.
+Report: reports/20260929-np-macos-slice/round3/REPORT.md. Only the owned simulator
+was used and removed. Nothing pushed or published. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
 ## 2026-09-29 — Lane PQ round 5: resubscription and in-flight read boundaries
 
@@ -77306,6 +77442,75 @@ Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+
+## 2026-09-29 — NP-mac round 4: withdraw repack; qualify own-build smoke
+
+Merged origin/main first as 9bc0a72037, preserving every journal line from both
+parents. Read prompts/reports r0–r3 and Astra's full round-3 NOT READY review;
+Grok's NOT READY review arrived during controls and was read/rechecked. Following
+the supervisor's ruling, removed the repack implementation and its reuse loop,
+asset helper, eligibility pin and emitted proof label. Old CLI/helper selectors
+refuse before preparation with --build recovery. LLP 3000.030 keeps the full
+deferred design, all findings (including Grok's missed Swift flags/overlays) and
+historical timings; no complete native compatibility-key claim remains.
+
+Own-build keeps non-GUI Xcode/simctl, immutable build/proof receipts, actual
+selected installed HBC binding, served-generation residency facts, unchanged
+smoke classifications, process-group cleanup and private outputs. Custom linker
+map/dependency/LTO/SDK-import destinations now refuse, with canonical resolved
+checks for every app/Pods target. Seven real output controls preserve outside
+sentinels; a Pod-target command-boundary test detects removal of the resolved guard.
+
+A's full smoke passed in 145,014 ms. Five complete warm B --build runs, after a
+visible JS/PNG edit, all passed: 199,870 / 196,228 / 148,926 / 172,045 / 148,047 ms.
+Median 172,045 ms; nearest-rank p95 199,870 ms. Shared-host load and every attempt
+are retained; no quiet-host or cold end-to-end claim. Guide/M1/Expo READMEs use
+these honest timings; six-minute cold native preparation remains historical
+stage-0 context with smoke/setup additional. LLP 3000.030 stays Accepted for the
+build route only. Repack remains withdrawn regardless of historical speed.
+
+Actual tampered-output, cold-error, post-success-death, owner/listener and
+interrupted-descendant controls passed. Independent inventories/HBC/build-result/
+record/receipt/artifact checks passed for all six successes; 31 helper, 28 driver,
+10 witness unit and 99 guide tests passed, with four detecting guard mutations.
+The 0.4.7 published client/native core and seven-file helper patch are unchanged;
+no wasm/budget change. Owned simulator 4DBA489E-DE5A-4ECE-B0FD-8DEC30CBFA17 was
+deleted after collection. One appended entry; nothing pushed or published.
+Report: reports/20260929-np-macos-slice/round4/REPORT.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — NP-mac round 5: require fresh JS and private compiler outputs
+
+Fetched and merged origin/main first (already up to date). Read prompts/reports
+r0–r4, Astra's full NOT READY review and the later Grok READY WITH CHANGES review;
+both were rechecked. Repack stays withdrawn. Build now rejects nonempty unmasked
+SKIP_BUNDLING/SOURCEMAP_FILE and unsafe producer overrides, pins both empty for
+Xcode, removes the previous canonical product bundle and requires new output.
+Resolved app/Pod Swift and module-verifier flags use their real names, unwrap
+-Xcc/-Xfrontend by compiler channel and reject escaping output destinations.
+PER_ARCH_OBJECT_FILE_DIR and COMPILATION_CACHE_CAS_PATH get the same canonical
+private-output checks. A failed Xcode command retaining a valid product cannot
+issue a receipt. Every finding has a detecting test; ten guard mutations fail.
+
+Final A passed full smoke in 181,477 ms. Five complete warm B builds passed:
+159,841 / 169,741 / 155,041 / 197,562 / 154,456 ms; median 159,841 ms, nearest-rank p95 197,562 ms.
+LLP 3000.030 remains Accepted for the bounded build route. The pre-final A success,
+B interruption for late review, and a final-code disk-full snapshot failure remain
+in evidence. ENOSPC prevented that attempt's final time/status record; neither is
+invented. Only our rebuildable Rust incremental cache was removed to recover space.
+No test/archive jobs ran beside the five measured builds; shared-host load is retained.
+
+Independent app/HBC/receipt/xcresult/native-record/runtime/generation checks pass
+for all six final successes. Actual warm-skip, ten output sentinels, tampered
+output, cold startup error, post-success death, owner/listener and interrupted
+descendant controls pass. Final checks: 31 helper, 28 driver, 10 witness unit,
+99 guide and ref-check. No client/core/wasm or helper-patch change; cap unchanged.
+Owned simulator 70220322-4798-470D-BE66-E17EAED0B7FD was deleted after collection.
+Report: reports/20260929-np-macos-slice/round5/REPORT.md. One appended entry;
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
 ## 2026-09-29 — Lane PQ round 8: retry rejected reads and fit the client card
 
 Merged origin/main 398552255 into PQ round 7 at 62e5ec73a, including AG and AQ.
@@ -77468,4 +77673,92 @@ checks pass. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
 unchanged 593,719 B cap; SHA-256
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-wk-supervised-workers/round5/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — NP-mac round 6: private environment writes and truthful segment status
+
+First fetched and merged origin/main 6234118df8 as 35638e8041, preserving both
+complete journal histories across four conflicts. Read rounds 0–5 prompts and
+reports and Astra's full round-5 review. Preparation now removes the copied
+.xcode.env.local entry and exclusively creates a regular replacement; an outside
+sentinel regression fails before the fix and passes after it. The direct snapshot
+write audit finds no other helper-written copied file. Successful build receipts
+must have mode 0444 in the preparation test; removing the mode now fails.
+
+Smoke validates generation, origin, query facts and lifecycle fields before
+marking a segment passed, and uses the same validator at collection. Driver
+regressions reproduce the old passed-prime/failed-run inconsistency and acceptance
+of a late wrong-generation receipt, then pass after repair with failed status,
+error and preserved raw evidence.
+
+Grok arrived at the completion check after a successful native run. Its additional
+Medium adds shared raw/resolved checks for module/header/module-map destinations,
+build-session files, link/Swift/metadata lists, prelink outputs, temp/object/Metal
+paths and relative Info.plist/dSYM names. Clang's session file is pinned private.
+Dangling final/ancestor links resolve to their actual missing destinations before
+output checks; cycles refuse. A first over-strict implementation refused a macOS
+shared-cache system-library input after successful Xcode; that failed attempt is
+retained and the resolver corrected. The repeated sole-booted-simulator Low stays
+the previously explicit deferral; every native run here supplied an owned UDID.
+
+Final affected checks: 33 helper/preparation/smoke and 99 guide tests; unchanged
+Rust smoke/driver code passed 30 driver and 10 witness-unit tests. Six isolated
+mutations are detected from a passing final baseline. Final warm --build completes
+all three smoke segments in 149.491 s (119.912 s preparation, 49.899 s Xcode), with
+independent app/HBC/receipt/proof/artifact/native-record and final-helper byte checks.
+The pre-Grok 212.958 s success and both failed attempts (early source-link refusal,
+over-strict system-link refusal) remain visible, not pooled into a timing sample.
+Both owned simulators were removed. Published 0.4.7 client/native-core bytes and
+the disclosed helper patch remain unchanged; no wasm change or cap increase.
+
+Report: reports/20260929-np-macos-slice/round6/REPORT.md. LLP 3000.030 and the witness
+card reflect the bounded build route; repack remains withdrawn. Both full reviews
+were rechecked against their saved hashes. One append-only entry; local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — NP-mac round 7: landing fixes and filesystem-order outputs
+
+First fetched and merged origin/main b9a4051494 as 209c6ebebb without conflicts;
+PQ, AV and WK remain integrated. Read prompts/reports 0–6 and Astra's round-6
+review. Strict smoke typing now retains each validated compiler fact beside its
+program before executing any query. The restored-session test's old launch omitted
+facts/generation and therefore emitted failure instead of primed; its fixture now
+uses the real running backend's compiled /schema response. All session-publication
+assertions remain, with added receipt fact/generation assertions.
+
+Preparation resolves components in filesystem order, following symlinks before
+applying parent traversal, including inside link targets. Relative output/reference
+paths preserve their components, and product lookup uses the resolved build root.
+Audit and preparation regressions preserve outside sentinels for Clang, Swift,
+linker and relative-output paths; both overwrite the sentinel on the old resolver.
+A snapshot-only source edit now detects deletion of the existing custody guard:
+normal code refuses E_WITNESS_PROOF without build.json. Both isolated mutations
+fail from a passing baseline. LLP 3000.030 states output confinement is hygiene for
+well-behaved projects, not a security boundary: Pods/build phases run arbitrary
+scripts with user privileges. Repack stays withdrawn.
+
+Ran the complete client stage on expo-build-1000 in a separate ~/sb4-np worktree:
+238 files at concurrency 24, 5,123 passed, zero failures, ten declared skips,
+407.668 s. Both serial full-count model files passed 79/79 in 307.976 s, retaining
+5,000 online and 5,000 local session sequences plus 3,000 client interleavings.
+Final README examples 6/6, guide 99/99, witness unit/Linux driver 10/10 each;
+package typecheck/build and chat check pass. Initial docs budget was 314/300 from
+the earlier lane introduction; shortened it and repeated prose to 300 without
+removing examples, increasing the budget or losing the command/measured costs.
+Final budget/self-containment and guide checks pass. A preliminary Mac package
+build lacked ignored generated wasm declarations; the Linux run used the
+supervisor's source-matched wasm, recorded its hashes, and passed. This is scoped
+verification, not a claim to have rerun all of scripts/test.sh.
+
+Mac checks pass 34 helper/preparation/smoke and 30 driver tests. One warm own
+--build passes prime/cold-offline/restart in 142.168 s, including preparation,
+install, capture finalization and hashing. Independent verification binds app/HBC,
+read-only receipt, native records, selected bundle, generation/facts and final
+helper bytes. Its fresh owned simulator signs in normally and seeds eight messages;
+it was deleted after collection. Published 0.4.7 client/native-core bytes remain
+unchanged; the disclosed local smoke helper patch carries this round's type fix.
+No new timing distribution, wasm measurement, budget increase or security claim.
+
+Report: reports/20260929-np-macos-slice/round7/REPORT.md. Raw failures, passing
+logs, controls, source bindings and native evidence are retained. One local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

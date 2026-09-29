@@ -14,6 +14,7 @@ public final class Snapback4Module: Module {
     Name("Snapback4")
 
     Constant("witnessLaunch") { WitnessContainer.launch }
+    Function("witnessObservation") { (scriptURL: String?) -> [String: Any]? in try WitnessContainer.observation(scriptURL) }
     Function("witnessAppend") { (line: String) in try WitnessContainer.append(line) }
     Function("witnessSignaled") { (label: String) -> Bool in try WitnessContainer.signaled(label) }
 
