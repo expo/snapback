@@ -172,7 +172,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       assert.equal(answerIdentity(live.getSnapshot()), answerIdentity(before));
       assert.equal(publications.length, 2, "the revalidating mark notifies without a loading reset");
       localGate.release();
-      await until(() => publications.length === 3 && !live.getSnapshot().revalidating, "timer reobservation did not publish its replacement");
+      await until(() => publications.length === 3 && live.getSnapshot().revalidating === true, "timer reobservation did not publish its offline replacement");
       assert.ok(publications.every(read => read.data === true && read.fresh === false));
       assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
       return;

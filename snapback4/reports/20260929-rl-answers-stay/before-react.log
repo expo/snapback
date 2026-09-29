@@ -1,0 +1,508 @@
+▶ process keep=undefined: profile route gate
+  ✖ slow refetch (3058.229848ms)
+  ✖ offline transport (64.823888ms)
+  ✖ retry exhaustion (206.086469ms)
+  ✖ reconnect (103.730394ms)
+✖ process keep=undefined: profile route gate (4367.007425ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (43.824687ms)
+  ✔ own send and settlement (42.830799ms)
+  ✔ edit (23.881921ms)
+  ✔ delete (21.025149ms)
+  ✔ membership removal (23.078316ms)
+✔ process keep=undefined: chat history and membership removal (1740.934906ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3048.172014ms)
+  ✖ offline transport (58.83327ms)
+  ✖ retry exhaustion (203.661916ms)
+  ✖ reconnect (111.364184ms)
+✖ process keep=true: profile route gate (3961.205272ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (36.01273ms)
+  ✔ own send and settlement (28.061124ms)
+  ✔ edit (20.877147ms)
+  ✔ delete (21.640221ms)
+  ✔ membership removal (18.076941ms)
+✔ process keep=true: chat history and membership removal (1607.755908ms)
+▶ wasm keep=undefined: profile route gate
+  ✖ slow refetch (3032.757833ms)
+  ✖ offline transport (57.206782ms)
+  ✖ retry exhaustion (203.377739ms)
+  ✖ reconnect (97.144314ms)
+✖ wasm keep=undefined: profile route gate (4316.214001ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (41.316619ms)
+  ✔ own send and settlement (33.228507ms)
+  ✔ edit (20.257608ms)
+  ✔ delete (16.856231ms)
+  ✔ membership removal (18.467887ms)
+✔ wasm keep=undefined: chat history and membership removal (1654.599399ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3034.666332ms)
+  ✖ offline transport (56.970187ms)
+  ✖ retry exhaustion (200.964915ms)
+  ✖ reconnect (105.226477ms)
+✖ wasm keep=true: profile route gate (3928.487387ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (33.94436ms)
+  ✔ own send and settlement (25.408478ms)
+  ✔ edit (18.955707ms)
+  ✔ delete (18.713184ms)
+  ✔ membership removal (28.53927ms)
+✔ wasm keep=true: chat history and membership removal (1534.406733ms)
+▶ online keep=undefined: profile route gate
+  ✖ slow refetch (3019.249356ms)
+  ✖ offline transport (37.050917ms)
+  ✖ retry exhaustion (195.427826ms)
+  ✖ reconnect (69.772453ms)
+✖ online keep=undefined: profile route gate (3819.252873ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (28.579731ms)
+  ✔ own send and settlement (19.845972ms)
+  ✔ edit (29.861612ms)
+  ✔ delete (16.388551ms)
+  ✔ membership removal (15.229083ms)
+✔ online keep=undefined: chat history and membership removal (631.329685ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3031.694957ms)
+  ✖ offline transport (40.715508ms)
+  ✖ retry exhaustion (193.663762ms)
+  ✖ reconnect (68.823371ms)
+✖ online keep=true: profile route gate (3869.233204ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (40.390561ms)
+  ✔ own send and settlement (16.727118ms)
+  ✔ edit (15.650685ms)
+  ✔ delete (13.836737ms)
+  ✔ membership removal (14.282955ms)
+✔ online keep=true: chat history and membership removal (591.966905ms)
+ℹ tests 66
+ℹ suites 0
+ℹ pass 39
+ℹ fail 27
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33155.517203
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ slow refetch (3058.229848ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":4,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (64.823888ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655388801},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655388801}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (206.086469ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (103.730394ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":9,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655389065,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (58.83327ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394534},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394534}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (203.661916ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (111.364184ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":9,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655394800,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ slow refetch (3032.757833ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":4,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (57.206782ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400462},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400462}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (203.377739ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (97.144314ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":11,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655400720,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (56.970187ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406041},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406041}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (200.964915ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (105.226477ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":11,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790655406299,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ slow refetch (3019.249356ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":4,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (37.050917ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":2,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (195.427826ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (69.772453ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"loading":true},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ offline transport (40.715508ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":2,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ retry exhaustion (193.663762ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:77:108
+✖ reconnect (68.823371ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"loading":true},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3}}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:57:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:94:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:77:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

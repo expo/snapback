@@ -75910,3 +75910,42 @@ dependencies also made a mounted history `loading` on every incoming message,
 send and settlement, the friction builders fought in every calibration. The
 retained-answer goal continues as a smaller change to LLP 3000.023's model.
 Lane PQ, which merged LV, will be ported onto this `main`.
+
+
+## 2026-09-29 — RL round 0: plain revalidation keeps mounted answers
+
+Lane RL on `sb4-intent/rl-answers-stay`, based on `ac5c4e21c`. LLP 3000.023
+§10 narrows the episode to online `/changes` evidence: default and true keep
+plain revalidation indefinitely, marked `revalidating`; false still withdraws.
+Offline freshness uses the existing `fresh: false`/`since`. Commits retain and
+replace from the replica; deadlines, resets, denials and ordering remain.
+Held facades inherit the earliest online bound even behind another source.
+Ordered remembered recovery still replaces with newer data or explicit absence;
+retention does not override a later denial. No LV ordering mechanism imported.
+Updated client card, READMEs, operations manual and LLP 3000.019's pointer;
+removed the profile identity/route-latch workaround. No runtime/Rust changes.
+
+React process/wasm/online evidence covers the 3 s profile refetch, offline,
+retry exhaustion and reconnect, history peer sync/send+settlement/edit/delete,
+and direct empty replacement on membership removal. Baseline: 39 pass/27 fail
+(21 leaf failures, six parents); final: all 66 pass with zero loading renders.
+Actual callbacks are replayed individually through React hooks in Chromium;
+this is not an Expo Router/native simulator claim. The independent fixture
+history port of LV's schedule passes 300 seeds/host after; before, every seed
+fails only the no-loading rule, with no older-answer or membership failure.
+It does not claim LV's native-plugin/cutless variants.
+
+Final affected reruns: 134 policy/render/expiry/withdrawal, 64 ordering/reset,
+85 earlier withdrawal/delivery/expiry, three explicit-false seams and one
+await-boundary check pass. Whole guide 98/98; full client models 79/79.
+`scripts/test.sh` ran exactly once: `== 2 failure(s) in 1459 s` (exit 1),
+`cargo test` and `client tests`. All 44 individual failures are ours, fixed
+in scoped reruns: one guide introduction, 43 client cases (including recovery
+and wakeup regressions, obsolete episode expectations and one await checksum).
+No baseline/environmental attribution; no claim of a green final full run.
+Exact titles, intermediate failures and evidence are in the report.
+
+Fresh wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the 593,719 B cap;
+SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: `reports/20260929-rl-answers-stay/REPORT.md`. Local commit only,
+with `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`; no push/publication.

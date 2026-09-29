@@ -50,17 +50,18 @@ export type ReadCut = "meter" | "words" | null;
  * a local answer composes retained rows) until a newer answer replaces it. A background re-read about
  * 5 seconds after each reply settles does that while refreshes succeed; failed refreshes or a suspended
  * client leave the sample on screen, with the same flag, and no bound on its age.
- * By default a re-read retains the displayed answer for one non-renewable second
- * after the client processes the invalidation, marked `revalidating: true` with
- * `fresh` and `since` unchanged. A replacement clears the mark. A failed re-read
- * or the deadline withdraws to loading, even if a host timer has not run.
- * `keep: false` withdraws immediately; `keep: true` retains without that time cap
- * and lingers for 30 s after the last subscriber leaves. Retention can show
- * revoked rows during a re-read. Gate actions on `isReady(read) && !read.revalidating`;
- * use `keep: false` for exports, copies or playback that must withdraw at once.
+ * A mounted same-key observation retains its answer during plain revalidation,
+ * marked `revalidating: true`, until replacement, with no timeout. Transport
+ * failure marks `fresh: false`; retry exhaustion also keeps the answer. Online
+ * /changes evidence starts one non-renewable second: failure or the deadline
+ * withdraws to loading. Commits re-read and replace directly from the replica.
+ * `keep: false` withdraws immediately; `keep: true` adds a 30 s subscriber-free
+ * linger to the default retention policy. Visibility after membership removal
+ * ends at the replacement answer, or the online-change bound. Gate actions on
+ * `isReady(read) && !read.revalidating` when they require a completed re-read.
  * Every option withdraws on expiry, a refusal, a viewer or credential change,
  * store reset, adoption or close. Retention never grants authority.
- * @ref LLP 3000.023#3.1 — bounded retention is separate from server freshness.
+ * @ref LLP 3000.023#10 — only online change evidence bounds retention.
  * Before the first answer use `loading`; a refusal carries its message in `denied`.
  */
 export type Read<T> =

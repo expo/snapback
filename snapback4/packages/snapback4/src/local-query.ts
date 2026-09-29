@@ -26,7 +26,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -142,7 +142,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       : watch ? { loading: true } : { denied: env.offline() };
     // Rules 4/5: recovery still depends on the local branch's next deadline.
     // Its wakeup is separate from the remembered answer's server-clock expiry.
-    return { origin: "remembered", result: { read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
+    // Absent memory is an explicit replacement (including an ordered denial),
+    // not a transport failure that may retain the previously displayed value.
+    return { origin: "remembered", result: { transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
@@ -180,7 +182,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
-        if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
+        if (stopped || !response.ok) { const candidate = await recover(); checkpoint();
+          if (!response.ok && (candidate.origin !== "remembered" || "data" in candidate.result.read)) candidate.result.transportOffline = true;
+          return candidate; }
         if (response.obsoleteAuth || credentials !== env.credentialRevision) {
           if (env.refreshing) { try { await env.refreshing; } catch {} checkpoint(); }
           env.serverAnswers.renew();

@@ -139,7 +139,7 @@ export class RememberedAnswers {
   }
 }
 
-/** Every local commit fences reads; retaining watches bound an ordinary reload. */
+/** Every local commit fences reads; retaining watches keep an ordinary reload. */
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
@@ -149,7 +149,7 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
+  // @ref LLP 3000.023#10 — ordinary commits re-read without withdrawing the displayed answer.
   committed(watches: Iterable<LocalWatch>, operation: string): void {
     this.clear(watches, !["apply", "admit", "settle"].includes(operation));
   }

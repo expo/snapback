@@ -2,7 +2,7 @@ import type { Read } from "./contract.ts";
 import { answerIdentity, answerObservation, revalidatingAnswer, type ReadObservation } from "./read-observation.ts";
 import { holdReadExpiry } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
-import { ReadEpisode } from "./read-episode.ts";
+import { copyEpisode, ReadEpisode } from "./read-episode.ts";
 import { approveDelivery } from "./delivery-acceptance.ts";
 
 export interface ApprovedAnswer {
@@ -86,8 +86,12 @@ export class ReadApprovals {
       if (!owner.retain && answerIdentity(next) !== answerIdentity(held.snapshot)) {
         return drop({ loading: true });
       }
-      return update(answerIdentity(next) === answerIdentity(held.snapshot) ? next
-        : revalidatingAnswer(held.snapshot, !owner.linger));
+      const retained = answerIdentity(next) === answerIdentity(held.snapshot) ? next
+        : revalidatingAnswer(held.snapshot);
+      // @ref LLP 3000.023#10 — evidence during an authority hold bounds the
+      // displayed answer too, even if later source replacements are already ready.
+      copyEpisode(next, retained);
+      return update(retained);
     };
     const release = () => {
       held.generation++;
