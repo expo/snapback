@@ -1,0 +1,86 @@
+subscription-acquires 1
+✖ wasm: resubscribing a raw local handle starts a bounded episode (637.686135ms)
+✖ process: resubscribing a raw local handle starts a bounded episode (208.979968ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ wasm: resubscribing a raw local handle starts a bounded episode (637.686135ms)
+✖ process: resubscribing a raw local handle starts a bounded episode (208.979968ms)
+no-local-change-version 1
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (591.086507ms)
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (187.959496ms)
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (200.113727ms)
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (227.558911ms)
+✖ process keep=false: changes retire an in-flight local server body before replacement (234.132214ms)
+✖ process keep=true: changes retire an in-flight local server body before replacement (221.910533ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (591.086507ms)
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (187.959496ms)
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (200.113727ms)
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (227.558911ms)
+✖ process keep=false: changes retire an in-flight local server body before replacement (234.132214ms)
+✖ process keep=true: changes retire an in-flight local server body before replacement (221.910533ms)
+local-running-episode 1
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (612.538695ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (242.477054ms)
+ℹ tests 3
+ℹ pass 1
+ℹ fail 2
+✖ failing tests:
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (612.538695ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (242.477054ms)
+commit-running-episode 1
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (661.76418ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (257.753586ms)
+ℹ tests 3
+ℹ pass 1
+ℹ fail 2
+✖ failing tests:
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (661.76418ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (257.753586ms)
+online-running-episode 1
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (223.357542ms)
+ℹ tests 3
+ℹ pass 2
+ℹ fail 1
+✖ failing tests:
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (223.357542ms)
+online-retry-episode 1
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (260.359883ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (260.359883ms)
+clear-order-barrier 1
+✖ selective clear fences an in-flight remembered answer at cut undefined (1.90134ms)
+✖ selective clear fences an in-flight remembered answer at cut 10 (1.162483ms)
+✖ selective clear fences an in-flight remembered answer at cut 11 (0.267631ms)
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+✖ failing tests:
+✖ selective clear fences an in-flight remembered answer at cut undefined (1.90134ms)
+✖ selective clear fences an in-flight remembered answer at cut 10 (1.162483ms)
+✖ selective clear fences an in-flight remembered answer at cut 11 (0.267631ms)
+no-final-abort 1
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (643.049644ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (187.634899ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (171.282735ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (204.514473ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (201.318031ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (196.391135ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (643.049644ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (187.634899ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (171.282735ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (204.514473ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (201.318031ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (196.391135ms)

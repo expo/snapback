@@ -1,0 +1,41 @@
+✖ the final memory checkpoint rejects a change after the earlier acceptance check (4.519564ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 57.84479
+
+✖ failing tests:
+
+test at .pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/remembered-answers.test.mjs:140:1
+✖ the final memory checkpoint rejects a change after the earlier acceptance check (4.519564ms)
+  AssertionError [ERR_ASSERTION]: an obsolete body must not enter memory before the final checkpoint
+  + actual - expected
+
+  + {
+  +   at: 1790667448008,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: 'before change',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(0) {}
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/remembered-answers.test.mjs:151:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'before change', complete: true, cut: null, fresh: true, next: null }, at: 1790667448008, nextExpiry: null, tables: Set(0) {} },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

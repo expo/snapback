@@ -1,0 +1,64 @@
+✔ wasm: an unrelated replicated write preserves online-only memory offline (459.576041ms)
+✖ process: an unrelated replicated write preserves online-only memory offline (101.710628ms)
+✔ apply: remembered dependencies with footprint [] (0.647712ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.211757ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.095493ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.065088ms)
+✔ apply: remembered dependencies with footprint undefined (0.060691ms)
+✔ admit: remembered dependencies with footprint [] (0.038789ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.045928ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.059269ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.031007ms)
+✔ admit: remembered dependencies with footprint undefined (0.024857ms)
+✔ settle: remembered dependencies with footprint [] (0.023576ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.037265ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.028323ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.024186ms)
+✔ settle: remembered dependencies with footprint undefined (0.022424ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.023075ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.245999ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.025238ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.021653ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.0204ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.340621ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.183175ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.232068ms)
+✔ queued observation still withdraws at row expiry (0.579128ms)
+✔ queued observation still withdraws at reset (0.263946ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (103.831399ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (130.070903ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (100.712881ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (87.331982ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (85.821296ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (129.481808ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (134.326656ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (117.579418ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 34
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1580.856837
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-retention.test.mjs:43:41
+✖ process: an unrelated replicated write preserves online-only memory offline (101.710628ms)
+  AssertionError [ERR_ASSERTION]: the observed fallback survives the unrelated write
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:69:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

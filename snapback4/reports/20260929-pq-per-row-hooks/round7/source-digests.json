@@ -1,0 +1,12 @@
+{
+  "snapback4/packages/snapback4/src/client.ts": "4c8b6ab67150b476e5087050713886d5d1e26fcc1cb3661ac7aa725750d65406",
+  "snapback4/packages/snapback4/src/local.ts": "7b0be358e27835e10bf523e8da0d679987bf21e283e61380789e2fbd82f3dcbb",
+  "snapback4/packages/snapback4/src/local-query.ts": "f263de91b77a371d4a54f82483a3c68d395c76fa257f92f198f1ea27076cf5d0",
+  "snapback4/packages/snapback4/src/local-reads.ts": "7aebad0b613882d5814de9418ee6b858d16b3f3fe875be075f0a878da68ad888",
+  "snapback4/packages/snapback4/src/read-observation.ts": "a2047512451f982a97fed9b1649f7ab287c45f1e78ef123b2116ddefc645a570",
+  "snapback4/packages/snapback4/src/read-approval.ts": "a97d23352fa77443687e836e43ab0e8fef99cb84d044e325668470dc3fbd08ce",
+  "snapback4/packages/snapback4/src/read-episode.ts": "58bf1a35b4ae65af6393d1540a2fb3ceaefbf13a27ef679be3325778ea88ce40",
+  "snapback4/packages/snapback4/src/read-work.ts": "53b35ed9bf0907b59faac0487bfc345fae3727715fbf205d1df8ce3d18b9fdc4",
+  "snapback4/packages/snapback4/src/read-expiry.ts": "30391d2b0893223414fa18179e202794171b567d0a62b53d4e729e1af4648ddf",
+  "snapback4/packages/snapback4/src/local-read-deadlines.ts": "7ffca05bdebb16be6d48841e5b2145e892e32178479b495a16cd4b967210ea29"
+}

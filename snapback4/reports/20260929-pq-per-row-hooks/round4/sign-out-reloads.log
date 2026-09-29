@@ -1,0 +1,102 @@
+✖ wasm keep=undefined: sign-out never replaces its denial with loading (461.744226ms)
+✖ wasm keep=false: sign-out never replaces its denial with loading (67.393826ms)
+✖ wasm keep=true: sign-out never replaces its denial with loading (66.023453ms)
+✖ process keep=undefined: sign-out never replaces its denial with loading (110.917721ms)
+✖ process keep=false: sign-out never replaces its denial with loading (106.096874ms)
+✖ process keep=true: sign-out never replaces its denial with loading (88.020156ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1019.474479
+
+✖ failing tests:
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ wasm keep=undefined: sign-out never replaces its denial with loading (461.744226ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ wasm keep=false: sign-out never replaces its denial with loading (67.393826ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ wasm keep=true: sign-out never replaces its denial with loading (66.023453ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ process keep=undefined: sign-out never replaces its denial with loading (110.917721ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ process keep=false: sign-out never replaces its denial with loading (106.096874ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:44:86
+✖ process keep=true: sign-out never replaces its denial with loading (88.020156ms)
+  AssertionError [ERR_ASSERTION]: sign-out and close keep their terminal denial
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:61:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

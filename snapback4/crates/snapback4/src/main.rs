@@ -58,6 +58,7 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verb = args.first().map(String::as_str).unwrap_or("");
+    if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
         println!("{HELP}");
         return ExitCode::SUCCESS;

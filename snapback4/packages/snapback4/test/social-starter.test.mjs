@@ -124,6 +124,7 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   server.stdout.on("data", bytes => { output += bytes; }); server.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
   const url = await until(() => { assert.equal(server.exitCode, null, output); return output.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; }, "social dev ready");
+  await until(() => output.includes("notifications.mjs (pid"), "declared starter worker ready");
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
   const open = async () => {
     const app = createApp({ url, sessionStore: memorySessionStore(), device: webDevice({ wasm, persist: memoryPersistence() }) });

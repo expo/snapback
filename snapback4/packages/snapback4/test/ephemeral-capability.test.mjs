@@ -236,6 +236,7 @@ test('initial backend installation rejects a query already in flight', async t =
   t.after(() => client.close());
   const watch = client.observe(api.list, {}); t.after(() => watch.close());
   watch.subscribe(() => { if ('data' in watch.getSnapshot()) published.push(watch.getSnapshot().data); });
+  await until(() => queries === 1, "the queued watch owns the held first request");
   // A second query advertises capability while the watch's first answer is held.
   await client.query(api.list, {});
   await until(() => schemas === 1);

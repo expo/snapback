@@ -1,0 +1,833 @@
+✔ wasm: apply revocation, keep=undefined, held (571.341677ms)
+✔ wasm: admit revocation, keep=undefined, held (1205.688057ms)
+✔ wasm: transfer revocation, keep=undefined, held (1197.617159ms)
+✔ wasm: remount revocation, keep=undefined, held (1383.826411ms)
+✔ wasm: apply revocation, keep=undefined, throw (2124.37668ms)
+✔ wasm: admit revocation, keep=undefined, throw (74.130237ms)
+✔ wasm: transfer revocation, keep=undefined, throw (1172.75738ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (1191.563888ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (97.980012ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (185.798535ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (1321.60283ms)
+✔ wasm: admit revocation, keep=undefined, retryExhausted (282.745169ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (1299.90524ms)
+✔ wasm: apply revocation, keep=false, held (181.867593ms)
+✔ wasm: admit revocation, keep=false, held (1176.280151ms)
+✔ wasm: transfer revocation, keep=false, held (175.550305ms)
+✔ wasm: remount revocation, keep=false, held (177.216303ms)
+✔ process: apply revocation, keep=undefined, held (1208.719902ms)
+✔ process: admit revocation, keep=undefined, held (1222.052244ms)
+✔ process: transfer revocation, keep=undefined, held (1216.499322ms)
+✔ process: remount revocation, keep=undefined, held (1222.188469ms)
+✔ process: apply revocation, keep=undefined, throw (1207.197501ms)
+✔ process: admit revocation, keep=undefined, throw (108.318387ms)
+✔ process: transfer revocation, keep=undefined, throw (1209.993181ms)
+✔ process: apply revocation, keep=undefined, unavailable (1199.876208ms)
+✔ process: admit revocation, keep=undefined, unavailable (1141.111812ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1222.55598ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1320.476064ms)
+✔ process: admit revocation, keep=undefined, retryExhausted (1322.467589ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (1338.739567ms)
+✔ process: apply revocation, keep=false, held (1220.468422ms)
+✔ process: admit revocation, keep=false, held (1229.544255ms)
+✔ process: transfer revocation, keep=false, held (1232.604102ms)
+✔ process: remount revocation, keep=false, held (1212.223766ms)
+✔ online: revoked data, keep=undefined, held (159.890094ms)
+✔ online: revoked data, keep=undefined, retryExhausted (260.487149ms)
+✔ online: revoked data, keep=undefined, unavailable (154.68988ms)
+✔ online: revoked data, keep=undefined, throw (158.140933ms)
+✔ online: revoked data, keep=false, held (154.854957ms)
+✔ online: revoked data, keep=false, retryExhausted (163.493975ms)
+✔ online: revoked data, keep=false, unavailable (794.398858ms)
+✔ online: revoked data, keep=false, throw (944.277738ms)
+✔ online evidence while already revalidating: keep=undefined, late answer (2.298075ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.534771ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.30025ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (176.373239ms)
+✔ online evidence while already revalidating: keep=true, late answer (1.017275ms)
+✔ online evidence while already revalidating: keep=true, throw (0.500781ms)
+✔ online evidence while already revalidating: keep=true, offline (0.310445ms)
+✔ online evidence while already revalidating: keep=true, exhausted (176.740469ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1058.665499ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (31.162536ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1027.46777ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (30.674665ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3037.973479ms)
+  ✔ offline transport (66.211348ms)
+  ✔ retry exhaustion (249.56643ms)
+  ✔ reconnect (95.787677ms)
+✔ process keep=undefined: profile route gate (7386.482691ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (32.229646ms)
+  ✔ own send and settlement (29.615037ms)
+  ✔ edit (29.883028ms)
+  ✔ delete (18.764765ms)
+  ✔ membership removal (19.988619ms)
+✔ process keep=undefined: chat history and membership removal (1678.878957ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3032.818735ms)
+  ✔ offline transport (51.849191ms)
+  ✔ retry exhaustion (206.994093ms)
+  ✔ reconnect (110.128221ms)
+✔ process keep=true: profile route gate (4085.871473ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (31.550317ms)
+  ✔ own send and settlement (18.823663ms)
+  ✔ edit (18.929101ms)
+  ✔ delete (19.48905ms)
+  ✔ membership removal (18.730203ms)
+✔ process keep=true: chat history and membership removal (1623.784893ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3038.776076ms)
+  ✔ offline transport (50.51395ms)
+  ✔ retry exhaustion (197.886793ms)
+  ✔ reconnect (106.280944ms)
+✔ wasm keep=undefined: profile route gate (4682.067655ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (34.636293ms)
+  ✔ own send and settlement (29.411221ms)
+  ✔ edit (19.019717ms)
+  ✔ delete (18.533849ms)
+  ✔ membership removal (18.047319ms)
+✔ wasm keep=undefined: chat history and membership removal (1731.058826ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3024.086651ms)
+  ✔ offline transport (55.025372ms)
+  ✔ retry exhaustion (203.213998ms)
+  ✔ reconnect (87.808788ms)
+✔ wasm keep=true: profile route gate (4269.605298ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (32.181023ms)
+  ✔ own send and settlement (24.683276ms)
+  ✔ edit (19.171625ms)
+  ✔ delete (17.890104ms)
+  ✔ membership removal (18.667129ms)
+✔ wasm keep=true: chat history and membership removal (1645.523747ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3032.255405ms)
+  ✔ offline transport (37.645172ms)
+  ✔ retry exhaustion (192.282574ms)
+  ✔ reconnect (68.474069ms)
+✔ online keep=undefined: profile route gate (4269.755114ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (26.484364ms)
+  ✔ own send and settlement (21.408447ms)
+  ✔ edit (14.840934ms)
+  ✔ delete (15.530016ms)
+  ✔ membership removal (15.667021ms)
+✔ online keep=undefined: chat history and membership removal (726.093181ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3018.555183ms)
+  ✔ offline transport (37.65059ms)
+  ✔ retry exhaustion (192.130315ms)
+  ✔ reconnect (69.352115ms)
+✔ online keep=true: profile route gate (4674.252368ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (40.336587ms)
+  ✔ own send and settlement (19.756871ms)
+  ✔ edit (16.3798ms)
+  ✔ delete (16.364117ms)
+  ✔ membership removal (21.326334ms)
+✔ online keep=true: chat history and membership removal (965.485433ms)
+✖ apply keeps its bound on held, keep=undefined (2.391454ms)
+✖ apply keeps its bound on throw, keep=undefined (0.339229ms)
+✖ admit keeps its bound on held, keep=undefined (0.305318ms)
+✖ admit keeps its bound on throw, keep=undefined (0.289634ms)
+✖ settle keeps its bound on held, keep=undefined (0.334731ms)
+✖ settle keeps its bound on throw, keep=undefined (0.295372ms)
+✖ apply keeps its bound on held, keep=true (0.268392ms)
+✖ apply keeps its bound on throw, keep=true (0.234912ms)
+✖ admit keeps its bound on held, keep=true (0.283635ms)
+✖ admit keeps its bound on throw, keep=true (0.341713ms)
+✖ settle keeps its bound on held, keep=true (0.212579ms)
+✖ settle keeps its bound on throw, keep=true (0.198267ms)
+✔ process: applied membership removal and held replica replacement (2209.996282ms)
+✔ process: applied membership removal and throw replica replacement (228.925114ms)
+✔ wasm: applied membership removal and held replica replacement (1599.150403ms)
+✔ wasm: applied membership removal and throw replica replacement (186.337533ms)
+✔ online receipt bounds held replacement, keep=undefined (1157.612545ms)
+✔ online receipt bounds offline replacement, keep=undefined (154.573125ms)
+✔ online receipt bounds held replacement, keep=true (1157.113086ms)
+✔ online receipt bounds offline replacement, keep=true (150.403225ms)
+✔ online: ephemeral-only /changes bounds a held replacement (153.746456ms)
+✔ process: ephemeral-only /changes bounds a held replacement (204.014428ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (172.293645ms)
+✔ ephemeral periodic sampling is distinct from change evidence (1.931104ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (1.143264ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (197.980765ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (160.157185ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1105.193299ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1070.004608ms)
+✔ process: ordinary search offline classification (308.07265ms)
+✔ process: ordinary search loading classification (295.338955ms)
+✔ process: ordinary search denied classification (294.633048ms)
+✔ wasm: ordinary search offline classification (263.378243ms)
+✔ wasm: ordinary search loading classification (259.755053ms)
+✔ wasm: ordinary search denied classification (263.773205ms)
+✔ process: pre-change replica completion cannot erase a pending change bound (1114.431475ms)
+✔ wasm: pre-change replica completion cannot erase a pending change bound (1083.812464ms)
+✔ pending change requires published sync or a whole server answer at its cut (1.078737ms)
+✔ process: item notification survives readable old replica and failed sync, keep=undefined (1163.830834ms)
+✔ process: item notification survives readable old replica and failed sync, keep=true (1130.48797ms)
+✔ process: item notification survives readable old replica and failed sync, keep=false (1122.629222ms)
+✔ process: item notification survives throw old replica and failed sync, keep=undefined (1126.669838ms)
+✔ process: item notification survives throw old replica and failed sync, keep=true (1128.014924ms)
+✔ process: item notification survives throw old replica and failed sync, keep=false (1121.238148ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=undefined (1123.324013ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=true (1141.146336ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=false (1127.12459ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=undefined (1123.976602ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=true (1121.988923ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=false (1123.383133ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=undefined (1461.024261ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=true (1093.718051ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=false (1082.710523ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=undefined (1096.343546ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=true (1082.8018ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=false (1088.573721ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (1088.07261ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=true (1088.37293ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=false (1101.892192ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (1092.042931ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=true (1088.818839ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=false (1099.386968ms)
+✔ process: only a server answer at the reported cut can replace before sync (242.880691ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (210.877825ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (5101.668715ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (306.752412ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (299.373403ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (5070.013763ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (274.077439ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (264.537521ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=undefined (2453.822843ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=true (2442.533553ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=false (2440.028308ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=undefined (2458.462428ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=true (2449.748919ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=false (2452.600923ms)
+✔ process: real generation-only adoption retires held replica answers, keep=undefined (2447.085448ms)
+✔ process: real generation-only adoption retires held replica answers, keep=true (2447.774932ms)
+✔ process: real generation-only adoption retires held replica answers, keep=false (2447.068463ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=undefined (2843.048701ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=true (2445.152653ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=false (2448.512189ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=undefined (2449.578446ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=true (2450.017615ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=false (2448.392059ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=undefined (2451.591195ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=true (2437.905373ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=false (2439.946292ms)
+✔ process: generation boundary clears remembered answers and a held server completion (1443.921272ms)
+✔ wasm: generation boundary clears remembered answers and a held server completion (1443.422394ms)
+✔ process: quiet presence cannot publish below a pending durable cut (705.227301ms)
+✔ wasm: quiet presence cannot publish below a pending durable cut (671.371678ms)
+✔ online: missing tables, keep=undefined, failed=false (1029.89104ms)
+✔ online: missing tables, keep=undefined, failed=true (30.704721ms)
+✔ online: missing tables, keep=true, failed=false (1028.878482ms)
+✔ online: missing tables, keep=true, failed=true (32.376947ms)
+✔ online: empty tables, keep=undefined, failed=false (1121.29018ms)
+✔ online: empty tables, keep=undefined, failed=true (1122.83806ms)
+✔ online: empty tables, keep=true, failed=false (1121.866004ms)
+✔ online: empty tables, keep=true, failed=true (1124.03891ms)
+✔ expiry retry chained permits wasm (551.779291ms)
+✔ expiry retry populated watch wasm (183.663607ms)
+✔ expiry retry server pagination wasm (169.389182ms)
+✔ expiry retry server pagination watch wasm (178.745204ms)
+✔ expiry retry remembered branch wasm (163.760576ms)
+✔ expiry retry remembered branch watch wasm (166.224338ms)
+✔ expiry retry remembered branch timer watch wasm (261.582412ms)
+✔ expiry retry chained permits process (198.455537ms)
+✔ expiry retry populated watch process (218.808031ms)
+✔ expiry retry server pagination process (213.565273ms)
+✔ expiry retry server pagination watch process (194.657985ms)
+✔ expiry retry remembered branch process (194.953678ms)
+✔ expiry retry remembered branch watch process (198.350429ms)
+✔ expiry retry remembered branch timer watch process (299.296138ms)
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11713.045348ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (11679.805629ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (11789.372668ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (27132.62169ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (26460.05098ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (26355.045563ms)
+ℹ inside-episode data notifications: 66; deadline withdrawals: 1
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (25734.837437ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (25701.172999ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (25790.298668ms)
+ℹ inside-episode data notifications: 72; deadline withdrawals: 2
+✔ createApp keep=true property: online, seed 23, 50ms authority (10868.370424ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 1
+✔ createApp keep=true property: online, seed 44, 50ms authority (11416.026528ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 445, 50ms authority (11153.254487ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✖ createApp keep=true property: wasm, seed 23, 50ms authority (23432.468777ms)
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (26522.754948ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 2
+✖ createApp keep=true property: wasm, seed 445, 50ms authority (26212.318589ms)
+✔ createApp keep=true property: process, seed 23, 50ms authority (25653.484733ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 44, 50ms authority (25313.707252ms)
+ℹ inside-episode data notifications: 69; deadline withdrawals: 2
+✔ createApp keep=true property: process, seed 445, 50ms authority (25220.57669ms)
+ℹ inside-episode data notifications: 70; deadline withdrawals: 2
+✔ wasm keep=undefined: queued presence checks a second change at the response boundary (646.688754ms)
+✔ wasm keep=undefined: queued presence checks a second change at the callback boundary (228.817764ms)
+✔ wasm keep=false: queued presence checks a second change at the response boundary (241.050529ms)
+✔ wasm keep=false: queued presence checks a second change at the callback boundary (222.968047ms)
+✔ wasm keep=true: queued presence checks a second change at the response boundary (223.405302ms)
+✔ wasm keep=true: queued presence checks a second change at the callback boundary (219.480459ms)
+✔ process keep=undefined: queued presence checks a second change at the response boundary (270.181351ms)
+✔ process keep=undefined: queued presence checks a second change at the callback boundary (258.071811ms)
+✔ process keep=false: queued presence checks a second change at the response boundary (270.860438ms)
+✔ process keep=false: queued presence checks a second change at the callback boundary (264.879875ms)
+✔ process keep=true: queued presence checks a second change at the response boundary (271.810332ms)
+✔ process keep=true: queued presence checks a second change at the callback boundary (266.754004ms)
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (191.756607ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (199.977969ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (198.502207ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (228.327469ms)
+✔ process keep=false: a full queue cannot postpone the change transition (289.411512ms)
+✔ process keep=true: a full queue cannot postpone the change transition (233.676607ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (182.795005ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (414.54936ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (168.417716ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (420.554962ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (172.732373ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (415.907477ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (217.689595ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (454.2473ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (215.857699ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (462.323395ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (225.515705ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (461.6261ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (635.485292ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (210.963314ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (204.235019ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (241.023809ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (236.643113ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (236.239568ms)
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (254.320688ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (241.980733ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (274.14439ms)
+✔ wasm keep=undefined: the final callback checks a change version raised after evaluation (201.578718ms)
+✔ wasm keep=false: the final callback checks a change version raised after evaluation (207.13785ms)
+✔ wasm keep=true: the final callback checks a change version raised after evaluation (197.587256ms)
+✔ process keep=undefined: the final callback checks a change version raised after evaluation (236.318336ms)
+✔ process keep=false: the final callback checks a change version raised after evaluation (227.758357ms)
+✔ process keep=true: the final callback checks a change version raised after evaluation (238.985835ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (27.429061ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (6.537798ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.541869ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (6.797127ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (626.698423ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (168.742864ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (159.682073ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (153.16169ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (191.835105ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (187.976441ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (202.287371ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (195.137124ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (181.144662ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (214.059615ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (135.462933ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (172.122819ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (193.545027ms)
+✔ wasm: unknown apply refresh drains after the watermark (610.21055ms)
+✔ process: unknown apply refresh drains after the watermark (204.857503ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (156.87135ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (158.844147ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (146.838874ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (178.296833ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (172.023631ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (172.754447ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (207.312232ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (214.078553ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (209.638589ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (148.399913ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (139.041597ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (140.893423ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (164.729128ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (164.225563ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (168.597316ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (193.088614ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (193.657666ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (190.787525ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (889.235326ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (2083.529417ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4167.273327ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790671442078,"lastStart":1790671444097,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5208.525549ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790671447185,"lastStart":1790671449285,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (4440.422359ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790671451412,"lastStart":1790671453710,"wallIsReal":true,"link":"online"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (544.386684ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (172.052594ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (161.418957ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (198.309609ms)
+✔ process keep=false: sign-out never replaces its denial with loading (205.871623ms)
+✔ process keep=true: sign-out never replaces its denial with loading (193.804056ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (28.037363ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (23.226172ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (21.223721ms)
+✖ wasm: an unrelated replicated write preserves online-only memory offline (6052.49135ms)
+✖ process: an unrelated replicated write preserves online-only memory offline (6085.242169ms)
+✔ apply: remembered dependencies with footprint [] (0.909553ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.375403ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.161562ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.149724ms)
+✔ apply: remembered dependencies with footprint undefined (0.309844ms)
+✔ admit: remembered dependencies with footprint [] (0.164566ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.172448ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.1335ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.094332ms)
+✔ admit: remembered dependencies with footprint undefined (0.074772ms)
+✔ settle: remembered dependencies with footprint [] (0.076194ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.105799ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.117005ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.105698ms)
+✔ settle: remembered dependencies with footprint undefined (0.08643ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.07309ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.083255ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.070675ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.067161ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.070145ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (3.244714ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.476364ms)
+✖ queued keep=true: episode starts at attempt; retries never renew it (1.444725ms)
+✔ queued observation still withdraws at row expiry (1.07478ms)
+✔ queued observation still withdraws at reset (0.66046ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (195.266898ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (234.816335ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (199.858771ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (205.450412ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (197.393276ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (245.416814ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (245.764395ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (235.382815ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (192.887311ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (188.997552ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (194.284626ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (235.231157ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (231.955998ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (230.646436ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (184.944287ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (156.524191ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (159.265239ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (597.910977ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (180.338104ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (178.604585ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (231.600897ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (217.616887ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (230.08795ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (197.483631ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (230.954167ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (12.144703ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (10.953427ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (10.981809ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (0.498097ms)
+✔ request abort listeners are removed after success (0.992498ms)
+✔ request abort listeners are removed after rejection (0.608331ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (19.546717ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (2.344243ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.868882ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.177335ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.282773ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.419235ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (356.950202ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1081.478094ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (747.135687ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.755201ms)
+✔ closing a raw local handle stops its episode timer but keeps the deadline (2.73556ms)
+✔ wasm: resubscribing a raw local handle starts a bounded episode (1596.863552ms)
+✔ wasm: resubscribing a raw local handle rearms its original episode (1199.776853ms)
+✔ process: resubscribing a raw local handle starts a bounded episode (1224.617854ms)
+✔ process: resubscribing a raw local handle rearms its original episode (1249.092968ms)
+✔ closed raw local handle checks its device deadline when closed before it is due (0.598918ms)
+✔ closed raw local handle checks its device deadline when closed after it is due (0.198668ms)
+✔ closed raw local handle checks its server deadline when closed before it is due (0.261923ms)
+✔ closed raw local handle checks its server deadline when closed after it is due (0.211848ms)
+✔ a closed remembered answer ignores a local wakeup but still checks its server deadline (0.282504ms)
+✔ raw snapshot latches its device row deadline before timers, keep=undefined (0.471277ms)
+✔ raw peek latches its device row deadline before timers, keep=undefined (0.205539ms)
+✔ raw snapshot latches its server row deadline before timers, keep=undefined (0.213119ms)
+✔ raw peek latches its server row deadline before timers, keep=undefined (0.278637ms)
+✔ raw snapshot latches its device row deadline before timers, keep=true (0.327231ms)
+✔ raw peek latches its device row deadline before timers, keep=true (0.182944ms)
+✔ raw snapshot latches its server row deadline before timers, keep=true (0.163105ms)
+✔ raw peek latches its server row deadline before timers, keep=true (0.148132ms)
+ℹ tests 434
+ℹ suites 0
+ℹ pass 417
+ℹ fail 17
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 461939.644129
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ apply keeps its bound on held, keep=undefined (2.391454ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ apply keeps its bound on throw, keep=undefined (0.339229ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ admit keeps its bound on held, keep=undefined (0.305318ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ admit keeps its bound on throw, keep=undefined (0.289634ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ settle keeps its bound on held, keep=undefined (0.334731ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ settle keeps its bound on throw, keep=undefined (0.295372ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ apply keeps its bound on held, keep=true (0.268392ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ apply keeps its bound on throw, keep=true (0.234912ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ admit keeps its bound on held, keep=true (0.283635ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ admit keeps its bound on throw, keep=true (0.341713ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ settle keeps its bound on held, keep=true (0.212579ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:21:44
+✖ settle keeps its bound on throw, keep=true (0.198267ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 2000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answers-stay-review.test.mjs:27:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 2000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-app-model.test.mjs:33:3
+✖ createApp keep=true property: wasm, seed 23, 50ms authority (23432.468777ms)
+  AssertionError [ERR_ASSERTION]: {"seed":23,"trace":["local","offline","offline","remount","remote","local","offline","burst","remote","remount","burst","remount","offline","burst","remount","local"],"snapshots":[{"data":[{"body":"initial","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671616734,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2083059677","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671617639,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2083059677","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671617746,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2083059677","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671618249,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-2083059677","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671617747,"revalidating":true,"at":1790671618556,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671618354,"at":1790671619569,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671618354,"revalidating":true,"at":1790671619674,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671620374,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671620480,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671619677,"at":1790671620782,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671619677,"revalidating":true,"at":1790671620887,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671620888,"at":1790671621792,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"1-offline-952086580","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671620888,"revalidating":true,"at":1790671621895,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671620888,"at":1790671622496,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671620888,"revalidating":true,"at":1790671622601,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671623301,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671623407,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671622603,"at":1790671623710,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671622603,"revalidating":true,"at":1790671623815,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-429111912","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671624621,"deadline":1790671625222,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"4-remote-1187992190","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671624726,"at":1790671625128,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"4-remote-1187992190","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671624726,"revalidating":true,"at":1790671625232,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"4-remote-1187992190","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671625333,"action":"local","expectedWithdrawal":false},{"data":[{"body":"4-remote-1187992190","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671625435,"action":"local","expectedWithdrawal":false},{"data":[{"body":"5-local-1016611838","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671626342,"action":"local","expectedWithdrawal":false},{"data":[{"body":"5-local-1016611838","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671626448,"action":"local","expectedWithdrawal":false},{"data":[{"body":"5-local-1016611838","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671626952,"action":"local","expectedWithdrawal":false},{"data":[{"body":"5-local-1016611838","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671626449,"revalidating":true,"at":1790671627258,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671627057,"at":1790671628262,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671627057,"revalidating":true,"at":1790671628367,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671629067,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671629172,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671628370,"at":1790671629475,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671628370,"revalidating":true,"at":1790671629581,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"6-offline-2819926061","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671630186,"deadline":1790671630888,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"7-burst-2670969349","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671630292,"at":1790671630695,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"7-burst-2670969349","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671630292,"revalidating":true,"at":1790671630801,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"7-burst-2670969349","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671631102,"deadline":1790671631806,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"8-remote-1746744915","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671631209,"at":1790671631611,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"8-remote-1746744915","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671631209,"revalidating":true,"at":1790671631716,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"10-burst-3895960867","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671632621,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"10-burst-3895960867","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671632023,"revalidating":true,"at":1790671633128,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671632725,"at":1790671634131,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671632725,"revalidating":true,"at":1790671634235,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671634937,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671635041,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671634237,"at":1790671635344,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671634237,"revalidating":true,"at":1790671635448,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-3408563972","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671636052,"deadline":1790671636752,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"13-burst-3280080449","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671636158,"at":1790671636559,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"13-burst-3280080449","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671636158,"revalidating":true,"at":1790671636662,"action":"burst","expectedWithdrawal":false},{"loading":true,"at":1790671637965,"action":"local","expectedWithdrawal":false},{"loading":true,"at":1790671638771,"action":"local","expectedWithdrawal":false},{"data":[{"body":"15-local-2230176072","id":"private","owner":"guest:01M3P5GYJAYP05CFZSQ907KX0M"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671638776,"action":"local","expectedWithdrawal":false}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-app-model.test.mjs:111:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-app-model.test.mjs:33:3
+✖ createApp keep=true property: wasm, seed 445, 50ms authority (26212.318589ms)
+  AssertionError [ERR_ASSERTION]: {"seed":445,"trace":["local","burst","offline","local","burst","remote","local","local","remote","remote","remount","burst","offline","offline","offline","remount","burst","remount","remount","remote"],"snapshots":[{"data":[{"body":"initial","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671666686,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1616178917","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671667593,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1616178917","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671667697,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1616178917","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671668200,"action":"local","expectedWithdrawal":false},{"data":[{"body":"0-local-1616178917","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671668310,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"1-burst-1284387841","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671669016,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"1-burst-1284387841","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671668519,"revalidating":true,"at":1790671669324,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671669121,"at":1790671670331,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671669121,"revalidating":true,"at":1790671670434,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671671135,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671671241,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671670437,"at":1790671671543,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"2-offline-3617088015","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671670437,"revalidating":true,"at":1790671671648,"action":"offline","expectedWithdrawal":false},{"loading":true,"at":1790671672649,"deadline":1790671672649,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2699301763","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671673056,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2699301763","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671673162,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2699301763","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671673666,"action":"local","expectedWithdrawal":false},{"data":[{"body":"3-local-2699301763","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671673777,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"4-burst-1880636393","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671674484,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"4-burst-1880636393","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671674593,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"5-remote-3916183562","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671674898,"at":1790671675300,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"5-remote-3916183562","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671674898,"revalidating":true,"at":1790671675405,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"5-remote-3916183562","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671675505,"action":"local","expectedWithdrawal":false},{"data":[{"body":"5-remote-3916183562","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671675606,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-local-2747574460","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671676512,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-local-2747574460","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671676618,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-local-2747574460","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671677121,"action":"local","expectedWithdrawal":false},{"data":[{"body":"6-local-2747574460","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671677328,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-3971303797","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671678234,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-3971303797","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671678340,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-3971303797","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671678844,"action":"local","expectedWithdrawal":false},{"data":[{"body":"7-local-3971303797","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671678953,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"8-remote-4142054584","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671679259,"at":1790671679661,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"8-remote-4142054584","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671679259,"revalidating":true,"at":1790671679766,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"8-remote-4142054584","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671680068,"deadline":1790671680771,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"9-remote-2412276802","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671680174,"at":1790671680576,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"9-remote-2412276802","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671680174,"revalidating":true,"at":1790671680682,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"11-burst-1063172822","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671681590,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"11-burst-1063172822","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671680991,"revalidating":true,"at":1790671681895,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671681694,"at":1790671682903,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671681694,"revalidating":true,"at":1790671683008,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671683710,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671683822,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671683010,"at":1790671684122,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671683010,"revalidating":true,"at":1790671684226,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671684226,"at":1790671685130,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"12-offline-4030318859","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671684226,"revalidating":true,"at":1790671685232,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671684226,"at":1790671685833,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671684226,"revalidating":true,"at":1790671685937,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671686638,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671686743,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671685939,"at":1790671687046,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671685939,"revalidating":true,"at":1790671687152,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671687152,"at":1790671688057,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"13-offline-3925966183","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671687152,"revalidating":true,"at":1790671688159,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671687152,"at":1790671688761,"action":"offline","expectedWithdrawal":true},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671687152,"revalidating":true,"at":1790671688866,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"at":1790671689568,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671689674,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671688869,"at":1790671689976,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK","pending":true}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671688869,"revalidating":true,"at":1790671690082,"action":"offline","expectedWithdrawal":false},{"data":[{"body":"14-offline-1880230289","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true,"at":1790671690886,"deadline":1790671691488,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"16-burst-927534752","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671690992,"at":1790671691395,"action":"burst","expectedWithdrawal":false},{"data":[{"body":"16-burst-927534752","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671690992,"revalidating":true,"at":1790671691500,"action":"burst","expectedWithdrawal":false},{"loading":true,"at":1790671692506,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"19-remote-1682499174","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671692010,"at":1790671692508,"action":"remote","expectedWithdrawal":false},{"data":[{"body":"19-remote-1682499174","id":"private","owner":"guest:01M3P5JFB5XXNBNRV2VRGQQFZK"}],"complete":true,"cut":null,"fresh":false,"next":null,"since":1790671692010,"revalidating":true,"at":1790671692614,"action":"remote","expectedWithdrawal":false}]}
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-app-model.test.mjs:111:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:93:41
+✖ wasm: an unrelated replicated write preserves online-only memory offline (6052.49135ms)
+  AssertionError [ERR_ASSERTION]: timed out: offline observation completes using remembered memory
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:118:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:93:41
+✖ process: an unrelated replicated write preserves online-only memory offline (6085.242169ms)
+  AssertionError [ERR_ASSERTION]: timed out: offline observation completes using remembered memory
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:118:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:140:46
+✖ queued keep=true: episode starts at attempt; retries never renew it (1.444725ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 6000
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:162:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 6000,
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

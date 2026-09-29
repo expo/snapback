@@ -246,14 +246,14 @@ test("data URI fallback rejects reader failures, unsupported media and malformed
     nativeBlob([1], "text/html"),
   ];
   for (const blob of blobs) {
-    assert.equal((await fetchBlob(blob)).denied.code, "E_OFFLINE");
+    assert.equal((await fetchBlob(blob)).denied.code, "E_CLIENT");
     assert.equal(blob.closes, 1);
   }
   assert.equal(readers.length, blobs.length - 1, "unsupported media does not enter conversion");
   for (const reader of readers) for (const name of ["onload", "onerror", "onabort"]) assert.equal(reader[name], null);
   delete globalThis.FileReader;
   const unavailable = nativeBlob([1]);
-  assert.equal((await fetchBlob(unavailable)).denied.code, "E_OFFLINE");
+  assert.equal((await fetchBlob(unavailable)).denied.code, "E_CLIENT");
   assert.equal(unavailable.closes, 1);
 });
 
@@ -266,14 +266,14 @@ test("data URI fallback rejects trailing line terminators even when they fill th
     assert.equal(encoded.length, 4, "a three-byte Blob expects four encoded characters");
     assert.ok(Buffer.from(encoded, "base64").length < 3, "a permissive decoder would return too few bytes");
     const blob = nativeBlob([1, 2, 3], "image/png", "load", `data:image/png;base64,${encoded}`);
-    assert.equal((await fetchBlob(blob)).denied.code, "E_OFFLINE");
+    assert.equal((await fetchBlob(blob)).denied.code, "E_CLIENT");
     assert.equal(blob.closes, 1);
   }
   assert.equal(readers.length, 5);
   for (const reader of readers) for (const name of ["onload", "onerror", "onabort"]) assert.equal(reader[name], null);
 });
 
-test("a delayed transient conversion cannot publish an obsolete session's asset", async t => {
+test("a delayed transient conversion survives rotation but not sign-out or close", async t => {
   const readers = installReader(t), urls = installUrls(t);
   URL.createObjectURL = () => { throw new TypeError("object URLs unavailable"); };
   const session = token => ({ principal: "user:alice", kind: "user", token, expiresAt: Date.now() + 86400_000 });
@@ -298,7 +298,8 @@ test("a delayed transient conversion cannot publish an obsolete session's asset"
     const result = await reading;
     assert.equal(old.closes, 1);
     if (ending === "rotation") {
-      assert.equal(result.denied.code, "E_AUTH");
+      assert.ok(result.url?.startsWith("data:image/png;base64,"), "same-principal rotation keeps the completed view");
+      result.revoke();
       assert.equal(fetches, 1, "rotation cannot consume another view after a successful download");
       assert.equal(next.closes, 0, "no replacement response was requested");
     } else {
@@ -317,12 +318,12 @@ test("FileReader errors, aborts, invalid results and synchronous failures settle
   for (const mode of ["error", "abort", "invalid", "throw"]) {
     const blob = nativeBlob([1], "image/png", mode);
     const result = await fetchBlob(blob, (body, reply) => cache.viewed("photo", body, reply));
-    assert.equal(result.denied.code, "E_OFFLINE");
+    assert.equal(result.denied.code, "E_CLIENT");
     assert.equal(blob.closes, 1);
   }
   delete globalThis.FileReader;
   const unavailable = nativeBlob([2]);
-  assert.equal((await fetchBlob(unavailable, (body, reply) => cache.viewed("photo", body, reply))).denied.code, "E_OFFLINE");
+  assert.equal((await fetchBlob(unavailable, (body, reply) => cache.viewed("photo", body, reply))).denied.code, "E_CLIENT");
   assert.equal(unavailable.closes, 1, "a missing host reader also releases its response Blob");
   for (const reader of readers) for (const name of ["onload", "onerror", "onabort"]) assert.equal(reader[name], null);
   assert.deepEqual(files.writes, []);
@@ -347,12 +348,12 @@ test("failed retention and URL creation close owned response Blobs; revoke clean
   const urls = installUrls(t);
   const retention = nativeBlob([1]);
   const result = await fetchBlob(retention, async () => { throw new Error("storage failed"); });
-  assert.equal(result.denied.code, "E_OFFLINE");
+  assert.equal(result.denied.code, "E_CLIENT");
   assert.equal(retention.closes, 1);
   assert.deepEqual(urls.created, []);
   URL.createObjectURL = () => { throw new Error("no URL"); };
   const noUrl = nativeBlob([2]);
-  assert.equal((await fetchBlob(noUrl)).denied.code, "E_OFFLINE");
+  assert.equal((await fetchBlob(noUrl)).denied.code, "E_CLIENT");
   assert.equal(noUrl.closes, 1);
   URL.createObjectURL = () => "blob:throw-on-revoke";
   URL.revokeObjectURL = () => { throw new Error("URL disposal failed"); };
@@ -453,3 +454,18 @@ test("a foreign once receipt checks the entry after serialized writes and never 
   const retained = await reopened.cache.read("photo");
   assert.ok("url" in retained); retained.revoke();
 });
+
+for (const [range, keeps] of [['bytes 0-1/2', true], ['bytes 0-0/2', false], ['bytes 1-2/3', false], ['bytes 0-9/10', false], ['bytes */2', false], ['', false]]) {
+  test(`a ranged body retains only the entire ordinary file: ${range || 'missing range'}`, async t => {
+    installReader(t); installUrls(t);
+    const files = await deviceFiles(t); files.homes.set('photo', home('image/png'));
+    const { cache } = await files.open();
+    const blob = nativeBlob([1, 2]), reply = response(blob);
+    reply.status = 206; reply.headers.set('content-range', range);
+    const result = await cache.viewed('photo', blob, reply);
+    assert.equal(!!result, keeps);
+    if (result) result.revoke();
+    assert.deepEqual(files.writes, keeps ? ['photo'] : []);
+    blob.close();
+  });
+}

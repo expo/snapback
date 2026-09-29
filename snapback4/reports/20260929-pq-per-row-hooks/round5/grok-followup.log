@@ -1,0 +1,141 @@
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (919.753912ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (269.570369ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (257.307219ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (349.01028ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (377.499268ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (349.49801ms)
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (196.120285ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (312.748712ms)
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (869.222708ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (208.816945ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (230.714053ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (377.890914ms)
+✔ process keep=false: sign-out never replaces its denial with loading (322.866726ms)
+✔ process keep=true: sign-out never replaces its denial with loading (322.552537ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (27.550802ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (22.304409ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.944308ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (273.998405ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (358.318069ms)
+✔ apply: remembered dependencies with footprint [] (0.581542ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.299329ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.16628ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.337226ms)
+✔ apply: remembered dependencies with footprint undefined (0.12713ms)
+✔ admit: remembered dependencies with footprint [] (0.089494ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.103395ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.10003ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.090506ms)
+✔ admit: remembered dependencies with footprint undefined (0.073911ms)
+✔ settle: remembered dependencies with footprint [] (0.081002ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.072769ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.103896ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.085238ms)
+✔ settle: remembered dependencies with footprint undefined (0.078818ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.078198ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.058067ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.056695ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.060551ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.062984ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (2.481469ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.368903ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.362613ms)
+✔ queued observation still withdraws at row expiry (0.794782ms)
+✔ queued observation still withdraws at reset (0.715533ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (226.679206ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (373.185652ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (273.755221ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (298.292105ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (254.618329ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (409.987199ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (370.218225ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (340.461727ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (234.239126ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (250.245716ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (237.680203ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (359.561934ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (340.595367ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (351.35908ms)
+✔ closing a raw local handle stops its episode timer but keeps the deadline (5.178912ms)
+✔ wasm: resubscribing a raw local handle starts a bounded episode (1856.786901ms)
+✔ wasm: resubscribing a raw local handle rearms its original episode (1246.849477ms)
+✔ process: resubscribing a raw local handle starts a bounded episode (1337.057947ms)
+✔ process: resubscribing a raw local handle rearms its original episode (1358.880243ms)
+✔ closed raw local handle checks its device deadline when closed before it is due (1.125987ms)
+✔ closed raw local handle checks its device deadline when closed after it is due (0.418057ms)
+✔ closed raw local handle checks its server deadline when closed before it is due (0.477686ms)
+✔ closed raw local handle checks its server deadline when closed after it is due (0.818707ms)
+✔ a closed remembered answer ignores a local wakeup but still checks its server deadline (0.481783ms)
+✔ raw snapshot latches its device row deadline before timers, keep=undefined (0.741231ms)
+✔ raw peek latches its device row deadline before timers, keep=undefined (0.327641ms)
+✔ raw snapshot latches its server row deadline before timers, keep=undefined (0.35319ms)
+✔ raw peek latches its server row deadline before timers, keep=undefined (0.485017ms)
+✔ raw snapshot latches its device row deadline before timers, keep=true (0.482713ms)
+✔ raw peek latches its device row deadline before timers, keep=true (0.322433ms)
+✔ raw snapshot latches its server row deadline before timers, keep=true (0.265718ms)
+✔ raw peek latches its server row deadline before timers, keep=true (0.284727ms)
+✔ a later cut wins; at one cut, or without one, the read that began later wins (1.964254ms)
+✔ a reply below a cut already named is older, through replies without one (0.38041ms)
+✔ forgetting an expired answer preserves its highest store cut (0.287641ms)
+✔ forget fences a pre-expiry reply at cut undefined, including later arrivals (0.325207ms)
+✔ forget fences a pre-expiry reply at cut 10, including later arrivals (4.923119ms)
+✔ forget fences a pre-expiry reply at cut 11, including later arrivals (0.201192ms)
+✔ forget fences absent keys too and a rejected answer still names its cut (0.263876ms)
+✔ selective clear fences an in-flight remembered answer at cut undefined (0.370536ms)
+✔ selective clear fences an in-flight remembered answer at cut 10 (0.226069ms)
+✔ selective clear fences an in-flight remembered answer at cut 11 (0.278177ms)
+✔ a composed read's refusal removes no answer a later read remembered (3.28251ms)
+✔ an earlier read's answer at a higher cut, landing while a composed read is out, is remembered (0.61378ms)
+✔ a composed read's refusal at a later cut removes an older answer a later read remembered (0.483144ms)
+✔ a composed answer takes its place in the order, so an older answer that lands later loses (0.863945ms)
+✔ a composed read's whole answer is not remembered (1.02758ms)
+✔ a refusal is ordered by the cut its evaluation read, not the head taken before it (0.357756ms)
+✔ a refetch after the credentials change takes a new place in the order (0.643765ms)
+✔ an expired device answer re-routed to the server takes a new place in the order (0.777305ms)
+✔ displayed expiry fences old bodies while preserving unexpired memory and its cuts (0.211137ms)
+ℹ tests 95
+ℹ suites 0
+ℹ pass 93
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9276.243818
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (196.120285ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:116:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (312.748712ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:116:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

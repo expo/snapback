@@ -32,7 +32,7 @@ The reference saved-intent journal is in the starters: `snapback4 init --expo` /
 ## Honest read boundaries
 
 A profile `useQuery` can gate a route: once ready, plain refetch, reconnect, a slow read, transport failure and retry exhaustion keep its answer marked `revalidating`, with no timeout. `usePage` likewise keeps history through peer sync, sends, settlements, edits and deletes; each completed read replaces the answer directly.
-Local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications keep the answer for at most one non-renewable second while re-reading, then withdraw on failure or timeout. Immediate replica replacements never show `loading`. A notification remains pending until sync applies it or a server answer at its reported cut replaces the display; reading an older replica cannot clear the bound. Membership removal replaces rows with the denial or empty answer. `fresh: false` and `since` describe offline freshness; `revalidating` says a replacement is still needed.
+Local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications keep the answer for at most one non-renewable second after the replacement attempt starts, then withdraw on failure or timeout. Immediate replica replacements never show `loading`. A notification remains pending until sync applies it. A whole server answer at its reported cut can replace the display sooner; older replica reads remain ineligible. Membership removal replaces rows with the denial or empty answer. `fresh: false` and `since` describe offline freshness; `revalidating` says a replacement is still needed.
 Offline ephemeral answers keep their original row expiry. The default and `keep: true` share this policy; `true` also lingers for 30 seconds after the last subscriber. `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Reset user-owned state on account/backend change. No identity latch or `keep: true` workaround is needed for refetch.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 For search, use one ordinary query per scope through `usePage`, as the social
@@ -45,31 +45,45 @@ While this device holds a predictable pending write to a table a query reads, th
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
 
+## Queries in rows
+
+Per-row `useQuery` is supported. Equal query names and wire-equivalent arguments
+share one live observation within the same retention policy. Object key order
+does not create another observation; changing `keep` does.
+
+For a large list, return fields in one paged query when they belong to the same read.
+In the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
+The pre-port Linux/Chromium wasm sample mounted the same 1,000 fields in 23 ms as one
+list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
+Both do zero evaluations for a known unrelated table write. The client starts
+at most eight queued observation attempts per event-loop turn, with at most eight
+active; direct queries and timed presence refreshes use separate paths.
+`keep: false` withdraws before a re-read is queued; retaining watches keep the answer marked `revalidating`.
+Queue wait precedes a new change-evidence episode: its one-second bound starts when the attempt starts. Later queueing and retries never renew an existing deadline. Expiry and scope resets remain immediate.
+Known unrelated writes also preserve remembered server answers for offline fallback.
+A clock refresh preserves a newer answer whose own deadline is still in the future.
+Dependencies include authorization inputs: a write can re-evaluate every row on the table even when only one id changed.
+
+```tsx
+import { useQuery, usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function MemberCount({ conversationId }: { conversationId: string }) {
+  const members = useQuery(api.members, { conversationId });
+  return <span>{"data" in members ? members.data.length : "…"}</span>;
+}
+function ConversationList() {
+  const page = usePage(api.inboxCards, {});
+  return <>{page.items.map(row => <span key={row.id}>{row.title} ({row.memberCount})</span>)}
+    {page.hasMore && <button onClick={page.loadMore}>More</button>}</>;
+}
+```
+
+`inboxCards` is your application's query and fields. Keep server-needing
+decorations separate when including them would withhold the main list.
+
 ## Measure cold acquisition
 
-For large partitions, use `webDevice({ worker: true })` from `snapback4/web`
-to keep atomic device publication off the page thread. The package default
-remains `webDevice()`. Render the first available screen while
-`useAcquisition()` shows progress; `acquired` means the complete declared
-partition has been durably published for offline use.
-
-On eb1000 (AMD EPYC 9454, Chromium 151), five cold runs on a retained Clique
-fixture took median **2.25 s Worker / 2.19 s default** for 100 memberships,
-500 Following edges and 500 messages (3.65 MB of sync bodies). A heavy account
-with 1,000 memberships and 90,500 messages took **25.66 s Worker** in five
-instrumented runs (39.76 MB). Group count alone does not predict cost.
-For a 10-core M1 Max, plan roughly **5–8 s / 60–90 s** at those volumes until
-measured there. These are engineering estimates, not Mac qualification or
-promises; the retained fixture differs from the slower Mac calibration.
-
-Measure your largest account in five fresh browser profiles against the
-production server. After authentication, start a clock immediately before
-`createApp`, subscribe when its signed-in client is published, and stop when
-its `onAcquired` listener receives `true`. `guide sync` gives the full recipe.
-Record each time, the median, host load, network conditions, browser version,
-`/sync` bytes and requests, and `client.residency()`. Time the first screen
-separately; disconnect and reopen to check expected rows and complete pages.
-A warm reopened store measures restoration, not cold acquisition.
+Use `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
 
 ## Acknowledgements and receipts
 

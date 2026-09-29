@@ -1,0 +1,123 @@
+local-sweep-reloads 1
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (500.824269ms)
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.073692ms)
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (135.769685ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (110.493115ms)
+ℹ tests 6
+ℹ pass 2
+ℹ fail 4
+✖ failing tests:
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (500.824269ms)
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.073692ms)
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (135.769685ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (110.493115ms)
+online-sweep-reloads 1
+✖ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (35.911964ms)
+✖ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.570054ms)
+✖ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.309102ms)
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+✖ failing tests:
+✖ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (35.911964ms)
+✖ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.570054ms)
+✖ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.309102ms)
+sign-out-reloads 1
+✖ wasm keep=undefined: sign-out never replaces its denial with loading (461.744226ms)
+✖ wasm keep=false: sign-out never replaces its denial with loading (67.393826ms)
+✖ wasm keep=true: sign-out never replaces its denial with loading (66.023453ms)
+✖ process keep=undefined: sign-out never replaces its denial with loading (110.917721ms)
+✖ process keep=false: sign-out never replaces its denial with loading (106.096874ms)
+✖ process keep=true: sign-out never replaces its denial with loading (88.020156ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: sign-out never replaces its denial with loading (461.744226ms)
+✖ wasm keep=false: sign-out never replaces its denial with loading (67.393826ms)
+✖ wasm keep=true: sign-out never replaces its denial with loading (66.023453ms)
+✖ process keep=undefined: sign-out never replaces its denial with loading (110.917721ms)
+✖ process keep=false: sign-out never replaces its denial with loading (106.096874ms)
+✖ process keep=true: sign-out never replaces its denial with loading (88.020156ms)
+missing-footprint 1
+✖ wasm: an unrelated replicated write preserves online-only memory offline (6450.752038ms)
+✖ process: an unrelated replicated write preserves online-only memory offline (6086.092071ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ wasm: an unrelated replicated write preserves online-only memory offline (6450.752038ms)
+✖ process: an unrelated replicated write preserves online-only memory offline (6086.092071ms)
+clear-all-memory 1
+✖ apply: remembered dependencies with footprint [] (1.655492ms)
+✖ apply: remembered dependencies with footprint ["notes"] (0.210856ms)
+✖ apply: remembered dependencies with footprint ["remoteRows"] (0.139769ms)
+✖ apply: remembered dependencies with footprint ["members"] (0.128062ms)
+✖ admit: remembered dependencies with footprint [] (0.145048ms)
+✖ admit: remembered dependencies with footprint ["notes"] (0.122864ms)
+✖ admit: remembered dependencies with footprint ["remoteRows"] (0.132879ms)
+✖ admit: remembered dependencies with footprint ["members"] (0.13374ms)
+✖ settle: remembered dependencies with footprint [] (0.153741ms)
+✖ settle: remembered dependencies with footprint ["notes"] (0.117406ms)
+✖ settle: remembered dependencies with footprint ["remoteRows"] (0.103014ms)
+✖ settle: remembered dependencies with footprint ["members"] (0.113019ms)
+ℹ tests 20
+ℹ pass 8
+ℹ fail 12
+✖ failing tests:
+✖ apply: remembered dependencies with footprint [] (1.655492ms)
+✖ apply: remembered dependencies with footprint ["notes"] (0.210856ms)
+✖ apply: remembered dependencies with footprint ["remoteRows"] (0.139769ms)
+✖ apply: remembered dependencies with footprint ["members"] (0.128062ms)
+✖ admit: remembered dependencies with footprint [] (0.145048ms)
+✖ admit: remembered dependencies with footprint ["notes"] (0.122864ms)
+✖ admit: remembered dependencies with footprint ["remoteRows"] (0.132879ms)
+✖ admit: remembered dependencies with footprint ["members"] (0.13374ms)
+✖ settle: remembered dependencies with footprint [] (0.153741ms)
+✖ settle: remembered dependencies with footprint ["notes"] (0.117406ms)
+✖ settle: remembered dependencies with footprint ["remoteRows"] (0.103014ms)
+✖ settle: remembered dependencies with footprint ["members"] (0.113019ms)
+episode-at-enqueue 1
+✖ queued keep=undefined: episode starts at attempt; retries never renew it (3.119016ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ queued keep=undefined: episode starts at attempt; retries never renew it (3.119016ms)
+episode-at-enqueue-react 1
+✖ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (3437.32503ms)
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (3965.557245ms)
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (3049.955398ms)
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+✖ failing tests:
+✖ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (3437.32503ms)
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (3965.557245ms)
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (3049.955398ms)
+callback-reset 1
+✖ wasm keep=undefined: reset after the early fence is rejected by the publication callback (481.825304ms)
+✖ wasm keep=false: reset after the early fence is rejected by the publication callback (77.924702ms)
+✖ wasm keep=true: reset after the early fence is rejected by the publication callback (82.085459ms)
+✖ process keep=undefined: reset after the early fence is rejected by the publication callback (116.503893ms)
+✖ process keep=false: reset after the early fence is rejected by the publication callback (121.610199ms)
+✖ process keep=true: reset after the early fence is rejected by the publication callback (112.724418ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: reset after the early fence is rejected by the publication callback (481.825304ms)
+✖ wasm keep=false: reset after the early fence is rejected by the publication callback (77.924702ms)
+✖ wasm keep=true: reset after the early fence is rejected by the publication callback (82.085459ms)
+✖ process keep=undefined: reset after the early fence is rejected by the publication callback (116.503893ms)
+✖ process keep=false: reset after the early fence is rejected by the publication callback (121.610199ms)
+✖ process keep=true: reset after the early fence is rejected by the publication callback (112.724418ms)
+no-attempt-episode 1
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (456.298278ms)
+✖ process: a local active attempt has its own bounded episode and accepts late success (126.340219ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ wasm: a local active attempt has its own bounded episode and accepts late success (456.298278ms)
+✖ process: a local active attempt has its own bounded episode and accepts late success (126.340219ms)

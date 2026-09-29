@@ -281,9 +281,9 @@ for (const [serverDelay, early] of [[null, false], [null, true], [300, false], [
   if (serverDelay === 300) {
     assert.deepEqual(watch.getSnapshot(), { loading: true }, 'simultaneous server expiry must reset');
   } else {
-    assert.deepEqual(watch.getSnapshot(), { ...before, revalidating: true }, 'a valid remembered page survives with its original freshness');
+    assert.equal(watch.getSnapshot(), before, 'a local wakeup preserves the valid remembered answer without invalidating it');
     assert.equal(answerIdentity(watch.getSnapshot()), answerIdentity(before));
-    assert.equal(publications.length, count + 1, 'the mark notifies without a loading withdrawal');
+    assert.equal(publications.length, count, 'a non-invalidating wakeup has no visible transition before its result');
     if (serverDelay === 600) {
       t.mock.timers.tick(300); await drain();
       assert.deepEqual(watch.getSnapshot(), { loading: true }, 'the server cutoff stays armed during the local call');

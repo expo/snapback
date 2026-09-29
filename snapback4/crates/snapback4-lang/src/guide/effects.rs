@@ -34,6 +34,116 @@ mutation send(roomId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
+## Start here: declared workers and delivery deduplication
+
+Put each worker at `snapback/workers/<service>.mjs` (also `.mts` or `.ts`).
+For example, `snapback/workers/push.mjs` declares the `service:push` worker.
+`snapback4 dev` and `snapback4 serve` start it, inject its token,
+prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
+stop its group on server exit, including abrupt death. Host restart waits for
+group cleanup (five seconds, then E_STORE_BUSY). Failed token retirement keeps
+the worker stopped until retirement succeeds, even after declaration removal.
+A failed deletion fences the old revision immediately on dev and serve; peers
+renew under that revision. Ordinary queries refuse retired revisions during deletion. If a watchdog dies, the host
+kills its worker group before replacement. Signals sent to a live watchdog
+initiate its group cleanup. A new declaration that cannot start retries after
+repair without requiring another source edit. Tokens are never printed.
+
+E_WORKER_REFRESH means this token belongs to a supervised worker family.
+The supervisor owns token rotation: `/auth/refresh` returns HTTP 403 with this
+code for named and conventional workers. Keep using the injected token;
+the refusal leaves it live. Manually minted service seats can still refresh.
+
+`snapback4 doctor` shows
+all workers and their last reported states, starts, restarts and crashes,
+including `ledger-unavailable` while retrying a stopped child. Startup clears
+prior reports when retiring the previous host's credentials.
+`deploy` copies the workers source subtree; put helpers in subdirectories and
+install package dependencies on the deployment host. Symlinks at any level and
+non-regular source files are refused on every launch and restart, even after
+a source change was rejected. Named workers execute private copies of validated
+entry/helper bytes under private `.snapback4` directories; replacing original paths
+cannot change an in-flight launch. Package manifests also refuse symlinks.
+Package dependencies stay installed on the host, preserving schema-local
+`snapback/node_modules` lookup before project-root packages. For numbered releases,
+serve uses the nearest ancestor containing `snapback/node_modules`; install there.
+This is ordinary Node 24.
+Automatic dev `snapback/server.*` and `snapback/worker.*` entries also execute
+validated private copies of the schema tree, including generated modules.
+Server imports tracked by the TypeScript checker elsewhere inside the project
+also use validated copies. Other relative helpers stay inside `snapback/`; source
+symlinks are refused at startup and restart. The working directory remains the
+original project. Use it or an explicit durable path for runtime files; module
+URLs refer to the private source copy.
+
+```js
+// snapback/workers/push.mjs
+// snapback4 secrets: PUSH_API_KEY
+import { runWorker } from "snapback4/worker";
+const stop = new AbortController();
+process.once("SIGTERM", () => stop.abort());
+await runWorker({
+  url: process.env.SNAPBACK_URL,
+  token: process.env.SNAPBACK_SERVICE_TOKEN,
+  ledger: true,
+  signal: stop.signal,
+  effects: { notify: async (payload, meta) => {
+    const response = await fetch("https://push.example.com/send", {
+      method: "POST",
+      signal: AbortSignal.timeout(30_000),
+      headers: { "content-type": "application/json", "idempotency-key": meta.idempotencyKey },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`push provider: ${response.status}`);
+    return { providerId: meta.idempotencyKey };
+  } },
+}).done;
+```
+
+`meta.idempotencyKey` equals the effect's `meta.id` and is **stable across
+redelivery**, attempts and restarts. Pass it to providers accepting idempotency
+keys. It identifies one admitted effect: use `emit ... once [...]` below to
+prevent repeated admission of the same digest period.
+
+`ledger: true` uses the supervisor's durable SQLite completion file beside the
+opened backend store, namespaced by its identity. `dev --fresh` uses a private
+temporary ledger; replacing the store cannot reuse old completions. Successful
+JSON results commit before acknowledgement; redelivery
+replays the result without repeating the handler. Keep the ledger with the store
+across releases and backups. There is no automatic pruning. It serializes
+opted-in handlers sharing that local file, including across processes; hosts
+with separate disks do not share deduplication. Failures record no completion.
+One hung provider call therefore stalls all handlers sharing that file; set a
+provider timeout, as above. Keeping the lock prevents simultaneous duplicate
+calls for one key. A busy commit retains its transaction and retries only the
+commit, even if cancellation arrives after the handler succeeded. A blocked
+reader can delay completion too. This is a shared-file serialization tradeoff.
+Delivery remains **at least once**: a crash after the external call but before
+the ledger write/commit, or an unrecoverable storage/result-encoding failure
+in that interval, can repeat the action. Provider idempotency covers that
+remaining window. Losing/deleting the ledger also loses its completions.
+The worker validates ledger storage before claiming work. Initialization errors
+stop polling without consuming attempts. A supervised child exits, reports
+`ledger-unavailable` in doctor and retries with bounded backoff; repair storage
+to resume. Standalone `done` resolves so its owner can repair and restart.
+Later storage/commit failures close the ledger and stop polling without settling
+claimed work as a handler failure; its ordinary lease can expire for redelivery.
+
+Worker environments contain only runtime paths/locale, supervisor settings and
+selected declared secrets; parent `NODE_OPTIONS` is not copied.
+Named entries receive no declared secrets by default. List just the names the
+entry needs with `// snapback4 secrets: PUSH_API_KEY, OTHER_KEY`; each must also
+be declared by an effect, action or route. The conventional generated server
+still receives its full registry's secrets. This narrows environment injection;
+service seats remain trusted deployment credentials, not per-effect ACLs.
+
+Standalone `runWorker` still accepts explicit `url` and `token` (mint with
+`token --service push`). Use `ledger: "/durable/path/effects.sqlite"` there,
+or omit it to retain the ordinary loop. The ledger applies to low-level effects;
+generated `ctx.step` handlers keep their durable step/reconciliation contract.
+Do not register an effect in multiple entries unless that is intentional.
+
+
 Effects are global declarations shared by every file; jobs are module-qualified
 operations. The worker dispatches by the declared effect name, while schedules
 and `run` address an operation. If `digest.q` declares `effect notify` and
@@ -63,7 +173,7 @@ An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancel
 Effects use the shared external-step transition policy through their own
 `_effect_steps` records and the provider-key domain
 `snapback4:effect-step:v1`; action rows and keys are unchanged. A generated
-handler receives frozen `ctx.effect` metadata (`id`, `effect`, `attempt`, `seq`,
+handler receives frozen `ctx.effect` metadata (`id`, `idempotencyKey`, `effect`, `attempt`, `seq`,
 `at`, `worker`), live `ctx.invocation` (`id`, `attempt`, `deadline`,
 `cancelled`, `signal`), its declared `ctx.secrets`, and `ctx.step`. It receives no principal, query,
 mutation, write-id, raw lease, service token or administrative surface.

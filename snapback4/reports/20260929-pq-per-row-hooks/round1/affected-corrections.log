@@ -1,0 +1,20 @@
+✔ createApp keep=undefined: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal (3419.778457ms)
+✔ createApp keep=true: useQuery and usePage preserve owned inputs through 20 invalidations, loaded cursors and removal (39118.499485ms)
+✔ rule 1: sign-out during local cannot publish private data (1019.302447ms)
+✔ rule 1: sign-out during dispatch cannot publish private data (1002.983973ms)
+✔ rule 1: sign-out during transport cannot publish private data (1003.994439ms)
+✔ rule 1: sign-out during delivery cannot publish private data (1004.425704ms)
+✔ rule 1: sign-out during publication cannot publish private data (1004.699735ms)
+✔ rule 1: close during local cannot publish private data (1004.638263ms)
+✔ rule 1: close during dispatch cannot publish private data (1002.508502ms)
+✔ rule 1: close during transport cannot publish private data (1004.697652ms)
+✔ rule 1: close during delivery cannot publish private data (1002.820679ms)
+✔ rule 1: close during publication cannot publish private data (1002.110445ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42649.144103

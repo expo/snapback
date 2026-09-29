@@ -1,0 +1,10 @@
+queued-withdrawal 1
+late-queued-floor 1
+late-presence-floor 1
+online-abort-diagnostic 1
+local-abort-diagnostic 0
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-pq/snapback4/reports/20260929-pq-per-row-hooks/round3/controls.py", line 29, in <module>
+    assert run.returncode == 1, name + ' survived'
+           ^^^^^^^^^^^^^^^^^^^
+AssertionError: local-abort-diagnostic survived

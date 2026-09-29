@@ -1,0 +1,40 @@
+{
+  "base": "ee514de117825183731eb0c215463f99c4775fe4",
+  "files": [
+    {
+      "name": "client",
+      "sourceSha256": "531b06de804d460cf41b68154fc8e3f3b477e2ed7b22e0ea987f221234d0b4b2",
+      "compiledSha256": "4a725b74fdfa509759bb075ff83d41ead14d9e50d144e4680805c23ce3c7532b",
+      "exactTranspileMatch": true,
+      "normalizedWhitespaceMatch": true
+    },
+    {
+      "name": "local",
+      "sourceSha256": "ebd5277ba92d476c242de230b787ca31fac5b8142c063cf84cc4b44437e5e347",
+      "compiledSha256": "b11800301aa73b1e52ec9856e1cc3d42a6652caff2a448576ccd469aad50a5e6",
+      "exactTranspileMatch": true,
+      "normalizedWhitespaceMatch": true
+    },
+    {
+      "name": "local-reads",
+      "sourceSha256": "d4a442f04e2b2b876f8cdf51f85b6e43f99e5bbce0798c3c976e8d7355497543",
+      "compiledSha256": "4013d2e6577600ff5652458f94fc9bdbf810f709a34f0b9028ca163a68655e7f",
+      "exactTranspileMatch": true,
+      "normalizedWhitespaceMatch": true
+    },
+    {
+      "name": "observe-watch",
+      "sourceSha256": "8c6d9d8271afcb424b582eb783d37094f46c2345ae0198c12064801aff5b9907",
+      "compiledSha256": "0febd10a33d8c748bf9356a709da85538bf2bdb41789000cc664a3dd94dd819b",
+      "exactTranspileMatch": true,
+      "normalizedWhitespaceMatch": true
+    },
+    {
+      "name": "read-expiry",
+      "sourceSha256": "969d09fcf3672d8644605f401230a3e7842619ead693f25fd503dc817651ba69",
+      "compiledSha256": "24a3895a3dbdb4381aa56ed8cf5a5b7d4af21f9354f985c14aebdeb41d73fc9e",
+      "exactTranspileMatch": true,
+      "normalizedWhitespaceMatch": true
+    }
+  ]
+}

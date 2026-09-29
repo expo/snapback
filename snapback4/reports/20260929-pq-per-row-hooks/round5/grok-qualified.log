@@ -1,0 +1,35 @@
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (582.434936ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (182.237149ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (188.760816ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (253.311051ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (220.624432ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (236.614657ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (231.597928ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (278.612822ms)
+✔ a later cut wins; at one cut, or without one, the read that began later wins (0.983625ms)
+✔ a reply below a cut already named is older, through replies without one (0.197647ms)
+✔ forgetting an expired answer preserves its highest store cut (0.143906ms)
+✔ forget fences a pre-expiry reply at cut undefined, including later arrivals (0.911076ms)
+✔ forget fences a pre-expiry reply at cut 10, including later arrivals (0.101984ms)
+✔ forget fences a pre-expiry reply at cut 11, including later arrivals (0.068042ms)
+✔ forget fences absent keys too and a rejected answer still names its cut (0.101562ms)
+✔ selective clear fences an in-flight remembered answer at cut undefined (0.184467ms)
+✔ selective clear fences an in-flight remembered answer at cut 10 (0.109134ms)
+✔ selective clear fences an in-flight remembered answer at cut 11 (0.132498ms)
+✔ a composed read's refusal removes no answer a later read remembered (1.840889ms)
+✔ an earlier read's answer at a higher cut, landing while a composed read is out, is remembered (0.270957ms)
+✔ a composed read's refusal at a later cut removes an older answer a later read remembered (0.235774ms)
+✔ a composed answer takes its place in the order, so an older answer that lands later loses (0.58741ms)
+✔ a composed read's whole answer is not remembered (0.675782ms)
+✔ a refusal is ordered by the cut its evaluation read, not the head taken before it (0.219389ms)
+✔ a refetch after the credentials change takes a new place in the order (0.246108ms)
+✔ an expired device answer re-routed to the server takes a new place in the order (0.338758ms)
+✔ displayed expiry fences old bodies while preserving unexpired memory and its cuts (0.132028ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2295.984313

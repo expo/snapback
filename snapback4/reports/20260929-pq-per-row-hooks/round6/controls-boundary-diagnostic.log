@@ -1,0 +1,53 @@
+presence-final-callback 1
+✖ wasm keep=undefined: queued presence checks a second change at the callback boundary (679.490152ms)
+✖ wasm keep=false: queued presence checks a second change at the callback boundary (213.687571ms)
+✖ wasm keep=true: queued presence checks a second change at the callback boundary (213.77999ms)
+✖ process keep=undefined: queued presence checks a second change at the callback boundary (236.134255ms)
+✖ process keep=false: queued presence checks a second change at the callback boundary (231.694131ms)
+✖ process keep=true: queued presence checks a second change at the callback boundary (233.019647ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: queued presence checks a second change at the callback boundary (679.490152ms)
+✖ wasm keep=false: queued presence checks a second change at the callback boundary (213.687571ms)
+✖ wasm keep=true: queued presence checks a second change at the callback boundary (213.77999ms)
+✖ process keep=undefined: queued presence checks a second change at the callback boundary (236.134255ms)
+✖ process keep=false: queued presence checks a second change at the callback boundary (231.694131ms)
+✖ process keep=true: queued presence checks a second change at the callback boundary (233.019647ms)
+memory-checkpoint 1
+✖ the final memory checkpoint rejects a change after the earlier acceptance check (4.519564ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ the final memory checkpoint rejects a change after the earlier acceptance check (4.519564ms)
+presence-generation 1
+✖ wasm keep=undefined: queued presence checks a second change at the response boundary (658.439179ms)
+✖ wasm keep=false: queued presence checks a second change at the response boundary (209.443661ms)
+✖ wasm keep=true: queued presence checks a second change at the response boundary (210.191011ms)
+✖ process keep=undefined: queued presence checks a second change at the response boundary (241.594349ms)
+ℹ tests 6
+ℹ pass 2
+ℹ fail 4
+✖ failing tests:
+✖ wasm keep=undefined: queued presence checks a second change at the response boundary (658.439179ms)
+✖ wasm keep=false: queued presence checks a second change at the response boundary (209.443661ms)
+✖ wasm keep=true: queued presence checks a second change at the response boundary (210.191011ms)
+✖ process keep=undefined: queued presence checks a second change at the response boundary (241.594349ms)
+selective-forget 1
+✖ selective deletion rejects an older ticket with a higher sequence (2.676432ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+✖ failing tests:
+✖ selective deletion rejects an older ticket with a higher sequence (2.676432ms)
+request-listeners 1
+✖ request abort listeners are removed after success (1.30789ms)
+✖ request abort listeners are removed after rejection (0.45373ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ request abort listeners are removed after success (1.30789ms)
+✖ request abort listeners are removed after rejection (0.45373ms)

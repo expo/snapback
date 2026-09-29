@@ -1,0 +1,138 @@
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (670.83304ms)
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (212.017161ms)
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (208.421862ms)
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (252.510099ms)
+✖ process keep=false: changes retire an in-flight local server body before replacement (244.850199ms)
+✖ process keep=true: changes retire an in-flight local server body before replacement (267.082469ms)
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (207.677026ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (271.700831ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2471.446689
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (670.83304ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (212.017161ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (208.421862ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (252.510099ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=false: changes retire an in-flight local server body before replacement (244.850199ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=true: changes retire an in-flight local server body before replacement (267.082469ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (207.677026ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:116:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (271.700831ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:116:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

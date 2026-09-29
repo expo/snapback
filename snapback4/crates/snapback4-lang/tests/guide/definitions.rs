@@ -168,6 +168,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_ASSET_UNKNOWN", "a row that is deleted, whose column is cleared, that expired, or that the viewer may not read answers 404 E_ASSET_UNKNOWN."),
     ("E_ASSET_VIEWED", "`once`: the second fetch by the same principal is 410 E_ASSET_VIEWED, and the uploader is counted after placement; before placement the uploader may preview."),
     ("E_AUTH", "E_AUTH means the request has no live principal or uses the wrong authority for its endpoint."),
+    ("E_WORKER_REFRESH", "E_WORKER_REFRESH means this token belongs to a supervised worker family."),
     ("E_BOUND", "A query past a ceiling returns what it found with `complete: false`; a mutation aborts with E_BOUND naming the meter, the ceiling and the site (never the count: it would measure rows the viewer may not read)."),
     ("E_CLIENT", "E_CLIENT means a client exception prevented the expected write or asset outcome."),
     ("E_CLOCK_DEV_ONLY", "`serve` refuses clock flags and the control endpoint with E_CLOCK_DEV_ONLY."),

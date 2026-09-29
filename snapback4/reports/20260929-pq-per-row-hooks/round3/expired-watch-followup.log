@@ -1,0 +1,39 @@
+✔ expired server replies: recover, keep=undefined (2236.794735ms)
+✔ expired server replies: recover, keep=false (1667.27765ms)
+✔ expired server replies: recover, keep=true (1341.095315ms)
+✔ expired server replies: close watch, keep=undefined (1299.418077ms)
+✔ expired server replies: close watch, keep=false (1284.697573ms)
+✖ expired server replies: close watch, keep=true (1278.929286ms)
+✔ expired server replies: close client, keep=undefined (1306.56003ms)
+✔ expired server replies: close client, keep=false (1285.90393ms)
+✔ expired server replies: close client, keep=true (1287.367673ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (506.343746ms)
+✔ expired warm server answer withdraws before retry, keep=false (379.658906ms)
+✔ expired warm server answer withdraws before retry, keep=true (498.405428ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14503.233298
+
+✖ failing tests:
+
+test at packages/snapback4/test/expired-server-watch.test.mjs:15:5
+✖ expired server replies: close watch, keep=true (1278.929286ms)
+  AssertionError [ERR_ASSERTION]: close watch stops expiry retries
+
+  10 !== 9
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expired-server-watch.test.mjs:98:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 10,
+    expected: 9,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

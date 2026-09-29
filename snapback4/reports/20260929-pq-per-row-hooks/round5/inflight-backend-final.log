@@ -1,0 +1,25 @@
+✔ schema retries retire a known obsolete durable answer before adoption completes (544.775561ms)
+✔ schema retries still deliver durable inserts during initial discovery (647.937816ms)
+✔ schema E_AUTH after revocation terminates discovery without retrying (882.381845ms)
+✔ schema E_AUTH from an obsolete bearer waits for rotation before retrying (676.722571ms)
+✔ adoption during initial capability discovery invalidates a durable watch (3143.730467ms)
+✔ initial capability discovery retries one schema 503 and restores watch interests (457.567714ms)
+✔ a poll generation fences stale schema facts until bounded retries catch up (93.161481ms)
+✔ initial backend installation rejects a query already in flight (59.517421ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (571.758925ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (183.060322ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (187.638696ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (223.981693ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (220.73778ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (222.149015ms)
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (263.541362ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (237.338057ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (250.160171ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7439.272843

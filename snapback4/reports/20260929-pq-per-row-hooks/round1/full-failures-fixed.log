@@ -1,0 +1,75 @@
+✔ ephemeral typing: five real-server trials beside a durable typing control (58315.995161ms)
+ℹ {"trial":1,"ephemeralFirstMs":32.502,"ephemeralGoneAfterLastMs":4020.099,"ephemeralRequests":2,"durableFirstMs":35.67,"durableGoneAfterLastMs":4004.639,"durableRequests":45}
+ℹ {"trial":2,"ephemeralFirstMs":6.704,"ephemeralGoneAfterLastMs":4018.058,"ephemeralRequests":2,"durableFirstMs":43.269,"durableGoneAfterLastMs":4310.449,"durableRequests":45}
+ℹ {"trial":3,"ephemeralFirstMs":10.328,"ephemeralGoneAfterLastMs":4019.242,"ephemeralRequests":2,"durableFirstMs":31.333,"durableGoneAfterLastMs":4045.304,"durableRequests":45}
+ℹ {"trial":4,"ephemeralFirstMs":8.793,"ephemeralGoneAfterLastMs":3993.188,"ephemeralRequests":2,"durableFirstMs":1883.406,"durableGoneAfterLastMs":4336.493,"durableRequests":45}
+ℹ {"trial":5,"ephemeralFirstMs":9.8,"ephemeralGoneAfterLastMs":4017.578,"ephemeralRequests":2,"durableFirstMs":37.722,"durableGoneAfterLastMs":4008.265,"durableRequests":45}
+ℹ EPHEMERAL_ACCEPTANCE=[{"trial":1,"ephemeralFirstMs":32.502,"ephemeralGoneAfterLastMs":4020.099,"ephemeralRequests":2,"durableFirstMs":35.67,"durableGoneAfterLastMs":4004.639,"durableRequests":45},{"trial":2,"ephemeralFirstMs":6.704,"ephemeralGoneAfterLastMs":4018.058,"ephemeralRequests":2,"durableFirstMs":43.269,"durableGoneAfterLastMs":4310.449,"durableRequests":45},{"trial":3,"ephemeralFirstMs":10.328,"ephemeralGoneAfterLastMs":4019.242,"ephemeralRequests":2,"durableFirstMs":31.333,"durableGoneAfterLastMs":4045.304,"durableRequests":45},{"trial":4,"ephemeralFirstMs":8.793,"ephemeralGoneAfterLastMs":3993.188,"ephemeralRequests":2,"durableFirstMs":1883.406,"durableGoneAfterLastMs":4336.493,"durableRequests":45},{"trial":5,"ephemeralFirstMs":9.8,"ephemeralGoneAfterLastMs":4017.578,"ephemeralRequests":2,"durableFirstMs":37.722,"durableGoneAfterLastMs":4008.265,"durableRequests":45}]
+✔ expired server replies: recover, keep=undefined (2182.786919ms)
+✔ expired server replies: recover, keep=false (1656.15558ms)
+✔ expired server replies: recover, keep=true (1659.120793ms)
+✔ expired server replies: close watch, keep=false (1269.867337ms)
+✔ expired server replies: close client, keep=undefined (1268.08067ms)
+✔ expired server replies: close client, keep=false (1277.760706ms)
+✔ expired server replies: close client, keep=true (1268.269233ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (201.034115ms)
+✔ expired warm server answer withdraws before retry, keep=false (383.398402ms)
+✔ expired warm server answer withdraws before retry, keep=true (127.273182ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (770.710008ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (95.125919ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (377.699381ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (120.976005ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (335.766164ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (102.78782ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (341.899375ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (96.030394ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (358.13934ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (122.350345ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (359.598768ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (112.506084ms)
+✔ wasm keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (346.157355ms)
+✔ process keep=undefined: a newer replacement updates every displayed deadline and rejects an older body (active) (372.279891ms)
+✔ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (341.750662ms)
+✔ wasm keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (92.808005ms)
+✔ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (active) (363.910759ms)
+✔ process keep=true: a newer replacement updates every displayed deadline and rejects an older body (lingering) (128.871067ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (69.009252ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (74.508953ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (104.390922ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (61.854962ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (76.594469ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (144.313698ms)
+✔ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (91.767976ms)
+✔ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (129.175433ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (67.822734ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (95.846608ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (131.452434ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (64.204992ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (96.766237ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (134.054424ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (active) (102.120621ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (88.395503ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (active) (133.467515ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (lingering) (125.319224ms)
+✔ wasm keep: a direct replacement installs its newer deadline before the former one expires (72.051281ms)
+✔ process keep: a direct replacement installs its newer deadline before the former one expires (96.886547ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.412808ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.125899ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.256764ms)
+✔ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (135.706149ms)
+✔ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (148.318088ms)
+✔ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (147.881063ms)
+✔ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (153.63784ms)
+✔ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (155.407652ms)
+✔ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (159.520055ms)
+✔ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (195.769406ms)
+✔ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (196.354782ms)
+✔ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (205.640898ms)
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58447.7233

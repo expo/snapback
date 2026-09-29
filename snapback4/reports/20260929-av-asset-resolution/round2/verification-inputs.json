@@ -1,0 +1,23 @@
+{
+  "base": "99427c205a906ae28e72da13b652cf3bdf064c99",
+  "merged_origin_main": "78bcc92c8e2668bad1ce580cd9f728e99ed6abed",
+  "node": "v24.13.1",
+  "captured_at_utc": "2026-09-29T08:29:11.195188+00:00",
+  "files": {
+    "llp/3000.008.002.000-common-client-patterns.rfc.md": "f2471b8c0b66b0f9f1b9dbfbde4da6e43aa2bd8e3d929449bbb068c1b4fec359",
+    "snapback4/JOURNAL.md": "9cf609d4e4e468e6e40e0dc20e775af4f729a84b5e93f55614f7b3c14ef91551",
+    "snapback4/crates/snapback4-lang/src/guide.rs": "965ad15b9172d36ab07b5e59a56972bc8bee6815ed4644c0fd0ab7234e20fbde",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "3ac3bf2bd30ea243f211bb2aa479e53e9b04a212580215eac0429e799e72d327",
+    "snapback4/packages/snapback4/src/asset-download.ts": "2cd4f7018970eee33928deb8e0ead35121bb23282d4c8e3b368a6781e8164b57",
+    "snapback4/packages/snapback4/src/client.ts": "aec041da235353842b4099fedd7a000dda99324dea3c7c5e601b5a599ac41ba7",
+    "snapback4/packages/snapback4/src/local.ts": "85b59b50b54379ac27b30a6306dd5bdfe90df3f1c57a89cd737c14bdebb13272",
+    "snapback4/packages/snapback4/src/react.tsx": "45aa02c207a232af2ed7cf0b75d79064c2dc92df6fbff8185575f026a0045d35",
+    "snapback4/packages/snapback4/test/asset-avatars.test.mjs": "0cd705a833b8444608d332ffb7997ef1b3289f97c5730f3bc99a535a5d653e07",
+    "snapback4/packages/snapback4/test/asset-retry.test.mjs": "4b3a84d3071ae949df2654d15bb978ecd20823232738e8db86c314f1ac56c6f3",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "17b8b9754fd334f34cb23487a5d7b8142b5db10c60041d9ce974a72221a94304",
+    "snapback4/packages/snapback4/test/helpers/react-harness.mjs": "492981065911f088fb351c372749cf2a64aa9a2dc8976757fe12ab1ee09a37c7",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "9469925dd509947cdb3c610ad28b1c31c8ab938bcd79e886223d44150f97bef4",
+    "snapback4/packages/snapback4/test/overload.test.mjs": "c9b1bb2f4f53fc268327299e6dcaef7fdeba8d683bf2065a4227cfa0fd11f612",
+    "snapback4/packages/snapback4/test/helpers/react-asset-recovery.mjs": "64917aaac2a188af48dafddf5733a9abab3e26fb70253cfcb68fdcb4cba09985"
+  }
+}

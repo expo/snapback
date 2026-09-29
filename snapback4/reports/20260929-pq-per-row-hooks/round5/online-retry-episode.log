@@ -1,0 +1,30 @@
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (260.359883ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 357.10735
+
+✖ failing tests:
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:122:51
+✖ online: invalidating an acquisition leaves replacement queue wait outside the episode (260.359883ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - 1790664925693
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:139:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 1790664925693,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

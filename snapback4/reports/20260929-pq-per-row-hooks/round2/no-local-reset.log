@@ -1,0 +1,184 @@
+✖ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (913.354941ms)
+✖ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (148.417308ms)
+✖ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (219.251739ms)
+✖ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (376.83317ms)
+✖ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (328.152311ms)
+✖ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (394.339538ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2619.060292
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (913.354941ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (148.417308ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (219.251739ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (376.83317ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (328.152311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (394.339538ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

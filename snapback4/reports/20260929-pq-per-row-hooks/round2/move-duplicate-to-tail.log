@@ -1,0 +1,28 @@
+✖ queued owners progress under continuing arrivals and repeated invalidation (11.57663ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 196.631137
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-work.test.mjs:38:1
+✖ queued owners progress under continuing arrivals and repeated invalidation (11.57663ms)
+  AssertionError [ERR_ASSERTION]: the owner runs after its original predecessors, before later arrivals
+
+  -1 !== 16
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-work.test.mjs:54:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: -1,
+    expected: 16,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

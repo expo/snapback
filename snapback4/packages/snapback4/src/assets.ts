@@ -4,11 +4,12 @@
 // an <img src> and a one-view photo is never durably cached anywhere
 // (LLP 1006 carried into Snapback 4).
 
+import { downloadAsset, assetQueue } from "./asset-download.ts";
 import type { Asset, AssetRead, Refusal, Uploaded } from "./contract.ts";
 
 export type Bytes = Blob | ArrayBuffer | Uint8Array;
 
-import { refusal, overloaded, invalidResponse, transportRefusal as offline, retryAfter, jitter } from "./http-response.ts";
+import { refusal, invalidResponse, transportRefusal as offline, retryAfter, jitter } from "./http-response.ts";
 
 // @ref LLP 3000.011.005.000#8 — React Native Blobs use the public FileReader fallback
 export function blobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
@@ -98,26 +99,14 @@ export function assetSource(base: string, headers: Record<string, string>, id: s
   return { uri: `${base}/assets/${encodeURIComponent(id)}`, headers: auth };
 }
 
-export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal): Promise<AssetRead> {
-  const source = assetSource(base, headers, id);
+export async function fetchAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, id: string, viewed?: (blob: Blob, response: Response) => Promise<AssetRead | void>, signal?: AbortSignal, current?: () => boolean, queue?: ReturnType<typeof assetQueue>): Promise<AssetRead> {
   let release: (() => void) | undefined;
+  let retryable = false;
   try {
-    let response: Response;
-    let waited = 0;
-    for (let attempt = 0; ; attempt++) {
-      response = await doFetch(source.uri, { headers: source.headers, ...(signal ? { signal } : {}) });
-      if (response.ok) break;
-      const json = await response.json().catch(() => null) as { denied?: unknown } | null;
-      const why = refusal(json?.denied) ?? invalidResponse(response.status, "download");
-      // An admission refusal proves the once-view response never started.
-      // A reset, including during blob consumption, exits without retrying.
-      const delay = jitter(Math.max(250 * 2 ** attempt, retryAfter(response.headers.get("retry-after"))));
-      if (!overloaded(why) || attempt === 3 || waited + delay > 10_000 || signal?.aborted) return { denied: why };
-      await new Promise(resolve => setTimeout(resolve, delay));
-      waited += delay;
-      if (signal?.aborted) return { denied: why };
-    }
-    const blob = await response.blob();
+    const downloaded = await downloadAsset(assetSource(base, headers, id), doFetch, signal, current, queue);
+    if ("denied" in downloaded) return downloaded;
+    retryable = downloaded.retryable;
+    const { blob, response } = downloaded;
     release = ownBlob(blob);
     const retained = await viewed?.(blob, response);
     if (retained) return retained;
@@ -137,7 +126,7 @@ export async function fetchAsset(base: string, headers: Record<string, string>, 
       try { URL.revokeObjectURL(url); } finally { releaseHandle(); }
     } };
   } catch (error) {
-    return { denied: offline(error) };
+    return { denied: { code: "E_CLIENT", family: "client", message: `the downloaded asset could not be retained or displayed: ${error instanceof Error ? error.message : String(error)}`, retryable } };
   } finally {
     release?.();
   }

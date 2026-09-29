@@ -1,0 +1,82 @@
+✖ online keep=undefined: the accept-time floor does not install deadlines or retry (32.139822ms)
+✖ online keep=false: the accept-time floor does not install deadlines or retry (12.697452ms)
+✖ online keep=true: the accept-time floor does not install deadlines or retry (11.050613ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 207.210261
+
+✖ failing tests:
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:100:46
+✖ online keep=undefined: the accept-time floor does not install deadlines or retry (32.139822ms)
+  AssertionError [ERR_ASSERTION]: the accept-time guard must precede deadline installation
+  + actual - expected
+
+  + {
+  +   device: null,
+  +   localWakeup: false,
+  +   server: 1790662186051
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:121:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { device: null, server: 1790662186051, localWakeup: false },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:100:46
+✖ online keep=false: the accept-time floor does not install deadlines or retry (12.697452ms)
+  AssertionError [ERR_ASSERTION]: the accept-time guard must precede deadline installation
+  + actual - expected
+
+  + {
+  +   device: null,
+  +   localWakeup: false,
+  +   server: 1790662186067
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:121:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { device: null, server: 1790662186067, localWakeup: false },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:100:46
+✖ online keep=true: the accept-time floor does not install deadlines or retry (11.050613ms)
+  AssertionError [ERR_ASSERTION]: the accept-time guard must precede deadline installation
+  + actual - expected
+
+  + {
+  +   device: null,
+  +   localWakeup: false,
+  +   server: 1790662186079
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-retry.test.mjs:121:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { device: null, server: 1790662186079, localWakeup: false },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

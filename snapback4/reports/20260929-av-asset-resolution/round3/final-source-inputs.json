@@ -1,0 +1,23 @@
+{
+  "recorded_at_utc": "2026-09-29T09:42:04.502987+00:00",
+  "full_run_precedes_grok_corrections": true,
+  "sha256": {
+    "llp/3000-snapback4.explainer.md": "a8e058397ad051b5730aa30fd2721f70f094a04d79668288427a22598302f23d",
+    "llp/3000.008.002.000-common-client-patterns.rfc.md": "9eef3f90fff65dc908a1fd6f90ddd33d4fd35d8721d88203ed336cc56c5b0592",
+    "snapback4/crates/snapback4-lang/src/guide.rs": "78f8f9a4d0afd6871107914f727ec6344e3be3fcba5a5ae92324cd7466870e43",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "ac772a5033f3e2bb8acc2d962b11b6a09ffbdb243691f78f6309823d68c337fe",
+    "snapback4/crates/snapback4-lang/src/guide/refusals.rs": "42d23c352c50f5feacaa026e06c402f4e798dd4318247f1c04c7f127e982bfc0",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "4760735c16a48ce7be07914ebc0e33f3378006c0a516a7f14ad46beb8d4cae74",
+    "snapback4/packages/snapback4/src/asset-download.ts": "3b3ec02a660caa898fb8d9adf21114d5f4b186cf35ad77258a64d75113d7ca12",
+    "snapback4/packages/snapback4/src/assets.ts": "09a01aca220ca6f2b0da6dac118cce211d9cf8ecc1fc198e305df010d447bfff",
+    "snapback4/packages/snapback4/src/client.ts": "2cc4a8d151414996edaeb8a8048020d59780ef4206d6a83dbf50c20475f06dc7",
+    "snapback4/packages/snapback4/src/local.ts": "b315392642bc6988a93f5e7200ab1a2013d70a817cae913c9c921c0bc0cf515c",
+    "snapback4/packages/snapback4/test/asset-avatars.test.mjs": "42f6e5d1ade8801069c6daf340d1046f03d9faf230b40aefad00f6c2b93bcf89",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "e46ca8fc0692c9a49a4643c3aa181348b93fef20e1b039423d2060507276ac7e",
+    "snapback4/packages/snapback4/test/asset-retry.test.mjs": "102ad16271861873e78289e38a5a9acbba52725dc0efc77d731a29d934258c11",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "341bcdad98e36389bc0f5e076f4ea0eda04caf471ec67328ae7e5f12a65111ab",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "1d3f9c3ab70a4f8757c04e706aeba74f96042c91c8b789e14c013877b63cc3cb",
+    "snapback4/packages/snapback4/test/overload.test.mjs": "4f38e92ad1fd54da836c6e339d4f97a508ed7156e39f5b7fc3f9a622bf130047",
+    "snapback4/packages/snapback4/test/asset-buffered.test.mjs": "210c14884b345e1f1bea378f1bc69724bb2bffc975556a95f50ed20b22ba7623"
+  }
+}

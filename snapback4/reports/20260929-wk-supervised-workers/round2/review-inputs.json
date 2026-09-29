@@ -1,0 +1,14 @@
+{
+  "astra": {
+    "source": "/home/ccheever/sb4-intent/reviews/wk-r1.astra.md",
+    "sha256": "0f72ecdbe7239d28a6c0331bec76f8bb473b70c42c7b18e11f5786db5ccd4cc7",
+    "bytes": 5017,
+    "savedCopy": "trailing whitespace normalized only"
+  },
+  "grok": {
+    "source": "/home/ccheever/sb4-intent/reviews/wk-r1.grok.md",
+    "sha256": "264054c3493b4ad37283c25bdfaeaf4c769146764d3713a01e9dc610fc1f7fb8",
+    "bytes": 13475,
+    "savedCopy": "trailing whitespace normalized only"
+  }
+}

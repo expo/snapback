@@ -1,0 +1,41 @@
+baseline iteration 1, base ee514de117825183731eb0c215463f99c4775fe4
+KEEP_DIAGNOSTIC {
+  watch: {
+    data: { body: 'private answer', id: 'private', room: 'room' },
+    complete: true,
+    cut: null,
+    fresh: false,
+    next: null,
+    revalidating: true,
+    since: 1790649059549
+  },
+  idle: { loading: true },
+  requests: 10,
+  holding: false
+}
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11791.609148ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11908.702404
+
+✖ failing tests:
+
+test at target/pq-remount-xxA425/repro.test.mjs:130:51
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11791.609148ms)
+  AssertionError [ERR_ASSERTION]: second key ready
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-remount-xxA425/repro.test.mjs:22:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-remount-xxA425/repro.test.mjs:181:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

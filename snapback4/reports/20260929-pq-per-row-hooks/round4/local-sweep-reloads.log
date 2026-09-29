@@ -1,0 +1,84 @@
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (500.824269ms)
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.073692ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (82.155354ms)
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (135.769685ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (110.493115ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (116.875311ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1151.274184
+
+✖ failing tests:
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (500.824269ms)
+  AssertionError [ERR_ASSERTION]: held expiry never starts an episode on a newer raw answer
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:154:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.073692ms)
+  AssertionError [ERR_ASSERTION]: the preserved raw answer survives the sweep and rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:151:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (135.769685ms)
+  AssertionError [ERR_ASSERTION]: held expiry never starts an episode on a newer raw answer
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:154:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (110.493115ms)
+  AssertionError [ERR_ASSERTION]: the preserved raw answer survives the sweep and rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:151:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

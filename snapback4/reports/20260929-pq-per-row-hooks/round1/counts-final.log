@@ -1,0 +1,31 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (28.373136ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (6.186661ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.837581ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (9.28278ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (466.849161ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (53.255161ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (61.033117ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (61.216982ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (98.961872ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (96.548896ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (103.791219ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (90.515705ms)
+✔ wasm: acquired unknown apply footprint withdraws and refreshes every owner (87.055871ms)
+✔ process: acquired unknown apply footprint withdraws and refreshes every owner (114.103761ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (20.061361ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.263173ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.904736ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.159809ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.267351ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.09644ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (381.826456ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1057.05642ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (712.960672ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5408.052691

@@ -1,0 +1,43 @@
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (27.334371ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.267694ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.496079ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.48761ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (440.957047ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (65.670659ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (65.913954ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (62.069693ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (106.627144ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (108.480341ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (86.042347ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (85.134567ms)
+✔ wasm: acquired unknown apply footprint withdraws and refreshes every owner (90.39502ms)
+✔ process: acquired unknown apply footprint withdraws and refreshes every owner (120.073884ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (875.294575ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (18.96502ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.125516ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.86768ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.117724ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.25998ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.123881ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (388.81419ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1041.275091ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (681.320168ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.462053ms)
+✔ rule 1: sign-out during local cannot publish private data (1022.457091ms)
+✔ rule 1: sign-out during dispatch cannot publish private data (1003.395568ms)
+✔ rule 1: sign-out during transport cannot publish private data (1003.636688ms)
+✔ rule 1: sign-out during delivery cannot publish private data (1001.915769ms)
+✔ rule 1: sign-out during publication cannot publish private data (1001.948518ms)
+✔ rule 1: close during local cannot publish private data (1001.907578ms)
+✔ rule 1: close during dispatch cannot publish private data (1002.51651ms)
+✔ rule 1: close during transport cannot publish private data (1003.180806ms)
+✔ rule 1: close during delivery cannot publish private data (1002.581598ms)
+✔ rule 1: close during publication cannot publish private data (1002.934016ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10149.69972

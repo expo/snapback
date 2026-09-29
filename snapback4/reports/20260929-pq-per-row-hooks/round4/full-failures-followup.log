@@ -1,0 +1,203 @@
+✔ wasm: apply revocation, keep=undefined, held (491.792355ms)
+✔ wasm: admit revocation, keep=undefined, held (94.601989ms)
+✔ wasm: transfer revocation, keep=undefined, held (102.100068ms)
+✔ wasm: remount revocation, keep=undefined, held (1087.489072ms)
+✔ wasm: apply revocation, keep=undefined, throw (1100.786103ms)
+✔ wasm: admit revocation, keep=undefined, throw (81.912596ms)
+✔ wasm: transfer revocation, keep=undefined, throw (87.174294ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (99.705188ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (1086.532258ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (106.326013ms)
+✖ wasm: apply revocation, keep=undefined, retryExhausted (11349.663142ms)
+✖ wasm: admit revocation, keep=undefined, retryExhausted (11279.268374ms)
+✖ wasm: transfer revocation, keep=undefined, retryExhausted (11282.615475ms)
+✔ wasm: apply revocation, keep=false, held (135.006743ms)
+✔ wasm: admit revocation, keep=false, held (84.529098ms)
+✔ wasm: transfer revocation, keep=false, held (1071.126784ms)
+✔ wasm: remount revocation, keep=false, held (78.261743ms)
+✔ process: apply revocation, keep=undefined, held (1137.934507ms)
+✔ process: admit revocation, keep=undefined, held (1136.8097ms)
+✔ process: transfer revocation, keep=undefined, held (1140.480652ms)
+✔ process: remount revocation, keep=undefined, held (1125.981829ms)
+✔ process: apply revocation, keep=undefined, throw (1137.774796ms)
+✔ process: admit revocation, keep=undefined, throw (120.547639ms)
+✔ process: transfer revocation, keep=undefined, throw (1131.639709ms)
+✔ process: apply revocation, keep=undefined, unavailable (1140.141193ms)
+✔ process: admit revocation, keep=undefined, unavailable (1116.432242ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1139.49346ms)
+✖ process: apply revocation, keep=undefined, retryExhausted (11261.477137ms)
+✖ process: admit revocation, keep=undefined, retryExhausted (11229.92003ms)
+✖ process: transfer revocation, keep=undefined, retryExhausted (11258.934439ms)
+✔ process: apply revocation, keep=false, held (1129.955393ms)
+✔ process: admit revocation, keep=false, held (1121.617404ms)
+✔ process: transfer revocation, keep=false, held (1114.334557ms)
+✔ process: remount revocation, keep=false, held (1120.610274ms)
+✔ online: revoked data, keep=undefined, held (71.636301ms)
+✔ online: revoked data, keep=undefined, retryExhausted (240.007184ms)
+✔ online: revoked data, keep=undefined, unavailable (78.738817ms)
+✔ online: revoked data, keep=undefined, throw (66.983086ms)
+✔ online: revoked data, keep=false, held (57.104478ms)
+✔ online: revoked data, keep=false, retryExhausted (54.624961ms)
+✔ online: revoked data, keep=false, unavailable (54.526524ms)
+✔ online: revoked data, keep=false, throw (55.729937ms)
+✔ createApp keep=undefined property: online, seed 23, 50ms authority (11687.085101ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 0
+✔ createApp keep=undefined property: online, seed 44, 50ms authority (11661.712707ms)
+ℹ inside-episode data notifications: 26; deadline withdrawals: 1
+✔ createApp keep=undefined property: online, seed 445, 50ms authority (11687.479502ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 1
+✔ createApp keep=undefined property: wasm, seed 23, 50ms authority (25460.71777ms)
+ℹ inside-episode data notifications: 69; deadline withdrawals: 1
+✔ createApp keep=undefined property: wasm, seed 44, 50ms authority (24780.749503ms)
+ℹ inside-episode data notifications: 63; deadline withdrawals: 2
+✔ createApp keep=undefined property: wasm, seed 445, 50ms authority (25869.544955ms)
+ℹ inside-episode data notifications: 69; deadline withdrawals: 2
+✔ createApp keep=undefined property: process, seed 23, 50ms authority (23603.80634ms)
+ℹ inside-episode data notifications: 73; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 44, 50ms authority (23664.660309ms)
+ℹ inside-episode data notifications: 73; deadline withdrawals: 0
+✔ createApp keep=undefined property: process, seed 445, 50ms authority (23539.400197ms)
+ℹ inside-episode data notifications: 73; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 23, 50ms authority (10774.427532ms)
+ℹ inside-episode data notifications: 30; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 44, 50ms authority (11281.870668ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=true property: online, seed 445, 50ms authority (11074.785423ms)
+ℹ inside-episode data notifications: 28; deadline withdrawals: 0
+✔ createApp keep=true property: wasm, seed 23, 50ms authority (25027.412194ms)
+ℹ inside-episode data notifications: 68; deadline withdrawals: 0
+✔ createApp keep=true property: wasm, seed 44, 50ms authority (24947.85172ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 0
+✔ createApp keep=true property: wasm, seed 445, 50ms authority (24731.202286ms)
+ℹ inside-episode data notifications: 65; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 23, 50ms authority (23572.881685ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 44, 50ms authority (23554.371009ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 0
+✔ createApp keep=true property: process, seed 445, 50ms authority (23510.117561ms)
+ℹ inside-episode data notifications: 71; deadline withdrawals: 0
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (863.119111ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (3055.771664ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (5146.691808ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661396013,"lastStart":1790661398043,"wallIsReal":true}
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (6306.480948ms)
+ℹ {"tier":"worker","loading":1000,"calls":1976,"revalidated":1000,"firstStart":1790661401616,"lastStart":1790661403694,"wallIsReal":true}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (7903.465133ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661409982,"lastStart":1790661412234,"wallIsReal":true}
+ℹ tests 65
+ℹ suites 0
+ℹ pass 58
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 360554.083895
+
+✖ failing tests:
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ wasm: apply revocation, keep=undefined, retryExhausted (11349.663142ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ wasm: admit revocation, keep=undefined, retryExhausted (11279.268374ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ wasm: transfer revocation, keep=undefined, retryExhausted (11282.615475ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ process: apply revocation, keep=undefined, retryExhausted (11261.477137ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ process: admit revocation, keep=undefined, retryExhausted (11229.92003ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answer-withdrawal.test.mjs:87:3
+✖ process: transfer revocation, keep=undefined, retryExhausted (11258.934439ms)
+  AssertionError [ERR_ASSERTION]: the queued replacement attempt starts
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/answer-withdrawal.test.mjs:163:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (6306.480948ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  1000 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1000,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

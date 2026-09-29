@@ -1,0 +1,16 @@
+{
+  "astra": {
+    "path": "/home/ccheever/sb4-intent/reviews/av-r0.astra.md",
+    "bytes": 4142,
+    "sha256": "5640b3568bf022363917fa57e829ced80685a09da812fded8f15220019146050",
+    "exit": "EXIT=0",
+    "last_checked_utc": "2026-09-29T07:39:53.968689+00:00"
+  },
+  "grok": {
+    "path": "/home/ccheever/sb4-intent/reviews/av-r0.grok.md",
+    "bytes": 8673,
+    "sha256": "ec5be21258cd7dcd10ad74a8f69bb1c1d9f80a375f77f7485fa192faa2b24239",
+    "exit": "EXIT=0",
+    "last_checked_utc": "2026-09-29T07:39:53.968725+00:00"
+  }
+}

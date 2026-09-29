@@ -33,6 +33,8 @@ export interface GeneratedEffect extends Effect {
 
 export interface EffectMeta {
   readonly id: string;
+  /** Stable across redelivery; pass to the provider as its idempotency key. */
+  readonly idempotencyKey: string;
   readonly effect: string;
   readonly attempt: number;
   readonly seq: number;
@@ -74,6 +76,10 @@ export interface WorkerOptions {
   /** A service token from `snapback4 token --service <name>`. */
   readonly token: string;
   readonly effects?: Readonly<Record<string, EffectHandler<never>>>;
+  /** Optional durable SQLite completion ledger (Node 24). Keep this file across
+   * restarts/releases; share it between workers consuming the same effects.
+   * Serializes ledgered handlers. Provider I/O and this commit are not atomic. */
+  readonly ledger?: string | true;
   readonly actions?: Readonly<Record<string, ActionHandler<never>>>;
   /** One bounded registry poll instead of one poll per action. Generated
    * servers select this; legacy workers keep per-name polling by default. */
@@ -99,7 +105,7 @@ export interface WorkerOptions {
 }
 
 export interface Worker {
-  /** Resolves when the loop has stopped (the signal aborted). */
+  /** Resolves when polling stops, including an unavailable ledger. */
   readonly done: Promise<void>;
   /** The worker's principal once the first claim answered. */
   principal(): string | null;
@@ -133,6 +139,7 @@ export function runWorker(options: WorkerOptions): Worker {
   const base = options.url.replace(/\/$/, "");
   const headers = { "content-type": "application/json", authorization: `Bearer ${options.token}` };
   const effects = options.effects ?? {};
+  let ledger: import("./worker-ledger.ts").WorkerLedger | undefined;
   const actions = options.actions ?? {};
   const stop = new AbortController();
   const abort = () => stop.abort();
@@ -141,8 +148,14 @@ export function runWorker(options: WorkerOptions): Worker {
   let principal: string | null = null;
   const rawReport = options.onError ?? ((error: unknown) => console.error("snapback4 worker:", error));
   const redact = options.redact ?? ((message: string) => message);
-  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
-  const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
+  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error)).split(options.token).join("[REDACTED]");
+  const report = (error: unknown) => rawReport(options.redact || message(error) !== (error instanceof Error ? error.message : String(error)) ? new Error(message(error)) : error);
+  const storageStopped = () => {
+    stop.abort();
+    // The supervisor owns this process, including unrelated application timers.
+    // Exit 78 is its ledger-unavailable status; standalone callers own done.
+    if (typeof process !== "undefined" && process.env.SNAPBACK_WORKER_SUPERVISED === "1") process.exit(78);
+  };
   const authenticationEnded = (why?: Refusal) => {
     if (why?.family !== "auth" || overloaded(why) || stop.signal.aborted) return;
     stop.abort();
@@ -170,15 +183,22 @@ export function runWorker(options: WorkerOptions): Worker {
   };
   const perform = async (effect: Effect) => {
     const handler = Object.hasOwn(effects, effect.effect) ? effects[effect.effect] as EffectHandler | undefined : undefined;
-    const meta: EffectMeta = { id: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" };
+    const meta: EffectMeta = { id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" };
     if (!handler) {
       await settle(effect, { error: `this worker has no handler for ${effect.effect}`, retry: false });
       return;
     }
     try {
-      const result = await handler(effect.payload as never, meta);
+      const perform = async () => handler(effect.payload as never, meta);
+      const result = ledger ? await ledger.run(meta.idempotencyKey, perform, stop.signal) : await perform();
       await settle(effect, { result: result === undefined ? null : result });
     } catch (error) {
+      if (ledger?.isUnavailable(error)) {
+        if (!stop.signal.aborted) report(error);
+        storageStopped();
+        return;
+      }
+      if (ledger && stop.signal.aborted) return;
       let recorded = false;
       try { recorded = await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
       finally { if (!recorded) report(error); }
@@ -270,7 +290,21 @@ export function runWorker(options: WorkerOptions): Worker {
       return { path: "/actions/claim-set", filter, wait: chunks.length > 1 ? Math.min(options.wait ?? 25, 1) : options.wait ?? 25 };
     })];
   };
-  const done = Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]).then(() => {}).finally(() => options.signal?.removeEventListener("abort", abort));
+  const done = (async () => {
+    // @ref LLP 3000.009#5.2 — storage failures must not spend delivery attempts.
+    if (options.ledger !== undefined) {
+      try {
+        const { WorkerLedger } = await import("./worker-ledger.ts");
+        ledger = await WorkerLedger.open(options.ledger === true ? process.env.SNAPBACK_WORKER_LEDGER ?? "" : options.ledger, stop.signal);
+      } catch (error) {
+        if (stop.signal.aborted) return;
+        report(new Error(`worker ledger initialization failed; polling stopped: ${message(error)}`));
+        storageStopped();
+        return;
+      }
+    }
+    await Promise.all([...Object.keys(effects).map(name => loop("effects", () => ({ path: "/effects/claim", filter: { effect: name, fenced: true }, wait: options.wait ?? 25 }))), ...actionLoops()]);
+  })().finally(() => { options.signal?.removeEventListener("abort", abort); ledger?.close(); });
   return { done, principal: () => principal };
 }
 
@@ -286,9 +320,9 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
   let principal: string | null = null;
   const rawReport = options.onError ?? ((error: unknown) => console.error("snapback4 worker:", error));
   const redact = options.redact ?? ((message: string) => message);
-  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error));
+  const message = (error: unknown) => redact(error instanceof Error ? error.message : String(error)).split(options.token).join("[REDACTED]");
   const effectMessage = (effect: GeneratedEffect, error: unknown) => message(error).split(effect.leaseToken).join("[REDACTED]");
-  const report = (error: unknown) => rawReport(options.redact ? new Error(message(error)) : error);
+  const report = (error: unknown) => rawReport(options.redact || message(error) !== (error instanceof Error ? error.message : String(error)) ? new Error(message(error)) : error);
   const terminal = (error: Error): never => {
     const failure = new GeneratedEffectTerminal(error.message);
     report(failure); stop.abort(failure); throw failure;
@@ -319,7 +353,7 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
     return !reply.denied;
   };
   const perform = async (effect: GeneratedEffect, registration: GeneratedEffectRegistration) => {
-    const meta: EffectMeta = Object.freeze({ id: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" });
+    const meta: EffectMeta = Object.freeze({ id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" });
     const outcome = await registration.execute(effect, meta);
     if (outcome.kind === "authority-lost") {
       if (outcome.terminal) terminal(new Error(outcome.error));

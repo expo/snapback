@@ -74,7 +74,7 @@ test("canonical fixture payment: signed duplicates, out-of-order revisions and d
 function heldEntry() {
   return entry(`{billing:{verify, async handle(req, ctx) {
     record("started", {id:ctx.invocation.id, attempt:ctx.invocation.attempt});
-    while (!existsSync(new URL("../release-handler", import.meta.url))) await delay(10);
+    while (!existsSync(process.cwd() + "/release-handler")) await delay(10);
     await save(ctx, "one durable delivery");
     record("finished", {id:ctx.invocation.id});
     return Response.json({id:ctx.invocation.id, value:"settled"});

@@ -1,0 +1,194 @@
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (15.309024ms)
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (12.742127ms)
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (12.923839ms)
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (12.701386ms)
+✖ process keep=false: changes retire an in-flight local server body before replacement (12.594316ms)
+✖ process keep=true: changes retire an in-flight local server body before replacement (12.545673ms)
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (12.66389ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (12.402468ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 198.614032
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (15.309024ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (12.742127ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (12.923839ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (12.701386ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=false: changes retire an in-flight local server body before replacement (12.594316ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:89:3
+✖ process keep=true: changes retire an in-flight local server body before replacement (12.545673ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (12.66389ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:105:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-inflight.test.mjs:104:41
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (12.402468ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:45:24)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:105:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

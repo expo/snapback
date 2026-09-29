@@ -1,0 +1,219 @@
+✔ expired server replies: recover, keep=undefined (2195.493747ms)
+✔ expired server replies: recover, keep=false (1666.053526ms)
+✔ expired server replies: recover, keep=true (1671.904615ms)
+✔ expired server replies: close watch, keep=undefined (1292.767182ms)
+✔ expired server replies: close watch, keep=false (1295.998986ms)
+✔ expired server replies: close watch, keep=true (1295.654709ms)
+✔ expired server replies: close client, keep=undefined (1283.000973ms)
+✔ expired server replies: close client, keep=false (1297.340685ms)
+✔ expired server replies: close client, keep=true (1291.222464ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (234.49697ms)
+✔ expired warm server answer withdraws before retry, keep=false (362.334645ms)
+✔ expired warm server answer withdraws before retry, keep=true (526.615894ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (359.703013ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can close (329.954705ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can remount (332.892319ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (758.448784ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can close (371.888577ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can remount (363.308937ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (433.769545ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can close (433.480512ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can remount (440.334885ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can inspect (340.109064ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can close (335.492725ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can remount (334.625976ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can inspect (416.874052ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can close (365.702444ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can remount (364.993893ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can inspect (433.25237ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can close (421.753835ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can remount (428.973716ms)
+✔ online keep=undefined: first schema installation resets pre-discovery watches before callbacks (56.624831ms)
+✔ online keep=true: first schema installation resets pre-discovery watches before callbacks (40.223288ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (746.447967ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (111.513349ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (386.637373ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (145.54068ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (343.719787ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (97.610532ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (345.194998ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (100.454484ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (394.505466ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (149.422768ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (389.243078ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (152.193512ms)
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6058.683538ms)
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6107.335423ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6066.714054ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6061.447725ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6109.800432ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6104.433202ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (70.23516ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (78.600747ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (124.963046ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (63.080186ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (81.988776ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (158.286512ms)
+✔ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (114.148747ms)
+✔ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (175.065811ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (77.293248ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (110.05349ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (161.547519ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (77.9622ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (107.981113ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (156.592943ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (active) (92.45946ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (100.525739ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (active) (148.956878ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (lingering) (148.808576ms)
+✔ wasm keep: an older displayed deadline preserves a newer unexpired remembered answer (104.004013ms)
+✔ process keep: an older displayed deadline preserves a newer unexpired remembered answer (156.896478ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.831977ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.317666ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.551497ms)
+✔ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (150.607292ms)
+✔ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (158.442766ms)
+✔ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (148.612672ms)
+✔ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (174.024359ms)
+✔ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (171.804934ms)
+✔ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (172.555438ms)
+✔ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (230.154758ms)
+✔ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (220.117845ms)
+✔ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (230.457883ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (26.114341ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.296619ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.118944ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.778278ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (472.705804ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (77.057937ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (81.97055ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (81.895979ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (144.735003ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (132.037402ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (139.801178ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (135.840711ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (101.82643ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (150.104641ms)
+✔ wasm: unknown apply refresh drains after the watermark (594.246563ms)
+✔ process: unknown apply refresh drains after the watermark (159.928435ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (70.274289ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (75.981494ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (75.207483ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (80.56981ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (82.70499ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (97.347277ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (124.394767ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (133.976388ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (137.924906ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (889.78174ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (1949.945381ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (17.639788ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (2.032937ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.936464ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.232277ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.243946ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.034528ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (358.787811ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1195.28119ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1181.329909ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.936194ms)
+ℹ tests 119
+ℹ suites 0
+ℹ pass 113
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 43972.496159
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6058.683538ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6107.335423ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6066.714054ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6061.447725ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6109.800432ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6104.433202ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

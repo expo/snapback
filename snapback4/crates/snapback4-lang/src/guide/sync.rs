@@ -370,7 +370,8 @@ Group count alone does not predict bytes or time.
 For planning on a 10-core M1 Max, expect roughly 5–8 s at the smaller volume
 and 60–90 s at the heavy volume until measured there. These are engineering
 estimates from the slower calibration host, not Mac qualification or deadlines.
-The new bucket layout changes browser persistence, not the declared partition.
+The retained fixture differs from the slower Mac calibration; these estimates
+are not promises. The new bucket layout changes browser persistence, not the declared partition.
 
 The format-3 browser store upgrades the physical IndexedDB database from
 version 1 to 2, preserving existing stores, rows, staged acquisition and outbox.

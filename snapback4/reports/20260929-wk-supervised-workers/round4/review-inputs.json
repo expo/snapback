@@ -1,0 +1,16 @@
+{
+  "astra": {
+    "source": "/home/ccheever/sb4-intent/reviews/wk-r3.astra.md",
+    "sha256": "4f12f19373c33a4da5aab447f677f976c933f583f9bc4011d26a81aa4ca283d5",
+    "savedMatches": true,
+    "finalCheckedAt": "2026-09-29T09:10:34.342461+00:00",
+    "finalUnchanged": true
+  },
+  "grok": {
+    "source": "/home/ccheever/sb4-intent/reviews/wk-r3.grok.md",
+    "sha256": "e390d3602ba9e99449aa7dbe6e76f180820b8bd70616d70d47c83e49af8655ba",
+    "savedMatches": true,
+    "finalCheckedAt": "2026-09-29T09:10:34.342525+00:00",
+    "finalUnchanged": true
+  }
+}
