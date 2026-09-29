@@ -1,0 +1,67 @@
+✖ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (3382.309445ms)
+ℹ {"tier":"wasm","loading":2,"calls":1488,"revalidated":1000,"firstStart":1790661955225,"lastStart":1790661956208,"wallIsReal":true,"link":"online"}
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (3995.693115ms)
+ℹ {"tier":"worker","loading":28,"calls":1474,"revalidated":1000,"firstStart":1790661959198,"lastStart":1790661960185,"wallIsReal":true,"link":"online"}
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (3056.057749ms)
+ℹ {"tier":"process","loading":31,"calls":1438,"revalidated":1000,"firstStart":1790661962261,"lastStart":1790661963260,"wallIsReal":true,"link":"online"}
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10556.208795
+
+✖ failing tests:
+
+test at .pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (3382.309445ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  2 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ worker: 1,000 per-row hooks retain through a relevant write with the real clock (3995.693115ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  28 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 28,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (3056.057749ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  31 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-uzi85sun/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 31,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

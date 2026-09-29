@@ -1,5 +1,6 @@
 // @ref LLP 3000.023#10 — public-client port of LV's 11af2c7d5 seeded schedule.
 import test from 'node:test';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -63,12 +64,12 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
   generationFrames.discovery = await f.post('/sync', { generation: backend.generation, from, limit: 1000 }, 'bob');
   generationFrames.after = { snapshot: await f.post('/sync', { generation: nextBackend.generation, from: 0, limit: 1000 }, 'bob'), empty: await f.post('/sync', { generation: nextBackend.generation, from, limit: 1000 }, 'bob') };
   generationFrames.denied = await f.post('/q/item', { args: {} }, 'bob');
-  const results = [], closing = [];
+  const results = [], closing = [], directRead = new AsyncLocalStorage();
   t.after(() => Promise.all(closing));
   let wall = Date.now(); t.mock.method(Date, 'now', () => wall);
   for (let seed = 1; seed <= seeds; seed++) {
     const model = new MixedModel(), rand = random(seed), trace = [], failures = [], pending = [];
-    let head = 1, hold, remoteHold, replacement, client, watch, localTime = cutoff - 1;
+    let head = 1, hold, remoteHold, replacement, client, watch, signoutPending = false, localTime = cutoff - 1;
     const removalMode = rand(2);
     const device = opener(host, join(f.dir, `device-${seed}`));
     const gated = { async open(...args) {
@@ -86,7 +87,7 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
         };
         const result = await core.call(request.op === 'query' && request.name === 'mixed' ? { ...request, now: localTime } : request, onCommit);
         onCommit(result);
-        if (request.op === 'query' && request.name === 'item' && replacement && beganAt === replacement.cut) {
+        if (request.op === 'query' && request.name === 'item' && !directRead.getStore() && replacement && beganAt === replacement.cut) {
           const scheduled = replacement;
           scheduled.arrived.done = true; scheduled.arrived.resolve();
           if (scheduled.failure) { model.failed(); throw Error('injected replacement failure'); }
@@ -129,7 +130,9 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
         // Evaluate against the old replica, then independently release the reply
         // before or after a membership commit. The public SDK owns all fences.
         const gate = { arrived: Promise.withResolvers(), release: Promise.withResolvers() }; hold = gate;
-        const read = client.query(q('item'), {}); pending.push({ gate, read }); await gate.arrived.promise;
+        const read = directRead.run(true, () => client.query(q('item'), {}));
+        void read.catch(() => {}); // Awaited below; direct retries are not the observation fault.
+        pending.push({ gate, read }); await gate.arrived.promise;
         if (cut % 2 === 0) replacement = { cut, failure: (cut === 2 ? removalMode : 1 - removalMode) === 1, arrived: Promise.withResolvers(), release: Promise.withResolvers() };
         const early = rand(2);
         if (early) { gate.release.resolve(); await read; trace.push(['complete-before', cut]); }
@@ -145,6 +148,9 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
           }
           capture('removal-withdrawn');
           const scheduled = replacement; replacement = undefined; scheduled.release.resolve();
+          // Queue coalescing need not leave a redundant attempt after failure.
+          // Recovery is an explicit public input after the injected fault ends.
+          if (scheduled.failure) { watch.close(); watch.subscribe(() => capture('recovery-refetch')); }
         }
         const direct = await read;
         if (!early) model.check(direct);
@@ -189,9 +195,10 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
       watch.close(); watch.subscribe(() => capture('signout-read'));
       await signoutGate.arrived.promise;
       model.signOut(); const ending = client.signOut(); capture('signout-immediate');
-      signoutGate.release.resolve(); await ending; capture('signout-settled');
+      signoutGate.release.resolve();
+      signoutPending = true; closing.push(ending.then(() => capture('signout-settled')));
     } catch (error) { failures.push(String(error)); }
-    finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); await client?.close(); }
+    finally { replacement?.release.resolve(); replacement = undefined; for (const { gate, read } of pending) { gate.release.resolve(); await read.catch(() => {}); } watch?.close(); if (client && !signoutPending) closing.push(client.close()); }
     try {
       await generationSchedule({ createLocalClient, host, seed, f, oldBackend: backend, nextBackend, generationFrames, rand,
         clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
@@ -201,9 +208,11 @@ for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: $
         clock: { get: () => wall, set: value => { wall = value; } }, trace, closing });
     } catch (error) { failures.push(String(error)); }
     if (closing.length >= 8) await Promise.all(closing.splice(0));
-    results.push({ host, seed, failures: [...new Set(failures)], ...(failures.length && seed <= 2 ? { trace } : {}) });
+    results.push({ host, seed, failures, ...(seed <= 2 ? { trace } : {}) });
   }
   await Promise.all(closing.splice(0));
+  // Delayed sign-out notifications remain part of their seed until cleanup ends.
+  for (const result of results) { result.failures = [...new Set(result.failures)]; if (!result.failures.length) delete result.trace; }
   if (process.env.RL_ORACLE_OUT) writeFileSync(`${process.env.RL_ORACLE_OUT}-${host}.json`, JSON.stringify(results, null, 2));
   const bad = results.filter(r => r.failures.length);
   console.log(JSON.stringify({ host, seeds: results.length, failedSeeds: bad.length, failures: [...new Set(bad.flatMap(r => r.failures))] }));

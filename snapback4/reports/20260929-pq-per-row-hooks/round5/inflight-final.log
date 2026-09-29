@@ -1,0 +1,23 @@
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (596.079938ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (205.481756ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (196.226561ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (228.87857ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (229.927642ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (227.022788ms)
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (253.616333ms)
+✔ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (227.316228ms)
+✔ process: invalidating an acquisition leaves replacement queue wait outside the episode (251.669255ms)
+✔ wasm keep=undefined: the final callback checks a change version raised after evaluation (190.289511ms)
+✔ wasm keep=false: the final callback checks a change version raised after evaluation (180.673316ms)
+✔ wasm keep=true: the final callback checks a change version raised after evaluation (187.549865ms)
+✔ process keep=undefined: the final callback checks a change version raised after evaluation (229.933582ms)
+✔ process keep=false: the final callback checks a change version raised after evaluation (244.237344ms)
+✔ process keep=true: the final callback checks a change version raised after evaluation (266.22854ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3864.304003

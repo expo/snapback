@@ -1,0 +1,16 @@
+no-client-reset 1
+no-local-reset 1
+no-unknown-drain 1
+client-floor-loading 1
+local-floor-loading 1
+move-duplicate-to-tail 1
+no-active-cancel 1
+no-attempt-expiry 1
+react-raw-keys 1
+queued-loading 1
+pre-LV unknown-footprint case 1
+Traceback (most recent call last):
+  File "/home/ccheever/sb4-intent/lane-pq/snapback4/reports/20260929-pq-per-row-hooks/round2/controls.py", line 57, in <module>
+    assert run.returncode==0
+           ^^^^^^^^^^^^^^^^^
+AssertionError

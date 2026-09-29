@@ -1,0 +1,154 @@
+✖ online keep=undefined: eight closed active reads cannot starve later observations or publish late (35.001771ms)
+✖ online keep=false: eight closed active reads cannot starve later observations or publish late (16.027077ms)
+✖ online keep=true: eight closed active reads cannot starve later observations or publish late (8.750333ms)
+✖ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (525.348922ms)
+✖ wasm keep=false: eight closed active reads cannot starve later observations or publish late (58.3243ms)
+✖ wasm keep=true: eight closed active reads cannot starve later observations or publish late (54.685768ms)
+✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (91.839953ms)
+✖ process keep=false: eight closed active reads cannot starve later observations or publish late (105.990488ms)
+✖ process keep=true: eight closed active reads cannot starve later observations or publish late (119.924599ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 0
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1156.631366
+
+✖ failing tests:
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ online keep=undefined: eight closed active reads cannot starve later observations or publish late (35.001771ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ online keep=false: eight closed active reads cannot starve later observations or publish late (16.027077ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ online keep=true: eight closed active reads cannot starve later observations or publish late (8.750333ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (525.348922ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ wasm keep=false: eight closed active reads cannot starve later observations or publish late (58.3243ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ wasm keep=true: eight closed active reads cannot starve later observations or publish late (54.685768ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ process keep=undefined: eight closed active reads cannot starve later observations or publish late (91.839953ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ process keep=false: eight closed active reads cannot starve later observations or publish late (105.990488ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:39:3
+✖ process keep=true: eight closed active reads cannot starve later observations or publish late (119.924599ms)
+  AssertionError [ERR_ASSERTION]: controlled work made progress
+      at pump (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:81:14)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r1-controls-81asw8i9/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:92:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

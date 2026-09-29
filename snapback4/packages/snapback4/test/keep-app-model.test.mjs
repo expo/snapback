@@ -65,10 +65,12 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
     await until(() => watch.getSnapshot().data?.[0]?.body === "initial", "first answer");
     const snapshots = [], trace = [];
     let expectedWithdrawal = false;
-    let lastDeadline;
+    let lastAnswer;
     const record = () => {
       const read = watch.getSnapshot(), at = Date.now();
-      if ("data" in read) lastDeadline = episodeDeadline(read);
+      if ("data" in read) lastAnswer = read;
+      // Queue service can start the hidden deadline after the revalidating mark.
+      const lastDeadline = lastAnswer && episodeDeadline(lastAnswer);
       snapshots.push({ ...read, at, deadline: lastDeadline, action: trace.at(-1), expectedWithdrawal });
     };
     let stop = watch.subscribe(record);
@@ -89,7 +91,7 @@ for (const keep of [undefined, true]) for (const tier of ["online", "wasm", "pro
         stop(); watch.close(); watch = app.client.observe(op, {}, { keep });
         if (keep === true) assert.ok("data" in watch.getSnapshot(), `seed ${seed}, trace ${trace}`);
         else await until(() => "data" in watch.getSnapshot(), "a non-lingering remount opens a fresh watch");
-        lastDeadline = episodeDeadline(watch.getSnapshot()); stop = watch.subscribe(record);
+        lastAnswer = watch.getSnapshot(); stop = watch.subscribe(record);
         continue;
       }
       if (action === "local") assert.equal((await app.mutate(edit, { body })).state, "sent");

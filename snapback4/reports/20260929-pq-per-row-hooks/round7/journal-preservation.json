@@ -1,0 +1,10 @@
+{
+  "HEAD": {
+    "entries_checked": 1024,
+    "missing_or_rewritten": []
+  },
+  "MERGE_HEAD": {
+    "entries_checked": 1023,
+    "missing_or_rewritten": []
+  }
+}

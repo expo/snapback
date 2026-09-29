@@ -1,0 +1,26 @@
+subscription-acquires 1
+✖ wasm: resubscribing a raw local handle starts a bounded episode (853.138689ms)
+✖ process: resubscribing a raw local handle starts a bounded episode (3384.39287ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ wasm: resubscribing a raw local handle starts a bounded episode (853.138689ms)
+✖ process: resubscribing a raw local handle starts a bounded episode (3384.39287ms)
+no-final-abort 1
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (3239.271086ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (344.708338ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (236.566515ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (346.10342ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (319.130655ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (303.430375ms)
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+✖ failing tests:
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (3239.271086ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (344.708338ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (236.566515ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (346.10342ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (319.130655ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (303.430375ms)

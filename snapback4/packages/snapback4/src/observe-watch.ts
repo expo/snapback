@@ -1,13 +1,14 @@
 import type { Client, ObserveOptions, Query, Read, Observed, Refusal } from "./contract.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
 import type { ReadObservation } from "./read-observation.ts";
+import { readKey } from "./read-key.ts";
 
 interface Watch extends ReadObservation<unknown> {
   key: string;
   subscribers: Set<() => void>;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   presenceRefresh: ReturnType<typeof setTimeout> | null;
-  lingering?: { until: number; timer: ReturnType<typeof setTimeout>; close(): void };
+  lingering?: { until: number; timer: ReturnType<typeof setTimeout>; close(): void; resume?: boolean };
 }
 
 type Peek = (op: Query<unknown, unknown>, args: unknown, options?: ObserveOptions) => Read<unknown> | undefined;
@@ -20,7 +21,7 @@ export function peekObservation<A, R>(client: Client, op: Query<A, R>, args: A, 
 
 // @ref LLP 3000.023#3.2 — omitted, withdrawing and lingering subscribers never share policy.
 export function observationKey(op: Query<unknown, unknown>, args: unknown, options?: ObserveOptions): string {
-  return `${options?.keep === true ? "keep:" : options?.keep === false ? "withdraw:" : "retain:"}${op.name}:${JSON.stringify(args)}`;
+  return `${options?.keep === true ? "keep:" : options?.keep === false ? "withdraw:" : "retain:"}${readKey(op, args)}`;
 }
 
 // @ref LLP 3000.019#3.3 — render can see a live watch before subscribing, without extending its lifetime.
@@ -58,7 +59,7 @@ export function closeWatchAnswers(watches: Map<string, Watch>, denied: Refusal):
 // @ref LLP 3000.019#3.3 — keep leaves the same live observation running for 30 seconds without subscribers.
 export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: string,
   make: () => W, start: (watch: W) => void, stop: (watch: W) => void,
-  denied: () => Refusal | null, resetOnClose = true): Observed<R> {
+  denied: () => Refusal | null, resetOnClose = true, idle?: (watch: W) => boolean): Observed<R> {
   const cancelLinger = (watch: W) => {
     if (watch.lingering) clearTimeout(watch.lingering.timer);
     delete watch.lingering;
@@ -80,7 +81,7 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     let watch = watches.get(key);
     // Enforce the boundary even if a suspended host has not delivered its timer.
     if (watch?.lingering && performance.now() >= watch.lingering.until) { close(watch); watch = undefined; }
-    if (watch) cancelLinger(watch);
+    if (watch) { const resume = watch.lingering?.resume; cancelLinger(watch); if (resume) start(watch); }
     else {
       watch = make();
       const created = watch;
@@ -96,9 +97,12 @@ export function observeWatch<W extends Watch, R>(watches: Map<string, W>, key: s
     if (own.subscribers.size || watches.get(key) !== own || own.lingering) return;
     if (!own.linger || denied()) { close(own); return; }
     const watch = own;
+    // Preserve the held answer and its authority/deadlines, but release work
+    // when the last subscriber leaves. Reacquisition resumes a cancelled read.
+    const resume = idle?.(watch);
     const timer = setTimeout(() => close(watch), 30_000);
     (timer as { unref?: () => void }).unref?.();
-    watch.lingering = { until: performance.now() + 30_000, timer, close: () => close(watch) };
+    watch.lingering = { until: performance.now() + 30_000, timer, close: () => close(watch), ...(resume ? { resume } : {}) };
   };
   return {
     getSnapshot: () => own.read(denied()) as Read<R>,

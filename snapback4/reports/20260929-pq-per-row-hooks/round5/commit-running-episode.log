@@ -1,0 +1,49 @@
+✔ online: invalidating an acquisition leaves replacement queue wait outside the episode (266.23481ms)
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (661.76418ms)
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (257.753586ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1326.595398
+
+✖ failing tests:
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:122:51
+✖ wasm: invalidating an acquisition leaves replacement queue wait outside the episode (661.76418ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:133:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:122:51
+✖ process: invalidating an acquisition leaves replacement queue wait outside the episode (257.753586ms)
+  AssertionError [ERR_ASSERTION]: the replacement has not received a slot
+
+  undefined !== 7
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-ql9np547/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:133:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 7,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

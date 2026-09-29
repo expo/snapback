@@ -1,0 +1,237 @@
+// @ref LLP 3000.023#10 — key-order-only React renders preserve the observation and page chain.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { chromiumExecutable } from '../../../witness/lib.mjs';
+import { server as appServer, binary } from './helpers/app-server.mjs';
+import { processDevice } from '../dist/native.js';
+const root = resolve(import.meta.dirname, '../../..');
+
+async function browserFixture(t, harness, setup = async () => {}) {
+  const require = createRequire(join(root, 'packages/snapback4/package.json'));
+  const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
+  const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
+  const temporary = mkdtempSync(join(tmpdir(), 'sb4-row-keys-'));
+  let server, browser;
+  t.after(async () => { await browser?.close(); await server?.close(); rmSync(temporary, { recursive: true, force: true }); });
+  writeFileSync(join(temporary, 'index.html'), '<div id="root"></div><script type="module" src="/harness.jsx"></script>');
+  writeFileSync(join(temporary, 'harness.jsx'), harness);
+  server = await createServer({ root: temporary, configFile: false, logLevel: 'error',
+    server: { host: '127.0.0.1', port: 0, fs: { allow: [root, temporary] } },
+    resolve: { alias: [
+      { find: /^react$/, replacement: require.resolve('react') },
+      { find: /^react\/jsx-runtime$/, replacement: require.resolve('react/jsx-runtime') },
+      { find: /^react\/jsx-dev-runtime$/, replacement: require.resolve('react/jsx-dev-runtime') },
+      { find: /^react-dom\/client$/, replacement: require.resolve('react-dom/client') },
+      ...['client', 'react', 'local', 'web'].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === 'react' ? 'tsx' : 'ts'}`) })),
+    ] } });
+  await server.listen();
+  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  await setup(page);
+  await page.goto(server.resolvedUrls.local[0]);
+  return page;
+}
+
+test('useQuery and usePage keep canonical arguments across renders, preserving loaded pages', async t => {
+  const page = await browserFixture(t, harness);
+  await page.waitForFunction(() => window.latest?.query.data && window.latest.page.items.length === 1);
+  await page.evaluate(() => window.latest.page.loadMore());
+  await page.waitForFunction(() => window.latest.page.items.length === 2);
+  const before = await page.evaluate(() => window.calls);
+  assert.equal(before, 3);
+  await page.evaluate(() => { window.loading = 0; window.change(1); });
+  await page.waitForFunction(() => window.latest?.mode === 1);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.deepEqual(await page.evaluate(() => ({ calls: window.calls, loading: window.loading, rows: window.latest.page.items.length })),
+    { calls: before, loading: 0, rows: 2 });
+  await page.evaluate(() => window.change(2)); // A different retention policy owns different watches.
+  await page.waitForFunction(n => window.calls >= n + 2 && window.latest.query.data && window.latest.page.items.length === 1, before);
+  const afterPolicy = await page.evaluate(() => window.calls);
+  await page.evaluate(() => window.change(3)); // Array order is significant.
+  await page.waitForFunction(n => window.calls >= n + 2 && window.latest.query.data, afterPolicy);
+  await page.evaluate(() => window.finish());
+});
+
+const harness = `
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { createClient } from 'snapback4/client';
+import { SnapbackProvider, useQuery, usePage } from 'snapback4/react';
+window.calls = 0; window.loading = 0;
+const client = createClient({ url: 'http://row-keys.test', persona: 'alice', fetch: async (input, init) => {
+  const path = new URL(input).pathname;
+  if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
+  if (path === '/changes') return new Promise((_, reject) => {
+    if (init.signal.aborted) reject(Error('closed'));
+    else init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+  });
+  if (path.startsWith('/q/')) {
+    window.calls++;
+    const args = JSON.parse(init.body).args;
+    return Response.json({ data: [args.c ? 2 : 1], complete: true, next: args.c ? null : 'next', seq: 1, tables: ['cards'] });
+  }
+  throw Error(path);
+} });
+const q = {kind:'query',name:'one'}, p = {kind:'query',name:'page'};
+await client.query(q, {}); window.calls = 0;
+function Screen() {
+  const [mode, change] = useState(0); window.change = change;
+  const ids = mode === 3 ? [2,1] : [1,2];
+  const args = mode === 0 ? {id:'a', filter:{x:1,y:2}, ids} : {ids, filter:{y:2,x:1}, id:'a'};
+  const options = mode >= 2 ? {keep:true} : undefined;
+  const query = useQuery(q, args, options), page = usePage(p, args, options);
+  if (query.loading || page.read.loading) window.loading++;
+  window.latest = {mode,query,page};
+  return <span>{page.items.length}</span>;
+}
+const root = createRoot(document.getElementById('root'));
+root.render(<SnapbackProvider client={client}><Screen /></SnapbackProvider>);
+window.finish = async () => { root.unmount(); await client.close(); };
+`;
+
+
+test('1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders', async t => {
+  const page = await browserFixture(t, rowsHarness);
+  await page.waitForFunction(() => window.ready === 1000);
+  await page.evaluate(() => { window.loading = 0; window.revalidating = 0; window.edit(); });
+  await page.waitForFunction(() => window.changed === 1000);
+  assert.deepEqual(await page.evaluate(() => ({ loading: window.loading, calls: window.calls, rows: window.changed })),
+    { loading: 0, calls: 2000, rows: 1000 });
+  assert.ok(await page.evaluate(() => window.revalidating > 0), 'queued rows keep an explicitly revalidating answer');
+  await page.evaluate(() => window.finish());
+});
+const rowsHarness = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { createClient } from 'snapback4/client';
+import { SnapbackProvider, useQuery } from 'snapback4/react';
+window.calls = 0; window.loading = 0; window.ready = 0; window.changed = 0; window.revalidating = 0;
+let seq = 1, change;
+const client = createClient({ url: 'http://row-render.test', persona: 'alice', fetch: async (input, init) => {
+  const path = new URL(input).pathname;
+  if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
+  if (path === '/changes') return new Promise((resolve, reject) => {
+    change = () => resolve(Response.json({seq, generation: 1, tables: ['cards']}));
+    init.signal.addEventListener('abort', () => reject(Error('closed')), {once: true});
+  });
+  if (path.startsWith('/q/')) { window.calls++; return Response.json({data: seq, seq, tables: ['cards']}); }
+  throw Error(path);
+} });
+const op = {kind:'query', name:'row'}, ready = new Set(), changed = new Set();
+await client.query(op, {}); window.calls = 0;
+function Row({id}) {
+  const read = useQuery(op, {id});
+  if (read.loading) window.loading++;
+  if (read.revalidating) window.revalidating++;
+  if (read.data === 1) ready.add(id);
+  if (read.data === 2 && !read.revalidating) changed.add(id);
+  window.ready = ready.size; window.changed = changed.size;
+  return <span>{read.data}</span>;
+}
+const root = createRoot(document.getElementById('root'));
+root.render(<SnapbackProvider client={client}>{Array.from({length:1000}, (_,id) => <Row key={id} id={id}/>)}</SnapbackProvider>);
+window.edit = () => { seq++; change(); };
+window.finish = async () => { root.unmount(); await client.close(); };
+`;
+
+for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row hooks retain through a relevant write with the real clock`, async t => {
+  const { url, dir } = await appServer(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
+  const seed = Array.from({ length: 1000 }, (_, slot) => ({ table: 'cards', row: { id: 'c' + slot, slot, owner: 'dev:alice', label: 'original' } }));
+  assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(seed) }).then(r => r.json())).seeded, 1000);
+  let core;
+  t.after(async () => { await core?.close(); });
+  const page = await browserFixture(t, localRowsHarness, async page => {
+    await page.addInitScript(config => { window.pqConfig = config; }, { url, tier });
+    if (tier === 'process') {
+      // The hooks and SDK run in Chromium; these bindings carry the unmodified
+      // process adapter's device calls to its real SQLite process on Node.
+      await page.exposeFunction('pqOpen', async (name, backend) => { core = await processDevice({ binary, dir: join(dir, 'react-device') }).open(name, backend); });
+      await page.exposeFunction('pqCall', request => core.call(request));
+      await page.exposeFunction('pqClose', () => core.close());
+    }
+  });
+  await page.waitForFunction(() => window.pq?.ready);
+  await page.evaluate(() => window.pq.edit());
+  await page.waitForFunction(() => window.pq?.finished() || window.pq?.result().loading > 0);
+  const result = await page.evaluate(() => window.pq.result());
+  t.diagnostic(JSON.stringify({ tier, ...result }));
+  assert.equal(result.loading, 0, 'no loading render after the relevant write');
+  assert.equal(result.calls, 2000, 'one mount and one replacement per distinct observation');
+  assert.equal(result.revalidated, 1000);
+  assert.ok(result.lastStart - result.firstStart > 1000, 'later attempts wait beyond the one-second episode bound');
+  assert.equal(result.wallIsReal, true);
+  assert.equal(result.link, 'online', 'the controlled feed remains live during the queue');
+  await page.evaluate(() => window.pq.finish());
+});
+
+const localRowsHarness = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { SnapbackProvider, useQuery } from 'snapback4/react';
+import { createLocalClient } from 'snapback4/local';
+import { webDevice } from 'snapback4/web';
+const {url, tier} = window.pqConfig, reads = new Map(), revalidated = new Set(), starts = [];
+let edited = false, loading = 0, calls = 0;
+const wall = Date.now(), realStart = performance.now();
+const base = tier === 'process' ? { async open(name, backend) {
+  await window.pqOpen(name, backend);
+  return { call: request => window.pqCall(request), close: () => window.pqClose() };
+} } : webDevice({worker: tier === 'worker'});
+const client = await createLocalClient({url, persona:'alice', name:'pq-real-clock', device:{async open(...args){
+  const core = await base.open(...args);
+  return {...core, async call(request, committed) {
+    if(request.op === 'query') {
+      calls++;
+      if(edited) {
+        starts.push(Date.now());
+        // Short service time per attempt forces >1s aggregate queue wait.
+        // No clock or episode duration is altered.
+        await new Promise(resolve => setTimeout(resolve, 15));
+      }
+    }
+    return core.call(request, committed);
+  }};
+}}, fetch: (input, init) => {
+  if(new URL(input).pathname !== '/changes') return fetch(input,init);
+  // Hold change evidence so edit() owns the sync, but keep the real link
+  // watchdog healthy throughout mount and the >1s replacement queue.
+  let timer;
+  return Promise.resolve(new Response(new ReadableStream({
+    start(controller) {
+      const stop = () => {clearInterval(timer); controller.close();};
+      if(init.signal.aborted) {stop(); return;}
+      timer = setInterval(() => controller.enqueue(new Uint8Array([32])), 1000);
+      init.signal.addEventListener('abort',stop,{once:true});
+    },
+    cancel(){clearInterval(timer);}
+  })));
+}});
+await client.sync(); calls = 0;
+const op = {kind:'query',name:'point'};
+function Row({id}) {
+  const read = useQuery(op,{id:'c'+id}); reads.set(id,read);
+  if(edited && read.loading) loading++;
+  if(edited && read.revalidating) revalidated.add(id);
+  return <span>{read.data?.label ?? 'loading'}</span>;
+}
+const root = createRoot(document.getElementById('root'));
+root.render(<SnapbackProvider client={client}>{Array.from({length:1000}, (_,id)=><Row key={id} id={id}/>)}</SnapbackProvider>);
+const ready = () => reads.size === 1000 && [...reads.values()].every(r => r.data && !r.revalidating);
+window.pq = {
+  get ready(){return ready();},
+  async edit(){
+    edited = true;
+    const reply = await fetch(url+'/m/edit',{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify({id:crypto.randomUUID(),args:{id:'c0',label:'changed'}})}).then(r=>r.json());
+    if(reply.state !== 'sent') throw Error(JSON.stringify(reply));
+    await client.sync();
+  },
+  finished: () => ready() && calls === 2000 && reads.get(0).data.label === 'changed',
+  result: () => ({loading,calls,revalidated:revalidated.size,firstStart:starts[0],lastStart:starts.at(-1),wallIsReal:Date.now()-wall >= 1000 && performance.now()-realStart >= 1000,link:client.link()}),
+  finish: async () => {root.unmount(); await client.close();}
+};
+`;

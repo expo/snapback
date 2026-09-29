@@ -31,8 +31,10 @@ export interface LocalWatch extends ReadObservation<unknown> {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -55,7 +57,7 @@ export function notifyLocalWatch(watch: LocalWatch): void {
   for (const subscriber of watch.subscribers) subscriber();
 }
 
-export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => Promise<void>): void {
+export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => void): void {
   if (!tables.size) return;
   for (const watch of watches) if (watch.tables.size === 0 || [...watch.tables].some(table => tables.has(table))) void rerun(watch);
 }
@@ -108,7 +110,14 @@ export class RememberedAnswers {
     const slot = this.written.get(key), barrier = ++this.tickets;
     this.written.set(key, { seq: slot?.seq, highest: slot?.highest, ticket: barrier, barrier });
   }
-  clear(): void { this.answers.clear(); this.written.clear(); }
+  clear(touched?: readonly string[]): void {
+    if (touched === undefined) { this.answers.clear(); this.written.clear(); return; }
+    if (!touched.length) return;
+    for (const [key, answer] of this.answers) {
+      if (answer.tables.size && !touched.some(table => answer.tables.has(table))) continue;
+      this.forget(key);
+    }
+  }
   get size(): number { return this.answers.size; }
   /** The cache as one read attempt writes it: the server's cut, then the attempt's
    * ticket. A refetch within the attempt is a new read, so it renews the ticket. */
@@ -150,7 +159,7 @@ export class LocalReads {
   // pre-change evaluations without resetting the displayed answer.
   changed(watch: LocalWatch, cut?: number): void {
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
-    watch.resetVersion++;
+    watch.changeVersion = (watch.changeVersion ?? 0) + 1;
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
@@ -173,17 +182,17 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#10 — ordinary commits re-read without withdrawing the displayed answer.
-  committed(watches: Iterable<LocalWatch>, operation: string): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true): void {
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[]): void {
     this.revision++;
-    this.serverAnswers.clear();
+    this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
       if (reset) delete watch.changeCut;
-      if (reset) watch.reset({ loading: true }); else watch.reload(true);
+      if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

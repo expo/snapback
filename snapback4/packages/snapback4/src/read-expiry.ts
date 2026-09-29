@@ -10,6 +10,17 @@ export type ExpiryClock = Pick<ServerClock, "deviceDelay" | "serverDelay" | "est
 interface ExpiringRead {
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null;
+  expiredServerDeadline?: number | undefined;
+}
+// @ref LLP 3000.023#10 — a queued recovery cannot renew a withdrawn deadline
+// after server-time rollback, even with a new request ticket or retention policy.
+export function readDeadlineWithdrawn(watches: Iterable<Pick<ExpiringRead, "expiredServerDeadline">>, deadline: number | null | undefined): boolean {
+  if (deadline == null) return false;
+  for (const watch of watches) if (watch.expiredServerDeadline !== undefined && deadline <= watch.expiredServerDeadline) return true;
+  return false;
+}
+function rememberDeadline(watch: ExpiringRead, deadline: number | null): void {
+  if (deadline !== null) watch.expiredServerDeadline = Math.max(watch.expiredServerDeadline ?? 0, deadline);
 }
 interface HeldExpiry extends ExpiringRead { withdraw(): () => void }
 const heldExpiries = new WeakMap<ExpiringRead, Set<HeldExpiry>>();
@@ -50,6 +61,7 @@ export function checkReadExpiry(watch: ExpiringRead & { expire(): () => void }):
     if (context.current()) context.expired(serverDue);
     // A closed local handle has left the live sweep, but can still be read.
     else if (serverDue || !d.localWakeup) {
+      if (serverDue) rememberDeadline(watch, d.server);
       context.withdrawHeld?.(serverDue, context.clock.estimatedServerNow());
       watch.deadlines = undefined;
       watch.expire()();
@@ -62,18 +74,19 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
   withdraw: (watch: W, deadlines: ReadDeadlines, serverDue: boolean, serverNow: number) => () => void,
   rearm: (watch: W, deadlines: ReadDeadlines) => void, refresh: (watch: W) => void): void {
   const deviceNow = clock.issuedDeviceNow(), serverNow = clock.estimatedServerNow();
-  const current = [...watches], deliveries: (() => void)[] = [];
+  const current = [...watches], deliveries: (() => void)[] = [], due = new Set<W>();
   // Capture and withdraw ALL held answers before any raw notification can roll
   // the server clock back. These deadlines outlive replacement of the raw answer.
   for (const watch of current) for (const held of heldExpiries.get(watch) ?? []) {
     const d = held.deadlines;
     if (!d) continue;
     if ((d.server !== null && d.server <= serverNow) || (d.device !== null && d.device <= deviceNow)) {
+      if (d.server !== null && d.server <= serverNow) rememberDeadline(watch, d.server);
       if (held.expiryTimer) clearTimeout(held.expiryTimer);
       held.expiryTimer = null;
       held.deadlines = undefined;
       expiryOwners.get(watch)?.withdrawHeld?.(d.server !== null && d.server <= serverNow, serverNow);
-      deliveries.push(held.withdraw());
+      deliveries.push(held.withdraw()); due.add(watch);
     } else {
       const context = expiryOwners.get(watch)!;
       armReadExpiry(held, d, clock, context.current, context.expired);
@@ -84,14 +97,17 @@ export function correctReadExpiries<W extends ExpiringRead>(watches: Iterable<W>
     if (!d) continue;
     const serverDue = d.server !== null && d.server <= serverNow;
     if (serverDue || (d.device !== null && d.device <= deviceNow)) {
+      if (serverDue) rememberDeadline(watch, d.server);
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
       watch.deadlines = undefined;
-      deliveries.push(withdraw(watch, d, serverDue, serverNow));
+      deliveries.push(withdraw(watch, d, serverDue, serverNow)); due.add(watch);
     } else rearm(watch, d);
   }
   for (const deliver of deliveries) deliver();
-  for (const watch of current) refresh(watch);
+  // A clock sample re-arms future deadlines; only due owners need evaluation.
+  // @ref LLP 3000.023#10 — ordinary response timing must not refetch every row.
+  for (const watch of due) refresh(watch);
 }
 
 // @ref LLP 3000.019#3.3 — deadlines belong to the displayed answer, including while its replacement loads.

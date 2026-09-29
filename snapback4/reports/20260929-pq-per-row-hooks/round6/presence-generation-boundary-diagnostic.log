@@ -1,0 +1,152 @@
+✖ wasm keep=undefined: queued presence checks a second change at the response boundary (658.439179ms)
+✖ wasm keep=false: queued presence checks a second change at the response boundary (209.443661ms)
+✖ wasm keep=true: queued presence checks a second change at the response boundary (210.191011ms)
+✖ process keep=undefined: queued presence checks a second change at the response boundary (241.594349ms)
+✔ process keep=false: queued presence checks a second change at the response boundary (248.422163ms)
+✔ process keep=true: queued presence checks a second change at the response boundary (253.131351ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1943.184947
+
+✖ failing tests:
+
+test at .pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=undefined: queued presence checks a second change at the response boundary (658.439179ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667448727,
+  -   at: 1790667448679,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:124:41)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667448727, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667448679, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=false: queued presence checks a second change at the response boundary (209.443661ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667448942,
+  -   at: 1790667448888,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:124:41)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667448942, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667448888, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=true: queued presence checks a second change at the response boundary (210.191011ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667449152,
+  -   at: 1790667449099,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:124:41)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667449152, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667449099, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=undefined: queued presence checks a second change at the response boundary (241.594349ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667449393,
+  -   at: 1790667449342,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-agiyo3dw/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:124:41)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667449393, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667449342, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

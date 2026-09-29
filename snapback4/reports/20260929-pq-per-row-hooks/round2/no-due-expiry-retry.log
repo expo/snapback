@@ -1,0 +1,58 @@
+✖ online keep=undefined: a due floor still permits paced expiry retries (5094.377435ms)
+✖ online keep=false: a due floor still permits paced expiry retries (5070.431679ms)
+✖ online keep=true: a due floor still permits paced expiry retries (5064.975091ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16271.942124
+
+✖ failing tests:
+
+test at .pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:416:46
+✖ online keep=undefined: a due floor still permits paced expiry retries (5094.377435ms)
+  AssertionError [ERR_ASSERTION]: timed out: ordinary expiry retries past the due body
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:439:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:416:46
+✖ online keep=false: a due floor still permits paced expiry retries (5070.431679ms)
+  AssertionError [ERR_ASSERTION]: timed out: ordinary expiry retries past the due body
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:439:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:416:46
+✖ online keep=true: a due floor still permits paced expiry retries (5064.975091ms)
+  AssertionError [ERR_ASSERTION]: timed out: ordinary expiry retries past the due body
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-lk1wsf0e/snapback4/packages/snapback4/test/keep-clock.test.mjs:439:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

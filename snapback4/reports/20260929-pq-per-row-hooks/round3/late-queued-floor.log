@@ -1,0 +1,118 @@
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (486.991805ms)
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.448815ms)
+✖ wasm keep=true: queued publication rechecks a floor raised after evaluation (79.547607ms)
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (125.856407ms)
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (125.872431ms)
+✖ process keep=true: queued publication rechecks a floor raised after evaluation (125.590859ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1156.16591
+
+✖ failing tests:
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (486.991805ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  3 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=false: queued publication rechecks a floor raised after evaluation (83.448815ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ wasm keep=true: queued publication rechecks a floor raised after evaluation (79.547607ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  3 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=undefined: queued publication rechecks a floor raised after evaluation (125.856407ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  3 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=false: queued publication rechecks a floor raised after evaluation (125.872431ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:95:3
+✖ process keep=true: queued publication rechecks a floor raised after evaluation (125.590859ms)
+  AssertionError [ERR_ASSERTION]: the withdrawn deadline never returns to subscribers
+
+  3 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:150:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

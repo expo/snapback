@@ -12,6 +12,7 @@ import { isReady } from "./contract.ts";
 import { Pages } from "./react-pages.ts";
 import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
+import { readKey } from "./read-key.ts";
 
 const ClientContext = createContext<Client | null>(null);
 
@@ -106,7 +107,7 @@ class Observation<R> {
 /** One live read. Re-renders when the value changes; never throws. */
 export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
   const client = useClient();
-  const key = JSON.stringify(args);
+  const key = readKey(op, args);
   const observed = useMemo(() => new Observation(
     () => client.observe(op, args, options),
     () => peekObservation(client, op, args, options)), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -115,7 +116,7 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOption
 
 export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
-  const key = JSON.stringify(args);
+  const key = readKey(op, args);
   const pages = useMemo(() => new Pages(client, op, args as A, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
