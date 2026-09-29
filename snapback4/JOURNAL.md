@@ -78081,3 +78081,24 @@ LLP 3000.007 §20.4 and the operations manual explain the semantic comparison.
 Report and all detecting controls: reports/20260929-ea-admit-before-identity/round6/REPORT.md.
 The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-29 — macOS failures in the 0.4.9 dry run (supervisor)
+
+The black M5's 0.4.9 dry run ran lanes PQ and WK on macOS for the first time and failed with
+`== 1 failure(s) in 5759 s` (client tests; nothing published). There were four causes, none seen on Linux.
+
+- **Worker snapshot imports.** `checked_imports` compared paths recorded by the checker with the
+  canonical project root. When a recorded path passed through a symlinked ancestor (macOS `/var` is
+  `/private/var`), the import was silently left out of the worker's snapshot and the worker never
+  started. The parent directory is now canonicalized; the final component is still opened without
+  following, so a linked helper is still refused. With the change reverted, both `automatic snapshot`
+  regressions fail on the M5; with it, both pass.
+- **Ledger path.** `supervised-workers` compared the printed, canonical ledger path with a
+  non-canonical tmpdir.
+- **Per-row hangs.** `per-row-retry` and `per-row-liveness` waited forever. With `setTimeout` mocked,
+  undici's zero-delay timers on macOS never fire, so real requests stalled. The tests now wait by
+  advancing only zero-delay timers; no deadline, backoff or probe delay moves.
+
+Verified on the M5 (macOS, Node 24.18.0) and eb1000 (Linux, Node 24.13.1): per-row-retry 15/15,
+per-row-liveness 17/17, supervised-workers 5/5, snapshot regressions 2/2. 0.4.9 is re-cut from the
+main that includes this fix.
