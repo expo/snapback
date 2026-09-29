@@ -77762,3 +77762,33 @@ No new timing distribution, wasm measurement, budget increase or security claim.
 Report: reports/20260929-np-macos-slice/round7/REPORT.md. Raw failures, passing
 logs, controls, source bindings and native evidence are retained. One local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-09-29 — KR round 0: establish idle keep-remount observations
+
+Reproduced the inherited online snapshot-identity failure on aedd35615a in 7/10
+focused runs. Instrumentation identifies the fixture's own seed `/changes`
+wake: it dirties the in-flight first query, whose successful answer can remain
+visible while the queued reread runs. Last unsubscribe cancels that work;
+remount resumes it with `revalidating: true`, as LLP 3000.023 §10 permits.
+No SDK, engine or contract change is needed.
+
+The existing test now finishes local acquisition, or delivers the initial online
+change-feed response after the first answer and waits for its settled replacement.
+Strict snapshot identity, key isolation, last-subscriber handling, the exact
+30-second boundary and active/idle sign-out withdrawal remain. The no-new-read
+check also runs after a queue turn. An isolated mutation that spuriously queues
+work on every join fails that new assertion from a passing control.
+
+All 50 consecutive focused runs pass all three tiers: 150/150. Retention/client
+checks pass 483/483; queue checks 44/44. Ran scripts/test.sh once, exit 0:
+`== 0 failure(s) in 1386 s`. Full clients pass 5,123 with ten declared skips;
+serial models pass 79/79 at their full counts. No ours, baseline or environmental
+full-suite failure. The inherited nominal 60-second process budget remains
+exceeded. Rebuilt wasm is unchanged: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the unchanged 593,719 B cap.
+
+Report and raw evidence: reports/20260929-kr-keep-remount/REPORT.md. SR's ticket is
+absent on this base; the report records its closure resolution for integration.
+One local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
