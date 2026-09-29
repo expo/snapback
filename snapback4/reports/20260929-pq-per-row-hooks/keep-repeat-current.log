@@ -1,0 +1,81 @@
+iteration 1
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (501.184792ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 635.197151
+iteration 2
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (510.648755ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 643.93785
+iteration 3
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (507.254298ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 640.736082
+iteration 4
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (528.855749ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 666.121695
+iteration 5
+KEEP_DIAGNOSTIC {
+  watch: {
+    data: { body: 'private answer', id: 'private', room: 'room' },
+    complete: true,
+    cut: null,
+    fresh: false,
+    next: null,
+    revalidating: true,
+    since: 1790648888760
+  },
+  idle: { loading: true },
+  requests: 9,
+  holding: false
+}
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11728.117167ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11844.596091
+
+✖ failing tests:
+
+test at snapback4/target/pq-keep-current.test.mjs:130:51
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11728.117167ms)
+  AssertionError [ERR_ASSERTION]: second key ready
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-keep-current.test.mjs:22:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/target/pq-keep-current.test.mjs:181:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

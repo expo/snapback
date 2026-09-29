@@ -1,0 +1,191 @@
+✔ schema retries retire a known obsolete durable answer before adoption completes (524.252212ms)
+✔ schema retries still deliver durable inserts during initial discovery (548.644966ms)
+✔ schema E_AUTH after revocation terminates discovery without retrying (936.454198ms)
+✔ schema E_AUTH from an obsolete bearer waits for rotation before retrying (675.329032ms)
+✔ adoption during initial capability discovery invalidates a durable watch (3048.481752ms)
+✔ initial capability discovery retries one schema 503 and restores watch interests (406.744668ms)
+✔ a poll generation fences stale schema facts until bounded retries catch up (94.394888ms)
+✔ initial backend installation rejects a query already in flight (60.400585ms)
+✔ expired server replies: recover, keep=undefined (2171.153087ms)
+✔ expired server replies: recover, keep=false (1654.718291ms)
+✔ expired server replies: recover, keep=true (1359.401727ms)
+✔ expired server replies: close watch, keep=false (1283.279913ms)
+✔ expired server replies: close client, keep=undefined (1286.233178ms)
+✔ expired server replies: close client, keep=false (1283.664198ms)
+✔ expired server replies: close client, keep=true (1294.123382ms)
+✔ expired warm server answer withdraws before retry, keep=undefined (216.829105ms)
+✔ expired warm server answer withdraws before retry, keep=false (365.964987ms)
+✔ expired warm server answer withdraws before retry, keep=true (506.783012ms)
+✔ expiry retry chained permits wasm (526.13325ms)
+✔ expiry retry populated watch wasm (80.500416ms)
+✔ expiry retry server pagination wasm (85.58816ms)
+✔ expiry retry server pagination watch wasm (73.996599ms)
+✔ expiry retry server pagination delayed changes wasm (79.774488ms)
+ℹ {"tier":"wasm","scenario":"server pagination delayed changes","firstPageRequests":1,"continuationRequests":2,"rows":["audits-5","audits-4","audits-3","audits-1","audits-0"]}
+✔ expiry retry server pagination watch delayed changes wasm (72.152686ms)
+ℹ {"tier":"wasm","scenario":"server pagination watch delayed changes","firstPageRequests":1,"continuationRequests":2,"rows":["audits-5","audits-4","audits-3","audits-1","audits-0"]}
+✔ expiry retry remembered branch wasm (59.238553ms)
+✔ expiry retry remembered branch watch wasm (66.283602ms)
+✔ expiry retry remembered branch timer watch wasm (174.397939ms)
+✔ expiry retry chained permits process (118.391449ms)
+✔ expiry retry populated watch process (119.554962ms)
+✔ expiry retry server pagination process (101.571713ms)
+✔ expiry retry server pagination watch process (113.075592ms)
+✔ expiry retry server pagination delayed changes process (102.173525ms)
+ℹ {"tier":"process","scenario":"server pagination delayed changes","firstPageRequests":1,"continuationRequests":2,"rows":["audits-5","audits-4","audits-3","audits-1","audits-0"]}
+✔ expiry retry server pagination watch delayed changes process (113.32742ms)
+ℹ {"tier":"process","scenario":"server pagination watch delayed changes","firstPageRequests":1,"continuationRequests":2,"rows":["audits-5","audits-4","audits-3","audits-1","audits-0"]}
+✔ expiry retry remembered branch process (97.863676ms)
+✔ expiry retry remembered branch watch process (111.476807ms)
+✔ expiry retry remembered branch timer watch process (214.724411ms)
+✔ README TypeScript examples compile and call every public function (2170.781401ms)
+ℹ 33 README blocks; 48 public functions; 2168.98 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (7.449053ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (11.568126ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (9.365334ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (7.704726ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (29.769892ms)
+✔ profile route is chosen once per account and survives later loading (2.459316ms)
+✖ private commits rerun the published image without adopting the staged identity (70.925628ms)
+✔ ordinary publication keeps stream mode through false snapshot mode and an interrupted round (1003.568383ms)
+✔ change polling takes published native progress after another owner advances (2012.248387ms)
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (553.191219ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (126.129655ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (155.630725ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (138.506903ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (153.948824ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1203.879315ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (144.512753ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (159.081165ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (145.697719ms)
+✔ MQ speculative events wasm: retained history and independent held coverage (8160.148665ms)
+✔ MQ expiry local left wasm: retained history and independent held coverage (1133.894047ms)
+✔ MQ expiry local watch left wasm: retained history and independent held coverage (1129.780983ms)
+✔ MQ local permit wasm: retained history and independent held coverage (1125.844123ms)
+✔ MQ local permit watch wasm: retained history and independent held coverage (1167.100629ms)
+✔ MQ local branch wasm: retained history and independent held coverage (135.584984ms)
+✔ MQ local branch watch wasm: retained history and independent held coverage (142.960687ms)
+✔ MQ local page wasm: retained history and independent held coverage (123.040015ms)
+✔ MQ ineligible wasm: retained history and independent held coverage (136.854457ms)
+✔ MQ points wasm: retained history and independent held coverage (137.400154ms)
+✔ MQ delete current wasm: retained history and independent held coverage (187.337129ms)
+✔ MQ revoke current wasm: retained history and independent held coverage (197.662643ms)
+✔ MQ rejoin wasm: retained history and independent held coverage (161.816855ms)
+✔ MQ held change wasm: retained history and independent held coverage (186.084963ms)
+✔ MQ close wasm: retained history and independent held coverage (167.353943ms)
+✔ MQ sign-out wasm: retained history and independent held coverage (169.71438ms)
+✔ MQ transport wasm: retained history and independent held coverage (193.809568ms)
+✔ MQ adoption wasm: retained history and independent held coverage (508.855509ms)
+✔ MQ reset wasm: retained history and independent held coverage (1164.37851ms)
+✔ MQ rotation wasm: retained history and independent held coverage (211.512017ms)
+✔ MQ prediction wasm: retained history and independent held coverage (4172.478268ms)
+✔ MQ expiry left wasm: retained history and independent held coverage (196.959729ms)
+✔ MQ expiry held wasm: retained history and independent held coverage (177.567188ms)
+✔ MQ interrupted snapshot wasm: retained history and independent held coverage (1149.658341ms)
+✔ MQ retained snapshot wasm: retained history and independent held coverage (160.469867ms)
+✔ W14A horizon-free matching process: retained history and independent held coverage (146.031709ms)
+ℹ W14A process: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence process: retained history and independent held coverage (157.707527ms)
+ℹ W14A process: acquired before leave; positive retained existence + 26 server rows
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history process: retained history and independent held coverage (184.817753ms)
+R1a process empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search process: retained history and independent held coverage (167.446552ms)
+R1a process mixed: device=25, server=26, watch=26
+✔ R1a mixed reads process: retained history and independent held coverage (195.550648ms)
+R2 process mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result process: retained history and independent held coverage (238.798638ms)
+✔ R2 sync during reply process: retained history and independent held coverage (174.582926ms)
+✔ MQ authoritative bound process: retained history and independent held coverage (210.647031ms)
+✔ MQ speculative component process: retained history and independent held coverage (184.176994ms)
+✔ MQ speculative events process: retained history and independent held coverage (8223.6616ms)
+✔ MQ expiry local left process: retained history and independent held coverage (1168.844523ms)
+✔ MQ expiry local watch left process: retained history and independent held coverage (1160.173239ms)
+✔ MQ local permit process: retained history and independent held coverage (1159.000372ms)
+✔ MQ local permit watch process: retained history and independent held coverage (1172.151079ms)
+✔ MQ local branch process: retained history and independent held coverage (168.029075ms)
+✔ MQ local branch watch process: retained history and independent held coverage (171.694898ms)
+✔ MQ local page process: retained history and independent held coverage (175.374823ms)
+✔ MQ ineligible process: retained history and independent held coverage (182.970135ms)
+✔ MQ points process: retained history and independent held coverage (186.5038ms)
+✖ MQ delete current process: retained history and independent held coverage (15236.047986ms)
+✔ MQ revoke current process: retained history and independent held coverage (251.136618ms)
+✔ MQ rejoin process: retained history and independent held coverage (214.91048ms)
+✔ MQ held change process: retained history and independent held coverage (240.241491ms)
+✔ MQ close process: retained history and independent held coverage (188.613632ms)
+✔ MQ sign-out process: retained history and independent held coverage (183.293189ms)
+✔ MQ transport process: retained history and independent held coverage (219.134129ms)
+✔ MQ adoption process: retained history and independent held coverage (503.492632ms)
+✔ MQ reset process: retained history and independent held coverage (1229.507872ms)
+✔ MQ rotation process: retained history and independent held coverage (242.811331ms)
+✔ MQ prediction process: retained history and independent held coverage (4243.840455ms)
+✔ MQ expiry left process: retained history and independent held coverage (247.965676ms)
+✔ MQ expiry held process: retained history and independent held coverage (246.599148ms)
+✔ MQ interrupted snapshot process: retained history and independent held coverage (1206.025954ms)
+✔ MQ retained snapshot process: retained history and independent held coverage (232.794892ms)
+✔ online: a deadline behind the issued floor does not loop server refetches (37.969801ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (26.253854ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (15.035212ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.612685ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.793717ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.529442ms)
+✔ composition publishes at both deadlines, device first (2.479276ms)
+✔ composition publishes at both deadlines, server first (2.410512ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.332487ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.822452ms)
+✔ freshness is clamped at publication after wall time rolls back (1.534069ms)
+✔ useNow catches deadline between render and effect installation (32.921335ms)
+✔ useNow catches correction between render and effect installation (4.600325ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.836109ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.357112ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (4.671341ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.362021ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (2.146016ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.689682ms)
+ℹ tests 133
+ℹ suites 0
+ℹ pass 131
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68098.666588
+
+✖ failing tests:
+
+test at packages/snapback4/test/repair-b-round7.test.mjs:28:1
+✖ private commits rerun the published image without adopting the staged identity (70.925628ms)
+  AssertionError [ERR_ASSERTION]: even a private staging commit invalidates observations
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/repair-b-round7.test.mjs:75:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/retained-history.test.mjs:119:749
+✖ MQ delete current process: retained history and independent held coverage (15236.047986ms)
+  AssertionError [ERR_ASSERTION]: watch must publish the composed observation
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/retained-history.test.mjs:23:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/retained-history.test.mjs:706:7)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -23,6 +23,8 @@ const apiStub = `import type { Query, Mutation, Ephemeral, Action, Cursor } from
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
+  members: Query<{ conversationId: string }, { id: string }[]>;
+  inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
   messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
   setTyping: Ephemeral<{ room: string }, null>;
   stopTyping: Ephemeral<{ room: string }, null>;

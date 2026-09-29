@@ -1,0 +1,51 @@
+(!) Failed to run dependency scan. Skipping dependency pre-bundling. Error: The following dependencies are imported but could not be resolved:
+
+  react/jsx-dev-runtime (imported by /tmp/sb4-row-keys-chgy4X/harness.jsx)
+
+Are they installed?
+    at file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:27899:33
+    at async file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:35201:15
+5:08:23 AM [vite] Internal server error: Failed to resolve import "react/jsx-dev-runtime" from "../../../../../tmp/sb4-row-keys-chgy4X/harness.jsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /tmp/sb4-row-keys-chgy4X/harness.jsx:6:35
+  4  |  import { SnapbackProvider, useQuery, usePage } from "snapback4/react";
+  5  |  var _jsxFileName = "/tmp/sb4-row-keys-chgy4X/harness.jsx";
+  6  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+     |                                     ^
+  7  |  window.calls = 0;
+  8  |  window.loading = 0;
+      at TransformPluginContext._formatLog (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:8393:39)
+      at TransformPluginContext.error (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:8390:14)
+      at normalizeUrl (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:26058:18)
+      at async file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:26128:30
+      at async Promise.all (index 4)
+      at async TransformPluginContext.transform (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:26094:4)
+      at async EnvironmentPluginContainer.transform (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:8172:14)
+      at async loadAndTransform (file:///home/ccheever/sb4-intent/lane-pq/snapback4/node_modules/vite/dist/node/chunks/node.js:19634:26)
+5:08:23 AM [vite] (client) Pre-transform error: Failed to resolve import "react/jsx-dev-runtime" from "../../../../../tmp/sb4-row-keys-chgy4X/harness.jsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /tmp/sb4-row-keys-chgy4X/harness.jsx:6:35
+  4  |  import { SnapbackProvider, useQuery, usePage } from "snapback4/react";
+  5  |  var _jsxFileName = "/tmp/sb4-row-keys-chgy4X/harness.jsx";
+  6  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+     |                                     ^
+  7  |  window.calls = 0;
+  8  |  window.loading = 0;
+✖ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (30643.252548ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30724.861239
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-react.test.mjs:12:1
+✖ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (30643.252548ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-react.test.mjs:33:14) {
+    name: 'TimeoutError'
+  }

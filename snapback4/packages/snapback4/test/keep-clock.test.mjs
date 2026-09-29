@@ -161,7 +161,9 @@ mutation put(body: text, expiresAt: time):
         if (path.startsWith("/q/") && fail) { failed++; throw Error("later query failed"); }
         const reply = await fetch(input, init);
         // Keep the actual server body; only the fixture controls clock samples.
-        const response = new Response(reply.body, { status: reply.status });
+        const response = path.startsWith("/q/")
+          ? Response.json({ ...await reply.json(), refresh: 250 }, { status: reply.status })
+          : new Response(reply.body, { status: reply.status });
         if (path.startsWith("/q/") && holdBody) {
           holdBody = false;
           const json = await response.json(); captured = json; blocked = true; fail = true;
@@ -181,7 +183,7 @@ mutation put(body: text, expiresAt: time):
     if (lingering) watch.close();
     await put("old body", deadline);
     holdBody = true;
-    clock.sample(wall - 100, wall, wall, "server:1"); // Begin a re-read before A expires.
+    // The advertised presence interval starts the read without clearing newer memory.
     await until(() => blocked);
     assert.equal(captured.data.body, "old body");
     assert.equal(captured.nextExpiry, deadline);
@@ -375,4 +377,65 @@ test("armReadExpiry: long deadlines clamp and rearm without premature expiry", t
   now += 100; fire();
   assert.equal(expired, 1);
   assert.equal(watch.deadlines, deadlines, "the triggering deadline remains visible to the sweep");
+});
+
+// A recovery that STARTS after withdrawal gets a new ticket. It still cannot
+// renew the withdrawn server deadline just because the estimate rolled back.
+for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined, false, true]) {
+  test(`${tier} keep=${keep}: queued recovery cannot republish a withdrawn deadline after rollback`, async t => {
+    const f = await fixture(t, tier), op = { kind: 'query', name: 'remote' };
+    const watch = f.client.observe(op, {}, { keep });
+    t.after(() => watch.close());
+    await until(() => watch.getSnapshot().data === true);
+    const before = f.queries(), snapshots = [];
+    let rolledBack = false;
+    watch.subscribe(() => {
+      const read = watch.getSnapshot(); snapshots.push(read);
+      if (!rolledBack && read.loading) {
+        rolledBack = true;
+        f.clock.sample(f.wall, f.wall, f.wall, 'server:2');
+      }
+    });
+    f.clock.sample(f.serverDeadline, f.wall, f.wall, 'server:1');
+    assert.equal(rolledBack, true);
+    assert.equal(f.clock.estimatedServerNow(), f.wall);
+    await until(() => f.queries() > before, 'a real recovery body arrived after rollback');
+    await delay(80);
+    assert.deepEqual(watch.getSnapshot(), { loading: true });
+    assert.ok(snapshots.every(read => !('data' in read)), 'the real post-rollback body must never publish');
+    assert.equal(f.queries(), before + 1, 'rejecting this deadline does not spin or consume accept retries');
+    // The floor follows the deadline, not the payload, and does not freeze a
+    // genuinely newer answer delivered by a matching direct read.
+    f.answerDeadline(f.serverDeadline + 60_000);
+    assert.equal((await f.client.query(op, {})).data, true);
+    // Direct reads retain main's independent publication semantics.
+    assert.deepEqual(watch.getSnapshot(), { loading: true });
+  });
+}
+
+for (const keep of [undefined, false, true]) test(`online keep=${keep}: a due floor still permits paced expiry retries`, async t => {
+  const wall = 1000, deadline = 5000, clock = new ServerClock(() => wall);
+  let live = clock, queries = 0, recovered = false;
+  const fork = clock.fork.bind(clock); clock.fork = () => live = fork();
+  const client = createClient({url:'http://expiry-retry.test',persona:'alice',fetch:clock.wrap(async (input,init) => {
+    const path = new URL(input).pathname;
+    if (path === '/schema') return Response.json({schema:{tables:{}},programs:[],generation:1});
+    if (path === '/changes') return parked(init.signal);
+    if (path.startsWith('/q/')) {
+      queries++;
+      // The first recovery body still carries the just-expired row, as when
+      // the server and client clock estimates straddle its deadline.
+      const done = queries >= 3;
+      if (done) recovered = true;
+      return Response.json({data:done ? [] : ['row'],seq:1,tables:['rows'],nextExpiry:done ? null : deadline});
+    }
+    throw Error(path);
+  })});
+  t.after(()=>client.close());
+  const watch = client.observe({kind:'query',name:'rows'},{},{keep});watch.subscribe(()=>{});t.after(()=>watch.close());
+  await until(()=>watch.getSnapshot().data?.length === 1);
+  live.sample(deadline,wall,wall,'due');
+  assert.equal(watch.getSnapshot().loading,true,'the due row is withdrawn immediately');
+  await until(()=>recovered && watch.getSnapshot().data?.length === 0,'ordinary expiry retries past the due body');
+  assert.equal(queries,3,'one stale expiry reply consumes one paced retry');
 });

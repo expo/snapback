@@ -1,0 +1,127 @@
+✖ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (260.808321ms)
+✖ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (182.044645ms)
+✖ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (164.343817ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 864.216076
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (260.808321ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 417,
+  +     indexEntries: 0,
+  +     outputBytes: 43,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 417, indexEntries: 0, outputBytes: 43, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (182.044645ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 417,
+  +     indexEntries: 0,
+  +     outputBytes: 43,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 417, indexEntries: 0, outputBytes: 43, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:45:2
+✖ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (164.343817ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: {
+  +     id: 'r',
+  +     value: 7
+  +   },
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 417,
+  +     indexEntries: 0,
+  +     outputBytes: 43,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: { id: 'r', value: 7 }, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 417, indexEntries: 0, outputBytes: 43, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

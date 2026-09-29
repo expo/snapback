@@ -65,7 +65,7 @@
   },
   "client.ts": {
     "count": 58,
-    "sha256": "bb8bf72b28d2e0c21c1c371b97a6c8c4dd86dfd60fb516eb560c5150cf2aef1c"
+    "sha256": "d6e0255fe9ac5a22eddaccbda64860012762c6bb9f6b42b3b9d7d15115d62277"
   },
   "clock.ts": {
     "count": 7,
@@ -167,6 +167,10 @@
     "count": 29,
     "sha256": "cbfac9e4f99c1237c88e09d7e3ff5693645e6d55516260b3d5b8d140a517d35b"
   },
+  "local-read-deadlines.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "local-reads.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -193,7 +197,7 @@
   },
   "local.ts": {
     "count": 160,
-    "sha256": "c37bc7fcf24e535dd2b8399c1018341c894c1dde5a2b7f07a3e932a625d5fbba"
+    "sha256": "298ac32f1b15a63c000686711ff7266bc644bd2eafe4df69016a4883097bd90d"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -251,6 +255,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "read-key.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "read-notifications.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -258,6 +266,10 @@
   "read-observation.ts": {
     "count": 3,
     "sha256": "2b8542cc2c44eba20a1ba57d01ddfb2257ae6b799dc80aaf8d1b45faf46b4944"
+  },
+  "read-work.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "request-wait.ts": {
     "count": 3,

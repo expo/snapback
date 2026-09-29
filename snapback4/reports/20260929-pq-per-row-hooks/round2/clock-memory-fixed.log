@@ -1,0 +1,14 @@
+✔ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (779.852992ms)
+✔ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (389.709842ms)
+✔ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (340.485094ms)
+✔ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (337.887842ms)
+✔ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (400.545471ms)
+✔ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (386.971327ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2777.581226

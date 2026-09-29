@@ -1,0 +1,33 @@
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (12.602792ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.160719ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.261872ms)
+✖ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (194.834083ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 293.851077
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-work.test.mjs:42:1
+✖ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (194.834083ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1007 !== 1000
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-work.test.mjs:64:10)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processTimers (node:internal/timers:538:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1007,
+    expected: 1000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

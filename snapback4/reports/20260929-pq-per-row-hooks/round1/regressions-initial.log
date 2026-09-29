@@ -1,0 +1,25 @@
+✔ online: eight closed active reads cannot starve later observations or publish late (28.222458ms)
+✔ online: eight expired active reads cannot starve later observations or publish late (8.512334ms)
+✔ wasm: eight closed active reads cannot starve later observations or publish late (433.913123ms)
+✔ wasm: eight expired active reads cannot starve later observations or publish late (52.982125ms)
+✔ process: eight closed active reads cannot starve later observations or publish late (105.376381ms)
+✔ process: eight expired active reads cannot starve later observations or publish late (96.358599ms)
+✔ wasm: acquired unknown apply footprint withdraws and refreshes every owner (85.071537ms)
+✔ process: acquired unknown apply footprint withdraws and refreshes every owner (112.249779ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (19.747469ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.195892ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.886008ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.169342ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.287531ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (3.026985ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (385.09758ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1026.252584ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (694.042288ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4854.598803

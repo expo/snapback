@@ -49,6 +49,7 @@ export class ReadObservation<T> {
   snapshot: Read<T> = { loading: true };
   kept = false;
   resetVersion = 0;
+  expiredServerDeadline: number | undefined;
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null = null;
   since: number | undefined;
@@ -139,7 +140,7 @@ export class ReadObservation<T> {
     return deliver;
   }
 
-  reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; return this.replace(read, "reset", deferred); }
+  reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; this.expiredServerDeadline = undefined; return this.replace(read, "reset", deferred); }
   // @ref LLP 3000.023#3.6 — source expiry withdraws its facade hold in the sweep's notification phase.
   expire(): () => void { this.resetVersion++; return this.replace({ loading: true }, "expiry", true); }
 }

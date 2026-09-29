@@ -75910,3 +75910,51 @@ dependencies also made a mounted history `loading` on every incoming message,
 send and settlement, the friction builders fought in every calibration. The
 retained-answer goal continues as a smaller change to LLP 3000.023's model.
 Lane PQ, which merged LV, will be ported onto this `main`.
+
+## 2026-09-29 — Lane PQ round 2: port onto pre-LV main
+
+Read prior PQ prompts, reports and journal, Astra's round-1 review and Grok at
+start and completion; applied llp-orient. Fetched and created
+sb4-intent/pq2-per-row-hooks from origin/main ac5c4e21c, the LV revert.
+Reapplied the PQ-only delta f56e8048a..6f1d75c16 onto ReadObservation and
+LocalReads.committed. No LV dependency fences, ordering or peer reconciliation
+return. Retention policy stays with RL; read-episode.ts is unchanged and
+read-observation.ts gains only the deadline floor and its scope-reset clearing.
+
+Preserved eight starts per turn/eight active attempts, cancellation, the
+30-second active lifetime, FIFO retries and fairness, canonical hook keys,
+known unrelated-write zero evaluations, due-only clock sweeps and rollback
+floors. Warm applies drain after the watermark, including missing footprints.
+The inherited unknown-footprint case passes on pre-LV main; removing the port's
+unknown drain fails both wasm/process cases. All nine controlled pre-reset
+publication cases fail when their respective final reset fences are removed.
+Floor rejection now drops the body without publishing loading over a newer
+answer. Aborted attempts cannot replace transport diagnostics. Eleven isolated
+mutations fail as intended. LLP 3000.023 §7 and the client card record the port.
+
+The 1,000-hook React relevant-change test has zero loading renders, with queued
+answers marked revalidating; its fixed host clock isolates scheduling from RL's
+retention policy. Fresh point/list measurements on wasm, Worker, online and
+process show 1,000/one relevant evaluations and zero unrelated evaluations.
+Wasm point/list mounts are 653/21 ms in this single shared-host sample; these
+are not latency gates. Raw CPU, memory and timing evidence is in round2/.
+
+The single scripts/test.sh run exits 1 with exact summary
+`== 1 failure(s) in 1331 s`, phase `client tests`: 4,560 pass, two fail, ten
+skipped in the main client group; separate shards pass. Both failures are ours
+and fixed: local keep:false resubscription must preserve main's saved answer,
+and an ordinarily due deadline must retain paced expiry retries. The unchanged
+failing files plus all per-row/clock cases pass 287/287 after correction; three
+new expiry-retry cases fail with that correction removed. All other full-run
+phases pass, including models 79/79. No second full run or final-tree green
+full-suite claim. Earlier affected 883/884 includes all 317 delivery checks;
+its sole browser failure passes with stable source and in the full run. Whole
+guide 98/98; build, typecheck, references, whitespace and source ceilings pass.
+Every intermediate failure/control is attributed in round2/FAILURES.md.
+
+Canonical wasm is 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+No runtime Rust change, tool installation, push or publication. Report:
+reports/20260929-pq-per-row-hooks/round2/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

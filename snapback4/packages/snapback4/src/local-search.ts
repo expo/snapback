@@ -17,7 +17,7 @@ export async function searchReplyIdentity(capture: StoreCapture | undefined, jso
 }
 
 export function refreshSearchRoots(watches: ReadonlyMap<string, LocalWatch>, name: string, cursor: string | undefined,
-  notify: (watch: LocalWatch) => void, rerun: (watch: LocalWatch) => Promise<void>): void {
+  notify: (watch: LocalWatch) => void, rerun: (watch: LocalWatch) => void): void {
   if (!cursor) return;
   // A stale suffix cannot be repaired in place. Withdraw and reobserve the
   // requested root; Pages replaces its suffix when that cursor changes.

@@ -1,0 +1,18 @@
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (13.240311ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.197085ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.257857ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (9.048429ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (357.564448ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1923.746434ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1526.930595ms)
+✔ private commits keep the published image without adopting the staged identity (69.214193ms)
+✔ ordinary publication keeps stream mode through false snapshot mode and an interrupted round (1003.540334ms)
+✔ change polling takes published native progress after another owner advances (2005.739758ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3954.340048

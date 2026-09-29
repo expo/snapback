@@ -1,0 +1,118 @@
+✖ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (1280.297708ms)
+✖ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (184.569039ms)
+✖ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (233.16464ms)
+✖ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (359.722636ms)
+✖ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (303.266264ms)
+✖ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (312.589777ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2925.705126
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (1280.297708ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (184.569039ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (233.16464ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (359.722636ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (303.266264ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:89:2
+✖ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (312.589777ms)
+  AssertionError [ERR_ASSERTION]: newer answer survives the rejected body
+
+  undefined !== 8
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:129:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 8,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

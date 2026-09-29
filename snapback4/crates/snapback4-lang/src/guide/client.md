@@ -44,6 +44,39 @@ While this device holds a predictable pending write to a table a query reads, th
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
 
+## Queries in rows
+
+Per-row `useQuery` is supported. Equal query names and wire-equivalent arguments
+share one live observation within the same retention policy. Object key order
+does not create another observation; changing `keep` does.
+
+For a large list, return fields in one paged query when they belong to the same read.
+In the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
+The pre-port Linux/Chromium wasm sample mounted the same 1,000 fields in 23 ms as one
+list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
+Both do zero evaluations for a known unrelated table write. The client starts
+at most eight queued observation attempts per event-loop turn, with at most eight
+active; direct queries and timed presence refreshes use separate paths.
+Queued revalidation keeps the previous answer under its retention policy; expiry and scope resets remain immediate.
+Dependencies include authorization inputs: a write can re-evaluate every row on the table even when only one id changed.
+
+```tsx
+import { useQuery, usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+function MemberCount({ conversationId }: { conversationId: string }) {
+  const members = useQuery(api.members, { conversationId });
+  return <span>{"data" in members ? members.data.length : "…"}</span>;
+}
+function ConversationList() {
+  const page = usePage(api.inboxCards, {});
+  return <>{page.items.map(row => <span key={row.id}>{row.title} ({row.memberCount})</span>)}
+    {page.hasMore && <button onClick={page.loadMore}>More</button>}</>;
+}
+```
+
+`inboxCards` is your application's query and fields. Keep server-needing
+decorations separate when including them would withhold the main list.
+
 ## Acknowledgements and receipts
 
 Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.

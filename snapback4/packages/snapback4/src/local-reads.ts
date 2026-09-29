@@ -53,7 +53,7 @@ export function notifyLocalWatch(watch: LocalWatch): void {
   for (const subscriber of watch.subscribers) subscriber();
 }
 
-export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => Promise<void>): void {
+export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => void): void {
   if (!tables.size) return;
   for (const watch of watches) if (watch.tables.size === 0 || [...watch.tables].some(table => tables.has(table))) void rerun(watch);
 }

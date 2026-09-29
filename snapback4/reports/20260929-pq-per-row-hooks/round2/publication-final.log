@@ -1,0 +1,28 @@
+✔ wasm: unknown apply refresh drains after the watermark (497.587971ms)
+✔ process: unknown apply refresh drains after the watermark (167.233642ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (79.734022ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (71.081454ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (72.486329ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (93.163198ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (92.531842ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (93.949938ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (138.06823ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (130.961169ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (137.859037ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (55.297727ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (56.904726ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (56.894651ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (72.58059ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (78.120243ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (78.966241ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (121.639848ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (120.837836ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (131.567818ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2488.994827

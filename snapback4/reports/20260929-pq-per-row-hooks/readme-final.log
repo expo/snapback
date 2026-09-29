@@ -1,0 +1,16 @@
+✔ README TypeScript examples compile and call every public function (2313.969678ms)
+ℹ 33 README blocks; 48 public functions; 2311.92 ms
+✔ Queries teach predicate reads and engine-chosen scope lanes (9.246817ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (13.454353ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (12.015356ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (7.735062ms)
+✔ client card composer clears at submit and offers refused text without replacing edits (33.101595ms)
+✔ profile route is chosen once per account and survives later loading (2.619465ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2796.965837

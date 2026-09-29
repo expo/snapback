@@ -1,0 +1,24 @@
+[
+  {
+    "index": 9,
+    "previous": {
+      "index": 9,
+      "id": "local.ts:sendPost:postForCaller(doFetch, base, path, request.headers, body, eph?.signal ?? aborter.signal, (json, status) => captured?.capture(json, status), decode)#1",
+      "recipe": "ordinary",
+      "classification": "required",
+      "absorbs": false
+    },
+    "current": "local.ts:sendPost:withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode))#1"
+  },
+  {
+    "index": 165,
+    "previous": {
+      "index": 165,
+      "id": "client.ts:refresh:watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => { if (!currentRead(result, watch)) return false; return true; } })#1",
+      "recipe": "onlineRefresh",
+      "classification": "optional",
+      "absorbs": false
+    },
+    "current": "client.ts:refresh:duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, accept: result => { checkRead(signal); if (!currentRead(result, watch)) return false; return true; } }), signal)#1"
+  }
+]
