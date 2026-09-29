@@ -60,5 +60,5 @@ export class IntentJournal {
 export function intentOutcome(write: Write | undefined): string {
   if (!write) return "Outcome unknown — check the conversation before sending again";
   if (write.state === "pending") return `Queued on this device${write.reason ? `: ${write.reason}` : ""}`;
-  return write.state === "failed" ? write.why.message : "Sent";
+  return write.state === "failed" ? `Not sent: ${write.why.message}` : "Sent";
 }

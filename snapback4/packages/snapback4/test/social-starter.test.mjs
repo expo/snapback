@@ -5,7 +5,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync } from "n
 import { join, resolve } from "node:path";
 import ts from "typescript";
 import { createApp } from "snapback4/app";
-import { createClient } from "snapback4/client";
+import { createClient, mintId } from "snapback4/client";
 import { memorySessionStore } from "snapback4/auth";
 import { webDevice, memoryPersistence } from "snapback4/web";
 import { createLocalClient } from "snapback4/local";
@@ -102,7 +102,7 @@ test("published social starter and guide snippets typecheck against generated op
   const guide = spawnSync(binary, ["guide", "social"], { encoding: "utf8" });
   assert.equal(guide.status, 0, guide.stderr);
   const snippets = [...guide.stdout.matchAll(/```tsx?\n\/\/ (src\/[^\n]+)\n([\s\S]*?)```/g)];
-  assert.equal(snippets.length, 4);
+  assert.equal(snippets.length, 5);
   for (const [, name, source] of snippets) {
     assert.equal(source, readFileSync(join(dir, name), "utf8"), `${name}: card and installed file`);
     writeFileSync(join(dir, name), source); // Compile the emitted guide text.
@@ -216,4 +216,75 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   await bob.auth.logout(); await bob.auth.guest();
   assert.notEqual(bob.client.viewer(), previous);
   assert.deepEqual((await bob.client.query(api.history, { conversation })).data, [], "new account has no retained old history");
+});
+
+// Both stores read a horizon-free private key; the server owns creation races.
+for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens converge, held keys resolve offline and an offline race settles`, { timeout: 30_000 }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url, dir } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const sessions = await Promise.all([0, 1, 2].map(() => fetch(url + "/auth/guest", { method: "POST", body: "{}" }).then(r => r.json())));
+  const [a, b, outsider] = sessions.map(({ session }) => createClient({ url, token: session.token }));
+  t.after(() => Promise.all([a.close(), b.close(), outsider.close()]));
+  let offline = false;
+  const device = tier === "native" ? processDevice({ binary, dir: join(dir, "dm-device") }) :
+    webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const local = await createLocalClient({ url, session: sessions[0].session, device, fetch: (input, init) => {
+    if (offline) throw Error("offline");
+    return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
+  } });
+  t.after(() => local.close());
+  await local.sync();
+  const peer = sessions[1].session.principal;
+  const absent = await local.query(api.directConversation, { other: peer });
+  assert.equal(absent.data, null); assert.equal(absent.complete, true);
+  offline = true; await local.sync();
+  const provisional = mintId(), opening = mintId();
+  const queued = await local.mutate(api.openDirect, { id: provisional, other: peer }, { id: opening, waitSeconds: 0 });
+  assert.equal(queued.state, "pending", JSON.stringify(queued));
+  const admission = (await local.pendingWrites()).find(w => w.id === opening);
+  assert.ok(admission, "creation enters SDK custody offline");
+  assert.ok(admission.predicted.includes(`conversations/${provisional}`), "covered creation predicts its proposed conversation");
+  const predicted = await local.query(api.directConversation, { other: peer });
+  assert.equal(predicted.data?.conversation, provisional, JSON.stringify(predicted));
+  assert.equal(predicted.data.pending, true);
+  const opens = await Promise.all([
+    a.mutate(api.openDirect, { id: mintId(), other: peer }),
+    b.mutate(api.openDirect, { id: mintId(), other: sessions[0].session.principal }),
+  ]);
+  opens.forEach(w => assert.equal(w.state, "sent", JSON.stringify(w)));
+  const canonical = opens[0].result;
+  assert.equal(opens[1].result, canonical, "opposite directions deduplicate atomically");
+  assert.notEqual(canonical, provisional);
+  for (const [client, other] of [[a, peer], [b, sessions[0].session.principal]]) {
+    const again = await client.mutate(api.openDirect, { id: mintId(), other });
+    assert.equal(again.result, canonical);
+    assert.equal((await client.query(api.directConversation, { other })).data.conversation, canonical);
+    assert.deepEqual((await client.query(api.inbox, {})).data.map(r => r.conversation), [canonical]);
+  }
+  assert.equal((await outsider.query(api.directConversation, { other: peer })).data, null, "keys are private to their owner");
+  offline = false; await local.sync();
+  const settled = await until(async () => { const w = await local.write(opening); return w?.state === "sent" && w; }, "offline open settles");
+  assert.equal(settled.state, "sent"); // Recovered receipts need not carry a historical result.
+  await local.sync(); offline = true; await local.sync();
+  const held = await local.query(api.directConversation, { other: peer });
+  assert.equal(held.data.conversation, canonical);
+  assert.equal(held.complete, true); assert.equal(held.fresh, false);
+});
+
+test("guide aliases send schedules, DMs and Expo readers to their owning cards", () => {
+  for (const [target, aliases] of [["jobs", ["schedule", "schedules", "cron"]],
+    ["social", ["dm", "direct message", "chat"]], ["client", ["expo", "ios", "react native"]]]) {
+    const expected = spawnSync(binary, ["guide", target], { encoding: "utf8" });
+    assert.equal(expected.status, 0);
+    for (const alias of aliases) {
+      const result = spawnSync(binary, ["guide", alias], { encoding: "utf8" });
+      assert.equal(result.status, 0, alias); assert.equal(result.stdout, expected.stdout, alias);
+      if (alias.includes(" ")) {
+        const unquoted = spawnSync(binary, ["guide", ...alias.split(" ")], { encoding: "utf8" });
+        assert.equal(unquoted.status, 0, alias); assert.equal(unquoted.stdout, expected.stdout, alias);
+      }
+    }
+  }
+  const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
+  assert.match(native.split("\n\n")[1], /Expo client.*guide client.*guide witness/);
 });

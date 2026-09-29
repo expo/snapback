@@ -1,8 +1,7 @@
 # Small social
 
 An Expo Router app with Following, chats, a pinned conversation, search and
-profile screens. All backend forms are in `snapback/schema.q`; `check` emits
-their types. The three client recipes are also in `snapback4 guide social`.
+profile screens. Backend forms and generated types: `snapback/schema.q`, `check`. Client recipes: `snapback4 guide social`.
 
 ```sh
 npm install
@@ -13,8 +12,7 @@ npm start
 # or npm run web, npm run ios:dev
 ```
 
-Background notifications are declared in `snapback/workers/notifications.mjs`:
-dev and serve start, restart and stop this worker with a service token injected.
+`snapback/workers/notifications.mjs`: dev/serve supervise the worker and inject its token.
 `ledger: true` records successful completions durably beside the backend store;
 keep that file with backups. Add your provider call, passing
 `meta.idempotencyKey`, then emit `notify` from your mutation or digest job.
@@ -27,13 +25,12 @@ Use Node 24. Expo 57 and its Babel preset are pinned together. The browser
 uses the wasm replica; a development/production native build uses
 `snapback4-expo`. Expo Go uses the online tier and has no retained history
 offline. Change the app's bundle IDs before building your own native app.
-The iOS simulator uses `http://127.0.0.1:4400`. Set
-`EXPO_PUBLIC_SNAPBACK_URL` for another host or a physical device.
+For another host or phone set `EXPO_PUBLIC_SNAPBACK_URL`; the simulator uses localhost:4400.
 
 Sign up or continue as a guest. Save a profile, then post. Open another
 browser profile or simulator, sign in as another account and exchange the
 account IDs from Profile. Follow that ID to populate Following. Create a
-chat, invite the other ID, and exchange messages. Leaving keeps only history
+chat and invite the other ID, or use Message on their profile to open a DM. Leaving keeps only history
 this replica acquired; a remaining member can invite the departed account
 again. Reload preserves the URL, account and replica. Guests cannot recover
 their account after explicit sign-out; use passwords for that walkthrough.
@@ -41,8 +38,7 @@ their account after explicit sign-out; use passwords for that walkthrough.
 Avatar uploads are ordinary images. Attach once photo uploads an image for
 one viewing per account. Select View once photo, then Open media; close it
 and try again to see `E_ASSET_VIEWED`. The viewer lives above the history
-list. Loading or recycling that list cannot fetch another view or revoke
-the current handle. Close, identity change and a late result after close all
+list; loading or recycling cannot fetch another view or revoke the handle. Close, identity change and a late result after close all
 release it. No once bytes are persisted; retained text grants no server media
 access. Only JPEG, PNG and WebP are accepted; an unsupported library image
 reports the server refusal.
@@ -58,11 +54,11 @@ never enters the durable outbox and its availability never gates the composer.
 `ConversationScreen` pins ordinary `history` to the route ID. The composer
 and once viewer sit above transient lists; room, history and receipt
 decorations have independent reads. History and room explicitly choose the
-SDK's default one-second `revalidating` retention; no application cache holds
+SDK default: plain revalidation retains, change evidence bounds it; no cache holds
 old protected answers. A gap shows Loading while keeping draft and focus.
-Membership and receipt decorations withdraw immediately. Missing membership
-keeps the draft and disables send; stale/retained/revalidating rows never grant
-authority. The server still checks every action. Account change clears UI
+Membership and receipt decorations withdraw immediately. Only denial or a current
+absent membership disables Send; unknown membership can queue a durable write
+for server authorization. Protected content needs a current answer. Account change clears UI
 state through `AppProvider`. Delivery is reported by the SDK's
 `reports delivery` binding; only foreground visible settled messages report
 `seen`. Receipts appear on each bubble, using the same cursor as its history
@@ -72,7 +68,15 @@ and backend-scoped intent journal before dispatch. Each saved ID observes its
 own settlement; Edit restores a failed message, and Dismiss removes only the
 UI reference. Unknown outcomes never trigger automatic resubmission.
 
-## Current coverage choices
+## Direct messages and coverage
+
+Profile's Message opens the private replicated `(owner, peer)` lookup.
+Loading never creates a chat. After a complete miss, creation enters SDK custody
+and opens a minted ID offline. The server atomically deduplicates both directions.
+Settlement updates the route ID, keeping the composer under the opening write ID.
+Lookup rows have no horizon and survive leave; they grant no membership or content.
+Creation predicts with acquired key coverage; the server can choose another ID.
+A send to the provisional ID can then be refused; its saved text stays editable.
 
 History uses `messages where .conversation = conversation last 20 by
 byConversationOrdinal after c`, as `guide sync` teaches. Its safe leading
@@ -83,18 +87,14 @@ Likes declare `sync public last 2000 by .at with own keys .principal`.
 Ordinary `exists likes[post, viewer]` answers “did I like this?” from the
 caller's complete key partition, even outside the public window. Before
 that partition is acquired an unknown like remains loading, never false.
-Other viewers' old keys are not covered. This adds only the caller's key
-projection alongside the existing public window, not a public all-viewer
-summary. Inspect `client.residency()` or `snapback4 test --residency` for your
-actual holdings; see `snapback4 guide offline-interactions`.
+Other viewers' old keys are not covered. Inspect `client.residency()` for holdings; see `guide offline-interactions`.
 
 Search uses one ordinary query per scope: `search` across conversations and
 `searchChat` pinned to one conversation. Online, the replica client combines
 current server hits with this device's retained hits after leave; offline it
 searches acquired holdings. The online tier has only current server access.
-The schema keeps `conversation` and `at` immutable. Continuation follows
-`(at, id)`; `usePage` accumulates one latest observed image per message ID.
-Refresh to see new matches before the cursor. The screen shows “Partial
+Immutable `conversation` and `at` give `(at, id)` continuation; `usePage` accumulates
+by message ID. Refresh to see matches before the cursor. The screen shows “Partial
 results” only when the combined read has `complete: false`, including an
 empty incomplete answer. A complete page may still have more matches.
 Search order is time and the acquired history window is ordinal, so missing

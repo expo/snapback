@@ -77762,3 +77762,45 @@ No new timing distribution, wasm measurement, budget increase or security claim.
 Report: reports/20260929-np-macos-slice/round7/REPORT.md. Raw failures, passing
 logs, controls, source bindings and native evidence are retained. One local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+
+## 2026-09-29 — SR round 0: offline custody and direct-message routes
+
+Corrected the social starter's Send gate: unknown/loading/revalidating membership
+allows intent-journal/SDK custody; only denial or a current absent row disables
+Send, preserving the draft. The checking/removal hints differ, and each refusal
+says Not sent with text, Edit and Dismiss. Seen keeps its current-member condition.
+
+Added two private horizon-free `(owner, peer)` DM keys, atomically created with
+the conversation and memberships. Both replica hosts predict after acquisition;
+the server deduplicates opposite-side concurrent opens. A complete current lookup
+resolves into navigation, never treating loading as absence. Offline custody uses
+a proposed ID; canonical settlement replaces the URL through Expo Router setParams
+under a stable opening-write key. Draft/focus/attachments survive, pending reopens
+recover that opening ID, and refused sends against a losing proposal stay editable.
+No protected answer is cached; existing server rules and SDK semantics are unchanged.
+Recorded the design and precise custody/content-authority distinction in LLP 3000.028 §8.
+
+Added schedule/schedules/cron → jobs, dm/direct message/chat → social, and
+expo/ios/react native → client; registered phrases work quoted or unquoted.
+Native points to client and witness. Client remains 130 lines, package README
+300/300, starter README 107; no budget increased.
+
+Final affected tests: 25 passed; whole guide: 99 passed. Generated check and
+web/Expo typechecks pass. Production web and iOS Hermes v98 exports pass; actual
+Expo Router web smoke preserves the same composer node/draft/focus through the
+offline creation race, with no page errors. Optional macOS native smoke not run.
+Wasm: 2,040,529 B raw / 592,975 B gzip, below 593,719 B (744 B headroom).
+
+Ran scripts/test.sh once: `== 1 failure(s) in 1348 s`, exit 1, failure group
+client tests. Sole failing test: online keep remount lifetime/isolation/last
+subscriber/sign-out, keep-device.test.mjs:162, strict snapshot identity versus
+revalidating:true. Reproduced unchanged on an independently built starting-commit
+server (4/10 baseline, 9/10 current focused repeats). Filed
+issues/20260929-snapback4-keep-remount-snapshot-identity.md; no retention fix in SR.
+All other full-suite stages, including models, passed. Final refinements also
+received the affected and whole-guide reruns; the full suite was not restarted.
+
+Report and every failure/disposition: reports/20260929-sr-starter-routes/REPORT.md.
+Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
+or published. No new calibration score or native runtime qualification is claimed.

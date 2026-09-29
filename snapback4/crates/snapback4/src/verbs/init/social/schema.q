@@ -156,6 +156,32 @@ mutation createConversation(title: text 1..50):
   insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
   return chat.id
 
+-- @ref LLP 3000.028#8 — two private keys, atomically installed; no horizon or online-only resolver.
+table directChats:
+  owner: principal
+  peer: principal
+  conversation: conversations
+  unique owner, peer
+  immutable owner, peer, conversation
+  read <- .owner = viewer
+  insert <- created conversations[.conversation] and (.owner = viewer or .peer = viewer)
+  sync to .owner
+
+query directConversation(other: principal):
+  return directChats[owner = viewer, peer = other]
+
+mutation openDirect(id: id, other: principal):
+  require other != viewer else SELF_DM
+  pair = directChats[owner = viewer, peer = other]
+  if pair != null:
+    return pair.conversation
+  chat = insert conversations { id, title: 'Direct message', creatorId: viewer }
+  insert members { conversation: chat.id, principal: viewer, joinedOrdinal: 0 }
+  insert members { conversation: chat.id, principal: other, joinedOrdinal: 0 }
+  insert directChats { owner: viewer, peer: other, conversation: chat.id }
+  insert directChats { owner: other, peer: viewer, conversation: chat.id }
+  return chat.id
+
 query messagePhoto(id: messages):
   return messages[id]
 

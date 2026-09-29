@@ -12,15 +12,15 @@ import { useOnceMedia } from "./useOnceMedia";
 import { ReadState, PhotoPicker } from "./ui";
 
 // @ref LLP 3000.028#8 — route and composer ownership do not follow query status.
-export function ConversationScreen({ conversation, url, visible = true }: { conversation: string; url: string; visible?: boolean }) {
+export function ConversationScreen({ conversation, url, visible = true, ownerKey = conversation, proposed }: { conversation: string; url: string; visible?: boolean; ownerKey?: string; proposed?: string }) {
   const viewer = useViewer();
-  return viewer ? <OwnedConversation key={JSON.stringify([url, viewer, conversation])} conversation={conversation} url={url} visible={visible} viewer={viewer} /> : null;
+  return viewer ? <OwnedConversation key={JSON.stringify([url, viewer, ownerKey])} conversation={conversation} url={url} visible={visible} viewer={viewer} proposed={proposed} /> : null;
 }
-function OwnedConversation({ conversation, url, visible, viewer }: { conversation: string; url: string; visible: boolean; viewer: string }) {
+function OwnedConversation({ conversation, url, visible, viewer, proposed }: { conversation: string; url: string; visible: boolean; viewer: string; proposed?: string }) {
   const client = useClient(), link = useLink();
   const online = useOnlineArm(url);
   const typing = useTyping(online, conversation);
-  // Explicit retention choice: use the SDK's bounded one-second default.
+  // SDK default: plain revalidation retains; change evidence is bounded.
   // We never retain a previous answer in application state.
   const room = useQuery(api.conversationScreen, { conversation });
   const member = useQuery(api.receiptMember, { conversation }, { keep: false });
@@ -37,10 +37,12 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
   const lifetime = useRef({ active: true, admitting: false });
   useEffect(() => {
     const owner = { active: true, admitting: false }; lifetime.current = owner;
-    try { setIntents(journal.read().filter(i => i.args.conversation === conversation)); }
-    catch (error) { setProblem(`Could not read saved sends: ${String(error)}`); }
     return () => { owner.active = false; };
-  }, [journal, conversation]);
+  }, [journal]);
+  useEffect(() => {
+    try { setIntents(journal.read().filter(i => i.args.conversation === conversation || i.args.conversation === proposed)); }
+    catch (error) { setProblem(`Could not read saved sends: ${String(error)}`); }
+  }, [journal, conversation, proposed]);
   const dismiss = useCallback((id: string) => {
     try {
       journal.forget(id); setIntents(saved => saved.filter(i => i.id !== id));
@@ -48,15 +50,18 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
     }
     catch (error) { setProblem(String(error)); }
   }, [journal]);
-  const canSend = "data" in member && !!member.data && !member.revalidating;
+  const currentMember = "data" in member && !!member.data && !member.revalidating;
+  // Custody is not authority: only a confirmed absence/refusal blocks a send.
+  const canSend = !("denied" in member || ("data" in member && !member.data && !member.revalidating));
   const seen = useRef(0);
+  useEffect(() => { seen.current = 0; setSelected(undefined); }, [conversation]);
   const reportSeen = useCallback((through: number) => {
-    if (!visible || !canSend || through <= seen.current) return;
+    if (!visible || !currentMember || through <= seen.current) return;
     seen.current = through;
     void client.mutate(api.seen, { conversation, through }).then(write => {
       if (write.state === "failed" && seen.current === through) seen.current = 0;
     });
-  }, [client, conversation, visible, canSend]);
+  }, [client, conversation, visible, currentMember]);
   useEffect(() => { if (!visible) typing.stop(); }, [visible]);
   async function send() {
     const owner = lifetime.current;
@@ -88,11 +93,12 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
         setDraft(current => current ? `${current} ${args.text}` : args.text);
         setPhoto(current => args.photo?.id ?? current);
       }} attachmentBusy={!!photo} />)}
-    <Text>{pending.filter(write => write.args.conversation === conversation).length} pending sends</Text>
-    {!canSend && <Text>Membership unavailable or left: your draft stays here; sending needs a current membership.</Text>}
+    <Text>{pending.filter(write => write.args.conversation === conversation || write.args.conversation === proposed).length} pending sends</Text>
+    {!canSend && <Text>You are no longer a member. Your draft stays here.</Text>}
+    {canSend && !currentMember && <Text>Membership is being checked. You can queue a message.</Text>}
     <Text>{"data" in typing.read && typing.read.data.length ? "Someone is typing…" : ""}</Text>
     {selected && <OnceViewer key={selected.asset} {...selected} onClose={() => setSelected(undefined)} />}
-    <History conversation={conversation} reportSeen={reportSeen} select={setSelected} />
+    <History key={conversation} conversation={conversation} reportSeen={reportSeen} select={setSelected} />
   </View>;
 }
 
