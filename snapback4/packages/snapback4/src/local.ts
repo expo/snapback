@@ -840,7 +840,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         seq = Math.max(seq, json.seq);
         const touched = new Set(json.tables ?? []);
         for (const watch of watches.values()) {
-          if (runsOnServer(backend!, watch.op, nativeReady) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) void scheduleRead(watch);
+          if (runsOnServer(backend!, watch.op, nativeReady) && (watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table)))) { watch.changeVersion = (watch.changeVersion ?? 0) + 1; scheduleRead(watch); }
         }
       }
       return changed;
@@ -872,11 +872,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
-    let answerCache = answers.serverAnswers.view();
+    let answerCache = answers.serverAnswers.view(); const changeVersion = watch?.changeVersion;
     const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
-    const queryEnvironment = {
+    const queryEnvironment = { current: () => !watch || watch.changeVersion === changeVersion,
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
@@ -915,7 +915,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           answerCache = answers.serverAnswers.view();
           continue;
         }
-        if ((revision === incarnation && authority === answers.revision) || closed || (watch && watches.get(watch.key) !== watch)) return { ...result, incarnation: revision, authority };
+        if (watch || (revision === incarnation && authority === answers.revision) || closed) return { ...result, incarnation: revision, authority };
         // A mixed page never retries its server invocation after a delivery race.
         if (result.searchAttempt) return { ...result, read: { loading: true } as Read<R>, incarnation, authority: answers.revision };
         answerCache = answers.serverAnswers.view();
@@ -978,10 +978,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {}
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
-  const readWork = new ReadWork<Watch>();
+  const readWork = new ReadWork<Watch>(); // @ref LLP 3000.023#7 — changed input retires an older attempt; refresh cadence alone does not.
   function scheduleRead(watch: Watch) {
     if (closed || sessionDead) return;
-    watch.reload({ queued: !watch.running }); notify(watch); acquireRead(watch);
+    watch.reload({ queued: true }); notify(watch); acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
     if (closed || sessionDead) return;
@@ -995,7 +995,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     watch.running = true;
-    const resetVersion = watch.resetVersion;
+    const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion;
     const startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
@@ -1004,14 +1004,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
-      if (revision !== incarnation || authority !== answers.revision || (resetVersion !== watch.resetVersion)) { watch.dirty = true; return; }
+      if (revision !== incarnation || authority !== answers.revision || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) { watch.dirty = true; return; }
       if (closed || watches.get(watch.key) !== watch) return;
       if (ephemeralRequest && !ephemeralReads.current(ephemeralRequest)) { watch.dirty = true; return; }
       retryExpired = result.retryExpired === true;
       if (retryExpired && "data" in watch.snapshot && answerIdentity(watch.snapshot) !== startedWith) return;
       if (!retryExpired) watch.expiredRetries = 0;
       const accepted = publishLocal(result, () => {
-        if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion) return false;
+        if (signal.aborted || closed || watches.get(watch.key) !== watch || resetVersion !== watch.resetVersion || changeVersion !== watch.changeVersion) return false;
         if (served || !result.controlCurrent) { watch.serverRead = served === true; watch.serverOnly = result.serverOnly === true; }
         ephemeralReads.incomplete(watch, "data" in read && !read.complete);
         watch.incarnation = revision;
@@ -1206,7 +1206,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watchEphemeral(watch); const d = watch.deadlines;
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup);
-          void acquireRead(watch); },
+          void scheduleRead(watch); },
         watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },

@@ -1,0 +1,57 @@
+CANCEL true false Error
+    at ReadWork.cancel (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-trace.mjs:3:118)
+    at scheduleRead (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1262:26)
+    at waitForChange (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1085:34)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1105:38
+CANCEL true false Error
+    at ReadWork.cancel (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-trace.mjs:3:118)
+    at watch.dirty (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1609:40)
+    at close (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/observe-watch.js:61:9)
+    at release (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/observe-watch.js:104:13)
+    at Object.close (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/observe-watch.js:137:13)
+    at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-trace.mjs:259:28
+    at notifyLocalWatch (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-reads.js:27:9)
+    at file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1326:25
+    at publishDelivery (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local-publication.js:4:24)
+    at publishLocal (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/dist/local.js:1184:20)
+✖ expiry retry server pagination watch wasm (605.977207ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 718.811371
+
+✖ failing tests:
+
+test at packages/snapback4/test/expiry-retry-trace.mjs:78:3
+✖ expiry retry server pagination watch wasm (605.977207ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-trace.mjs:296:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

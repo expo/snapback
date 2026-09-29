@@ -681,7 +681,7 @@ export function createClient(options: ClientOptions): Client {
   const readWork = new ReadWork<Watch>();
   function scheduleRead(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    watch.reload({ queued: !watch.inFlight }); notify(watch);
+    watch.reload({ queued: true }); notify(watch);
     acquireRead(watch);
   }
   function acquireRead(watch: Watch) {

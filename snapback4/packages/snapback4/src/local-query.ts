@@ -34,6 +34,7 @@ type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: un
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
+  current?(): boolean;
   revalidate?: boolean;
   serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
   coldRead?: ColdReadControl | undefined;
@@ -112,6 +113,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     const denied = env.unavailable() ?? env.partitionDenied;
     if (denied) throw new Interrupted<R>({ read: { denied }, tables, nextExpiry: null });
     checkRead(env.signal);
+    if (env.current && !env.current()) throw new Interrupted<R>(loading);
     if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };

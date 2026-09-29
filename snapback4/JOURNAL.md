@@ -76283,3 +76283,52 @@ Both review files were rechecked after the suite and matched the saved inputs.
 Report: reports/20260929-dx-quiet-empty-reads/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — Lane PQ round 5: resubscription and in-flight read boundaries
+
+Read rounds 0–4 prompts/reports and both full round-4 reviews; applied llp-orient.
+Merged main's DX work through b7d05baff as 58e22c75b, preserving both journal
+histories. Final main check is current; RL has not landed. Grok completed during
+the full run and was rechecked before completion.
+
+Raw local subscription/resubscription now applies scheduleRead's policy before
+queueing; sweeps keep acquireRead. Real wasm/process owner-transfer tests replace
+the raw deadline test's manual reload and check the real timer, notification,
+replacement null, and non-renewal of an existing episode. Six late-cancellation
+tests detect deleting only the final signal guard, with no publication or watch
+update.
+
+Grok's in-flight findings are addressed: relevant change evidence advances a
+local watch version checked during evaluation and at final publication; ordinary
+commits keep their authority fence. Retired observed attempts rejoin the queue.
+Only the replacement starts a new episode, while an existing deadline stays
+fixed. Online keeps sequence-based retries and starts a deferred episode at the
+retry. Selective memory clear keeps a ticket barrier. An intermediate policy
+that cancelled cadence-only refreshes failed broader tests and was replaced;
+every failure and correction is retained in the ledger. Six further tests detect
+removal of only the final change-version comparison. Nine independent controls
+produce 29 intended failures. Updated LLP 3000.023; no contract, Rust, meter,
+queue/lifetime or cap change. local.ts remains 1,500 lines.
+
+Final affected checks: 954/954, no skips/cancellations. Whole guide: 98/98.
+SDK build/typecheck and reference validation pass. Real-clock 1,000-hook cases
+again show zero loading renders and 2,000 evaluations on wasm, Worker and process.
+The one required scripts/test.sh run exits 1 with exactly:
+
+    == 1 failure(s) in 1249 s
+       client tests
+
+Its main clients: 4,723 tests, 4,709 pass, four fail, ten declared skips. Final
+models: 79/79; every other phase passed. Three failures are ours: two obsolete
+wakeup expectations and one obsolete keep:false resubscription expectation.
+One is environmental: a browser fixture's Vite port was already in use before
+assertions ran. All four files pass in the 205-test follow-up and final affected
+run. No baseline exemption. The full run began before Grok finished and is not
+claimed as a final-source green run; it was not repeated. No timeout, model count
+or byte cap was relaxed.
+
+Wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged 593,719 B cap,
+zero growth from round 4. No tool installation, push or publication. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Report: [PQ round 5](./reports/20260929-pq-per-row-hooks/round5/REPORT.md).

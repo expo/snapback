@@ -31,6 +31,7 @@ export interface LocalWatch extends ReadObservation<unknown> {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  changeVersion?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -111,7 +112,7 @@ export class RememberedAnswers {
     if (!touched.length) return;
     for (const [key, answer] of this.answers) {
       if (answer.tables.size && !touched.some(table => answer.tables.has(table))) continue;
-      this.answers.delete(key); this.written.delete(key);
+      this.forget(key);
     }
   }
   get size(): number { return this.answers.size; }
@@ -165,7 +166,7 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) watch.reset({ loading: true }); else watch.reload({ queued: !watch.running });
+      if (reset) watch.reset({ loading: true }); else watch.reload({ queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

@@ -203,7 +203,7 @@ for (const tier of ["online", "wasm"]) for (const keep of [undefined, false, tru
   });
 }
 
-for (const keep of [undefined, false]) test(`wasm: resubscription delivers saved row expiry without an accessor, keep=${keep}`, async t => {
+for (const keep of [undefined, false]) test(`wasm: resubscription applies policy and rearms row expiry without an accessor, keep=${keep}`, async t => {
   const f = await fixture(t, "wasm"), watch = f.raw.observe(q, {}, { keep });
   await until(() => watch.getSnapshot().data);
   const owner = answerObservation(watch.getSnapshot());
@@ -215,9 +215,11 @@ for (const keep of [undefined, false]) test(`wasm: resubscription delivers saved
   const seen = [];
   watch.subscribe(() => seen.push(owner.snapshot));
   assert.deepEqual(owner.deadlines, deadlines, "resubscription preserves the absolute deadlines");
-  assert.equal(owner.snapshot.data, "private A");
+  if (keep === false) assert.deepEqual(owner.snapshot, { loading: true }, "resubscription withdraws before its replacement");
+  else { assert.equal(owner.snapshot.data, "private A"); assert.equal(owner.snapshot.revalidating, true); }
+  const resumed = owner.snapshot;
   f.wall(4999); t.mock.timers.tick(99);
-  assert.equal(owner.snapshot.data, "private A");
+  assert.equal(owner.snapshot, resumed);
   f.wall(5000); t.mock.timers.tick(1);
   assert.deepEqual(owner.snapshot, { loading: true }, "timer delivery withdraws before any accessor");
   assert.ok(seen.some(read => read.loading), "the saved row timer notifies subscribers");

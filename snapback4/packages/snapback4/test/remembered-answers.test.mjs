@@ -91,6 +91,22 @@ test("forget fences absent keys too and a rejected answer still names its cut", 
   assert.equal(answers.get("k")?.read.data, "current");
 });
 
+for (const cut of [undefined, 10, 11]) test(`selective clear fences an in-flight remembered answer at cut ${cut}`, () => {
+  const answers = new RememberedAnswers();
+  const row = value => ({ ...answer(value), tables: new Set(['rows']) });
+  answers.view().set('row', row('before'), 10);
+  answers.view().set('other', { ...answer('unrelated'), tables: new Set(['notes']) }, 10);
+  const held = answers.view(), unrelated = answers.get('other');
+  answers.clear(['rows']);
+  held.set('row', row('pre-change'), cut);
+  assert.equal(answers.get('row'), undefined, 'a late pre-clear reply cannot restore fallback');
+  assert.equal(answers.get('other'), unrelated, 'disjoint remembered data is untouched');
+  const next = answers.view(); next.set('row', row('after'), 11);
+  assert.equal(answers.get('row')?.read.data, 'after');
+  held.delete('row', 12);
+  assert.equal(answers.get('row')?.read.data, 'after', 'an old refusal cannot remove replacement memory');
+});
+
 // A read of a device program: the device's observation, then the server's reply.
 function reading(answers, { call, reply }) {
   const program = { name: "read", kind: "Query", args: {}, body: [], runs: "device" };

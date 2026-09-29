@@ -1,0 +1,100 @@
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (595.212642ms)
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (191.16053ms)
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (192.138467ms)
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (224.915476ms)
+✖ process keep=false: changes retire an in-flight local server body before replacement (229.411577ms)
+✖ process keep=true: changes retire an in-flight local server body before replacement (229.962954ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1793.554995
+
+✖ failing tests:
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ wasm keep=undefined: changes retire an in-flight local server body before replacement (595.212642ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ wasm keep=false: changes retire an in-flight local server body before replacement (191.16053ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ wasm keep=true: changes retire an in-flight local server body before replacement (192.138467ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ process keep=undefined: changes retire an in-flight local server body before replacement (224.915476ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ process keep=false: changes retire an in-flight local server body before replacement (229.411577ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at .pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:107:3
+✖ process keep=true: changes retire an in-flight local server body before replacement (229.962954ms)
+  AssertionError [ERR_ASSERTION]: no completed pre-change body returns
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r5-controls-zurscg8r/snapback4/packages/snapback4/test/per-row-inflight.test.mjs:115:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

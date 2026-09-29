@@ -13,6 +13,7 @@ import { episodeDeadline } from '../dist/read-episode.js';
 import { ReadApprovals } from '../dist/read-approval.js';
 import { armReadExpiry, correctReadExpiries, holdReadExpiry } from '../dist/read-expiry.js';
 import { ServerClock } from '../dist/clock.js';
+import { ReadWork } from '../dist/read-work.js';
 import { server, binary, until } from './helpers/app-server.mjs';
 
 const source = `use personas alice
@@ -247,5 +248,55 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
     assert.deepEqual(watch.getSnapshot(), { loading: true });
     assert.ok(seen.every(read => !('data' in read)), 'the old body never publishes after the final reset');
     gate.resolve(); await until(() => watch.getSnapshot().data === true && !watch.getSnapshot().revalidating);
+  });
+}
+
+for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, true]) {
+  test(`${tier} keep=${keep}: cancellation after checkRead leaves publication and watch state untouched`, async t => {
+    const { url, dir } = await server(t, '', source);
+    await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'remoteRows', row: { id: 'r', value: 7 } }]) });
+    let armed = false, cancelled = false, queries = 0, owner, work, attempt, before;
+    const gate = Promise.withResolvers(), completed = Promise.withResolvers();
+    const schedule = ReadWork.prototype.schedule;
+    t.mock.method(ReadWork.prototype, 'schedule', function(watch, run) {
+      const queue = this;
+      return schedule.call(this, watch, async signal => {
+        if (armed && cancelled && watch === owner) await gate.promise;
+        const target = armed && !cancelled && watch === owner;
+        if (target) { work = queue; attempt = signal; }
+        try { await run(signal); } finally { if (target) completed.resolve(); }
+      });
+    });
+    const client = await createLocalClient({ url, persona: 'alice', device: device(tier, dir), fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === '/changes') return parked(init.signal);
+      if (armed && path.startsWith('/q/') && ++queries > 1) await gate.promise;
+      return fetch(input, init);
+    } });
+    t.after(async () => { gate.resolve(); await client.close(); }); await client.sync();
+    const watch = client.observe(op, {}, { keep }); watch.subscribe(() => {}); t.after(() => watch.close());
+    await until(() => watch.getSnapshot().data === true && !watch.getSnapshot().revalidating);
+    owner = answerObservation(watch.getSnapshot());
+    const fields = ['snapshot', 'tables', 'deadlines', 'incarnation', 'serverRead', 'serverOnly', 'presenceEvery', 'presenceRefresh', 'expiryTimer', 'resetVersion'];
+    const state = () => Object.fromEntries(fields.map(key => [key, owner[key]]));
+    const seen = [], publish = t.mock.method(owner, 'publish');
+    watch.subscribe(() => { if (cancelled) seen.push(owner.snapshot); });
+    // This setter runs after checkRead(signal) and the early fences, just before
+    // publishLocal. Cancel the actual attempt without closing/removing/resetting
+    // its watch, so those independent guards cannot mask the signal comparison.
+    Object.defineProperty(owner, 'expiredRetries', { configurable: true, get: () => 0, set() {
+      if (!armed || cancelled) return;
+      assert.ok(attempt && !attempt.aborted);
+      before = state(); publish.mock.resetCalls(); cancelled = true;
+      assert.equal(work.cancel(owner), true);
+      assert.equal(attempt.aborted, true);
+    } });
+    armed = true; await client.sync();
+    await until(() => cancelled); await completed.promise;
+    assert.equal(publish.mock.callCount(), 0, 'the cancelled body never reaches publish');
+    assert.deepEqual(seen, [], 'no subscriber sees a cancelled completion');
+    for (const field of fields) assert.equal(owner[field], before[field], `no cancelled watch update: ${field}`);
+    gate.resolve();
+    await until(() => watch.getSnapshot().data === true && !watch.getSnapshot().revalidating);
   });
 }

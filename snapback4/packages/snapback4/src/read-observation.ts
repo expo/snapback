@@ -89,6 +89,7 @@ export class ReadObservation<T> {
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
           // Close/reset may happen during backoff, before another request starts.
           if (revision !== this.revision) return { ...result, read: this.snapshot };
+          if (this.kept) this.reload(); // A retry starts an episode deferred by in-flight invalidation.
           result = await run();
           continue;
         }
