@@ -1,0 +1,56 @@
+✔ wasm: keep=undefined across apply withdraws changed inputs and replaces the old answer (1481.860381ms)
+✔ wasm: keep=undefined across admit withdraws changed inputs and replaces the old answer (1563.519463ms)
+✔ wasm: keep=undefined across settle withdraws changed inputs and replaces the old answer (1557.105474ms)
+✔ wasm: keep=undefined across revoke withdraws changed inputs and replaces the old answer (1094.786208ms)
+✔ wasm: keep=undefined across leave withdraws changed inputs and replaces the old answer (1568.364385ms)
+✔ wasm: keep=undefined across refusal withdraws changed inputs and replaces the old answer (1115.218455ms)
+✔ process: keep=undefined across apply withdraws changed inputs and replaces the old answer (1127.880305ms)
+✔ process: keep=undefined across admit withdraws changed inputs and replaces the old answer (1162.025886ms)
+✔ process: keep=undefined across settle withdraws changed inputs and replaces the old answer (151.079444ms)
+✔ process: keep=undefined across revoke withdraws changed inputs and replaces the old answer (1125.723025ms)
+✔ process: keep=undefined across leave withdraws changed inputs and replaces the old answer (1148.689727ms)
+✖ process: keep=undefined across refusal withdraws changed inputs and replaces the old answer (11412.844432ms)
+✔ wasm: keep=true across apply withdraws changed inputs and replaces the old answer (1097.2848ms)
+✔ wasm: keep=true across admit withdraws changed inputs and replaces the old answer (1564.551125ms)
+✔ wasm: keep=true across settle withdraws changed inputs and replaces the old answer (1565.349995ms)
+✔ wasm: keep=true across revoke withdraws changed inputs and replaces the old answer (1100.771288ms)
+✔ wasm: keep=true across leave withdraws changed inputs and replaces the old answer (1122.292513ms)
+✔ wasm: keep=true across refusal withdraws changed inputs and replaces the old answer (1109.140407ms)
+✔ process: keep=true across apply withdraws changed inputs and replaces the old answer (1144.344465ms)
+✔ process: keep=true across admit withdraws changed inputs and replaces the old answer (1154.822225ms)
+✔ process: keep=true across settle withdraws changed inputs and replaces the old answer (150.640388ms)
+✔ process: keep=true across revoke withdraws changed inputs and replaces the old answer (1149.496866ms)
+✔ process: keep=true across leave withdraws changed inputs and replaces the old answer (1140.253848ms)
+✔ process: keep=true across refusal withdraws changed inputs and replaces the old answer (1147.626996ms)
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (83.1397ms)
+✔ process: keep remount lifetime, isolation, last subscriber and sign-out (109.320358ms)
+✔ online: keep remount lifetime, isolation, last subscriber and sign-out (76.075436ms)
+✔ wasm: keep=undefined never publishes an evaluation captured before a newer commit (1099.54889ms)
+✔ process: keep=undefined never publishes an evaluation captured before a newer commit (1138.964258ms)
+✔ wasm: keep=true never publishes an evaluation captured before a newer commit (1099.395802ms)
+✔ process: keep=true never publishes an evaluation captured before a newer commit (1128.858397ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 30
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42825.616556
+
+✖ failing tests:
+
+test at packages/snapback4/test/keep-device.test.mjs:75:3
+✖ process: keep=undefined across refusal withdraws changed inputs and replaces the old answer (11412.844432ms)
+  AssertionError [ERR_ASSERTION]: replacement answer
+      at until (file:///home/ccheever/sb4-intent/lane-mt/snapback4/packages/snapback4/test/keep-device.test.mjs:22:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-mt/snapback4/packages/snapback4/test/keep-device.test.mjs:121:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

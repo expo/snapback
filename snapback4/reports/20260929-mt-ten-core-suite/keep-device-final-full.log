@@ -1,0 +1,39 @@
+✔ wasm: keep=undefined across apply withdraws changed inputs and replaces the old answer (1603.760325ms)
+✔ wasm: keep=undefined across admit withdraws changed inputs and replaces the old answer (1564.075852ms)
+✔ wasm: keep=undefined across settle withdraws changed inputs and replaces the old answer (1566.382729ms)
+✔ wasm: keep=undefined across revoke withdraws changed inputs and replaces the old answer (1093.593586ms)
+✔ wasm: keep=undefined across leave withdraws changed inputs and replaces the old answer (1556.050609ms)
+✔ wasm: keep=undefined across refusal withdraws changed inputs and replaces the old answer (1107.924499ms)
+✔ process: keep=undefined across apply withdraws changed inputs and replaces the old answer (128.354175ms)
+✔ process: keep=undefined across admit withdraws changed inputs and replaces the old answer (1145.593873ms)
+✔ process: keep=undefined across settle withdraws changed inputs and replaces the old answer (1155.8286ms)
+✔ process: keep=undefined across revoke withdraws changed inputs and replaces the old answer (1140.716135ms)
+✔ process: keep=undefined across leave withdraws changed inputs and replaces the old answer (1150.661056ms)
+✔ process: keep=undefined across refusal withdraws changed inputs and replaces the old answer (147.461637ms)
+✔ wasm: keep=true across apply withdraws changed inputs and replaces the old answer (107.7548ms)
+✔ wasm: keep=true across admit withdraws changed inputs and replaces the old answer (1311.956914ms)
+✔ wasm: keep=true across settle withdraws changed inputs and replaces the old answer (1556.879695ms)
+✔ wasm: keep=true across revoke withdraws changed inputs and replaces the old answer (1098.131138ms)
+✔ wasm: keep=true across leave withdraws changed inputs and replaces the old answer (1552.753353ms)
+✔ wasm: keep=true across refusal withdraws changed inputs and replaces the old answer (1095.91011ms)
+✔ process: keep=true across apply withdraws changed inputs and replaces the old answer (1137.21444ms)
+✔ process: keep=true across admit withdraws changed inputs and replaces the old answer (161.65897ms)
+✔ process: keep=true across settle withdraws changed inputs and replaces the old answer (1147.642537ms)
+✔ process: keep=true across revoke withdraws changed inputs and replaces the old answer (1134.739694ms)
+✔ process: keep=true across leave withdraws changed inputs and replaces the old answer (1151.522141ms)
+✔ process: keep=true across refusal withdraws changed inputs and replaces the old answer (152.027248ms)
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (85.992912ms)
+✔ process: keep remount lifetime, isolation, last subscriber and sign-out (112.265769ms)
+✔ online: keep remount lifetime, isolation, last subscriber and sign-out (74.022405ms)
+✔ wasm: keep=undefined never publishes an evaluation captured before a newer commit (1091.053114ms)
+✔ process: keep=undefined never publishes an evaluation captured before a newer commit (1142.569817ms)
+✔ wasm: keep=true never publishes an evaluation captured before a newer commit (1094.343345ms)
+✔ process: keep=true never publishes an evaluation captured before a newer commit (1135.265874ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29837.0301

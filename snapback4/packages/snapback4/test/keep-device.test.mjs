@@ -1,5 +1,5 @@
 import { answerIdentity } from "../dist/read-observation.js";
-// LLP 3000.019 §3.3 revision 4: the application explicitly opts into stale presentation.
+// LLP 3000.029 §3: retention and the opt-in live observation lifetime.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -36,7 +36,9 @@ table secrets:
   update <- allow
   read <- exists members[.room, viewer]
   sync to members[.room]
-query secret():
+query secret(other: bool ?):
+  return secrets['private']
+query different():
   return secrets['private']
 query second():
   return secrets['private']
@@ -104,7 +106,16 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     lingering.close();
     const originalIdentity = answerIdentity(watch.getSnapshot());
     const values = [];
-    watch.subscribe(() => values.push(watch.getSnapshot()));
+    const isReplacement = read => change === "refusal" ? read.denied?.code === "HIDDEN"
+      : change === "revoke" || change === "leave" ? read.data === null : read.data?.body === "next answer";
+    let replacement;
+    watch.subscribe(() => {
+      const read = watch.getSnapshot();
+      values.push(read);
+      // Another live watch can invalidate again before a polling turn. Capture
+      // the required replacement at publication, with the same predicate.
+      if (isReplacement(read)) replacement = read;
+    });
     armed = true;
     const operation = change === "apply" ? post("/m/edit", { id: "remote-edit", args: { body: "next answer" } })
       : (change === "revoke" || change === "refusal") ? kick()
@@ -116,7 +127,7 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     if (change === "leave") assert.ok(captured.result.ok.predicted.includes("members/bob"));
     blocking = false; held.resolve();
     assert.equal((await operation).state, "sent");
-    await until(() => change === "refusal" ? watch.getSnapshot().denied?.code === "HIDDEN" : change === "revoke" || change === "leave" ? watch.getSnapshot().data === null : watch.getSnapshot().data?.body === "next answer", "replacement answer");
+    await until(() => replacement !== undefined, "replacement answer notification");
     await until(() => change === "revoke" || change === "leave" || change === "refusal"
       ? lingering.getSnapshot().data === null : lingering.getSnapshot().data?.body === "next answer", "lingering watch reruns on the real commit without a subscriber");
     const joined = client.observe({ ...query, name: "second" }, {}, { keep: true });
@@ -158,6 +169,8 @@ for (const tier of ["wasm", "process", "online"]) test(`${tier}: keep remount li
   assert.equal(watch.getSnapshot().data?.body, "private answer");
   assert.equal(watch.getSnapshot(), originalSnapshot, "joins the current observation with unchanged fresh/since");
   assert.equal(requests, before, "joining does not start another read");
+  // @ref LLP 3000.029#11 — these lingering isolation probes must be valid reads:
+  // releasing a refused probe would introduce authority evidence in later checks.
   for (const [op, args, options] of [[query, {}, undefined], [query, { other: true }, { keep: true }], [{ ...query, name: "different" }, {}, { keep: true }]]) {
     const other = client.observe(op, args, options);
     assert.deepEqual(other.getSnapshot(), { loading: true }, "option, operation and arguments isolate keys");
