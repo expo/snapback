@@ -105,9 +105,14 @@ test("social recipes in React/browser: real online signals and media, controlled
       window.setRead("messageReceipts", { denied: { code: "NOT_MEMBER", message: "Decoration refused" } });
       window.setRead("receiptMember", window.ready({ principal: "alice" }, { revalidating: true }));
     });
-    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), false, "retained present membership does not disable a durable send");
     assert.equal(await composer.inputValue(), "my draft");
+    for (const uncertain of ["loading", "partial"]) {
+      await page.evaluate(state => window.setRead("receiptMember", state === "loading" ? { loading: true } : window.ready(null, { complete: false })), uncertain);
+      assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), false, uncertain);
+    }
     await page.evaluate(() => { window.setRead("receiptMember", window.ready(null)); });
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true, "proven absent membership disables send");
     await page.evaluate(() => window.leave());
     await page.evaluate(() => { window.setRead("history", window.ready(window.historyRows.map(row => ({ ...row, retained: true })), { fresh: false })); });
     assert.equal(await composer.evaluate(node => document.activeElement === node), true);
@@ -459,7 +464,7 @@ test("social search in React/browser uses current server and retained device pag
             assert.equal(new Set(shown).size, shown.length, "SDK accumulation never repeats an ID");
           }
           assert.equal(await page.getByRole("button", { name: "More matches" }).isDisabled(), true);
-          await page.getByText(/Partial results/).waitFor();
+          assert.equal(await page.getByText(/Partial results/).count(), 0, "the nonempty final accumulated page is present");
           await page.getByRole("textbox", { name: "Search messages" }).fill("unmatched");
           await page.waitForFunction(() => document.querySelectorAll("button").length === 1 && document.body.textContent.includes("Partial results"));
           assert.equal(await hits.count(), 0, "changing the needle clears prior accumulated rows");

@@ -44,7 +44,7 @@ function controlled(read = () => ready([])) {
     observe(op, args) {
       const listeners = new Set();
       const record = {
-        op, args, value: read(args), closes: 0,
+        op, args, value: op.name === "myMembership" ? ready({ id: "member" }) : read(args), closes: 0,
         getSnapshot() { return record.value; },
         subscribe(callback) { listeners.add(callback); return () => listeners.delete(callback); },
         close() { record.closes++; },
@@ -1116,6 +1116,20 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     await unmount();
   };
 }
+cases["Expo composer uses membership presence without losing its draft"] = async () => {
+  localStorage.clear(); const client = controlled();
+  await mount(h(Thread, { backend: "http://starter-test", conversationId: "c", onBack: () => {} }), client);
+  await edit("kept draft"); const input = host.querySelector("input");
+  const member = client.records.find(record => record.op.name === "myMembership" && record.closes === 0);
+  for (const [read, disabled] of [[{ loading: true }, false], [ready(null, null, { complete: false }), false],
+    [ready(null), true], [{ denied: { message: "Membership refused" } }, true], [ready({ id: "member" }, null, { revalidating: true }), false]]) {
+    await act(async () => member.set(read));
+    equal([...host.querySelectorAll("button")].find(button => button.textContent === "Send").disabled, disabled, "membership control");
+    check(host.querySelector("input") === input && input.value === "kept draft", "membership status preserves the mounted draft");
+  }
+  await unmount(); allClosed(client);
+};
+
 cases["Expo observes every saved ID across reload, late refusal, unknown receipt and account switch"] = async () => {
   localStorage.clear(); const client = controlled();
   const props = { backend: "http://starter-test", conversationId: "c", onBack: () => {} };

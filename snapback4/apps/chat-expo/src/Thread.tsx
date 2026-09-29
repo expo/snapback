@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import { mintId } from "snapback4/client";
 import type { Write } from "snapback4/contract";
-import { useClient, usePendingWrite, usePage, useViewer } from "snapback4/react";
+import { useClient, usePendingWrite, usePage, useQuery, useViewer } from "snapback4/react";
 import { api } from "../../chat/snapback/generated/api";
 import { IntentJournal, intentOutcome, type Intent } from "./intents";
 import { intentStorage } from "./intent-store";
@@ -17,6 +17,9 @@ export function Thread(props: Props) {
 function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { viewer: string }) {
   const client = useClient();
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
+  // No-horizon membership shares the messages' group and audience; loading is acquisition.
+  const membership = useQuery(api.myMembership, { conversationId });
+  const member = presence(membership), blocked = member === "absent" || member === "denied";
   const answered = useRef(false);
   if ("data" in read) answered.current = true;
   const journal = useMemo(() => new IntentJournal(intentStorage, backend, viewer,
@@ -35,7 +38,7 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
   }, [journal, conversationId]);
   const submit = async () => {
     const owner = lifetime.current, submitted = body, text = body.trim();
-    if (!owner.active || owner.admitting || !text) return;
+    if (!owner.active || owner.admitting || blocked || !text) return;
     const intent: Intent = { id: mintId(), room: conversationId, op: "send", body: text };
     const current = () => owner.active && client.viewer() === viewer && client.link() !== "signed-out";
     // Save before dispatch. A crash in this gap leaves an unknown receipt;
@@ -78,8 +81,9 @@ function OwnedThread({ conversationId, backend, onBack, viewer }: Props & { view
     />
     <View style={styles.composer}>
       <TextInput style={styles.input} value={body} onChangeText={setBody} placeholder="Message" />
-      <Button title="Send" disabled={!!submitting || !body.trim()} onPress={() => { void submit(); }} />
+      <Button title="Send" disabled={blocked || !!submitting || !body.trim()} onPress={() => { void submit(); }} />
     </View>
+    {"denied" in membership ? <Text style={styles.alert}>{membership.denied.message}</Text> : member === "absent" ? <Text style={styles.note}>Not a member. Your draft stays here.</Text> : null}
     {problem ? <Text style={styles.alert}>{problem}</Text> : null}
     <View accessibilityLabel="Writes"><Text>Writes</Text>
       {intents.map(intent => <Receipt key={intent.id} intent={intent} outcome={outcomes[intent.id]} submitting={submitting === intent.id} dismiss={dismiss} edit={text => setBody(current => current ? `${current} ${text}` : text)} />)}
