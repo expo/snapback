@@ -1,0 +1,12 @@
+{
+  "snapback4/packages/snapback4/src/web-idb.ts": {
+    "before": "4921300736968acc6c6a793bc637ff60003a355c447e2fb3f91df81117860c01",
+    "after": "10f48255a08d067058b52dadb67d198f43a2e9b3f9eb9292c838f5336cc46a40"
+  },
+  "snapback4/packages/snapback4/src/web-idb-buckets.ts": {
+    "before": "c5c77bc1a9ee0c8ead1133f86c49dd715ebe6f171da7a6e1653499cb48db5127",
+    "after": "4f03a9eaeac2910f25b8e7df469e2ee418403b9b0f7b38de582f536cff8fa502"
+  },
+  "wasm-before": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b",
+  "wasm-after": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b"
+}

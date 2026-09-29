@@ -44,6 +44,32 @@ While this device holds a predictable pending write to a table a query reads, th
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
 
+## Measure cold acquisition
+
+For large partitions, use `webDevice({ worker: true })` from `snapback4/web`
+to keep atomic device publication off the page thread. The package default
+remains `webDevice()`. Render the first available screen while
+`useAcquisition()` shows progress; `acquired` means the complete declared
+partition has been durably published for offline use.
+
+On eb1000 (AMD EPYC 9454, Chromium 151), five cold runs on a retained Clique
+fixture took median **2.25 s Worker / 2.19 s default** for 100 memberships,
+500 Following edges and 500 messages (3.65 MB of sync bodies). A heavy account
+with 1,000 memberships and 90,500 messages took **25.66 s Worker** in five
+instrumented runs (39.76 MB). Group count alone does not predict cost.
+For a 10-core M1 Max, plan roughly **5–8 s / 60–90 s** at those volumes until
+measured there. These are engineering estimates, not Mac qualification or
+promises; the retained fixture differs from the slower Mac calibration.
+
+Measure your largest account in five fresh browser profiles against the
+production server. After authentication, start a clock immediately before
+`createApp`, subscribe when its signed-in client is published, and stop when
+its `onAcquired` listener receives `true`. `guide sync` gives the full recipe.
+Record each time, the median, host load, network conditions, browser version,
+`/sync` bytes and requests, and `client.residency()`. Time the first screen
+separately; disconnect and reopen to check expected rows and complete pages.
+A warm reopened store measures restoration, not cold acquisition.
+
 ## Acknowledgements and receipts
 
 Use `snapback4 guide receipts` for the schema, `delivered`/`seen` mutations and `useReceipts` hook; keep that recipe's server-owned progress and lifecycle together.

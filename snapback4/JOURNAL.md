@@ -76002,3 +76002,42 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — AQ round 0: faster cold browser acquisition
+
+On eb1000 (EPYC 9454, 96 logical CPUs), five cold u0500 runs on a private
+copy of SQ's retained full-scale store give median 2.255 s Worker / 2.186 s
+default, from 4.436 / 4.898 s. Three sync replies still deliver 3,652,183 B
+and 11,612 rows. Worker strict persistence falls from 2.588 s to 0.501 s in
+five diagnostic runs; server production and wasm apply stay near 0.42/0.40 s.
+The first inbox answer remains near half a second. The heavy account
+(1,000 memberships, 90,500 messages) remains 25.661 s, from 26.606 s.
+
+Format 3 starts packed IndexedDB namespaces with 64 roots and splits full
+roots once into four leaves. The 512-entry / 256 KiB caps, sticky overflow,
+strict atomic row/metadata/outbox save and conditional commit fence remain.
+Formats 1/2 migrate packed and overflow rows atomically; aborted migration
+leaves the old store usable. No wasm, authorization, disclosure, coverage,
+completeness, durability, meter, declared partition or progress relaxation.
+LLP 3000.007 §20.4 records the design. The client and sync guide cards give
+expected times and a public measurement recipe, including heavy accounts.
+Mac planning estimates are 5–8 s probe / 60–90 s heavy, explicitly unmeasured;
+the retained fixture differs from calibration #26 and its 12.9 s is not used
+as a same-fixture speedup denominator.
+
+All 50 official browser runs match every retained row against delivery and
+answer the inbox completely offline. Tests pin request/bucket/strict-commit
+counts, split/migration rollback and complete offline reopening of 12,000
+known rows on both devices. A 256-root mutant is rejected. Affected tests
+241/241; Worker protocol 48/48; whole guide 98/98. scripts/test.sh ran once,
+exact summary `== 0 failure(s) in 1967 s`; client stage 4,565 pass / 0 fail /
+ten skips, final models 79/79. One introduced guide-card length failure was
+corrected without raising its cap; no baseline or environmental product-test
+failures occurred. The existing 60 s suite budget remains missed.
+
+Canonical wasm is unchanged: 2,040,529 B raw / 592,975 B gzip, 744 B below
+the 593,719 B cap. Report, raw samples, phase attribution, host load and failure
+ledger: [AQ report](reports/20260929-aq-fast-acquisition/REPORT.md).
+No push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

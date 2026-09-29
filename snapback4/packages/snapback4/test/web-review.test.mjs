@@ -16,6 +16,8 @@ table constructor:
   sync public
 query rows():
   return constructor first 50
+query all(c: cursor ?):
+  return constructor first 100 after c
 `);
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const mutant = process.env.SNAPBACK4_WEB_REVIEW_MUTANT;
@@ -30,6 +32,8 @@ query rows():
     .replace('else if (saved.spill && !cleared) store.delete([s, change.k]);', '/* mutant: leave pure-deletion overflow rows on disk */');
   if (mutant === 'range-survivor') sourceOverrides[path('web-idb.ts')] = readFileSync(path('web-idb.ts'), 'utf8')
     .replace('request.result.every(key => Array.isArray(key) && key.length === 2 && typeof key[1] === "string" && keys.has(key[1]))', 'true');
+  if (mutant === 'many-roots') sourceOverrides[path('web-idb-buckets.ts')] = readFileSync(path('web-idb-buckets.ts'), 'utf8')
+    .replace('(legacy ? 255 : 63)', '255');
   for (const [name, selected] of [['local.ts', 'progress'], ['web-idb.ts', 'buckets']]) if (mutant === selected) {
     sourceOverrides[path(name)] = execFileSync('git', ['show', `18f3754fc:snapback4/packages/snapback4/src/${name}`], { cwd: root, encoding: 'utf8' });
   }
@@ -215,7 +219,7 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
       const packed = await new Promise((resolve, reject) => {
         const request = indexedDB.open(name, 1);
         request.onsuccess = () => {
-          const db = request.result, tx = db.transaction('changes', 'readonly'), read = tx.objectStore('changes').get(['$bucket', 'r:0']);
+          const db = request.result, tx = db.transaction('changes', 'readonly'), read = tx.objectStore('changes').get(['$bucket', 'r:0/0']);
           tx.oncomplete = () => { db.close(); resolve(read.result); }; tx.onerror = () => reject(tx.error);
         };
       });
@@ -258,7 +262,7 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
         first: await store.read(name, 'r', rows[0][0]), last: await store.read(name, 'r', rows.at(-1)[0]) };
     });
     assert.equal(result.entries, 1000); assert.equal(result.first, 'z'.repeat(1024)); assert.equal(result.last, 'z'.repeat(1024));
-    assert.equal(result.format, '2'); assert.ok(result.packedEntries <= 512); assert.ok(result.packedBytes <= 262144);
+    assert.equal(result.format, '3'); assert.ok(result.packedEntries <= 512); assert.ok(result.packedBytes <= 262144);
   });
   await t.test('publication clears only a proved deletion range, atomically with rows and the watermark', async () => {
     const result = await page.evaluate(async () => {
@@ -319,6 +323,95 @@ Object.assign(window, { acquisition, prepareClient, rawClient });
       { s: 'm', k: 'watermark', v: '2' }, { s: 'r', k: 'live', v: 'after' }]);
     assert.deepEqual(result.survivors, result.expected);
     assert.equal(result.mixed.length, 1); assert.equal(result.mixed[0].v, 'new stage');
+  });
+  await t.test('cold row batches use 64 bounded buckets in one strict transaction', async () => {
+    const result = await page.evaluate(async () => {
+      const name='acquisition-buckets', store=indexedDbPersistence();
+      await store.load(name);
+      const put=IDBObjectStore.prototype.put, get=IDBObjectStore.prototype.get, transaction=IDBDatabase.prototype.transaction;
+      let gets=0,buckets=0,transactions=0,strict=true;
+      IDBDatabase.prototype.transaction=function(...args){const tx=transaction.apply(this,args);if(this.name===name&&tx.mode==='readwrite'){transactions++;strict&&=tx.durability==='strict';}return tx;};
+      IDBObjectStore.prototype.get=function(...args){if(this.transaction.db.name===name)gets++;return get.apply(this,args);};
+      IDBObjectStore.prototype.put=function(row,...args){if(this.transaction.db.name===name&&row.s==='$bucket')buckets++;return put.call(this,row,...args);};
+      const rows=Array.from({length:10000},(_,n)=>({s:'s',k:`row-${n}`,v:`${n}:`+'x'.repeat(250)}));
+      try {await store.save(name,rows.concat([{s:'m',k:'watermark',v:'one'}]));}
+      finally{IDBObjectStore.prototype.put=put;IDBObjectStore.prototype.get=get;IDBDatabase.prototype.transaction=transaction;}
+      const restored=await indexedDbPersistence().load(name), expected=new Map(rows.map(r=>[r.k,r.v]));
+      return {gets,buckets,transactions,strict,rows:restored.filter(r=>r.s==='s').length,
+        correct:restored.filter(r=>r.s==='s').every(r=>expected.get(r.k)===r.v),watermark:await store.read(name,'m','watermark')};
+    });
+    assert.deepEqual(result,{gets:64,buckets:64,transactions:1,strict:true,rows:10000,correct:true,watermark:'one'});
+  });
+  await t.test('a root split, later child writes and their conditional commit are atomic', async () => {
+    const result=await page.evaluate(async()=>{
+      const name='split-atomic',store=indexedDbPersistence(),keys=[];
+      for(let n=0;keys.length<513;n++){
+        const key=`split-${n}`;let hash=2166136261;for(let i=0;i<key.length;i++)hash=Math.imul(hash^key.charCodeAt(i),16777619);
+        if((hash&63)===0)keys.push(key);
+      }
+      await store.save(name,keys.slice(0,512).map(k=>({s:'r',k,v:'old'})).concat([{s:'m',k:'watermark',v:'old'},{s:'o',k:'intent',v:'kept'}]));
+      const before=await store.load(name),put=IDBObjectStore.prototype.put;
+      let rejected=false,aborted=false;
+      IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.k==='r:0/0'){aborted=true;this.transaction.abort();}return req;};
+      const delta=[{s:'r',k:keys[512],v:'new'},{s:'m',k:'watermark',v:'new'},{s:'o',k:'intent',v:null}];
+      try{await store.save(name,delta);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=put;}
+      const unchanged=JSON.stringify(await store.load(name))===JSON.stringify(before);
+      await store.save(name,delta);
+      let current=true,checks=0;
+      IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.s==='$bucket')current=false;return req;};
+      let accepted;try{accepted=await store.saveIfCurrent(name,[{s:'r',k:keys[0],v:'stale'}],()=>{checks++;return current;});}finally{IDBObjectStore.prototype.put=put;}
+      const all=await indexedDbPersistence().load(name);
+      return {rejected,aborted,unchanged,accepted,checks,rows:all.filter(r=>r.s==='r').length,
+        old:await store.read(name,'r',keys[0]),added:await store.read(name,'r',keys[512]),watermark:await store.read(name,'m','watermark'),outbox:await store.read(name,'o','intent')};
+    });
+    assert.deepEqual(result,{rejected:true,aborted:true,unchanged:true,accepted:false,checks:1,rows:513,old:'old',added:'new',watermark:'new',outbox:null});
+  });
+  await t.test('format two migration keeps packed and overflow rows, stage, watermark and outbox across abort', async()=>{
+    const result=await page.evaluate(async()=>{
+      const name='format-two',key='old-packed';let hash=2166136261;for(let i=0;i<key.length;i++)hash=Math.imul(hash^key.charCodeAt(i),16777619);
+      await new Promise((resolve,reject)=>{
+        const open=indexedDB.open(name,1);open.onupgradeneeded=()=>{
+          const store=open.result.createObjectStore('changes',{keyPath:['s','k']});
+          for(const row of [{s:'$format',k:'row-buckets',v:'2'},
+            {s:'$bucket',k:`r:${hash&255}`,v:JSON.stringify([[key,'packed']]),spill:true},
+            {s:'r',k:'overflow',v:'old overflow'},{s:'s',k:'stage',v:'unpublished'},
+            {s:'m',k:'watermark',v:'seven'},{s:'o',k:'intent',v:'pending'}])store.put(row);
+        };open.onsuccess=()=>{open.result.close();resolve();};open.onerror=()=>reject(open.error);
+      });
+      const store=indexedDbPersistence(),prior=await store.read(name,'r',key),put=IDBObjectStore.prototype.put;
+      let rejected=false;IDBObjectStore.prototype.put=function(row,...args){const req=put.call(this,row,...args);if(this.transaction.db.name===name&&row.s==='$bucket')this.transaction.abort();return req;};
+      try{await store.load(name);}catch{rejected=true;}finally{IDBObjectStore.prototype.put=put;}
+      const afterAbort={packed:await store.read(name,'r',key),overflow:await store.read(name,'r','overflow'),format:await store.read(name,'$format','row-buckets')};
+      await store.load(name);await store.save(name,[{s:'r',k:'overflow',v:'updated'}]);
+      const all=await indexedDbPersistence().load(name);
+      return {prior,rejected,afterAbort,all:all.sort((a,b)=>(a.s+a.k).localeCompare(b.s+b.k)),overflow:await store.read(name,'r','overflow'),format:await store.read(name,'$format','row-buckets')};
+    });
+    assert.equal(result.prior,'packed');assert.equal(result.rejected,true);
+    assert.deepEqual(result.afterAbort,{packed:'packed',overflow:'old overflow',format:'2'});
+    assert.deepEqual(result.all,[{s:'m',k:'watermark',v:'seven'},{s:'o',k:'intent',v:'pending'},{s:'r',k:'old-packed',v:'packed'},{s:'r',k:'overflow',v:'updated'},{s:'s',k:'stage',v:'unpublished'}]);
+    assert.equal(result.overflow,'updated');assert.equal(result.format,'3');
+  });
+  await t.test('both browser devices acquire every page and reopen complete offline', async()=>{
+    await seed(Array.from({length:12000},(_,n)=>({id:`acq-${String(n).padStart(5,'0')}`,value:n})));
+    for(const worker of [false,true]){
+      const result=await page.evaluate(async({api,worker})=>{
+        let offline=false,pages=0;const opener=webDevice({worker}),suffix=worker?':complete-worker':':complete-default';
+        const options={url:api,persona:'alice',device:{open:(name,backend)=>opener.open(name+suffix,backend)},waitSeconds:1,
+          fetch:async(url,init)=>{if(offline)throw new TypeError('offline');if(String(url).endsWith('/sync'))pages++;return fetch(url,init);}};
+        const prepared=await prepareClient(options,()=>rawClient(options)),client=prepared.client,progress=[];
+        const stop=acquisition(client).subscribe(()=>progress.push({...acquisition(client).read()}));
+        await prepared.start();stop();const acquired=client.acquired;await client.close();offline=true;
+        const reopened=await rawClient(options),rows=[];let c=null;
+        do{const read=await reopened.query({kind:'query',name:'all'},{c});if(!read.complete)throw Error(JSON.stringify(read));rows.push(...read.data);c=read.next??null;}while(c);
+        const kept=rows.filter(r=>r.id.startsWith('acq-')),residency=await reopened.residency();
+        const correct=kept.every(r=>r.value===Number(r.id.slice(4))),reopenedAcquired=reopened.acquired;await reopened.close();
+        return {acquired,reopenedAcquired,pages,count:kept.length,unique:new Set(kept.map(r=>r.id)).size,correct,progress,residency:residency.tables.constructor.rows};
+      },{api,worker});
+      assert.equal(result.acquired,true);assert.equal(result.reopenedAcquired,true);assert.equal(result.count,12000);assert.equal(result.unique,12000);assert.equal(result.correct,true);
+      assert.ok(result.residency>=12000);assert.equal(result.pages,3);
+      assert.ok(result.progress.some(p=>p.rows>0&&!p.acquired));assert.equal(result.progress.at(-1).acquired,true);
+      assert.equal(result.progress.at(-1).rows,result.residency);
+    }
   });
   assert.deepEqual(errors, []);
 });
