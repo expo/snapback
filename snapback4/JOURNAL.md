@@ -78367,3 +78367,59 @@ Report and every failure/control disposition:
 reports/20260929-sr-starter-routes/round2/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — HV round 2: caller admission and canonical staged images
+
+Read both prior HV prompts/reports and the complete Astra r0n/Grok r0 reviews.
+Merged origin/main 38abb89b8e0b206644b9e2619c6f2d159a981d23 first in 8474e39603,
+keeping both journal conflict hunks and the SR/KR/publication changes. No await
+inventory conflict; its detecting check passes without hand editing.
+
+Cold certification now chooses and reserves its decoder page against the saved
+finite caller allowance before prepaid work. A page includes all 32 decoder
+bounds, rule scratch and both vectors; insufficient room selects one candidate,
+and an insufficient single decoder refuses before storage access. The regression
+observes actual requested limits and real decode allocations, including nested
+and nearly spent scopes. At 256 KiB per payload, fallback requests one row and
+allocates at most 263,776 B per scan; the roomy case requests 32 and allocates
+8,417,160 B. The original code and an unbounded-allowance mutant both fail it.
+Every candidate retains expiry, rule and field disclosure checks.
+
+Published memory images share a stage only after the whole canonical row matches.
+Noncanonical rows keep their canonical encoding. Whitespace, escaped Row/Map
+tags, nested empty maps and tag-like text now have the same metered scan price
+as ordinary canonical puts. The regression reproduces the old subtraction
+panic. Sharing still retains one backing stage allocation; the added transient
+serialization is one row. LLP 3000.015 §3 and LLP 3000.007 §20.4 record the fixes.
+
+The long-lived format-3 case is already fenced: each public adapter operation
+tries physical version 2, clears cached packing on VersionError and reopens
+version 3. A Chromium regression spans aborted/successful migration, rejected
+and accepted conditional saves, ordinary saves, deletion and strict durability;
+removing that invalidation makes the accepted update disappear and fails the
+test. Built-in owners retain their exclusive claim; the LLP now requires custom
+providers to preserve ownership and re-read format inside the write transaction
+or atomically fence stale owners. No production TypeScript change was needed.
+
+Affected core tests pass 168 with one declared ignore; device tests 1,390 with
+five ignores; browser checks 17/17 plus 114/114; whole guide 99/99; await census
+1/1. Ran scripts/test.sh exactly once, exit 1: `== 2 failure(s) in 1339 s`.
+Wasm build fails on retained HV size debt, ours. Client tests fail two codec
+census assertions because the new fixture helper lacked an explicit function
+cfg(test) marker, ours; added the marker without changing the test body, then
+passed the complete census 26/26 and image regression 1/1. All other stages
+pass: Rust 4,349 with 33 ignores, clients 5,197 passes/two failures/ten skips,
+fixtures 9/9, full-count models 79/79. Baseline/environmental test failures are
+zero. The inherited 60-second process budget remains exceeded.
+
+Final wasm is 2,033,531 B raw / 602,216 B gzip, 173 B smaller than round 1 and
+8,497 B above the unchanged 593,719 B cap; WD owns the separate main reductions.
+Generated heavy peak/retained allocations remain 20,551,766 / 15,029,122 B,
+with the peak 54.5% of old retained storage. No heavy latency campaign was
+repeated, and no new timing claim is made. No word-index deferral is implemented.
+
+Report, failure ledger and raw evidence:
+reports/20260929-hv-heavy-acquisition/round2/REPORT.md.
+The local repair commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

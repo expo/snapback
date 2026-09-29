@@ -37,7 +37,7 @@ impl Runner<'_> {
         result
     }
 
-    fn certify_batch(&mut self, m: &Maintain, rows: &[Value], probe_small: bool) -> Result<Vec<Option<Value>>, RuntimeError> {
+    fn certify_batch(&mut self, m: &Maintain, rows: &[Value], _probe_small: bool) -> Result<Vec<Option<Value>>, RuntimeError> {
         let k = m.row_key.as_ref().unwrap();
         let source = &self.schema.tables[&m.source];
         self.read_tables.insert(k.table.clone());
@@ -72,10 +72,18 @@ impl Runner<'_> {
                 }
             }
             let group = &mut members[..group_len];
-            let bytes = crate::rows::disclosed::decode_reservation(source);
-            self.disclosed_scratch(bytes, &[(MeterKind::Examined, group_len as u64), (MeterKind::Steps, group_len as u64)], |runner, _| {
-                if probe_small { runner.certify_group(m, &parent, group) } else { runner.certify_group_mode(m, &parent, group, false) }
-            })?;
+            #[cfg(feature = "sqlite")]
+            if !_probe_small {
+                self.certify_acquisition_group(m, &parent, group)?;
+            } else {
+                let bytes = crate::rows::disclosed::decode_reservation(source);
+                self.disclosed_scratch(bytes, &[(MeterKind::Examined, group_len as u64), (MeterKind::Steps, group_len as u64)], |runner, _| runner.certify_group(m, &parent, group))?;
+            }
+            #[cfg(not(feature = "sqlite"))]
+            {
+                let bytes = crate::rows::disclosed::decode_reservation(source);
+                self.disclosed_scratch(bytes, &[(MeterKind::Examined, group_len as u64), (MeterKind::Steps, group_len as u64)], |runner, _| runner.certify_group(m, &parent, group))?;
+            }
             self.meter.require_uncapped()?;
             for (position, member, total) in members.drain(..group_len) {
                 out[position] = Some(self.view_image(m, &member, total, false)?);
@@ -85,10 +93,39 @@ impl Runner<'_> {
     }
 
     fn certify_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
-        self.certify_group_mode(m, parent, members, true)
+        self.certify_group_mode(m, parent, members, true, 1)
     }
 
-    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool) -> Result<(), RuntimeError> {
+    // @ref LLP 3000.015#3 — choose and reserve the page on the caller ledger,
+    // before certification replaces it with an unbounded prepaid meter.
+    #[cfg(feature = "sqlite")]
+    fn certify_acquisition_group(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)]) -> Result<(), RuntimeError> {
+        let source = &self.schema.tables[&m.source];
+        let decoder = crate::rows::disclosed::decode_reservation(source);
+        let page_bytes = decoder.saturating_mul(32)
+            .saturating_add(self.rule_scratch(&source.rules.read))
+            .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
+            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32));
+        let internal = (self.meter.ceilings.heap_bytes, self.meter.used.heap_bytes);
+        let caller = self.caller_heap_ceiling;
+        let (limit, used) = caller.unwrap_or(internal);
+        let page = if page_bytes <= limit.saturating_sub(used) { 32 } else { 1 };
+        self.meter.ceilings.heap_bytes = limit;
+        self.meter.used.heap_bytes = used;
+        let result = (|| {
+            self.meter.heap(if page == 32 { page_bytes } else { decoder })?;
+            // Nested public witnesses must see the reservation as occupied too.
+            self.caller_heap_ceiling = Some((limit, self.meter.used.heap_bytes));
+            self.prepaid_scan(&[(MeterKind::Examined, members.len() as u64), (MeterKind::Steps, members.len() as u64)], false,
+                |runner, _| runner.certify_group_mode(m, parent, members, false, page))
+        })();
+        self.caller_heap_ceiling = caller;
+        self.meter.ceilings.heap_bytes = internal.0;
+        self.meter.used.heap_bytes = internal.1;
+        result
+    }
+
+    fn certify_group_mode(&mut self, m: &Maintain, parent: &Value, members: &mut [(usize, Value, i64)], probe_small: bool, _page: usize) -> Result<(), RuntimeError> {
         // Receipt changes commonly leave only a few unread positions. Every
         // member is authorized before these bounded, private probes.
         let mut small = probe_small;
@@ -116,7 +153,7 @@ impl Runner<'_> {
                     // The same sealed authorization path in bounded pages;
                     // a cold partition must not re-plan a scan for every row.
                     #[cfg(feature = "sqlite")]
-                    let batch = !probe_small;
+                    let batch = _page > 1;
                     #[cfg(feature = "sqlite")]
                     let rows = if batch { self.scan_acquisition_basis(&m.source, &index, prefix, &bounds)? } else {
                         self.scan_authorized(&m.source, &index, prefix, &bounds, Dir::Asc, 1, true, true, #[cfg(feature = "server-search")] None)?

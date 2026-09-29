@@ -82,3 +82,49 @@ Object.assign(window,{prepareClient,rawClient,pageStore:()=>indexedDbStore(index
   }
 
 });
+
+test('a long-lived format-3 adapter cannot use cached packing after another owner migrates', {timeout:120000}, async t => {
+  const witness = await launch({entrySource:`
+import { indexedDbStore } from '${join(root,'packages/snapback4/src/web-idb.ts')}';
+Object.assign(window,{pageStore:()=>indexedDbStore(indexedDbPersistence().claim,true)});
+`});
+  t.after(()=>witness.close());
+  const result = await witness.page.evaluate(async()=>{
+    const old=indexedDbPersistence(), modern=pageStore(), name='cached-format-three';
+    const rows=[{s:'r',k:'old',v:'row'}, {s:'s',k:'stage',v:'stage'}, {s:'b',k:'base',v:'base'}, {s:'m',k:'watermark',v:'1'}];
+    await old.save(name,rows);
+    await old.load(name); // Cache "3" on a long-lived object.
+    // Leave physical version 3 / logical format 3, then cache "3" again.
+    const put=IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put=function(value,...args){const r=put.call(this,value,...args);if(this.name==='pages')this.transaction.abort();return r;};
+    let aborted=false;
+    try { await modern.load(name); } catch { aborted=true; } finally { IDBObjectStore.prototype.put=put; }
+    await old.load(name);
+    await modern.load(name);
+    const writes=[],transaction=IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction=function(...args){const tx=transaction.apply(this,args);if(this.name===name&&tx.mode==='readwrite')writes.push(tx.durability);return tx;};
+    let stale,accepted;
+    try {
+      stale=await old.saveIfCurrent(name,[{s:'r',k:'old',v:'must abort'}],()=>false);
+      accepted=await old.saveIfCurrent(name,[{s:'r',k:'old',v:'updated'},{s:'s',k:'stage',v:null},{s:'m',k:'watermark',v:'2'}],()=>true);
+      await old.save(name,[{s:'b',k:'base',v:null},{s:'r',k:'new',v:'new row'}]);
+    } finally { IDBDatabase.prototype.transaction=transaction; }
+    const loaded=await pageStore().load(name);
+    const point=await old.read(name,'r','old');
+    const request=indexedDB.open(name);
+    await new Promise((r,j)=>{request.onsuccess=r;request.onerror=j;});
+    const db=request.result,tx=db.transaction('changes'),records=tx.objectStore('changes').getAll();
+    await new Promise((r,j)=>{tx.oncomplete=r;tx.onabort=j;});db.close();
+    return {aborted,stale,accepted,loaded:loaded.sort((a,b)=>a.k.localeCompare(b.k)),point,writes,
+      stray:records.result.filter(c=>c.s==='$bucket'||['r','s','b'].includes(c.s)),
+      format:records.result.find(c=>c.s==='$format'&&c.k==='row-buckets')?.v};
+  });
+  assert.equal(result.aborted,true);
+  assert.equal(result.stale,false);
+  assert.equal(result.accepted,true);
+  assert.equal(result.point,'updated');
+  assert.equal(result.format,'4');
+  assert.deepEqual(result.stray,[], 'no buckets or direct packed rows may coexist with format-4 pages');
+  assert.deepEqual(result.loaded,[{s:'r',k:'new',v:'new row'},{s:'r',k:'old',v:'updated'},{s:'m',k:'watermark',v:'2'}]);
+  assert.deepEqual(result.writes,['strict','strict','strict']);
+});

@@ -53,24 +53,11 @@ impl Serialize for Image {
 }
 impl Image {
     fn deref_text(&self) -> &str { self }
-    fn staged(text: Rc<str>) -> Option<Self> {
-        if !text.starts_with("{\"row\":{") { return None; }
-        let (mut depth, mut quoted, mut escaped) = (0, false, false);
-        for (at, byte) in text.bytes().enumerate().skip(7) {
-            if quoted {
-                if escaped { escaped = false; }
-                else if byte == b'\\' { escaped = true; }
-                else if byte == b'"' { quoted = false; }
-                continue;
-            }
-            match byte { b'"' => quoted = true, b'{' => depth += 1, b'}' => depth -= 1, _ => {} }
-            if depth == 0 {
-                let end = at + 1;
-                return matches!(&text[end..], ",\"acquired\":true}" | ",\"acquired\":false}")
-                    .then(|| Self { text, start: 7, end });
-            }
-        }
-        None
+    fn staged(text: Rc<str>, canonical: &str) -> Option<Self> {
+        let row = text.strip_prefix("{\"row\":")?;
+        let tail = row.strip_prefix(canonical)?;
+        matches!(tail, ",\"acquired\":true}" | ",\"acquired\":false}")
+            .then(|| Self { text, start: 7, end: 7 + canonical.len() })
     }
 }
 
@@ -762,10 +749,13 @@ impl DeviceTx for MemoryTx<'_> {
     }
 
     fn put_staged(&self, key: &str, name: &str, table: &Table, row: &Value) -> Result<u64, RuntimeError> {
-        // Canonical stages can share their row substring through publication,
-        // undo and draining. Noncanonical format-3 images use the same codec.
+        // @ref LLP 3000.007#20.4 — shared row images obey canonical decoder pricing.
+        // Compare the entire canonical row, including nested tags and strings.
+        // The metered decoder prices canonical JSON; a canonical stage wrapper
+        // alone cannot establish that invariant for an older stored row.
+        let canonical = stored(row);
         let image = self.store.state.borrow().staged.get(key)
-            .and_then(|(_, text)| Image::staged(text.clone())).unwrap_or_else(|| stored(row).into());
+            .and_then(|(_, text)| Image::staged(text.clone(), &canonical)).unwrap_or_else(|| canonical.into());
         self.put_image(name, table, row, None, image)
     }
 

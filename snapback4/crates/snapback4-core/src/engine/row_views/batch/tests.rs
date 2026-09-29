@@ -22,7 +22,7 @@ fn view(id: &str, pending: bool) -> Value {
     object([("id", Value::Id(id.into())), ("member", Value::Id(id.into())),
         ("value", Value::Int(999999)), ("recountPending", Value::Bool(pending))])
 }
-fn runner<'a>(rows: &'a MemoryRows, schema: &'a Schema, viewer: &str) -> Runner<'a> {
+fn runner<'a>(rows: &'a dyn Rows, schema: &'a Schema, viewer: &str) -> Runner<'a> {
     Runner::new(rows, schema, Context::new(viewer, Default::default()).at(10),
         Meter::new(Ceilings::unbounded(), Cut::Abort), 0)
 }
@@ -382,4 +382,86 @@ fn cold_basis_falls_back_when_a_decoder_page_exceeds_available_heap() {
     let mut cold = runner(&rows, &schema, "reader"); cold.meter.ceilings.heap_bytes = ceiling;
     assert_eq!(cold.live_acquisition_batch("unread", &[view("mine", true)]).unwrap(), expected);
     assert_eq!(expected[0].as_ref().unwrap().field("value"), Ok(&Value::Int(96)));
+}
+
+// Observe the storage request while prepaid scopes are active. A post-return
+// heap peak is deliberately not used: leaving those scopes restores it.
+struct ObservedRows {
+    rows: MemoryRows,
+    scans: std::cell::RefCell<Vec<(usize, u64)>>,
+    images: std::cell::RefCell<std::collections::BTreeMap<String, String>>,
+}
+impl Rows for ObservedRows {
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.rows.get(table, id) }
+    fn lookup(&self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.rows.lookup(table, name, index, key) }
+    fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let (result, allocated) = crate::rows::word_heap::tests::measured(|| {
+            let mut rows = self.rows.scan(table, index, prefix, bounds, dir, limit)?;
+            if table == "messages" {
+                for (row, _) in &mut rows {
+                    *row = crate::json_codec::from_text(&self.images.borrow()[row.field("id")?.as_str()?]).unwrap();
+                }
+            }
+            Ok(rows)
+        });
+        if table == "messages" { self.scans.borrow_mut().push((limit, allocated)); }
+        result
+    }
+    fn count_prefix(&self, table: &str, index: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.rows.count_prefix(table, index, prefix, limit) }
+    fn put(&self, name: &str, table: &crate::schema::Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
+        if name == "messages" { self.images.borrow_mut().insert(row.field("id")?.as_str()?.into(), crate::json_codec::to_text(row).unwrap()); }
+        self.rows.put(name, table, row, old)
+    }
+    fn delete(&self, name: &str, table: &crate::schema::Table, old: &Value) -> Result<u64, RuntimeError> { self.rows.delete(name, table, old) }
+}
+
+#[test]
+fn cold_basis_scan_requests_obey_the_caller_allowance_before_decoding() {
+    for payload in [0, 256 * 1024] {
+        let mut schema = schema(false);
+        schema.tables.get_mut("messages").unwrap().columns.insert("payload".into(), crate::schema::ColumnType::Text { max: payload as u32 });
+        let rows = ObservedRows { rows: MemoryRows::new(), scans: Default::default(), images: Default::default() };
+        rows.put("members", &schema.tables["members"], &member("mine", "one", "reader", 0), None).unwrap();
+        for n in 1..=64 {
+            let mut row = message(&format!("m{n}"), "one", n, Value::Null);
+            let Value::Row(fields) = &mut row else { unreachable!() };
+            fields.insert("payload".into(), Value::String("x".repeat(payload)));
+            rows.put("messages", &schema.tables["messages"], &row, None).unwrap();
+        }
+        let decoder = crate::rows::disclosed::decode_reservation(&schema.tables["messages"]);
+        // A low ceiling and a nearly exhausted large ceiling both admit one
+        // candidate. The last case proves that the optimization still runs.
+        for (ceiling, used, expected_limit) in [(decoder * 8, 0, 1), (decoder * 32, 0, 1), (decoder * 80, decoder * 72, 1), (decoder * 80, 0, 32)] {
+            for nested in [false, true] {
+                rows.scans.borrow_mut().clear();
+                let mut r = runner(&rows, &schema, "reader");
+                r.meter.ceilings.heap_bytes = ceiling;
+                r.meter.heap(used).unwrap();
+                let read = |r: &mut Runner<'_>| r.live_acquisition_batch("unread", &[view("mine", true)]);
+                let result = if nested { r.disclosed_scratch(0, &[], |r, _| read(r)) } else { read(&mut r) }.unwrap();
+                assert_eq!(result[0].as_ref().unwrap().field("value"), Ok(&Value::Int(64)));
+                assert_eq!(r.meter.ceilings.heap_bytes, ceiling);
+                assert!(r.caller_heap_ceiling.is_none(), "release the reserved caller scope");
+                if !nested && expected_limit == 32 {
+                    assert!(r.meter.heap_peak >= decoder * 32, "the page reservation is on the caller ledger before entering prepaid work");
+                }
+                let scans = rows.scans.borrow();
+                assert!(!scans.is_empty());
+                assert!(scans.iter().all(|(limit, _)| *limit == expected_limit), "payload={payload}, ceiling={ceiling}, used={used}, nested={nested}: {scans:?}");
+                let peak = scans.iter().map(|(_, bytes)| *bytes).max().unwrap();
+                assert!(peak <= decoder * expected_limit as u64, "actual scan allocation {peak} exceeds decoder allowance");
+                if payload > 0 && expected_limit == 1 { assert!(peak < 4 * payload as u64, "a fallback must not allocate a page of large payloads: {peak}"); }
+                eprintln!("cold scan: payload={payload} ceiling={ceiling} used={used} nested={nested} limit={expected_limit} maximum_scan_allocation={peak}");
+            }
+        }
+        rows.scans.borrow_mut().clear();
+        let mut r = runner(&rows, &schema, "reader");
+        r.meter.ceilings.heap_bytes = decoder - 1;
+        let result = r.certify_acquisition_group(&schema.maintains[0], &Value::Id("one".into()), &mut [(0, member("mine", "one", "reader", 0), 0)]);
+        assert!(matches!(result, Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. })));
+        assert!(rows.scans.borrow().is_empty(), "refuse before requesting even one oversized candidate");
+        assert_eq!(r.meter.ceilings.heap_bytes, decoder - 1);
+        assert_eq!(r.meter.used.heap_bytes, 0);
+        assert!(r.caller_heap_ceiling.is_none());
+    }
 }

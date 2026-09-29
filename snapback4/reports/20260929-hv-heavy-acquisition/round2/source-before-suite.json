@@ -1,0 +1,10 @@
+{
+  "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "860c7b5bee11ed73319264f025f5b088a4b8c150bd422324e14074c414a2393f",
+  "llp/3000.015-shared-baseline-for-snapback5.spec.md": "00b131857961ef8981967d7bb3258cceda8c5396fa87ea982c38b3165b75ab02",
+  "snapback4/crates/snapback4-core/src/engine/authorized_point.rs": "b2f3c57ddf4c670abee9227d2df6147406026a07b8ca577ae200eb00ea44ef50",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch.rs": "9a900c6a7d06243d66e153c07ea43da68098c0c1881ae39f4975a842aad9e720",
+  "snapback4/crates/snapback4-core/src/engine/row_views/batch/tests.rs": "46a8bd35befa1e1fd837bb4c65177891388025776ef4696aea6b5e5c1a9ca421",
+  "snapback4/crates/snapback4-device/src/memory.rs": "c72635c751cee856f88089a3176955f195d2e72d88410e4f7e833e34d797d31f",
+  "snapback4/crates/snapback4-device/src/memory_tests.rs": "7877d4584b111a22a39ca8e234a3d92c3c00094db306a5aead1e485c782357eb",
+  "snapback4/packages/snapback4/test/web-pages.test.mjs": "f7f8ce24da415aa396ef88ac6701bde041c79dc4ec2d5ceae63c504c0894d0a1"
+}

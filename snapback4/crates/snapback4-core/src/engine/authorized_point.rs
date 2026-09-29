@@ -145,7 +145,7 @@ impl<'r> Runner<'r> {
     }
 
     /// Cold certification has already admitted the member and entire source
-    /// group. Reserve a bounded decoder page before fetching it; every row
+    /// group, including a decoder page reserved before entering prepaid work. Every row
     /// still receives the ordinary expiry, rule and field verdict below.
     // @ref LLP 3000.015#3 — live count certification shares its transaction and authority.
     #[cfg(feature = "sqlite")]
@@ -153,17 +153,7 @@ impl<'r> Runner<'r> {
         const PAGE: usize = 32;
         assert!(!self.device);
         let table = &self.schema.tables[name];
-        let bytes = crate::rows::disclosed::decode_reservation(table).saturating_mul(PAGE as u64)
-            .saturating_add(self.rule_scratch(&table.rules.read));
-        let slots = crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>, Vec<u8>)>(PAGE);
-        if bytes.saturating_add(slots) > self.meter.ceilings.heap_bytes.saturating_sub(self.meter.used.heap_bytes) {
-            // Batching is optional. A large declaration or a nearly spent
-            // allowance must retain the original one-candidate admission.
-            return self.scan_authorized(name, index, prefix, bounds, crate::rows::Dir::Asc, 1, true, true,
-                #[cfg(feature = "server-search")] None);
-        }
-        self.meter.heap(slots)?;
-        let rows = self.disclosed_scratch(bytes, &[], |runner, scope| {
+        let rows = self.disclosed_scratch(0, &[], |runner, scope| {
             let selected = runner.tx.scan(scope, name, index, prefix, bounds, crate::rows::Dir::Asc, PAGE)?;
             let mut out = Vec::with_capacity(selected.len());
             for (mut row, key) in selected {

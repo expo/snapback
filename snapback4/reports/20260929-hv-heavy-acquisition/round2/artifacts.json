@@ -1,0 +1,23 @@
+{
+  "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": {
+    "bytes": 2033531,
+    "sha256": "1c2bb28bc70cac853da6f2f4da7972575037e4fecd9adc0db8503d04bec33945",
+    "gzip_bytes": 602216
+  },
+  "snapback4/scripts/build-wasm.sh": {
+    "bytes": 2237,
+    "sha256": "1c46877bd4f313493f0f92e2e67b7179631a2d8961f84f55d4023ab795c6b8af"
+  },
+  "snapback4/metrics/wasm-budget.json": {
+    "bytes": 32509,
+    "sha256": "1134dde35461ce939cefec4af6e7ff4bd702698d4ef5025b53f959fcb99b7949"
+  },
+  "target/hv/tools/binaryen-version_132/bin/wasm-opt": {
+    "bytes": 18506720,
+    "sha256": "1014958e6f20d412f1542320b43970214b0fb1ed780595e8f7c0d8761ed53725"
+  },
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "gzip_command": "gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+}
