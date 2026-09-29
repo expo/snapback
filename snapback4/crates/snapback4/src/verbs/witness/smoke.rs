@@ -113,29 +113,31 @@ impl Run {
         let screenshot = simctl(&["io", &self.udid, "screenshot", picture.to_str().unwrap()], self.options.timeout).map(|_| ());
         let stopped = self.terminate(result.is_ok() && screenshot.is_ok());
         let result = result.and(screenshot).and(stopped);
+        if let Some(receipt) = self.observed.iter().rev().find_map(|row| {
+            let receipt = &row["smoke"];
+            (receipt["segment"] == segment && receipt["pass"] == true).then(|| receipt.clone())
+        }) { self.manifest["segments"][segment]["receipt"] = receipt; }
+        // A terminal app receipt is evidence, not a passed driver segment.
+        let result = result.and_then(|_| self.validate_smoke(segment));
         let ended = now();
         let entry = &mut self.manifest["segments"][segment];
         entry["endedAt"] = json!(ended);
         entry["durationMs"] = json!(ended - started);
         entry["status"] = json!(if result.is_ok() { "passed" } else { "failed" });
         entry["error"] = json!(result.as_ref().err());
-        if let Some(receipt) = self.observed.iter().rev().find_map(|row| {
-            let receipt = &row["smoke"];
-            (receipt["segment"] == segment && receipt["pass"] == true).then(|| receipt.clone())
-        }) { entry["receipt"] = receipt; }
-        result?;
-        if self.manifest["segments"][segment]["receipt"]["origin"] != self.manifest["backend"]["origin"] {
-            let problem = error("E_WITNESS_ORIGIN", "smoke client origin differs from the witness-owned backend; rebundle or choose its matching --port");
-            self.manifest["segments"][segment]["status"] = json!("failed");
-            self.manifest["segments"][segment]["error"] = json!(problem);
-            return Err(problem);
-        }
+        result
+    }
+
+    fn validate_smoke(&self, segment: &str) -> Result<()> {
         let receipt = &self.manifest["segments"][segment]["receipt"];
+        if receipt["origin"] != self.manifest["backend"]["origin"] {
+            return Err(error("E_WITNESS_ORIGIN", "smoke client origin differs from the witness-owned backend; rebundle or choose its matching --port"));
+        }
         if receipt["queryGeneration"] != self.manifest["queryGeneration"] || receipt["generation"] != self.manifest["queryGeneration"] {
             return Err(error("E_WITNESS_RECEIPT", "smoke receipt differs from the served query generation"));
         }
-        validate_queries(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["queryFacts"])?;
-        validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
+        validate_queries(segment, receipt, &self.manifest["queryFacts"])?;
+        validate_receipt(segment, receipt, &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
     }
 
     pub(super) fn save_smoke(&mut self, problem: &mut Option<String>) {
@@ -165,8 +167,9 @@ impl Run {
                 Err(e) => { problem.get_or_insert(e); },
             }
             if self.manifest["segments"][segment]["status"] == "passed" {
-                if let Err(e) = validate_queries(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["queryFacts"]).and_then(|_| validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())) {
+                if let Err(e) = self.validate_smoke(segment) {
                     self.manifest["segments"][segment]["status"] = json!("failed");
+                    self.manifest["segments"][segment]["error"] = json!(e);
                     problem.get_or_insert(e);
                 }
             }

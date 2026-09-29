@@ -119,7 +119,12 @@ try {
   const publicConfig = JSON.parse(command('public-config', process.execPath, [expoCLI, 'config', '--type', 'public', '--json']));
   let app, settings = null;
   if (!fs.existsSync(path.join(snapshot, 'ios'))) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
-  fs.writeFileSync(path.join(snapshot, 'ios/.xcode.env.local'), `export NODE_BINARY=${shellQuote(process.execPath)}\n`);
+  // rsync preserves the ignored environment entry, including an outside link.
+  // Replace that entry without following it; exclusive creation also refuses a
+  // replacement link appearing between removal and creation.
+  const localEnv = path.join(snapshot, 'ios/.xcode.env.local');
+  fs.rmSync(localEnv, { force: true });
+  fs.writeFileSync(localEnv, `export NODE_BINARY=${shellQuote(process.execPath)}\n`, { flag: 'wx' });
   command('pods', 'pod', ['install'], path.join(snapshot, 'ios'));
   // Compare equivalent stages: post-pod/codegen, before Xcode mutates generated
   // products. The separate closure records the inputs actually consumed by Xcode.

@@ -6,6 +6,53 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { inventory, hbc, nativeFiles, differences, seal, installedInventory, shellQuote } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
 
+const siblingOutputs = ['PER_ARCH_MODULE_FILE_DIR', 'PRECOMP_DESTINATION_DIR', 'GENERATED_MODULEMAP_DIR',
+  'CLANG_MODULES_BUILD_SESSION_FILE', 'LINK_FILE_LIST_normal_arm64', 'SWIFT_RESPONSE_FILE_PATH_normal_arm64',
+  'LM_AUX_CONST_METADATA_LIST_PATH_normal_arm64', 'PRELINK_DEPENDENCY_INFO_FILE',
+  'TEMP_FILES_DIR', 'TEMP_FILE_DIR', 'PER_VARIANT_OBJECT_FILE_DIR', 'METAL_LIBRARY_OUTPUT_DIR'];
+
+test('sibling Xcode output settings refuse raw overrides and resolved outside destinations', async () => {
+  const { nativeReferences } = await import('../../../crates/snapback4/src/verbs/witness/native-inputs.mjs');
+  const { validateOutputs } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-output-siblings-')));
+  const cache = path.join(root, 'cache'); fs.mkdirSync(cache); fs.mkdirSync(path.join(root, 'ios'));
+  const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
+  try {
+    for (const key of [...siblingOutputs, 'INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME']) {
+      assert.throws(() => nativeReferences(root, { objects: { c: { buildSettings: { [key + '[sdk=iphonesimulator*]']: '/outside' } } } }, 'App'), /custom output/);
+      assert.throws(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, [key]: '/outside' } }], cache), /output .* escapes private workspace/);
+      assert.doesNotThrow(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, [key]: path.join(cache, 'new-output') } }], cache));
+    }
+    for (const key of ['INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME']) {
+      assert.throws(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, [key]: '../../outside' } }], cache), /output .* escapes private workspace/);
+      assert.doesNotThrow(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, [key]: 'App/output' } }], cache));
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('dangling final and ancestor output links refuse before an outside file can be created', async () => {
+  const { validateOutputs, canonical } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-output-dangling-')));
+  const cache = path.join(root, 'cache'); fs.mkdirSync(cache);
+  const outside = path.join(root, 'not-created');
+  fs.symlinkSync(outside, path.join(cache, 'dangling'));
+  const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
+  try {
+    // Missing system-library inputs remain recordable; output validation owns
+    // the private boundary. A private missing target can be produced normally.
+    assert.equal(canonical(path.join(cache, 'dangling')), outside);
+    fs.symlinkSync('new-private-file', path.join(cache, 'private-link'));
+    assert.doesNotThrow(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, LD_MAP_FILE_PATH: path.join(cache, 'private-link') } }], cache));
+    fs.symlinkSync('dangling', path.join(cache, 'chain'));
+    for (const dest of [path.join(cache, 'dangling'), path.join(cache, 'dangling/file'), path.join(cache, 'chain')]) {
+      assert.throws(() => validateOutputs([{ target: 'Pod', buildSettings: { ...settings, LD_MAP_FILE_PATH: dest } }], cache), /output LD_MAP_FILE_PATH escapes private workspace/);
+      assert.equal(fs.existsSync(outside), false);
+    }
+    fs.symlinkSync('cycle', path.join(cache, 'cycle'));
+    assert.throws(() => canonical(path.join(cache, 'cycle')), /unresolved native symlink/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('Xcode shell environment keeps executable paths literal', () => {
   const value = "/a path/with'quotes/$HOME/$(printf wrong)/`printf wrong`/node";
   const result = spawnSync('/bin/sh', ['-c', `printf %s ${shellQuote(value)}`], { encoding: 'utf8' });
@@ -177,21 +224,42 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     }
     const sentinel = path.join(root, 'outside-sentinel');
     fs.writeFileSync(sentinel, 'another owner');
-    for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE']) {
-      const bad = run('build', key, key);
+    for (const key of ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE', ...siblingOutputs, 'INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME']) {
+      const bad = run('build', key, 'destination:' + key);
       assert.equal(bad.status, 1, bad.stderr);
       assert.match(bad.stderr, new RegExp('Pod: output ' + key + ' escapes private workspace'));
       assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
       assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
       assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
     }
+    const dangling = path.join(project, '.snapback4-witness/dangling-output');
+    const missingOutside = path.join(root, 'outside-not-created');
+    fs.symlinkSync(missingOutside, dangling);
+    const danglingBuild = run('build', 'dangling-output', 'dangling-output');
+    assert.equal(fs.existsSync(missingOutside), false, 'a dangling output link must not create its outside target');
+    assert.equal(danglingBuild.status, 1, danglingBuild.stderr);
+    assert.match(danglingBuild.stderr, /output LD_MAP_FILE_PATH escapes private workspace:.*dangling-output/);
+    assert.equal(fs.existsSync(path.join(danglingBuild.out, 'xcode-build.log')), false);
+    assert.equal(fs.existsSync(path.join(danglingBuild.out, 'build.json')), false);
+    fs.unlinkSync(dangling);
     const badBuild = run('build', 'bad-build', 'build-hbc');
     assert.equal(badBuild.status, 1, badBuild.stderr);
     assert.match(badBuild.stderr, /E_WITNESS_HERMES: bundle and installed compiler HBC versions differ/);
     assert.equal(fs.existsSync(path.join(badBuild.out, 'build.json')), false);
+    // rsync preserves this ignored input as a link. Preparation must replace
+    // only the snapshot's entry, without truncating another owner's file.
+    const localEnv = path.join(project, 'ios/.xcode.env.local');
+    fs.symlinkSync(sentinel, localEnv);
     const base = run('build', 'base');
+    assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner');
     assert.equal(base.status, 0, base.stderr);
+    assert.equal(fs.readlinkSync(localEnv), sentinel, 'the source link stays untouched');
+    const snapshotEnv = path.join(project, '.snapback4-witness/snapshot/ios/.xcode.env.local');
+    assert.equal(fs.lstatSync(snapshotEnv).isFile(), true, 'the snapshot environment must be a regular file');
+    assert.equal(fs.readFileSync(snapshotEnv, 'utf8'), `export NODE_BINARY=${shellQuote(process.execPath)}\n`);
+    fs.unlinkSync(localEnv);
     const receipt = path.join(base.out, 'build.json');
+    assert.equal(fs.statSync(receipt).mode & 0o777, 0o444, 'successful preparation seals a read-only build receipt');
     const built = JSON.parse(fs.readFileSync(receipt));
     assert.notEqual(built.inputs.pods.sha256, built.sourceInputs.pods.sha256, 'the key must describe post-resolution bytes');
     assert.notEqual(built.inputs.pods.sha256, built.preparedInputs.pods.sha256, 'Xcode-produced bytes have a separate inventory');

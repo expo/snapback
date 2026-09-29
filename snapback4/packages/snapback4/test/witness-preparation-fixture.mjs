@@ -22,7 +22,10 @@ child.spawnSync = (exe, args, options) => {
       stdout = JSON.stringify([{ target: pod ? 'Pod' : 'App', buildSettings: {
         PRODUCT_TYPE: 'com.apple.product-type.application', TARGET_BUILD_DIR: path.dirname(product), FULL_PRODUCT_NAME: 'fixture.app', EXECUTABLE_PATH: 'fixture.app/App',
         TARGET_TEMP_DIR: derived + '/Build/Intermediates.noindex', OBJROOT: derived + '/Build/Intermediates.noindex', SYMROOT: derived + '/Build/Products',
+        CLANG_MODULES_BUILD_SESSION_FILE: args.find(a => a.startsWith('CLANG_MODULES_BUILD_SESSION_FILE='))?.slice('CLANG_MODULES_BUILD_SESSION_FILE='.length) ?? root + '/outside-session',
         ...(pod && (fault?.startsWith('LD_') || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH'].includes(fault)) ? { [fault]: root + '/outside-sentinel' } : {}),
+        ...(pod && fault?.startsWith('destination:') ? { [fault.slice(12)]: root + '/outside-sentinel' } : {}),
+        ...(pod && fault === 'dangling-output' ? { LD_MAP_FILE_PATH: cache + '/dangling-output' } : {}),
         ...(!pod && fault === 'skip-bundling' ? { SKIP_BUNDLING: '1' } : {}),
         ...(pod && fault === 'sourcemap' ? { SOURCEMAP_FILE: root + '/outside-sentinel' } : {}),
         ...(pod && fault === 'swift-output' ? { OTHER_SWIFT_FLAGS: '-Xfrontend -emit-module-interface-path -Xfrontend ' + root + '/outside-sentinel' } : {}),
@@ -31,6 +34,8 @@ child.spawnSync = (exe, args, options) => {
         CONFIGURATION_BUILD_DIR: fault === 'output-escape' && pod ? root + '/shared-products' : path.dirname(product),
       } }]);
     } else {
+      if (fault?.startsWith('destination:')) fs.writeFileSync(root + '/outside-sentinel', 'overwritten by Xcode task');
+      if (fault === 'dangling-output') fs.writeFileSync(cache + '/dangling-output', 'created by linker');
       if (fault?.startsWith('LD_') || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'sourcemap', 'swift-output', 'swift-index-output', 'clang-output'].includes(fault)) fs.writeFileSync(root + '/outside-sentinel', 'overwritten by compiler or bundler');
       fs.mkdirSync(args[args.indexOf('-resultBundlePath') + 1], { recursive: true });
       fs.cpSync(fixture, product, { recursive: true, filter: file => path.basename(file) !== 'main.jsbundle' });

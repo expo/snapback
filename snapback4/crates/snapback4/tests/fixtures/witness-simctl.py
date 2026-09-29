@@ -52,6 +52,7 @@ elif a[0] == 'launch':
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
     if config.get('smoke'):
+        (root / 'smoke-folder').write_text(str(folder))
         segment = config['segment']
         with sqlite3.connect(root / '.snapback4/store.sqlite') as db:
             store_id = db.execute("SELECT value FROM _meta WHERE key='store_id'").fetchone()[0]
@@ -62,6 +63,9 @@ elif a[0] == 'launch':
         smoke['pass'] = smoke.pop('pass_')
         smoke['queryFacts'] = config['queryFacts']
         smoke['queryGeneration'] = config['queryGeneration']
+        for field in ['queryGeneration', 'generation']:
+            if mode == 'smoke-wrong-' + field:
+                smoke[field] = config['queryGeneration'] + 1
         smoke['queries'] = [dict(name=name, classification='online-only' if fact['runs']=='server' else 'device-answerable',
             **(dict(state='loading', expectation='online-only: unavailable offline (expected)') if fact['runs']=='server' and segment=='offline' else dict(state='ready', count=0)))
             for name, fact in config['queryFacts'].items() if segment=='offline' or fact['runs']=='server']
@@ -135,6 +139,16 @@ elif a[0] == 'spawn' and a[2] == 'kill':
     sys.exit(1)
 elif a[0] == 'spawn':
     def finish(*_):
+        if mode == 'smoke-collected-generation' and (root / 'smoke-folder').exists():
+            # All three launches validated genuine receipts. A later app receipt
+            # must undergo the same generation check during final collection.
+            receipt = Path((root / 'smoke-folder').read_text()) / 'receipts.jsonl'
+            rows = [json.loads(line) for line in receipt.read_text().splitlines()]
+            row = next(r for r in reversed(rows) if r.get('smoke', {}).get('segment') == 'restart')
+            row['smoke']['queryGeneration'] += 1
+            row['witness']['step'] = 'between-steps'
+            with receipt.open('a') as f:
+                f.write(json.dumps(row) + '\n')
         if (root / 'waiting').exists():
             folder = Path((root / 'waiting').read_text())
             step = {'failed-after-done': 'check:failed', 'reordered-after-done': 'primed', 'step-after-done': 'history:running'}.get(mode)

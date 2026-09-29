@@ -167,6 +167,27 @@ mod driver {
         assert_eq!(manifest["segments"]["offline"]["status"], "not-run");
     }
     #[test]
+    fn smoke_wrong_generation_marks_the_segment_failed() {
+        for field in ["queryGeneration", "generation"] {
+            let fixture = Fixture::new();
+            let output = fixture.run(&format!("smoke-wrong-{field}"), Fixture::port());
+            assert!(!output.status.success());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("smoke receipt differs from the served query generation"));
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(manifest["exitStatus"], 1);
+            assert_eq!(manifest["segments"]["prime"]["receipt"]["pass"], true);
+            assert_ne!(manifest["segments"]["prime"]["receipt"][field], manifest["queryGeneration"]);
+            assert_eq!(manifest["segments"]["prime"]["status"], "failed");
+            assert!(manifest["segments"]["prime"]["error"].as_str().unwrap().contains("served query generation"));
+            assert_eq!(manifest["segments"]["offline"]["status"], "not-run");
+            assert_eq!(manifest["segments"]["restart"]["status"], "not-run");
+        }
+    }
+    #[test]
+    fn smoke_collection_revalidates_query_generation() {
+        smoke_rejects_failure_after_receipt("smoke-collected-generation", "restart", "E_WITNESS_RECEIPT");
+    }
+    #[test]
     fn smoke_runs_three_cold_launches_and_a_broken_offline_run_fails() {
         for mode in ["smoke", "smoke-broken"] {
             let fixture = Fixture::new();

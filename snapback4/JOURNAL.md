@@ -77674,3 +77674,44 @@ unchanged 593,719 B cap; SHA-256
 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-wk-supervised-workers/round5/REPORT.md. Local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — NP-mac round 6: private environment writes and truthful segment status
+
+First fetched and merged origin/main 6234118df8 as 35638e8041, preserving both
+complete journal histories across four conflicts. Read rounds 0–5 prompts and
+reports and Astra's full round-5 review. Preparation now removes the copied
+.xcode.env.local entry and exclusively creates a regular replacement; an outside
+sentinel regression fails before the fix and passes after it. The direct snapshot
+write audit finds no other helper-written copied file. Successful build receipts
+must have mode 0444 in the preparation test; removing the mode now fails.
+
+Smoke validates generation, origin, query facts and lifecycle fields before
+marking a segment passed, and uses the same validator at collection. Driver
+regressions reproduce the old passed-prime/failed-run inconsistency and acceptance
+of a late wrong-generation receipt, then pass after repair with failed status,
+error and preserved raw evidence.
+
+Grok arrived at the completion check after a successful native run. Its additional
+Medium adds shared raw/resolved checks for module/header/module-map destinations,
+build-session files, link/Swift/metadata lists, prelink outputs, temp/object/Metal
+paths and relative Info.plist/dSYM names. Clang's session file is pinned private.
+Dangling final/ancestor links resolve to their actual missing destinations before
+output checks; cycles refuse. A first over-strict implementation refused a macOS
+shared-cache system-library input after successful Xcode; that failed attempt is
+retained and the resolver corrected. The repeated sole-booted-simulator Low stays
+the previously explicit deferral; every native run here supplied an owned UDID.
+
+Final affected checks: 33 helper/preparation/smoke and 99 guide tests; unchanged
+Rust smoke/driver code passed 30 driver and 10 witness-unit tests. Six isolated
+mutations are detected from a passing final baseline. Final warm --build completes
+all three smoke segments in 149.491 s (119.912 s preparation, 49.899 s Xcode), with
+independent app/HBC/receipt/proof/artifact/native-record and final-helper byte checks.
+The pre-Grok 212.958 s success and both failed attempts (early source-link refusal,
+over-strict system-link refusal) remain visible, not pooled into a timing sample.
+Both owned simulators were removed. Published 0.4.7 client/native-core bytes and
+the disclosed helper patch remain unchanged; no wasm change or cap increase.
+
+Report: reports/20260929-np-macos-slice/round6/REPORT.md. LLP 3000.030 and the witness
+card reflect the bounded build route; repack remains withdrawn. Both full reviews
+were rechecked against their saved hashes. One append-only entry; local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

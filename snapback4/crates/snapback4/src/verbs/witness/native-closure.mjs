@@ -6,9 +6,21 @@ import { phaseHashes, supportHashes } from './native-scripts.mjs';
 const inside = (p, root) => p === root || p.startsWith(root + path.sep);
 const refuse = value => fail('E_WITNESS_NATIVE_COMPAT', `${value}; use witness ios --build (or manual installed-app mode for unsupported inputs)`);
 export function canonical(file) {
-  let parent = path.resolve(file);
-  while (!fs.existsSync(parent) && parent !== path.dirname(parent)) parent = path.dirname(parent);
-  return path.resolve(fs.realpathSync(parent), path.relative(parent, file));
+  const links = new Set();
+  function resolve(file) {
+    let parent = path.resolve(file);
+    while (!fs.lstatSync(parent, { throwIfNoEntry: false }) && parent !== path.dirname(parent)) parent = path.dirname(parent);
+    // A missing target still has a destination. Resolve it for output auditing
+    // and for system-library inputs whose bytes live in the macOS shared cache.
+    if (fs.lstatSync(parent).isSymbolicLink() && !fs.existsSync(parent)) {
+      if (links.has(parent) || links.size >= 40) refuse(`unresolved native symlink: ${parent}`);
+      links.add(parent);
+      const target = path.resolve(path.dirname(parent), fs.readlinkSync(parent));
+      return path.resolve(resolve(target), path.relative(parent, file));
+    }
+    return path.resolve(fs.realpathSync(parent), path.relative(parent, file));
+  }
+  return resolve(file);
 }
 // Deliberately no shell evaluation. Unknown substitutions/quoting fail closed.
 export function words(text) {
@@ -30,6 +42,7 @@ export function privateBuildFlags(cache) {
   return Object.entries({ GCC_GENERATE_DEPENDENCIES: 'YES', SYMROOT: `${d}/Build/Products`, OBJROOT: `${d}/Build/Intermediates.noindex`,
     DSTROOT: `${d}/Install`, SHARED_PRECOMPS_DIR: `${d}/PrecompiledHeaders`, CACHE_ROOT: `${d}/Cache`,
     CCHROOT: `${d}/Cache`, CLANG_MODULE_CACHE_PATH: `${d}/ModuleCache.noindex`,
+    CLANG_MODULES_BUILD_SESSION_FILE: `${d}/ModuleCache.noindex/Session.modulevalidation`,
     SWIFT_MODULE_CACHE_PATH: `${d}/ModuleCache.noindex`, SDK_STAT_CACHE_DIR: d,
     INDEX_DATA_STORE_DIR: `${d}/Index.noindex/DataStore` }).map(([k, v]) => `${k}=${v}`);
 }
@@ -37,7 +50,11 @@ export function privateBuildFlags(cache) {
 // bypass SYMROOT/OBJROOT when explicitly set. Install-name and runtime search
 // settings are metadata, not file destinations. Unknown linker flags refuse.
 export const linkerOutputKey = key => ['LD_MAP_FILE_PATH', 'LD_DEPENDENCY_INFO_FILE', 'LD_LTO_OBJECT_FILE', 'LD_SDK_IMPORTS_FILE'].includes(key);
-const outputKey = key => linkerOutputKey(key) || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH'].includes(key) || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
+export const outputKey = key => linkerOutputKey(key) || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH',
+  'PER_ARCH_MODULE_FILE_DIR', 'PRECOMP_DESTINATION_DIR', 'GENERATED_MODULEMAP_DIR', 'CLANG_MODULES_BUILD_SESSION_FILE',
+  'PRELINK_DEPENDENCY_INFO_FILE', 'TEMP_FILES_DIR', 'TEMP_FILE_DIR', 'PER_VARIANT_OBJECT_FILE_DIR', 'METAL_LIBRARY_OUTPUT_DIR'].includes(key)
+  || /^(?:LINK_FILE_LIST|SWIFT_RESPONSE_FILE_PATH|LM_AUX_CONST_METADATA_LIST_PATH)(?:_.*)?$/.test(key)
+  || /^(?:OBJECT_FILE_DIR(?:_.*)?|BUILT_PRODUCTS_DIR|DWARF_DSYM_FOLDER_PATH|INSTALL_DIR|DERIVED_DATA_PATH)$/.test(key) || /(?:BUILD_DIR|BUILD_ROOT|TEMP_DIR|TEMP_ROOT|CACHE_DIR|CACHE_ROOT)$/.test(key)
   || ['SYMROOT', 'OBJROOT', 'DSTROOT', 'CCHROOT', 'SHARED_PRECOMPS_DIR', 'DERIVED_DATA_DIR', 'DERIVED_FILE_DIR', 'DERIVED_FILES_DIR', 'DERIVED_SOURCES_DIR', 'INDEX_DATA_STORE_DIR', 'CLANG_MODULE_CACHE_PATH', 'SWIFT_MODULE_CACHE_PATH', 'INSTALL_ROOT', 'TARGET_BUILD_DIR'].includes(key);
 export function validateBundlingSettings(settings, target) {
   for (const [rawKey, value] of Object.entries(settings)) {
@@ -60,10 +77,12 @@ export function validateOutputs(rows, cache) {
       if (typeof value !== 'string' || !path.isAbsolute(value) || value.includes('$') || !inside(canonical(value), owned))
         refuse(`${target}: output ${key} escapes private workspace: ${value}`);
     }
-    for (const [key, value] of Object.entries(s)) if (/(?:FOLDER_PATH|EXECUTABLE_PATH)$/.test(key) && value) {
+    for (const [key, value] of Object.entries(s)) if (/(?:FOLDER_PATH|EXECUTABLE_PATH)$/.test(key) || ['INFOPLIST_PATH', 'DWARF_DSYM_FILE_NAME'].includes(key)) {
+      if (!value) continue;
       if (!s.WRAPPER_NAME && ['PRIVATE_HEADERS_FOLDER_PATH', 'PUBLIC_HEADERS_FOLDER_PATH'].includes(key) && value === '/usr/local/include') continue;
       if (key === 'XPCSERVICES_FOLDER_PATH' && value === '/XPCServices' && !s.WRAPPER_NAME) continue;
-      if (value.includes('$') || !inside(canonical(path.resolve(s.TARGET_BUILD_DIR, value)), owned)) refuse(`${target}: output ${key} escapes private workspace: ${value}`);
+      const base = key === 'DWARF_DSYM_FILE_NAME' ? s.DWARF_DSYM_FOLDER_PATH || s.TARGET_BUILD_DIR : s.TARGET_BUILD_DIR;
+      if (typeof value !== 'string' || value.includes('$') || !inside(canonical(path.resolve(base, value)), owned)) refuse(`${target}: output ${key} escapes private workspace: ${value}`);
     }
     if (s.FULL_PRODUCT_NAME && (s.FULL_PRODUCT_NAME !== path.basename(s.FULL_PRODUCT_NAME) || s.FULL_PRODUCT_NAME === '..')) refuse(`${target}: invalid FULL_PRODUCT_NAME`);
   }

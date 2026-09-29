@@ -79,8 +79,8 @@ are pinned to the private workspace; every app/Pods target's resolved output
 paths are checked before compilation. Custom output-directory and linker side-output overrides refuse, including
 `LD_MAP_FILE_PATH`, `LD_DEPENDENCY_INFO_FILE`, LTO objects and SDK imports.
 The same checks cover `PER_ARCH_OBJECT_FILE_DIR` and `COMPILATION_CACHE_CAS_PATH`.
-Resolved destinations for every target must stay in the private cache, including
-through symlink parents.
+Checked destinations include module/header caches, build-session files, response
+lists and Info.plist/dSYM outputs. Links resolve even with missing targets; escapes refuse.
 Nonempty `SKIP_BUNDLING` and `SOURCEMAP_FILE` settings are refused. Every build
 removes the old product bundle and requires Xcode to produce a new one before
 sealing its receipt. Resolved Swift and module-verifier flags, including forwarded
