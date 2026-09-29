@@ -1,0 +1,83 @@
+
+== focused reproduction 1
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (493.65703ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 610.638538
+
+== focused reproduction 2
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (554.825296ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 663.08282
+
+== focused reproduction 3
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (470.44109ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 589.962002
+
+== focused reproduction 4
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (464.133907ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 579.612623
+
+== focused reproduction 5
+✔ wasm: keep remount lifetime, isolation, last subscriber and sign-out (488.860663ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 602.678208
+
+== focused reproduction 6
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11698.945086ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11801.801806
+
+✖ failing tests:
+
+test at packages/snapback4/test/keep-device.test.mjs:130:51
+✖ wasm: keep remount lifetime, isolation, last subscriber and sign-out (11698.945086ms)
+  AssertionError [ERR_ASSERTION]: second key ready
+      at until (file:///home/ccheever/sb4-intent/lane-mt/snapback4/packages/snapback4/test/keep-device.test.mjs:22:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-mt/snapback4/packages/snapback4/test/keep-device.test.mjs:181:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

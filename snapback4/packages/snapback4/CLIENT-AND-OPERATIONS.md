@@ -2150,7 +2150,28 @@ Use the printed isolated URL with a fresh device store and fresh outbox. Check c
 
 The release-activation test executes this `cp -a` sequence after owned processes exit, verifies sessions, deduplication, queued effects, a parked job, release/program identity and asset bytes, and reads the restored data through a fresh process device. The original remains present with post-backup writes, proving the restored server is independent. It also verifies a permitted schema widening, a refused destructive candidate, and rollback after a new restored write. Rollback selects earlier source; it does not rewind rows.
 
-Production continuation needs an application-specific plan for old device watermarks and pending writes, identity/revocation changes since backup, unfinished or repeated jobs, and external effects that may already have happened. Restored operation IDs only prove deduplication represented in the backup; post-backup IDs and effect settlements may be missing. Reconcile those outcomes before reconnecting production clients or workers. External worker code, credentials and service configuration outside the deployment need separate recovery arrangements. SQLite uses WAL with `synchronous=NORMAL`; this stopped-process exercise does not establish physical-power-loss durability.
+Production continuation needs an application-specific plan for old device watermarks and pending writes, identity/revocation changes since backup, unfinished or repeated jobs, and external effects that may already have happened. Restored operation IDs only prove deduplication represented in the backup; post-backup IDs and effect settlements may be missing. Reconcile those outcomes before reconnecting production clients or workers. External worker code, credentials and service configuration outside the deployment need separate recovery arrangements. SQLite uses WAL with `synchronous=FULL`, including background commits that publish
+watermarks. This stopped-process exercise does not establish physical-power-loss durability.
+
+Server query readers use independent connections and a new snapshot per read.
+Each SQLite connection currently has a suggested 2,000 KiB page-cache limit;
+this is neither reserved memory nor a process RSS bound. Up to 32 idle query
+readers retain their caches, with additional connections while requests run.
+Mmap stays disabled, including read-only CLI inspection. A larger cache cannot
+prevent cache invalidation when background delivery commits during probes.
+Before comparing scale checkpoints, record live background work as well as
+`doctor --latency`; restarting a drained copy changes that workload.
+
+The current automatic checkpoint is passive at 1,000 WAL pages. The WAL can
+retain its high-water file allocation after frames have been checkpointed;
+file size alone does not establish uncheckpointed work or a read stall. There
+is no added truncation policy or supported cache/mmap tuning setting.
+Use local storage for the WAL database: SQLite WAL requires same-host shared
+memory and is not supported over network filesystems. Do not enable mmap as an
+unmeasured workaround: mapped I/O errors can terminate the process with a signal,
+and mixed mapped/unmapped access (including `sql` and work-record inspection)
+requires a correctly unified OS buffer cache. These are additional reasons the
+server and device defaults remain unchanged.
 
 ## 7. Expo
 

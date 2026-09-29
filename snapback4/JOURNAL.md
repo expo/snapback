@@ -75987,3 +75987,138 @@ script's red result is retained, not represented as a green final full run.
 Every failure, including test setup errors and intentional mutation checks,
 is recorded under `reports/20260929-rl-answers-stay/round1/`. Local commit with
 the requested co-author trailer; no push or publication.
+## 2026-09-29 — Lane SQ round 0: live SQLite read-path attribution
+
+Measured both storage hypotheses before choosing a policy. Copied PF's retained
+stores into this lane; never served or wrote PF's inputs. Replayed all 167,157
+scale actions through live dev with effects suppressed and schedules held,
+with zero failed actions and all original verification passing. Same-process
+immediate probes precede warmup/verification. Their first reads start 19/63/11 ms
+after the final recorded write receipt at 10%/50%/full. Background Following
+commits invalidate reader caches: warm 50% search has median 348 misses, versus
+zero after draining/restart. Full live/restarted median batch p95 is 6.021/4.884
+ms. The several-fold calibration Mac slowdown does not reproduce on Linux.
+
+Six cache/mmap configurations, nine rotating rounds, three warmups, all frozen
+rules and host loads are retained, plus per-query sqlite3_db_status and strace
+records. Shrinking to 64 KiB increases misses; 16/256 MiB does not establish a
+latency gain. Mmap removes many pread calls but likewise lacks a reliable timing
+gain. The queued 50% comparison has 211 actual server queries, zero SQLite
+file-lock busy results/busy sleeps, and checkpoint overlap without evidence of
+waiting on that lock. Reconstructed unfinished/resumed syscalls give maximum
+per-query futex time 1.024 ms under tracing; no zero-descheduling/I/O-pressure
+claim. Warm request queues are sub-millisecond and acquisition at most 0.002 ms.
+
+Retain the production defaults: FULL, single writer, independent snapshots,
+2,000 KiB cache per connection, mmap off, passive auto-checkpoint, no new WAL
+truncation policy or operator knob. Device stores, authority, coverage, meters
+and charges are unchanged. Before/after production binaries are byte-identical.
+Added the writer/reader/inspection pragma regression, expanded PF's read-only
+probe, documented memory/WAL/mmap limits and corrected the operations manual's
+stale NORMAL statement. LLP 3000.007 §20.24.4 preserves the finding and decision.
+
+Affected store 4/4; PF complexity 2/2; whole guide 98/98. scripts/test.sh ran
+once, exit 0, exact summary: `== 0 failure(s) in 1690 s`. Client stage 4,848 pass
+with ten declared skips; final model stage 79/79. No product-test failures in
+any attribution category. The documented 60-second target is still missed;
+the base journal already records 1,322 seconds. No ceiling or timeout changed.
+Corrected SQ setup, test-authoring, queue-sampling and strace-parser failures,
+and the superseded partial subprocess replay, remain in FAILURES.md/evidence.
+Fresh canonical wasm: 2,042,203 B raw / 593,573 B gzip, 146 B below the unchanged
+593,719 B cap; SHA-256 75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+
+The build-free, self-contained macos-curve.sh passed its Linux end-to-end run:
+both binaries complete nine rotating main/deep batches, preserving every rule
+margin. Search still fails the midpoint rule in both byte-identical controls;
+Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
+is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
+publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Lane BP round 0: ten-CPU live replay retains scheduling
+
+Ran SQ's actual live replay on base 4fd338de5 with server, replay and probe
+subprocesses confined to CPUs 0–9. All 167,157 scale actions settled with zero
+failures; both checkpoints and final verification passed. Immediate reads used
+existing clients 17/41/11 ms after the last receipts, followed by every one of
+nine warmed batches. All 2,100 measured reads returned complete answers.
+The several-fold Mac growth did not reproduce. Warm full/small p95 ratios:
+history 1.057, Following/500 1.014, search 1.132, Insights 1.592. Warm search
+and trending midpoint rules still fail by 0.482/0.511 ms; every batch remains.
+
+Pending Following work reached 41,389 and stood at 36,569 after full probes.
+Delivery, recounts and jobs already share one maintenance thread: its measured
+CPU was 282.38 seconds across replay/drain, almost all Following. Requests used
+360.95 CPU seconds; warm median request queues stayed near 0.10 ms, maximum
+reader acquisition 0.006 ms. Full-probe drain first observed zero after
+172.278 seconds; three-empty-sample drain after replay returned took 168.269 s.
+Host load, per-thread CPU/affinity, sampled runnable populations, queues and
+paired request timings are retained. Scheduler-delay accounting was disabled;
+no zero-descheduling claim. Ten homogeneous Linux cores, missing browser load
+and the LV-reverted base differ from the Mac/SQ contexts.
+
+Obeyed the conditional stop: no concurrency, priority/QoS, yield, batching,
+meter, durability or operator change. LLP 3000.013 §4 records retention of its
+existing policy. Added a build-free two-binary Mac live-replay handoff. Linux
+components ran; no Mac execution or optimization is claimed. All measurement
+hooks were removed from product sources before validation.
+
+Affected tests: FIFO 8/8, maintenance chunks 5/5, delivery 1/1, scale 2/2;
+whole guide 98/98. Existing sustained-request witness passed on ten CPUs:
+1,339 reads while all 901 copies arrived in 460.272 ms. scripts/test.sh ran
+once, exact summary `== 1 failure(s) in 2129 s`, stage `client tests`.
+Baseline fixture cleanup failed ENOTEMPTY in the process empty-partition
+acquisition case and left its owned children alive. Recorded and terminated
+only that stalled fixture's children/worker to finish the same run, retaining
+its failure; client totals 4,560 pass / 1 fail / ten skips; final models 79/79.
+The exact case then passed alone, with no forced cleanup. Follow-up:
+issues/20260929-snapback4-acquisition-cleanup-enotempty.md. No introduced or
+established environmental test failures. The existing 60-second suite target
+remains missed; no ceiling or timeout changed.
+
+Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-29 — Lane MT: the suite on ten CPUs
+
+First fetched and merged origin/main on sb4-intent/mt-ten-core-suite; already
+current at ee514de117825183731eb0c215463f99c4775fe4. Read the Snapback 4 fence,
+LLP 3000, the publication contract and retention/evidence constraints; applied
+llp-orient and checked the current reads/client guide. The M1 calibration host
+was never contacted or loaded. Reproduced here with taskset CPUs 0–9, a 64 GiB
+cgroup cap and no swap; no artificial ambient memory pressure.
+
+The unmodified full suite passed in 1,953 s. The default client pool now uses
+max(1, min(24, floor(os.availableParallelism() / 3))): three files on ten CPUs,
+24 on 96. Acquisition/server-e2e share that pool instead of adding seven
+shard processes outside it. Explicit serial override, Rust scheduling, model
+counts and timeouts remain. Repeated trials exposed three baseline fixture
+races: invalid isolation probes, polling past replacement notifications, and
+synthetic reset queries missing dependency/cut evidence. Corrected the fixtures
+and captured the existing replacement predicate in its subscription. Product
+source and every assertion/timeout remain unchanged. Twelve failed diagnostic
+executions are recorded: eleven baseline observations and one unsuccessful
+candidate of ours, with no environmental test exemption.
+
+Final unchanged source: complete suite green twice pinned to ten CPUs
+(2,064 s and 2,080 s), then unpinned (1,254 s). Each run: 4,305 Rust passed /
+33 ignored, 4,858 clients passed / ten inherited conditional skips, 79 models
+passed and nine fixture-wrapper tests passed; zero failures or cancellations.
+The skipped lanes are not qualified here. Final peak samples: 15.52, 16.26 and
+23.15 GiB. Historical M1 timeouts did not reproduce on Linux; this is not a
+Darwin or M1 single-core-speed qualification.
+
+Documented Cargo test prewarming inside the bumped publication worktree with
+matching SQLite/toolchain/profile inputs. Cold inventory compilation here:
+423 s; subsequent --no-run: all 273 test binaries fresh, 0.25 s wall time.
+Warming skips no test and supplies no receipt. Updated LLP 3000, the command
+sheet and M1 ticket; that ticket stays open for its actual publication record.
+
+All wasm rebuilds equal the local rebuilt baseline: 2,042,203 B raw /
+593,573 B gzip-9, 146 B under the unchanged 593,719 B cap; SHA-256
+75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+Syntax, whitespace and reference checks pass. Evidence and every failed test's
+duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-suite/REPORT.md).
+Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
+tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. No push or publication.
