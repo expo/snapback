@@ -1,0 +1,80 @@
+✔ immediate mounted form waits for identity and second save works (wasm) (1655.469513ms)
+ℹ {"tier":"wasm","identityAndFirstSaveMs":126.40996500000006}
+✔ pre-identity burst admits in call order with ordinary prediction (wasm) (1036.111289ms)
+✔ reload discards only the unadmitted call (wasm) (1545.279851ms)
+✔ identity timeout refuses publicly without custody (wasm) (1200.555345ms)
+✔ identity adoption refuses publicly without custody (wasm) (1070.725183ms)
+✔ identity incarnation refuses publicly without custody (wasm) (1122.606061ms)
+✔ identity restore refuses publicly without custody (wasm) (1124.449595ms)
+✔ immediate mounted form waits for identity and second save works (Worker) (1459.559526ms)
+ℹ {"tier":"Worker","identityAndFirstSaveMs":211.15569799999867}
+✔ pre-identity burst admits in call order with ordinary prediction (Worker) (1364.022328ms)
+✔ reload discards only the unadmitted call (Worker) (1815.865139ms)
+✔ identity timeout refuses publicly without custody (Worker) (1375.440202ms)
+✔ identity adoption refuses publicly without custody (Worker) (1164.559286ms)
+✔ identity incarnation refuses publicly without custody (Worker) (1183.105657ms)
+✔ identity restore refuses publicly without custody (Worker) (1211.133619ms)
+✔ fresh first save and burst wait in memory (process) (412.367989ms)
+ℹ {"tier":"process","identityAndBurstMs":108.01645400000052}
+✔ close and reopen has no unadmitted custody (process) (321.571568ms)
+✔ identity never arrives refuses within 15 seconds and recovers (process) (15311.244542ms)
+ℹ {"tier":"process","timeoutMs":15001.833962999997}
+✔ fresh first save and burst wait in memory (online) (224.431747ms)
+ℹ {"tier":"online","identityAndBurstMs":31.355381000001216}
+✔ close and reopen has no unadmitted custody (online) (194.626159ms)
+✔ identity never arrives refuses within 15 seconds and recovers (online) (15200.798534ms)
+ℹ {"tier":"online","timeoutMs":15010.961675000006}
+✔ process generation at ordinary admission refuses unsent (284.703812ms)
+✔ process incarnation at ordinary admission refuses unsent (278.157519ms)
+✔ ordinary native settlement stamps a live outbox before replacement (Grok round 2) (282.826679ms)
+✔ timely identity does not expire behind an earlier ordinary admission (4.251543ms)
+✔ online incompatible-store signal interrupts a held probe before custody (179.058163ms)
+✔ web capture fences a replacement in the gap after the identity read (3.938384ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=false (39.608443ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=true (17.675565ms)
+✔ a persisted terminal receipt never reposts on reopen (3.515279ms)
+✔ the first fresh write after replacement binds B even when the pending journal is empty (17.210308ms)
+✔ retrying the first fresh replacement id recovers its receipt without retiring or executing it twice (5.678021ms)
+✔ failed intent identity persistence refuses admission before any dispatch (3.314999ms)
+✔ close detaches a held first-store probe without admitting its call (14.543952ms)
+✔ intent without an identity: first observed store; dispatched=undefined (12.298465ms)
+✔ intent without an identity: first observed store; dispatched=false (11.280629ms)
+✔ intent without an identity: same first store; dispatched=undefined (10.976404ms)
+✔ intent without an identity: same first store; dispatched=false (11.230885ms)
+✔ intent without an identity: replacement; dispatched=undefined (11.57452ms)
+✔ intent without an identity: replacement; dispatched=false (12.426326ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=undefined (11.334239ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=false (11.25426ms)
+✔ store precondition prevents execution when the endpoint changes after the probe (5.871862ms)
+✔ unpersisted receipt notifications survive the ordinary 256-receipt history window (361.167562ms)
+▶ web startup: immediate admin navigation, synchronous refusals and acquisition hook
+  ✔ createApp and generated api journal before immediate location.assign (1010.311105ms)
+  ✔ restored identified device journals while its first sync is held (882.850884ms)
+  ✔ synchronous refusal: restoring (413.241ms)
+  ✔ synchronous refusal: no-device (85.43833ms)
+  ✔ synchronous refusal: no-claim (411.361281ms)
+  ✔ synchronous refusal: ephemeral-device (314.895793ms)
+  ✔ synchronous refusal: storage-full (496.934074ms)
+  ✔ repairing storage permits the refused id to be retried (476.133393ms)
+  ✔ useAcquisition reports committed snapshot pages and completion (595.493882ms)
+  ✔ session-locked journal refuses stale authority: logout (673.404839ms)
+  ✔ session-locked journal refuses stale authority: principal (679.549469ms)
+  ✔ session-locked journal refuses stale authority: epoch (644.700762ms)
+  ✔ session-locked journal refuses stale authority: recovery (1062.197761ms)
+  ✔ a transient unlocked epoch observation refuses only that call (435.342247ms)
+  ✔ the bare online browser transport refuses without custody (2.549652ms)
+  ✔ IndexedDB packed rows retain atomic abort and reopen (33.202069ms)
+  ✔ IndexedDB legacy rows retain atomic abort and reopen (117.232589ms)
+✔ web startup: immediate admin navigation, synchronous refusals and acquisition hook (9288.464873ms)
+ℹ {"change":"logout","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"principal","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"epoch","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ {"change":"recovery","journaled":true,"outboxWhileLocked":null,"mutationRequests":0,"serverTotal":3}
+ℹ tests 61
+ℹ suites 0
+ℹ pass 61
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51192.717789

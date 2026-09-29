@@ -1,0 +1,130 @@
+✔ wasm: apply withdraws an owner-only answer despite having no rule probes (1606.60421ms)
+✔ wasm: admit withdraws an owner-only answer despite having no rule probes (1115.917466ms)
+✔ wasm: remount withdraws an owner-only answer despite having no rule probes (1186.699133ms)
+✔ process: apply withdraws an owner-only answer despite having no rule probes (1218.375187ms)
+✔ process: admit withdraws an owner-only answer despite having no rule probes (126.596697ms)
+✔ process: remount withdraws an owner-only answer despite having no rule probes (1210.788783ms)
+✔ online: remount after owner transfer cannot restore an answer with no rule-probe dependencies (193.201042ms)
+✔ wasm: apply revocation, keep=undefined, held (1583.452003ms)
+✔ wasm: admit revocation, keep=undefined, held (97.866268ms)
+✔ wasm: transfer revocation, keep=undefined, held (1182.226147ms)
+✔ wasm: remount revocation, keep=undefined, held (1189.685209ms)
+✔ wasm: apply revocation, keep=undefined, throw (1177.971698ms)
+✔ wasm: admit revocation, keep=undefined, throw (88.909261ms)
+✔ wasm: transfer revocation, keep=undefined, throw (1172.682159ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (188.006234ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (94.429516ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (1188.37302ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (288.610466ms)
+✔ wasm: admit revocation, keep=undefined, retryExhausted (1287.671204ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (1281.590848ms)
+✔ wasm: apply revocation, keep=false, held (1185.380572ms)
+✔ wasm: admit revocation, keep=false, held (79.306606ms)
+✔ wasm: transfer revocation, keep=false, held (1176.658517ms)
+✔ wasm: remount revocation, keep=false, held (1179.925705ms)
+✔ process: apply revocation, keep=undefined, held (1210.451533ms)
+✔ process: admit revocation, keep=undefined, held (1133.243024ms)
+✔ process: transfer revocation, keep=undefined, held (1220.083812ms)
+✔ process: remount revocation, keep=undefined, held (1232.479594ms)
+✔ process: apply revocation, keep=undefined, throw (1224.013422ms)
+✔ process: admit revocation, keep=undefined, throw (1100.569382ms)
+✔ process: transfer revocation, keep=undefined, throw (1218.696091ms)
+✔ process: apply revocation, keep=undefined, unavailable (1220.091251ms)
+✔ process: admit revocation, keep=undefined, unavailable (133.975347ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1216.262431ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1330.153881ms)
+✔ process: admit revocation, keep=undefined, retryExhausted (1336.010489ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (1330.231696ms)
+✔ process: apply revocation, keep=false, held (1222.237025ms)
+✔ process: admit revocation, keep=false, held (1125.64034ms)
+✔ process: transfer revocation, keep=false, held (1223.939226ms)
+✔ process: remount revocation, keep=false, held (1212.572246ms)
+✔ online: revoked data, keep=undefined, held (164.043771ms)
+✔ online: revoked data, keep=undefined, retryExhausted (259.388058ms)
+✔ online: revoked data, keep=undefined, unavailable (158.049205ms)
+✔ online: revoked data, keep=undefined, throw (158.771688ms)
+✔ online: revoked data, keep=false, held (160.305877ms)
+✔ online: revoked data, keep=false, retryExhausted (157.147143ms)
+✔ online: revoked data, keep=false, unavailable (159.719889ms)
+✔ online: revoked data, keep=false, throw (154.121017ms)
+✔ committed admission survives notification from a closing owner (22.17389ms)
+✔ committed admission survives notification from a closed channel (2.826297ms)
+✔ committed admission survives notification from a throwing listener (2.278766ms)
+✔ unsaved online hold stays visible through failed retries in shared journal order (1780.583628ms)
+✔ asynchronous settlement bounds online argument reservations, including another owner's retirement (916.191694ms)
+✔ online custody keeps sent from mutate consistent while receipt saves fail (1.366299ms)
+✔ online custody keeps sent from lookup consistent while receipt saves fail (0.734481ms)
+✔ online custody keeps sent from background consistent while receipt saves fail (2.432687ms)
+✔ online custody keeps failed from mutate consistent while receipt saves fail (0.557155ms)
+✔ online custody keeps failed from lookup consistent while receipt saves fail (0.540551ms)
+✔ online custody keeps failed from background consistent while receipt saves fail (1.882672ms)
+✔ CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal (1.872267ms)
+✔ CCP mutation waits use the action clamp and preserve omitted defaults (0.185808ms)
+✖ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (2.558305ms)
+✖ CCP existing custody is not replaced by a redundant save refusal (wait=0) (2.669372ms)
+✔ CCP two createApp instances recover the known receipt when journal saves fail (18.986602ms)
+ℹ shared journal: 1 execution, recovered=sent, replayed=true
+✔ settle pins E_STORE_REPLACED, then compacts its id across normal receipt churn and reopen (147.455937ms)
+✔ settle pins E_STORE_RESTORE, then compacts its id across normal receipt churn and reopen (136.992381ms)
+✔ bulk retirement larger than the receipt window preserves every id on reopen (155.163841ms)
+✔ retirement saturation fences new admissions durably; displaced sent id: false (11.878918ms)
+✔ retirement saturation fences new admissions durably; displaced sent id: true (24.148741ms)
+✔ a saturated journal recovers an already-admitted intent as pending while its delivery is held (7.207334ms)
+✔ generated Expo storage keeps a!b and a~b write custody separate (1164.884051ms)
+✔ generated Expo storage keeps a*b and a'b write custody separate (1255.254402ms)
+✔ generated Expo storage keeps a(b and a)b write custody separate (1250.433094ms)
+✔ generated Expo storage keeps user:01ABC and user_3A01ABC write custody separate (1089.45765ms)
+✔ generated Expo storage keeps ab and 慢 write custody separate (1172.390982ms)
+✔ generated SecureStore separates formerly colliding backend session keys (67.276832ms)
+✔ recovery refuses an intent with a foreign recorded owner even at the correct safe key (1201.506628ms)
+✔ recovery quarantines a valid same-principal journal transplanted from another backend (1204.444572ms)
+✔ damaged journal { is preserved without blocking restore or login (12.356093ms)
+✔ damaged journal null is preserved without blocking restore or login (8.482846ms)
+✔ damaged journal {"pending":[],"receipts" is preserved without blocking restore or login (5.694426ms)
+✔ damaged journal {"owner":"alice","backen is preserved without blocking restore or login (13.365645ms)
+✔ unavailable quarantine preserves the original bytes and blocks writes, not sign-in (2.613808ms)
+✔ quarantine naming failure also preserves bytes without refusing sign-in (5.425554ms)
+ℹ tests 85
+ℹ suites 0
+ℹ pass 83
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36637.528051
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-online.test.mjs:223:43
+✖ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (2.558305ms)
+  AssertionError [ERR_ASSERTION]: recovery keeps the original intent
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-online.test.mjs:242:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-online.test.mjs:223:43
+✖ CCP existing custody is not replaced by a redundant save refusal (wait=0) (2.669372ms)
+  AssertionError [ERR_ASSERTION]: recovery keeps the original intent
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-online.test.mjs:242:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

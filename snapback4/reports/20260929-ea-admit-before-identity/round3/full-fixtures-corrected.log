@@ -1,0 +1,17 @@
+✔ generated Expo storage keeps a!b and a~b write custody separate (116.2649ms)
+✔ generated Expo storage keeps a*b and a'b write custody separate (38.381921ms)
+✔ generated Expo storage keeps a(b and a)b write custody separate (35.13952ms)
+✔ generated Expo storage keeps user:01ABC and user_3A01ABC write custody separate (32.391833ms)
+✔ generated Expo storage keeps ab and 慢 write custody separate (33.508205ms)
+✔ recovery refuses an intent with a foreign recorded owner even at the correct safe key (33.055426ms)
+✔ recovery quarantines a valid same-principal journal transplanted from another backend (42.59153ms)
+✔ logout clears credentials after journal failure, and credential deletion is retryable (27.824236ms)
+✔ logoutEverywhere clears credentials after journal failure, and credential deletion is retryable (6.816737ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 925.201142

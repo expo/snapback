@@ -56,24 +56,25 @@ function generated(t, held, fetcher, address = url) {
   return app;
 }
 function transport() {
-  let offline = true;
+  // These fixtures exercise admitted custody isolation; identification works
+  // while mutation delivery is offline.
+  let deliveryOffline = true;
   const sent = [];
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/auth/login") return Response.json({ session: session(JSON.parse(init.body).email) });
     if (path === "/auth/logout") return Response.json({ ok: true });
     if (path === "/probe") {
-      if (offline) throw Error("offline");
       return Response.json({ ok: true, store_id: "storage-test", seq: sent.length });
     }
     if (path === "/m/write") {
-      if (offline) throw Error("offline");
+      if (deliveryOffline) throw Error("offline");
       const body = JSON.parse(init.body); sent.push({ ...body, token: init.headers.authorization });
       return Response.json({ state: "sent", id: body.id, seq: sent.length });
     }
     throw Error(path);
   };
-  return { fetcher, sent, online() { offline = false; } };
+  return { fetcher, sent, online() { deliveryOffline = false; } };
 }
 
 for (const [a, b] of [["a!b", "a~b"], ["a*b", "a'b"], ["a(b", "a)b"], ["user:01ABC", "user_3A01ABC"], ["ab", "慢"]]) test(`generated Expo storage keeps ${a} and ${b} write custody separate`, async t => {

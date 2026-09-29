@@ -1,0 +1,152 @@
+✖ native cached empty cannot bypass FIFO (6439.030529ms)
+✖ native cached empty cannot bypass captured binding (6297.893597ms)
+✖ native late capture cannot expire a peer execution (settled=false) (8332.302423ms)
+✖ native late capture cannot expire a peer execution (settled=true) (8327.112965ms)
+✔ native handoff model: freeze (42.477407ms)
+✖ native handoff model: binding (36.117324ms)
+✖ native handoff model: fifo (38.317232ms)
+✖ native handoff model: expiry (40.488296ms)
+✖ restore custody stays visible until unsent refusal commits (1401.943129ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 1
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31106.941753
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass FIFO (6439.030529ms)
+  AssertionError [ERR_ASSERTION]: timed out: both writes sent
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:65:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass captured binding (6297.893597ms)
+  AssertionError [ERR_ASSERTION]: timed out: bound refusal
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:61:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:70:38
+✖ native late capture cannot expire a peer execution (settled=false) (8332.302423ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:85:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:70:38
+✖ native late capture cannot expire a peer execution (settled=true) (8327.112965ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:85:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:90:61
+✖ native handoff model: binding (36.117324ms)
+  AssertionError [ERR_ASSERTION]: replacement must not admit captured intent
+  
+  1 !== 0
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:53:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:90:61
+✖ native handoff model: fifo (38.317232ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   '01M3P66PNEW11WSJ0DZZ238H2Z',
+      '01M3P66PNEW11WSJ0DZZ238H30'
+    ]
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:58:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '01M3P66PNEW11WSJ0DZZ238H30' ],
+    expected: [ '01M3P66PNEW11WSJ0DZZ238H2Z', '01M3P66PNEW11WSJ0DZZ238H30' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:90:61
+✖ native handoff model: expiry (40.488296ms)
+  AssertionError [ERR_ASSERTION]: one custody view per identity
+  
+  2 !== 1
+  
+      at nativeHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:62:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:91:1
+✖ restore custody stays visible until unsent refusal commits (1401.943129ms)
+  AssertionError [ERR_ASSERTION]: handoff boundary not reached
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:17:107)
+      at async restoreHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:98:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -1,0 +1,4 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+src/local.ts(99,49): error TS2304: Cannot find name 'call'.
+src/local.ts(99,77): error TS2552: Cannot find name 'settling'. Did you mean 'setLink'?
+src/local.ts(99,97): error TS2304: Cannot find name 'rerunTables'.

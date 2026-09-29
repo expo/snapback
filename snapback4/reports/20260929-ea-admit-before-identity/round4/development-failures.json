@@ -1,0 +1,172 @@
+[
+  {
+    "log": "affected-final.log",
+    "test": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "attribution": "environmental"
+  },
+  {
+    "log": "grok-capture-negative.log",
+    "test": "empty browser capture reports a public identity refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-fixed.log",
+    "test": "adoption-required store waits before any custody (reopen=false)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-fixed.log",
+    "test": "adoption-required store waits before any custody (reopen=true)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-fixed.log",
+    "test": "native admission fences backend-required after the final read",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative-detecting.log",
+    "test": "adoption-required store waits before any custody (reopen=false)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative-detecting.log",
+    "test": "adoption-required store waits before any custody (reopen=true)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative-detecting.log",
+    "test": "temporary unreadiness after first identification continues the bounded wait",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative-detecting.log",
+    "test": "native admission fences backend-required after the final read",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative-detecting.log",
+    "test": "empty browser capture reports a public identity refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative.log",
+    "test": "adoption-required store waits before any custody (reopen=false)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative.log",
+    "test": "adoption-required store waits before any custody (reopen=true)",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative.log",
+    "test": "temporary unreadiness after first identification continues the bounded wait",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative.log",
+    "test": "native admission fences backend-required after the final read",
+    "attribution": "ours"
+  },
+  {
+    "log": "grok-negative.log",
+    "test": "empty browser capture reports a public identity refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "identity-final.log",
+    "test": "packages/snapback4/test/admit-before-identity.test.mjs",
+    "attribution": "environmental"
+  },
+  {
+    "log": "mutant-delete-final-recheck-detecting.log",
+    "test": "waiting calls pin first identity across store replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "mutant-delete-final-recheck-detecting.log",
+    "test": "waiting calls pin first identity across backend replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "mutant-delete-final-recheck.log",
+    "test": "waiting calls pin first identity across store replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "mutant-delete-final-recheck.log",
+    "test": "waiting calls pin first identity across backend replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "waiting calls pin first identity across store replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "waiting calls pin first identity across backend replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "final identity recheck hang produces a public unsent refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "final identity recheck reject produces a public unsent refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "waiting E_ADMISSION releases the same-id reservation (wasm)",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "waiting E_ADMISSION releases the same-id reservation (Worker)",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "final identity I/O keeps only the remaining deadline (queued=false)",
+    "attribution": "ours"
+  },
+  {
+    "log": "negative-merged-baseline.log",
+    "test": "final identity I/O keeps only the remaining deadline (queued=true)",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-boundary.log",
+    "test": "final identity recheck hang produces a public unsent refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-boundary.log",
+    "test": "final identity recheck reject produces a public unsent refusal",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-boundary.log",
+    "test": "waiting E_ADMISSION releases the same-id reservation (wasm)",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-boundary.log",
+    "test": "waiting E_ADMISSION releases the same-id reservation (Worker)",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-pins.log",
+    "test": "waiting calls pin first identity across store replacement",
+    "attribution": "ours"
+  },
+  {
+    "log": "reproduce-pins.log",
+    "test": "waiting calls pin first identity across backend replacement",
+    "attribution": "ours"
+  }
+]

@@ -379,7 +379,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                     return { denied: bindingRefusal(binding === "defer" ? "defer" : "retire") };
                   }
                 }
-                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
+                const reply = request.op === "admit" ? journal.admit(device!, request.entry, admission?.storeId, request.expected_generation as number | undefined, request.expected_backend as string | undefined) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
                 if (request.op === "queued" && Array.isArray(reply.ok)) {
                   reply.ok = reply.ok.map(entry => ({ ...entry, store_id: entry.receipt_store?.id ?? journal.boundStore(entry.id) }));
                 }

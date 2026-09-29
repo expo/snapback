@@ -1,0 +1,66 @@
+▶ oversized indivisible commit replaces deferred effects on wasm and SQLite
+  ✔ wasm (12804.545719ms)
+  ✔ process (14130.373661ms)
+✔ oversized indivisible commit replaces deferred effects on wasm and SQLite (29231.490474ms)
+ℹ {"tier":"wasm","published":2,"transfer":3,"images_at":16,"inlineRefusals":14,"snapshotPages":46,"final":16}
+ℹ {"tier":"process","published":2,"transfer":3,"images_at":16,"inlineRefusals":14,"snapshotPages":46,"final":16}
+▶ round 9-12 client head observations and startup installation
+  ✔ native: first-install-overlap head 15, snapshot false (99.838811ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-overlap head 19, snapshot true (88.934176ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: first-install-healthy head 20, snapshot false (85.189734ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ native: fresh head 25, snapshot false (52.203264ms)
+  ✔ native: startup-generation head 15, snapshot false (81.756648ms)
+  ✔ native: startup-generation head 19, snapshot false (82.798029ms)
+  ✔ native: startup-generation head 19, snapshot true (83.011169ms)
+  ✔ native: startup-generation-native head 15, snapshot false (76.482274ms)
+  ✔ native: startup-generation-native head 19, snapshot true (82.495867ms)
+  ✔ native: healthy-generation head 20, snapshot false (66.679781ms)
+  ✔ native: replacement-generation head 15, snapshot false (66.344268ms)
+  ✔ native: offline-generation head 0, snapshot false (56.20458ms)
+  ✔ native: startup head 7, snapshot false (75.834913ms)
+  ✔ native: startup head 15, snapshot false (75.436657ms)
+  ✔ native: startup head 15, snapshot true (73.851861ms)
+  ✔ native: probe head 15, snapshot false (2089.302875ms)
+  ✔ native: changes head 7, snapshot false (85.422493ms)
+  ✔ native: generation head 15, snapshot false (69.749252ms)
+  ✔ native: generation head 15, snapshot true (73.184531ms)
+  ✔ native: snapshot-restart head 20, snapshot true (55.602388ms)
+  ✔ native: stale-send head 7, snapshot false (53.151685ms)
+  ✔ native: stale-published head 7, snapshot false (58.885139ms)
+  ✔ native: healthy head 20, snapshot false (68.08712ms)
+  ✔ native: private-overlap head 7, snapshot false (95.286097ms)
+  ✔ native: private-overlap head 15, snapshot false (76.344166ms)
+  ✔ native: private-generation head 15, snapshot false (80.035599ms)
+  ✔ native: private-generation-declaration head 15, snapshot false (80.802739ms)
+  ✔ native: late-evidence head 20, snapshot false (67.278569ms)
+  ✔ native: image-only head 20, snapshot false (62.182901ms)
+  ✔ native: late-first-evidence head 7, snapshot false (67.601793ms)
+  ✔ native: schema-overlap head 20, snapshot false (69.586218ms)
+  ✔ native: schema-preflight-gap head 20, snapshot false (73.095527ms)
+  ✔ wasm: first-install-overlap head 15, snapshot false (414.431028ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-overlap head 19, snapshot true (9.824455ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: first-install-healthy head 20, snapshot false (11.327388ms)
+  ℹ after fallback open: {"generation":2,"published":17,"private":18,"images":20}
+  ✔ wasm: fresh head 25, snapshot false (3.724602ms)
+  ✔ wasm: startup-generation head 15, snapshot false (7.361084ms)
+  ✔ wasm: startup-generation head 19, snapshot false (7.501354ms)
+  ✔ wasm: startup-generation head 19, snapshot true (6.910728ms)
+  ✔ wasm: startup-generation-native head 15, snapshot false (6.792871ms)
+  ✔ wasm: startup-generation-native head 19, snapshot true (7.093362ms)
+  ✔ wasm: healthy-generation head 20, snapshot false (7.817777ms)
+  ✔ wasm: replacement-generation head 15, snapshot false (7.654703ms)
+  ✔ wasm: offline-generation head 0, snapshot false (4.123ms)
+✔ round 9-12 client head observations and startup installation (4972.158896ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29349.051157

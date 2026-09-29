@@ -1,0 +1,93 @@
+✔ native state reads cannot replace another admission attempt CAS token (64.513983ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (43.083032ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (42.472478ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (42.498477ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (49.437153ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (44.11581ms)
+✖ deferred and ordinary custody compare exact input atomically (variant=5) (41.817136ms)
+✔ online expiry recovers a peer outcome (settled=false) (20.893135ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.25552ms)
+✔ native cached empty cannot bypass FIFO (3390.222203ms)
+✔ native cached empty cannot bypass captured binding (1322.606398ms)
+✖ native late capture cannot expire a peer execution (settled=false) (8430.497235ms)
+✖ native late capture cannot expire a peer execution (settled=true) (8436.030582ms)
+✔ native handoff model: freeze (53.576547ms)
+✔ native handoff model: binding (47.964397ms)
+✔ native handoff model: fifo (53.317258ms)
+✔ native handoff model: expiry (51.521588ms)
+✖ restore custody stays visible until unsent refusal commits (414.219114ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 14
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22333.657803
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:4:47
+✖ deferred and ordinary custody compare exact input atomically (variant=5) (41.817136ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_ADMISSION_STORE","family":"schema","message":"E_ADMISSION_STORE: The backend changed before this write could be admitted. Review the current backend, then submit a new attempt."}}
+      at ok (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:15:30)
+      at nativeCustodySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:58:22)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=false) (8430.497235ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:87:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=true) (8436.030582ms)
+  AssertionError [ERR_ASSERTION]: timed out: truthful recovered notification
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:87:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:93:1
+✖ restore custody stays visible until unsent refusal commits (414.219114ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'queued'
+  
+      at restoreHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:97:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'queued',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

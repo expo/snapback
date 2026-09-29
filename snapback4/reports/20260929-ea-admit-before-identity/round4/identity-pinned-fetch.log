@@ -1,0 +1,250 @@
+TAP version 13
+# Subtest: immediate mounted form waits for identity and second save works (wasm)
+ok 1 - immediate mounted form waits for identity and second save works (wasm)
+  ---
+  duration_ms: 1417.106163
+  type: 'test'
+  ...
+# {"tier":"wasm","identityAndFirstSaveMs":79.64957900000013}
+# Subtest: pre-identity burst admits in call order with ordinary prediction (wasm)
+ok 2 - pre-identity burst admits in call order with ordinary prediction (wasm)
+  ---
+  duration_ms: 1122.518119
+  type: 'test'
+  ...
+# Subtest: reload discards only the unadmitted call (wasm)
+ok 3 - reload discards only the unadmitted call (wasm)
+  ---
+  duration_ms: 1508.92714
+  type: 'test'
+  ...
+# Subtest: identity timeout refuses publicly without custody (wasm)
+ok 4 - identity timeout refuses publicly without custody (wasm)
+  ---
+  duration_ms: 1081.281482
+  type: 'test'
+  ...
+# Subtest: identity adoption refuses publicly without custody (wasm)
+ok 5 - identity adoption refuses publicly without custody (wasm)
+  ---
+  duration_ms: 1011.723803
+  type: 'test'
+  ...
+# Subtest: identity incarnation refuses publicly without custody (wasm)
+ok 6 - identity incarnation refuses publicly without custody (wasm)
+  ---
+  duration_ms: 1020.086933
+  type: 'test'
+  ...
+# Subtest: identity restore refuses publicly without custody (wasm)
+ok 7 - identity restore refuses publicly without custody (wasm)
+  ---
+  duration_ms: 1124.346984
+  type: 'test'
+  ...
+# Subtest: immediate mounted form waits for identity and second save works (Worker)
+ok 8 - immediate mounted form waits for identity and second save works (Worker)
+  ---
+  duration_ms: 1393.579835
+  type: 'test'
+  ...
+# {"tier":"Worker","identityAndFirstSaveMs":178.0134369999996}
+# Subtest: pre-identity burst admits in call order with ordinary prediction (Worker)
+ok 9 - pre-identity burst admits in call order with ordinary prediction (Worker)
+  ---
+  duration_ms: 1316.929009
+  type: 'test'
+  ...
+# Subtest: reload discards only the unadmitted call (Worker)
+ok 10 - reload discards only the unadmitted call (Worker)
+  ---
+  duration_ms: 1775.61777
+  type: 'test'
+  ...
+# Subtest: identity timeout refuses publicly without custody (Worker)
+ok 11 - identity timeout refuses publicly without custody (Worker)
+  ---
+  duration_ms: 1326.716766
+  type: 'test'
+  ...
+# Subtest: identity adoption refuses publicly without custody (Worker)
+ok 12 - identity adoption refuses publicly without custody (Worker)
+  ---
+  duration_ms: 1183.774383
+  type: 'test'
+  ...
+# Subtest: identity incarnation refuses publicly without custody (Worker)
+ok 13 - identity incarnation refuses publicly without custody (Worker)
+  ---
+  duration_ms: 1230.751905
+  type: 'test'
+  ...
+# Subtest: identity restore refuses publicly without custody (Worker)
+ok 14 - identity restore refuses publicly without custody (Worker)
+  ---
+  duration_ms: 1162.848715
+  type: 'test'
+  ...
+# Subtest: fresh first save and burst wait in memory (process)
+ok 15 - fresh first save and burst wait in memory (process)
+  ---
+  duration_ms: 426.510352
+  type: 'test'
+  ...
+# {"tier":"process","identityAndBurstMs":112.7566110000007}
+# Subtest: close and reopen has no unadmitted custody (process)
+ok 16 - close and reopen has no unadmitted custody (process)
+  ---
+  duration_ms: 356.620675
+  type: 'test'
+  ...
+# Subtest: identity never arrives refuses within 15 seconds and recovers (process)
+ok 17 - identity never arrives refuses within 15 seconds and recovers (process)
+  ---
+  duration_ms: 15288.817447
+  type: 'test'
+  ...
+# {"tier":"process","timeoutMs":15002.446337000001}
+# Subtest: fresh first save and burst wait in memory (online)
+ok 18 - fresh first save and burst wait in memory (online)
+  ---
+  duration_ms: 459.35874
+  type: 'test'
+  ...
+# {"tier":"online","identityAndBurstMs":17.317565000004834}
+# Subtest: close and reopen has no unadmitted custody (online)
+ok 19 - close and reopen has no unadmitted custody (online)
+  ---
+  duration_ms: 186.467926
+  type: 'test'
+  ...
+# Subtest: identity never arrives refuses within 15 seconds and recovers (online)
+ok 20 - identity never arrives refuses within 15 seconds and recovers (online)
+  ---
+  duration_ms: 15191.0543
+  type: 'test'
+  ...
+# {"tier":"online","timeoutMs":15004.475677000002}
+# Subtest: process generation at ordinary admission refuses unsent
+ok 21 - process generation at ordinary admission refuses unsent
+  ---
+  duration_ms: 271.038392
+  type: 'test'
+  ...
+# Subtest: process incarnation at ordinary admission refuses unsent
+ok 22 - process incarnation at ordinary admission refuses unsent
+  ---
+  duration_ms: 271.817951
+  type: 'test'
+  ...
+# Subtest: ordinary native settlement stamps a live outbox before replacement (Grok round 2)
+ok 23 - ordinary native settlement stamps a live outbox before replacement (Grok round 2)
+  ---
+  duration_ms: 264.516952
+  type: 'test'
+  ...
+# Subtest: timely identity does not expire behind an earlier ordinary admission
+ok 24 - timely identity does not expire behind an earlier ordinary admission
+  ---
+  duration_ms: 1.73539
+  type: 'test'
+  ...
+# Subtest: online incompatible-store signal interrupts a held probe before custody
+ok 25 - online incompatible-store signal interrupts a held probe before custody
+  ---
+  duration_ms: 171.875746
+  type: 'test'
+  ...
+# Subtest: web capture fences a replacement in the gap after the identity read
+ok 26 - web capture fences a replacement in the gap after the identity read
+  ---
+  duration_ms: 4.682906
+  type: 'test'
+  ...
+# Subtest: waiting calls pin first identity across store replacement
+ok 27 - waiting calls pin first identity across store replacement
+  ---
+  duration_ms: 282.903919
+  type: 'test'
+  ...
+# Subtest: waiting calls pin first identity across backend replacement
+ok 28 - waiting calls pin first identity across backend replacement
+  ---
+  duration_ms: 279.180541
+  type: 'test'
+  ...
+# Subtest: final identity recheck hang produces a public unsent refusal
+ok 29 - final identity recheck hang produces a public unsent refusal
+  ---
+  duration_ms: 250.216707
+  type: 'test'
+  ...
+# Subtest: final identity recheck reject produces a public unsent refusal
+ok 30 - final identity recheck reject produces a public unsent refusal
+  ---
+  duration_ms: 257.920129
+  type: 'test'
+  ...
+# Subtest: waiting E_ADMISSION releases the same-id reservation (wasm)
+ok 31 - waiting E_ADMISSION releases the same-id reservation (wasm)
+  ---
+  duration_ms: 1021.888936
+  type: 'test'
+  ...
+# Subtest: waiting E_ADMISSION releases the same-id reservation (Worker)
+ok 32 - waiting E_ADMISSION releases the same-id reservation (Worker)
+  ---
+  duration_ms: 1229.526041
+  type: 'test'
+  ...
+# Subtest: final identity I/O keeps only the remaining deadline (queued=false)
+ok 33 - final identity I/O keeps only the remaining deadline (queued=false)
+  ---
+  duration_ms: 2.084433
+  type: 'test'
+  ...
+# Subtest: final identity I/O keeps only the remaining deadline (queued=true)
+ok 34 - final identity I/O keeps only the remaining deadline (queued=true)
+  ---
+  duration_ms: 1.220899
+  type: 'test'
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=false)
+ok 35 - adoption-required store waits before any custody (reopen=false)
+  ---
+  duration_ms: 422.383321
+  type: 'test'
+  ...
+# Subtest: adoption-required store waits before any custody (reopen=true)
+ok 36 - adoption-required store waits before any custody (reopen=true)
+  ---
+  duration_ms: 370.638786
+  type: 'test'
+  ...
+# Subtest: temporary unreadiness after first identification continues the bounded wait
+ok 37 - temporary unreadiness after first identification continues the bounded wait
+  ---
+  duration_ms: 1.105526
+  type: 'test'
+  ...
+# Subtest: native admission fences backend-required after the final read
+ok 38 - native admission fences backend-required after the final read
+  ---
+  duration_ms: 249.840915
+  type: 'test'
+  ...
+# Subtest: empty browser capture reports a public identity refusal
+ok 39 - empty browser capture reports a public identity refusal
+  ---
+  duration_ms: 0.976413
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 55107.952041

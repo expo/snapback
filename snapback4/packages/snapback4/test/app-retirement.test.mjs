@@ -19,7 +19,7 @@ function transport(result) {
     async mutate(_op, _args, { id }) { posts.push(id); return result(id); } };
   // This unit transport isolates receipt retirement; real dispatch binding is
   // covered by online-intent-store and the independent online model.
-  trackDispatch(raw, {});
+  trackDispatch(raw, { store: 'retirement-test-store' });
   return { posts, raw };
 }
 

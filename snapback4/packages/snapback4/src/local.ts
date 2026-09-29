@@ -2,7 +2,7 @@ import { matchingReads } from "./read-key.ts";
 import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
-import { deliveryCommit } from "./local-device.ts";
+import { deliveryCommit, type LocalOptions, type LocalClient } from "./local-device.ts";
 import { deviceRestore, coldRestoreWitness, restoreWitness } from "./device-restore.ts";
 import { deviceControl, coldSnapshot, coldReplyStatus, type DeviceControlSnapshot } from "./device-control.ts";
 import { publishDelivery } from "./local-publication.ts";
@@ -13,7 +13,8 @@ import { localReadDeadlines, withdrawnLocalResult } from "./local-read-deadlines
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 import { ephemeralLane, routeMutations } from "./ephemeral.ts";
-import { admitNow, failedAdmission } from "./admission.ts";
+import { admitNow, failedAdmission, mutationEntry } from "./admission.ts";
+import { IdentityWait, identityRefusal, localAdmissionIdentity } from "./identity-admission.ts";
 import { attachAdmissionAuthority } from "./admission-authority.ts";
 import { acquisitionProgress } from "./acquisition.ts";
 import { readResidency } from "./residency.ts";
@@ -36,20 +37,19 @@ import { episodeDeadline } from "./read-episode.ts";
 import { explicitSync, requireSyncProtocol, responsePageTooLarge, syncTransport, type SyncPage } from "./local-sync.ts";
 import { exitTransport } from "./local-exit.ts";
 import { exitRefusalSettlement } from "./local-exit-settlement.ts";
-import { deliverAcknowledgedReceipt, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
+import { deliverAcknowledgedReceipt, resolveClosingWrites, lookupWrite, readQueued, receiptBatch, recoverReceipt, retiredReceipts, settleReceipt, successSequence, syncSettledWrites, terminalDeviceCall } from "./local-receipts.ts";
 import type { ObserveOptions, Client, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, Refusal, Write } from "./contract.ts";
 import { MediaCache, assetRetention, changesMediaAuthority, type MediaStorage, type AssetRetention } from "./local-assets.ts";
 export type { AcquisitionMarker } from "./local-sync.ts";
 export type { MediaStorage, AssetRetention } from "./local-assets.ts";
 import { mintId } from "./client.ts";
-import { operationTables, type BackendJson, type ProgramJson, type SchemaJson } from "./backend.ts";
+import type { BackendJson, ProgramJson, SchemaJson } from "./backend.ts";
 import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { defaultSessionStore, forgetSession, guest, keepSession, logout, logoutAll as revokeAllSessions,
   refreshSession as rotateSession, restoreSession, type Session, type SessionStore, type SignIn } from "./auth.ts";
 export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient } from "./local-device.ts";
-import type { LocalOptions, LocalClient } from "./local-device.ts";
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
@@ -92,15 +92,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const viewer: Principal = (options.persona ? `dev:${options.persona}` : session!.principal) as Principal;
   const principal: string = viewer;
-  let sessionDead = false;
-  let credentialRevision = 0;
-  let rotating = false;
+  let sessionDead = false, credentialRevision = 0, rotating = false;
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
   const writeListeners = new Set<(write: Exclude<Write, { state: "pending" }>) => void>();
   let history!: WriteHistory;
   const mutationIds = new MutationIds();
-  const pending = pendingChanges();
+  const pending = pendingChanges(), identification = new IdentityWait(pending.notify);
   let holds!: ReturnType<typeof localPendingHolds>;
   let setLink!: (next: Link) => void;
   const emitWrite = <T extends Exclude<Write, { state: "pending" }>>(write: T): T => {
@@ -130,22 +128,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!startupRefusal || ["E_OFFLINE", "E_HTTP_RESPONSE"].includes(startupRefusal.denied.code)) link = "offline";
   }
   const active = new Set<Promise<unknown>>();
-  let closed = false;
-  let closing: Promise<void> | undefined;
+  let closed = false, closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
   const aborter = new AbortController();
   const downloads = assetQueue();
   const core = await openLocalDevice(options.device, storeName, backend, startupRefusal);
   let stopSuspend: (() => void) | undefined;
-  // Web mutations can arrive after publication but before startup validation.
   let sendingAllowed = !core.onSuspend;
   let stopOutbox: (() => void) | undefined;
   let flushRecovered: (() => void) | undefined;
   let stopClock: (() => void) | undefined;
   let media: MediaCache | undefined;
-  let deliveryQueue: ReturnType<typeof localDelivery> | undefined;
-  let deliveryWitness = false;
+  let deliveryQueue: ReturnType<typeof localDelivery> | undefined, deliveryWitness = false;
   try {
+  const queued = () => readQueued(call, mutationIds, history, settling);
   holds = localPendingHolds(call, () => closed || sessionDead ? undefined : `${credentialRevision}:${incarnation}`, pending.notify);
   attachAdmissionAuthority(core, options);
   history = new WriteHistory({
@@ -180,10 +176,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     networkTail = result.catch(() => {});
     return result;
   }
-  let seq = 0;
-  // Number admissions synchronously, before concurrent prediction can reorder them,
-  // continuing from the module's outbox.
-  let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1;
+  // Number admissions synchronously before prediction, continuing the durable outbox counter.
+  let submissions = Number((await call({ op: "next_submission" })).ok ?? 1) - 1, seq = 0;
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
@@ -204,8 +198,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
-  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; restore_refusal?: Refusal };
+  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; backend_required?: boolean; restore_refusal?: Refusal };
   let storeIdentity = initialSync?.store_id ?? undefined;
+  let identified = !!storeIdentity && !initialSync?.backend_required;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
   const progress = acquisitionProgress();
@@ -236,7 +231,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     scheduleRefresh();
   });
   await refreshAcquired();
-  // A kept sent entry can disappear on the first catch-up, before a screen mounts.
   for (const entry of await queued()) {
     const seq = successSequence(entry);
     if (entry.sent_seq == null && seq != null) { const receipt = await history.acknowledged(entry.id, seq, true); if (receipt) await history.keep(receipt); }
@@ -245,7 +239,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
     if (!force && (id === undefined || id === storeIdentity)) return;
     const resetProgress = force || storeIdentity !== undefined;
-    storeIdentity = id;
+    storeIdentity = id; identified = false;
     incarnation++; holds.clear();
     deliveryWitness = false; deliveryQueue?.fence();
     partitionCurrent = false;
@@ -561,12 +555,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     }
   }
   let syncing: Promise<boolean> | null = null;
-  const syncAfterCall = explicitSync(() => syncing, syncOnce);
-  function syncOnce(): Promise<boolean> {
+  const syncAfterCall = explicitSync(() => syncing, syncOnce, () => syncOnce(true));
+  function syncOnce(reserve = false): Promise<boolean> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
-    if (syncing) return syncing;
-    const result = network(syncRound);
-    syncing = result;
+    if (syncing && !reserve) return syncing;
+    const result = network(() => { syncing = result; return syncRound(); });
+    if (!reserve) syncing = result;
     void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
     return result;
   }
@@ -600,7 +594,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           requestedStore = transfer_store_id ?? store_id;
           publishedStore = store_id;
           observeIncarnation(store_id ?? undefined, backendRequired && partitionCurrent);
-          storeIdentity = store_id ?? undefined;
+          storeIdentity = store_id ?? undefined; identified = !!storeIdentity && !backendRequired;
           pageIncarnation = incarnation;
           const snapshotRequest = restartingSnapshot || after !== undefined;
           watermark = snapshotRequest ? 0 : transfer_watermark ?? capturedWatermark;
@@ -642,11 +636,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
         {
-          // Neither refusal delivers a row batch. An overflow watermark is
-          // only an event cut; preserve explicit image-head evidence without
-          // inventing terminality or treating a refusal as delivered progress.
-          // Generation discovery reports the current head, so it must check
-          // retained image evidence before adoption can clear that evidence.
+          // Refusals deliver no rows; an overflow watermark is only an event cut.
+          // Preserve image heads without inventing progress. Generation discovery
+          // must validate retained evidence before adoption can clear it.
           const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
             ...(generationChanged ? { images_at: page.watermark } : {}) } : page });
           if (observed.denied || partitionDenied?.code === "E_STORE_RESTORE") { refuseRestore(observed.denied); return false; }
@@ -656,17 +648,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // Observation reports shared metadata; keep this interpreter's adoption requirement.
           backendRequired ||= !!observation.backend_required;
           if (observation.reset) {
-            // call() already invalidated the retired incarnation synchronously.
-            // Discard this round's old cursors before inspecting the new store.
+            // call() fenced the retired incarnation; discard its cursors before inspecting the new store.
             watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
             page.captured_watermark = 0;
             adoptedGeneration = true;
             replacedStore = true;
             const observedRead = await call({ op: "sync_state", capture: false });
             if (observedRead.denied) return false;
-            const observedState = observedRead.ok as { store_id?: string | null } | undefined;
+            const observedState = observedRead.ok as { store_id?: string | null; backend_required?: boolean } | undefined;
             publishedStore = observedState?.store_id;
-            storeIdentity = publishedStore ?? undefined;
+            storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !observedState?.backend_required;
             await call({ op: "set_meta", key: "syncedAt:wall:1", value: "0" });
             for (const watch of watches.values()) void scheduleRead(watch);
           }
@@ -677,8 +668,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const pageGeneration = Number(page.generation ?? generation);
         if (generationChanged || pageGeneration !== generation || (backendRequired && partitionCurrent)) observeIncarnation(storeIdentity, true);
         if (generationChanged || pageGeneration !== generation || replacedStore || backendRequired) {
-          // Generation counters restart with a new store. Reload the backend
-          // even when its number matches, then acquire its current partition.
+          // A new store restarts generation numbers. Reload even on a match, then acquire its partition.
           let backendRevision = credentialRevision;
           const backendIncarnation = incarnation;
           try {
@@ -704,8 +694,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (denied) {
           if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
-            // Restart acquisition without applying the refusal's watermark.
-            // Keep the reduced limit; snapshot rows can split a whole commit.
+            // Restart at the reduced limit without adopting the refusal's watermark; snapshots can split commits.
             watermark = 0; after = undefined; catchingUp = false;
             restartingSnapshot = true;
             partitionDenied = null;
@@ -728,15 +717,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         restartingSnapshot = false;
         const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
         publicationOutstanding = !published;
-        // call() has already preserved committed tables for finally, even if
-        // its media reconciliation or the following metadata inspection fails.
+        // call() preserved committed tables for finally, even if media or the following metadata read fails.
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
-          const publishedState = publishedRead.ok as { store_id?: string | null; watermark: number } | undefined;
+          const publishedState = publishedRead.ok as { store_id?: string | null; backend_required?: boolean; watermark: number } | undefined;
           publishedStore = publishedState?.store_id;
           observeIncarnation(publishedStore ?? undefined);
-          storeIdentity = publishedStore ?? undefined;
+          storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !publishedState?.backend_required;
           watermark = publishedState?.watermark ?? watermark;
           if (publishedState) answers.applied(watches.values(), publishedState.watermark);
         }
@@ -1050,7 +1038,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
-  function queued() { return readQueued(call, mutationIds, history, settling); }
   let reconcileNeeded = false; // @ref LLP 3000.019#3.3 — failed housekeeping retries without gating dispatch.
   const receiptCall = (request: Record<string, unknown>) => terminalDeviceCall(
     committed => call(request, undefined, committed), () => { reconcileNeeded = true; retryFlush(); });
@@ -1224,26 +1211,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         return failedAdmission<R>(id, unavailableWhy);
       }
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), (args, pending) => {
-        const submission = ++submissions;
-        const newIds: string[] = [];
-        // The module mints ids for `new` from the ids we pass, so the server
-        // applies the same ones; a burst takes them from one ascending clock.
-        for (let n = 0; n < 8; n++) newIds.push(mintId());
-        const schema = backend!.schema;
-        const program = backend!.programs.find((p) => p.name === op.name);
-        const predictable = Boolean(program && schema && [...operationTables(program, schema)].every((t) => schema.tables[t]?.sync));
-        const request = { op: "admit", entry: { id, seq: submission, op: op.name, args, viewer: principal, now: clock.issuedDeviceNow(), new_ids: newIds, predicted: [], predictable, replay_candidate: options?.id !== undefined } satisfies Queued };
+        const waiting = !identified || identification.size > 0;
+        const identity = waiting ? localAdmissionIdentity(backend, generation) : undefined;
+        const submit = (release = () => {}): Promise<Write<R>> => {
+        const request = { op: "admit", ...(waiting ? identity!.fields() : {}),
+          entry: mutationEntry(id, ++submissions, op.name, args, principal, clock.issuedDeviceNow(), backend!, options?.id !== undefined) };
         const denied = admitNow(core, request);
-        if (denied) return failedAdmission<R>(id, denied);
+        if (denied) { release(); if (denied.code === "E_ADMISSION_STORE") emitLocalFailure({ state: "failed", id, why: denied }); return failedAdmission<R>(id, denied); }
         return (async () => {
         const response = closingResponses.request();
         const result = new Promise<Write>((resolve) => settled.set(id, { resolve, response }));
         try {
           // @ref LLP 3000.007#20.4 — capture replay eligibility with the synchronous journal entry; recovery must also defer local refusals to the server.
           const admitted = await receiptCall(request); // Committed admission survives media/host housekeeping failure.
+          release();
           if (admitted.denied) {
             settled.delete(id);
-            const failed = { state: "failed" as const, id, why: admitted.denied };
+            const why = waiting && ["E_GENERATION", "E_PREDICT", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_ADMISSION_STORE"].includes(admitted.denied.code) ? identityRefusal(false) : admitted.denied;
+            const failed = { state: "failed" as const, id, why };
             return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
           }
           const entry = admitted.ok as Queued;
@@ -1253,7 +1238,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             : "queued without a row: local data does not justify prediction" });
           rerunTables(predictedTables(entry.predicted));
         } catch (error) {
-          settled.delete(id);
+          release(); settled.delete(id);
           return emitLocalFailure({ state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } });
         }
         if (closed) { settled.delete(id); return pending; }
@@ -1268,10 +1253,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         finally { clearTimeout(timer); settled.delete(id); }
         })();
+        };
+        if (!waiting) return submit();
+        return identification.run<R>({ id, op: op.name, args }, async () => {
+          const state = (await call({ op: "sync_state", capture: false })).ok as StoreCapture | undefined;
+          const ready = identity!.check(state, backend, generation, unavailable() ?? partitionDenied);
+          if (ready === true) { storeIdentity = state!.store_id!; identified = true; }
+          return ready;
+        }, submit, why => emitLocalFailure({ state: "failed", id, why }));
       });
     }),
-    write(id) { return lookupWrite(history, queued, id, unavailable, () => acquired); },
-    pendingWrites: () => localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds),
+    write(id) { return unavailable() ? Promise.resolve(undefined) : identification.write(id) ?? lookupWrite(history, queued, id, unavailable, () => acquired); },
+    pendingWrites: async () => identification.visible(await localPendingWrites(queued, history, () => unavailable() ?? (partitionDenied?.code === "E_STORE_RESTORE" ? partitionDenied : null), () => acquired, holds), !unavailable()),
     onPendingWrites: pending.subscribe,
     get acquired() { return acquired; },
     onAcquired(listener) { acquiredListeners.add(listener); return () => acquiredListeners.delete(listener); },
@@ -1413,12 +1406,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       sessionListeners.clear();
       viewerListeners.clear();
       writeListeners.clear();
-      // Network waits cancel promptly. Already delivered responses retain local
-      // receipt/settlement custody until that bounded device work finishes.
-      for (const [id, { resolve }] of settled) if (!settling.has(id)) resolve({ state: "pending", id });
+      // Cancel network waits; drain delivered responses through local settlement.
+      identification.close();
       closing = (async () => {
         await Promise.allSettled([following, syncing, flushing, persistingSession, endingSession, ...active]);
-        for (const [id, { resolve }] of settled) resolve({ state: "pending", id });
+        await resolveClosingWrites(queued, history, settled);
         await deliveryStopped;
         await media?.close();
         // A failed admission can leave storage unavailable until reopen; clock

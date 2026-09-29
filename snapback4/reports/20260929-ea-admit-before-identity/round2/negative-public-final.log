@@ -1,0 +1,87 @@
+✖ native cached empty cannot bypass FIFO (1337.041276ms)
+✖ native cached empty cannot bypass captured binding (1354.136756ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3327.701667ms)
+✖ native late capture cannot expire a peer execution (settled=true) (3329.431754ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9475.016361
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:55:42
+✖ native cached empty cannot bypass FIFO (1337.041276ms)
+  AssertionError [ERR_ASSERTION]: deferred FIRST must precede SECOND
+  + actual - expected
+  
+  + '01M3P6YM40M59VBT32ZDMNED60'
+  - '01M3P6YM2TKHEEW87KEP70WKZG'
+             ^
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:69:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '01M3P6YM40M59VBT32ZDMNED60',
+    expected: '01M3P6YM2TKHEEW87KEP70WKZG',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:55:42
+✖ native cached empty cannot bypass captured binding (1354.136756ms)
+  AssertionError [ERR_ASSERTION]: {"outcome":{"state":"sent","id":"01M3P6YNBQV38H3YR62FAW7EFJ","seq":2,"replayed":true},"posts":[{"id":"01M3P6YNBQV38H3YR62FAW7EFJ","args":{"body":"FIRST","conversationId":"c1"},"newIds":["01M3P6YNBQV38H3YR62FAW7EFK"],"store_id":"643eb118fdd8171ee19a7f04fe672920"}]}
+  + actual - expected
+  
+  + undefined
+  - 'E_ADMISSION_STORE'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:65:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_ADMISSION_STORE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:75:38
+✖ native late capture cannot expire a peer execution (settled=true) (3329.431754ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      id: '01M3P6YSXW5MWTSDPWYKPA58AG',
+  +   state: 'failed',
+  +   why: {
+  +     code: 'E_ADMISSION_TIMEOUT',
+  +     family: 'store',
+  +     guide: 'writes',
+  +     message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.',
+  +     rewrite: 'check the connection and backend URL, then submit with a new write id',
+  +     site: 'client.mutate'
+  +   }
+  -   replayed: true,
+  -   seq: 2,
+  -   state: 'sent'
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/identity-handoffs.test.mjs:95:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { state: 'failed', id: '01M3P6YSXW5MWTSDPWYKPA58AG', why: { code: 'E_ADMISSION_TIMEOUT', family: 'store', site: 'client.mutate', guide: 'writes', message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.', rewrite: 'check the connection and backend URL, then submit with a new write id' } },
+    expected: { id: '01M3P6YSXW5MWTSDPWYKPA58AG', replayed: true, seq: 2, state: 'sent' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,134 @@
+✔ online: a deadline behind the issued floor does not loop server refetches (37.695639ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (27.320197ms)
+✖ composition: a deadline behind the issued floor does not loop server refetches (5.329969ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.987067ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.606638ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.520418ms)
+✖ composition publishes at both deadlines, device first (2.128591ms)
+✖ composition publishes at both deadlines, server first (1.510794ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.42748ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.88755ms)
+✔ freshness is clamped at publication after wall time rolls back (1.648551ms)
+✔ useNow catches deadline between render and effect installation (32.908894ms)
+✔ useNow catches correction between render and effect installation (7.441974ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.757863ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.973036ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.902491ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.398686ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.450745ms)
+✖ composed data with no server deadline still withdraws at its local row deadline (1.529082ms)
+✔ ten explicit calls during one round share exactly one follow-up (22.843448ms)
+✔ a call during the follow-up waits for its own newer round (4.687646ms)
+✔ a wake-driven round is not doubled (2.814669ms)
+✔ explicit sync during a held wake-driven round observes the newer head (2.266868ms)
+✔ a wake during an explicit round coalesces without an extra round (2.056172ms)
+✔ explicit sync waits for the follow-up's offline fetch (1.979787ms)
+✔ explicit sync waits for the follow-up's device rejection (3.969259ms)
+✔ an older round returning false after network error cannot skip the explicit follow-up (1.763673ms)
+✔ an older round returning false after HTTP 500 cannot skip the explicit follow-up (1.683823ms)
+✔ a failed older round cannot skip the explicit follow-up attempt (1.543103ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 25
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 577.99069
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:77:59
+✖ composition: a deadline behind the issued floor does not loop server refetches (5.329969ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok('data' in watch.getSnapshot())
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:88:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, device first (2.128591ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'typing'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:163:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'typing' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, server first (1.510794ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'typing'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:163:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'typing' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:300:1
+✖ composed data with no server deadline still withdraws at its local row deadline (1.529082ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'private'
+  -   ],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:310:25)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [ 'private' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

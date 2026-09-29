@@ -6,6 +6,7 @@ import { inheritClose } from "./closing-responses.ts";
 import { mintId } from "./client.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
+import { IdentityWait, identityRefusal } from "./identity-admission.ts";
 import { journalChanges } from "./journal-changes.ts";
 
 import { storeKey, storeLock as locked } from "./app-storage.ts";
@@ -31,6 +32,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const recoveredIntents = new Set<string>();
   const listeners = new Set<(write: Terminal) => void>();
   const pending = pendingChanges();
+  const identification = new IdentityWait(pending.notify);
   const stopPending = raw.onPendingWrites?.(pending.notify);
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -150,12 +152,13 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         // Paused custody hides receipts; it does not prove that a durable
         // intent expired. Every overlapping caller still owns that intent.
         return !active || raw.viewer() !== viewer ? { state: "pending", id } : write;
-      }, async snapshot => {
+      }, snapshot => {
+        const submit = async (release = () => {}): Promise<Write<R>> => {
         // Identify before admitting new intent. A reopened journal can name A
         // while this runtime first connects to B; only recovered unbound
         // intent belongs to that earlier history. Existing entries keep their
         // recorded ownership and still pass the strict dispatch guard below.
-        const identity = dispatchIdentity(raw) ?? (restoredIds.has(id) ? undefined : await identifyDispatch(raw));
+        const identity = dispatchIdentity(raw);
         // Discovery can fence this runtime and retire its queue. Do not add
         // a later admission behind that completed retirement transaction.
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
@@ -180,7 +183,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const dispatch = async (): Promise<Write<R>> => {
-          const result = await raw.mutate(op, snapshot as A, { ...options, id });
+          const sending = raw.mutate(op, snapshot as A, { ...options, id });
+          release();
+          const result = await sending;
           if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
           if (terminal(result)) {
             try { await settle(result); }
@@ -196,10 +201,28 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           return { state: "pending", id };
         }
         return dispatch();
+        };
+        if ((!dispatchIdentity(raw) || identification.size) && !restoredIds.has(id)) {
+          return identification.run({ id, op: op.name, args: snapshot }, async () => {
+            if (!active || raw.viewer() !== viewer) return { code: "E_AUTH", family: "auth", message: "sign in to write" };
+            if (storeRefusal) return identityRefusal(false);
+            await identifyDispatch(raw);
+            if (storeRefusal) return identityRefusal(false);
+            return !!dispatchIdentity(raw);
+          }, submit, why => {
+            const write = { state: "failed" as const, id, why };
+            emissions.remember(write); notify(write); return write;
+          });
+        }
+        return submit();
       });
     }),
     async write(id) {
       if (!active || raw.viewer() !== viewer) return undefined;
+      const waiting = identification.write(id);
+      if (waiting) return waiting;
+      const refused = await emissions.read(id);
+      if (refused) return refused;
       const retained = unpersisted.get(id);
       if (retained) {
         try { await settle(retained); }
@@ -233,13 +256,13 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const revisions = new Map(journal.pending.map(intent => [intent.id, intent.statusRevision]));
       for (const [id, hold] of unsavedHolds) if (!revisions.has(id) || revisions.get(id) !== hold.revision) unsavedHolds.delete(id);
       for (const id of dispatchRevisions.keys()) if (!revisions.has(id)) dispatchRevisions.delete(id);
-      return journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
+      return [...identification.pending(), ...journal.pending.filter(intent => !unpersisted.has(intent.id)).map(intent => {
         const reason = unsavedHolds.get(intent.id)?.reason ?? intent.holdReason;
         return { id: intent.id, op: intent.op, args: intent.args, predicted: [],
           ...(reason ? { state: "held" as const, reason }
             : { state: intent.dispatched ? "sent" as const : "queued" as const }),
         };
-      });
+      })];
     },
     onPendingWrites: pending.subscribe,
     async close() { pause(); await raw.close(); await writes.catch(report); },
@@ -247,7 +270,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
   inheritClose(client, raw);
-  function pause() { active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
+  function pause() { identification.close(); active = false; pending.notify(); pending.clear(); journalEvents.close(); stopPending?.(); stop(); listeners.clear(); unpersisted.clear(); unsavedHolds.clear(); dispatchRevisions.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;
@@ -262,6 +285,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   function refuseStore(why: Refusal): Promise<void> {
     if (retirement) return retirement;
     storeRefusal = why;
+    identification.close(identityRefusal(false));
     // Fence admissions synchronously, then retire the entire durable queue
     // before createApp can reopen. These intents must never cross stores.
     retirement = change(journal => {

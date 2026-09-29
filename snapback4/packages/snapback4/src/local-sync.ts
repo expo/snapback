@@ -2,14 +2,15 @@ import type { Refusal } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
 
 // @ref LLP 3000#explicit-sync-after-call — only explicit calls require a newer round.
-export function explicitSync(current: () => Promise<boolean> | null, once: () => Promise<boolean>) {
+export function explicitSync(current: () => Promise<boolean> | null, once: () => Promise<boolean>, reserve?: () => Promise<boolean>) {
   let followUp: { after: Promise<boolean>; result: Promise<boolean> } | undefined;
   return (): Promise<boolean> => {
     const prior = current();
     if (!prior) return once();
     // Bind the shared follow-up to the round each caller actually encountered.
     // Its failure must not prevent the newer attempt; that attempt owns the result.
-    if (followUp?.after !== prior) followUp = { after: prior, result: prior.then(once, once) };
+    // A serial transport reserves the new round now, ahead of later sends.
+    if (followUp?.after !== prior) followUp = { after: prior, result: reserve ? reserve() : prior.then(once, once) };
     return followUp.result;
   };
 }

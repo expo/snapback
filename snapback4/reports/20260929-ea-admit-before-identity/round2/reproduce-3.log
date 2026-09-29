@@ -1,0 +1,96 @@
+✖ native cached empty cannot bypass FIFO (56.414376ms)
+✖ native cached empty cannot bypass captured binding (53.502982ms)
+✖ native late capture cannot expire a peer execution (settled=false) (54.434428ms)
+✖ native late capture cannot expire a peer execution (settled=true) (54.039357ms)
+✖ native handoff model: expiry (5.34437ms)
+✖ restore custody stays visible until unsent refusal commits (1409.186509ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1751.961095
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass FIFO (56.414376ms)
+  Error: spawn /tmp/ea-round2-before-native ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/ea-round2-before-native',
+    path: '/tmp/ea-round2-before-native',
+    spawnargs: [ 'dev', '--port', '0', '--no-watch' ]
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:53:42
+✖ native cached empty cannot bypass captured binding (53.502982ms)
+  Error: spawn /tmp/ea-round2-before-native ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/ea-round2-before-native',
+    path: '/tmp/ea-round2-before-native',
+    spawnargs: [ 'dev', '--port', '0', '--no-watch' ]
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=false) (54.434428ms)
+  Error: spawn /tmp/ea-round2-before-native ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/ea-round2-before-native',
+    path: '/tmp/ea-round2-before-native',
+    spawnargs: [ 'dev', '--port', '0', '--no-watch' ]
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:72:38
+✖ native late capture cannot expire a peer execution (settled=true) (54.039357ms)
+  Error: spawn /tmp/ea-round2-before-native ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/ea-round2-before-native',
+    path: '/tmp/ea-round2-before-native',
+    spawnargs: [ 'dev', '--port', '0', '--no-watch' ]
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:92:61
+✖ native handoff model: expiry (5.34437ms)
+  Error: spawn /tmp/ea-round2-before-native ENOENT
+      at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+      at onErrorNT (node:internal/child_process:484:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'spawn /tmp/ea-round2-before-native',
+    path: '/tmp/ea-round2-before-native',
+    spawnargs: [ 'device', '/tmp/ea-native-handoff-t6xBSy/shared.sqlite', '/tmp/ea-native-handoff-t6xBSy/shared.sqlite.backend.json' ]
+  }
+
+test at packages/snapback4/test/identity-handoffs.test.mjs:93:1
+✖ restore custody stays visible until unsent refusal commits (1409.186509ms)
+  AssertionError [ERR_ASSERTION]: handoff boundary not reached
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:17:107)
+      at async restoreHandoffSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:98:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

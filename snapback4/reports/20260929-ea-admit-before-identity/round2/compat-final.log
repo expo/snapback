@@ -1,0 +1,233 @@
+✖ online app reopens after replacement; replacement accepts session: true (3109.004514ms)
+✖ online app reopens after replacement; replacement accepts session: false (3081.161536ms)
+✔ logout cancels replacement verification without restoring the old account (12.558121ms)
+✔ close cancels replacement verification without restoring the old account (7.535664ms)
+✔ login cancels replacement verification without restoring the old account (8.894261ms)
+✖ replacement waits for durable retirement of admitted writes; persistence fails: false (3074.465641ms)
+✖ replacement waits for durable retirement of admitted writes; persistence fails: true (3077.35403ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (32.16708ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (22.294113ms)
+✔ event slots wasm: owned-event fallback waits for the source prediction (8470.537378ms)
+✔ event slots wasm: rejected owned events cannot make a speculative scan publishable (8025.854345ms)
+✔ bounded Following wasm: unrelated held reads cannot validate speculative refusals or empty pages (8270.937612ms)
+✔ bounded Following wasm: unknown conditions preserve static and helper dependencies (4307.421985ms)
+✔ bounded Following wasm: a scalar cut before the feed keeps its possible reads fenced (5386.533896ms)
+✔ bounded Following wasm: a known branch wins over static server routing (4514.565501ms)
+✔ bounded Following wasm: a speculative profile withholds while a non-speculative page keeps predicted rows (4308.869216ms)
+✔ bounded Following wasm: a late card miss and oversized withheld output still use fallback (1157.086985ms)
+✔ bounded Following wasm: untaken online-only card branches remain answerable when held (218.366295ms)
+✔ bounded Following wasm: composed reads withhold the entire answer across the prediction fence (8009.737836ms)
+✔ bounded Following wasm: exact offline pages, original-cursor fallback and quiet authors (1180.778683ms)
+✔ bounded Following wasm: a predicted post fences fallback until observation (8022.569599ms)
+✔ bounded Following wasm: online-only cards withhold offline (224.243384ms)
+✔ bounded Following wasm: repost prediction needs a held original (8264.695144ms)
+✔ bounded Following wasm: held cards and transport failures stay withheld (1207.267363ms)
+✔ bounded Following wasm: online-only repost cards use the prediction fence before server routing (9102.153562ms)
+✔ bounded Following wasm: a response racing prediction admission is invalidated (4229.482198ms)
+✔ bounded Following wasm: repost horizon misses withhold but full-source nulls remain data (213.176827ms)
+✔ bounded Following wasm: inbox floors use all routing branches and preserve meter prefixes (14217.622099ms)
+✔ event slots native: owned-event fallback waits for the source prediction (8089.777729ms)
+✔ event slots native: rejected owned events cannot make a speculative scan publishable (8132.232798ms)
+✔ bounded Following native: unrelated held reads cannot validate speculative refusals or empty pages (8333.51063ms)
+✔ bounded Following native: unknown conditions preserve static and helper dependencies (4787.217619ms)
+✔ bounded Following native: a scalar cut before the feed keeps its possible reads fenced (5888.024165ms)
+✔ bounded Following native: a known branch wins over static server routing (4391.028879ms)
+✔ bounded Following native: a speculative profile withholds while a non-speculative page keeps predicted rows (4377.499624ms)
+✔ bounded Following native: a late card miss and oversized withheld output still use fallback (2440.765154ms)
+✔ bounded Following native: untaken online-only card branches remain answerable when held (330.782181ms)
+✔ bounded Following native: composed reads withhold the entire answer across the prediction fence (8162.914084ms)
+✔ bounded Following native: exact offline pages, original-cursor fallback and quiet authors (1369.785659ms)
+✔ bounded Following native: a predicted post fences fallback until observation (8129.356579ms)
+✔ bounded Following native: online-only cards withhold offline (317.804497ms)
+✔ bounded Following native: repost prediction needs a held original (8310.042824ms)
+✔ bounded Following native: held cards and transport failures stay withheld (313.112203ms)
+✔ bounded Following native: online-only repost cards use the prediction fence before server routing (8165.170689ms)
+✔ bounded Following native: a response racing prediction admission is invalidated (4315.429378ms)
+✔ bounded Following native: repost horizon misses withhold but full-source nulls remain data (315.708974ms)
+✔ bounded Following native: inbox floors use all routing branches and preserve meter prefixes (15474.386301ms)
+✔ bounded Following native query module: executed dependencies fence fallback until prediction observation (9809.210063ms)
+(node:458709) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online reconnect requires the authenticated GET /probe contract (6329.957852ms)
+✔ online pending writes emit their terminal outcome exactly once (559.60929ms)
+✔ online auth refusal settles writes that were queued behind the refused request (12.615817ms)
+✔ local pending writes emit once with the kept device identity (76.998351ms)
+✔ local pending writes emit once with their original binding ahead of a newer device identity (63.441503ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (5275.215027ms)
+✔ local startup releases a device when initialization after the protocol probe fails (1.971845ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (17.924504ms)
+✔ local observations skip idle polls and rerun after a committed page (37.972211ms)
+✔ local generation adoption reruns observations whose dependencies changed (47.364417ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (42.416071ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (3.019376ms)
+✔ local observations rerun when the device-reported visible lifetime expires (214.661803ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (13.367275ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (5.23134ms)
+✔ every local prediction invalidates observations, including unrelated tables (23.868122ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (297.032705ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2780.523778ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (252.938409ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (302.446539ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (229.178619ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (262.385698ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (275.60421ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (686.456682ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (254.309044ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (748.272056ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (236.322616ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (238.281062ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2453.595247ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (314.865803ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (368.401719ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1213.167034ms)
+✔ native: a sync started before admission finishes before that write can be sent (306.061067ms)
+✖ native: sync before a delayed write reply does not apply an increment twice (12053.79301ms)
+✖ native: sync before a lost write reply does not apply an increment twice (685.68127ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (1289.673147ms)
+✔ native: population growth cannot mint new IDs during prediction replay (323.251841ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (1082.719237ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (309.014344ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (297.675099ms)
+✔ close cancels online write callers without aborting committed delivery (182.969765ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (42.869711ms)
+✔ device compatibility rejects old and malformed protocols before online or offline startup (56.83419ms)
+✔ device compatibility closes the core and preserves operational startup errors (0.603164ms)
+✔ device compatibility accepts the current core online and on an offline reopen (238.112619ms)
+✔ online serialization failures retain the minted id without scheduling network retries (1.488912ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (255.745777ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (330.348036ms)
+✔ W13b fallback boundary: cursorless (1004.75528ms)
+✔ W13b fallback boundary: meter (1002.715462ms)
+✔ W13b fallback boundary: words (1002.984115ms)
+✔ W13b fallback boundary: missing fact (1003.209152ms)
+✔ W13b fallback boundary: presence (1003.296273ms)
+✔ W13b fallback boundary: offline missing fact (1002.799067ms)
+✔ W13b fallback boundary: held (1001.143446ms)
+✔ W13b fallback boundary: retained (1002.778918ms)
+✔ W13b fallback boundary: pending predictable write (1001.308044ms)
+✔ native state reads cannot replace another admission attempt CAS token (66.177293ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (45.297729ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (48.819919ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (48.068883ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (51.265163ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (52.239473ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (48.25374ms)
+✔ online expiry recovers a peer outcome (settled=false) (26.688268ms)
+✔ online expiry recovers a peer outcome (settled=true) (5.176899ms)
+✔ online successful late probe preserves peer dispatch (original-store) (4.631552ms)
+✔ online successful late probe preserves peer dispatch (replacement-store) (3.819304ms)
+✔ native cached empty cannot bypass FIFO (1330.978002ms)
+✔ native cached empty cannot bypass captured binding (1320.867049ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3327.320064ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3326.367687ms)
+✔ native handoff model: freeze (53.540593ms)
+✔ native handoff model: binding (51.606815ms)
+✔ native handoff model: fifo (55.511978ms)
+✔ native handoff model: expiry (50.13553ms)
+✔ native device checks deferred binding even without the SDK (46.087092ms)
+✔ native retired receipts preserve exact input (0) (49.82884ms)
+✔ native retired receipts preserve exact input (1) (48.330114ms)
+✔ native retired receipts preserve exact input (2) (50.580567ms)
+✔ restore custody stays visible until unsent refusal commits (435.347073ms)
+✔ identification publication survives a delayed queue read (native=false, late=false, reopen=false) (367.493617ms)
+✔ identification publication survives a delayed queue read (native=false, late=false, reopen=true) (3.533296ms)
+✔ identification publication survives a delayed queue read (native=false, late=true, reopen=false) (2.104153ms)
+✔ identification publication survives a delayed queue read (native=false, late=true, reopen=true) (2.649881ms)
+✔ identification publication survives a delayed queue read (native=true, late=false, reopen=false) (51.733144ms)
+✔ identification publication survives a delayed queue read (native=true, late=false, reopen=true) (52.715177ms)
+✔ identification publication survives a delayed queue read (native=true, late=true, reopen=false) (39.391297ms)
+✔ identification publication survives a delayed queue read (native=true, late=true, reopen=true) (53.944949ms)
+✔ native expiry transaction rechecks a peer identity publication (89.68149ms)
+ℹ tests 138
+ℹ suites 0
+ℹ pass 132
+ℹ fail 5
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210921.232456
+
+✖ failing tests:
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:14:39
+✖ online app reopens after replacement; replacement accepts session: true (3109.004514ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:46:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:14:39
+✖ online app reopens after replacement; replacement accepts session: false (3081.161536ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:46:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:96:35
+✖ replacement waits for durable retirement of admitted writes; persistence fails: false (3074.465641ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:126:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/app-store-replacement.test.mjs:96:35
+✖ replacement waits for durable retirement of admitted writes; persistence fails: true (3077.35403ms)
+  AssertionError [ERR_ASSERTION]: app recovery did not settle
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:10:116)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/app-store-replacement.test.mjs:126:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:993:5
+✖ native: sync before a delayed write reply does not apply an increment twice (12053.79301ms)
+  'test timed out after 12000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:993:5
+✖ native: sync before a lost write reply does not apply an increment twice (685.68127ms)
+  AssertionError [ERR_ASSERTION]: a correlated terminal outcome is never reported as pending
+  
+  'pending' !== 'sent'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:1034:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'pending',
+    expected: 'sent',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

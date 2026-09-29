@@ -1,0 +1,44 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3P42WGJHMTNEE6Q97ZGW04K","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P42WJJVEYEQ68K3J4W4EXP","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1698.065432ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1579.049191ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1523.424676ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1893.234586ms)
+{"tier":"wasm","replacementOutcome":{"state":"failed","id":"01M3P432X7XDTVQT0GE2KQ30FT","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (wasm) (1306.299372ms)
+✔ identification timeout settles visibly without sending (wasm) (1622.296614ms)
+✔ identification adoption settles visibly without sending (wasm) (1730.63575ms)
+✔ identification incarnation settles visibly without sending (wasm) (1759.195378ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3P439AESYJCGHXSDTC3ZX6M","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P439CFHN4RP2H9YVRTP8PS","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1805.765691ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1859.898189ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1738.164845ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2532.157213ms)
+{"tier":"Worker","replacementOutcome":{"state":"failed","id":"01M3P43H145W75VBSM1CFGX78X","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (Worker) (1452.255332ms)
+✔ identification timeout settles visibly without sending (Worker) (1804.93117ms)
+✔ identification adoption settles visibly without sending (Worker) (1972.83019ms)
+✔ identification incarnation settles visibly without sending (Worker) (1775.560197ms)
+✔ process device persists immediate writes before identity and resumes in order (406.641616ms)
+✔ online app takes custody before a held identity probe, including reload (1211.69375ms)
+✔ two native owners compare deferred custody without losing or replacing writes (589.142192ms)
+✔ native generation between identity validation and admission refuses the original write unsent (292.58563ms)
+✔ native incarnation between identity validation and admission refuses the original write unsent (274.327113ms)
+✔ expired identification deadline survives reopen (process) (336.696596ms)
+✔ expired identification deadline survives reopen (online) (181.463001ms)
+✔ native state reads cannot replace another admission attempt CAS token (50.926914ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (32.668296ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (34.593181ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (36.250364ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (38.999927ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (40.832563ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (34.291398ms)
+✔ online expiry recovers a peer outcome (settled=false) (11.211445ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.212887ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31920.718495

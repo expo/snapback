@@ -23,6 +23,7 @@ export function Composer({ conversationId }: { conversationId: string }) {
 ```
 
 `waitSeconds: 0` returns at custody; `inFlight` covers the call, while `pending` lasts until settlement and must not disable the next send.
+After session readiness, no acquisition gate is needed. Identity I/O has 15 seconds, excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes ordinary admission in call order. `E_ADMISSION_STORE` or `E_ADMISSION_TIMEOUT` permits a new attempt after repair, without remounting.
 Clear the field at submit; on refusal, restore it only if still empty, otherwise offer the saved text with Edit (append to a non-empty draft). Text typed meanwhile survives. Predicted rows carry `pending: true`: show “Sending…”.
 For earlier sends and reload, save `{ id: mintId(), args }` in account-and-backend-scoped storage **before** `run(args, { id, waitSeconds: 0 })`.
 Observe each saved id with `usePendingWrite(op, savedId)`; `failed` shows its refusal and saved text to edit. Show “Saving…” during submission and “Checking…” while `restoring` is true; only then is an `undefined` receipt unknown, never failed or automatically resent. Unknown and failed rows show the saved text; only settled lookups offer Dismiss.

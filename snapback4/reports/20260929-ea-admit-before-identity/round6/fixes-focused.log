@@ -1,0 +1,15 @@
+✔ waiting admission after restored backend refresh: native descriptor (7.390197ms)
+✔ waiting admission after restored backend refresh: schema (2.514889ms)
+✔ waiting admission after restored backend refresh: programs (1.035813ms)
+✔ suspended runtime refuses late initial identity before timer delivery (1.090464ms)
+✔ suspended runtime refuses late final identity before timer delivery (0.53385ms)
+✔ offline cached backend to real /schema refresh preserves waiting admission (814.387373ms)
+ℹ {"schemas":1,"nativeInstalls":1,"admissions":1,"posts":1}
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 940.662599

@@ -128,16 +128,17 @@ test("failed intent identity persistence refuses admission before any dispatch",
   await app.close(); f.failIdentity(false); await f.open(); assert.equal(f.sends.length, 0);
 });
 
-test("close detaches a held first-store probe and preserves the pending intent for reopen", { timeout: 5000 }, async t => {
+test("close detaches a held first-store probe without admitting its call", { timeout: 5000 }, async t => {
   const f = await fixture(t), app = await f.open(), id = mintId(), probe = f.holdProbe();
   const writing = app.mutate(op, {}, { id }); await until(() => probe.entered);
   await app.close();
-  assert.equal((await f.journal()).pending[0].id, id, "public close finishes local admission without waiting for the probe");
-  assert.deepEqual(await writing, { state: "pending", id });
+  assert.deepEqual((await f.journal())?.pending ?? [], []);
+  assert.equal((await writing).why.code, "E_CLOSED");
   assert.equal(f.sends.length, 0);
   probe.release(); const reopened = await f.open();
-  await until(async () => (await reopened.client.write(id))?.state === "sent");
-  assert.equal(f.executions.get(`A/${id}`), 1);
+  assert.equal(await reopened.client.write(id), undefined);
+  assert.equal((await reopened.client.mutate(op, {}, { id: mintId() })).state, "sent");
+  assert.equal(f.executions.has(`A/${id}`), false);
 });
 
 for (const scenario of [

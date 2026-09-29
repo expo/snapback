@@ -1,0 +1,603 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NXZH50PVCG9W4XAWTJ8EMC","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NXZH71JNPY71ZSXFW8WCV3","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1613.002246ms)
+✖ deferred burst, prediction, ids and reload (wasm) (1360.067486ms)
+✖ same-turn navigation before deferred custody commits (wasm) (1434.021183ms)
+✔ identification timeout settles visibly without sending (wasm) (1325.48017ms)
+✔ identification adoption settles visibly without sending (wasm) (1735.353337ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NXZR3XS9CAGWN4BVFXMTWF","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NXZR5X50YKN4N0ZFS9F67H","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1429.263012ms)
+✖ deferred burst, prediction, ids and reload (Worker) (1465.670587ms)
+✖ same-turn navigation before deferred custody commits (Worker) (1476.889582ms)
+✔ identification timeout settles visibly without sending (Worker) (1508.944153ms)
+✔ identification adoption settles visibly without sending (Worker) (1741.187732ms)
+✖ process device persists immediate writes before identity and resumes in order (215.567686ms)
+✔ online app takes custody before a held identity probe, including reload (100.468274ms)
+✔ known online commit survives failed receipt saves and same-id restart recovery (107.594474ms)
+✔ known online refusal survives failed receipt saves and same-id restart recovery (63.984365ms)
+(node:376789) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ web admission review: recovery and transport respect the session boundary
+  ✔ hiding during strict admission releases the session lock before transport and peer logout (1409.959211ms)
+  ✔ exit notification waits for a session turn queued after strict admission (885.019239ms)
+  ✖ navigation recovers its original outbox id before held-sync startup completes (30800.358925ms)
+  ✖ navigation recovers its original outbox id before offline startup completes (31306.298874ms)
+  ✖ backend-required custody cannot exit offline and enables exit after validated adoption (31395.627404ms)
+  ✖ a hide during the startup probe waits for its accepted decision (6305.878578ms)
+  ✖ a hide during the startup probe waits for its refused decision (6218.60397ms)
+  ✖ a hide during the startup probe waits for its restore decision (6245.69188ms)
+  ✖ a hide during the startup probe waits for its replacement decision (6327.690677ms)
+  ✖ a hide during the startup probe waits for its observed-replacement decision (7347.307113ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: false, device: false) (1646.334266ms)
+  ✖ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (7438.627111ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1784.143245ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: false) (1618.97288ms)
+  ✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (7216.176121ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1719.194656ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: true, device: true) (1693.313758ms)
+  ✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (7408.197204ms)
+  ✔ legacy journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1685.792907ms)
+  ✔ stamped journal after logout refuses an unestablished epoch (wrapped store: async, device: true) (1755.264697ms)
+  ✖ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (7435.225367ms)
+  ✖ an accepted probe enables exit before ordinary replay resolves (9630.103854ms)
+  ✖ a successful reconnect enables exit after startup 503s (1.178676ms)
+  ✖ an empty-outbox open gates new clicks on its accepted probe (1.512898ms)
+  ✖ an empty-outbox open gates new clicks on its refused probe (1.026188ms)
+  ✖ an empty-outbox open gates new clicks on its restore probe (1.046898ms)
+  ✖ an empty-outbox open gates new clicks on its replacement probe (1.025617ms)
+  ✖ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1.460378ms)
+  ✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (0.968261ms)
+  ✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (0.937585ms)
+  ✖ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1.343924ms)
+  ✖ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (5.430669ms)
+  ✖ receipt abort then retry persists sent before any replacement sync or POST (3.742209ms)
+  ✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1.544285ms)
+  ✖ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (2.894348ms)
+  ✖ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1.412286ms)
+  ✖ a legacy refused observation with no history remains pending until same-id replay (1.333118ms)
+  ✖ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (1.335691ms)
+  ✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (1.26097ms)
+  ✖ a pending changes rewind waits for an aborted successful receipt to become durable (1.267569ms)
+  ✖ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (1.189162ms)
+  ✖ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (0.938817ms)
+  ✖ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (1.243003ms)
+  ✖ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (1.098896ms)
+  ✖ replacement after validation refuses the original orphan binding at the server (ordinary transport) (1.13475ms)
+  ✖ replacement after validation refuses the original orphan binding at the server (exit transport) (0.848382ms)
+  ✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (2.417213ms)
+  ✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (0.838086ms)
+  ✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (0.789714ms)
+  ✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (0.789554ms)
+  ✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (1.048131ms)
+  ✖ same-epoch logout tombstone refuses live admission (0.993409ms)
+  ✖ same-epoch logout tombstone refuses live admission even with retained session fields (0.742062ms)
+  ✖ a confirmed epoch mismatch fences existing observations while the change poll is held (0.926809ms)
+✖ web admission review: recovery and transport respect the session boundary (180146.187525ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1575.634121ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1156.65673ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1129.379979ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1125.445973ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (1952.584596ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3NXZMWVKYNXHYWQXEFW2AXC","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (1963.815379ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3NXZPSZ12TW77DWH8BCRRZE","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 A native: already-open owners equal input, offline (1227.548157ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners equal input, in-flight send (223.553265ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, offline (1193.247069ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, in-flight send (1208.511987ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B native: evicted explicit row outcome reaches server replay (4375.165441ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3NXZWH9S8749VT92QPTG65C","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B native: evicted changed guard outcome reaches server replay (4171.019224ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3NY00SZ3QG8FRQAHR8HJY27","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals online: one caller ID is independent per principal (60.158041ms)
+ℹ tier=online principals=2 applications=2 posts=2
+✔ W6R1 principals memory: one caller ID is independent per principal (100.913431ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+✔ W6R1 principals native: one caller ID is independent per principal (252.502632ms)
+ℹ tier=native principals=2 applications=2 posts=2
+✔ W6R1 online closed: retrying a sent ID cannot emit a contradictory failure (1.380248ms)
+✔ W6R1 online signed-out: retrying a sent ID cannot emit a contradictory failure (1.431335ms)
+✔ server write ids bind raw arguments and operation names across independent clients (64.058867ms)
+ℹ tests 87
+ℹ suites 0
+ℹ pass 36
+ℹ fail 50
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 180237.427318
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:91:3
+✖ deferred burst, prediction, ids and reload (wasm) (1360.067486ms)
+  page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+      at queued (http://127.0.0.1:34641/assets/index-CjyN9Tqz.js:8221:62)
+      at async createLocalClient (http://127.0.0.1:34641/assets/index-CjyN9Tqz.js:7115:23)
+      at async prepareClient (http://127.0.0.1:34641/assets/index-CjyN9Tqz.js:2544:12)
+      at async window.openFresh (http://127.0.0.1:34641/assets/index-CjyN9Tqz.js:25485:19)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:103:18)
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:118:3
+✖ same-turn navigation before deferred custody commits (wasm) (1434.021183ms)
+  page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+      at queued (http://127.0.0.1:41021/assets/index-DEiXgKMb.js:8221:62)
+      at async createLocalClient (http://127.0.0.1:41021/assets/index-DEiXgKMb.js:7115:23)
+      at async prepareClient (http://127.0.0.1:41021/assets/index-DEiXgKMb.js:2544:12)
+      at async window.openFresh (http://127.0.0.1:41021/assets/index-DEiXgKMb.js:25485:19)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:124:18)
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:91:3
+✖ deferred burst, prediction, ids and reload (Worker) (1465.670587ms)
+  page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+      at queued (http://127.0.0.1:44703/assets/index-Bzew_HIu.js:8221:62)
+      at async createLocalClient (http://127.0.0.1:44703/assets/index-Bzew_HIu.js:7115:23)
+      at async prepareClient (http://127.0.0.1:44703/assets/index-Bzew_HIu.js:2544:12)
+      at async window.openFresh (http://127.0.0.1:44703/assets/index-Bzew_HIu.js:25485:19)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:103:18)
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:118:3
+✖ same-turn navigation before deferred custody commits (Worker) (1476.889582ms)
+  page.evaluate: ReferenceError: Cannot access 'waitingForIdentity' before initialization
+      at queued (http://127.0.0.1:40697/assets/index-ByNDJ502.js:8221:62)
+      at async createLocalClient (http://127.0.0.1:40697/assets/index-ByNDJ502.js:7115:23)
+      at async prepareClient (http://127.0.0.1:40697/assets/index-ByNDJ502.js:2544:12)
+      at async window.openFresh (http://127.0.0.1:40697/assets/index-ByNDJ502.js:25485:19)
+      at async <anonymous>:317:30
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:124:18)
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:154:16
+✖ process device persists immediate writes before identity and resumes in order (215.567686ms)
+  ReferenceError: Cannot access 'waitingForIdentity' before initialization
+      at queued (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local.js:1339:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async createLocalClient (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/local.js:249:29)
+      at async prepareClient (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/dist/client-start.js:14:24)
+      at async open (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:163:22)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:171:16)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ navigation recovers its original outbox id before held-sync startup completes (30800.358925ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:355:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:48) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ navigation recovers its original outbox id before offline startup completes (31306.298874ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:355:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:348:48) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ backend-required custody cannot exit offline and enables exit after validated adoption (31395.627404ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:393:16)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:375:3) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its accepted decision (6305.878578ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:437:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:97) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its refused decision (6218.60397ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:437:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:97) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its restore decision (6245.69188ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:437:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:97) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its replacement decision (6327.690677ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:437:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:97) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a hide during the startup probe waits for its observed-replacement decision (7347.307113ms)
+  page.waitForFunction: Timeout 5000ms exceeded.
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:437:18)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:408:97) {
+    name: 'TimeoutError'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ legacy journal after logout preserves committed outbox custody (wrapped store: false, device: false) (7438.627111ms)
+  AssertionError [ERR_ASSERTION]: timed out: committed write sent
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:521:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:224)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: false) (7216.176121ms)
+  AssertionError [ERR_ASSERTION]: timed out: committed write sent
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:521:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:224)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ legacy journal after logout preserves committed outbox custody (wrapped store: true, device: true) (7408.197204ms)
+  AssertionError [ERR_ASSERTION]: timed out: committed write sent
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:521:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:224)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ legacy journal after logout preserves committed outbox custody (wrapped store: async, device: true) (7435.225367ms)
+  AssertionError [ERR_ASSERTION]: timed out: committed write sent
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:521:20)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:504:224)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an accepted probe enables exit before ordinary replay resolves (9630.103854ms)
+  page.evaluate: Target page, context or browser has been closed
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:551:28)
+      at async TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:529:42)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a successful reconnect enables exit after startup 503s (1.178676ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:530:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:529:48)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an empty-outbox open gates new clicks on its accepted probe (1.512898ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an empty-outbox open gates new clicks on its refused probe (1.026188ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an empty-outbox open gates new clicks on its restore probe (1.046898ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an empty-outbox open gates new clicks on its replacement probe (1.025617ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:555:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:554:79)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ A's committed ordinary result owns settlement when keepalive answers first (receipt abort: false) (1.460378ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: false) (0.968261ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ A's committed ordinary result owns settlement when ordinary answers first (receipt abort: true) (0.937585ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:612:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:611:110)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a known NOT_ADMIN refusal survives two receipt aborts when keepalive answers first (1.343924ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:665:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:664:56)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a known NOT_ADMIN refusal survives two receipt aborts when ordinary answers first (5.430669ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:665:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:664:56)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ receipt abort then retry persists sent before any replacement sync or POST (3.742209ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:704:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:703:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ sync acknowledgement replaces an aborted replacement refusal after A committed, including reopen (1.544285ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:737:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:736:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a refused _ops row never acknowledges success after its NOT_ADMIN response is lost (2.894348ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:780:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:779:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a known NOT_ADMIN receipt wins over a legacy outbox acknowledgement in mutate and lookup (1.412286ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:810:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:809:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a legacy refused observation with no history remains pending until same-id replay (1.333118ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:846:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:845:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ final begin_send preflight preserves an intervening NOT_ADMIN receipt in mutation and notification (1.335691ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:887:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:886:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ lookup repairs a stored replacement refusal from sent_seq alone before catch-up and reopen (1.26097ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:924:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:923:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a pending changes rewind waits for an aborted successful receipt to become durable (1.267569ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:962:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:961:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ outbox-only sent_seq evidence rejects a replacement refusal without terminal history (1.189162ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:994:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:993:60)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ outbox-only observed_seq evidence rejects a replacement refusal without terminal history (0.938817ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:994:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:993:60)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a keepalive settlement held past the exit timeout excludes ordinary delivery until commit (1.243003ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1018:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1017:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ an aborted keepalive receipt transaction retains custody until receipt and retirement commit together (1.098896ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1044:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1043:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ replacement after validation refuses the original orphan binding at the server (ordinary transport) (1.13475ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1097:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1096:45)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ replacement after validation refuses the original orphan binding at the server (exit transport) (0.848382ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1097:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1096:45)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a fresh orphan bound to A is retired before enqueue on B (ordinary transport) (2.417213ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a fresh orphan bound to A is retired before enqueue on B (exit transport) (0.838086ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a recovered orphan bound to A is retired before enqueue on B (ordinary transport) (0.789714ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a recovered orphan bound to A is retired before enqueue on B (exit transport) (0.789554ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1149:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1148:84)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a fresh orphan waits for an unidentified destination and delivers its original id after matching sync (1.048131ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1207:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1206:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ same-epoch logout tombstone refuses live admission (0.993409ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1247:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1246:51)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ same-epoch logout tombstone refuses live admission even with retained session fields (0.742062ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1247:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1246:51)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:44:79
+✖ a confirmed epoch mismatch fences existing observations while the change poll is held (0.926809ms)
+  page.reload: Target page, context or browser has been closed
+      at Object.reload (/home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:144:33)
+      at fresh (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:264:19)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1272:31)
+      at check (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:44:79)
+      at TestContext.<anonymous> (/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/web-admission-review.test.mjs:1271:9)
+
+test at packages/snapback4/test/web-admission-review.test.mjs:11:1
+✖ web admission review: recovery and transport respect the session boundary (180146.187525ms)
+  'test timed out after 180000ms'

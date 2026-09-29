@@ -63,7 +63,7 @@ export async function fixture(t, count = 1, hooks = {}) {
     assert.fail(path);
   };
   async function open() {
-    const opener = webDevice({ wasm, persist });
+    const opener = (hooks.webDevice ?? webDevice)({ wasm, persist });
     client = await (hooks.createLocalClient ?? createLocalClient)({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, ...(hooks.onSuspend ? {onSuspend:hooks.onSuspend} : {}), async call(request, committedReply) {
       const intercepted = await beforeCall?.(request);
       if (intercepted) return intercepted;

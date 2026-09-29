@@ -1,0 +1,63 @@
+(node:589008) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+EA_TRACE {"req":{"op":"meta","key":"server-clock"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued","restore_clock_floor":true},"r":{"ok":[]}}
+EA_TRACE {"req":{"op":"meta","key":"server-clock-floor"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"media:manifest"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"syncedAt:wall:1"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[]}}
+EA_TRACE {"req":{"op":"meta","key":"write-history","lookup":true},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"delivery-active"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"apply","page":{"acquisitions":[{"at":2,"table":"copies","index":"byId","group":[]},{"at":2,"table":"copies","index":"byId","group":[],"floor":"whole"},{"at":2,"table":"counters","index":"byId","group":[]},{"at":3,"table":"counters","index":"byId","group":[],"floor":"whole"},{"at":3,"table":"gates","index":"byId","group":[]},{"at":4,"table":"gates","index":"byId","group":[],"floor":"whole"},{"at":8,"table":"messages","index":"byConvTime","group":["c1"]},{"at":10,"table":"messages","index":"byConvTime","group":["c1"],"floor":"whole"},{"at":10,"table":"messages","index":"byConvTime","group":["c2"]},{"at":10,"table":"messages","index":"byConvTime","group":["c2"],"floor":"whole"},{"at":10,"table":"profiles","index":"byHandle","group":[]},{"at":10,"table":"profiles","index":"byHandle","group":[],"floor":"whole"}],"acknowledged":{},"after":null,"events":[{"data":{"creatorId":"dev:alice","id":"c1","title":"c1"},"id":"c1","kind":"put","table":"conversations"},{"data":{"creatorId":"dev:alice","id":"c2","title":"c2"},"id":"c2","kind":"put","table":"conversations"},{"data":{"id":"counter","value":0},"id":"counter","kind":"put","table":"counters"},{"data":{"id":"gate","open":true},"id":"gate","kind":"put","table":"gates"},{"data":{"conversationId":"c1","id":"bob-c1","joinedAt":1,"principal":"dev:bob","role":"member"},"id":"bob-c1","kind":"put","table":"memberships"},{"data":{"conversationId":"c1","id":"alice-c1","joinedAt":1,"principal":"dev:alice","role":"admin"},"id":"alice-c1","kind":"put","table":"memberships"},{"data":{"conversationId":"c2","id":"alice-c2","joinedAt":1,"principal":"dev:alice","role":"admin"},"id":"alice-c2","kind":"put","table":"memberships"},{"data":{"conversationId":"c1","id":"[{\"Id\":\"c1\"}]","value":2},"id":"[{\"Id\":\"c1\"}]","kind":"put","table":"messageCounts"},{"data":{"at":2,"authorId":"dev:alice","body":"msg-b","conversationId":"c1","editedAt":null,"id":"msg-b","photo":null},"id":"msg-b","kind":"put","table":"messages"},{"data":{"at":1,"authorId":"dev:alice","body":"msg-a","conversationId":"c1","editedAt":null,"id":"msg-a","photo":null},"id":"msg-a","kind":"put","table":"messages"}],"generation":1,"held":{"messages":[["c1"],["c2"]]},"more":false,"next":null,"now":1790674870765,"snapshot":true,"store_id":"b1cbec7923ab7313846529baeb121753","watermark":2,"send_revision":0,"pending_through":0,"pending_complete":true,"pending_bound":0,"requested_watermark":0,"captured_restore_watermark":0,"captured_restore_images_at":0,"captured_watermark":0,"stage_snapshot":true,"snapshot_catchup":false,"identity_at":1790674870770},"first":true},"r":{"ok":{"published":false,"touched":[]}}}
+EA_TRACE {"req":{"op":"meta","key":"delivery-active"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"apply","page":{"acknowledged":{},"events":[],"generation":1,"images_at":2,"joined":{},"more":false,"now":1790674870775,"snapshot":false,"store_id":"b1cbec7923ab7313846529baeb121753","watermark":2,"send_revision":0,"pending_through":0,"pending_complete":true,"pending_bound":0,"requested_watermark":2,"captured_restore_watermark":2,"captured_restore_images_at":2,"captured_watermark":0,"stage_snapshot":false,"snapshot_catchup":true,"identity_at":1790674870777},"first":false},"r":{"ok":{"published":true,"touched":["conversations","copies","counters","gates","memberships","messageCounts","messages","profiles","readMarkers","secrets","sources"]}}}
+EA_TRACE {"req":{"op":"meta","key":"delivery-active"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"write-history"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"begin_send","id":"01M3P8M8FYEM6CZ1JRHP730CKQ"},"r":{"ok":{"send_revision":2}}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"settle","id":"01M3P8M8FYEM6CZ1JRHP730CKQ","seq":3},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"delivery-active"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"dispatch":"","id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"receipt_store":{"id":"b1cbec7923ab7313846529baeb121753","success_seq":3},"sent_seq":3,"seq":1,"viewer":"dev:alice"},{"args":{"counterId":"counter"},"id":"01M3P8M8GEGP7Z4DB8X7GYVZKW","new_ids":[],"now":1790674870799,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":2,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"dispatch":"","id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"receipt_store":{"id":"b1cbec7923ab7313846529baeb121753","success_seq":3},"sent_seq":3,"seq":1,"viewer":"dev:alice"},{"args":{"counterId":"counter"},"id":"01M3P8M8GEGP7Z4DB8X7GYVZKW","new_ids":[],"now":1790674870799,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":2,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"dispatch":"","id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"receipt_store":{"id":"b1cbec7923ab7313846529baeb121753","success_seq":3},"sent_seq":3,"seq":1,"viewer":"dev:alice"},{"args":{"counterId":"counter"},"id":"01M3P8M8GEGP7Z4DB8X7GYVZKW","new_ids":[],"now":1790674870799,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":2,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"write-history"},"r":{"ok":"[{\"id\":\"01M3P8M8FYEM6CZ1JRHP730CKQ\",\"replayed\":true,\"seq\":3,\"state\":\"sent\"}]"}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"dispatch":"","id":"01M3P8M8FYEM6CZ1JRHP730CKQ","new_ids":[],"now":1790674870786,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"receipt_store":{"id":"b1cbec7923ab7313846529baeb121753","success_seq":3},"sent_seq":3,"seq":1,"viewer":"dev:alice"},{"args":{"counterId":"counter"},"id":"01M3P8M8GEGP7Z4DB8X7GYVZKW","new_ids":[],"now":1790674870799,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":2,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"apply","page":{"acknowledged":{"01M3P8M8FYEM6CZ1JRHP730CKQ":3},"events":[{"data":{"id":"counter","value":1},"id":"counter","kind":"put","seq":3,"table":"counters"}],"generation":1,"images_at":3,"joined":{},"more":false,"now":1790674870842,"sent":{"01M3P8M8FYEM6CZ1JRHP730CKQ":3},"snapshot":false,"store_id":"b1cbec7923ab7313846529baeb121753","watermark":3,"send_revision":2,"pending_through":2,"pending_complete":true,"pending_bound":2,"requested_watermark":2,"captured_restore_watermark":2,"captured_restore_images_at":0,"captured_watermark":2,"stage_snapshot":false,"snapshot_catchup":false,"identity_at":1790674870847},"first":true},"r":{"ok":{"published":true,"touched":["counters"]}}}
+EA_TRACE {"req":{"op":"meta","key":"delivery-active"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"meta","key":"identity-admissions"},"r":{"ok":null}}
+EA_TRACE {"req":{"op":"queued"},"r":{"ok":[{"args":{"counterId":"counter"},"id":"01M3P8M8GEGP7Z4DB8X7GYVZKW","new_ids":[],"now":1790674870799,"observed_seq":null,"op":"increment","predictable":true,"predicted":["counters/counter"],"sent_seq":null,"seq":2,"viewer":"dev:alice"}]}}
+EA_TRACE {"req":{"op":"meta","key":"write-history"},"r":{"ok":"[{\"id\":\"01M3P8M8FYEM6CZ1JRHP730CKQ\",\"replayed\":true,\"seq\":3,\"state\":\"sent\"}]"}}
+EA_TRACE {"req":{"op":"begin_send","id":"01M3P8M8GEGP7Z4DB8X7GYVZKW"},"r":{"ok":{"send_revision":3}}}
+✖ native: sync before a delayed write reply does not apply an increment twice (12101.135601ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12212.71838
+
+✖ failing tests:
+
+test at packages/snapback4/test/.ea-lifecycle-debug.mjs:993:5
+✖ native: sync before a delayed write reply does not apply an increment twice (12101.135601ms)
+  'test timed out after 12000ms'

@@ -1,0 +1,21 @@
+{
+  "checked_utc": "2026-09-29T13:25:20.891722+00:00",
+  "changed_after_full_run": [
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+    "snapback4/packages/snapback4/src/identity-admission.ts",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs"
+  ],
+  "final_input_sha256": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "c7128596b56429e78de9c521248afbdfa32f861b00d24406237e9c360f6df0e7",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "d2d71ab2ae9e9b0b557b1afbb2ebf656370617b71395c03dd2e2ee0c87524ad3",
+    "snapback4/packages/snapback4/src/identity-admission.ts": "75a79662162ba53520fda3011e9e334d800e672b40b03da2cd63783ce00720a8",
+    "snapback4/packages/snapback4/src/web-journal.ts": "fc0a566ea09dce13af21b08d1d261f221c09ec56f779a92b4f5af0692f74fcb9",
+    "snapback4/packages/snapback4/src/web-worker-device.ts": "b985228055d42bd3154494b0c53b4023063bee46637a2972e032004e506643e7",
+    "snapback4/packages/snapback4/src/web.ts": "5a80ba6a3e99e6b415c20f699ca59cc6a7354e145f737b0aa66f65438e425a5c",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "3462ec4799d79f45b5a0d06fc17e84ea447d2bf80a209019758a1749b4296567",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json": "4497e230ef22916b0173f13a1197a2b1086626e86a216cffd1e2bdc76a1a1c37",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs": "e76f2feb88cbe2aaa9ce8db130c2bd3818ad1bda9a8144842e7f3f4a1c42813d"
+  },
+  "full_suite_invocations": 1
+}

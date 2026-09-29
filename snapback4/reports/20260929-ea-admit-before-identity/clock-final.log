@@ -1,0 +1,94 @@
+✔ online: a deadline behind the issued floor does not loop server refetches (43.670058ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (27.603405ms)
+✖ composition: a deadline behind the issued floor does not loop server refetches (5.512864ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (2.618004ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.896984ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.487279ms)
+✖ composition publishes at both deadlines, device first (2.66132ms)
+✖ composition publishes at both deadlines, server first (1.986378ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.337765ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (0.872448ms)
+✔ freshness is clamped at publication after wall time rolls back (1.578296ms)
+✔ useNow catches deadline between render and effect installation (32.894966ms)
+✔ useNow catches correction between render and effect installation (7.286883ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.581649ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (2.880247ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.743423ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.275362ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.369783ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.724355ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 543.081331
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:77:59
+✖ composition: a deadline behind the issued floor does not loop server refetches (5.512864ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok('data' in watch.getSnapshot())
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:88:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, device first (2.66132ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [],
+  -   remote: [
+  -     'live'
+  -   ]
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:167:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [ 'live' ], kept: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/server-clock-regressions.test.mjs:151:45
+✖ composition publishes at both deadlines, server first (1.986378ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   kept: [
+  -     'typing'
+  -   ],
+  -   remote: []
+  - }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-regressions.test.mjs:167:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { remote: [], kept: [ 'typing' ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,40 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3P2P6RR1RJWH651HNE5E6C3","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P2P6TSWMRYBPW16MCV4F5P","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (2076.753318ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1804.658786ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1663.356875ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1942.528683ms)
+✔ identification timeout settles visibly without sending (wasm) (1670.688274ms)
+✔ identification adoption settles visibly without sending (wasm) (1920.987704ms)
+✔ identification incarnation settles visibly without sending (wasm) (1709.222213ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3P2PJS32CP9N7F4CTQMHDVS","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P2PJV4XEQZAZ69FHAC85XC","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1659.85878ms)
+✔ deferred burst, prediction, ids and reload (Worker) (2091.989132ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1882.509026ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (3101.155649ms)
+✔ identification timeout settles visibly without sending (Worker) (1936.84456ms)
+✔ identification adoption settles visibly without sending (Worker) (1946.170478ms)
+✔ identification incarnation settles visibly without sending (Worker) (1975.558809ms)
+✔ process device persists immediate writes before identity and resumes in order (579.496322ms)
+✔ online app takes custody before a held identity probe, including reload (1246.61792ms)
+✔ two native owners compare deferred custody without losing or replacing writes (1524.635338ms)
+✔ native generation between identity validation and admission refuses the original write unsent (325.893109ms)
+✔ native incarnation between identity validation and admission refuses the original write unsent (336.788972ms)
+✔ expired identification deadline survives reopen (process) (372.15997ms)
+✔ expired identification deadline survives reopen (online) (189.947597ms)
+✔ native state reads cannot replace another admission attempt CAS token (69.871943ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (45.577077ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (49.496411ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (49.739967ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (49.844343ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (50.124423ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (50.639735ms)
+✔ online expiry recovers a peer outcome (settled=false) (25.534895ms)
+✔ online expiry recovers a peer outcome (settled=true) (4.91725ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32670.801945
