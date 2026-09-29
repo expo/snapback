@@ -141,3 +141,61 @@ test('usePage publishes presence on the combined read; items alone prove nothing
     assert.equal(result.read.presence, data.length ? 'present' : complete && next === null && cut === null && !pending ? 'absent' : 'partial');
   }
 });
+
+test('completed empty page chains use pending facts, not a predecessor cursor partial', async t => {
+  const reads = new LocalReads(); reads.queued([]);
+  const op = { kind: 'query', name: 'page' };
+  const make = table => {
+    const watch = localWatch(true, op, {}, table, 0, tables => reads.pending(tables));
+    watch.setPresenceTables(new Set([table])); return watch;
+  };
+  const first = make('rows'), last = make('tail');
+  first.publish(readyRead({ data: [], complete: true, cut: null, next: 'cursor', fresh: false }));
+  last.publish(readyRead({ data: [], complete: true, cut: null, next: null, fresh: false }));
+  const client = { observe: (_op, args) => {
+    const watch = args.c === null ? first : last;
+    return { getSnapshot: () => watch.read(null), subscribe: fn => { watch.subscribers.add(fn); return () => watch.subscribers.delete(fn); }, close() {} };
+  } };
+  const pages = new Pages(client, op, {}); let notifications = 0;
+  const stop = pages.subscribe(() => notifications++);
+  t.after(() => { stop(); first.retire(); last.retire(); });
+  assert.equal(pages.getSnapshot().read.presence, 'partial');
+  pages.loadMore();
+  assert.equal(pages.getSnapshot().read.presence, 'absent', 'the final cursor proves the empty chain complete');
+  first.reload();
+  const identity = answerIdentity(first.snapshot);
+  for (const [entries, expected] of [
+    [[{ predictable: true, predicted: ['rows/new'] }], 'partial'],
+    [[], 'absent'],
+    [[{ predictable: true }], 'partial'],
+    [[{ predictable: true, predicted: ['unrelated/new'] }], 'absent'],
+  ]) {
+    const before = notifications;
+    await reads.readQueued(async () => entries, [first, last]);
+    assert.ok(notifications > before, 'pending changes notify even when the predecessor stays partial');
+    assert.equal(first.snapshot.presence, 'partial');
+    assert.equal(first.snapshot.revalidating, true);
+    assert.equal(answerIdentity(first.snapshot), identity);
+    assert.equal(pages.getSnapshot().read.presence, expected);
+    assert.deepEqual(pages.getSnapshot().items, []);
+  }
+});
+
+test('two-page presence combines coverage and the final cursor with actual pending predicates', () => {
+  let cases = 0;
+  for (const a of [[], ['a']]) for (const b of [[], ['b']])
+  for (const ca of [false, true]) for (const cb of [false, true])
+  for (const xa of [null, 'meter']) for (const xb of [null, 'words'])
+  for (const next of [null, 'more']) for (const pa of [false, true]) for (const pb of [false, true]) for (const fresh of [false, true]) {
+    const first = readyRead({ data: a, complete: ca, cut: xa, next: 'cursor', fresh }, pa);
+    const last = readyRead({ data: b, complete: cb, cut: xb, next, fresh }, pb);
+    const client = { observe: (_op, args) => ({ getSnapshot: () => args.c === null ? first : last, subscribe: () => () => {}, close() {} }) };
+    const pages = new Pages(client, { kind: 'query', name: 'page' }, {}), stop = pages.subscribe(() => {});
+    pages.loadMore();
+    const { items, read } = pages.getSnapshot();
+    assert.deepEqual(items, [...a, ...b]);
+    assert.equal(read.presence, items.length ? 'present' : ca && cb && xa === null && xb === null && next === null && !pa && !pb ? 'absent' : 'partial');
+    assert.equal(read.fresh, fresh); stop(); cases++;
+  }
+  assert.equal(cases, 1024);
+});

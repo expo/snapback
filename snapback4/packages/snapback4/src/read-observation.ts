@@ -1,4 +1,4 @@
-import { readyRead, readyPresence } from "./read-presence.ts";
+import { pendingRead, readyRead, readyPresence } from "./read-presence.ts";
 import type { Read, Refusal } from "./contract.ts";
 import { checkReadExpiry, type ReadDeadlines } from "./read-expiry.ts";
 import { deliverReadNotifications } from "./read-notifications.ts";
@@ -20,15 +20,20 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
 
 /** Reclassify a copy without renewing its answer identity or retention episode. */
 export function answerPresence<T>(read: Read<T>, pending: boolean): Read<T> {
-  return "data" in read && read.presence !== readyPresence(read, pending)
+  if (!("data" in read)) return read;
+  const next = readyPresence(read, pending);
+  // Empty page chains need notification even if a source stays partial due to
+  // its cursor. A nonempty answer stays present regardless of the pending fact.
+  return read.presence !== next || next !== "present" && pendingRead(read) !== pending
     ? copyAnswer<T>(read, readyRead<T>(read, pending)) : read;
 }
 
 // @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
 export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean, pending?: boolean): Read<T> {
   if (!("data" in read)) return read;
-  const blocked = pending ?? answerObservation(read)?.pending?.() ?? read.presence === "partial";
-  if (read.revalidating && read.presence === readyPresence(read, blocked)) return read;
+  const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
+  const next = readyPresence(read, blocked);
+  if (read.revalidating && read.presence === next && (next === "present" || pendingRead(read) === blocked)) return read;
   const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
   if (!read.revalidating) beginEpisode(read, copy, bounded);
   return copy;

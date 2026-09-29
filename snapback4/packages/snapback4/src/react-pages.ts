@@ -1,4 +1,4 @@
-import { readyRead } from "./read-presence.ts";
+import { pendingRead, readyRead } from "./read-presence.ts";
 import type { Client, Query, Read, Observed, ObserveOptions, Cursor } from "./contract.ts";
 import { isReady } from "./contract.ts";
 import { peekObservation } from "./observe-watch.ts";
@@ -89,7 +89,7 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
     const items: R[number][] = [];
     const identities = new Map<string, { index: number; revision: number }>();
     let last: Read<R> = LOADING as Read<R>;
-    let complete = true, fresh = true, revalidating = false, partial = false;
+    let complete = true, fresh = true, revalidating = false, pending = false;
     let cut: import("./contract.ts").ReadCut = null;
     let since: number | undefined;
     let knownSince = true;
@@ -119,7 +119,7 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
           items.push(item);
         }
       }
-      partial ||= read.presence === "partial";
+      pending ||= pendingRead(read);
       complete &&= read.complete;
       if (read.cut === "meter" || (cut === null && read.cut === "words")) cut = read.cut;
       fresh &&= read.fresh;
@@ -131,7 +131,7 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
     }
     const hasMore = !loadingMore && isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)
-      ? readyRead({ data: items as unknown as R, complete, cut, fresh, ...(revalidating ? { revalidating: true } : {}), ...(knownSince && since != null ? { since } : {}), next: last.next ?? null }, partial || loadingMore)
+      ? readyRead({ data: items as unknown as R, complete, cut, fresh, ...(revalidating ? { revalidating: true } : {}), ...(knownSince && since != null ? { since } : {}), next: last.next ?? null }, pending || loadingMore)
       : last;
     this.cache = { items, hasMore, read };
     return this.cache;
@@ -142,4 +142,3 @@ export class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]
     this.notify();
   };
 }
-
