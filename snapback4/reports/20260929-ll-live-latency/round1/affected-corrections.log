@@ -1,0 +1,36 @@
+✔ process: pending cut preserves transition before sync publication (4187.510093ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves refusal before sync publication (244.95762ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ process: pending cut preserves held-refusal before sync publication (758.817707ms)
+✔ wasm: pending cut preserves transition before sync publication (2989.517908ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves refusal before sync publication (230.918561ms)
+snapback4: the server refused the partition: E_STORE: terminal sync refusal
+✔ wasm: pending cut preserves held-refusal before sync publication (264.118256ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined (417.210741ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=undefined, held (370.737132ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true (373.008456ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=true, held (370.746296ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false (374.671128ms)
+✔ process: omitted change tables recover a disjoint local profile, keep=false, held (371.810541ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined (740.049249ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=undefined, held (329.562836ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true (328.195987ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=true, held (329.703076ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false (322.277688ms)
+✔ wasm: omitted change tables recover a disjoint local profile, keep=false, held (335.143459ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=undefined (297.746804ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=true (294.357855ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=false (302.362892ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=undefined (310.361219ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=true (304.465643ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=false (308.771736ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12669.752797

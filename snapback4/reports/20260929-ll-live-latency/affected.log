@@ -1,0 +1,925 @@
+✔ online evidence while already revalidating: keep=undefined, late answer (2.254556ms)
+✔ online evidence while already revalidating: keep=undefined, throw (0.56141ms)
+✔ online evidence while already revalidating: keep=undefined, offline (0.311777ms)
+✔ online evidence while already revalidating: keep=undefined, exhausted (177.099616ms)
+✔ online evidence while already revalidating: keep=true, late answer (0.973898ms)
+✔ online evidence while already revalidating: keep=true, throw (0.324005ms)
+✔ online evidence while already revalidating: keep=true, offline (0.305367ms)
+✔ online evidence while already revalidating: keep=true, exhausted (176.186839ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=false (1032.92268ms)
+✔ actual /changes bounds the online answer: keep=undefined, failed=true (30.781344ms)
+✔ actual /changes bounds the online answer: keep=true, failed=false (1024.076477ms)
+✔ actual /changes bounds the online answer: keep=true, failed=true (30.989205ms)
+▶ process keep=undefined: profile route gate
+  ✔ slow refetch (3040.015874ms)
+  ✔ offline transport (50.234254ms)
+  ✔ retry exhaustion (203.168063ms)
+  ✔ reconnect (138.971493ms)
+✔ process keep=undefined: profile route gate (4435.129677ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (48.642179ms)
+  ✔ own send and settlement (55.532357ms)
+  ✔ edit (31.204557ms)
+  ✔ delete (27.687761ms)
+  ✔ membership removal (30.282146ms)
+✔ process keep=undefined: chat history and membership removal (1745.241822ms)
+▶ process keep=true: profile route gate
+  ✔ slow refetch (3041.850177ms)
+  ✔ offline transport (57.114066ms)
+  ✔ retry exhaustion (213.115782ms)
+  ✔ reconnect (119.894868ms)
+✔ process keep=true: profile route gate (4154.433412ms)
+▶ process keep=true: chat history and membership removal
+  ✔ peer sync (39.575182ms)
+  ✔ own send and settlement (52.481519ms)
+  ✔ edit (31.994261ms)
+  ✔ delete (29.800905ms)
+  ✔ membership removal (30.069568ms)
+✔ process keep=true: chat history and membership removal (1799.819791ms)
+▶ wasm keep=undefined: profile route gate
+  ✔ slow refetch (3047.213678ms)
+  ✔ offline transport (53.525783ms)
+  ✔ retry exhaustion (204.106654ms)
+  ✔ reconnect (107.877113ms)
+✔ wasm keep=undefined: profile route gate (4480.576341ms)
+▶ wasm keep=undefined: chat history and membership removal
+  ✔ peer sync (34.466322ms)
+  ✔ own send and settlement (29.607837ms)
+  ✔ edit (20.890603ms)
+  ✔ delete (20.413579ms)
+  ✔ membership removal (19.32547ms)
+✔ wasm keep=undefined: chat history and membership removal (1736.980434ms)
+▶ wasm keep=true: profile route gate
+  ✔ slow refetch (3046.520384ms)
+  ✔ offline transport (48.499096ms)
+  ✔ retry exhaustion (202.374843ms)
+  ✔ reconnect (105.091823ms)
+✔ wasm keep=true: profile route gate (4062.164441ms)
+▶ wasm keep=true: chat history and membership removal
+  ✔ peer sync (32.094761ms)
+  ✔ own send and settlement (31.062936ms)
+  ✔ edit (43.03202ms)
+  ✔ delete (21.327317ms)
+  ✔ membership removal (22.219954ms)
+✔ wasm keep=true: chat history and membership removal (1643.155883ms)
+▶ online keep=undefined: profile route gate
+  ✔ slow refetch (3035.237763ms)
+  ✔ offline transport (39.759199ms)
+  ✔ retry exhaustion (194.523227ms)
+  ✔ reconnect (75.889755ms)
+✔ online keep=undefined: profile route gate (4048.97801ms)
+▶ online keep=undefined: chat history and membership removal
+  ✔ peer sync (26.128678ms)
+  ✔ own send and settlement (27.103317ms)
+  ✔ edit (18.549538ms)
+  ✔ delete (20.598376ms)
+  ✔ membership removal (18.482919ms)
+✔ online keep=undefined: chat history and membership removal (674.061184ms)
+▶ online keep=true: profile route gate
+  ✔ slow refetch (3034.342879ms)
+  ✔ offline transport (38.632422ms)
+  ✔ retry exhaustion (192.052329ms)
+  ✔ reconnect (73.876811ms)
+✔ online keep=true: profile route gate (3958.104212ms)
+▶ online keep=true: chat history and membership removal
+  ✔ peer sync (36.699047ms)
+  ✔ own send and settlement (22.026054ms)
+  ✔ edit (20.168052ms)
+  ✔ delete (17.026337ms)
+  ✔ membership removal (17.58248ms)
+✔ online keep=true: chat history and membership removal (706.177614ms)
+✔ apply keeps its bound on held, keep=undefined (1.999164ms)
+✔ apply keeps its bound on throw, keep=undefined (0.597354ms)
+✔ admit keeps its bound on held, keep=undefined (0.303995ms)
+✔ admit keeps its bound on throw, keep=undefined (0.30719ms)
+✔ settle keeps its bound on held, keep=undefined (0.285958ms)
+✔ settle keeps its bound on throw, keep=undefined (0.34088ms)
+✔ apply keeps its bound on held, keep=true (0.222863ms)
+✔ apply keeps its bound on throw, keep=true (0.230555ms)
+✔ admit keeps its bound on held, keep=true (0.237466ms)
+✔ admit keeps its bound on throw, keep=true (0.347861ms)
+✔ settle keeps its bound on held, keep=true (0.177325ms)
+✔ settle keeps its bound on throw, keep=true (0.191376ms)
+✔ process: applied membership removal and held replica replacement (1279.199625ms)
+✔ process: applied membership removal and throw replica replacement (244.910229ms)
+✔ wasm: applied membership removal and held replica replacement (1579.6651ms)
+✔ wasm: applied membership removal and throw replica replacement (199.907571ms)
+✔ online receipt bounds held replacement, keep=undefined (1171.500911ms)
+✔ online receipt bounds offline replacement, keep=undefined (164.376996ms)
+✔ online receipt bounds held replacement, keep=true (1165.276664ms)
+✔ online receipt bounds offline replacement, keep=true (165.582802ms)
+✔ online: ephemeral-only /changes bounds a held replacement (173.918715ms)
+✔ process: ephemeral-only /changes bounds a held replacement (244.84317ms)
+✔ wasm: ephemeral-only /changes bounds a held replacement (197.536041ms)
+✔ ephemeral periodic sampling is distinct from change evidence (1.356091ms)
+✔ held approved A gets offline metadata from B with A identity, confirmation and deadlines (0.870793ms)
+✔ process: plain offline server watch with failed recovery keeps honest metadata (224.960187ms)
+✔ wasm: plain offline server watch with failed recovery keeps honest metadata (184.567932ms)
+✔ process: change evidence retires remembered membership answer before failed sync (1137.060397ms)
+✔ wasm: change evidence retires remembered membership answer before failed sync (1096.52534ms)
+✔ process: ordinary search offline classification (348.947645ms)
+✔ process: ordinary search loading classification (344.26295ms)
+✔ process: ordinary search denied classification (340.304432ms)
+✔ wasm: ordinary search offline classification (286.390598ms)
+✔ wasm: ordinary search loading classification (278.534565ms)
+✔ wasm: ordinary search denied classification (289.392965ms)
+✖ packages/snapback4/test/answers-stay-review.test.mjs (150855.240866ms)
+✔ pending change requires published sync or a whole server answer at its cut (1.104253ms)
+✖ process: item notification survives readable old replica and failed sync, keep=undefined (5275.614861ms)
+✖ process: item notification survives readable old replica and failed sync, keep=true (5247.581148ms)
+✖ process: item notification survives readable old replica and failed sync, keep=false (5246.522408ms)
+✖ process: item notification survives throw old replica and failed sync, keep=undefined (5321.480521ms)
+✖ process: item notification survives throw old replica and failed sync, keep=true (5281.558674ms)
+✖ process: item notification survives throw old replica and failed sync, keep=false (5248.989656ms)
+✖ process: mixed notification survives readable old replica and failed sync, keep=undefined (5249.443577ms)
+✖ process: mixed notification survives readable old replica and failed sync, keep=true (5250.750447ms)
+✖ process: mixed notification survives readable old replica and failed sync, keep=false (5251.568795ms)
+✖ process: mixed notification survives throw old replica and failed sync, keep=undefined (5615.722432ms)
+✖ process: mixed notification survives throw old replica and failed sync, keep=true (5253.344139ms)
+✖ process: mixed notification survives throw old replica and failed sync, keep=false (5251.460158ms)
+✖ wasm: item notification survives readable old replica and failed sync, keep=undefined (5547.842892ms)
+✖ wasm: item notification survives readable old replica and failed sync, keep=true (5309.11289ms)
+✖ wasm: item notification survives readable old replica and failed sync, keep=false (5207.726536ms)
+✖ wasm: item notification survives throw old replica and failed sync, keep=undefined (5207.102288ms)
+✖ wasm: item notification survives throw old replica and failed sync, keep=true (5205.093557ms)
+✖ wasm: item notification survives throw old replica and failed sync, keep=false (5199.039246ms)
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (5309.214285ms)
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=true (5195.479248ms)
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=false (5204.457869ms)
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (5305.349877ms)
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=true (5308.130114ms)
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=false (5202.043656ms)
+✔ process: only a server answer at the reported cut can replace before sync (287.395483ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (231.128845ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (5144.775172ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (353.110215ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (345.082464ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (5093.776279ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (298.555472ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (298.040191ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=undefined (2464.026216ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=true (2462.996566ms)
+✔ process: real generation-only adoption retires readable replica answers, keep=false (2471.653392ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=undefined (2460.709135ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=true (2479.563381ms)
+✔ process: real generation-only adoption retires throw replica answers, keep=false (2475.063576ms)
+✔ process: real generation-only adoption retires held replica answers, keep=undefined (2484.993207ms)
+✔ process: real generation-only adoption retires held replica answers, keep=true (2485.933417ms)
+✔ process: real generation-only adoption retires held replica answers, keep=false (2471.182821ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=undefined (2866.455579ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=true (3261.988534ms)
+✔ wasm: real generation-only adoption retires readable replica answers, keep=false (2456.374867ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=undefined (2462.30637ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=true (2461.317841ms)
+✔ wasm: real generation-only adoption retires throw replica answers, keep=false (2457.180498ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=undefined (2459.607473ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=true (2462.646846ms)
+✔ wasm: real generation-only adoption retires held replica answers, keep=false (2455.185955ms)
+✔ process: generation boundary clears remembered answers and a held server completion (1469.604527ms)
+✔ wasm: generation boundary clears remembered answers and a held server completion (1755.413929ms)
+✔ process: quiet presence cannot publish below a pending durable cut (247.990685ms)
+✔ wasm: quiet presence cannot publish below a pending durable cut (189.098772ms)
+✔ online: missing tables, keep=undefined, failed=false (1026.394372ms)
+✔ online: missing tables, keep=undefined, failed=true (31.017961ms)
+✔ online: missing tables, keep=true, failed=false (1021.993584ms)
+✔ online: missing tables, keep=true, failed=true (31.192873ms)
+✔ online: empty tables, keep=undefined, failed=false (1122.314281ms)
+✔ online: empty tables, keep=undefined, failed=true (1122.987531ms)
+✔ online: empty tables, keep=true, failed=false (1122.198503ms)
+✔ online: empty tables, keep=true, failed=true (1121.963191ms)
+(node:1775759) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a follower GETs every placed element; reorder, drop and deletion keep one home (237.329437ms)
+✔ native: synced list elements survive offline reopen and drop revokes only that element (8204.360804ms)
+✔ wasm: synced list elements survive offline reopen and drop revokes only that element (9672.047163ms)
+✔ reopening a legacy Alice list cannot publish Bob's upload or take his placement (332.845819ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (3385.055722ms)
+✔ native: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (3479.004942ms)
+✔ native: legacy bare id cannot retain bytes after real home clear (4249.862805ms)
+✔ native: legacy bare id cannot retain bytes after real home delete (3375.971971ms)
+✔ native: legacy copied facts cannot retain bytes after real home revoke (3367.253095ms)
+✔ native: legacy copied facts cannot retain bytes after real home clear (3380.658494ms)
+✔ native: legacy copied facts cannot retain bytes after real home delete (3376.249803ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (2276.930982ms)
+✔ wasm: legacy bare id cannot retain bytes after real home revoke (older sync held across revoke) (3271.749536ms)
+✔ wasm: legacy bare id cannot retain bytes after real home clear (2286.995218ms)
+✔ wasm: legacy bare id cannot retain bytes after real home delete (3286.220241ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home revoke (3276.299943ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home clear (2272.178026ms)
+✔ wasm: legacy copied facts cannot retain bytes after real home delete (3285.405884ms)
+✔ native: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3312.53405ms)
+✔ native: a download delayed across store replacement preserves the newer download, even after reopen (4332.22488ms)
+✔ native: a once download delayed across store replacement preserves the newer download, even after reopen (4322.889705ms)
+✔ wasm: a download delayed across store replacement cannot retain legacy bytes, even after reopen (3266.587081ms)
+✔ wasm: a download delayed across store replacement preserves the newer download, even after reopen (3256.459394ms)
+✔ wasm: a once download delayed across store replacement preserves the newer download, even after reopen (4267.831532ms)
+✔ native: list cache retires on expiry and stays retired after offline reopen (3263.331418ms)
+✔ native: list cache retires on generation and stays retired after offline reopen (3306.729818ms)
+✔ wasm: list cache retires on expiry and stays retired after offline reopen (2202.207987ms)
+✔ wasm: list cache retires on generation and stays retired after offline reopen (3251.290686ms)
+✔ native: persisted old list media index reacquires unchanged rows once (3257.001374ms)
+✔ native: persisted old scalar media index reacquires unchanged rows once (3303.882813ms)
+✔ wasm: persisted old list media index reacquires unchanged rows once (3153.11096ms)
+✔ wasm: persisted old scalar media index reacquires unchanged rows once (3150.809209ms)
+✔ native: nested placed elements cross inner lists and survive an empty first list offline (2264.624534ms)
+✔ wasm: nested placed elements cross inner lists and survive an empty first list offline (2161.051658ms)
+✔ native: a legacy copy in refs cannot replace the same row's released photo home (2447.77834ms)
+✔ wasm: a legacy copy in refs cannot replace the same row's released photo home (2266.612066ms)
+✔ native: a paged upgrade restore halts follow and flush (1651.613064ms)
+✔ wasm: a paged upgrade restore halts follow and flush (1588.909219ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B publishes (1314.291447ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B publishes (1297.269506ms)
+✔ native: initial acquisition rejects an overtaken nonterminal snapshot continuation after B stages (1298.71891ms)
+✔ native: initial acquisition rejects an overtaken terminal snapshot continuation after B stages (1290.774374ms)
+▶ forty asset calls recover after actual connection admission pressure
+  ✔ online (1415.937568ms)
+  ℹ {"tier":"online","ready":40,"attempts":63,"resets":0,"limited":23,"denied":[]}
+  ✔ process (1556.497013ms)
+  ℹ {"tier":"process","ready":40,"attempts":64,"resets":0,"limited":24,"denied":[]}
+  ✔ wasm (1889.512552ms)
+  ℹ {"tier":"wasm","ready":40,"attempts":65,"resets":0,"limited":25,"denied":[]}
+✔ forty asset calls recover after actual connection admission pressure (6768.402338ms)
+✔ wasm keep=undefined: queued presence checks a second change at the response boundary (638.366886ms)
+✔ wasm keep=undefined: queued presence checks a second change at the callback boundary (220.726676ms)
+✔ wasm keep=false: queued presence checks a second change at the response boundary (231.123173ms)
+✔ wasm keep=false: queued presence checks a second change at the callback boundary (236.506985ms)
+✔ wasm keep=true: queued presence checks a second change at the response boundary (231.003314ms)
+✔ wasm keep=true: queued presence checks a second change at the callback boundary (235.734319ms)
+✔ process keep=undefined: queued presence checks a second change at the response boundary (288.795545ms)
+✔ process keep=undefined: queued presence checks a second change at the callback boundary (270.003214ms)
+✔ process keep=false: queued presence checks a second change at the response boundary (286.029643ms)
+✔ process keep=false: queued presence checks a second change at the callback boundary (273.760962ms)
+✔ process keep=true: queued presence checks a second change at the response boundary (301.648612ms)
+✔ process keep=true: queued presence checks a second change at the callback boundary (274.210726ms)
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (195.593221ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (203.761963ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (207.497918ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (253.762736ms)
+✔ process keep=false: a full queue cannot postpone the change transition (279.847167ms)
+✔ process keep=true: a full queue cannot postpone the change transition (262.071589ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (185.511404ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (431.679968ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (192.157736ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (441.802037ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (193.20193ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (433.073927ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (252.980406ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (488.265785ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (245.160727ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (391.31051ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (258.222217ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (391.930699ms)
+✔ wasm keep=undefined: changes retire an in-flight local server body before replacement (613.262043ms)
+✔ wasm keep=false: changes retire an in-flight local server body before replacement (207.605167ms)
+✔ wasm keep=true: changes retire an in-flight local server body before replacement (217.613483ms)
+✔ process keep=undefined: changes retire an in-flight local server body before replacement (250.729793ms)
+✔ process keep=false: changes retire an in-flight local server body before replacement (255.525604ms)
+✔ process keep=true: changes retire an in-flight local server body before replacement (256.019034ms)
+✔ online keep=undefined: invalidating an acquisition leaves replacement queue wait outside the episode (263.467978ms)
+✔ online keep=true: invalidating an acquisition leaves replacement queue wait outside the episode (260.197261ms)
+✔ wasm keep=undefined: invalidating an acquisition leaves replacement queue wait outside the episode (252.847665ms)
+✔ wasm keep=true: invalidating an acquisition leaves replacement queue wait outside the episode (259.647017ms)
+✔ process keep=undefined: invalidating an acquisition leaves replacement queue wait outside the episode (324.583906ms)
+✔ process keep=true: invalidating an acquisition leaves replacement queue wait outside the episode (303.01559ms)
+✔ wasm keep=undefined: the final callback checks a change version raised after evaluation (200.29407ms)
+✔ wasm keep=false: the final callback checks a change version raised after evaluation (199.519811ms)
+✔ wasm keep=true: the final callback checks a change version raised after evaluation (205.598794ms)
+✔ process keep=undefined: the final callback checks a change version raised after evaluation (257.857648ms)
+✔ process keep=false: the final callback checks a change version raised after evaluation (266.56659ms)
+✔ process keep=true: the final callback checks a change version raised after evaluation (261.057571ms)
+✔ online keep=undefined: eight closed active reads cannot starve later observations or publish late (26.889986ms)
+✔ online keep=false: eight closed active reads cannot starve later observations or publish late (5.307157ms)
+✔ online keep=true: eight closed active reads cannot starve later observations or publish late (3.169606ms)
+✔ online keep=undefined: eight expired active reads cannot starve later observations or publish late (7.558679ms)
+✔ wasm keep=undefined: eight closed active reads cannot starve later observations or publish late (543.554901ms)
+✔ wasm keep=false: eight closed active reads cannot starve later observations or publish late (175.253572ms)
+✔ wasm keep=true: eight closed active reads cannot starve later observations or publish late (170.538792ms)
+✔ wasm keep=undefined: eight expired active reads cannot starve later observations or publish late (172.462803ms)
+✔ process keep=undefined: eight closed active reads cannot starve later observations or publish late (228.471072ms)
+✔ process keep=false: eight closed active reads cannot starve later observations or publish late (228.458123ms)
+✔ process keep=true: eight closed active reads cannot starve later observations or publish late (209.907776ms)
+✔ process keep=undefined: eight expired active reads cannot starve later observations or publish late (220.272245ms)
+✔ wasm: acquired unknown apply footprint revalidates and refreshes every owner (195.237217ms)
+✔ process: acquired unknown apply footprint revalidates and refreshes every owner (248.314497ms)
+✔ online: cancelled transport preserves the earlier failure diagnostic (143.893563ms)
+✔ wasm: cancelled transport preserves the earlier failure diagnostic (233.225863ms)
+✔ process: cancelled transport preserves the earlier failure diagnostic (219.902381ms)
+✖ process: omitted change tables recover a disjoint local profile, keep=undefined (5272.523953ms)
+✖ process: omitted change tables recover a disjoint local profile, keep=true (5239.165265ms)
+✖ process: omitted change tables recover a disjoint local profile, keep=false (5243.871058ms)
+✖ wasm: omitted change tables recover a disjoint local profile, keep=undefined (5661.347846ms)
+✖ wasm: omitted change tables recover a disjoint local profile, keep=true (5203.076892ms)
+✖ wasm: omitted change tables recover a disjoint local profile, keep=false (5203.932675ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=undefined (324.679729ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=true (295.566361ms)
+✔ online: already-expired replies recover through paced work, warm=false, keep=false (345.904103ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=undefined (311.870378ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=true (306.120266ms)
+✔ online: already-expired replies recover through paced work, warm=true, keep=false (310.364563ms)
+✔ wasm: unknown apply refresh drains after the watermark (663.7663ms)
+✔ process: unknown apply refresh drains after the watermark (242.94122ms)
+✔ online keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (172.154501ms)
+✔ online keep=false: a pre-reset attempt reaches final publication without replacing the reset (154.990759ms)
+✔ online keep=true: a pre-reset attempt reaches final publication without replacing the reset (159.133212ms)
+✔ wasm keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (176.289834ms)
+✔ wasm keep=false: a pre-reset attempt reaches final publication without replacing the reset (176.862601ms)
+✔ wasm keep=true: a pre-reset attempt reaches final publication without replacing the reset (173.966024ms)
+✔ process keep=undefined: a pre-reset attempt reaches final publication without replacing the reset (223.629372ms)
+✔ process keep=false: a pre-reset attempt reaches final publication without replacing the reset (219.302363ms)
+✔ process keep=true: a pre-reset attempt reaches final publication without replacing the reset (221.524221ms)
+✔ online keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (146.8232ms)
+✔ online keep=false: a floor-rejected completion cannot publish loading over a newer answer (146.013137ms)
+✔ online keep=true: a floor-rejected completion cannot publish loading over a newer answer (153.31449ms)
+✔ wasm keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (159.256578ms)
+✔ wasm keep=false: a floor-rejected completion cannot publish loading over a newer answer (160.970424ms)
+✔ wasm keep=true: a floor-rejected completion cannot publish loading over a newer answer (165.18149ms)
+✔ process keep=undefined: a floor-rejected completion cannot publish loading over a newer answer (213.454026ms)
+✔ process keep=false: a floor-rejected completion cannot publish loading over a newer answer (223.613439ms)
+✔ process keep=true: a floor-rejected completion cannot publish loading over a newer answer (227.768772ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (845.699865ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (1906.271433ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4272.50558ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790697444474,"lastStart":1790697446488,"wallIsReal":true,"link":"online"}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5369.203722ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790697449665,"lastStart":1790697451812,"wallIsReal":true,"link":"online"}
+✔ process: 1,000 per-row hooks retain through a relevant write with the real clock (4731.632424ms)
+ℹ {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790697454317,"lastStart":1790697456644,"wallIsReal":true,"link":"online"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (552.337372ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (173.650631ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (167.707672ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (220.907997ms)
+✔ process keep=false: sign-out never replaces its denial with loading (223.537855ms)
+✔ process keep=true: sign-out never replaces its denial with loading (219.250365ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (24.408671ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.712954ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (20.068681ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (175.793952ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (231.212779ms)
+✔ apply: remembered dependencies with footprint [] (0.710835ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.310074ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.158197ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.119188ms)
+✔ apply: remembered dependencies with footprint undefined (0.149364ms)
+✔ admit: remembered dependencies with footprint [] (0.105598ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.097767ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.088201ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.072679ms)
+✔ admit: remembered dependencies with footprint undefined (0.076214ms)
+✔ settle: remembered dependencies with footprint [] (0.067201ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.075133ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.090085ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.085227ms)
+✔ settle: remembered dependencies with footprint undefined (0.059839ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.059038ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.06707ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.064186ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.064476ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.048884ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (2.775627ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.459659ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.624274ms)
+✔ queued observation still withdraws at row expiry (1.087628ms)
+✔ queued observation still withdraws at reset (0.533729ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (188.566137ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (240.339325ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (197.687726ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (204.783311ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (197.361148ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (244.140317ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (244.839234ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (240.011905ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (183.985539ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (198.576077ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (192.602542ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (238.350378ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (253.276629ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (264.709809ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (1.333186ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.770714ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.569122ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.719237ms)
+✔ online keep=undefined: a due completion preserves a newer answer and retries (178.365782ms)
+✔ online keep=false: a due completion preserves a newer answer and retries (156.128413ms)
+✔ online keep=true: a due completion preserves a newer answer and retries (148.765477ms)
+✔ wasm keep=undefined: a due completion preserves a newer answer and retries (531.561792ms)
+✔ wasm keep=false: a due completion preserves a newer answer and retries (169.8633ms)
+✔ wasm keep=true: a due completion preserves a newer answer and retries (178.957598ms)
+✔ process keep=undefined: a due completion preserves a newer answer and retries (232.624722ms)
+✔ process keep=false: a due completion preserves a newer answer and retries (222.161925ms)
+✔ process keep=true: a due completion preserves a newer answer and retries (218.116457ms)
+✔ wasm: eight expiry backoffs leave capacity for a ninth observation (197.479174ms)
+✔ process: eight expiry backoffs leave capacity for a ninth observation (236.788017ms)
+✔ online keep=undefined: the accept-time floor does not install deadlines or retry (11.001475ms)
+✔ online keep=false: the accept-time floor does not install deadlines or retry (9.965973ms)
+✔ online keep=true: the accept-time floor does not install deadlines or retry (9.933074ms)
+✔ delayed retries cancel on close, yield to invalidation and rejoin FIFO (0.50069ms)
+✔ request abort listeners are removed after success (0.99529ms)
+✔ request abort listeners are removed after rejection (0.602663ms)
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (17.662629ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.23528ms)
+✔ queued owners progress under continuing arrivals and repeated invalidation (0.832968ms)
+✔ active cancellation and expiry release slots without waiting for ignored aborts (1.207278ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.285027ms)
+✔ 1,000 clock-corrected observations: no/future deadlines do no evaluations; due owners coalesce (2.961114ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (354.904478ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1100.287616ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1293.574305ms)
+✔ withdrawn server deadlines survive revalidation and held expiry, but real resets clear them (0.875611ms)
+✔ wasm: retained nested rows follow source parents on reordered pages (585.355064ms)
+✔ wasm: retained nested rows follow source parents on shifted pages (211.746808ms)
+✔ wasm: composed tables sharing an ID keep independent retained rows (214.647101ms)
+✔ wasm: projections without id replace a retained copy using its source envelope (192.446017ms)
+✔ process: retained nested rows follow source parents on reordered pages (251.181149ms)
+✔ process: retained nested rows follow source parents on shifted pages (251.521419ms)
+✔ process: composed tables sharing an ID keep independent retained rows (241.91927ms)
+✔ process: projections without id replace a retained copy using its source envelope (244.936319ms)
+✔ wasm: an identityless object merges its identified child rows (199.365528ms)
+✔ wasm: an unidentified sibling preserves paired parents and drops an unpaired current row (194.994984ms)
+✔ process: an identityless object merges its identified child rows (253.764829ms)
+✔ process: an unidentified sibling preserves paired parents and drops an unpaired current row (273.73963ms)
+✔ wasm: an anonymous nested page appends only retained history after a partial rejoin (197.268138ms)
+✔ wasm: an in-place edit under an anonymous nested page replaces its retained copy (206.948314ms)
+✔ process: an anonymous nested page appends only retained history after a partial rejoin (239.238758ms)
+✔ process: an in-place edit under an anonymous nested page replaces its retained copy (240.145716ms)
+✔ wasm: Clique capture partitions and answers equal the flattened program (689.309249ms)
+✔ process: Clique capture partitions and answers equal the flattened program (400.328768ms)
+✔ wasm: an unheld parent falls back without losing retained rows (810.376833ms)
+✔ process: an unheld parent falls back without losing retained rows (864.867631ms)
+✔ wasm: four-level capture, covered prediction and inherited expiry (227.068312ms)
+✔ process: four-level capture, covered prediction and inherited expiry (267.983801ms)
+✔ retained fallback uses provenance identities, not projected fields (0.239709ms)
+✔ retained fallback preserves unpaired history and prefers matching source IDs (0.211917ms)
+✔ wasm: retained children do not terminally refuse a reused parent delete (212.439216ms)
+✔ process: retained children do not terminally refuse a reused parent delete (255.914849ms)
+✔ wasm: an expired unswept matching child queues its parent delete (181.065285ms)
+✔ process: an expired unswept matching child queues its parent delete (241.765021ms)
+✔ retained fallback leaves local duplicate identities unpaired (0.710063ms)
+✔ retained fallback leaves server duplicate identities unpaired (0.221882ms)
+✔ retained fallback leaves both duplicate identities unpaired (0.202534ms)
+✔ retained fallback never attaches one object's history to a different source (0.289333ms)
+✔ anonymous retained projections use nested source identities and keep identified leftovers whole (0.443684ms)
+✔ anonymous projection preserves retained JSON fields but excludes nested current rows (0.350244ms)
+ℹ tests 440
+ℹ suites 0
+ℹ pass 409
+ℹ fail 31
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 150882.965305
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-review.test.mjs:1:1
+✖ packages/snapback4/test/answers-stay-review.test.mjs (150855.240866ms)
+  'test failed'
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives readable old replica and failed sync, keep=undefined (5275.614861ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives readable old replica and failed sync, keep=true (5247.581148ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives readable old replica and failed sync, keep=false (5246.522408ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives throw old replica and failed sync, keep=undefined (5321.480521ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives throw old replica and failed sync, keep=true (5281.558674ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: item notification survives throw old replica and failed sync, keep=false (5248.989656ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives readable old replica and failed sync, keep=undefined (5249.443577ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives readable old replica and failed sync, keep=true (5250.750447ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives readable old replica and failed sync, keep=false (5251.568795ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives throw old replica and failed sync, keep=undefined (5615.722432ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives throw old replica and failed sync, keep=true (5253.344139ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ process: mixed notification survives throw old replica and failed sync, keep=false (5251.460158ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives readable old replica and failed sync, keep=undefined (5547.842892ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives readable old replica and failed sync, keep=true (5309.11289ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives readable old replica and failed sync, keep=false (5207.726536ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives throw old replica and failed sync, keep=undefined (5207.102288ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives throw old replica and failed sync, keep=true (5205.093557ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: item notification survives throw old replica and failed sync, keep=false (5199.039246ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (5309.214285ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=true (5195.479248ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives readable old replica and failed sync, keep=false (5204.457869ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (5305.349877ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=true (5308.130114ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-round2.test.mjs:32:3
+✖ wasm: mixed notification survives throw old replica and failed sync, keep=false (5202.043656ms)
+  AssertionError [ERR_ASSERTION]: timed out: condition
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/answers-stay-round2.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ process: omitted change tables recover a disjoint local profile, keep=undefined (5272.523953ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ process: omitted change tables recover a disjoint local profile, keep=true (5239.165265ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ process: omitted change tables recover a disjoint local profile, keep=false (5243.871058ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ wasm: omitted change tables recover a disjoint local profile, keep=undefined (5661.347846ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ wasm: omitted change tables recover a disjoint local profile, keep=true (5203.076892ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-progress.test.mjs:27:3
+✖ wasm: omitted change tables recover a disjoint local profile, keep=false (5203.932675ms)
+  AssertionError [ERR_ASSERTION]: timed out: rejected local completion
+      at until (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ll/snapback4/packages/snapback4/test/per-row-progress.test.mjs:69:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

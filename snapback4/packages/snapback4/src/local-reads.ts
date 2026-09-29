@@ -1,4 +1,4 @@
-import type { Query } from "./contract.ts";
+import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
@@ -34,6 +34,8 @@ export interface LocalWatch extends ReadObservation<unknown> {
   changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  /** Resume at sync publication even when its final footprint is disjoint. */
+  waitingForSync?: boolean;
   answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
@@ -163,11 +165,31 @@ export class LocalReads {
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
   }
 
+  // @ref LLP 3000.023#10 — only held queries forbid every future server fallback.
+  // Previous routing cannot prove the next branch or coverage. Terminal
+  // refusals must reach runLocal's checkpoint even after a watch has parked.
+  deferUntilSync(watch: LocalWatch, acquired: boolean, backend: BackendJson, denied: Refusal | null): boolean {
+    if (watch.kept) watch.reload();
+    const program = backend.programs.find(program => program.name === watch.op.name);
+    const held = backend.schema.operations?.[watch.op.name]?.held ?? program?.held ?? watch.op.held ?? false;
+    if (!denied && acquired && watch.changeCut !== undefined) {
+      watch.waitingForSync = true;
+      return held;
+    }
+    delete watch.waitingForSync;
+    return false;
+  }
+
   // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
-  applied(watches: Iterable<LocalWatch>, watermark: number): void {
-    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    const ready: LocalWatch[] = [];
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) {
+      delete watch.changeCut;
+      if (watch.waitingForSync) { delete watch.waitingForSync; ready.push(watch); }
+    }
+    return ready;
   }
 
   current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
@@ -191,7 +213,7 @@ export class LocalReads {
     this.revision++;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) delete watch.changeCut;
+      if (reset) { delete watch.changeCut; delete watch.waitingForSync; }
       if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);

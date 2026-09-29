@@ -1,0 +1,59 @@
+[
+  {
+    "name": "previous-local-route",
+    "file": "local-reads.js",
+    "from": "return held;",
+    "to": "return watch.serverRead === false;",
+    "test": "live-propagation-fallback",
+    "pattern": "pending cut preserves transition",
+    "status": 1,
+    "signal": null,
+    "failed": 2,
+    "isolated": true,
+    "positivePassed": 2
+  },
+  {
+    "name": "hidden-terminal-refusal",
+    "file": "local-reads.js",
+    "from": "!denied && acquired",
+    "to": "acquired",
+    "test": "live-propagation-fallback",
+    "pattern": "pending cut preserves held-refusal",
+    "status": 1,
+    "signal": null,
+    "failed": 2
+  },
+  {
+    "name": "lost-child-dependency",
+    "file": "local.js",
+    "from": "watch.tables = tables;",
+    "to": "watch.tables = new Set([...tables].filter(table => table !== \"reactions\"));",
+    "test": "live-propagation",
+    "pattern": "wasm: child-add keep=undefined expire=false drives",
+    "status": 1,
+    "signal": null,
+    "failed": 1
+  },
+  {
+    "name": "lost-disjoint-resumption",
+    "file": "local-reads.js",
+    "from": "ready.push(watch);",
+    "to": "/* deliberately lose wake */",
+    "test": "live-propagation",
+    "pattern": "wasm: unknown-footprint.*held=true",
+    "status": 1,
+    "signal": null,
+    "failed": 1
+  },
+  {
+    "name": "media-misses-authorization",
+    "file": "local-assets.js",
+    "from": "!tables.some(table => touched.includes(table))",
+    "to": "!touched.includes(entry.home.table)",
+    "test": "media-dependencies",
+    "pattern": "retained media: authorization",
+    "status": 1,
+    "signal": null,
+    "failed": 1
+  }
+]

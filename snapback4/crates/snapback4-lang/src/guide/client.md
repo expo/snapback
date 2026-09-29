@@ -84,7 +84,7 @@ decorations separate when including them would withhold the main list.
 ## Expo and cold acquisition
 
 For iOS/Android, `snapback4 new my-social --template social` uses `createApp` with `nativeDevice` from `snapback4-expo` in native builds, `webDevice()` on web, and the online tier in Expo Go; use `guide witness` for native proof.
-Use `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
+Use `guide reads` for live propagation measurements; `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
 
 ## Acknowledgements and receipts
 

@@ -78244,6 +78244,51 @@ per-row-liveness 17/17, supervised-workers 5/5, snapshot regressions 2/2. 0.4.9 
 main that includes this fix.
 
 
+## 2026-09-29 — LL round 0: measured live propagation
+
+Lane `sb4-intent/ll-live-latency`, from `a5e690077a4474eebc0f9dfeb26f7fc1e60d792f`.
+Built a public-SDK two-session harness with Chromium wasm, process devices,
+React commits and media readiness. Twenty repetitions per flow/configuration,
+including idle and four CPUs with three busy workers: 2,240 actions across 14
+before/after/control configurations, no measurement timeouts. Complete timestamps,
+p50/p95 distributions, input hashes, causal regressions and rerunnable tools are
+in `reports/20260929-ll-live-latency/REPORT.md` and its `tools/` directory.
+
+An acquired local observation below its notified cut now starts the existing
+bounded episode and parks until sync publication, releasing queue capacity.
+Publication wakes it even when an unknown notification resolves to a disjoint
+footprint. Whole server answers still qualify immediately; all consistency,
+completeness, scope and retention fences remain. Retained media carries the
+interpreter's full home-read dependencies, including authorization tables, and
+skips redundant checks only for confirmed, unexpired homes on known disjoint
+writes. Unknown footprints, legacy metadata, resets and expiry still recheck.
+The design is recorded in LLP 3000.023 §10 and LLP 3000.019 §3.5.
+
+With the builder's viewed-media setting, final commit-to-answer p95 across all
+eight flows is at most 66.226 ms wasm / 83.178 ms process idle, and 65.879 ms /
+118.846 ms under contention. Idle process reaction-add p95 fell from 141.598 to
+44.975 ms; its pre-apply query count fell to zero. Photo rows meet the 300 ms
+bound; bytes/decoding are measured separately. The original M1/0.4.8 multi-second
+UI stalls were not reproduced. The reduced fixture, process browser-bridge
+cost, direct local client, and copied baseline wasm provenance limit attribution;
+the report states each limitation. The reads card now gives measured scope and
+measurement steps at 236 lines; the client card remains within 130 lines.
+
+Ran `scripts/test.sh` exactly once: `== 1 failure(s) in 1555 s`, exit 1.
+Its `client tests` stage had 5,214 passes, one await-census failure and two
+mixed-evidence timeout cancellations (10 existing skips). All three were ours:
+update the changed media await's classification record, and replace waits for
+obsolete pre-sync reads with assertions that the owner parks. The timed-out
+worker was stopped after both timeouts to let the script finish. Full failure
+names, termination and earlier corrected test/guide failures are in FAILURES.md.
+Rust: 4,323 passed, 33 declared ignores; the serial model stage passed 79/79.
+Whole guide: 99/99. Final SDK build/typecheck and affected validation: 797/797,
+including all 160 delivery-fault site pairs and 300 mixed histories per host,
+zero failed seeds. No counts, timeouts or safety limits were weakened.
+
+The final synchronous policy extraction into LocalReads keeps local.ts at its
+1,500-line cap. Final wasm is 2,040,727 B raw / 592,959 B gzip, 760 B below the
+unchanged 593,719 B cap. No public contract change, push or publication.
 ## 2026-09-29 — KR round 0: establish idle keep-remount observations
 
 Reproduced the inherited online snapshot-identity failure on aedd35615a in 7/10
@@ -78423,3 +78468,49 @@ Report, failure ledger and raw evidence:
 reports/20260929-hv-heavy-acquisition/round2/REPORT.md.
 The local repair commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+## 2026-09-29 — LL round 1: keep fallback and terminal refusals live
+
+Merged `origin/main` at `38abb89b8e` first (`02a6fe70dc`), preserving SR, KR,
+publication test fixes and both guide/journal edits. Astra's two round-0
+regressions are fixed. Only a current `held` declaration proves that the next
+query cannot obtain a server fallback, so only held queries park before
+execution. Ordinary queries evaluate through the existing routing procedure,
+including when `now >= cutoff` changes a formerly local query into an
+online-only profile read. Terminal session, change-feed and partition refusals
+bypass parking and publish through the existing checkpoints. Every acquired
+pending-cut watch still resumes on sync publication, including disjoint final
+footprints. LLP 3000.023 §10 records the correction; no freshness, coverage,
+authorization, prediction, retention or publication fence was removed.
+
+Six process/wasm regressions fail against round 0 and pass after the fixes,
+including a terminal `E_STORE` arriving after a held watch parks. The causal
+suite covers ordinary evaluation and held parking, and now explicitly checks
+known disjoint dependencies stay quiet. Five mutation controls fail assertions;
+the transition control passes twice unmodified before failing twice with only
+the old routing rule restored. The first affected run had 707 passes and eight
+failures, all ours: two fixture waits crossed the change-feed silence watchdog,
+and six assertions still required ordinary queries to park. Corrected those
+fixtures/assertions, added six held variants, then passed all 24 affected
+correction cases. Both 300-history mixed-evidence hosts report zero failed seeds.
+The complete failure ledger preserves the preliminary harness errors too.
+
+Repeated the unchanged public-SDK two-session harness: 640 actions, 20 per flow
+and configuration, zero timeouts; no LL build/test overlapped measurement. The
+full round-0 gains are not retained. Maximum flow p95 commit-to-answer is now
+74.913 ms wasm / 127.304 ms process idle and 73.260 / 180.047 ms under four-CPU,
+three-worker contention. Idle process reaction-add rose 44.975 → 80.995 ms
+(+36.020); its original baseline was 141.598 ms. All measured row p95 values
+remain below 300 ms; process photo bytes still exceed that bound. Every flow's
+exact round-to-round cost, stage distribution, operation counts, raw traces and
+hashes are in `reports/20260929-ll-live-latency/round1/`. Retained media still
+performs zero home rechecks for disjoint reaction writes. The reads card gives
+the revised ranges without growing its 236 lines; client stays at 130 lines.
+
+Ran `scripts/test.sh` exactly once with the packaged SQLite build flag:
+`== 0 failure(s) in 1290 s`, exit 0. Rust: 4,323 passes, 33 declared ignores;
+client tests: 5,245 passes, 10 existing skips, zero cancellations; final serial
+client models: 79/79. No full-suite failure (ours, baseline or environmental).
+The whole guide separately passed 99/99; SDK build/typecheck and docs budgets
+pass. `awaitBoundary()` matches without regeneration; there was no merge
+conflict in that record. Wasm remains 2,040,727 B raw / 592,959 B gzip, 760 B
+below the unchanged 593,719 B cap. No push or publication.
