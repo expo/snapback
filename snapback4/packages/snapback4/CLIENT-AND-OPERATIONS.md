@@ -1601,13 +1601,23 @@ Retired revisions are refused by ordinary queries as well as effect claims.
 Watchdog death makes the host kill its Node group before replacement; catchable
 watchdog signals initiate bounded group cleanup. Failed new-declaration startup
 retries after repair without another source edit.
+The supervisor owns token rotation for both named and conventional workers.
+`/auth/refresh` returns HTTP 403 `E_WORKER_REFRESH` for these families and leaves
+the injected bearer live; keep using it. Manually minted seats remain refreshable,
+including seats with the same service name.
 Deploy packages this source subtree; helpers belong in subdirectories. Install
 its package dependencies on the deployment host. Symlinks at every level and
 non-regular source files are refused on every launch/restart. Named workers execute
 private copies of validated entry/helper bytes; source-path replacement cannot
 change the code or selected secrets of that launch. Package dependencies remain
-host-installed code. Doctor reports each worker, including source-blocked and
+host-installed code, with `snapback/node_modules` taking precedence over
+project-root packages just as for the declared source. Doctor reports each worker, including source-blocked and
 revocation-blocked states.
+Automatic dev `snapback/server.*` and `snapback/worker.*` entries likewise execute
+private copies of the schema tree, including generated modules and relative
+helpers. Keep those imports within `snapback/`; source symlinks refuse before
+minting, including after a restart. The working directory remains the project.
+Explicit `serve --worker <path>` still selects an operator-owned external entry.
 Named workers start with no declared secrets. A source line such as
 `// snapback4 secrets: PUSH_API_KEY` opts into named schema-declared secrets.
 The conventional generated runtime retains the full registry's secret set;

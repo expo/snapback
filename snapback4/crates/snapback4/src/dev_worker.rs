@@ -186,7 +186,9 @@ impl DevWorker {
 
     // @ref LLP 3000.009#5.3 — serve constructs the child environment explicitly.
     pub(crate) fn start_source(project: &Project, shared: Arc<Shared>, url: String, source: PathBuf, explicit_env: bool) -> Result<Self, String> {
-        let source = source.canonicalize().map_err(|e| format!("worker {}: {e}", source.display()))?;
+        // Preserve the automatic entry spelling. Canonicalizing it here would
+        // forget a symlink before the per-launch no-follow snapshot validates it.
+        let source = if explicit_env { source.canonicalize().map_err(|e| format!("worker {}: {e}", source.display()))? } else { source };
         if !source.is_file() { return Err(format!("worker {} is not a file", source.display())); }
         warn_if_esm_entry_is_not_declared(&source);
         validate_environment(&lock(&shared.bound).schema)?;
@@ -280,7 +282,12 @@ impl DevWorker {
             },
             None => {
                 if let Err(error) = declared(&self.project) { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.retry_later(); return; }
-                None
+                if self.explicit_env { None } else {
+                    match declarations::Snapshot::automatic(&self.project, &self.source) {
+                        Ok(snapshot) => Some(snapshot),
+                        Err(error) => { snapback4_core::diagnostic!("snapback4 worker: {error}"); self.record_status("source-blocked"); self.retry_later(); return; }
+                    }
+                }
             }
         };
         // @ref LLP 3000.007#9.2 — a restarted worker's orphaned claim poll must not lease work to the dead child.

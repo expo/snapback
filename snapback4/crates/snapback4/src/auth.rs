@@ -2,6 +2,7 @@
 //! the engine guard. Rate keys use the socket peer, never forwarded headers.
 use crate::serve::{Shared, principal_of, refusal_json, respond_timed};
 use serde_json::{Value as Json, json};
+use sha2::{Digest, Sha256};
 use snapback4_core::error::Refusal;
 use snapback4_core::{RuntimeError, identity};
 use std::collections::HashMap;
@@ -124,6 +125,9 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
     let outcome = perform(&request, shared, path, email, password);
     drop(kdf);
     match outcome {
+        Ok(Outcome::SupervisedRefresh) => respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new(
+            "E_WORKER_REFRESH", "auth", "supervised worker tokens are rotated by the supervisor; keep using the injected token",
+        ).guide("effects")) })),
         Ok(Outcome::Logout) => respond_timed(request, shared, 200, json!({ "ok": true })),
         Ok(Outcome::LogoutAll(revoked)) => {
             respond_timed(request, shared, 200, json!({ "ok": true, "revoked": revoked }))
@@ -147,6 +151,7 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
 
 enum Outcome {
     Session(identity::Session),
+    SupervisedRefresh,
     Logout,
     LogoutAll(u64),
 }
@@ -242,6 +247,18 @@ fn perform(
             if identity::resolve_supervised(engine.store(), &token, sample)?.is_none() {
                 return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
             }
+            // @ref LLP 3000.009#5.3 — only the supervisor replaces its bearer;
+            // returning a refresh successor would escape its live log redactors.
+            // Match family, not principal: a manual seat with the same name
+            // remains refreshable. The engine guard also owns supervisor writes.
+            let supervised: bool = engine.store().conn().query_row(
+                "SELECT EXISTS(SELECT 1 FROM _sessions s JOIN _meta m
+                 ON m.key = 'worker:family:' || COALESCE(s.family, s.token_digest)
+                 OR (m.key = 'worker:session-family' AND m.value = COALESCE(s.family, s.token_digest))
+                 WHERE s.token_digest = ?1)",
+                [format!("{:x}", Sha256::digest(token.as_bytes()))], |row| row.get(0),
+            )?;
+            if supervised { return Ok(Outcome::SupervisedRefresh); }
             identity::rotate_session(engine.store(), token, shared.now())?
                 .map(Outcome::Session)
                 .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))

@@ -76268,3 +76268,56 @@ Both reviews were rechecked before completion. Reference audit passes. Evidence,
 all failures and review dispositions: reports/20260929-wk-supervised-workers/round2/REPORT.md.
 Linux execution only; no macOS/provider qualification. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.
+
+## 2026-09-29 — WK round 3: supervisor-owned refresh and complete worker source scopes
+
+First fetched and merged origin/main: already up to date at 13a00b80b. Read all
+four lane prompts, prior reports and the complete round-2 reviews. Applied
+llp-orient and extended LLP 3000.009 §5.3 with the implementation.
+
+Supervised families now refuse /auth/refresh with HTTP 403 E_WORKER_REFRESH:
+the supervisor owns rotation and keeps the injected bearer live; HTTP cannot
+issue another bearer outside its redactors. Named and conventional entries are
+covered, while a manual seat with the same service name still refreshes. Private
+snapshots preserve snapback/node_modules ahead of project-root packages. Four
+pre-fix controls detect the token leaks and missing/wrong package resolution.
+A standalone error-reporting test kills Astra's surviving redaction mutation.
+
+Grok's completed READY WITH CHANGES review arrived during the full client stage.
+Its blocking automatic-entry symlink hole is fixed too: dev preserves the
+snapback/worker.* or server.* spelling until no-follow validation, copies the
+schema tree including generated modules/relative helpers, and executes its
+private bytes. Three controls detect startup/restart symlinks and replacement
+of entry/helper paths after validation. Explicit serve --worker remains the
+operator-selected external-entry path. Installed packages remain trusted host
+code; source copies do not follow symlinks. Guide/manual/code registration and
+existing guide definition/recovery inventories co-evolve with these changes.
+
+Final affected tests: 102/102. Whole guide: 98/98. Host units: 203 passed,
+zero failed, four declared ignores. Docs budget and reference audit pass.
+Initial build/guide omissions and an invalid server fixture were ours and repaired.
+Two inherited watchdog tests raced asynchronous descendant SIGKILL delivery;
+the tests now wait for that death under their unchanged timeout and retain the
+assertions. An earlier unchanged ledger-process witness observed two actions:
+one isolated rerun, all 20 repeat trials and later affected runs passed without
+a product repair. Its cause remains unresolved and is tracked in a filesystem
+ticket. No red result is hidden or claimed fixed by a successful rerun.
+
+scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1336 s`.
+All stages passed: clients 4,605 passed / zero failed / ten declared skips;
+final models 79/79. No full-suite failures are ours, baseline or environmental.
+The inherited 60-second process target remains missed; no ceiling was raised.
+The final Grok follow-up is qualified by the separate affected/host/guide runs;
+the full invocation is not an atomic final-source qualification claim.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged
+593,719 B cap. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Both review inputs were rechecked before commit. Grok's low process-group ID
+reuse concern remains ticketed; ledger suspension, last-reported doctor state
+and semantic FULL durability tests retain their documented contracts. These
+limits and every failure are recorded in
+reports/20260929-wk-supervised-workers/round3/REPORT.md.
+Linux evidence only. Local commit has Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

@@ -46,14 +46,26 @@ succeeds, including when its declaration was removed. Retired revisions cannot
 use ordinary queries while deletion is pending. If a watchdog dies, the host
 kills its worker group before replacement. Signals sent to a live watchdog
 initiate its group cleanup. A new declaration that cannot start retries after
-repair without requiring another source edit. Tokens are never printed. `snapback4 doctor` shows
+repair without requiring another source edit. Tokens are never printed.
+
+E_WORKER_REFRESH means this token belongs to a supervised worker family.
+The supervisor owns token rotation: `/auth/refresh` returns HTTP 403 with this
+code for named and conventional workers. Keep using the injected token;
+the refusal leaves it live. Manually minted service seats can still refresh.
+
+`snapback4 doctor` shows
 all workers and their last reported states, starts, restarts and crashes.
 `deploy` copies the workers source subtree; put helpers in subdirectories and
 install package dependencies on the deployment host. Symlinks at any level and
 non-regular source files are refused on every launch and restart, even after
 a source change was rejected. Named workers execute private copies of validated
 entry/helper bytes; replacing the original paths cannot change an in-flight launch.
-Package dependencies stay installed on the host. This is ordinary Node 24.
+Package dependencies stay installed on the host, preserving schema-local
+`snapback/node_modules` lookup before project-root packages. This is ordinary Node 24.
+Automatic dev `snapback/server.*` and `snapback/worker.*` entries also execute
+validated private copies of the schema tree, including generated modules.
+Keep their relative helpers inside `snapback/`; source symlinks are refused at
+startup and restart. The working directory remains the original project.
 
 ```js
 // snapback/workers/push.mjs

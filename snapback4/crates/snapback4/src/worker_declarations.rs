@@ -47,12 +47,23 @@ fn root(project: &Project) -> io::Result<Option<File>> {
         Err(error) => Err(error),
     }
 }
-fn walk(dir: &File, relative: &Path, visit: &mut impl FnMut(&Path, &mut File) -> io::Result<()>) -> io::Result<()> {
+fn walk(dir: &File, relative: &Path, dependencies: Option<(&Path, &Path)>, visit: &mut impl FnMut(&Path, &mut File) -> io::Result<()>) -> io::Result<()> {
     for name in entries(dir)? {
+        // Automatic conventional entries keep their relative schema helpers.
+        // Installed dependencies are host-owned, as in the ancestor scopes;
+        // never traverse package-manager symlinks as application source.
+        if name == "node_modules" {
+            if let Some((source, stage)) = dependencies {
+                let target = stage.join(relative).join(&name);
+                std::fs::create_dir_all(target.parent().unwrap())?;
+                if !target.exists() { std::os::unix::fs::symlink(source.join(relative).join(&name), target)?; }
+                continue;
+            }
+        }
         let mut file = open(dir, &name)?;
         let kind = file.metadata()?.file_type();
         let path = relative.join(name);
-        if kind.is_dir() { walk(&file, &path, visit)?; }
+        if kind.is_dir() { walk(&file, &path, dependencies, visit)?; }
         else if kind.is_file() { visit(&path, &mut file)?; }
         else { return Err(io::Error::other("worker source must contain only directories and regular files (no symlinks)")); }
     }
@@ -67,7 +78,7 @@ pub(super) fn declared(project: &Project) -> Result<BTreeMap<String, PathBuf>, S
 fn collect(project: &Project, stage: Option<&Path>) -> Result<BTreeMap<String, PathBuf>, String> {
     let mut workers = BTreeMap::new();
     let Some(dir) = root(project).map_err(|e| format!("workers: {e}"))? else { return Ok(workers); };
-    walk(&dir, Path::new(""), &mut |path, source| {
+    walk(&dir, Path::new(""), None, &mut |path, source| {
         if let Some(stage) = stage {
             let target = stage.join("snapback/workers").join(path);
             std::fs::create_dir_all(target.parent().unwrap())?;
@@ -101,11 +112,42 @@ impl Snapshot {
         Self::create(project, name).map_err(|e| format!("workers: {e}"))
     }
     fn create(project: &Project, name: &str) -> io::Result<Self> {
+        let (mut owned, stage) = Self::scope(project)?;
+        let mut entries = collect(project, Some(&stage)).map_err(io::Error::other)?;
+        owned.entry = entries.remove(name).ok_or_else(|| io::Error::other(format!("worker {name}: declaration is absent")))?;
+        Ok(owned)
+    }
+
+    pub fn automatic(project: &Project, source: &Path) -> Result<Self, String> {
+        Self::copy_automatic(project, source).map_err(|e| format!("workers: {e}"))
+    }
+    fn copy_automatic(project: &Project, source: &Path) -> io::Result<Self> {
+        let (mut owned, stage) = Self::scope(project)?;
+        let project_root = project.root.canonicalize()?;
+        let root = File::open(&project_root)?;
+        let schema = open(&root, std::ffi::OsStr::new("snapback"))?;
+        let schema_stage = stage.join("snapback");
+        walk(&schema, Path::new(""), Some((&project_root.join("snapback"), &schema_stage)), &mut |path, source| {
+            let target = schema_stage.join(path);
+            std::fs::create_dir_all(target.parent().unwrap())?;
+            // scope copied the schema's package type; use the pinned copy here.
+            if path == Path::new("package.json") { std::fs::remove_file(&target)?; }
+            let mut output = File::options().write(true).create_new(true).open(target)?;
+            io::copy(source, &mut output)?;
+            output.set_permissions(source.metadata()?.permissions())?;
+            Ok(())
+        })?;
+        owned.entry = schema_stage.join(source.file_name().ok_or_else(|| io::Error::other("worker entry has no filename"))?);
+        if !owned.entry.is_file() { return Err(io::Error::other("automatic worker entry is absent")); }
+        Ok(owned)
+    }
+
+    fn scope(project: &Project) -> io::Result<(Self, PathBuf)> {
         let template = std::env::temp_dir().join("snapback4-worker-XXXXXX");
         let mut bytes = CString::new(template.as_os_str().as_bytes())?.into_bytes_with_nul();
         if unsafe { libc::mkdtemp(bytes.as_mut_ptr().cast()) }.is_null() { return Err(io::Error::last_os_error()); }
         bytes.pop();
-        let mut owned = Self { root: PathBuf::from(OsString::from_vec(bytes)), entry: PathBuf::new() };
+        let owned = Self { root: PathBuf::from(OsString::from_vec(bytes)), entry: PathBuf::new() };
         // Reproduce Node's ancestor package search in private directories.
         // This works for immutable releases too: no writes to project source.
         let project_root = project.root.canonicalize()?;
@@ -120,14 +162,17 @@ impl Snapshot {
                 std::fs::copy(ancestor.join("package.json"), stage.join("package.json"))?;
             }
         }
-        // Preserve a schema-local module type without reopening worker files.
+        // Preserve schema-local package precedence as well as module type,
+        // using the same trusted host-dependency links as the ancestor scopes.
+        // Entry/helper custody still belongs to collect's no-follow copies.
         std::fs::create_dir(stage.join("snapback"))?;
+        if project_root.join("snapback/node_modules").is_dir() {
+            std::os::unix::fs::symlink(project_root.join("snapback/node_modules"), stage.join("snapback/node_modules"))?;
+        }
         if project_root.join("snapback/package.json").is_file() {
             std::fs::copy(project_root.join("snapback/package.json"), stage.join("snapback/package.json"))?;
         }
-        let mut entries = collect(project, Some(&stage)).map_err(io::Error::other)?;
-        owned.entry = entries.remove(name).ok_or_else(|| io::Error::other(format!("worker {name}: declaration is absent")))?;
-        Ok(owned)
+        Ok((owned, stage))
     }
 }
 impl Drop for Snapshot {

@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
-import { runWorker } from '../dist/worker.js';
+const { runWorker } = await import(process.env.SNAPBACK4_TEST_WORKER ?? '../dist/worker.js');
 const { WorkerLedger } = await import(process.env.SNAPBACK4_TEST_WORKER_LEDGER ?? '../dist/worker-ledger.js');
 
 const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL('../../../target/debug/snapback4', import.meta.url));
@@ -52,6 +52,125 @@ setInterval(()=>{},1000);`;
 async function claim(s, token) {
   return fetch(s.url + '/effects/claim', { method: 'POST', headers: { authorization: 'Bearer '+token, 'content-type': 'application/json' }, body: '{"wait":0}' });
 }
+
+for (const entry of ['workers/push.mjs', 'worker.mjs']) test(`supervised ${entry} refuses refresh without logging a bearer across split writes`, async t => {
+  const f = fixture(t);
+  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync} from 'node:fs';
+const token = process.env.SNAPBACK_SERVICE_TOKEN;
+const response = await fetch(process.env.SNAPBACK_URL+'/auth/refresh', {method:'POST',headers:{authorization:'Bearer '+token},body:'{}'});
+const text = await response.text();
+console.log('refresh-whole:'+text);
+const split = text.includes('"token":"') ? text.indexOf('"token":"')+18 : Math.floor(text.length/2);
+process.stderr.write('refresh-split:'+text.slice(0,split));
+await new Promise(resolve=>setTimeout(resolve,50));
+process.stderr.write(text.slice(split)+'\\n');
+writeFileSync('refresh-result',JSON.stringify({token,status:response.status,reply:JSON.parse(text)}));
+console.error('refresh-logged');setInterval(()=>{},1000);`);
+  const s = await f.start();
+  await until(() => existsSync(join(f.dir, 'refresh-result')) && s.log.includes('refresh-logged'));
+  const {token, status, reply} = JSON.parse(readFileSync(join(f.dir, 'refresh-result'), 'utf8'));
+  assert.equal(s.log.includes(token), false, 'initial bearer is absent from logs');
+  if (reply.session) assert.equal(s.log.includes(reply.session.token), false, 'refresh must not leak a successor bearer');
+  assert.equal(status, 403);
+  assert.equal(reply.denied.code, 'E_WORKER_REFRESH');
+  assert.equal(reply.denied.guide, 'effects');
+  assert.equal(reply.session, undefined);
+  for (const prefix of ['refresh-whole:', 'refresh-split:']) assert.ok(s.log.includes(prefix+JSON.stringify(reply)), s.log);
+  assert.equal((await claim(s, token)).status, 200, 'refusal leaves the supervisor-owned bearer live');
+  const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'), {readOnly:true});
+  try { assert.equal(db.prepare("SELECT count(*) n FROM _sessions WHERE kind='service'").get().n, 1); }
+  finally { db.close(); }
+  const minted = spawnSync(binary, ['token', '--service', entry.startsWith('workers/') ? 'push' : 'worker'], {cwd:f.dir,encoding:'utf8'});
+  assert.equal(minted.status, 0, minted.stderr);
+  const manual = minted.stdout.trim();
+  const refreshed = await fetch(s.url+'/auth/refresh', {method:'POST',headers:{authorization:'Bearer '+manual},body:'{}'});
+  const successor = await refreshed.json();
+  assert.equal(refreshed.status, 200);
+  assert.ok(successor.session?.token, JSON.stringify(successor));
+  assert.equal((await claim(s, manual)).status, 401);
+  assert.equal((await claim(s, successor.session.token)).status, 200);
+});
+
+for (const shadowed of [false, true]) test(`private worker snapshot resolves schema-local packages${shadowed ? ' before project packages' : ''}`, async t => {
+  const f = fixture(t, `import local from 'schema-package';import {helper} from './helpers/value.mjs';
+import {writeFileSync} from 'node:fs';
+const values={local,helper};
+if(process.env.SNAPBACK_SERVICE_TOKEN){writeFileSync('package-result',JSON.stringify(values));setInterval(()=>{},1000);}
+else console.log(JSON.stringify(values));`);
+  mkdirSync(join(f.dir, 'snapback/workers/helpers'));
+  writeFileSync(join(f.dir, 'snapback/workers/helpers/value.mjs'), "import value from 'schema-package';export const helper=value;");
+  for (const [scope, value] of [['snapback', 'schema'], ...(shadowed ? [['', 'project']] : [])]) {
+    const dir = join(f.dir, scope, 'node_modules/schema-package');
+    mkdirSync(dir, {recursive:true});
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({name:'schema-package',type:'module',exports:'./index.js'}));
+    writeFileSync(join(dir, 'index.js'), `export default ${JSON.stringify(value)};`);
+  }
+  const direct = spawnSync(process.execPath, ['snapback/workers/push.mjs'], {cwd:f.dir,encoding:'utf8'});
+  assert.equal(direct.status, 0, direct.stderr);
+  const expected = JSON.parse(direct.stdout);
+  assert.deepEqual(expected, {local:'schema',helper:'schema'});
+  const s = await f.start();
+  await until(() => existsSync(join(f.dir, 'package-result')) || s.log.includes('ERR_MODULE_NOT_FOUND'));
+  assert.equal(s.log.includes('ERR_MODULE_NOT_FOUND'), false, s.log);
+  assert.deepEqual(JSON.parse(readFileSync(join(f.dir, 'package-result'), 'utf8')), expected);
+});
+
+test('standalone worker reports errors containing its bearer with automatic redaction', async () => {
+  const stop = new AbortController(), errors = [], token = 'standalone-private-bearer';
+  const {done} = runWorker({url:'http://standalone.test',token,signal:stop.signal,effects:{notify:()=>{}},
+    fetch:async()=>{throw Error(`request failed for Bearer ${token}; again ${token}`);},
+    onError:error=>{errors.push(String(error));stop.abort();},
+  });
+  await done;
+  assert.deepEqual(errors, ['Error: request failed for Bearer [REDACTED]; again [REDACTED]']);
+});
+
+test('automatic worker.mjs refuses a symlink before issuing a service token', async t => {
+  const f = fixture(t);
+  writeFileSync(join(f.dir, 'outside.mjs'), idle);
+  symlinkSync(join(f.dir, 'outside.mjs'), join(f.dir, 'snapback/worker.mjs'));
+  const s = await f.start();
+  await until(() => s.log.includes('snapback4 worker:'));
+  assert.equal(rows(join(f.dir, 'starts')).length, 0, 'linked entry must never execute');
+  assert.match(s.log, /workers:|source-blocked/);
+  const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'), {readOnly:true});
+  try { assert.equal(db.prepare("SELECT count(*) n FROM _sessions WHERE kind='service'").get().n, 0); }
+  finally { db.close(); }
+});
+
+test('automatic worker restart rejects an entry replaced with a symlink', async t => {
+  const f = fixture(t);
+  const entry = join(f.dir, 'snapback/worker.mjs');
+  writeFileSync(entry, idle);
+  const s = await f.start();
+  await until(() => rows(join(f.dir, 'starts')).length === 1);
+  const first = rows(join(f.dir, 'starts'))[0];
+  writeFileSync(join(f.dir, 'outside.mjs'), idle);
+  rmSync(entry); symlinkSync(join(f.dir, 'outside.mjs'), entry);
+  process.kill(first.pid, 'SIGKILL');
+  await until(() => s.log.includes('workers:') || rows(join(f.dir, 'starts')).length > 1);
+  assert.equal(rows(join(f.dir, 'starts')).length, 1);
+  assert.equal((await claim(s, first.token)).status, 401);
+});
+
+test('automatic worker executes validated entry and relative helper after source replacement', async t => {
+  const f = fixture(t);
+  writeFileSync(join(f.dir, 'snapback/worker.mjs'), `import {value} from './helpers/value.mjs';\n${idle}\nappendFileSync('values',value);`);
+  mkdirSync(join(f.dir, 'snapback/helpers'));
+  writeFileSync(join(f.dir, 'snapback/helpers/value.mjs'), "export const value='validated';");
+  const wrapper = join(f.dir, 'node-wrapper');
+  writeFileSync(wrapper, `#!/bin/bash\nif [ "$1" = --version ]; then exec '${process.execPath}' "$@"; fi\ntouch launch-ready\nwhile [ ! -f launch-go ]; do sleep 0.02; done\nexec '${process.execPath}' "$@"\n`);
+  chmodSync(wrapper, 0o700);
+  await f.start([], {SNAPBACK_NODE:wrapper});
+  await until(() => existsSync(join(f.dir, 'launch-ready')));
+  writeFileSync(join(f.dir, 'outside.mjs'), "import {writeFileSync} from 'node:fs';writeFileSync('values','escaped');setInterval(()=>{},1000);");
+  rmSync(join(f.dir, 'snapback/worker.mjs'));
+  symlinkSync(join(f.dir, 'outside.mjs'), join(f.dir, 'snapback/worker.mjs'));
+  writeFileSync(join(f.dir, 'snapback/helpers/value.mjs'), "export const value='changed';");
+  writeFileSync(join(f.dir, 'launch-go'), '');
+  await until(() => existsSync(join(f.dir, 'values')));
+  assert.equal(readFileSync(join(f.dir, 'values'), 'utf8'), 'validated');
+});
 
 for (const check of ['query fence', 'retirement custody']) test(`removed worker retains ${check} while deletion is locked`, { timeout: 35_000 }, async t => {
   const f = fixture(t, idle + `\nprocess.on('SIGTERM',()=>{appendFileSync('terms','stopping');});`);
@@ -187,6 +306,10 @@ process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process
   const first=rows(join(f.dir,'starts'))[0];await sleep(150);
   watchdog.kill(signal);await done;
   assert.equal(alive(first.pid),false);
+  // The watchdog reaps Node, but cannot waitpid Node's child. SIGKILL delivery
+  // to that descendant can finish after the watchdog's exit event is observed.
+  // Keep the test's existing timeout and still require the descendant to die.
+  await until(() => !alive(first.helper));
   assert.equal(alive(first.helper),false);
 });
 
