@@ -239,7 +239,6 @@ test('initial backend installation rejects a query already in flight', async t =
   // A second query advertises capability while the watch's first answer is held.
   await client.query(api.list, {});
   await until(() => schemas === 1);
-  published.length = 0; // The newer direct answer may publish before installation.
   current = true; schema.resolve();
   await until(() => polls.some(p => !p.signal.aborted && p.params.get('ephTables') === 'typing'));
   oldQuery.resolve();

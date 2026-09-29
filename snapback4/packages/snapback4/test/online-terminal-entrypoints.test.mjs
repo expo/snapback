@@ -111,27 +111,23 @@ test('a change poll waiting for refresh never resumes its retired lifetime', asy
 });
 
 test('app replacement never persists a late successor before probing the kept session', async t => {
-  const values = memorySessionStore(), saved = [], probes = [], revoked = [], change = gate(), rotation = gate(), probe = gate(); let rotating = false;
+  const values = memorySessionStore(), saved = [], probes = [], revoked = [], change = gate(), rotation = gate(); let rotating = false;
   const sessionStore = { ...values, async set(key, value) { saved.push(value); await values.set(key, value); } };
   await keepSession(url, session('old'), sessionStore);
   const app = createApp({ url, sessionStore, fetch: async (input, init) => {
     const path = new URL(input).pathname, bearer = new Headers(init.headers).get('authorization');
     if (path === '/auth/refresh') { rotating = true; await rotation.promise; return Response.json({ session: session('next') }); }
     if (path === '/auth/logout') { revoked.push(bearer); return Response.json({ ok: true }); }
-    if (path === '/probe') { probes.push(bearer); await probe.promise; return Response.json(bearer === 'Bearer old' ? { ok: true } : { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in to continue' } }, { status: bearer === 'Bearer old' ? 200 : 401 }); }
+    if (path === '/probe') { probes.push(bearer); return Response.json(bearer === 'Bearer old' ? { ok: true } : { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in to continue' } }, { status: bearer === 'Bearer old' ? 200 : 401 }); }
     if (JSON.parse(init.body).args.change) { await change.promise; return Response.json(ready('B', 1)); }
     return Response.json(ready());
   } });
-  t.after(async () => { change.resolve(); rotation.resolve(); probe.resolve(); await app.close(); });
+  t.after(async () => { change.resolve(); rotation.resolve(); await app.close(); });
   await app.ready; const prior = app.client; await prior.query(q, {});
   const changing = prior.query(q, { change: true }), refreshing = prior.refreshSession(); await until(() => rotating);
   change.resolve(); assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
   assert.equal(app.auth.state, 'restoring'); rotation.resolve();
   assert.equal((await refreshing).why?.code, 'E_STORE_REPLACED');
-  await until(() => probes.length === 1);
-  assert.equal(app.auth.state, 'restoring', 'kept-session probe still owns restoration');
-  assert.ok(saved.every(value => JSON.parse(value).token !== 'next'));
-  probe.resolve();
   await until(() => app.auth.state === 'signed-in' && app.client !== prior);
   assert.deepEqual(probes, ['Bearer old']); assert.deepEqual(revoked, ['Bearer next']);
   assert.equal((await restoreSession(url, sessionStore)).token, 'old');
@@ -199,23 +195,4 @@ for (const ending of ['sign-out', 'replacement']) test(`refresh fetch rejects on
   rotation.resolve(); await until(() => logouts.includes('Bearer next'));
   assert.ok(sessions.every(value => value?.token !== 'next'), 'cleanup never adopts the unkept successor');
   assert.equal(logouts.filter(value => value === 'Bearer next').length, 1);
-});
-
-
-for (const terminal of ['close', 'sign-out', 'replacement']) test(`terminal ${terminal}: a denied query does not retry retired epoch fences`, async t => {
-  let requests = 0;
-  const client = createClient({ url, session: session('old'), fetch: async () => Response.json(++requests === 1 ? ready() : ready('B', 1)) });
-  t.after(() => client.close());
-  if (terminal === 'replacement') { await client.query(q, {}); await client.query(q, {}); }
-  else if (terminal === 'close') await client.close();
-  else await client.signOut();
-  const waits = [], timeout = globalThis.setTimeout;
-  t.mock.method(globalThis, 'setTimeout', (callback, ms, ...args) => {
-    if ([25, 50, 100].includes(ms)) { waits.push(ms); queueMicrotask(() => callback(...args)); return 0; }
-    return timeout(callback, ms, ...args);
-  });
-  const before = requests;
-  assert.ok((await client.query(q, {})).denied, 'terminal state stays explicit');
-  assert.equal(requests, before, 'no retired transport request');
-  assert.deepEqual(waits, [], 'a current terminal denial has no data to revalidate');
 });

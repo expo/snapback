@@ -2,7 +2,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ordinarySearch, SearchLedger, SearchBound } from '../dist/local-search.js';
-import { nonAuthoritativeRefusal } from '../dist/http-response.js';
 const plan={table:'messages',index:'wordsAt',column:'at',kind:'Time',order:'Desc',limit:20,needle:'q',cursor:'c',variant:null};
 const ceilings={examined:8192,index_entries:16384,rule_probes:8192,steps:1000000,heap_bytes:16<<20,output_bytes:1<<20,rows_written:1024};
 const counts=()=>Object.fromEntries(Object.keys(ceilings).map(k=>[k,0]));
@@ -82,15 +81,6 @@ test('state loss needs no server buffer: a fresh coordinator resumes every uncon
 test('an older device refuses composition explicitly instead of running a partial plan',async()=>{
   const f=fixture();f.env.call=async()=>({denied:{code:'E_INPUT',family:'input',message:'unknown op search_state'}});
   const result=await f.run();assert.equal(result.read.denied.code,'E_INPUT');assert.equal(f.calls(),0);
-});
-
-test('round 10: invalid SDK cursors carry unevaluated origin', async () => {
-  for (const cursor of ['sb4s:!', 'sb4s:' + Buffer.from('{}').toString('base64url')]) {
-    const f = fixture(), result = await f.run(cursor);
-    assert.equal(result.read.denied?.code, 'E_INPUT');
-    assert.equal(nonAuthoritativeRefusal(result.read.denied), true);
-    assert.equal(f.calls(), 0);
-  }
 });
 
 test('a current-only page still requires the authorized server audience proof',async()=>{
@@ -209,30 +199,4 @@ test('merge seen set is defense in depth for a same-page pair unmarked by overla
   const row={id:'pair',at:100,text:'coffee'}, f=fixture({retained:[row],live:[row],localComplete:true});
   const {read}=await f.run();
   assert.deepEqual(read.data,[row]);assert.equal(read.next,null);assert.equal(f.calls(),1);
-});
-
-for (const phase of ['opening', 'after decode']) for (const code of ['E_BOUND', 'APP_METADATA'])
-test(`round 11 ${phase} metadata refusal ${code} has SDK origin while query denial stays evaluated`, async () => {
-  const f = fixture(), call = f.env.call;
-  f.env.call = async request => request.op === 'search_state' && (!!request.spent === (phase === 'after decode'))
-    ? { denied: { code, family: 'bound', message: 'metadata unavailable' } } : call(request);
-  const result = await f.run();
-  assert.equal(result.read.denied?.code, code);
-  assert.equal(nonAuthoritativeRefusal(result.read.denied), true);
-  assert.equal(f.calls(), phase === 'opening' ? 0 : 1);
-  const evaluated = fixture();
-  evaluated.env.searchPost = async () => ({ ok: true, json: { denied: { code, family: 'app', message: 'evaluated denial' } } });
-  assert.equal(nonAuthoritativeRefusal((await evaluated.run()).read.denied), false);
-});
-for (const phase of ['opening', 'after decode']) test(`round 11 ${phase} metadata failure cannot conceal terminal boundary`, async () => {
-  const f = fixture(), call = f.env.call, terminal = { denied: { code: 'E_STORE_RESTORE', family: 'store', message: 'restored store' } };
-  let retired = false;
-  f.env.call = async request => {
-    if (request.op === 'search_state' && (!!request.spent === (phase === 'after decode'))) {
-      retired = true; return { denied: { code: 'E_BOUND', family: 'bound', message: 'metadata unavailable' } };
-    }
-    return call(request);
-  };
-  await assert.rejects(ordinarySearch(f.env, 'search', { q: 'coffee' }, plan,
-    () => { if (retired) throw terminal; }, async () => false), error => error === terminal);
 });

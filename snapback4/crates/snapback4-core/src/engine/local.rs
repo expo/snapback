@@ -169,7 +169,6 @@ pub fn native_observation(rows: &dyn Rows, schema: &Schema, module: &super::nati
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
     let (value, mut runner) = super::native::run_read(module, runner, &program.name, &args, now);
-    runner.complete_read_dependencies(program);
     let result = (|| {
         let data = match value {
             Ok(data) => data,

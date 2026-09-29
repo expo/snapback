@@ -20,10 +20,10 @@ function OwnedConversation({ conversation, url, visible, viewer }: { conversatio
   const client = useClient(), link = useLink();
   const online = useOnlineArm(url);
   const typing = useTyping(online, conversation);
-  // Plain refreshes retain the answer; changed inputs and deadlines withdraw it.
+  // Explicit retention choice: use the SDK's bounded one-second default.
   // We never retain a previous answer in application state.
   const room = useQuery(api.conversationScreen, { conversation });
-  const member = useQuery(api.receiptMember, { conversation });
+  const member = useQuery(api.receiptMember, { conversation }, { keep: false });
   const pending = usePendingWrites(api.send);
   const sending = useMutation(api.send);
   const [draft, setDraft] = useState(""), [problem, setProblem] = useState("");
@@ -124,7 +124,7 @@ function History(props: HistoryProps) {
 // a changed boundary replaces the suffix; decorations never gate the transcript.
 function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: Cursor | null; depth: number; older(): void; prior: string[] }) {
   const history = useQuery(api.history, { conversation: props.conversation, c });
-  const receipts = useQuery(api.messageReceipts, { conversation: props.conversation, c });
+  const receipts = useQuery(api.messageReceipts, { conversation: props.conversation, c }, { keep: false });
   const [viewed, setViewed] = useState<Set<string>>(() => new Set());
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken<ResultOf<typeof api.history>[number]>[] }) => {
     setViewed(new Set(viewableItems.filter(item => item.isViewable).map(item => item.item.id)));
@@ -148,13 +148,13 @@ function HistoryPage({ c, depth, older, prior, ...props }: HistoryProps & { c: C
 
 export function OnceViewer({ message, asset, onClose }: { message: string; asset: string; onClose(): void }) {
   const media = useOnceMedia();
-  const row = useQuery(api.messagePhoto, { id: message });
-  const invalid = (!!media.view && "loading" in row) || "denied" in row || ("data" in row && (!row.data || row.data.photo?.id !== asset));
+  const row = useQuery(api.messagePhoto, { id: message }, { keep: false });
+  const invalid = "denied" in row || ("data" in row && (!row.data || row.data.photo?.id !== asset));
   const ended = useRef(false); ended.current ||= invalid;
   useEffect(() => { if (invalid) { media.close(); onClose(); } }, [invalid, media.close, onClose]);
   return <View testID="once-viewer">
     <Button title="Close photo" onPress={() => { media.close(); onClose(); }} />
-    {!ended.current && media.view?.url ? <Image accessibilityLabel="Once photo" source={{ uri: media.view.url }} style={{ width: 240, height: 240 }} /> :
+    {media.view?.url ? <Image accessibilityLabel="Once photo" source={{ uri: media.view.url }} style={{ width: 240, height: 240 }} /> :
       <Button title="Open media" disabled={!!media.view || ended.current || !("data" in row) || row.revalidating} onPress={() => void media.open(asset)} />}
     <Text>{media.view?.problem}</Text>
   </View>;

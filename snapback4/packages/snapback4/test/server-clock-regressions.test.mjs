@@ -247,7 +247,7 @@ for (const [serverDelay, early] of [[null, false], [null, true], [300, false], [
   const serverDeadline = serverDelay === null ? null : start + serverDelay;
   f.outcome = request => ({ data: false, unknown: true, speculative: true, complete: false, tables: [],
     nextExpiry: request.now < localDeadline ? localDeadline : null });
-  f.serverOutcome = () => ({ data: true, complete: true, tables: [], seq: 0, nextExpiry: serverDeadline });
+  f.serverOutcome = () => ({ data: true, complete: true, tables: [], nextExpiry: serverDeadline });
   let release, entered = false;
   const client = await f.open(); t.after(async () => { release?.(); await close(client, t); });
   assert.equal((await client.query(read, {})).data, true);

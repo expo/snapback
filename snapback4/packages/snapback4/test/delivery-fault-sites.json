@@ -190,7 +190,7 @@
   },
   {
     "index": 27,
-    "id": "local.ts:syncRound:call({ op: \"apply\", page, predictionFreeRevision, predictionTables, first: !catchingUp && after === undefined }, touched)#1",
+    "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
     "recipe": "ordinary",
     "classification": "optional",
     "absorbs": false
@@ -1102,62 +1102,6 @@
     "index": 157,
     "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
     "recipe": "media",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 158,
-    "id": "local.ts:syncRound:queued()#1",
-    "recipe": "ordinary",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 159,
-    "id": "local-assets.ts:read:this.call({ op: \"state\" })#1",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 160,
-    "id": "local-assets.ts:readLocalAsset:env.media.read(id)#1",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 161,
-    "id": "local-assets.ts:readLocalAsset:fetchAsset(env.base, request.headers, env.fetch, id, (blob, response) => { let seq: number | undefined; try { seq = JSON.parse(response.headers.get(\"x-snapback-asset-read\") ?? \"{}\").seq; } catch {} if (!current() || !env.lifetime.grant(id, seq, ticket, revision)) return Promise.resolve(); return env.media.viewed(id, blob, response, () => current() && env.lifetime.permits(id, seq, ticket, revision)); })#1",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 162,
-    "id": "local-assets.ts:readLocalAsset:env.refused(read.denied, request.revision)#1",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 163,
-    "id": "local-assets.ts:readLocalAsset:env.media.read(id)#2",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 164,
-    "id": "local-assets.ts:readLocalAsset:env.media.invalidate(id, () => current() && env.lifetime.current(id, read, ticket))#1",
-    "recipe": "assetRead",
-    "classification": "optional",
-    "absorbs": false
-  },
-  {
-    "index": 165,
-    "id": "client.ts:refresh:watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => { if (!currentRead(result, watch)) return false; return true; } })#1",
-    "recipe": "onlineRefresh",
     "classification": "optional",
     "absorbs": false
   }

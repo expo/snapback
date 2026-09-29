@@ -314,7 +314,7 @@ query conditionalHelper(c: cursor ?):
         assert.deepEqual(read, { loading: true });
         const raw = bob.observed.at(-1);
         assert.deepEqual(raw.data, []); assert.equal(raw.unknown, true);
-        assert.ok(["switches", "feedFeed", "reposts"].every(table => raw.tables.includes(table)), "complete dependencies include untaken helper/branch reads");
+        assert.deepEqual(raw.tables, ["switches"]);
         assert.equal(bob.queries.length, before, "unknown branches cannot authorize a server replacement");
       }
     }
@@ -345,7 +345,7 @@ query countedFeed(c: cursor ?):
     assert.deepEqual(await bob.client.query(query("countedFeed"), { c: null }), { loading: true });
     const raw = bob.observed.at(-1);
     assert.equal(raw.loading, true); assert.equal(raw.unknown, false); assert.equal(raw.complete, false);
-    assert.ok(["events", "feedFeed", "posts"].every(table => raw.tables.includes(table)), "a scalar cap cannot narrow the reported dependency footprint");
+    assert.deepEqual(raw.tables, ["events"], "the scalar cap skipped the following statements");
     assert.equal(bob.queries.length, before, "static feed/posts reads fence server fallback despite the executed subset");
   });
 
@@ -376,8 +376,8 @@ query conditionalFeed(c: cursor ?):
     const before = bob.queries.length;
     const local = await bob.client.query(query("conditionalFeed"), { c: null });
     assert.deepEqual(local.data, []); assert.equal(local.complete, true);
-    assert.equal(bob.observed.at(-1).unknown, false); assert.ok(["switches", "feedFeed", "reposts"].every(table => bob.observed.at(-1).tables.includes(table)));
-    assert.equal(bob.queries.length, before, "known local branch always wins while its footprint covers every possible read");
+    assert.equal(bob.observed.at(-1).unknown, false); assert.deepEqual(bob.observed.at(-1).tables, ["switches"]);
+    assert.equal(bob.queries.length, before, "known local branch always wins, even after narrowing possible reads");
   });
 
   test(`bounded Following ${tier}: a speculative profile withholds while a non-speculative page keeps predicted rows`, { timeout: 30000 }, async t => {

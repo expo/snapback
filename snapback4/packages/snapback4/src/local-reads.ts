@@ -1,5 +1,5 @@
 import type { Query } from "./contract.ts";
-import { ReadObservation, readKey } from "./read-observation.ts";
+import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
 
@@ -16,7 +16,6 @@ export function predictedTables(predicted: readonly string[]): Set<string> {
 }
 
 export interface LocalWatch extends ReadObservation<unknown> {
-  stablePuts?: string[];
   op: Query<unknown, unknown>;
   args: unknown;
   key: string;
@@ -29,7 +28,6 @@ export interface LocalWatch extends ReadObservation<unknown> {
   serverRead?: boolean;
   /** Whole server answer only: a composed retained answer cannot bypass its VM. */
   serverOnly?: boolean;
-  serverSeq?: number | undefined;
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
@@ -85,22 +83,13 @@ export class RememberedAnswers {
   /** The ticket of a read attempt that is about to begin. */
   begin(): number { return ++this.tickets; }
   get(key: string): ServerAnswer | undefined { return this.answers.get(key); }
-  set(key: string, answer: ServerAnswer, order: AnswerOrder): boolean {
-    if (!this.admit(key, order)) return false;
-    this.answers.set(key, answer); return true;
+  set(key: string, answer: ServerAnswer, order: AnswerOrder): void {
+    if (this.admit(key, order)) this.answers.set(key, answer);
   }
   /** A server's refusal or loading answer, or a composed read's, which is not
    * remembered: nothing is remembered for the key. */
-  delete(key: string, order: AnswerOrder): boolean {
-    if (!this.admit(key, order)) return false;
-    this.answers.delete(key); return true;
-  }
-  // @ref LLP 3000.029#13 — local successes and denials share the publication
-  // order; a successful replica evaluation is never remembered server data.
-  local(key: string, ticket: number, denied: boolean): boolean {
-    if (!this.admit(key, { ticket, seq: undefined })) return false;
-    if (denied) this.answers.delete(key);
-    return true;
+  delete(key: string, order: AnswerOrder): void {
+    if (this.admit(key, order)) this.answers.delete(key);
   }
   /** Local expiry fences every read already begun, while preserving its cuts. */
   forget(key: string): void {
@@ -127,7 +116,6 @@ export class RememberedAnswers {
       get: (key: string) => this.get(key),
       set: (key: string, answer: ServerAnswer, seq?: number) => this.set(key, answer, { seq, ticket }),
       delete: (key: string, seq?: number) => this.delete(key, { seq, ticket }),
-      local: (key: string, denied: boolean) => this.local(key, ticket, denied),
       forget: (key: string) => this.forget(key),
       renew: () => { ticket = this.begin(); },
     };
@@ -155,84 +143,20 @@ export class RememberedAnswers {
 export class LocalReads {
   revision = 0;
   readonly serverAnswers = new RememberedAnswers();
-  private appliedCut = 0;
-  private reportedCut = 0;
-  evidenceSerial = 0;
-  private readonly unknownTables = new Map<string, number>();
-  private readonly tableCuts = new Map<string, number>();
-  // @ref LLP 3000.029#8 — authority floors depend on data, never query spelling.
-  fence(tables: readonly string[] | undefined, cut: number): void {
-    for (const table of tables ?? ["*"]) this.tableCuts.set(table, Math.max(cut, this.tableCuts.get(table) ?? 0));
-  }
-  replacement(_key: string, cut?: number, tables: Set<string> = new Set()): void {
-    const inputs = tables.size ? [...tables] : ["*"];
-    if (cut === undefined) {
-      const serial = ++this.evidenceSerial;
-      for (const table of inputs) this.unknownTables.set(table, serial);
-    } else this.fence(inputs, cut);
-  }
-  private maximum(slots: Map<string, number>, tables: Set<string>): number {
-    let maximum = slots.get("*") ?? 0;
-    for (const table of tables.size ? tables : slots.keys()) maximum = Math.max(maximum, slots.get(table) ?? 0);
-    return maximum;
-  }
-  minimum(_key: string, tables: Set<string>): number { return this.maximum(this.tableCuts, tables); }
-  blocked(key: string, tables: Set<string>): boolean {
-    return this.maximum(this.unknownTables, tables) > 0 || this.minimum(key, tables) > this.appliedCut;
-  }
-  accepts(tables: Set<string>, cut: number | undefined, requestSerial: number): boolean {
-    return this.maximum(this.unknownTables, tables) <= requestSerial
-      && (cut === undefined || cut >= this.maximum(this.tableCuts, tables));
-  }
-  applied(cut: number, complete = false, requestSerial = this.evidenceSerial): void {
-    this.appliedCut = Math.max(this.appliedCut, cut);
-    this.reportedCut = Math.max(this.reportedCut, cut);
-    for (const [table, minimum] of this.tableCuts) if (minimum <= this.appliedCut) this.tableCuts.delete(table);
-    if (complete) for (const [table, serial] of this.unknownTables) if (serial <= requestSerial) this.unknownTables.delete(table);
-  }
-
-
-  // A receipt covers its own commit only. A gap is an unknown footprint.
-  receipt(watches: Iterable<LocalWatch>, json: Record<string, unknown>): boolean {
-    const at = Number(json.seq), cut = Math.max(at, Number(json.head ?? at));
-    if (!Number.isSafeInteger(cut) || cut <= this.reportedCut) return false;
-    const touched = cut === at && cut === this.reportedCut + 1 && Array.isArray(json.tables) ? json.tables as string[] : undefined;
-    const stable = Array.isArray(json.nonRevoking) ? json.nonRevoking as string[] : [];
-    this.changed([...watches].filter(w => !w.serverOnly || w.serverSeq === undefined || w.serverSeq < cut), touched, cut, stable);
-    return true;
-  }
 
   // @ref LLP 3000.019#3.3 — held expiry fences old HTTP bodies before a callback can roll time back.
   expire(watch: LocalWatch, serverDue: boolean, serverNow: number): void {
-    if (serverDue) this.serverAnswers.expire(readKey(watch.op, watch.args), serverNow);
+    if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.029#4 — committed input changes withdraw before callbacks.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[], nonRevoking: readonly string[] = []): void {
-    if (!["apply", "admit", "settle"].includes(operation)) { this.clear(watches); return; }
-    this.changed(watches, touched, undefined, nonRevoking);
-  }
-
-  changed(watches: Iterable<LocalWatch>, touched?: readonly string[], cut?: number, nonRevoking: readonly string[] = []): void {
-    this.revision++;
-    if (cut !== undefined) { this.fence(touched, cut); this.reportedCut = Math.max(this.reportedCut, cut); }
-    this.serverAnswers.clear();
-    for (const watch of watches) {
-      if ("denied" in watch.snapshot && watch.snapshot.denied.code === "E_INPUT") continue;
-      const invalid = touched === undefined || (touched.length > 0 &&
-        (watch.tables.size === 0 || touched.some(table => watch.tables.has(table) && (!nonRevoking.includes(table) || !watch.stablePuts?.includes(table)))));
-      if (invalid) {
-        watch.reset({ loading: true });
-        if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
-        watch.expiryTimer = null; watch.deadlines = undefined;
-      } else watch.reload();
-    }
+  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
+  committed(watches: Iterable<LocalWatch>, operation: string): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
   }
 
   clear(watches: Iterable<LocalWatch>, reset = true): void {
     this.revision++;
     this.serverAnswers.clear();
-    this.tableCuts.clear(); this.unknownTables.clear(); this.appliedCut = 0; this.reportedCut = 0;
     for (const watch of watches) {
       if (reset) watch.reset({ loading: true }); else watch.reload();
       if (reset || !watch.retain) {
@@ -246,27 +170,4 @@ export class LocalReads {
       watch.presenceEvery = undefined;
     }
   }
-}
-
-/** Unknown host replies conservatively invalidate; empty certified footprints do not. */
-export function changedInputs(operation: unknown, result: unknown): string[] | undefined {
-  const evidence = result as { touched?: string[]; predicted?: string[] } | undefined;
-  return operation === "admit" && Array.isArray(evidence?.predicted)
-    ? [...predictedTables(evidence.predicted)] : evidence?.touched;
-}
-
-/** Shared local watch plumbing; resets finish before the next async read. */
-export function watchLocalEphemeral(watch: LocalWatch, tables: string[], interests: import("./ephemeral-reads.ts").EphemeralReads,
-  current: () => boolean, clearExpiry: () => void, rerun: () => void): void {
-  if (!tables.length) { interests.remove(watch); return; }
-  interests.add(watch, tables, reset => {
-    const deliver = reset ? watch.reset({ loading: true }, true) : undefined;
-    if (reset) clearExpiry();
-    return () => {
-      deliver?.();
-      if (!current()) return;
-      if (reset) notifyLocalWatch(watch);
-      rerun();
-    };
-  });
 }

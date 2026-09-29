@@ -28,11 +28,7 @@ export async function server(t,tier,source) {
   return {post,requests,answers,get core(){return core;},pauseSync(){paused=true;},set refresh(ms){refresh=ms;},async open(){
     client=await createLocalClient({url,persona:"bob",waitSeconds:1,fetch:async(input,init)=>{
       const path=new URL(input).pathname;requests.push(path);const response=await fetch(input,init);
-      const change = path === "/changes" ? await response.json() : undefined;
-      // These provenance controls deliver neither sync nor invalidation evidence.
-      // The fence regressions separately hold sync while delivering /changes.
-      if(paused&&["/sync","/changes"].includes(path))await new Promise(resolve=>deliveries.add(resolve));
-      if(change !== undefined) return Response.json(change);
+      if(paused&&path==="/sync")await new Promise(resolve=>deliveries.add(resolve));
       if(refresh!==undefined&&path.startsWith("/q/")){const json=await response.json();if(json.refresh!==undefined)json.refresh=refresh;return Response.json(json,{status:response.status});}
       return response;
     },device:{open:async(...args)=>{core=await opener.open(...args);return {close:()=>core.close(),call:async(request,committed)=>{const reply=await core.call(request,committed);if(request.op==="query")answers.push({name:request.name,...reply.ok});return reply;}};}}});

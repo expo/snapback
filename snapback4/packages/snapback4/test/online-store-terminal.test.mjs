@@ -60,8 +60,7 @@ for (const source of ['query', 'mutation', 'changes', 'probe']) for (const repla
     await delay(50);
     assert.equal(total, before, 'terminal clients make no later request, including queued sends');
     assert.equal(writes, 1); assert.equal(settled.length, 4, 'late receipts do not emit a second settlement');
-    const terminal = seen.findIndex(read => read.denied?.code === code);
-    assert.ok(terminal >= 0 && seen.slice(terminal).every(read => !('data' in read)), 'the probe evidence withdraws all data; preceding offline revalidation may retain');
+    assert.ok(seen.every(read => !('data' in read)));
     assert.equal(probes, source === 'probe' ? 1 : 0);
     assert.ok(queryCount <= (['changes', 'probe', 'query'].includes(source) ? 2 : 1));
   });

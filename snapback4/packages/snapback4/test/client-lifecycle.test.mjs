@@ -266,10 +266,9 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
 
 test("local observations skip idle polls and rerun after a committed page", { timeout: 5000 }, async (t) => {
   const changes = [], log = [];
-  let syncs = 0, applied = 0;
+  let syncs = 0;
   const device = emptyDevice({ call: async (request) => {
-    if (request.op === "sync_state") return { ok: { acquired: true, backend_required: false, store_id: null, watermark: applied, generation: 1, restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, receipt_outcomes: true, outbox_status: true, pending_ids: [], send_revision: 0 } };
-    if (request.op === "apply") { applied = request.page.watermark; log.push("apply"); return { ok: { touched: applied ? ["rows"] : [] } }; }
+    if (request.op === "apply") { log.push("apply"); return { ok: { touched: request.page.watermark ? ["rows"] : [] } }; }
     if (request.op === "query") { log.push("query"); return { ok: { data: [], complete: true, tables: ["rows"], unknown: false, nextExpiry: null } }; }
   } });
   const backend = { generation: 1, schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } }, programs: [{ name: "read", kind: "Query", args: {}, body: [{ table: "rows" }] }] };
@@ -549,7 +548,7 @@ test("a failed native replacement falls back without a stale local answer and is
     if (path === "/native.wasm") return new Response(new Uint8Array([0, 1, 2]));
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: serverGeneration, acknowledged: [] });
     if (path === "/changes") { await held(changePoll, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
-    if (path === "/q/nativeRead") { serverQueries++; return Response.json({ data: ["server-new"], complete: true, tables: [], seq: 0 }); }
+    if (path === "/q/nativeRead") { serverQueries++; return Response.json({ data: ["server-new"], complete: true, tables: [] }); }
     throw new Error(`unexpected request ${path}`);
   } });
   t.after(() => client.close());
@@ -567,7 +566,7 @@ test("a failed native replacement falls back without a stale local answer and is
   await client.close();
 });
 
-test("local predictions rerun affected observations without scanning unrelated tables", { timeout: 5000 }, async (t) => {
+test("every local prediction invalidates observations, including unrelated tables", { timeout: 5000 }, async (t) => {
   const backend = {
     generation: 1,
     schema: { tables: {
@@ -601,8 +600,7 @@ test("local predictions rerun affected observations without scanning unrelated t
   const ua = a.subscribe(() => {}), ub = b.subscribe(() => {});
   await until(() => runs.readA === 1 && runs.readB === 1, "initial observations did not run");
   const write = client.mutate(mutation("changeA"), {});
-  await until(() => runs.readA >= 2, "the predicted table must rerun its observation");
-  assert.equal(runs.readB, 1, "a known unrelated dependency needs no refresh");
+  await until(() => runs.readA >= 2 && runs.readB >= 2, "a local commit must invalidate every observation");
   ua(); ub(); a.close(); b.close(); await client.close();
   assert.equal((await write).state, "pending");
 });
@@ -750,7 +748,7 @@ test("online watches retain their changes watermark; bare tokens clear on refusa
   await until(() => watch.getSnapshot().data?.length === 2, "initial online watch");
   assert.equal((await f.server.mutate(send, { conversationId: "c1", body: "foreign" })).state, "sent");
   assert.equal((await online.query(thread, args)).data.length, 3);
-  assert.equal(watch.getSnapshot().data.length, 3, "a newer direct answer reconciles the live observation before returning");
+  assert.equal(watch.getSnapshot().data.length, 2, "direct queries do not refresh or advance another observation");
   changes.resolve();
   await until(() => watch.getSnapshot().data?.length === 3, "the original changes interval must still reach the watch");
   const signedIn = await guest(f.url);

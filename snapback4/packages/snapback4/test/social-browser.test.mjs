@@ -275,7 +275,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     assert.equal(await page.getByTestId("once-viewer").count(), 0);
   });
 
-  await t.test("the viewer's own read keeps the handle through revalidation and revokes on withdrawal, including in flight", async () => {
+  await t.test("the viewer's own read keeps the handle through loading and revokes on withdrawal, including in flight", async () => {
     const select = id => page.getByTestId(`message-${history.find(row => row.photo?.id === id).id}`).getByRole("button", { name: "View once photo" }).click();
     for (const [id, inFlight] of [[withdrawnPhoto, false], [withdrawnLatePhoto, true]]) {
       await select(id);
@@ -284,12 +284,12 @@ test("social recipes in React/browser: real online signals and media, controlled
       if (inFlight) await page.waitForFunction(() => window.assetHeld());
       else await page.getByAltText("Once photo").waitFor();
       const counts = await page.evaluate(() => [window.assetCalls.length, window.revoked.length]);
-      await page.evaluate(id => window.setRead("messagePhoto", window.ready(window.historyRows.find(row => row.photo?.id === id), { revalidating: true })), id);
+      await page.evaluate(() => window.setRead("messagePhoto", { loading: true }));
       assert.equal(await page.getByTestId("once-viewer").count(), 1);
       if (!inFlight) assert.equal(await page.getByAltText("Once photo").count(), 1);
       await page.evaluate(id => window.setRead("messagePhoto", window.ready(window.historyRows.find(row => row.photo?.id === id))), id);
       assert.deepEqual(await page.evaluate(() => [window.assetCalls.length, window.revoked.length]), counts);
-      await page.evaluate(inFlight => window.setRead("messagePhoto", inFlight ? { loading: true } : window.ready(null)), inFlight);
+      await page.evaluate(inFlight => window.setRead("messagePhoto", inFlight ? { denied: { code: "NOT_MEMBER", message: "Media withdrawn" } } : window.ready(null)), inFlight);
       await page.getByTestId("once-viewer").waitFor({ state: "detached" });
       if (inFlight) {
         assert.deepEqual(await page.evaluate(() => [window.assetCalls.length, window.revoked.length]), counts);
@@ -339,9 +339,9 @@ test("social recipes in React/browser: real online signals and media, controlled
     for (const name of ["receiptMember", "messageReceipts", "messagePhoto", "typingIn"]) {
       const calls = observed.filter(call => call.op === name);
       assert.ok(calls.length > 0, name);
-      assert.ok(calls.every(call => call.options?.keep === undefined), name + " uses safe default retention");
+      assert.ok(calls.every(call => call.options?.keep === false), name + " withdraws immediately");
     }
-    for (const name of ["conversationScreen", "history"]) assert.ok(observed.filter(call => call.op === name).every(call => call.options?.keep === undefined), name + " uses SDK retention");
+    for (const name of ["conversationScreen", "history"]) assert.ok(observed.filter(call => call.op === name).every(call => call.options?.keep === undefined), name + " uses bounded SDK retention");
   });
 
   await t.test("account reset clears draft and stops the prior typing owner", async () => {

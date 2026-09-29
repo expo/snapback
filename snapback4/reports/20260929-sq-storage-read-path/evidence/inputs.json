@@ -1,0 +1,16 @@
+{
+  "base": "f56e8048aa9f1c9dc50f29991bd3c96be79044dc",
+  "buildFlag": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "binaries": {
+    "snapback4-before": "cd45b5976d604357230ab35c167e60f953e1e25f6dfe02e8dfb9cd4459f4c50b",
+    "snapback4-after": "cd45b5976d604357230ab35c167e60f953e1e25f6dfe02e8dfb9cd4459f4c50b",
+    "snapback4-diagnostic": "5b7596a7819965f6eb1dede820261dc44d4dd8b61116d358d39dee5a482b20da"
+  },
+  "fixture": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
+  "wasm": {
+    "sha256": "75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c",
+    "rawBytes": 2042203,
+    "canonicalGzipBytes": 593573,
+    "capBytes": 593719
+  }
+}
