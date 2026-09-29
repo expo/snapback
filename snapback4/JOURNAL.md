@@ -78805,3 +78805,14 @@ selected explicitly and CARGO_INCREMENTAL=0, CARGO_PROFILE_TEST_DEBUG=0,
 CARGO_PROFILE_DEV_DEBUG=0 exported. No push, stash, other worktree/machine or
 spawned agent. Evidence: reports/20260929-presence-merge-2/; final report:
 /Users/ccheever/projects/snapback-sb5-program/presence-merge-2.final.md.
+
+Qualification follow-up: the first complete-suite attempt passed Rust and
+reached 3,200 client passes without an assertion failure, then could not exit
+the per-row React file because its browser bridge lost an earlier native-device
+handle on reopening. The five tests had passed, but one native child remained.
+Interrupted that owned run; it is not qualification evidence. The fixture now
+routes calls by opening ID and retains every opening promise for teardown.
+Its process case explicitly reloads the browser before the unchanged 1,000-row
+write assertions. All five focused tests pass and the process exits normally
+(13.970 s). No product semantics, assertion, count or deadline was relaxed.
+The required complete suite will run again from the beginning.
