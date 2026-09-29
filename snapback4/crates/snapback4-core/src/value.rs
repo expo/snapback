@@ -44,7 +44,10 @@ impl From<BTreeMap<String, Value>> for ObjectFields {
 }
 impl FromIterator<(String, Value)> for ObjectFields {
     fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
-        BTreeMap::from_iter(iter).into()
+        // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — reuse insertion for small field maps instead of instantiating a bulk sort per iterator.
+        let mut fields = BTreeMap::new();
+        fields.extend(iter);
+        fields.into()
     }
 }
 impl std::ops::Deref for ObjectFields {

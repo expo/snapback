@@ -53,8 +53,8 @@ pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_e
     let prefetch = if prefetch_enabled { prefetch::plan(program).admit(schema) } else { prefetch::Plan::default() };
     if program.kind != ProgramKind::Query { return Plan { #[cfg(feature = "postgres")] prefetch, ..Plan::default() }; }
     let mut collectors = BTreeMap::new();
-    let mut returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)|
-        result_page(&origin).map(|(site, _)| (path, ReturnedPage { page: site.to_owned(), shapes: BTreeSet::new() }))).collect::<BTreeMap<_, _>>();
+    let mut returns = crate::small_map::collect(returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)|
+        result_page(&origin).map(|(site, _)| (path, ReturnedPage { page: site.to_owned(), shapes: BTreeSet::new() }))));
     let mut shapes = BTreeMap::new();
     // @ref LLP 3000.007#5.6 — only the binder's returned shape can trim and select a rewind; ordinary origins stay main's.
     for (index, pair) in program.body.windows(2).enumerate() {
@@ -136,11 +136,11 @@ fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {
 }
 
 fn returned_origins(program: &Program, include_cursorless: bool, collectors: &mut BTreeMap<String, String>) -> BTreeMap<String, Origin> {
-    let mut bindings = program.args.iter().filter_map(|(name, kind)| {
+    let mut bindings = crate::small_map::collect(program.args.iter().filter_map(|(name, kind)| {
         (matches!(kind, ArgType::Cursor)
             || matches!(kind, ArgType::Optional(inner) if matches!(inner.as_ref(), ArgType::Cursor)))
             .then(|| (name.clone(), Origin::Cursor(name.clone())))
-    }).collect();
+    }));
     let mut returns = BTreeMap::new();
     if origins(&program.body, &program.name, &mut bindings, &mut returns, collectors, include_cursorless) {
         returns.insert("fallthrough".into(), Origin::Empty);
@@ -208,14 +208,13 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
                 _ => None,
             }
         }
-        Expr::Object(fields) | Expr::Shape { fields, .. } => Some(Origin::Record(
+        Expr::Object(fields) | Expr::Shape { fields, .. } => Some(Origin::Record(crate::small_map::collect(
             fields
                 .iter()
                 .filter_map(|(name, value)| {
                     expression_origin(value, bindings, include_cursorless).map(|origin| (name.clone(), origin))
                 })
-                .collect(),
-        )),
+        ))),
         Expr::Field { base, name } => match expression_origin(base, bindings, include_cursorless) {
             Some(Origin::Record(mut fields)) => fields.remove(name),
             _ => None,
@@ -309,10 +308,9 @@ fn origins(
                 let yes_live = origins(then_body, &format!("{path}:then"), &mut yes, returns, collectors, include_cursorless);
                 let no_live = origins(else_body, &format!("{path}:else"), &mut no, returns, collectors, include_cursorless);
                 *bindings = match (yes_live, no_live) {
-                    (true, true) => yes
+                    (true, true) => crate::small_map::collect(yes
                         .into_iter()
-                        .filter(|(name, value)| no.get(name) == Some(value))
-                        .collect(),
+                        .filter(|(name, value)| no.get(name) == Some(value))),
                     (true, false) => yes,
                     (false, true) => no,
                     (false, false) => return false,

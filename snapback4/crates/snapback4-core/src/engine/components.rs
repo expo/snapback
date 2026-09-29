@@ -113,7 +113,7 @@ impl Runner<'_> {
 
     pub(super) fn component_coverage(&self) -> BTreeMap<String, Coverage> {
         if !self.components.shared.coverage().complete || self.page_position_lost() { return BTreeMap::new(); }
-        self.components.plan.iter().zip(&self.components.frames).map(|(plan, frame)| (plan.field.clone(), frame.coverage())).collect()
+        crate::small_map::collect(self.components.plan.iter().zip(&self.components.frames).map(|(plan, frame)| (plan.field.clone(), frame.coverage())))
     }
 
     pub(super) fn read_charge(&mut self, kind: MeterKind, amount: u64) -> Result<bool, RuntimeError> {

@@ -495,7 +495,7 @@ impl<S: DeviceStore> Device<S> {
         Ok(Self { delivery_now: 0,
             store,
             schema: backend.schema,
-            programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
+            programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
             generation: backend.generation,
             backend_identity,
             store_identity,
@@ -595,7 +595,7 @@ impl<S: DeviceStore> Device<S> {
             self.native_digest = None;
         }
         self.schema = backend.schema;
-        self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        self.programs = snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p)));
         self.generation = backend.generation;
         self.backend_identity = backend_identity;
         self.store_identity = adopted_store;

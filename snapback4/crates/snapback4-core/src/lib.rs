@@ -28,6 +28,7 @@ pub mod maintain;
 pub mod partition;
 pub mod rows;
 pub mod schema;
+pub mod small_map;
 #[cfg(feature = "server-search")]
 pub mod search_plan;
 #[cfg(feature = "sqlite")]

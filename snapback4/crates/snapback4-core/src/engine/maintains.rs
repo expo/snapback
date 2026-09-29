@@ -234,7 +234,7 @@ impl Runner<'_> {
             self.mirror_column(maintain, &key, 0)?;
             return Ok(());
         }
-        let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
+        let mut row = crate::small_map::collect([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
         for (field, value) in maintain.group_fields().iter().zip(key.iter().cloned()) {
             row.insert(field.clone(), value);
         }

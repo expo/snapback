@@ -78262,3 +78262,39 @@ Report and every failure/control disposition:
 reports/20260929-sr-starter-routes/round2/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — WD round 0: recover device wasm headroom
+
+Measured main 38abb89b8e at 2,040,531 B raw / 592,979 B gzip, 740 B below
+593,719. Twiggy's symbolized census identifies duplicated B-tree bulk sorts as
+the cheapest remaining bytes. Keep the B-trees, codecs, fields, messages and
+checks; construct small field/plan maps by insertion and share plain JSON field
+construction. Source savings are 9,654 B gzip. Optional Binaryen 132 branch-tail
+folding/deduplication adds 3,038 B, with temporary gzip filenames excluded from
+selection. Final: 1,930,985 B raw / 580,287 B gzip, 12,692 B recovered and 13,432 B
+headroom. The cap and size-first Rust profile stay fixed. Without Binaryen the
+artifact is 583,325 B; the full recovery needs the disclosed toolchain.
+
+HV already uses the folding pass, so it is not counted twice. A disposable HV
+611f957f85 plus WD source build measures 592,385 B gzip, 1,334 B below the cap;
+this is a size result, not combined behavioral qualification. HV is untouched.
+Five alternating AQ u0500 pairs per mode give median acquisition 2.216 → 2.210 s
+default and 2.343 → 2.229 s Worker. Separate apply medians rise about 21 ms (5.3–5.4%);
+wasm high-water memory stays 57,278,464 B. All 40 browser contexts verify 11,612
+rows and complete offline inboxes. Exact wasm replay matches 119 replies,
+drains and errors, including 5,176,053 persisted bytes and offline reopen.
+All SDK JavaScript and the wasm's printable data strings remain identical.
+
+Affected device tests: 1,385 pass, five declared ignores; new map regressions
+2/2; whole guide 99/99. Ran scripts/test.sh exactly once, exit 0:
+`== 0 failure(s) in 1375 s`. Rust: 4,344 pass / 33 ignores; clients: 5,197 pass /
+ten skips / zero cancellations; full-count models 79/79; fixture wrappers 9/9.
+Every stage passes. Full-run failures: ours 0, baseline 0, environmental 0.
+The inherited 60-second process budget remains exceeded. Qualified source and
+artifact hashes stay fixed; no check, count, timeout or ceiling was relaxed.
+
+Report, per-crate/family/data attribution, size ladder, speed samples and all
+rejected/corrected experiments: reports/20260929-wd-wasm-headroom/REPORT.md.
+LLP 3000.002 records the measured choice. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
