@@ -12,7 +12,7 @@ fn check_reports_each_field_owner_and_visibility() {
 "#;
     fs::write(dir.join("snapback/schema.q"),source).unwrap();
     for json in [false,true] {
-        let mut cmd=Command::new(env!("CARGO_BIN_EXE_snapback4"));cmd.current_dir(&dir).arg("check");if json {cmd.arg("--json");}
+        let mut cmd=Command::new(env!("CARGO_BIN_EXE_snapback4"));cmd.current_dir(&dir).arg("check");if json {cmd.arg("--json");} else {cmd.arg("--verbose");}
         let out=cmd.output().unwrap();let text=String::from_utf8(out.stdout).unwrap();
         assert!(out.status.success(),"{text}\n{}",String::from_utf8_lossy(&out.stderr));
         for line in ["marks.privateMark: written by .principal; visibility: private to owner","marks.sharedMark: written by .principal; visibility: readable by audience"] {

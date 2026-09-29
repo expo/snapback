@@ -1,0 +1,34 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 1.64s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-0725415a6b6d70da)
+
+running 2 tests
+test comparative_and_cal25_name_rewrites_run_on_memory ... FAILED
+test comparative_and_cal25_name_rewrites_run_on_sqlite ... FAILED
+
+failures:
+
+---- comparative_and_cal25_name_rewrites_run_on_memory stdout ----
+
+thread 'comparative_and_cal25_name_rewrites_run_on_memory' (2555430) panicked at crates/snapback4-device/tests/first_paste.rs:38:13:
+assertion `left == right` failed: memory groupByTitle
+  left: Array [String("0-dm")]
+ right: Array [String("a")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- comparative_and_cal25_name_rewrites_run_on_sqlite stdout ----
+
+thread 'comparative_and_cal25_name_rewrites_run_on_sqlite' (2555431) panicked at crates/snapback4-device/tests/first_paste.rs:38:13:
+assertion `left == right` failed: sqlite groupByTitle
+  left: Array [String("0-dm")]
+ right: Array [String("a")]
+
+
+failures:
+    comparative_and_cal25_name_rewrites_run_on_memory
+    comparative_and_cal25_name_rewrites_run_on_sqlite
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-device --test first_paste`

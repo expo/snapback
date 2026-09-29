@@ -404,7 +404,7 @@ test("check --fix repairs every remaining guessed spelling and the repaired prog
   assert.match(repaired, /-- header\n-- another header/);
   assert.match(repaired, /a if cond else b/);
   assert.match(repaired, /return a\.b\n/);
-  assert.match(repaired, /count\(\[1, 2, 3\]\)/);
+  assert.match(repaired, /len\(\[1, 2, 3\]\)/);
   assert.match(repaired, /-- keep/);
   assert.equal(JSON.parse(run("run", "choose", '{"cond":true,"a":5,"b":9}', "--json").stdout).data, 5);
   assert.equal(JSON.parse(run("run", "member", "--json").stdout).data, 7);

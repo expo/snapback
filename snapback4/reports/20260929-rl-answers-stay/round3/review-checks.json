@@ -1,0 +1,18 @@
+[
+  {
+    "reviewer": "astra",
+    "path": "/home/ccheever/sb4-intent/reviews/rl-r2.astra.md",
+    "sha256": "644889b90ad02ce565a7b335291d99373f28001eb67a21a2c6a5f0e351a9c048",
+    "bytes": 7582,
+    "savedCopyMatches": true,
+    "finalRecheck": "2026-09-29 after full-suite completion"
+  },
+  {
+    "reviewer": "grok",
+    "path": "/home/ccheever/sb4-intent/reviews/rl-r2.grok.md",
+    "sha256": "bca54188fe97ff99754f583dc61aac36bd4d047f67233fddb6338cce0eeab313",
+    "bytes": 15072,
+    "savedCopyMatches": true,
+    "finalRecheck": "2026-09-29 after full-suite completion"
+  }
+]

@@ -26,7 +26,7 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
@@ -129,7 +129,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   // @ref LLP 3000.007#6.5 — Rules 4/5: only placeholders recover an old answer.
   // Withheld queries and composed observations never recover a whole page.
   const recover = async (): Promise<Candidate<R>> => {
-    if (ephemeral) return { result: loading, origin: "local" };
+    if (ephemeral) return { result: { ...loading, transportOffline: env.link === "offline" && !held && !await pending() }, origin: "local" };
     if (!placeholder() || !remember) return localCandidate();
     const stopped = await blocked(true); checkpoint();
     if (stopped) return localCandidate();
@@ -142,7 +142,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       : watch ? { loading: true } : { denied: env.offline() };
     // Rules 4/5: recovery still depends on the local branch's next deadline.
     // Its wakeup is separate from the remembered answer's server-clock expiry.
-    return { origin: "remembered", result: { read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
+    // Absent memory is an explicit replacement (including an ordered denial),
+    // not a transport failure that may retain the previously displayed value.
+    return { origin: "remembered", result: { transportOffline: !!last && env.link !== "online", read, tables, nextExpiry: latest?.result.nextExpiry ?? null, serverExpiry: last?.nextExpiry ?? null } };
   };
   const local = async () => {
     checkpoint();
@@ -180,7 +182,9 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (eph && !env.ephemeralReads.current(eph)) { env.serverAnswers.renew(); continue; }
         // Rule 5: admission can happen while the transport is in flight.
         const stopped = await blocked(); checkpoint();
-        if (stopped || !response.ok) { const result = await recover(); checkpoint(); return result; }
+        if (stopped || !response.ok) { const candidate = await recover(); checkpoint();
+          if (!response.ok && (candidate.origin !== "remembered" || "data" in candidate.result.read)) candidate.result.transportOffline = true;
+          return candidate; }
         if (response.obsoleteAuth || credentials !== env.credentialRevision) {
           if (env.refreshing) { try { await env.refreshing; } catch {} checkpoint(); }
           env.serverAnswers.renew();
@@ -278,7 +282,14 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       // server, composed and remembered answers (and E_OFFLINE).
       if (candidate.origin !== "local") {
         const stopped = await blocked(candidate.origin === "remembered"); checkpoint();
-        if (stopped) candidate = localCandidate();
+        if (stopped) {
+          const fallback = localCandidate();
+          // A failed search request can change the link during this attempt.
+          // Preserve that failure when the final gate has no replacement;
+          // completed local data and explicit denials still decide the answer.
+          if (candidate.result.transportOffline && "loading" in fallback.result.read) fallback.result.transportOffline = true;
+          candidate = fallback;
+        }
       }
       const { result, origin } = candidate;
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {

@@ -1,0 +1,23 @@
+✔ pending change requires published sync or a whole server answer at its cut (0.931726ms)
+✔ process: item notification survives readable old replica and failed sync (1160.738213ms)
+✔ process: item notification survives throw old replica and failed sync (1125.651142ms)
+✔ process: mixed notification survives readable old replica and failed sync (1134.242779ms)
+✔ process: mixed notification survives throw old replica and failed sync (1123.591504ms)
+✔ wasm: item notification survives readable old replica and failed sync (1492.162255ms)
+✔ wasm: item notification survives throw old replica and failed sync (1098.842998ms)
+✔ wasm: mixed notification survives readable old replica and failed sync (1099.561655ms)
+✔ wasm: mixed notification survives throw old replica and failed sync (1084.560509ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (4044.108801ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (230.196051ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (227.949734ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (4033.05514ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (190.534403ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (184.956392ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18351.540816

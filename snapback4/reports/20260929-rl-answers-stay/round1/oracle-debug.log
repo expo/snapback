@@ -1,0 +1,52 @@
+process 1 initial sync
+process 1 synced
+process 1 cut 2
+process 1 sync-cut
+process 1 sync-cut-done
+✖ mixed evidence schedule process: 300 independent histories (240006.574746ms)
+wasm 1 initial sync
+wasm 1 synced
+wasm 1 cut 2
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 replacement true
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 3
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 4
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 replacement false
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 cut 5
+wasm 1 sync-cut
+wasm 1 sync-cut-done
+wasm 1 await direct
+wasm 1 direct done
+wasm 1 plain failure
+{"host":"wasm","seeds":1,"failedSeeds":0,"failures":[]}
+✔ mixed evidence schedule wasm: 300 independent histories (591.349994ms)
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (638786.798019ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 638791.38864
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:14:41
+✖ mixed evidence schedule process: 300 independent histories (240006.574746ms)
+  'test timed out after 240000ms'
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:1:1
+✖ packages/snapback4/test/mixed-evidence-oracle.test.mjs (638786.798019ms)
+  'Promise resolution is still pending but the event loop has already resolved'

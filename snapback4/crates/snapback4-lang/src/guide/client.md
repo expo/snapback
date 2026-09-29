@@ -1,6 +1,6 @@
-# Client: preserve intent through read gaps
+# Client: answers stay on screen
 
-Keep drafts, routes and viewer ownership above transient lists; render protected rows only from current reads.
+Render current reads: same-key observations keep their answer during revalidation.
 Submit once at custody, then let the user continue.
 
 ```tsx
@@ -31,8 +31,9 @@ The reference saved-intent journal is in the starters: `snapback4 init --expo` /
 
 ## Honest read boundaries
 
-The signed-in tree follows `useAuth().state`, not a profile query. Decide the first route once per account/backend; subsequent `loading` never unmounts that tree, a route or draft.
-Keep headers and composers mounted through `loading`; rows follow the current read, never a saved previous answer. Reset user-owned state on account/backend change.
+A profile `useQuery` can gate a route: once ready, plain refetch, reconnect, a slow read, transport failure and retry exhaustion keep its answer marked `revalidating`, with no timeout. `usePage` likewise keeps history through peer sync, sends, settlements, edits and deletes; each completed read replaces the answer directly.
+Local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications keep the answer for at most one non-renewable second while re-reading, then withdraw on failure or timeout. Immediate replica replacements never show `loading`. A notification remains pending until sync applies it or a server answer at its reported cut replaces the display; reading an older replica cannot clear the bound. Membership removal replaces rows with the denial or empty answer. `fresh: false` and `since` describe offline freshness; `revalidating` says a replacement is still needed.
+Offline ephemeral answers keep their original row expiry. The default and `keep: true` share this policy; `true` also lingers for 30 seconds after the last subscriber. `keep: false` withdraws immediately. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Reset user-owned state on account/backend change. No identity latch or `keep: true` workaround is needed for refetch.
 `usePage` returns `items: []` while page one is loading: show loading, not empty. Keep effects out of rows.
 For search, use one ordinary query per scope through `usePage`, as the social
 starter does. The replica client combines current server hits with retained
@@ -43,6 +44,32 @@ or a non-null continuation. Follow `page.hasMore` and `page.loadMore`.
 While this device holds a predictable pending write to a table a query reads, that query asks no server; a write with an unknown predicted footprint blocks every query. Writes to unrelated tables do not hold it.
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
 Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
+
+## Measure cold acquisition
+
+For large partitions, use `webDevice({ worker: true })` from `snapback4/web`
+to keep atomic device publication off the page thread. The package default
+remains `webDevice()`. Render the first available screen while
+`useAcquisition()` shows progress; `acquired` means the complete declared
+partition has been durably published for offline use.
+
+On eb1000 (AMD EPYC 9454, Chromium 151), five cold runs on a retained Clique
+fixture took median **2.25 s Worker / 2.19 s default** for 100 memberships,
+500 Following edges and 500 messages (3.65 MB of sync bodies). A heavy account
+with 1,000 memberships and 90,500 messages took **25.66 s Worker** in five
+instrumented runs (39.76 MB). Group count alone does not predict cost.
+For a 10-core M1 Max, plan roughly **5–8 s / 60–90 s** at those volumes until
+measured there. These are engineering estimates, not Mac qualification or
+promises; the retained fixture differs from the slower Mac calibration.
+
+Measure your largest account in five fresh browser profiles against the
+production server. After authentication, start a clock immediately before
+`createApp`, subscribe when its signed-in client is published, and stop when
+its `onAcquired` listener receives `true`. `guide sync` gives the full recipe.
+Record each time, the median, host load, network conditions, browser version,
+`/sync` bytes and requests, and `client.residency()`. Time the first screen
+separately; disconnect and reopen to check expected rows and complete pages.
+A warm reopened store measures restoration, not cold acquisition.
 
 ## Acknowledgements and receipts
 

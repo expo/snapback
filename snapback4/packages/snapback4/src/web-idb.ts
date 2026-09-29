@@ -1,10 +1,12 @@
 import type { Change, Persistence } from "./web.ts";
-import { bucket, packedStore, unpack, upgradeBuckets, writeBucket } from "./web-idb-buckets.ts";
+import { bucket, childBucket, packedStore, unpack, upgradeBuckets, writeGroup, type Bucket } from "./web-idb-buckets.ts";
 
-// New stores pack row images into 256 bounded buckets with per-row overflow.
+// New stores use 64 roots, each splitting once into four bounded buckets.
 // Legacy per-row stores retain their representation. Metadata,
 // outbox and transfer acknowledgements share the same strict transaction.
-const FORMAT: Change = { s: "$format", k: "row-buckets", v: "2" };
+const FORMAT: Change = { s: "$format", k: "row-buckets", v: "3" };
+// @ref LLP 3000.007#20.4 — old owners must fail before reading or writing format 3.
+const DATABASE_VERSION = 2;
 const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
   tx.oncomplete = () => resolve();
   tx.onerror = () => reject(tx.error);
@@ -50,8 +52,11 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
   const packing = new Map<string, boolean>();
   const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
     let absent = false;
-    const request = indexedDB.open(name, 1);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open(name, DATABASE_VERSION);
+    request.onupgradeneeded = event => {
+      // The version fence preserves every existing store and format marker.
+      // load() separately migrates old buckets in a strict transaction.
+      if (event.oldVersion !== 0) return;
       if (create) {
         request.result.createObjectStore("changes", { keyPath: ["s", "k"] }).put(FORMAT);
         packing.set(name, true);
@@ -67,7 +72,7 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
           const tx = db.transaction("changes", "readonly");
           const marker = tx.objectStore("changes").get([FORMAT.s, FORMAT.k]);
           await done(tx);
-          if (marker.result?.v === "1") throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
+          if (["1", "2"].includes(marker.result?.v)) throw new Error("load the device before saving: its old row buckets require a bounded-format upgrade");
           packing.set(name, marker.result?.v === FORMAT.v);
         }
         const tx = db.transaction("changes", "readwrite", { durability: "strict" });
@@ -84,21 +89,19 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
               } else if (change.v === null) { if (!cleared.has(change.s)) store.delete([change.s, change.k]); }
               else store.put(change);
             }
-            // Keep every read/modify/write inside IDB's transaction, including
-            // simultaneous owners using separate Persistence instances.
+            // Keep read/modify/write in this transaction. A split may queue
+            // child reads: check current only after every callback has issued
+            // its writes, with no asynchronous gap before the explicit commit.
+            const guardCommit = () => {
+              if (current) {
+                const guard = store.get([FORMAT.s, FORMAT.k]);
+                guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+              }
+            };
+            let pending = groups.size;
+            if (!pending) guardCommit();
             for (const [key, delta] of groups) {
-              const request = store.get(["$bucket", key]);
-              request.onsuccess = () => {
-                try {
-                  writeBucket(store, key, request.result, delta, cleared.has(key.slice(0, 1)));
-                } catch { try { tx.abort(); } catch { /* An earlier request already aborted it. */ } }
-              };
-            }
-            // Delivery changes are metadata. Check inside the live transaction,
-            // after all requests, so a held write can abort without publishing debt.
-            if (current) {
-              const guard = store.get([FORMAT.s, FORMAT.k]);
-              guard.onsuccess = () => { if (!current()) { stale = true; tx.abort(); } else tx.commit(); };
+              writeGroup(store, key, delta, cleared.has(key.slice(0, 1)), () => { if (!--pending) guardCommit(); });
             }
           });
         } catch (error) { try { tx.abort(); } catch { /* The failing operation may already have aborted it. */ } await committed.catch(() => {}); throw error; }
@@ -118,10 +121,22 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
       try {
         const tx = db.transaction("changes", "readonly"), store = tx.objectStore("changes");
         const direct = store.get([s, k]);
-        const group = packedStore(s) ? store.get(["$bucket", bucket(s, k)]) : undefined;
+        let group: Bucket | undefined;
+        if (packedStore(s)) {
+          const marker = store.get([FORMAT.s, FORMAT.k]);
+          marker.onsuccess = () => {
+            const read = store.get(["$bucket", bucket(s, k, marker.result?.v !== FORMAT.v)]);
+            read.onsuccess = () => {
+              if (read.result?.split) {
+                const child = store.get(["$bucket", childBucket(s, k)]);
+                child.onsuccess = () => { group = child.result; };
+              } else group = read.result;
+            };
+          };
+        }
         await done(tx);
         if (direct.result) return (direct.result as Change).v;
-        if (group?.result) return new Map(JSON.parse((group.result as Change).v!)).get(k) as string ?? null;
+        if (group) return new Map(JSON.parse(group.v!)).get(k) as string ?? null;
         return null;
       } finally { db.close(); }
     },
@@ -132,7 +147,7 @@ export function indexedDbStore(claim: Persistence["claim"]): Persistence {
         const request = tx.objectStore("changes").getAll();
         await done(tx);
         const changes = request.result as Change[];
-        if (changes.some(c => c.s === FORMAT.s && c.k === FORMAT.k && c.v === "1")) {
+        if (changes.some(c => c.s === FORMAT.s && c.k === FORMAT.k && (c.v === "1" || c.v === "2"))) {
           await upgradeBuckets(db, done);
           return this.load(name);
         }

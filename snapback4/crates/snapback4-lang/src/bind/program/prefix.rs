@@ -84,10 +84,12 @@ impl Binder<'_> {
         for column in index.columns().into_iter().skip(scan.prefix.len()) { if !leading.contains(&column) { leading.push(column); } }
         let mut page = read.clone();
         page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
-        // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — preserve the refusal at the loop, with its callers and the cost of truncating a total.
+        // @ref LLP 3000.028#4-put-the-rules-where-the-builder-meets-them — preserve the loop, callers and truncation cost in the reason.
         let jobs = self.call_chain.last().filter(|_| self.call_chain.len() > 1)
             .map(|(helper, _)| self.helper_job_callers(helper)).unwrap_or_default();
-        if self.caller_kind != ProgramKind::Query || jobs.is_empty() {
+        let query_site = &self.call_chain[0].1;
+        let declaration = self.catalog.source.declarations.get(&query_site.to_string());
+        if self.caller_kind != ProgramKind::Query || jobs.is_empty() || declaration.is_none() {
             return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
                 format!("use `first N`: `{}` (declare `c: cursor ?` and follow its cursor); for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", self.catalog.source.expression(&A::Read(page)), leading.join(", "))).guide("bounds"));
         }
@@ -95,10 +97,11 @@ impl Binder<'_> {
         let job = format!("the system job caller(s) {}", jobs.join(", "));
         let authored = self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| self.catalog.source.expression(&A::Read(read.clone())));
         let rule = if missing.is_empty() { "read rule".into() } else { format!("{}-based read rule", missing.join(", ")) };
-        let context = format!("; viewer query caller chain: {chain}. `{authored}` does not decide its {rule}; a helper grants no system authority");
-        Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
-            format!("use `first N` only for a separately named paged preview: `{}` (declare `c: cursor ?` and follow its cursor); `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE). Or, if this viewer query is unused, remove `{}` and keep the complete scheduled job: this loop is permitted under {job}'s chunk meter. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total. See guide jobs",
-                self.catalog.source.expression(&A::Read(page)), leading.join(", "), self.call_chain[0].0)).guide("bounds"))
+        // @ref LLP 3000.007#23 — a whole-query replacement points to that declaration, never its shared helper.
+        let end = query_site.line + declaration.unwrap().lines().count() as u32 - 1;
+        let context = format!("; viewer query caller chain: {chain}. `{authored}` (at {}) does not decide its {rule}; a helper grants no system authority. The replacement is for the entire unused viewer query `{}`: replace lines {}-{end} in {} with the printed comment. Keep the complete scheduled job. A separately named paged preview needs its own cursor; `first 50` is a partial preview, not an equivalent complete total. For a complete per-group read, pin {}. Inner recipient work must fit one chunk even when the outer sweep adapts its chunk size; an oversized recipient parks with E_BOUND rather than committing a partial total", read.site, self.call_chain[0].0, query_site.line, query_site.file, leading.join(", "));
+        Err(Diagnostic::new(query_site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns{context}", scan.table, scan.index),
+            format!("-- {} removed: keep the complete helper under {job}'s chunk meter.", self.call_chain[0].0)).guide("bounds"))
     }
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.

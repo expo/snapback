@@ -1,0 +1,92 @@
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2.77s
+     Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-99d4a44ff3d268c3)
+
+running 1 test
+test durable_schema_and_types_keep_base_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-622d04663eec8638)
+
+running 6 tests
+test qualification_checks_the_declaration_file_and_cannot_change_placement ... ok
+test nullable_helper_argument_and_duplicate_sync_have_local_repairs ... ok
+test foreign_spellings_are_refused_and_canonical_repairs_compile ... ok
+test self_equalities_are_refused_in_predicate_scopes_only ... ok
+test nested_roster_binds_the_enclosing_conversation_and_repeated_where_is_and ... ok
+test repeated_where_keeps_precedence_short_circuiting_and_other_modifier_refusals ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-3a2476f1c801c6e5)
+
+running 40 tests
+test a_helper_cannot_capture_or_refine_a_callers_local ... ok
+test declaration_failures_are_diagnostic_instead_of_being_dropped_or_overwritten ... ok
+test actions_declare_typed_admission_and_unknown_results_without_a_quarry_body ... ok
+test generated_array_elements_preserve_union_precedence ... ok
+test module_schedule_diagnostic_names_the_canonical_job ... ok
+test operation_uniqueness_uses_the_qualified_name_and_preserves_both_sites ... ok
+test sync_inversion_and_hoisted_chunk_checks_keep_their_specific_diagnostics ... ok
+test numeric_rule_literals_use_the_same_checked_domain_as_program_literals ... ok
+test structural_population_refusals_surface_during_authored_compilation ... ok
+test self_witness_notes_name_only_the_unpinned_deciding_columns ... ok
+test named_probe_equalities_need_only_a_total_unique_key ... ok
+test generated_typescript_preserves_strings_and_typechecks_with_the_real_contract ... ok
+test generated_nullable_arrays_typecheck_with_the_real_contract ... ok
+test division_and_remainder_share_divmods_results_precedence_and_zero_refusal ... ok
+test duplicate_named_keys_are_located_diagnostics_for_reads_ranges_and_rules ... ok
+test expression_ranges_evaluate_bounds_once_and_stop_at_the_step_meter ... ok
+test else_if_selects_one_branch_and_elif_names_the_exact_rewrite ... ok
+test result_types_include_null_when_control_can_reach_the_end ... ok
+test reassignment_carries_locals_through_branches_and_loops_and_resets_refinements ... ok
+test grouping_preserves_first_seen_order_and_list_selection_is_nullable ... ok
+test accumulated_lists_append_in_place_and_can_be_iterated ... ok
+test guessed_spellings_are_mechanical_refusals_with_exact_rewrites ... ok
+test null_refinements_join_only_continuing_paths ... ok
+test sha256_hashes_exact_utf8_and_infers_one_fixed_text_bound ... ok
+test asset_metadata_narrowing_matches_nullable_server_facts ... ok
+test upsert_patches_existing_rows_and_validates_absent_rows_as_inserts ... ok
+test loop_carried_types_include_continued_paths_and_reject_recursive_accumulation ... ok
+test where_filters_after_rules_and_meters_lazy_predicate_reads ... ok
+test accumulated_values_write_under_runtime_column_bounds ... ok
+test text_operations_use_characters_and_meter_new_results ... ok
+test range_seeks_type_the_next_column_and_continue_in_both_directions ... ok
+test boolean_lowering_keeps_refusals_and_writes_in_the_selected_branch ... ok
+test continue_advances_the_nearest_for_or_chunk ... ok
+test references_allow_absent_ids_and_explicit_guards_require_visible_targets ... ok
+test job_preludes_rerun_for_each_chunk_and_each_sweep ... ok
+test job_prelude_meter_refusal_parks_before_writing_a_chunk ... ok
+test helper_bodies_return_values_without_returning_from_the_caller ... ok
+test helpers_have_lexical_bindings_and_snapshot_arguments_once_in_source_order ... ok
+test every_list_builtin_accepts_pages_and_shaped_collections ... ok
+test null_checks_narrow_snapshot_fields_and_surviving_paths ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
+     Running tests/lowering.rs (target/debug/deps/lowering-310cd427aa665b47)
+
+running 11 tests
+test regression::helper_setup_ownership_survives_early_return_guards ... ok
+test golden_and_r1p_catalogs_keep_the_complete_source_census_pinned ... ok
+test regression::early_helper_return_preserves_baseline_guards_and_charges ... ok
+test baseline_golden_and_ownership_switch_shard_0 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_1 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_2 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_3 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_4 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_5 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_6 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_7 has been running for over 60 seconds
+test baseline_golden_and_ownership_switch_shard_5 ... ok
+test baseline_golden_and_ownership_switch_shard_6 ... ok
+test baseline_golden_and_ownership_switch_shard_2 ... ok
+test baseline_golden_and_ownership_switch_shard_3 ... ok
+test baseline_golden_and_ownership_switch_shard_0 ... ok
+test baseline_golden_and_ownership_switch_shard_1 ... ok
+test baseline_golden_and_ownership_switch_shard_7 ... ok
+test baseline_golden_and_ownership_switch_shard_4 ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 170.68s

@@ -871,9 +871,10 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-By default, observations retain an answer during a re-read for at most one second
-after processing the invalidation, marked `revalidating: true`. Use `keep: false`
-for immediate withdrawal. All observations discard responses older than observed
+By default, mounted same-key observations retain their answer through plain
+revalidation without a timeout, marked `revalidating: true`. All change
+evidence starts a one-second bound and withdraws on failure. Use
+`keep: false` for immediate withdrawal. All observations discard responses older than observed
 commits in the same store.
 A store identity change (`E_STORE_REPLACED`) or same-store sequence regression
 (`E_STORE_RESTORE`) permanently denies this online client's reads and fails its
@@ -912,11 +913,11 @@ an already-admitted intent still recovers as `pending` until it settles.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
-exhaustion withdraws to `loading` for every retention policy until the next
-invalidation, and closing the last observation owner cancels its retries.
+exhaustion keeps a retaining watch marked `revalidating` unless change
+evidence already bounded that answer. Closing the last observation owner cancels its retries.
 A local server fallback joins the displayed answer's existing revalidation
 episode. Successful transport does not withdraw it while device composition
-continues; only the whole evaluation's outcome, the episode cap, or a hard
+continues; an accepted answer, an existing change episode cap, or a hard
 withdrawal ends retention.
 An unavailable device read asks the server only when online, not `held`, and free of unobserved predictions that could affect its reads.
 
@@ -1198,23 +1199,40 @@ function useThread(conversationId: string) {
 }
 ```
 
-<!-- @ref LLP 3000.023#3.1 — one revalidation episode follows the displayed answer through the facade. -->
-On the local client (wasm or process device) and the online client, an
-invalidation marks the displayed answer `revalidating: true`, preserving its
-`fresh` and `since`. It remains until the replacement, an unsuccessful re-read,
-or **one second of host time after the client processes the invalidation**.
-The time a change takes to reach the client precedes that bound. Further
-invalidations and the facade's authority check never renew the same answer's
-episode. The deadline withdraws to `loading` but lets the in-flight read still
-publish. Snapshots and render peeks check it even before a delayed timer runs;
-a suspended page runs no code. A successful replacement clears `revalidating`.
-A failed presence sample is the separate exception described above.
+<!-- @ref LLP 3000.023#10 — plain revalidation keeps the displayed answer; all change evidence bounds it. -->
+A mounted observation with an unchanged key keeps its answer marked
+`revalidating: true` through explicit refetch, reconnect, slow reads, transport
+failure and retry exhaustion. There is no plain-revalidation time limit.
+Transport failure marks `fresh: false` and preserves the answer's `since` (or
+uses its last confirmation time). No new public flag is needed. Local commits
+(`apply`, `admit`, `settle`) re-read and replace directly from the replica.
 
-| `keep` | During a re-read | After the last subscriber leaves |
-| --- | --- | --- |
-| omitted | Retains for at most one second | Closes |
-| `false` | Withdraws immediately | Closes |
-| `true` | Retains without the one-second cap | Lingers 30 seconds |
+Local commits, acknowledged online mutations, durable and ephemeral `/changes`,
+and `/sync` publications start one non-renewable second for the displayed
+answer, including when it is already revalidating. Failure withdraws immediately;
+timeout withdraws to one stable `loading` snapshot, while a late accepted answer
+can still replace it. Further refetches, change bursts and facade holds cannot
+restart or erase the bound. Snapshots and peeks enforce it without timer delivery.
+For local watches, a reported durable cut remains pending until sync publishes
+it. An older replica read cannot settle that bound or reinstall withdrawn rows.
+A whole server answer at or after the cut can replace the display while sync
+waits; older replica answers remain ineligible until it catches up. Plain offline
+ephemeral recovery keeps the answer through its original row expiry.
+
+A `/changes` program-generation mismatch withdraws immediately, even at the
+same sequence with no touched tables. Displayed answers, remembered answers
+and pending evaluations belong to the retired program. The old replica stays
+unavailable until adoption completes; failed sync does not restore its answers.
+Quiet presence samples also respect a pending durable cut: an older sample
+cannot clear the bound or restore a withdrawn answer.
+An omitted notification table list bounds every watch on either client; an
+explicit empty list keeps the usual dependency intersection.
+
+| `keep` | Plain revalidation | Change evidence | Last subscriber leaves |
+| --- | --- | --- | --- |
+| omitted | Retains until replaced | 1 s; withdraws on failure | Closes |
+| `false` | Withdraws immediately | Withdraws immediately | Closes |
+| `true` | Retains until replaced | 1 s; withdraws on failure | Lingers 30 seconds |
 
 The three options own separate watches, even for identical operations and
 arguments. Pass them to `client.observe`, `useQuery` or `usePage`.
@@ -1238,7 +1256,7 @@ waits for its authority check. It inherits the same episode deadline by value
 and tracks the held answer's own device and server deadlines through clock
 corrections. A local reobservation wakeup does not expire remembered server
 data. Every source withdrawal clears the shared approval and remount peeks
-immediately, including failure, link loss, and a replacement's earlier expiry.
+immediately, including a bounded re-read failure and a replacement's earlier expiry.
 Opening remounts register for the watch before its raw owner or first approval exists and
 receive notifications for approval, withdrawal and each distinct denial. An
 opening keeps its last raw-owner association if that owner retires while its
@@ -1279,12 +1297,12 @@ replacement or opening.
 An episode expiring during a grouped commit notifies after every affected watch
 has reloaded, so callbacks also see peers' revalidation marks.
 
-For all three options, a failed whole re-read, expired candidate, refusal,
+For all three options, an expired candidate, refusal,
 expiry, sign-out, credential or viewer change, store replacement or adoption,
 `clear_rows`, `settle_exit`, ephemeral incarnation change, first schema
 installation, or client close withdraws the answer immediately. A successful
-server fallback keeps retaining while device composition finishes within the
-episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
+server fallback keeps retaining while device composition finishes, subject to
+any existing online-change episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
 closed local observation still checks its saved deadlines; resubscribing rearms
 those same absolute row deadlines before its re-read. Observed server expiry also
@@ -1501,11 +1519,11 @@ Check handle availability with a query before sign-up. The unique index is
 still authoritative: another signup may claim the handle between that check
 and the profile mutation. Write the profile in the first mutation after
 sign-up, and keep the signed-in session if that write fails so the user can
-choose another handle. The signed-in tree follows `useAuth().state`, not a
-profile read. Decide its initial route once per account/backend: null means
-onboarding, denied means an error, loading means still undecided. After that
-first answer, a loading profile must never unmount the tree, route or draft;
-only explicit navigation changes routes. Protected content follows current reads.
+choose another handle. Use `useAuth().state` for the signed-in session and a
+profile `useQuery` for onboarding: null means onboarding, denied means an error,
+and initial loading means still undecided. Once ready, the mounted same-key
+profile keeps its answer through plain revalidation. Render the current read;
+no latched identity or route is needed to survive a slow refetch.
 
 ```quarry
 use identity
@@ -1540,15 +1558,11 @@ import type { Client } from "snapback4/contract";
 import { api } from "../snapback/generated/api";
 const url = "http://127.0.0.1:4400";
 
-function initialProfileRoute(client: Client) { // Own above routes; recreate on account/backend change.
-  let route: "profile" | "app" | undefined;
-  return async () => {
-    if (route) return route;
-    const profile = await client.query(api.myProfile, {});
-    if ("loading" in profile) return "loading";
-    if ("denied" in profile) return "error";
-    return route ??= profile.data === null ? "profile" : "app";
-  };
+async function profileScreen(client: Client) {
+  const profile = await client.query(api.myProfile, {});
+  if ("loading" in profile) return "loading";
+  if ("denied" in profile) return "error";
+  return profile.data === null ? "profile" : "app";
 }
 
 async function register(email: string, password: string, handle: string) {
@@ -1566,8 +1580,7 @@ async function register(email: string, password: string, handle: string) {
   // Keep client/session on failure; the profile screen retries createProfile, not signup.
   if (write.state === "failed") return { client, screen: "profile", error: write.why.message };
   if (write.state === "pending") return { client, screen: "profile", waiting: true };
-  const route = initialProfileRoute(client);
-  return { client, route, screen: await route() };
+  return { client, screen: await profileScreen(client) };
 }
 ```
 

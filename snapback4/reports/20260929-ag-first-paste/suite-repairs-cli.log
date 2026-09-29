@@ -1,0 +1,96 @@
+    Blocking waiting for file lock on build directory
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4)
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:20:16
+   |
+20 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "scale") generated 1 warning (run `cargo fix --test "scale" -p snapback4` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 3.48s
+     Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-5a6d546013e03264)
+
+running 10 tests
+test changed_syntax_at_a_retained_site_never_quotes_stale_source ... ok
+test friendly_index_label_keeps_id_when_it_is_the_only_sort_column ... ok
+test presence_variants_keep_the_authored_read_before_expansion ... ok
+test builder_comments_are_opaque_to_friendly_index_labels ... ok
+test extrema_cost_names_seek_or_scan_and_prices_the_endpoint ... ok
+test multiline_unicode_literals_are_quoted_without_relabeling_their_contents ... ok
+test grouped_shaped_reads_keep_balanced_source_boundaries ... ok
+test source_spans_keep_spacing_parentheses_and_duration_spelling ... ok
+test board_quotes_source_read_with_four_planner_variants ... ok
+test fallback_printer_preserves_boolean_arithmetic_and_conditional_precedence ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/check_notes.rs (target/debug/deps/check_notes-3734f6df8a71f9b7)
+
+running 3 tests
+test json_and_text_both_name_every_sequence_counter ... ok
+test no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why ... ok
+test sync_order_note_is_printed_on_every_check_and_clears_with_matching_window ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/familiar.rs (target/debug/deps/familiar-8cc7ed544b94b420)
+
+running 3 tests
+test len_compiles_without_rewriting_the_authored_alias ... ok
+test round_one_diagnostic_rewrites_paste_through_check ... ok
+test builder_guesses_have_one_step_check_repairs ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/scale.rs (target/debug/deps/scale-0caced034445820f)
+
+running 28 tests
+test bounds_card_examples_compile_without_notes_and_pin_both_classes ... ok
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test default_text_and_explicit_bound_have_identical_scale_certificates ... ok
+test hidden_rows_expiry_rule_probes_and_live_aggregates_are_not_constant ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test schema_caps_and_argument_pages_survive_ir_index_renaming ... ok
+test the_guide_and_readme_describe_three_classes ... ok
+test residual_domains_lane_discovery_and_input_bounds ... ok
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test chat_operation_classes ... ok
+test scale::search::tests::grouped_and_refusal_repairs_compile_cleanly_without_removing_the_preview ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+test clique_operation_classes ... ok
+test only_the_compilers_own_timeline_scan_is_a_cleanup_backlog ... ok
+test text_and_json_preserve_cost_lines_and_add_a_summary ... ok
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+test language_operation_classes ... ok
+test scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair ... ok
+test witnesses::walk_includes_seed_authorization_and_nested_reads ... ok
+test witnesses::non_expiring_public_word_search_grows_with_matching_words ... ok
+test witnesses::loop_carried_population_dependency_reaches_a_fixed_point_without_repricing ... ok
+test witnesses::mutation_scan_includes_admission_before_traversal ... ok
+test witnesses::write_certificate_includes_the_refused_1025th_insert ... ok
+test witnesses::authorized_merge_covers_openings_refills_and_overlapping_lanes ... ok
+test witnesses::repeated_mutation_scans_cover_admission_near_and_across_the_ceiling ... ok
+test bounds_cover_nested_work_and_cursor_pages_on_growing_data ... ok
+test witnesses::certificate_includes_the_charge_that_crosses_a_meter_ceiling ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+     Running tests/written_by.rs (target/debug/deps/written_by-a652d605bb1be76d)
+
+running 1 test
+test check_reports_each_field_owner_and_visibility ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

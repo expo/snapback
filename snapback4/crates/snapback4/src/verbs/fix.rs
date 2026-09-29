@@ -61,6 +61,17 @@ pub(super) fn edit(sources: &[(String, String)], index: usize, diagnostic: &Diag
     if !diagnostic.mechanical { return None; }
     let (_, source) = &sources[index];
     let start = offset(source, diagnostic.site.line, diagnostic.site.col)?;
+    if diagnostic.code == "E_QUARRY_SYNTAX" && diagnostic.message == "shapes infer their row type; omit on table" {
+        let actual = tokens(&source[start..]);
+        let [on, table, equals, ..] = actual.as_slice() else { return None; };
+        if on.value != "on" || table.kind != Kind::Word || equals.value != "=" { return None; }
+        let end = start + offset(&source[start..], equals.site.line, equals.site.col)? + 1;
+        return Some((index, start, end, diagnostic.rewrite.clone()));
+    }
+    if diagnostic.code == "E_QUARRY_UNKNOWN" && diagnostic.message.starts_with("aggregate read rule repeats its parent's rule through ") {
+        let end = start + source[start..].find(['\n', '\r']).unwrap_or(source.len() - start);
+        return Some((index, start, end, diagnostic.rewrite.clone()));
+    }
     if diagnostic.code == "E_QUARRY_MODIFIER_SCOPE" {
         let inner = diagnostic.rewrite.strip_prefix('(')?.strip_suffix(')')?;
         let end = matching_end(source, start, inner).or_else(|| matching_read_end(source, start, inner))?;

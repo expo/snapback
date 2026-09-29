@@ -1,0 +1,9 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+error[E0433]: cannot find `jobs` in `snapback4_core`
+   --> crates/snapback4-lang/tests/first_paste.rs:155:43
+    |
+155 |     assert_eq!(job.state, snapback4_core::jobs::JobState::Done, "{job:?}");
+    |                                           ^^^^ could not find `jobs` in `snapback4_core`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `snapback4-lang` (test "first_paste") due to 1 previous error

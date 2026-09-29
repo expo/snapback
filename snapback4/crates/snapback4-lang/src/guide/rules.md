@@ -50,7 +50,7 @@ A mutable child deadline can shorten its life but cannot extend it past the pare
 
 `sync` infers exactly the parent's substituted audience after service grants
 are removed. A conjunction such as membership and an archived flag stays
-`online only`; `check` explains its server reads. A parent-pinned page resolves
+`online only`; `check --verbose` explains its server reads. A parent-pinned page resolves
 authorization once, while completeness still requires the child's own coverage.
 An unknown or mismatched parent takes the server fallback. Retained history
 stays marked `retained: true` beside the server's current page.
@@ -366,3 +366,9 @@ principal retains its existing rule bypass.
 Read-through limits and repair steps: `why E_READ_THROUGH`,
 `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and
 `why E_READ_THROUGH_SCAN`.
+
+Rules do not follow arbitrary references such as `.message.conversation`.
+Use `read through .message` on the child and let parent-key aggregates inherit
+that rule. A diagnostic never suggests dropping the parent hop. An aggregate
+read line proved identical to the parent's rule has a whole-line repair;
+additional conditions remain a modeling choice and are not removed by `--fix`.

@@ -1,0 +1,2386 @@
+[
+  {
+    "host": "process",
+    "seed": 1,
+    "failures": [
+      "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'plain offline ephemeral answer withdrawn before fixture expiry'\n+ ]\n- []\n"
+    ],
+    "trace": [
+      [
+        "fixture-commit",
+        1,
+        1790662541412
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790662541412
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790662541412
+      ],
+      [
+        "notification",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "complete-before",
+        2
+      ],
+      [
+        "fixture-commit",
+        2,
+        1790662541412
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "removal-withdrawn",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "fixture-commit",
+        3,
+        1790662541412
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662541412
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662541412,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "complete-before",
+        4
+      ],
+      [
+        "fixture-commit",
+        4,
+        1790662541412
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "held-before-bound",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "held-at-bound",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "removal-withdrawn",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "complete-before",
+        5
+      ],
+      [
+        "fixture-commit",
+        5,
+        1790662542412
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662541412
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662541412,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        0,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        1,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        2,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        3,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        4,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        5,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        6,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        7,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        8,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        9,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        10,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        11,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "offline",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "offline",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "revalidating": true,
+          "since": 1790662542412
+        }
+      ],
+      [
+        "offline-finished",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "revalidating": true,
+          "since": 1790662542412
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-immediate",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_CLOSED",
+            "family": "client",
+            "message": "this client is closed"
+          }
+        }
+      ],
+      [
+        "signout-settled",
+        5,
+        {
+          "denied": {
+            "code": "E_CLOSED",
+            "family": "client",
+            "message": "this client is closed"
+          }
+        }
+      ],
+      [
+        "notification-path",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "old-replica-complete",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification-deadline",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "failed-sync",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "applied-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662544050,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662543755,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662544050,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662543755,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662544050,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662544050,
+        {
+          "loading": true
+        }
+      ]
+    ]
+  },
+  {
+    "host": "process",
+    "seed": 2,
+    "failures": [
+      "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'plain offline ephemeral answer withdrawn before fixture expiry'\n+ ]\n- []\n"
+    ],
+    "trace": [
+      [
+        "fixture-commit",
+        1,
+        1790662544050
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790662544050
+      ],
+      [
+        "fixture-commit",
+        1,
+        1790662544050
+      ],
+      [
+        "notification",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "fixture-commit",
+        2,
+        1790662544050
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "removal-withdrawn",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "fixture-commit",
+        3,
+        1790662544050
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662544050
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662544050,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        3,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "complete-before",
+        4
+      ],
+      [
+        "fixture-commit",
+        4,
+        1790662544050
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "held-before-bound",
+        4,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-3",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "held-at-bound",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "removal-withdrawn",
+        4,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        4,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "complete-before",
+        5
+      ],
+      [
+        "fixture-commit",
+        5,
+        1790662545050
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662544050
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662544050,
+          "revalidating": true
+        }
+      ],
+      [
+        "notification",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "later",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        0,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        1,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        2,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        3,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        4,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        5,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        6,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        7,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        8,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        9,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        10,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "mixed",
+        11,
+        "local-clock-denial"
+      ],
+      [
+        "mixed-settled",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "offline",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "offline",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "revalidating": true,
+          "since": 1790662545050
+        }
+      ],
+      [
+        "offline-finished",
+        5,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-5",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "revalidating": true,
+          "since": 1790662545050
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-immediate",
+        5,
+        {
+          "denied": {
+            "code": "E_AUTH",
+            "family": "auth",
+            "message": "sign in to continue"
+          }
+        }
+      ],
+      [
+        "signout-read",
+        5,
+        {
+          "denied": {
+            "code": "E_CLOSED",
+            "family": "client",
+            "message": "this client is closed"
+          }
+        }
+      ],
+      [
+        "signout-settled",
+        5,
+        {
+          "denied": {
+            "code": "E_CLOSED",
+            "family": "client",
+            "message": "this client is closed"
+          }
+        }
+      ],
+      [
+        "notification-path",
+        1,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "old-replica-complete",
+        2,
+        {
+          "data": {
+            "at": 1,
+            "body": "image-1",
+            "id": "item",
+            "room": "room"
+          },
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "notification-deadline",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "failed-sync",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null
+        }
+      ],
+      [
+        "crossed-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "applied-notification",
+        2,
+        {
+          "data": null,
+          "complete": true,
+          "cut": null,
+          "fresh": true,
+          "next": null,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662546745,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662546594,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662546745,
+        {
+          "data": [
+            {
+              "principal": "dev:alice"
+            }
+          ],
+          "complete": true,
+          "cut": null,
+          "fresh": false,
+          "next": null,
+          "since": 1790662546594,
+          "revalidating": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662546745,
+        {
+          "loading": true
+        }
+      ],
+      [
+        "ephemeral-offline",
+        1790662546745,
+        {
+          "loading": true
+        }
+      ]
+    ]
+  },
+  {
+    "host": "process",
+    "seed": 3,
+    "failures": [
+      "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'plain offline ephemeral answer withdrawn before fixture expiry'\n+ ]\n- []\n"
+    ]
+  }
+]

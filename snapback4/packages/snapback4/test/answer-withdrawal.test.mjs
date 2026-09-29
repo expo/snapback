@@ -1,5 +1,5 @@
 // LLP 3000.019 §3.3: a same-store commit can withdraw read authority.
-// Explicit false withdraws at commit; the default bounds the retained revocation episode.
+// Explicit false withdraws at commit; all change evidence bounds retained answers.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -138,7 +138,8 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     t.after(async () => { blocked.resolve(); watch?.close(); await client.close(); });
     await client.sync();
     watch = client.observe(readOp, {}, { keep });
-    const stop = watch.subscribe(() => {});
+    let boundedEvidence = false;
+    const stop = watch.subscribe(() => { if (episodeDeadline(watch.getSnapshot()) !== undefined) boundedEvidence = true; });
     await until(() => body(watch.getSnapshot()) === "private answer", "initial authorized answer");
     const before = (await core.call({ op: "sync_state", capture: false })).ok;
     if (kind === "remount") { stop(); watch.close(); }
@@ -160,13 +161,11 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
         assert.equal(body(snapshotAtCommit), "private answer");
         assert.equal(snapshotAtCommit.revalidating, true);
         const deadline = episodeDeadline(snapshotAtCommit);
-        assert.ok(Number.isFinite(deadline));
         if (mode === "held") {
-          let now = deadline - 1;
+          assert.equal(typeof deadline, "number", "the local commit carries the change bound");
+          const now = deadline;
           t.mock.method(Date, "now", () => now);
-          assert.equal(body(watch.getSnapshot()), "private answer");
-          now = deadline;
-          assert.deepEqual(watch.getSnapshot(), { loading: true }, "host deadline works while the re-read and timers are held");
+          assert.equal(watch.getSnapshot().loading, true, "visibility after membership removal ends at the bound");
         }
       }
     }
@@ -174,9 +173,16 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     else assert.ok(targetRequest.page.events.some(event => event.table === (kind === "transfer" ? "owned" : "secrets") && (kind === "transfer" || event.kind === "scope")), "the ordinary apply carries the secret's revoked scope");
     blocked.resolve();
     assert.equal((await change).state, "sent");
+    if (mode === "retryExhausted") await until(() => exhaustedReplies >= 4, "four rejected replies");
     if (mode === "held") await until(() => "data" in watch.getSnapshot() && watch.getSnapshot().data === null, "post-deadline read still publishes null");
-    else await until(() => watch.getSnapshot().loading && (mode !== "retryExhausted" || exhaustedReplies >= 4),
-      "a failed whole re-read withdraws, including four rejected replies");
+    else if (mode === "unavailable" || boundedEvidence || (mode === "retryExhausted" && kind === "admit")) {
+      await until(() => watch.getSnapshot().loading && (mode !== "retryExhausted" || exhaustedReplies >= 4),
+        "explicit unavailability or failed online evidence withdraws");
+    } else {
+      if (mode === "retryExhausted") await until(() => exhaustedReplies >= 4, "four rejected replies");
+      assert.equal(body(watch.getSnapshot()), "private answer");
+      assert.equal(watch.getSnapshot().revalidating, true);
+    }
     stop();
   });
 }

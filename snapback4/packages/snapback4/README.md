@@ -273,7 +273,7 @@ When adding Following, `view following` owns that name. Name its reader `query h
 Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; never commit it. A table holds data. Rules
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
 mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
-`snapback4 check` ends with a scale line; `check --cost` gives each operation's certificate: **constant**
+`check` gives summaries; `check --verbose` adds rewrites and explanations. `check --cost` gives certificates: **constant**
 (bounded work at any data size), **constant once background cleanup catches up**, or **grows with** a named
 site. A constant verdict proves a degradation rule; timing one measures noise. Cite the verdicts in scale reports.
 
@@ -283,7 +283,7 @@ Jobs run as the system: select the recipient's authorized data before emitting. 
 the worker still deduplicates provider delivery. See `guide maintains`, `guide jobs` and `guide effects` for recipes.
 
 Import `usePage`, `useMutation` and `useAsset` from `snapback4/react`; use them with the generated `api` handles. `usePage` keeps loaded pages while the next loads; it supplies accumulated
-items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks accept `{ keep: true }`: stale rows, including revoked rows, stay during reload until the next answer/refusal; credential, viewer and store resets still clear them; a remount within 30 seconds joins the lingering live watch with its current snapshot. `useMutation` tracks writes; `useAsset` resolves
+items, `hasMore`, `loadMore` and read completeness. For generated queries returning source rows, it keeps one newest observed image per row ID; projections keep list semantics even when they contain a field named `id`. Both read hooks keep the same-key answer marked `revalidating` through refetch, reconnect, slow reads, offline transport and retry exhaustion, with no timeout. Local commits replace it directly after the replica re-read. All change evidence—local commits, acknowledged online mutations, durable and ephemeral `/changes`, and `/sync` publications—starts a one-second bound and withdraws on failure or timeout. Successful immediate replica replacements never show `loading`. An older replica read cannot clear a pending notification; sync must apply its cut or a current server answer must replace the display. Offline ephemeral answers keep their original row expiry. Membership removal replaces the answer with the denial or empty result. `keep: false` withdraws immediately; `keep: true` adds a 30-second linger after the last subscriber. Key changes, deadlines, sign-out, credential, store and schema resets still withdraw. A reported program-generation change withdraws immediately, even with no changed tables; the old replica stays unavailable until adoption completes. Offline retention uses `fresh: false` and `since`; no profile identity latch is needed. `useMutation` tracks writes; `useAsset` resolves
 a placed asset. Upload bytes with `client.upload` before passing the asset id to its placement mutation. Operations in `schema.q` are
 `api.name`; module files use `api.module.name`. Effects run in the optional Node ESM `snapback/worker.mts`.
 

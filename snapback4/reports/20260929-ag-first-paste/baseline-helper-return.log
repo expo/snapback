@@ -1,0 +1,5 @@
+schema.q:2:1 — E_QUARRY_SYNTAX: a fn body ends with return
+  rewrite: end the helper with `return expr` or a bare `return`
+  guide: language
+
+check: 1 problem

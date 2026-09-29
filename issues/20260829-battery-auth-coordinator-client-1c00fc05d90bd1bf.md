@@ -13,12 +13,12 @@
 **Battery gate:** `auth-coordinator-client`
 **Failure signature:** `sha256:1c00fc05d90bd1bfe608162fdb49f968d940e9acf32c98ec3307dce904e06d3c`
 **First observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last observed run:** `local.20260928T150340Z.ea7ecc896c16`
-**Last processed run:** `local.20260928T150340Z.ea7ecc896c16`
+**Last observed run:** `local.20260929T091155Z.f56e8048aa9f`
+**Last processed run:** `local.20260929T091155Z.f56e8048aa9f`
 **Detected at revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Last observed revision:** `ea7ecc896c166c31caf88f843e0c4dce4ea900b6`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `f56e8048aa9f1c9dc50f29991bd3c96be79044dc`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

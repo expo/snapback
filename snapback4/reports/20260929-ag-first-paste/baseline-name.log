@@ -1,0 +1,22 @@
+check: ok — 5 tables (4 synced), 2 operations, no problems, 4 notes, 4.7 ms
+note: schema.q:18:1 — N_NO_HORIZON: table reactions: `sync to members[.$message.conversation]` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 50 by message` bounds the rows per message, not what a device acquires — `sync to members[.$message.conversation]` delivers every message's rows to every device; measure what it costs with `check --residency`
+  rewrite: sync to members[.$message.conversation] last 500 by .id
+  guide: sync
+  why: snapback4 why N_NO_HORIZON
+
+note: schema.q:31:1 — N_NO_CURSOR: query groupByTitle returns a page of 1 conversations rows with no cursor, so the page cannot continue
+  rewrite: if the screen pages, declare `c: cursor ?` in groupByTitle and append `after c` to this conversations page, keeping its current predicate, direction and column order
+  guide: reads
+  why: snapback4 why N_NO_CURSOR
+
+note: schema.q:31:1 — N_NEVER_COMPLETE: query groupByTitle: the page over conversations[..] by read or declaration on conversations (kind, title, id) at schema.q:32:10 is never `complete` — the read rule `exists members[.id, viewer]` reads .id, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: pin .id with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+  why: snapback4 why N_NEVER_COMPLETE
+
+note: schema.q:33:1 — N_NEVER_COMPLETE: query groupNamed: the page over conversations[..] by read or declaration on conversations (kind, title, id) at schema.q:32:10 is never `complete` — the read rule `exists members[.id, viewer]` reads .id, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: pin .id with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+  why: snapback4 why N_NEVER_COMPLETE
+
+scale: 0 of 2 operations are constant; 2 grow with data (groupByTitle, groupNamed) — `check --cost` gives the certificate

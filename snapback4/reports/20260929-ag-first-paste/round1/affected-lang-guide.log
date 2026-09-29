@@ -1,0 +1,5 @@
+error: no test target named `residency` in `snapback4-lang` package
+help: available test in `snapback4-device` package:
+    residency
+help: available test in `snapback4-sim` package:
+    residency

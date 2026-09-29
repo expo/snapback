@@ -1,0 +1,49 @@
+{"host":"process","seeds":1,"failedSeeds":1,"failures":["AssertionError [ERR_ASSERTION]: timed out: condition"]}
+✖ mixed evidence schedule process: 300 independent histories (6194.399613ms)
+{"host":"wasm","seeds":1,"failedSeeds":1,"failures":["AssertionError [ERR_ASSERTION]: timed out: condition"]}
+✖ mixed evidence schedule wasm: 300 independent histories (6588.887112ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12913.337272
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule process: 300 independent histories (6194.399613ms)
+  AssertionError [ERR_ASSERTION]: [{"host":"process","seed":1,"failures":["AssertionError [ERR_ASSERTION]: timed out: condition"],"trace":[["notification",1,{"loading":true}],["notification",1,{"loading":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null}]]}]
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:87:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule wasm: 300 independent histories (6588.887112ms)
+  AssertionError [ERR_ASSERTION]: [{"host":"wasm","seed":1,"failures":["AssertionError [ERR_ASSERTION]: timed out: condition"],"trace":[["notification",1,{"loading":true}],["notification",1,{"loading":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true}],["notification",1,{"data":{"at":1,"body":"image-5","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null}]]}]
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:87:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

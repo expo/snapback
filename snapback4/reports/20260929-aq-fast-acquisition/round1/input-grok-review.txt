@@ -1,0 +1,80 @@
+I'll review the acquisition change read-only: the prompt, the report, and `git diff f9620c815..69efcad74`, then check durability, correctness, concurrency, and whether the measurements hold up.The product diff is small and concentrated in the IndexedDB bucket layer. I'll read that change against the durability contracts next.Auto-compacting conversation (80% full)...
+Conversation compacted.
+The review needs exact line citations, so I am pinning the durability, upgrade, and test sites before writing it.The persistence change is safe to land. Nothing in it lets a crash, a second tab, or a Worker commit a replica that claims more than it holds. The two holes below are missing test locks, not product bugs.
+
+Reviewed `f9620c815..69efcad74` read-only. The suite was not re-run. Durability judgment is from the transaction code and the tests as written. The eb1000 numbers below were checked against the evidence files, not reproduced.
+
+## 1. Durability and crash safety
+
+Sound. One strict readwrite transaction carries the split marker, the child buckets, per-row overflow, metadata, the outbox, and the watermark.
+
+`save` opens that transaction at `web-idb.ts:73`. Packed rows are grouped and written only through `writeGroup` (`web-idb.ts:80–99`). Metadata and outbox rows are `put` in that same callback. `guardCommit` (`web-idb.ts:90–94`) runs only from `writeGroup`'s `done`, which fires after the child `put`s have been queued (`web-idb-buckets.ts:90` and `:108–114`), and it calls `tx.commit()` in that same success turn. There is no `await` between those writes and the commit. A normal `save` (no `current` callback) does not commit early either: the promise resolves on `tx.oncomplete` (`web-idb.ts:8–11`, `:102`).
+
+A reload or a crash aborts the transaction. The abort tests are aimed at the right records: aborting the `put` of leaf `r:0/0` rolls back the new row, the watermark, and the outbox delete together (`web-review.test.mjs:355–367`). Aborting a format-2 migration restores format `"2"`, the packed row, the overflow row, the staged row, the watermark, and the outbox (`web-review.test.mjs:382–390`).
+
+`upgradeBuckets` is also one strict transaction (`web-idb-buckets.ts:124`). It deletes old `$bucket` rows and direct overflow rows before regrouping, then puts format `"3"` (`:132–142`). A failure aborts, so the store stays format 1 or 2. Direct overflow cannot survive to shadow a packed value: `read` returns a direct row first (`web-idb.ts:133–134`), and the migration test updates that overflow key and expects the new value (`web-review.test.mjs:385–392`).
+
+The watermark cannot move ahead of the rows. `device.rs:820–824` stages a snapshot page and returns without setting `WATERMARK` or `ACQUIRED`. Publication writes both in the same device commit as the row replacement (`device.rs:885–896`). `settle` awaits `persist.save` before `committedReply` (`web.ts:214–220`). That device commit is unchanged; this branch does not modify it.
+
+## 2. Correctness of the acquired data
+
+Sound. Nothing is deferred, and `useAcquisition` was not changed.
+
+`page()` always publishes `acquired: false` plus the snapshot `put` counts (`acquisition.ts:29–33`). `progress.page` is queued inside `committed` and delivered only after `call()` returns (`local.ts:305`, `:321–322`). `call()` awaits `settle`, which awaits the IndexedDB commit. `setAcquired(true)` happens only in `refreshAcquired` after the sync loop (`local.ts:217–224`, `:748`). A failed save throws before `committedReply` (`web.ts:388–397`), so a rejected write does not advance progress.
+
+Authorization and visibility are unchanged because the device binary is unchanged. A bad bucket layout can drop or shadow a row the server already sent; it cannot admit a row the drain did not contain, and a committed upgrade deletes the old buckets in the same transaction, so they cannot reappear on the next `load`.
+
+Offline reopen uses the same `load`/`read` path. After a split, `read` follows `split` to the child (`web-idb.ts:123–128`). `unpack` of a child key such as `r:0/0` keeps store name `r` via `k.slice(0, 1)` (`web-idb-buckets.ts:18–19`). The split root is stored as `v: "[]"` (`web-idb-buckets.ts:108`) and contributes no logical rows. The 12,000-row test reopens offline and checks every row (`web-review.test.mjs:394–413`). The probe witness reported 11,612/11,612 rows, 0 missing, 0 mismatches, on a fresh format-3 store.
+
+Leaves do not split again. `childBucket` is one extra two-bit level (`web-idb-buckets.ts:17`), and a full leaf uses the existing per-row spill (`writeBucket`, `:57–62`). The directory is 64 roots plus at most 256 leaves per packed namespace (`r`, `s`, `b`). Per-row overflow stays unbounded, as it was before. Keys that all share the low 8 hash bits land in one leaf and do not get the speedup; the heavy account shows that, and the report says so.
+
+## 3. Concurrency
+
+Sound.
+
+Two tabs do not share a store. The second tab gets `name:tab-*` (`web-ownership.ts:14–20`). IndexedDB would still serialize readwrite transactions if they did share one.
+
+The Worker commits acquisition itself, after its own `persist.save` (`web-worker-runtime.ts:77–82`). The page's `saveIfCurrent` runs only for a paused Worker, and only for `device:delivery:` metadata (`web-worker-runtime.ts:54–59`, `web-worker-host.ts:172–179`). The page and the Worker have separate `packing` maps, but the page path never writes a bucket. The Worker holds `snapback4-worker:<name>` until it dies (`web-worker-runtime.ts:127–132`). The next opener waits for that lock, then does a readonly read (`web-worker-host.ts:221–229`, `web-ownership.ts:31–34`), so it sees the committed transaction or the abort, not a queue of in-flight child gets.
+
+A reload aborts the open transaction. Longer child gets do not create a second commit.
+
+## 4. Measurements
+
+The probe comparison is sound. The heavy-account number is not a qualification.
+
+On u0500, uninstrumented, five runs, order alternated, same wire body (3,652,183 bytes) every run:
+
+| Device | Before (ms) | Median | After (ms) | Median |
+|---|---|---|---|---|
+| Default | 4074.8, 4927.9, 4897.6, 4941.3, 4243.4 | 4.90 s | 2192.5, 2133.9, 2196.5, 2185.8, 2156.5 | 2.19 s |
+| Worker | 4552.7, 5035.9, 4372.4, 4435.7, 4413.8 | 4.44 s | 2224.8, 2254.7, 2320.5, 2286.3, 2198.8 | 2.25 s |
+
+No overlap. Server time was about 425 ms on both sides, so the drop is client persistence. The fastest before sample had the highest load, so load does not explain it. One instrumented sample of the same shape: default readwrite gets/puts 1026/2045 → 258/1469, worker 1025/2043 → 257/1469, every readwrite transaction `strict`. Instrumented save time fell by about 2.67 s, matching the uninstrumented drop. Those phase runs were at lower load than the timing runs, and they are single samples.
+
+The structural lock is `web-review.test.mjs:327–343`: 10,000 small rows produce exactly 64 gets, 64 `$bucket` puts, and one `strict` transaction, and every value round-trips. That set does not split (about 156 rows per root).
+
+The heavy account was instrumented only. After-median 25.66 s sits inside a range (25.40–28.23 s) that overlaps the before median (26.61 s), and one after sample is slower than every before sample. Persistence moved 8.99 s → 8.32 s; apply stayed near 9.5 s. Row witness 105,034/105,034 with 0 mismatches is the part that matters. The guide's 5–8 s and 60–90 s M1 figures are planning estimates, not runs of this change. Calibration #26 was a different machine.
+
+## 5. What would stop landing, and what a test would miss
+
+Nothing here should stop landing. The mutations that would actually break the claim do fail the existing tests: 256 roots (`many-roots`), a commit gap before `tx.commit()` (`delivery-gap`), a split marker committed apart from leaf `r:0/0`, a dropped split quadrant (the 513-row count), and an overflow direct row left in place (the format-2 update expects `'updated'` because `read` prefers the direct row).
+
+Two mutations survive `web-review.test.mjs`.
+
+**Low.** `web-idb-buckets.ts:124`. Change the upgrade transaction from `"strict"` to `"default"`.
+
+The format-2 test aborts that transaction and checks rollback, which does not depend on the durability mode. The `strict` assertion at `web-review.test.mjs:333` runs only around `store.save` after `load` has already created a format-3 database (`:330`). A power loss after the browser reports the upgrade complete can drop the whole migration. It retries, because the marker is still `"1"` or `"2"`, and it does not advance the watermark by itself. It is still a hole in the claim that every rewrite is strict.
+
+Smallest fix: during the successful `load` in the format-2 test, record `transaction.durability` for that database's readwrite transaction and assert `"strict"`.
+
+**Low.** `web-idb-buckets.ts:10`. Delete `|| s === "b"`.
+
+No test writes store `b`. That store is the prediction base image (`memory.rs:177`, `:570`). Upgrade still rewrites `$bucket` records, because the filter keeps `saved.s === "$bucket"` (`web-idb-buckets.ts:133`). `read` then never opens a bucket for `"b"` (`web-idb.ts:120`), so a migrated base image returns null, while `load` still unpacks it. A later save takes the per-row branch and can leave a direct row beside the packed one. The format-2 fixture inserts `r`, `s`, `m`, and `o` only (`web-review.test.mjs:375–378`).
+
+Smallest fix: put one format-2 `$bucket` row and one direct overflow row in store `b` in that fixture, then assert `read` after migration and after an update of the overflow key.
+
+Weaker oracles, not separate defects: the format-1 cap check reads the first `$bucket` (`web-review.test.mjs:259`), which is the empty split root `r:0`, not the leaf `r:0/0`, because `'r:0' < 'r:0/0'`. The 1,000-row count still catches dropped rows. The 513-key test checks the count and two values, so exchanging two unchecked values inside one leaf would pass.
+
+## Verdict
+
+**READY.**

@@ -1,0 +1,41 @@
+✔ pending change requires published sync or a whole server answer at its cut (1.056133ms)
+✔ process: item notification survives readable old replica and failed sync, keep=undefined (2972.953135ms)
+✔ process: item notification survives readable old replica and failed sync, keep=true (1156.015886ms)
+✔ process: item notification survives readable old replica and failed sync, keep=false (1147.506171ms)
+✔ process: item notification survives throw old replica and failed sync, keep=undefined (1136.074526ms)
+✔ process: item notification survives throw old replica and failed sync, keep=true (1133.619867ms)
+✔ process: item notification survives throw old replica and failed sync, keep=false (1119.004651ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=undefined (1122.421432ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=true (1117.408989ms)
+✔ process: mixed notification survives readable old replica and failed sync, keep=false (1120.555234ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=undefined (1183.429615ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=true (1125.725674ms)
+✔ process: mixed notification survives throw old replica and failed sync, keep=false (1127.314696ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=undefined (1478.309641ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=true (1103.143276ms)
+✔ wasm: item notification survives readable old replica and failed sync, keep=false (1090.895358ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=undefined (1102.877207ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=true (1092.769888ms)
+✔ wasm: item notification survives throw old replica and failed sync, keep=false (1095.985207ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=undefined (1087.79463ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=true (1089.930672ms)
+✔ wasm: mixed notification survives readable old replica and failed sync, keep=false (1086.904836ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=undefined (1090.135388ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=true (1087.221591ms)
+✔ wasm: mixed notification survives throw old replica and failed sync, keep=false (1093.911888ms)
+✔ process: only a server answer at the reported cut can replace before sync (207.376931ms)
+✔ wasm: only a server answer at the reported cut can replace before sync (164.505192ms)
+✔ process: ephemeral offline recovery preserves its classification and expiry (4049.49126ms)
+✔ process: ephemeral loading recovery preserves its classification and expiry (218.834244ms)
+✔ process: ephemeral denied recovery preserves its classification and expiry (218.725691ms)
+✔ wasm: ephemeral offline recovery preserves its classification and expiry (4045.222049ms)
+✔ wasm: ephemeral loading recovery preserves its classification and expiry (183.263668ms)
+✔ wasm: ephemeral denied recovery preserves its classification and expiry (177.725096ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38356.04019

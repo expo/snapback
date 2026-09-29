@@ -15,7 +15,7 @@ fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
     for _ in 0..2 {
         let text = run(&["check"]);
         assert_eq!(text.matches(" — N_SYNC_ORDER:").count(), 1, "{text}");
-        assert!(text.contains("schema.q:22:10") && text.contains("by bySyncWindow: conversationId, at, id"), "{text}");
+        assert!(text.contains("schema.q:22:10") && text.contains("index [conversationId, at, id]"), "{text}");
     }
     let result: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
     assert_eq!(result["notes"].as_array().unwrap().iter().filter(|note| note["code"] == "N_SYNC_ORDER").count(), 1);
@@ -38,11 +38,12 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
     };
     let plain = run(&["check"]);
     assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 2);
-    assert_eq!(plain.matches("why: snapback4 why N_NO_HORIZON").count(), 2);
+    assert!(plain.contains("check --verbose"));
     assert!(plain.contains("schema.q:1:1") && plain.contains("schema.q:5:1"), "{plain}");
-    assert!(plain.contains("rewrite: sync public last 500 by .id"));
+    assert!(!plain.contains("rewrite:"));
     assert!(!plain.contains("Full card:"), "{plain}");
     let verbose = run(&["check", "--verbose"]);
+    assert!(verbose.contains("rewrite: sync public last 500 by .id"));
     assert_eq!(verbose.matches("Full card: snapback4 guide sync").count(), 1, "{verbose}");
     let why = run(&["why", "N_NO_HORIZON"]);
     assert!(why.ends_with("Full card: snapback4 guide sync\n"), "{why}");
@@ -64,7 +65,8 @@ fn json_and_text_both_name_every_sequence_counter() {
         assert!(output.status.success(), "{output:?}");
         String::from_utf8(output.stdout).unwrap()
     };
-    let text = run(&["check"]);
+    assert!(!run(&["check"]).contains("sequence children."));
+    let text = run(&["check", "--verbose"]);
     let json: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
     let lines = json["sequences"].as_array().unwrap();
     assert_eq!(lines.len(), 2);

@@ -80,7 +80,7 @@ the named server dependency to keep `predicts`, or remove that assertion and let
 without prediction.
 Every `check` summarizes mutations that never predict, insert arms that
 never predict, and eligible mutations whose reads can queue without a row
-past a horizon, even on an unchanged program. `why` qualifies the heading:
+past a horizon, even on an unchanged program. `check --verbose` keeps the full site lists and rewrites; plain `check` gives the verdict and summary first. `why` qualifies the heading:
 `predicts: eligible except past the horizon at …`, naming each read and site.
 A loss of eligibility
 produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
@@ -236,7 +236,7 @@ membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, use `upsert` to insert when absent and update the held row when present.
 An explicit existence branch needs a whole partition; a horizon miss is still unknown.
-`check` labels an upsert with an unprovable insert arm `predicts: updates only`;
+`check --verbose` labels an upsert with an unprovable insert arm `predicts: updates only`;
 that means a held-row update remains eligible, not that the first write predicts.
 `insert ... if absent` with an unprovable insert says `predicts: inserts queue
 without a row`. The summary and residency line name the horizon, read rule or
@@ -314,4 +314,55 @@ the write queued without predicted rows and lets the server judge it;
 observe its pending/failed/sent state instead of treating missing local
 rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
-invent an empty row or mint different IDs on replay."##;
+invent an empty row or mint different IDs on replay.
+
+## Read-through upserts: explicit insert/update
+
+An `upsert` on a read-through child queues without a row, even on a synced
+table. `why` points here; it generates no rewrite. Keep `upsert` and observe
+queued/sent/failed state, or adapt this explicit pattern to your schema:
+
+```quarry
+table messages:
+  body: text <=2000
+  cap 100
+  public
+  sync public
+
+table reactions:
+  message: messages
+  principal: principal
+  emoji: text 1..32
+  immutable message
+  unique message, principal
+  cap 50 by message
+  read through .message
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync
+
+mutation setReaction(message: messages, emoji: text 1..32) predicts:
+  if exists reactions[message, viewer]:
+    update reactions[message, viewer] { emoji }
+  else:
+    insert reactions { message, principal: viewer, emoji }
+  return null
+```
+
+This example deliberately returns null. It is a design pattern, not an
+equivalent replacement expression. Evaluate effectful inputs in the intended
+order; map each named key explicitly. A shared helper must handle every
+caller's argument types, including rows versus references. Decide return values
+and downstream effects explicitly: insert returns its supplied image, whereas
+upsert reads back the row, which can include optional/defaulted fields or be
+null after expiry. An existence test also needs read authority: hidden writable
+rows cannot safely select the insert branch. Do not make private parents public
+to obtain prediction; this example's public messages are a product choice.
+
+Static eligibility still needs held facts at the call. Missing coverage, a
+horizon miss, Left groups, unknown authority or exhausted prediction allowances
+can queue without rows; expiring cap groups can block insert prediction too.
+The extra existence read consumes the meter. Inspect `snapback4 why <op>` and
+observe settlement with `guide writes`; changing syntax supplies no coverage.
+
+"##;

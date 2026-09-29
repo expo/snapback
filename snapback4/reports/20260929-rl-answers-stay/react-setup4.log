@@ -1,0 +1,83 @@
+▶ process keep=undefined: profile route gate
+  ✖ slow refetch (3041.730751ms)
+  ✖ offline transport (42.451225ms)
+  ✖ retry exhaustion (182.128872ms)
+  ✔ reconnect (83.879678ms)
+✖ process keep=undefined: profile route gate (4324.746803ms)
+▶ process keep=undefined: chat history and membership removal
+  ✔ peer sync (53.97688ms)
+  ✔ own send and settlement (63.966432ms)
+  ✔ edit (31.049166ms)
+  ✔ delete (30.899351ms)
+  ✔ membership removal (35.885194ms)
+✔ process keep=undefined: chat history and membership removal (1804.190957ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 7
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6283.264031
+
+✖ failing tests:
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:75:108
+✖ slow refetch (3041.730751ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":4,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:56:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:87:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:75:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:75:108
+✖ offline transport (42.451225ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":2,"unmounts":1,"loading":1,"renders":3,"route":"/conversation/bob"},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"loading":true},{"loading":true},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654547539},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":false,"next":null,"since":1790654547539}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:56:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:87:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:75:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/answers-stay-react.test.mjs:75:108
+✖ retry exhaustion (182.128872ms)
+  AssertionError [ERR_ASSERTION]: {"result":{"mounts":1,"unmounts":1,"loading":1,"renders":3,"route":""},"reads":[{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null},{"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},{"loading":true},{"loading":true}]}
+
+  1 !== 0
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:56:12
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:87:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/answers-stay-react.test.mjs:75:100)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,7 +1,7 @@
 # Search completion and work
 
-`check` and `check --cost` distinguish search admission and independent costs, each
-with a source site and rewrite:
+`check` summarizes search warnings with source sites; `check --verbose` adds
+rewrites and explanations, and `check --cost` adds execution costs:
 
 - **N_SEARCH_UNSCOPED:** the read rule varies within the searched index.
   Preserve the filters and add the schema's membership predicate. The rewrite

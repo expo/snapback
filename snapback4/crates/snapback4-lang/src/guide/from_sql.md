@@ -190,7 +190,7 @@ system; actions run under their admitted authority. `guide actions`,
 
 | Guess | Write instead |
 | --- | --- |
-| `len(x)` or `x.length` | `count(x)`; characters for text, items for a list or page. |
+| `len(x)`, `length(x)` or `x.length` | `count(x)`, `len(x)` and `length(x)` are accepted; `x.length` needs `count(x)`. Characters for text, items for a list or page. |
 | `count(*)` | Pass the read: `count(entries where .owner = viewer)`. |
 | `limit 20` | `first 20` or `last 20`, with the desired column order. |
 | Two `where` modifiers | Accepted as `and` in their written order. |
