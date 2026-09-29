@@ -1,0 +1,5 @@
+schema.q:6:3 — E_QUARRY_SYNTAX: unknown maintain property public
+  rewrite: read <- allow  -- maintain has no public property
+  guide: language
+
+check: 1 problem

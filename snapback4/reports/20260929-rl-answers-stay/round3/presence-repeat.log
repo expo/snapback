@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: process 0: quiet presence cannot publish below a pending durable cut
+ok 1 - process 0: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 741.321632
+  type: 'test'
+  ...
+# Subtest: wasm 0: quiet presence cannot publish below a pending durable cut
+ok 2 - wasm 0: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1116.903819
+  type: 'test'
+  ...
+# Subtest: process 1: quiet presence cannot publish below a pending durable cut
+ok 3 - process 1: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 703.392948
+  type: 'test'
+  ...
+# Subtest: wasm 1: quiet presence cannot publish below a pending durable cut
+ok 4 - wasm 1: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 673.647927
+  type: 'test'
+  ...
+# Subtest: process 2: quiet presence cannot publish below a pending durable cut
+ok 5 - process 2: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 699.915506
+  type: 'test'
+  ...
+# Subtest: wasm 2: quiet presence cannot publish below a pending durable cut
+ok 6 - wasm 2: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 658.156551
+  type: 'test'
+  ...
+# Subtest: process 3: quiet presence cannot publish below a pending durable cut
+ok 7 - process 3: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 706.283671
+  type: 'test'
+  ...
+# Subtest: wasm 3: quiet presence cannot publish below a pending durable cut
+ok 8 - wasm 3: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 663.325598
+  type: 'test'
+  ...
+# Subtest: process 4: quiet presence cannot publish below a pending durable cut
+ok 9 - process 4: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 705.745474
+  type: 'test'
+  ...
+# Subtest: wasm 4: quiet presence cannot publish below a pending durable cut
+ok 10 - wasm 4: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 665.412656
+  type: 'test'
+  ...
+# Subtest: process 5: quiet presence cannot publish below a pending durable cut
+ok 11 - process 5: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 700.500744
+  type: 'test'
+  ...
+# Subtest: wasm 5: quiet presence cannot publish below a pending durable cut
+ok 12 - wasm 5: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 671.849263
+  type: 'test'
+  ...
+# Subtest: process 6: quiet presence cannot publish below a pending durable cut
+ok 13 - process 6: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 703.863444
+  type: 'test'
+  ...
+# Subtest: wasm 6: quiet presence cannot publish below a pending durable cut
+ok 14 - wasm 6: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 669.254695
+  type: 'test'
+  ...
+# Subtest: process 7: quiet presence cannot publish below a pending durable cut
+ok 15 - process 7: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 702.445809
+  type: 'test'
+  ...
+# Subtest: wasm 7: quiet presence cannot publish below a pending durable cut
+ok 16 - wasm 7: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 671.729003
+  type: 'test'
+  ...
+# Subtest: process 8: quiet presence cannot publish below a pending durable cut
+ok 17 - process 8: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 714.521438
+  type: 'test'
+  ...
+# Subtest: wasm 8: quiet presence cannot publish below a pending durable cut
+ok 18 - wasm 8: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 670.57943
+  type: 'test'
+  ...
+# Subtest: process 9: quiet presence cannot publish below a pending durable cut
+ok 19 - process 9: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 702.267313
+  type: 'test'
+  ...
+# Subtest: wasm 9: quiet presence cannot publish below a pending durable cut
+ok 20 - wasm 9: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 674.373096
+  type: 'test'
+  ...
+# Subtest: process 10: quiet presence cannot publish below a pending durable cut
+ok 21 - process 10: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 712.027651
+  type: 'test'
+  ...
+# Subtest: wasm 10: quiet presence cannot publish below a pending durable cut
+ok 22 - wasm 10: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 669.242107
+  type: 'test'
+  ...
+# Subtest: process 11: quiet presence cannot publish below a pending durable cut
+ok 23 - process 11: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 706.758124
+  type: 'test'
+  ...
+# Subtest: wasm 11: quiet presence cannot publish below a pending durable cut
+ok 24 - wasm 11: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 666.221219
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17075.513301

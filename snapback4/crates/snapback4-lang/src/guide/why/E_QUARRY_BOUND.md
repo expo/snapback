@@ -15,6 +15,9 @@ principal in a membership loop does not decide a conversation-based read rule.
 `first 50` is a partial preview, not an equivalent complete digest: use a
 separately named paged per-chat preview with `c: cursor ?` and follow its
 cursor, or keep the complete scheduled job under its system chunk meter.
+For an unused preview, the removal alternative points at the query declaration
+and names its full line range. Replace those lines with the printed comment;
+the shared helper stays intact. `check --fix` does not choose this removal.
 Inner recipient work must fit one chunk even when the outer sweep adapts;
 an oversized recipient parks rather than committing a partial digest.
 A helper never grants system authority to a query. See `guide jobs`.

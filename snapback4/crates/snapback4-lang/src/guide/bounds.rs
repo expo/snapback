@@ -227,7 +227,7 @@ service token; it cannot reset.
 
 ### The scale certificate
 
-Every successful `check` summarizes how many operations are constant, which
+`check --verbose` or `check --cost` summarizes how many operations are constant, which
 are constant once background cleanup catches up, and which grow with data. A
 `backlog` verdict reads `scale: constant once background cleanup catches up;
 until then at most N rows examined: <what the cleanup removes>`, and its
@@ -319,11 +319,10 @@ they can exceed the runtime ceilings shown separately in JSON. Steps, heap
 and output can still cut a constant operation. It does not price bytes or steps at
 check, change authorization, or replace measurements on your data.
 
-Notes in a text `check` print their code, site, message and rewrite, followed
-by `snapback4 why <code>`. Long explanations are opt-in: `check --verbose`
-prints each note's explanation once per code and card, even for a single
-note; `why <code>` opens it on demand. Grouped notes show their one-line
-summary by default; `--verbose` and JSON retain every member and source site.
+Default text `check` gives note summaries with code and site.
+`check --verbose` adds rewrites, `why` commands and explanations once per code
+and card; `why <code>` opens one on demand. Grouped notes show one-line
+summaries; verbose and JSON retain every member and source site.
 
 When the same error code and card occur twice in one text `check`, its card excerpt
 prints once under the first occurrence, with the `guide:` pointer kept at
@@ -351,7 +350,7 @@ names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page s
 its page size. Descending reads keep `last N`.
 
 When a helper is shared with a job, its viewer-query callers inherit query bounds and viewer authority.
-The non-uniform meter refusal stays at the failed loop and names the caller chain. Pinning a
+The non-uniform meter refusal names the failed loop and caller chain. If the viewer preview is unused, the diagnostic points at that query's declaration and gives its full line range; paste the printed comment over those lines. The complete job and helper stay intact. This removal is a product choice, so `check --fix` does not apply it. Pinning a
 principal in a membership loop does not decide a conversation-based read rule.
 `first 50` is a partial preview, not an equivalent complete digest: use a
 separately named paged per-chat preview with `c: cursor ?` and follow its

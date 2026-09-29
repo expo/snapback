@@ -5,11 +5,15 @@ use std::collections::BTreeMap;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SourceMap {
     expressions: BTreeMap<String, (Expr, String, bool)>,
+    pub(crate) declarations: BTreeMap<String, String>,
     pub(crate) repairs: Vec<crate::repair::Candidate>,
 }
 
 impl SourceMap {
-    pub(crate) fn extend(&mut self, other: &Self) { self.expressions.extend(other.expressions.clone()); }
+    pub(crate) fn extend(&mut self, other: &Self) {
+        self.expressions.extend(other.expressions.clone());
+        self.declarations.extend(other.declarations.clone());
+    }
 
     pub(crate) fn record(&mut self, expr: &Expr, lines: &[String], tokens: &[Token]) {
         // Block expressions consume layout tokens after their final source

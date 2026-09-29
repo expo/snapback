@@ -17,11 +17,11 @@ fn compile(tail: &str) -> snapback4_lang::Bound {
 }
 
 #[test]
-fn guessed_spelling_rewrite_keeps_calendar_duration_units() {
+fn length_alias_keeps_calendar_duration_units() {
     let b = compile("query guessed():\n  return len([day(now, 8h), bucket(now, 1d, 8h)])\n");
-    assert_eq!(b.diagnostics[0].code, "E_QUARRY_UNSUPPORTED");
-    let fixed = compile(&format!("query guessed():\n  return {}\n", b.diagnostics[0].rewrite));
-    assert!(fixed.diagnostics.is_empty(), "rewrite {:?}: {:?}", b.diagnostics[0].rewrite, fixed.diagnostics);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let fixed = compile("query guessed():\n  return count([day(now, 8h), bucket(now, 1d, 8h)])\n");
+    assert_eq!(b.programs[0].program, fixed.programs[0].program);
 }
 
 #[test]

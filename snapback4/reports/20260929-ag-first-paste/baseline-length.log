@@ -1,0 +1,5 @@
+schema.q:2:16 — E_QUARRY_UNKNOWN: unknown function length
+  rewrite: declared names: at, count, divmod, first, group, join, last, lower, max, min, sha256, share, slice, sort, sorted, sum, tokens, trim
+  guide: language
+
+check: 1 problem

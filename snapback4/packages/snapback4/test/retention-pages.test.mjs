@@ -24,7 +24,7 @@ for (const page of [null, "second"]) test(`usePage checks ${page ?? "first"} pag
   let now = 1000; t.mock.method(Date, "now", () => now);
   const { pages, source, notify } = fixture(t);
   pages.loadMore(); assert.deepEqual(pages.getSnapshot().items, ["a", "b"]);
-  source(page).reload(); notify(page);
+  source(page).reload(true); notify(page);
   const held = pages.getSnapshot();
   assert.equal(held.read.revalidating, true); assert.equal(held.read.fresh, true);
   assert.equal(pages.getSnapshot(), held);

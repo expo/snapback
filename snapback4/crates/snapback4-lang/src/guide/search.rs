@@ -40,6 +40,11 @@ query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by .handle
 ```
 
+Plain `check` counts and summarizes search warnings: unscoped completeness
+(`N_SEARCH_UNSCOPED`), word expansion (`N_SEARCH_WORDS`), opening refusal
+(`N_SEARCH_OPEN`), and per-hit roster work (`N_SEARCH_SHAPE`). `--verbose`
+adds explanations and rewrites; `--cost` adds execution costs.
+
 An empty needle, including whitespace or punctuation that folds to no terms,
 browses in the query's order under the same read rule.
 This directory uses one query, ordered by handle, with `next` to continue;

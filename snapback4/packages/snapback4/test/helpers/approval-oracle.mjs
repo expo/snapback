@@ -51,8 +51,8 @@ export function approvalOracle(t, keep) {
     if (!owner.registered && owner.approved === value) return;
     invalidate(owner); owner.approved = value; owner.registered = false; associate(owner);
   };
-  const mark = value => value.kind !== "data" || value.revalidating ? value
-    : { ...value, revalidating: true, episode: keep === undefined ? host + 1000 : undefined };
+  const mark = (value, bounded = false) => value.kind !== "data" ? value
+    : { ...value, revalidating: true, episode: value.episode ?? (bounded ? host + 1000 : undefined) };
   const rowDue = value => value.kind === "data" &&
     ((value.server !== null && server >= value.server) || (value.device !== null && device >= value.device));
   const episodeDue = value => value.kind === "data" && value.episode !== undefined && host >= value.episode;
@@ -201,8 +201,8 @@ export function approvalOracle(t, keep) {
   const reload = () => {
     latch(); const owner = currentOwner(); trace.push("reload");
     if (keep === false || owner.raw.kind !== "data") { owner.raw = loading(); withdraw(owner); }
-    else { owner.raw = mark(owner.raw); if (owner.registered) owner.approved = mark(owner.approved); }
-    f.owner().reload(); for (const notify of f.owner().subscribers) notify();
+    else { owner.raw = mark(owner.raw, true); if (owner.registered) owner.approved = mark(owner.approved, true); }
+    f.owner().reload(true); for (const notify of f.owner().subscribers) notify();
     if (owner.raw.kind !== "data") for (const record of records) if (!record.closed && record.source === owner) record.latest = undefined;
   };
   const reset = () => {

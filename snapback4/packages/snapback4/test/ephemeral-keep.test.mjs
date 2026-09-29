@@ -107,7 +107,8 @@ for (const tier of ['online', 'wasm', 'process']) test(`${tier}: kept typing sur
   now = deadline - 4000;
   // Retention episodes use elapsed wall time separately from ServerClock.
   // Own that clock too; HTTP workers and the peer keep their real clocks.
-  t.mock.method(Date, 'now', () => now);
+  const episodeWall = now;
+  t.mock.method(Date, 'now', () => episodeWall); // Isolate row expiry from the online-change episode.
   const plainReads = [], keptReads = [], boundedReads = [];
   bounded.subscribe(() => boundedReads.push(bounded.getSnapshot()));
   plain.subscribe(() => plainReads.push(plain.getSnapshot()));

@@ -7,6 +7,9 @@ pub(crate) struct Search {
     pub site: String,
     pub class: &'static str,
     pub message: String,
+    // @ref LLP 3000.007#23 — text summaries retain behavior; JSON keeps its full message.
+    #[serde(skip)]
+    pub summary: &'static str,
     pub rewrite: String,
     pub guide: &'static str,
 }
@@ -27,6 +30,7 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
         if !uniform && !schema.operations.get(&program.name).is_some_and(|f|f.held)
             && let Some(rewrite) = search_plan::scoped(schema,scan,&bindings) {
             out.push(Search { code: "N_SEARCH_UNSCOPED", site: scan.site.clone(), class: "non-uniform",
+                summary: "unscoped search cannot establish server completeness or a safe continuation through hidden rows",
                 message: "unscoped search cannot establish server completeness or a safe continuation through hidden rows; retain the filters and add the membership predicate".into(),
                 rewrite, guide: "search" });
         }
@@ -37,6 +41,8 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
             .or_else(|| if merge.is_none() {search_plan::scoped(schema,scan,&bindings)} else {None}) {
             let legacy = merge.is_some_and(|m|!search_plan::eligible(schema,m));
             out.push(Search { code: "N_SEARCH_WORDS", site: scan.site.clone(), class: "inner-expansion",
+                summary: if legacy { "word expansion and further-term misses consume the meter; an opening cut may return an incomplete or heap-null page without next or E_SEARCH_OPEN" }
+                    else { "word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work" },
                 message: format!("first-term word expansion and further-term misses consume the meter; a longer first term reduces work; grouped reads bound each preview. {}",if legacy {
                     "This merge uses the existing evaluator: an opening cut can return an incomplete or heap-null page without next or E_SEARCH_OPEN."
                 } else { "Compact server membership reads rescan words on refill and charge repeated work." }),
@@ -46,6 +52,7 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
     for merge in &merges {
         if search_plan::eligible(schema,merge) && let Some(rewrite) = search_plan::grouped(schema,merge,&bindings) {
             out.push(Search { code: "N_SEARCH_OPEN", site: merge.site.clone(), class: "one-read-opening",
+                summary: "opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation",
                 message: format!("{}every authorized membership and head must be discovered in each server read before a globally ordered hit can be emitted; this compact plan refuses E_SEARCH_OPEN on an opening cut, without a continuation; reset the cursor when switching to grouped reads", inferred.as_ref().map_or(String::new(), |plan| format!("Inferred server audience {}. Device execution keeps the bare held-row scan. ", plan.audience))),
                 rewrite, guide: "search" });
         }
@@ -65,6 +72,7 @@ pub(super) fn classify(schema: &Schema, program: &Program) -> Vec<Search> {
             if index.unique && scan.prefix.len() >= index.components.len() { continue; }
             let Some(rewrite) = merges.iter().find_map(|m|search_plan::bare(schema,m,&bindings)) else {continue};
             out.push(Search { code: "N_SEARCH_SHAPE", site: scan.site.clone(), class: "per-hit-group-decoration",
+                summary: "per-hit membership/roster reads repeat work within the query-wide meter and can cut the result",
                 message: format!("the returned message hit repeats the membership/roster subquery over {} per hit, including inside an inlined helper; read peer details separately once per distinct group", scan.table),
                 rewrite, guide: "search" });
         }

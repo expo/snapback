@@ -1,0 +1,35 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.05s
+     Running tests/check.rs (target/debug/deps/check-ca27efd9766167ff)
+
+running 1 test
+test first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite ... FAILED
+
+failures:
+
+---- first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite stdout ----
+
+thread 'first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite' (1196140) panicked at crates/snapback4/tests/check/first_paste.rs:26:9:
+check: ok — 2 tables (2 synced), 1 operations, no problems, 2 notes, 1.6 ms
+note: schema.q:4:1 — N_NO_HORIZON: table children: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; `cap 50 by parent` bounds the rows per parent, not what a device acquires — `sync public` delivers every parent's rows to every device; measure what it costs with `check --residency`
+note: schema.q:1:1 — N_NO_HORIZON: table parents: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+1 mutations never predict: save (upsert on a read-through child queues without a row; the explicit update/insert alternative needs held key coverage and additional read work, and may still queue past a horizon) — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_paste::read_through_upsert_prints_the_reason_and_guide_without_a_rewrite
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

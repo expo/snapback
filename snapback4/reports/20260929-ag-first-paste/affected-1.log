@@ -1,0 +1,141 @@
+   Compiling generic-array v0.14.7
+   Compiling typenum v1.20.1
+   Compiling subtle v2.6.1
+   Compiling libm v0.2.16
+   Compiling serde_core v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling foldhash v0.2.0
+   Compiling cpufeatures v0.2.17
+   Compiling cfg-if v1.0.4
+   Compiling tinyvec_macros v0.1.1
+   Compiling rand_core v0.6.4
+   Compiling base64ct v1.8.3
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling memchr v2.8.3
+   Compiling smallvec v1.16.1
+   Compiling wasmi_collections v2.0.0
+   Compiling spin v0.9.9
+   Compiling fallible-iterator v0.3.0
+   Compiling itoa v1.0.18
+   Compiling wasmparser v0.228.0
+   Compiling zmij v1.0.23
+   Compiling wasmi_ir v2.0.0
+   Compiling libc v0.2.189
+   Compiling serde v1.0.229
+   Compiling wasmi v2.0.0
+   Compiling getrandom v0.3.4
+   Compiling serde_json v1.0.151
+   Compiling thiserror v2.0.20
+   Compiling libsqlite3-sys v0.38.2
+   Compiling tinyvec v1.13.2
+   Compiling hashbrown v0.17.1
+   Compiling password-hash v0.5.0
+   Compiling unicode-normalization v0.1.25
+   Compiling hashlink v0.12.2
+   Compiling wasmi_core v2.0.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling argon2 v0.5.3
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 41.52s
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-04d284cc0e7c9e09)
+
+running 18 tests
+test sequence_note_uses_declared_column_and_never_marks_a_different_witness_table ... ok
+test aggregate_deadline_obeys_expiring_authorization_before_source_expiry ... ok
+test cross_group_sequence_witness_does_not_promise_first_insert_refusal ... ok
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test missing_hidden_and_expired_aggregate_parents_have_identical_metadata ... ok
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+test sequence_first_membership_reproduces_before_changes ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+test read_through_hidden_parent_has_cause ... ok
+test read_through_expired_parent_has_cause ... ok
+test read_through_missing_parent_has_cause ... ok
+test residual_sequence_parent_equality_proves_the_group_but_cross_group_does_not ... ok
+test hidden_write_rule_denials_record_causes_without_changing_not_found ... ok
+test query_and_capture_evidence_preserves_bytes_meters_and_the_authorizing_phase ... ok
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+
+     Running tests/residency_notes.rs (target/debug/deps/residency_notes-c70098270d9a6fc0)
+
+running 41 tests
+test calibration_merge_of_capped_groups_still_needs_a_cursor ... ok
+test calibration_capped_members_page_needs_no_cursor_note ... ok
+test horizon_change_notes_keep_distinct_indexes_and_deduplicate_sites ... ok
+test core_fanout_refusal_does_not_repeat_code_or_message ... ok
+test fanout_read_and_small_page_name_the_source_and_a_passing_rewrite ... ok
+test insert_arm_if_absent_is_reported_and_covered_control_stays_eligible ... ok
+test ephemeral_prediction_notes_never_teach_pending_writes ... ok
+test calibration_presence_refusal_names_source_read_without_internal_paths ... ok
+test a_reused_loop_binding_locates_the_failing_loop ... ok
+test insert_arm_nullable_unique_image_distinguishes_null_from_a_known_lookup ... ok
+test insert_arm_clique_output_names_the_first_failed_proof_everywhere ... ok
+test w10r1_no_horizon_advice_is_suppressed_by_an_eligible_whole_partition_reader ... ok
+test w10r1_no_horizon_card_matches_reader_suppression ... ok
+test maintain_note_names_readers_before_they_lose_prediction ... ok
+test predicts_assertion_accepts_eligible_and_refuses_server_at_header ... ok
+test insert_arm_rule_and_cap_causes_have_applicable_guidance ... ok
+test w16h_horizon_advice_does_not_depend_on_index_name_order ... ok
+test feed_removal_fanout_names_the_private_deciding_column_and_loop ... ok
+test w6r1_horizon_guard_distinguishes_row_invariants_from_write_retries ... ok
+test w6r1_final_exists_live_aggregate_also_keeps_source_coverage ... ok
+test w6r1_ordinary_mutation_page_keeps_growing_table_advice ... ok
+test maintain_sync_explains_inheritance_and_both_valid_choices ... ok
+test w6r2_ascending_page_advice_preserves_prediction ... ok
+test w6r1_rule_live_aggregate_keeps_source_coverage_and_summary ... ok
+test horizon_guard_remains_eligible_and_effect_only_presence_can_assert ... ok
+test predicts_assertion_refuses_online_writes_and_explicit_server_but_keeps_horizons ... ok
+test w6r2_different_index_page_advice_preserves_prediction ... ok
+test w6r2_descending_page_keeps_horizon_rewrite ... ok
+test w9r1b_insert_if_absent_rule_points_to_insert_declaration ... ok
+test w9r1b_after_insert_sites_keep_each_constraint_declaration ... ok
+test w7d_wide_membership_search_points_to_the_complete_walk ... ok
+test never_predict_change_notes_group_distinct_roots_once_per_mutation ... ok
+test horizon_calibration_advice_preserves_prediction_and_groups_sites ... ok
+test w9b_residency_sites_name_sources_for_rules_writes_presence_and_native ... ok
+test horizon_calibration_summary_and_heading_persist ... ok
+test fanout_rewrite_lists_all_unpinned_rule_columns ... ok
+test accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite ... ok
+test wide_matching_merge_note_is_conditional_when_the_read_completes ... ok
+test pinning_a_private_reader_admits_the_page_without_granting_authority ... ok
+test no_cursor_advises_continuation_and_the_capped_control_is_silent ... ok
+test capped_page_cursor_note_respects_default_examined_ceiling ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.88s
+
+     Running tests/spelling.rs (target/debug/deps/spelling-e633570fd5946c6a)
+
+running 19 tests
+test repeated_modifiers_require_a_choice_and_never_offer_to_drop_one ... ok
+test review_manager_report_merge_note_describes_related_principals ... ok
+test review_parameter_id_reports_the_primary_key_absence_requirement ... ok
+test review_minted_alias_survives_only_statements_that_do_not_assign_it ... ok
+test optional_chain_on_a_call_has_a_mechanical_single_evaluation_rewrite ... ok
+test optional_chain_on_a_bound_row_has_a_clean_field_rewrite ... ok
+test unique_positional_probe_prefers_the_full_unique_key ... ok
+test matching_can_appear_after_the_other_page_modifiers ... ok
+test rule_probes_also_prefer_the_full_unique_positional_key ... ok
+test scalar_tail_shapes_match_explicit_spreads_in_loops_and_expression_positions ... ok
+test positional_key_resolves_the_only_declared_unique_arity ... ok
+test review_parentheses_separate_both_explicit_indexes ... ok
+test optional_read_and_writing_helper_rewrites_evaluate_the_base_once ... ok
+test nested_predicate_read_does_not_capture_outer_modifiers ... ok
+test unresolved_index_choices_keep_the_exact_mechanical_refusal ... ok
+test parenthesized_inner_reads_and_helper_predicates_keep_their_scope ... ok
+test declared_shapes_after_scalar_predicates_shape_the_page ... ok
+test review_inner_index_ownership_requires_an_explicit_scope ... ok
+test all_24_page_modifier_orders_have_the_same_result ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s

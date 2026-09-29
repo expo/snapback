@@ -1,0 +1,22 @@
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-ag/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 3.20s
+     Running tests/guide.rs (target/debug/deps/guide-4b5ae9e98f053e6a)
+
+running 1 test
+test check_output_guidance_distinguishes_summaries_from_verbose_details ... FAILED
+
+failures:
+
+---- check_output_guidance_distinguishes_summaries_from_verbose_details stdout ----
+
+thread 'check_output_guidance_distinguishes_summaries_from_verbose_details' (2332283) panicked at crates/snapback4-lang/tests/guide.rs:18:5:
+assertion failed: bounds.contains("Default text `check` gives note summaries")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    check_output_guidance_distinguishes_summaries_from_verbose_details
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 98 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

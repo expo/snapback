@@ -243,7 +243,7 @@ covered. Follow and unfollow queue without prediction. Offline reads use the
 last synced follows, removals and cards; remote changes arrive on reconnect.
 Reposts need a held original, its event slot and a removal probe; otherwise the entire
 mutation queues without a row. These conditions are necessary: a horizon on
-reposts can still make its unique-pair absence unknown. `check` classifies each
+reposts can still make its unique-pair absence unknown. `check --verbose` classifies each
 transition by its source residency; follow/unfollow remain `predicts: never`.
 A synced aggregate over owned events stops prediction only when a transition
 inserts or removes an event of a kind that is not fully synced. Replies and body

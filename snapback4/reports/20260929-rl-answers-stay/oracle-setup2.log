@@ -1,0 +1,56 @@
+✖ mixed evidence schedule process: 300 independent histories (15.982066ms)
+✖ mixed evidence schedule wasm: 300 independent histories (13.542629ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 123.499221
+
+✖ failing tests:
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule process: 300 independent histories (15.982066ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/answers-stay.mjs:58:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:12:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/mixed-evidence-oracle.test.mjs:11:41
+✖ mixed evidence schedule wasm: 300 independent histories (13.542629ms)
+  AssertionError [ERR_ASSERTION]: SNAPBACK4_EXIT verb=dev generation=0 status=1 reason="1 problem in snapback/"
+
+
+  1 !== null
+
+      at file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:42
+      at until (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:11:31)
+      at async server (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/app-server.mjs:41:15)
+      at async fixture (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/helpers/answers-stay.mjs:58:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-rl/snapback4/packages/snapback4/test/mixed-evidence-oracle.test.mjs:12:13)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

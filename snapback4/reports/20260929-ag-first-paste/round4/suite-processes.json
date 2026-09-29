@@ -1,0 +1,17 @@
+[
+  {
+    "pid": 1320314,
+    "args": "bash scripts/test.sh ",
+    "stdout": "/home/ccheever/sb4-intent/lane-ag/snapback4/reports/20260929-ag-first-paste/round4/full-suite.log"
+  },
+  {
+    "pid": 1322324,
+    "args": "bash scripts/test.sh ",
+    "stdout": "/home/ccheever/sb4-intent/lane-ag/snapback4/reports/20260929-ag-first-paste/round4/full-suite.log"
+  },
+  {
+    "pid": 1322327,
+    "args": "node scripts/run-rust-tests.mjs ",
+    "stdout": "/tmp/snapback4-test.8dor64/cargo-test.log"
+  }
+]

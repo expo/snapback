@@ -1,0 +1,730 @@
+TAP version 13
+# Subtest: online evidence while already revalidating: keep=undefined, late answer
+ok 1 - online evidence while already revalidating: keep=undefined, late answer
+  ---
+  duration_ms: 2.259638
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, throw
+ok 2 - online evidence while already revalidating: keep=undefined, throw
+  ---
+  duration_ms: 0.521792
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, offline
+ok 3 - online evidence while already revalidating: keep=undefined, offline
+  ---
+  duration_ms: 0.302103
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=undefined, exhausted
+ok 4 - online evidence while already revalidating: keep=undefined, exhausted
+  ---
+  duration_ms: 175.79098
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, late answer
+ok 5 - online evidence while already revalidating: keep=true, late answer
+  ---
+  duration_ms: 0.484266
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, throw
+ok 6 - online evidence while already revalidating: keep=true, throw
+  ---
+  duration_ms: 0.326419
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, offline
+ok 7 - online evidence while already revalidating: keep=true, offline
+  ---
+  duration_ms: 0.298778
+  type: 'test'
+  ...
+# Subtest: online evidence while already revalidating: keep=true, exhausted
+ok 8 - online evidence while already revalidating: keep=true, exhausted
+  ---
+  duration_ms: 175.614896
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=undefined, failed=false
+ok 9 - actual /changes bounds the online answer: keep=undefined, failed=false
+  ---
+  duration_ms: 1054.887943
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=undefined, failed=true
+ok 10 - actual /changes bounds the online answer: keep=undefined, failed=true
+  ---
+  duration_ms: 31.443181
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=true, failed=false
+ok 11 - actual /changes bounds the online answer: keep=true, failed=false
+  ---
+  duration_ms: 1024.073625
+  type: 'test'
+  ...
+# Subtest: actual /changes bounds the online answer: keep=true, failed=true
+ok 12 - actual /changes bounds the online answer: keep=true, failed=true
+  ---
+  duration_ms: 30.380368
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on held, keep=undefined
+ok 13 - apply keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 1.947359
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on throw, keep=undefined
+ok 14 - apply keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.594791
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on held, keep=undefined
+ok 15 - admit keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 0.281562
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on throw, keep=undefined
+ok 16 - admit keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.374401
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on held, keep=undefined
+ok 17 - settle keeps its bound on held, keep=undefined
+  ---
+  duration_ms: 0.31997
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on throw, keep=undefined
+ok 18 - settle keeps its bound on throw, keep=undefined
+  ---
+  duration_ms: 0.292408
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on held, keep=true
+ok 19 - apply keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.250085
+  type: 'test'
+  ...
+# Subtest: apply keeps its bound on throw, keep=true
+ok 20 - apply keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.239079
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on held, keep=true
+ok 21 - admit keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.276154
+  type: 'test'
+  ...
+# Subtest: admit keeps its bound on throw, keep=true
+ok 22 - admit keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.317766
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on held, keep=true
+ok 23 - settle keeps its bound on held, keep=true
+  ---
+  duration_ms: 0.192028
+  type: 'test'
+  ...
+# Subtest: settle keeps its bound on throw, keep=true
+ok 24 - settle keeps its bound on throw, keep=true
+  ---
+  duration_ms: 0.216585
+  type: 'test'
+  ...
+# Subtest: process: applied membership removal and held replica replacement
+ok 25 - process: applied membership removal and held replica replacement
+  ---
+  duration_ms: 1244.515384
+  type: 'test'
+  ...
+# Subtest: process: applied membership removal and throw replica replacement
+ok 26 - process: applied membership removal and throw replica replacement
+  ---
+  duration_ms: 204.972571
+  type: 'test'
+  ...
+# Subtest: wasm: applied membership removal and held replica replacement
+ok 27 - wasm: applied membership removal and held replica replacement
+  ---
+  duration_ms: 1527.997907
+  type: 'test'
+  ...
+# Subtest: wasm: applied membership removal and throw replica replacement
+ok 28 - wasm: applied membership removal and throw replica replacement
+  ---
+  duration_ms: 179.461822
+  type: 'test'
+  ...
+# Subtest: online receipt bounds held replacement, keep=undefined
+ok 29 - online receipt bounds held replacement, keep=undefined
+  ---
+  duration_ms: 1158.536006
+  type: 'test'
+  ...
+# Subtest: online receipt bounds offline replacement, keep=undefined
+ok 30 - online receipt bounds offline replacement, keep=undefined
+  ---
+  duration_ms: 155.953846
+  type: 'test'
+  ...
+# Subtest: online receipt bounds held replacement, keep=true
+ok 31 - online receipt bounds held replacement, keep=true
+  ---
+  duration_ms: 1151.278778
+  type: 'test'
+  ...
+# Subtest: online receipt bounds offline replacement, keep=true
+ok 32 - online receipt bounds offline replacement, keep=true
+  ---
+  duration_ms: 152.122082
+  type: 'test'
+  ...
+# Subtest: online: ephemeral-only /changes bounds a held replacement
+ok 33 - online: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 155.716779
+  type: 'test'
+  ...
+# Subtest: process: ephemeral-only /changes bounds a held replacement
+ok 34 - process: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 202.93711
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral-only /changes bounds a held replacement
+ok 35 - wasm: ephemeral-only /changes bounds a held replacement
+  ---
+  duration_ms: 181.772986
+  type: 'test'
+  ...
+# Subtest: ephemeral periodic sampling is distinct from change evidence
+ok 36 - ephemeral periodic sampling is distinct from change evidence
+  ---
+  duration_ms: 1.404865
+  type: 'test'
+  ...
+# Subtest: held approved A gets offline metadata from B with A identity, confirmation and deadlines
+ok 37 - held approved A gets offline metadata from B with A identity, confirmation and deadlines
+  ---
+  duration_ms: 0.788172
+  type: 'test'
+  ...
+# Subtest: process: plain offline server watch with failed recovery keeps honest metadata
+ok 38 - process: plain offline server watch with failed recovery keeps honest metadata
+  ---
+  duration_ms: 207.96093
+  type: 'test'
+  ...
+# Subtest: wasm: plain offline server watch with failed recovery keeps honest metadata
+ok 39 - wasm: plain offline server watch with failed recovery keeps honest metadata
+  ---
+  duration_ms: 167.030078
+  type: 'test'
+  ...
+# Subtest: process: change evidence retires remembered membership answer before failed sync
+ok 40 - process: change evidence retires remembered membership answer before failed sync
+  ---
+  duration_ms: 1106.268189
+  type: 'test'
+  ...
+# Subtest: wasm: change evidence retires remembered membership answer before failed sync
+ok 41 - wasm: change evidence retires remembered membership answer before failed sync
+  ---
+  duration_ms: 1071.885512
+  type: 'test'
+  ...
+# Subtest: process: ordinary search offline classification
+ok 42 - process: ordinary search offline classification
+  ---
+  duration_ms: 300.553651
+  type: 'test'
+  ...
+# Subtest: process: ordinary search loading classification
+ok 43 - process: ordinary search loading classification
+  ---
+  duration_ms: 298.073133
+  type: 'test'
+  ...
+# Subtest: process: ordinary search denied classification
+ok 44 - process: ordinary search denied classification
+  ---
+  duration_ms: 298.39098
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search offline classification
+ok 45 - wasm: ordinary search offline classification
+  ---
+  duration_ms: 275.642722
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search loading classification
+ok 46 - wasm: ordinary search loading classification
+  ---
+  duration_ms: 267.348048
+  type: 'test'
+  ...
+# Subtest: wasm: ordinary search denied classification
+ok 47 - wasm: ordinary search denied classification
+  ---
+  duration_ms: 270.423889
+  type: 'test'
+  ...
+# Subtest: process: pre-change replica completion cannot erase a pending change bound
+ok 48 - process: pre-change replica completion cannot erase a pending change bound
+  ---
+  duration_ms: 1112.503675
+  type: 'test'
+  ...
+# Subtest: wasm: pre-change replica completion cannot erase a pending change bound
+ok 49 - wasm: pre-change replica completion cannot erase a pending change bound
+  ---
+  duration_ms: 1081.001635
+  type: 'test'
+  ...
+# Subtest: pending change requires published sync or a whole server answer at its cut
+ok 50 - pending change requires published sync or a whole server answer at its cut
+  ---
+  duration_ms: 1.059789
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=undefined
+ok 51 - process: item notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1156.232984
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=true
+ok 52 - process: item notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1128.009869
+  type: 'test'
+  ...
+# Subtest: process: item notification survives readable old replica and failed sync, keep=false
+ok 53 - process: item notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1122.299259
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=undefined
+ok 54 - process: item notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1117.897231
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=true
+ok 55 - process: item notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1124.453227
+  type: 'test'
+  ...
+# Subtest: process: item notification survives throw old replica and failed sync, keep=false
+ok 56 - process: item notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1124.66805
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=undefined
+ok 57 - process: mixed notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1121.986279
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=true
+ok 58 - process: mixed notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1126.293425
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives readable old replica and failed sync, keep=false
+ok 59 - process: mixed notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1123.950042
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=undefined
+ok 60 - process: mixed notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1124.157974
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=true
+ok 61 - process: mixed notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1126.681587
+  type: 'test'
+  ...
+# Subtest: process: mixed notification survives throw old replica and failed sync, keep=false
+ok 62 - process: mixed notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1124.230864
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=undefined
+ok 63 - wasm: item notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1475.873274
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=true
+ok 64 - wasm: item notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1088.856899
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives readable old replica and failed sync, keep=false
+ok 65 - wasm: item notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1098.59757
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=undefined
+ok 66 - wasm: item notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1089.840214
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=true
+ok 67 - wasm: item notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1085.817374
+  type: 'test'
+  ...
+# Subtest: wasm: item notification survives throw old replica and failed sync, keep=false
+ok 68 - wasm: item notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1095.565565
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=undefined
+ok 69 - wasm: mixed notification survives readable old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1093.685397
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=true
+ok 70 - wasm: mixed notification survives readable old replica and failed sync, keep=true
+  ---
+  duration_ms: 1094.04818
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives readable old replica and failed sync, keep=false
+ok 71 - wasm: mixed notification survives readable old replica and failed sync, keep=false
+  ---
+  duration_ms: 1098.970068
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=undefined
+ok 72 - wasm: mixed notification survives throw old replica and failed sync, keep=undefined
+  ---
+  duration_ms: 1092.867711
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=true
+ok 73 - wasm: mixed notification survives throw old replica and failed sync, keep=true
+  ---
+  duration_ms: 1095.974959
+  type: 'test'
+  ...
+# Subtest: wasm: mixed notification survives throw old replica and failed sync, keep=false
+ok 74 - wasm: mixed notification survives throw old replica and failed sync, keep=false
+  ---
+  duration_ms: 1096.281688
+  type: 'test'
+  ...
+# Subtest: process: only a server answer at the reported cut can replace before sync
+ok 75 - process: only a server answer at the reported cut can replace before sync
+  ---
+  duration_ms: 236.511526
+  type: 'test'
+  ...
+# Subtest: wasm: only a server answer at the reported cut can replace before sync
+ok 76 - wasm: only a server answer at the reported cut can replace before sync
+  ---
+  duration_ms: 207.98757
+  type: 'test'
+  ...
+# Subtest: process: ephemeral offline recovery preserves its classification and expiry
+ok 77 - process: ephemeral offline recovery preserves its classification and expiry
+  ---
+  duration_ms: 5104.456651
+  type: 'test'
+  ...
+# Subtest: process: ephemeral loading recovery preserves its classification and expiry
+ok 78 - process: ephemeral loading recovery preserves its classification and expiry
+  ---
+  duration_ms: 322.62175
+  type: 'test'
+  ...
+# Subtest: process: ephemeral denied recovery preserves its classification and expiry
+ok 79 - process: ephemeral denied recovery preserves its classification and expiry
+  ---
+  duration_ms: 345.879732
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral offline recovery preserves its classification and expiry
+ok 80 - wasm: ephemeral offline recovery preserves its classification and expiry
+  ---
+  duration_ms: 5060.989003
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral loading recovery preserves its classification and expiry
+ok 81 - wasm: ephemeral loading recovery preserves its classification and expiry
+  ---
+  duration_ms: 272.136034
+  type: 'test'
+  ...
+# Subtest: wasm: ephemeral denied recovery preserves its classification and expiry
+ok 82 - wasm: ephemeral denied recovery preserves its classification and expiry
+  ---
+  duration_ms: 269.185362
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=undefined
+ok 83 - process: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2454.335372
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=true
+ok 84 - process: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2456.672194
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires readable replica answers, keep=false
+ok 85 - process: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2435.939686
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=undefined
+ok 86 - process: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2438.719682
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=true
+ok 87 - process: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2440.106791
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires throw replica answers, keep=false
+ok 88 - process: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2442.842131
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=undefined
+ok 89 - process: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2443.508049
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=true
+ok 90 - process: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2437.976095
+  type: 'test'
+  ...
+# Subtest: process: real generation-only adoption retires held replica answers, keep=false
+ok 91 - process: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2441.143733
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=undefined
+ok 92 - wasm: real generation-only adoption retires readable replica answers, keep=undefined
+  ---
+  duration_ms: 2837.981468
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=true
+ok 93 - wasm: real generation-only adoption retires readable replica answers, keep=true
+  ---
+  duration_ms: 2450.738645
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires readable replica answers, keep=false
+ok 94 - wasm: real generation-only adoption retires readable replica answers, keep=false
+  ---
+  duration_ms: 2448.98739
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=undefined
+ok 95 - wasm: real generation-only adoption retires throw replica answers, keep=undefined
+  ---
+  duration_ms: 2444.744049
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=true
+ok 96 - wasm: real generation-only adoption retires throw replica answers, keep=true
+  ---
+  duration_ms: 2445.356966
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires throw replica answers, keep=false
+ok 97 - wasm: real generation-only adoption retires throw replica answers, keep=false
+  ---
+  duration_ms: 2442.632482
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=undefined
+ok 98 - wasm: real generation-only adoption retires held replica answers, keep=undefined
+  ---
+  duration_ms: 2439.767518
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=true
+ok 99 - wasm: real generation-only adoption retires held replica answers, keep=true
+  ---
+  duration_ms: 2436.636524
+  type: 'test'
+  ...
+# Subtest: wasm: real generation-only adoption retires held replica answers, keep=false
+ok 100 - wasm: real generation-only adoption retires held replica answers, keep=false
+  ---
+  duration_ms: 2441.575336
+  type: 'test'
+  ...
+# Subtest: process: generation boundary clears remembered answers and a held server completion
+ok 101 - process: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1442.411332
+  type: 'test'
+  ...
+# Subtest: wasm: generation boundary clears remembered answers and a held server completion
+ok 102 - wasm: generation boundary clears remembered answers and a held server completion
+  ---
+  duration_ms: 1437.77311
+  type: 'test'
+  ...
+# Subtest: process: quiet presence cannot publish below a pending durable cut
+ok 103 - process: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1510.233604
+  type: 'test'
+  ...
+# Subtest: wasm: quiet presence cannot publish below a pending durable cut
+ok 104 - wasm: quiet presence cannot publish below a pending durable cut
+  ---
+  duration_ms: 1476.536904
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=undefined, failed=false
+ok 105 - online: missing tables, keep=undefined, failed=false
+  ---
+  duration_ms: 1027.753386
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=undefined, failed=true
+ok 106 - online: missing tables, keep=undefined, failed=true
+  ---
+  duration_ms: 31.162641
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=true, failed=false
+ok 107 - online: missing tables, keep=true, failed=false
+  ---
+  duration_ms: 1029.495227
+  type: 'test'
+  ...
+# Subtest: online: missing tables, keep=true, failed=true
+ok 108 - online: missing tables, keep=true, failed=true
+  ---
+  duration_ms: 30.846236
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=false
+ok 109 - online: empty tables, keep=undefined, failed=false
+  ---
+  duration_ms: 1122.110742
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=undefined, failed=true
+ok 110 - online: empty tables, keep=undefined, failed=true
+  ---
+  duration_ms: 1122.99048
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=false
+ok 111 - online: empty tables, keep=true, failed=false
+  ---
+  duration_ms: 1122.566575
+  type: 'test'
+  ...
+# Subtest: online: empty tables, keep=true, failed=true
+ok 112 - online: empty tables, keep=true, failed=true
+  ---
+  duration_ms: 1122.888948
+  type: 'test'
+  ...
+# Subtest: schema discovery withdraws an overlapping invalidation: keep=undefined
+ok 113 - schema discovery withdraws an overlapping invalidation: keep=undefined
+  ---
+  duration_ms: 24.041297
+  type: 'test'
+  ...
+# Subtest: schema discovery withdraws an overlapping invalidation: keep=true
+ok 114 - schema discovery withdraws an overlapping invalidation: keep=true
+  ---
+  duration_ms: 6.161866
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=undefined
+ok 115 - online link loss follows evidence for a live settled answer immediately, keep=undefined
+  ---
+  duration_ms: 5.698272
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=undefined
+ok 116 - online link loss follows evidence for a live invalidated answer immediately, keep=undefined
+  ---
+  duration_ms: 6.687484
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=false
+ok 117 - online link loss follows evidence for a live settled answer immediately, keep=false
+  ---
+  duration_ms: 4.220887
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=false
+ok 118 - online link loss follows evidence for a live invalidated answer immediately, keep=false
+  ---
+  duration_ms: 6.688136
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live settled answer immediately, keep=true
+ok 119 - online link loss follows evidence for a live settled answer immediately, keep=true
+  ---
+  duration_ms: 5.178282
+  type: 'test'
+  ...
+# Subtest: online link loss follows evidence for a live invalidated answer immediately, keep=true
+ok 120 - online link loss follows evidence for a live invalidated answer immediately, keep=true
+  ---
+  duration_ms: 6.471971
+  type: 'test'
+  ...
+1..120
+# tests 120
+# suites 0
+# pass 120
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56987.725684
