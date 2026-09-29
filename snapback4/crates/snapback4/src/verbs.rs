@@ -42,7 +42,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["latency", "reset", "values", "no-watch", "log-empty-reads", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "allow-feed-adoption", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -865,6 +865,11 @@ pub fn why(options: &Options) -> i32 {
     if let Some(bound) = &bound {
         if let Err(error) = bound.schema.refuse_private(subject) { eprintln!("{error}"); return 1; }
         if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
+            if let Ok(evidence) = crate::serve::dev_refusals::recent(&project.data_dir(), options.flags.get("store").map(String::as_str), options.flags.get("instance").map(String::as_str)) {
+                if let Some(record) = evidence["records"].as_array().and_then(|records| records.iter().rev().find(|r| r["operation"].as_str() == Some(subject))) {
+                    println!("Latest request evidence (not a claim about this invocation): {}", record);
+                }
+            }
             println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
             println!("  returns {}", program.result.name());
             println!("{}", crate::presentation::indexes(&bound.schema, &snapback4_lang::bind::residency::operation_lines(subject, &bound.schema.operations[subject]), options.json || options.flags.contains_key("verbose")));

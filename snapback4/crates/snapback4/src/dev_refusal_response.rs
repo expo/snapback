@@ -59,15 +59,18 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             Some(code) => code,
             None if evidence.query && body.get("data").is_some() && body.get("loading") != Some(&Value::Bool(true)) => {
                 // Visibility filtering is a successful read, not a refusal.
-                if cause.as_ref().is_some_and(|cause| !cause.terminal) { return None; }
-                if cause.is_some() { "EMPTY_READ" }
-                else if empty(&body["data"]) { "EMPTY_READ" }
+                if cause.as_ref().is_some_and(|cause| !cause.terminal && !cause.no_candidate) { return None; }
+                if empty(&body["data"]) { "EMPTY_READ" }
                 else { return None; }
             }
             None => return None,
         };
         let mut record = json!({"operation":evidence.operation, "code":code, "requestId":evidence.request,
             "generation":evidence.generation, "clause":"cause not instrumented", "at":snapback4_core::now_ms()});
+        if code == "EMPTY_READ" {
+            record["cause"] = json!(if cause.as_ref().is_some_and(|c| c.no_candidate) { "no-candidate" } else { "unrecorded" });
+            record["clause"] = json!("no probe miss and no rule cause were recorded");
+        }
         if let Some(cause) = cause {
             let site = evidence.sites.get(&(cause.table.clone(), cause.phase.clone()))
                 .or_else(|| evidence.sites.get(&(cause.table.clone(), cause.clause.clone())))
@@ -88,8 +91,7 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
 fn empty(value: &Value) -> bool {
     match value {
         Value::Null => true,
-        Value::Array(values) => values.is_empty() || values.iter().any(empty),
-        Value::Object(fields) => fields.values().any(empty),
+        Value::Array(values) => values.is_empty(),
         _ => false,
     }
 }

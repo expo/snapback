@@ -11,7 +11,7 @@ pub(super) type Sites = BTreeMap<(String, String), String>;
 
 pub(crate) const DIRECTORY: &str = "dev-refusals";
 const LIMIT: usize = 32;
-const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Empty query results without a known cause use EMPTY_READ (cause not instrumented), which does not prove denial. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
+const SCOPE: &str = "Refusals of mutations, queries, asset requests and jobs. Visibility filtering in sync and reads is not recorded; inspect `snapback4 why TABLE` for read rules and sync residency, and `snapback4 guide rules`. Proven no-candidate reads stay here silently unless dev --log-empty-reads is set. Other empty query results use EMPTY_READ cause=unrecorded: no probe miss and no rule cause were recorded. Neither proves denial. Each record describes only its named operation and request or job at the recorded Unix time in milliseconds, not a later sync or read.";
 #[derive(Default, Clone)]
 pub(super) struct Recent {
     sender: Option<SyncSender<Value>>,
@@ -20,7 +20,7 @@ pub(super) struct Recent {
     watermark: Option<Arc<watermark::Watermark>>,
 }
 impl Recent {
-    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr) -> Result<Self, String> {
+    pub fn start(project: &Path, store: &str, address: std::net::SocketAddr, log_empty_reads: bool) -> Result<Self, String> {
         if !component(store) { return Err("invalid store identity for dev evidence".into()); }
         let now = snapback4_core::now_ms();
         let instance = snapback4_core::ids::mint(now, &mut 0).map_err(|e| e.to_string())?;
@@ -47,9 +47,10 @@ impl Recent {
                 if let Err(error) = save(&path, &identity, &records, writer_dropped.load(Ordering::Relaxed)) {
                     let _ = writeln!(std::io::stderr().lock(), "dev refusal: could not save local record: {error}");
                 }
+                if record["cause"] == "no-candidate" && !log_empty_reads { continue; }
                 let r = &record;
-                let _ = writeln!(std::io::stderr().lock(), "dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
-                    r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"], r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap());
+                let _ = writeln!(std::io::stderr().lock(), "dev refusal: {}: {} — {} at {}; execution site {}; store {}; instance {}; code {} cause={}; request {}; job {}; time {}; response {}; `snapback4 why recent --instance {}`",
+                    r["operation"].as_str().unwrap_or(""), r["table"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], identity["storeId"], identity["instance"], r["code"].as_str().unwrap_or(""), r["cause"].as_str().unwrap_or("rule"), r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap());
             }
         }).map_err(|e| e.to_string())?;
         Ok(Self { sender: Some(sender), dropped, requests: Default::default(), watermark: Some(watermark) })
@@ -149,7 +150,7 @@ mod tests {
     fn late_handoff_cannot_replace_a_newer_response() {
         let path = std::env::temp_dir().join(format!("sb4-response-order-{}-{}", std::process::id(), snapback4_core::now_ms()));
         fs::create_dir_all(&path).unwrap();
-        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap()).unwrap();
+        let stream = Recent::start(&path, "store", "127.0.0.1:0".parse().unwrap(), false).unwrap();
         let first = stream.watermark.as_ref().unwrap().next();
         let second = stream.watermark.as_ref().unwrap().next();
         for (sequence, operation) in [(second, "newer"), (first, "older")] {

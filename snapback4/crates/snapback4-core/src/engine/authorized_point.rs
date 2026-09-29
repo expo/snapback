@@ -155,6 +155,8 @@ impl<'r> Runner<'r> {
             let Some((mut row,_)) = row else {
                 *absent = true;
                 self.point_miss(read, key);
+                #[cfg(feature = "sqlite")]
+                if !self.device && !self.read_capped() { self.no_candidate(&read.table, &read.site); }
                 return Ok(None);
             };
             if !self.point_event_held(read, key, &row) {
@@ -168,9 +170,13 @@ impl<'r> Runner<'r> {
             // @ref LLP 3000.014#5-what-derives-from-the-capture — a hidden, expired or absent candidate's deadlines are discarded with this scope.
             let expiry = self.next_expiry.scope();
             let authorized = self.authorized_scratch(bytes, &[(MeterKind::Examined, u64::from(!prepaid_examined))], |runner, scope| {
-                let Some(row) = runner.live_lookup(scope,&read.table, &read.index, index, key)? else {
+                #[cfg(feature = "sqlite")]
+                let mut encountered = false;
+                let Some(row) = runner.live_lookup(scope,&read.table, &read.index, index, key, #[cfg(feature = "sqlite")] Some(&mut encountered))? else {
                     *absent = true;
                     runner.point_miss(read, key);
+                    #[cfg(feature = "sqlite")]
+                    if !encountered && !runner.device && !runner.read_capped() { runner.no_candidate(&read.table, &read.site); }
                     return Ok(None);
                 };
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced answers nothing.

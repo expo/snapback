@@ -37,11 +37,12 @@ impl Project {
 struct Host { child: Child, project: Arc<Project>, address: String, stderr: PathBuf }
 impl Drop for Host {fn drop(&mut self) {let _=self.child.kill();let _=self.child.wait();}}
 impl Host {
- fn start(project:Arc<Project>,dev:bool,blocked_stderr:bool)->Self {
+ fn start(project:Arc<Project>,dev:bool,blocked_stderr:bool)->Self { Self::start_logging(project, dev, blocked_stderr, false) }
+ fn start_logging(project:Arc<Project>,dev:bool,blocked_stderr:bool, log_empty:bool)->Self {
   if !dev {let out=Command::new(BIN).current_dir(&project.0).args(["deploy","release"]).output().unwrap();assert!(out.status.success(),"{}",String::from_utf8_lossy(&out.stderr));}
   let stderr=project.0.join(format!("stderr-{}.log",NEXT.fetch_add(1,Ordering::Relaxed)));
   let sink=if blocked_stderr {Stdio::piped()} else {Stdio::from(fs::File::create(&stderr).unwrap())};
-  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev {vec!["dev","--fresh","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
+  let mut child=Command::new(BIN).current_dir(&project.0).args(if dev {vec!["dev","--fresh","--no-watch","--port","0"]} else {vec!["serve","release","--port","0"]}).args(if log_empty { vec!["--log-empty-reads"] } else {vec![]}).stdout(Stdio::piped()).stderr(sink).spawn().unwrap();
   let mut line=String::new();BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
   assert!(line.starts_with("http://"),"{line}: {:?}",fs::read_to_string(&stderr));
   Self{child,project,address:line.trim().trim_start_matches("http://").into(),stderr}
@@ -189,7 +190,7 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
   loop {
    let records=dev.project.wait_record(store,op);let record=records["records"].as_array().unwrap().last().unwrap();
    let id=record["requestId"].as_u64().unwrap();
-   if id>last_id {assert_eq!(record["code"],code);assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null());last_id=id;break;}
+   if id>last_id {assert_eq!(record["code"],code);if code=="EMPTY_READ" { assert_eq!(record["cause"],"no-candidate"); assert_eq!(record["clause"],"no-candidate"); assert!(record["site"].as_str().is_some()); } else { assert_eq!(record["clause"],"cause not instrumented");assert!(record["site"].is_null()); } last_id=id;break;}
    assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(10));
   }
  }
@@ -252,4 +253,57 @@ fn why_rechecks_liveness_after_reading_the_snapshot() {
  let answer=why.wait_with_output().unwrap();
  assert!(!answer.status.success());
  assert!(String::from_utf8_lossy(&answer.stderr).contains("stopped while reading"),"{}",String::from_utf8_lossy(&answer.stderr));
+}
+
+#[test]
+fn empty_read_evidence_is_top_level_proved_and_opt_in_for_console() {
+ for log_empty in [false, true] {
+  let project=Project::new();
+  let source=format!("{SOURCE}\nquery point(id: rows):\n  return rows[id]\nquery nested():\n  return {{ field: null }}\nquery literal():\n  return null\nquery filteredThenMissing():\n  ignored = rows['hidden']\n  return rows['missing']\ntable publicRows:\n  public\n  online only\nquery publicPoint():\n  return publicRows['missing']\ntable expired:\n  until: time\n  expire at .until\n  public\n  online only\nquery expiredPoint():\n  return expired['expired']\n");
+  fs::write(project.0.join("snapback/schema.q"),source).unwrap();
+  let dev=Host::start_logging(project,true,false,log_empty);
+  let identity=dev.request("add","dev:alice","x-snapback-persona: alice");
+  let store=identity["store_id"].as_str().unwrap();
+  let missing=dev.post("/q/point",json!({"args":{"id":"missing"}}));
+  assert!(missing["data"].is_null()); assert!(missing.get("presence").is_none());
+  let record=dev.project.wait_record(store,"point");
+  let last=record["records"].as_array().unwrap().last().unwrap();
+  assert_eq!(last["code"],"EMPTY_READ"); assert_eq!(last["cause"],"no-candidate");
+  assert!(last["executionSite"].as_str().is_some_and(|s| !s.is_empty()));
+  let why=Command::new(BIN).current_dir(&dev.project.0).args(["why","point"]).output().unwrap();
+  assert!(why.status.success()); assert!(String::from_utf8_lossy(&why.stdout).contains("no-candidate"));
+  let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"missing","owner":"bob"}},{"table":"rows","row":{"id":"hidden","owner":"bob"}},{"table":"expired","row":{"id":"expired","until":1}}]));
+  assert_eq!(seed["seeded"],3);
+  let before=dev.project.why(&[]);
+  let hidden=dev.post("/q/point",json!({"args":{"id":"missing"}}));
+  assert_eq!(dev.project.why(&[]).stdout,before.stdout,"a hidden point is never reported as a probe miss or filtered refusal");
+  // The store head advances during seed; compare the entire disclosed answer
+  // at the SAME watermark using a second truly missing key.
+  let absent=dev.post("/q/point",json!({"args":{"id":"nowhere"}}));
+  assert_eq!(serde_json::to_vec(&hidden).unwrap(),serde_json::to_vec(&absent).unwrap(),"hidden and absent wire answers");
+  dev.project.wait_record(store,"point");
+  let nested=dev.post("/q/nested",json!({})); assert_eq!(nested["data"],json!({"field":null}));
+  let before_filtered=dev.project.why(&[]);
+  let _=dev.post("/q/filteredThenMissing",json!({}));
+  assert_eq!(dev.project.why(&[]).stdout,before_filtered.stdout,"a later miss cannot overwrite the filtered clause");
+  let public=dev.post("/q/publicPoint",json!({}));assert!(public["data"].is_null());
+  let evidence=dev.project.wait_record(store,"publicPoint");assert_eq!(evidence["records"].as_array().unwrap().last().unwrap()["cause"],"no-candidate");
+  let expired=dev.post("/q/expiredPoint",json!({}));assert!(expired["data"].is_null());
+  let evidence=dev.project.wait_record(store,"expiredPoint");assert_eq!(evidence["records"].as_array().unwrap().last().unwrap()["cause"],"unrecorded","encountering an expired candidate is not a raw miss");
+  let literal=dev.post("/q/literal",json!({}));assert!(literal["data"].is_null());
+  let evidence=dev.project.wait_record(store,"literal");
+  let last=evidence["records"].as_array().unwrap().last().unwrap();
+  assert_eq!(last["cause"],"unrecorded"); assert_eq!(last["clause"],"no probe miss and no rule cause were recorded");
+  let deadline=Instant::now()+Duration::from_secs(5);
+  loop {
+   let log=fs::read_to_string(&dev.stderr).unwrap();
+   if log.contains("dev refusal: literal:") {
+    assert_eq!(log.contains("cause=no-candidate"),log_empty,"{log}");
+    assert!(!log.contains("dev refusal: nested:"));assert!(!log.contains("filteredThenMissing:"));
+    assert!(log.contains("cause=unrecorded"));break;
+   }
+   assert!(Instant::now()<deadline,"{log}");std::thread::sleep(Duration::from_millis(10));
+  }
+  assert!(before.status.success());
+ }
 }
