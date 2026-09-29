@@ -144,7 +144,7 @@ try {
     const targets = all.filter(x => x.buildSettings.PRODUCT_TYPE === 'com.apple.product-type.application' && x.target === scheme);
     if (targets.length !== 1) fail('E_WITNESS_BUILD', 'no unique application product in build settings');
     settings = targets[0].buildSettings;
-    app = path.join(settings.TARGET_BUILD_DIR, settings.FULL_PRODUCT_NAME);
+    app = path.join(canonical(settings.TARGET_BUILD_DIR), settings.FULL_PRODUCT_NAME);
     const systemRoots = [command('sdk-path', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-path']),
       env.DEVELOPER_DIR ?? '/Applications/Xcode.app/Contents/Developer', '/System/Library', '/usr/lib'];
     const graphs = [];

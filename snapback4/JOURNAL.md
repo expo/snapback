@@ -77715,3 +77715,50 @@ Report: reports/20260929-np-macos-slice/round6/REPORT.md. LLP 3000.030 and the w
 card reflect the bounded build route; repack remains withdrawn. Both full reviews
 were rechecked against their saved hashes. One append-only entry; local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — NP-mac round 7: landing fixes and filesystem-order outputs
+
+First fetched and merged origin/main b9a4051494 as 209c6ebebb without conflicts;
+PQ, AV and WK remain integrated. Read prompts/reports 0–6 and Astra's round-6
+review. Strict smoke typing now retains each validated compiler fact beside its
+program before executing any query. The restored-session test's old launch omitted
+facts/generation and therefore emitted failure instead of primed; its fixture now
+uses the real running backend's compiled /schema response. All session-publication
+assertions remain, with added receipt fact/generation assertions.
+
+Preparation resolves components in filesystem order, following symlinks before
+applying parent traversal, including inside link targets. Relative output/reference
+paths preserve their components, and product lookup uses the resolved build root.
+Audit and preparation regressions preserve outside sentinels for Clang, Swift,
+linker and relative-output paths; both overwrite the sentinel on the old resolver.
+A snapshot-only source edit now detects deletion of the existing custody guard:
+normal code refuses E_WITNESS_PROOF without build.json. Both isolated mutations
+fail from a passing baseline. LLP 3000.030 states output confinement is hygiene for
+well-behaved projects, not a security boundary: Pods/build phases run arbitrary
+scripts with user privileges. Repack stays withdrawn.
+
+Ran the complete client stage on expo-build-1000 in a separate ~/sb4-np worktree:
+238 files at concurrency 24, 5,123 passed, zero failures, ten declared skips,
+407.668 s. Both serial full-count model files passed 79/79 in 307.976 s, retaining
+5,000 online and 5,000 local session sequences plus 3,000 client interleavings.
+Final README examples 6/6, guide 99/99, witness unit/Linux driver 10/10 each;
+package typecheck/build and chat check pass. Initial docs budget was 314/300 from
+the earlier lane introduction; shortened it and repeated prose to 300 without
+removing examples, increasing the budget or losing the command/measured costs.
+Final budget/self-containment and guide checks pass. A preliminary Mac package
+build lacked ignored generated wasm declarations; the Linux run used the
+supervisor's source-matched wasm, recorded its hashes, and passed. This is scoped
+verification, not a claim to have rerun all of scripts/test.sh.
+
+Mac checks pass 34 helper/preparation/smoke and 30 driver tests. One warm own
+--build passes prime/cold-offline/restart in 142.168 s, including preparation,
+install, capture finalization and hashing. Independent verification binds app/HBC,
+read-only receipt, native records, selected bundle, generation/facts and final
+helper bytes. Its fresh owned simulator signs in normally and seeds eight messages;
+it was deleted after collection. Published 0.4.7 client/native-core bytes remain
+unchanged; the disclosed local smoke helper patch carries this round's type fix.
+No new timing distribution, wasm measurement, budget increase or security claim.
+
+Report: reports/20260929-np-macos-slice/round7/REPORT.md. Raw failures, passing
+logs, controls, source bindings and native evidence are retained. One local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

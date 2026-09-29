@@ -135,17 +135,17 @@ export function createSmoke(container: WitnessContainer, environment: Environmen
         "compiler query facts do not match the kept program");
       assert(eligible.every(program => program.native !== true),
         "native queries require an application witness; generic smoke cannot classify conditional module availability");
-      for (const program of eligible) {
+      const validated = eligible.map(program => {
         const fact = facts[program.name];
         assert(fact && ["device", "server"].includes(fact.runs) && typeof fact.held === "boolean",
           `missing compiler residency for ${program.name}`);
         const kept = backend.schema.operations?.[program.name];
         assert(kept && kept.runs === fact.runs && (kept.held ?? false) === fact.held,
           `compiler residency differs from kept backend for ${program.name}`);
-      }
+        return { program, fact };
+      });
       // Validate the entire supplied set before issuing even the first query.
-      for (const program of eligible) {
-        const fact = facts[program.name];
+      for (const { program, fact } of validated) {
         const classification = fact.runs === "server" ? "online-only" : "device-answerable";
         if (w.segment !== "offline" && fact.runs !== "server") continue;
         const op = { kind: "query", name: program.name, runs: fact.runs, ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;

@@ -60,6 +60,41 @@ test('Xcode shell environment keeps executable paths literal', () => {
   assert.equal(result.stdout, value);
 });
 
+test('output audits follow symlinks before parent traversal, including within link targets', async () => {
+  const { auditNativeProject, canonical } = await import('../../../crates/snapback4/src/verbs/witness/native-closure.mjs');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'np-output-traversal-')));
+  const cache = root + '/cache', dir = root + '/ios/Pods', sentinel = root + '/sentinel';
+  try {
+    fs.mkdirSync(cache); fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(root + '/outside-subdir');
+    fs.writeFileSync(sentinel, 'another owner');
+    fs.symlinkSync(root + '/outside-subdir', cache + '/link');
+    const escaped = cache + '/link/../sentinel'; // Do not lexically join away '..'.
+    fs.symlinkSync('link/../sentinel', cache + '/alias');
+    fs.symlinkSync('link/../missing', cache + '/dangling-alias');
+    const graph = { rootObject: 'project', objects: { project: { isa: 'PBXProject' },
+      target: { isa: 'PBXNativeTarget', name: 'Pod', buildPhases: [] } } };
+    const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache };
+    const audit = extra => auditNativeProject(graph, dir, [{ target: 'Pod', buildSettings: { ...settings, ...extra } }], root, cache, [], 'App');
+    for (const dest of [escaped, cache + '/alias', cache + '/dangling-alias']) {
+      for (const extra of [{ OTHER_CFLAGS: `-MJ ${dest}` },
+        { OTHER_SWIFT_FLAGS: `-Xfrontend -emit-module-interface-path -Xfrontend ${dest}` },
+        { LD_MAP_FILE_PATH: dest }, { INFOPLIST_PATH: dest.slice(cache.length + 1) }]) {
+        let refusal;
+        try { audit(extra); fs.writeFileSync(dest, 'compiler output'); } catch (error) { refusal = error; }
+        assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner', JSON.stringify(extra));
+        assert.equal(fs.existsSync(root + '/missing'), false, JSON.stringify(extra));
+        assert.match(String(refusal), /E_WITNESS_NATIVE_COMPAT: Pod: output .* escapes private workspace/);
+      }
+    }
+    assert.equal(canonical(escaped), sentinel);
+    assert.equal(canonical(cache + '/alias'), sentinel);
+    assert.equal(canonical(cache + '/dangling-alias'), root + '/missing');
+    fs.mkdirSync(cache + '/private-subdir');
+    fs.symlinkSync('private-subdir', cache + '/private-link');
+    assert.doesNotThrow(() => audit({ LD_MAP_FILE_PATH: cache + '/private-link/../new-output' }));
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('installation accepts only the measured framework execute-bit normalization', () => {
   const file = { path: 'Frameworks/Hermes.framework/Hermes', type: 'file', mode: 0o755, bytes: 100, sha256: 'same' };
   const base = { files: [file] }, installed = { files: [{ ...file, mode: 0o644 }] };
@@ -242,6 +277,22 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     assert.equal(fs.existsSync(path.join(danglingBuild.out, 'xcode-build.log')), false);
     assert.equal(fs.existsSync(path.join(danglingBuild.out, 'build.json')), false);
     fs.unlinkSync(dangling);
+    fs.mkdirSync(path.join(root, 'outside-subdir'));
+    const traversal = path.join(project, '.snapback4-witness/traversal');
+    const alias = path.join(project, '.snapback4-witness/traversal-alias');
+    fs.symlinkSync(path.join(root, 'outside-subdir'), traversal);
+    fs.symlinkSync('traversal/../outside-sentinel', alias);
+    for (const kind of ['clang', 'swift', 'linker', 'relative']) {
+      for (const prefix of kind === 'relative' ? ['parent-output:'] : ['parent-output:', 'parent-link:']) {
+        const fault = prefix + kind, bad = run('build', fault, fault);
+        assert.equal(fs.readFileSync(sentinel, 'utf8'), 'another owner', fault);
+        assert.equal(bad.status, 1, bad.stderr);
+        assert.match(bad.stderr, /E_WITNESS_NATIVE_COMPAT: Pod: output .* escapes private workspace/);
+        assert.equal(fs.existsSync(path.join(bad.out, 'xcode-build.log')), false);
+        assert.equal(fs.existsSync(path.join(bad.out, 'build.json')), false);
+      }
+    }
+    fs.unlinkSync(alias); fs.unlinkSync(traversal);
     const badBuild = run('build', 'bad-build', 'build-hbc');
     assert.equal(badBuild.status, 1, badBuild.stderr);
     assert.match(badBuild.stderr, /E_WITNESS_HERMES: bundle and installed compiler HBC versions differ/);
@@ -289,6 +340,15 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     assert.match(failed.stderr, /E_WITNESS_BUILD: xcode-build failed \(65\)/);
     assert.equal(hbc(product + '/main.jsbundle').sha256, b.executedApp.javascript.sha256);
     assert.equal(fs.existsSync(path.join(failed.out, 'build.json')), false);
+    // The build consumes a changed snapshot while the live source stays B.
+    // Only the snapshot custody guard can prevent sealing this source mismatch.
+    const changedSnapshot = run('build', 'snapshot-source', 'snapshot-source');
+    assert.equal(fs.readFileSync(path.join(project, 'javascript.txt'), 'utf8'), 'B');
+    assert.equal(fs.readFileSync(path.join(project, '.snapback4-witness/snapshot/javascript.txt'), 'utf8'), 'C');
+    assert.equal(fs.readFileSync(product + '/main.jsbundle')[127], 'C'.charCodeAt(0));
+    assert.equal(changedSnapshot.status, 1, changedSnapshot.stderr);
+    assert.match(changedSnapshot.stderr, /E_WITNESS_PROOF: snapshot source changed during preparation/);
+    assert.equal(fs.existsSync(path.join(changedSnapshot.out, 'build.json')), false);
     for (const [fault, expected] of [
       ['swift-output', /Pod: output flag -emit-module-interface-path escapes private workspace/],
       ['swift-index-output', /Pod: output flag -index-store-path escapes private workspace/],

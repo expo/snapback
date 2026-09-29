@@ -10,6 +10,14 @@ Object.defineProperty(process, 'arch', { value: 'arm64' });
 const fixture = path.join(root, 'fixture.app');
 const cache = path.join(root, 'project/.snapback4-witness'), derived = path.join(cache, 'DerivedData');
 const product = path.join(derived, 'Build/Products/fixture.app');
+const traversalOutput = fault?.startsWith('parent-output:') || fault?.startsWith('parent-link:');
+const traversalDestination = fault?.startsWith('parent-link:') ? cache + '/traversal-alias' : cache + '/traversal/../outside-sentinel';
+const traversalSettings = {
+  clang: { OTHER_CFLAGS: '-MJ ' + traversalDestination },
+  swift: { OTHER_SWIFT_FLAGS: '-Xfrontend -emit-module-interface-path -Xfrontend ' + traversalDestination },
+  linker: { LD_MAP_FILE_PATH: traversalDestination },
+  relative: { INFOPLIST_PATH: '../../../traversal/../outside-sentinel' },
+};
 child.spawnSync = (exe, args, options) => {
   let stdout = '', status = 0;
   if (exe === '/usr/bin/plutil') stdout = fs.readFileSync(args.at(-1), 'utf8');
@@ -26,6 +34,7 @@ child.spawnSync = (exe, args, options) => {
         ...(pod && (fault?.startsWith('LD_') || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH'].includes(fault)) ? { [fault]: root + '/outside-sentinel' } : {}),
         ...(pod && fault?.startsWith('destination:') ? { [fault.slice(12)]: root + '/outside-sentinel' } : {}),
         ...(pod && fault === 'dangling-output' ? { LD_MAP_FILE_PATH: cache + '/dangling-output' } : {}),
+        ...(pod && traversalOutput ? traversalSettings[fault.split(':')[1]] : {}),
         ...(!pod && fault === 'skip-bundling' ? { SKIP_BUNDLING: '1' } : {}),
         ...(pod && fault === 'sourcemap' ? { SOURCEMAP_FILE: root + '/outside-sentinel' } : {}),
         ...(pod && fault === 'swift-output' ? { OTHER_SWIFT_FLAGS: '-Xfrontend -emit-module-interface-path -Xfrontend ' + root + '/outside-sentinel' } : {}),
@@ -36,12 +45,14 @@ child.spawnSync = (exe, args, options) => {
     } else {
       if (fault?.startsWith('destination:')) fs.writeFileSync(root + '/outside-sentinel', 'overwritten by Xcode task');
       if (fault === 'dangling-output') fs.writeFileSync(cache + '/dangling-output', 'created by linker');
+      if (traversalOutput) fs.writeFileSync(traversalDestination, 'overwritten through symlink and parent traversal');
       if (fault?.startsWith('LD_') || ['PER_ARCH_OBJECT_FILE_DIR', 'COMPILATION_CACHE_CAS_PATH', 'sourcemap', 'swift-output', 'swift-index-output', 'clang-output'].includes(fault)) fs.writeFileSync(root + '/outside-sentinel', 'overwritten by compiler or bundler');
       fs.mkdirSync(args[args.indexOf('-resultBundlePath') + 1], { recursive: true });
       fs.cpSync(fixture, product, { recursive: true, filter: file => path.basename(file) !== 'main.jsbundle' });
       // A warm build may exit zero and leave any existing bundle untouched.
       // Also model an inherited skip default unless the invocation pins it empty.
       if (fault !== 'skipped-phase' && (args.includes('SKIP_BUNDLING=') || fault !== 'requires-pin')) {
+        if (fault === 'snapshot-source') fs.writeFileSync(cache + '/snapshot/javascript.txt', 'C');
         const bytes = fs.readFileSync(fixture + '/main.jsbundle');
         bytes[127] = fs.readFileSync(cache + '/snapshot/javascript.txt')[0];
         fs.writeFileSync(product + '/main.jsbundle', bytes);

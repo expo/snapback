@@ -5,22 +5,26 @@ import { hash, fail } from './payload.mjs';
 import { phaseHashes, supportHashes } from './native-scripts.mjs';
 const inside = (p, root) => p === root || p.startsWith(root + path.sep);
 const refuse = value => fail('E_WITNESS_NATIVE_COMPAT', `${value}; use witness ios --build (or manual installed-app mode for unsupported inputs)`);
+// Preserve components until canonical() has followed preceding symlinks.
+const absoluteFrom = (file, base) => path.isAbsolute(file) ? file : base + path.sep + file;
 export function canonical(file) {
-  const links = new Set();
-  function resolve(file) {
-    let parent = path.resolve(file);
-    while (!fs.lstatSync(parent, { throwIfNoEntry: false }) && parent !== path.dirname(parent)) parent = path.dirname(parent);
-    // A missing target still has a destination. Resolve it for output auditing
-    // and for system-library inputs whose bytes live in the macOS shared cache.
-    if (fs.lstatSync(parent).isSymbolicLink() && !fs.existsSync(parent)) {
-      if (links.has(parent) || links.size >= 40) refuse(`unresolved native symlink: ${parent}`);
-      links.add(parent);
-      const target = path.resolve(path.dirname(parent), fs.readlinkSync(parent));
-      return path.resolve(resolve(target), path.relative(parent, file));
-    }
-    return path.resolve(fs.realpathSync(parent), path.relative(parent, file));
+  const pending = absoluteFrom(file, process.cwd()).split(path.sep);
+  let resolved = path.parse(process.cwd()).root, links = 0;
+  while (pending.length) {
+    const component = pending.shift();
+    if (!component || component === '.') continue;
+    if (component === '..') { resolved = path.dirname(resolved); continue; }
+    const next = path.join(resolved, component);
+    if (fs.lstatSync(next, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      if (++links > 40) refuse(`unresolved native symlink: ${next}`);
+      const target = fs.readlinkSync(next);
+      if (path.isAbsolute(target)) resolved = path.parse(target).root;
+      pending.unshift(...target.split(path.sep));
+    } else resolved = next;
   }
-  return resolve(file);
+  // Missing targets remain meaningful for planned outputs and macOS
+  // shared-cache library inputs. Process '..' only after following each link.
+  return resolved;
 }
 // Deliberately no shell evaluation. Unknown substitutions/quoting fail closed.
 export function words(text) {
@@ -82,7 +86,7 @@ export function validateOutputs(rows, cache) {
       if (!s.WRAPPER_NAME && ['PRIVATE_HEADERS_FOLDER_PATH', 'PUBLIC_HEADERS_FOLDER_PATH'].includes(key) && value === '/usr/local/include') continue;
       if (key === 'XPCSERVICES_FOLDER_PATH' && value === '/XPCServices' && !s.WRAPPER_NAME) continue;
       const base = key === 'DWARF_DSYM_FILE_NAME' ? s.DWARF_DSYM_FOLDER_PATH || s.TARGET_BUILD_DIR : s.TARGET_BUILD_DIR;
-      if (typeof value !== 'string' || value.includes('$') || !inside(canonical(path.resolve(base, value)), owned)) refuse(`${target}: output ${key} escapes private workspace: ${value}`);
+      if (typeof value !== 'string' || value.includes('$') || !inside(canonical(absoluteFrom(value, base)), owned)) refuse(`${target}: output ${key} escapes private workspace: ${value}`);
     }
     if (s.FULL_PRODUCT_NAME && (s.FULL_PRODUCT_NAME !== path.basename(s.FULL_PRODUCT_NAME) || s.FULL_PRODUCT_NAME === '..')) refuse(`${target}: invalid FULL_PRODUCT_NAME`);
   }
@@ -93,7 +97,7 @@ export function closureResolver(root, cache, systemRoots) {
   const systems = systemRoots.map(canonical), derived = path.join(cache, 'DerivedData');
   return (raw, base = path.join(root, 'ios')) => {
     if (!raw || /[\0\n$]/.test(raw)) refuse(`unresolved native input: ${raw}`);
-    const p = canonical(path.resolve(base, raw.replace(/\/\*\*$/, '')));
+    const p = canonical(absoluteFrom(raw.replace(/\/\*\*$/, ''), base));
     if (systems.some(r => inside(p, r))) return { path: p, kind: 'toolchain' };
     if (inside(p, derived)) return { path: p, kind: 'generated' };
     if (roots.some(r => inside(p, r)) && !p.includes('/xcuserdata')
