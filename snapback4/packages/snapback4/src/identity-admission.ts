@@ -115,18 +115,30 @@ export function checkLocalIdentity(state: StoreCapture | undefined, generation: 
   return !!state.store_id && !state.backend_required;
 }
 
+// Device restore retains core::ir::Program; /schema adds execution metadata and
+// declaration ordering. Compare the shared interpreter fields, keeping ordered
+// bodies intact. Native descriptors can also be filled in after an offline open.
+function backendKey(backend: BackendJson | null): string {
+  const programs = backend?.programs.map(program => ({
+    name: program.name, kind: program.kind, args: program.args, body: program.body,
+    native: program.native ?? false, read_time_granularity_ms: program.read_time_granularity_ms ?? null,
+    returned_shapes: program.returned_shapes ?? {},
+  })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  return JSON.stringify([backend?.schema, programs], (_key, value) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value);
+}
+
 /** Pin the first successful read, even when the cached backend has no store id. */
 export function localAdmissionIdentity(captured: BackendJson | null, generation: number) {
-  // Native descriptors can be filled in after an offline open without replacing the backend.
-  const key = (backend: BackendJson | null) => JSON.stringify([backend?.schema, backend?.programs]);
-  const capturedKey = key(captured), expectedStore = captured?.store_id;
+  const capturedKey = backendKey(captured), expectedStore = captured?.store_id;
   let pinned: { store: string; backend: string | undefined } | undefined;
   return {
     fields: () => ({ expected_store: pinned?.store, expected_generation: generation, expected_backend: pinned?.backend }),
     check(state: StoreCapture | undefined, backend: BackendJson | null, currentGeneration: number, unavailable: Refusal | null) {
       const fingerprint = state?.adoption_capture?.["device:backend-identity"] ?? undefined;
       const ready = checkLocalIdentity(state, generation, pinned?.store ?? expectedStore,
-        key(backend) !== capturedKey || currentGeneration !== generation || (pinned !== undefined && pinned.backend !== fingerprint), unavailable);
+        backendKey(backend) !== capturedKey || currentGeneration !== generation || (pinned !== undefined && pinned.backend !== fingerprint), unavailable);
       if (ready === true) pinned ??= { store: state!.store_id!, backend: fingerprint };
       return ready;
     },

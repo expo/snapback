@@ -77750,3 +77750,42 @@ LLP 3000.007 §20.4 and the operations manual describe the repaired boundaries.
 Report, review snapshots, all negative controls and exact results:
 reports/20260929-ea-admit-before-identity/round5/REPORT.md. The local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — EA round 6: semantic backend refresh and suspension coverage
+
+Read rounds 0–5's prompts/reports and Astra's full round-5 NOT READY review.
+Merged origin/main 283be371e9 at entry in f1ac03ae46, keeping both histories with
+no conflicts. Round 3's memory-only wait remains; no pre-identity custody returns.
+
+Fixed the false E_ADMISSION_STORE when an offline-restored backend is refreshed
+from real /schema while a mutation's final identity read is held. The comparator
+now uses stable object-key ordering, programs sorted by name and the seven common
+interpreter fields, including their optional defaults. Schema content, ordered
+bodies, store identity, generation and the pinned device fingerprint remain
+checked. A real server/process-device/native-module regression now installs the
+module through a native query, then admits and sends the original waiting write
+exactly once. It fails on round 5 and when raw JSON.stringify is restored. Seven
+controls still refuse changes to each interpreter field; existing schema and
+store/fingerprint controls remain.
+
+Added detecting suspension tests for initial and final identity I/O. They advance
+mocked wall time 15,001 ms without running timers, resolve the held read and
+require E_ADMISSION_TIMEOUT with zero admissions. Production already enforced
+this deadline; deleting either post-I/O check now fails its test, and deleting
+both fails both. No deadline, invariant or assertion was relaxed.
+
+Affected checks passed 216/216; delivery matrix 321/321; whole guide 99/99;
+package build/typecheck and LLP reference validation passed (523 LLPs, 9,916 refs,
+zero errors or unchecked). Ran scripts/test.sh exactly once, exit 0:
+`== 0 failure(s) in 1253 s`. Rust passed 4,331 with 33 declared ignores; clients
+passed 5,166 with ten existing skips and no cancellations; fixture wrappers 9/9;
+models 79/79, including 10,000 session and 3,000 online-client sequences. All
+other stages passed. Full-run failures: ours 0, baseline 0, environmental 0.
+The final source/test/doc hashes stayed unchanged throughout. The inherited
+60-second suite budget remains missed; no budget or count was relaxed.
+
+Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged 593,719 B cap.
+LLP 3000.007 §20.4 and the operations manual explain the semantic comparison.
+Report and all detecting controls: reports/20260929-ea-admit-before-identity/round6/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { mkdtempSync, rmSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { launch, devServer, root, binary } from "../../../witness/lib.mjs";
@@ -676,4 +677,170 @@ for (const change of ['native descriptor', 'schema', 'programs']) test(`waiting 
     assert.equal(write.why?.code, 'E_ADMISSION_STORE'); assert.equal(admissions, 0);
   }
   assert.deepEqual(waiter.pending(), []);
+});
+
+// Astra round 5: elapsed wall time must win even before overdue timers run.
+for (const phase of ['initial', 'final']) test(`suspended runtime refuses late ${phase} identity before timer delivery`, async t => {
+  const { IdentityWait } = await import('../dist/identity-admission.js');
+  const { setImmediate: tick } = await import('node:timers/promises');
+  const held = Promise.withResolvers(), waiter = new IdentityWait(() => {});
+  let reads = 0, admissions = 0, timerFired = false;
+  t.after(() => { waiter.close(); held.resolve(true); });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  setTimeout(() => { timerFired = true; }, 15_000);
+  const writing = waiter.run({ id: 'suspended', op: 'send', args: {} },
+    () => ++reads === 1 && phase === 'final' ? Promise.resolve(true) : held.promise,
+    async release => { admissions++; release(); return { state: 'pending', id: 'suspended' }; },
+    why => ({ state: 'failed', id: 'suspended', why }));
+  await tick(); assert.equal(reads, phase === 'initial' ? 1 : 2);
+  t.mock.timers.setTime(Date.now() + 15_001);
+  held.resolve(true);
+  const outcome = await writing;
+  assert.equal(timerFired, false, 'wall time advanced without executing timers');
+  assert.equal(outcome.why?.code, 'E_ADMISSION_TIMEOUT');
+  assert.equal(admissions, 0);
+  assert.equal(reads, phase === 'initial' ? 1 : 2, 'late initial identity cannot start a final read');
+  assert.deepEqual(waiter.pending(), []);
+});
+
+test('offline cached backend to real /schema refresh preserves waiting admission', { timeout: 120_000 }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-identity-native-refresh-'));
+  const clients = [], held = Promise.withResolvers();
+  let server, exited;
+  t.after(async () => {
+    held.resolve();
+    await Promise.allSettled(clients.map(c => c.close()));
+    if (server?.exitCode === null && server.signalCode === null) server.kill();
+    await exited;
+    rmSync(dir, { recursive: true, force: true });
+  });
+  cpSync(join(root, 'apps/chat/snapback'), join(dir, 'snapback'), { recursive: true });
+  const schema = join(dir, 'snapback/schema.q');
+  writeFileSync(schema, readFileSync(schema, 'utf8') + '\nquery nativeRead(): native\n');
+  cpSync(join(root, 'native-fixtures/following'), join(dir, 'snapback/native'), { recursive: true });
+  writeFileSync(join(dir, 'snapback/native/src/lib.rs'), `use snapback4_native::{Ctx, Json, Result, json};
+snapback4_native::module! { reads: [nativeRead] }
+#[allow(non_snake_case)]
+fn nativeRead(_ctx: &Ctx, _args: &Json) -> Result<Json> { Ok(json!([])) }
+`);
+  const manifest = join(dir, 'snapback/native/Cargo.toml');
+  writeFileSync(manifest, readFileSync(manifest, 'utf8')
+    .replace('sb4-fixture-following', 'sb4-fixture-identity-refresh')
+    .replace('../../crates/snapback4-native', join(root, 'crates/snapback4-native')));
+  mkdirSync(join(dir, 'snapback/generated'), { recursive: true });
+  mkdirSync(join(root, 'target/native-fixture'), { recursive: true });
+  symlinkSync(join(root, 'target/native-fixture'), join(dir, 'snapback/generated/native-target'), 'dir');
+  server = spawn(binary(), ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  exited = new Promise(resolve => server.once('close', resolve));
+  let log = '', api, spawnError;
+  server.on('error', error => { spawnError = error; });
+  for (const stream of [server.stdout, server.stderr]) stream.on('data', bytes => {
+    log += bytes; api ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+  });
+  const start = performance.now();
+  while (!api) {
+    if (spawnError) throw spawnError;
+    assert.equal(server.exitCode, null, log);
+    assert.ok(performance.now() - start < 90_000, log);
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  const wire = await (await nodeFetch(`${api}/schema`, { headers: { 'x-snapback-persona': 'alice' } })).json();
+  assert.equal((await nodeFetch(`${api}/seed`, { method: 'POST', body: JSON.stringify(seed) })).ok, true);
+  let mode = 'initial', schemas = 0, natives = 0;
+  const posts = [], events = [];
+  const open = async () => {
+    let core;
+    const opener = processDevice({ dir: join(dir, 'device'), binary: binary() });
+    const options = { url: api, persona: 'alice', device: { async open(...args) { return core = await opener.open(...args); } },
+      fetch: async (url, init) => {
+        if (mode === 'offline') throw new TypeError('offline fixture');
+        const path = new URL(url).pathname;
+        if (path === '/schema') schemas++;
+        if (path === '/native.wasm') { natives++; if (mode === 'initial') throw new TypeError('module not yet installed'); }
+        if (path.startsWith('/m/')) posts.push(JSON.parse(init.body));
+        return nodeFetch(url, init);
+      } };
+    const p = await prepareClient(options, () => createLocalClient(options));
+    clients.push(p.client); return { ...p, core };
+  };
+  const initial = await open(); await initial.client.close();
+  mode = 'offline'; const p = await open();
+  const cached = (await p.core.call({ op: 'backend' })).ok;
+  assert.equal(cached.store_id, undefined);
+  assert.equal(cached.native, undefined);
+  assert.equal((await p.core.call({ op: 'state' })).ok.native, null);
+  assert.notDeepEqual(cached.programs.map(p => p.name), wire.programs.map(p => p.name), 'real program ordering differs');
+  const cachedSend = cached.programs.find(p => p.name === 'send'), wireSend = wire.programs.find(p => p.name === 'send');
+  assert.ok('predicts' in wireSend && 'requires' in wireSend && 'sites' in wireSend);
+  assert.ok(!('predicts' in cachedSend) && !('requires' in cachedSend) && !('sites' in cachedSend));
+  // Publish identity after opening, so the client still enters its waiting path.
+  assert.ok(!(await p.core.call({ op: 'apply', first: true, page: { generation: cached.generation,
+    snapshot: true, events: [], watermark: 0, images_at: 0, committed_above: {}, more: false, store_id: wire.store_id } })).denied);
+  const invoke = p.core.call, before = (await invoke({ op: 'sync_state', capture: false })).ok;
+  let checks = 0;
+  const admissions = [];
+  p.core.call = async (request, committed) => {
+    if (request.op === 'sync_state' && request.capture === false && ++checks === 2) await held.promise;
+    if (request.op === 'admit') admissions.push(request);
+    return invoke(request, committed);
+  };
+  p.client.onWrite(write => events.push(write));
+  const writing = p.client.mutate(op, args('same backend'), { waitSeconds: 0 });
+  await until(() => checks === 2, 'waiting mutation reached final identity read');
+  const id = (await p.client.pendingWrites())[0].id;
+  assert.deepEqual((await invoke({ op: 'queued' })).ok, []);
+  assert.equal(admissions.length, 0); assert.equal(posts.length, 0);
+  mode = 'online'; await p.client.sync(); await p.start();
+  const beforeSchema = schemas, beforeNative = natives;
+  const read = await p.client.query({ kind: 'query', name: 'nativeRead' }, {});
+  assert.deepEqual(read.data, []);
+  assert.equal(schemas - beforeSchema, 1, 'native query fetched the actual /schema');
+  assert.equal(natives - beforeNative, 1);
+  assert.equal((await invoke({ op: 'state' })).ok.native, wire.native.digest, 'real module installed');
+  const after = (await invoke({ op: 'sync_state', capture: false })).ok;
+  assert.equal(after.store_id, before.store_id);
+  assert.equal(after.generation, before.generation);
+  assert.equal(after.adoption_capture['device:backend-identity'], before.adoption_capture['device:backend-identity']);
+  held.resolve();
+  const write = await writing;
+  assert.equal(write.state, 'pending', JSON.stringify(write));
+  assert.equal(write.id, id); assert.equal(admissions.length, 1);
+  await until(() => events.length === 1, 'original waiting write settled');
+  assert.deepEqual(posts.map(p => p.id), [id]);
+  assert.equal(events[0].state, 'sent'); assert.equal(events[0].id, id);
+  assert.equal((await p.client.write(id)).state, 'sent');
+  assert.deepEqual(await p.client.pendingWrites(), []);
+  t.diagnostic(JSON.stringify({ schemas: schemas - beforeSchema, nativeInstalls: natives - beforeNative, admissions: admissions.length, posts: posts.length }));
+});
+
+test('backend comparison preserves interpreter semantics while normalizing representation', async t => {
+  const { localAdmissionIdentity } = await import('../dist/identity-admission.js');
+  const captured = { generation: 1, schema: { tables: {}, operations: { z: { runs: 'device', held: false } } }, programs: [
+    { name: 'z', kind: 'Mutation', args: { b: 'Int', a: 'Bool' }, body: [{ Return: 1 }, { Return: 2 }] },
+    { name: 'a', kind: 'Query', args: {}, body: [] },
+  ] };
+  const state = { generation: 1, store_id: 'A', backend_required: false, adoption_capture: { 'device:backend-identity': 'same' } };
+  const reordered = value => Array.isArray(value) ? value.map(reordered)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).reverse().map(([k, v]) => [k, reordered(v)])) : value;
+  const refreshed = reordered(captured);
+  refreshed.programs.reverse();
+  refreshed.programs.forEach(p => Object.assign(p, { predicts: 'eligible', requires: [], sites: [],
+    native: false, read_time_granularity_ms: null, returned_shapes: {} }));
+  const pin = localAdmissionIdentity(captured, 1);
+  assert.equal(pin.check(state, captured, 1, null), true);
+  assert.equal(pin.check(state, refreshed, 1, null), true);
+  const changes = {
+    name: p => { p.name += 'changed'; },
+    kind: p => { p.kind = 'Query'; },
+    args: p => { p.args.b = 'Bool'; },
+    body: p => { p.body.reverse(); },
+    native: p => { p.native = true; },
+    read_time_granularity_ms: p => { p.read_time_granularity_ms = 1000; },
+    returned_shapes: p => { p.returned_shapes = { '0': 'read-site' }; },
+  };
+  for (const [field, change] of Object.entries(changes)) await t.test(field, () => {
+    const replacement = structuredClone(refreshed);
+    change(replacement.programs.find(p => p.name === 'z'));
+    assert.equal(pin.check(state, replacement, 1, null).code, 'E_ADMISSION_STORE');
+  });
 });

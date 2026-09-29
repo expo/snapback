@@ -23,6 +23,8 @@ export interface ProgramJson extends OperationFacts {
   kind: "Query" | "Mutation" | "job" | "action";
   args: Record<string, unknown>;
   body: unknown[];
+  read_time_granularity_ms?: number | null;
+  returned_shapes?: Record<string, string>;
   /** The body is the app's native module (LLP 3000.005). */
   native?: boolean;
   held?: boolean;

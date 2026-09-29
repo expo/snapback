@@ -1011,9 +1011,10 @@ admitted writes retain their ordinary durable recovery.
 Identity revalidation shares the 15-second identification budget; waiting behind
 an earlier ordinary admission is excluded; predecessor identity checks still
 consume it. The first successful identification
-pins each call's store and backend fingerprint. Filling a missing native
-descriptor after an offline open preserves that identity; changing schema or
-programs does not. A published store ID still
+pins each call's store and backend fingerprint. Refreshing the same backend from
+`/schema` after an offline open preserves that identity: object-key and program
+ordering, execution metadata and a missing native descriptor do not change its
+schema or interpreter programs. Changing those contents does. A published store ID still
 requiring adoption stays unready; temporary unreadiness resumes bounded polling. The final read must match those
 pins, which the browser rechecks inside its serialized admission transaction:
 an incompatible or unreadable identity returns `E_ADMISSION_STORE` through
