@@ -76834,3 +76834,79 @@ spawned agent, push or publication. Report:
 `/Users/ccheever/projects/snapback-sb5-program/presence-merge.final.md`.
 
 Final `./ref-check --verbose`: `ref-check: ok — 524 LLP docs, 9890 refs in 29147 files, 0 errors, 0 unchecked`.
+
+
+## 2026-09-29 — Existence: blind-review corrections and discovery
+
+Read the complete Astra code review and its supplied evidence before editing.
+LLP 3000.031 remains the spine at its existing filename; its title/body and
+Revised line now record the name and the collision with the connected[p] card.
+The public read field and helper are existence and existence(read), with the
+same present/absent/partial meanings. The classifier, publication helpers,
+hooks/pages, tests, both starters, chat/Expo consumers, client/offline cards
+and CLIENT-AND-OPERATIONS use the new spelling. Earlier journal entries remain
+historical. Connected-state presence and guide presence retain their meaning.
+
+B1: one pendingRead callback now serves evaluateLocal and localWatch. Its
+LocalReads.pending predicate combines active admissions with unknown or
+intersecting predictions; queuedPredictions supplies the same queue footprints.
+The copied successful-insertion regression failed on native and wasm before
+the fix (query absent, observe partial); both now stay partial until admission
+releases and then publish present. The affected group passed 242 checks.
+No await or delivery I/O was added; the await inventory only moves the renamed
+zero-await read-existence module entry.
+
+B2/B3: named covariant Present/Partial/Absent interfaces replace deferred
+conditional arms. isReady retains data: T; present removes null; partial is T;
+absent intersects T with null | []. Astra's generic consumer compiles, and its
+nullable-array null-only consumer is rejected. A ready literal without the
+field is rejected. Four compiler regressions pass, including generic T extends
+U widening and a concrete structural Row & [] subtype. The permitted B2
+fallback is explicit: a structural Read<Row | null> absent arm is
+null | (Row & []), not a universal literal-null promise. Present still narrows
+to Row; array arms retain T. LLP §3 preserves this limit. The generated nullable
+array runtime test covers absent [], absent null and a present nonempty array.
+Its named original source was missing from the supplied evidence; the test
+reconstructs the review's generated API and runtime case. The combined type,
+runtime and compiled-document checks passed 13/13.
+
+The requested missing-row and loading/absent searches now open client;
+unknown membership offline opens offline-interactions. Three negative-control
+searches failed before aliases; the whole guide passes 105 checks, including
+keeping guide presence on connected[p]. Both membership recipes qualify
+pending predictions and later withdrawal in one sentence each. Client is
+1,196 words within the unchanged 1,200-word ceiling. The named JavaScript
+fixtures in answers-stay-review, answers-stay-bound, answers-stay-round2 and
+mixed-evidence-oracle now construct ready values through readyRead, with
+existence assertions. LLP §1.1 also says no continuation (null or omitted),
+and §4 adds one-shot admission and nullable-array acceptance cells.
+
+The first exact blocking run ended == 1 failure(s) in 5645 s: one browser
+harness subtest and its parent failed before a read assertion with
+window.replay is not a function. All 79 final model checks passed. An isolated
+run and 12 bounded repeats passed; the complete diagnostic identified the
+replay-page setup, whose Vite cold dependency reload can erase window.replay
+after the initial readiness wait. The fixed-history harness now disables HMR;
+all 66 React replay checks pass, with every read/loading/mount assertion and
+every timeout/count retained. The original log and repair are in the report.
+
+Canonical wasm: wasm 2040781 B raw, 592916 B gzip (budget 593719: ok).
+The budget remains unchanged, with 803 B gzip headroom. Raw/gzip delta is zero
+and bytes match the starting/merge artifact: SHA-256
+7bd5b13fcdbd8a496f6f2710fb252c588ee51eed32626d040a7e0e114ff548a9.
+No movement needs attribution; family and server-only absence checks pass.
+The canonical measurement is appended to metrics/wasm.jsonl.
+
+Reference audit after the implementation/documentation append:
+`./ref-check --verbose`: `ref-check: ok — 524 LLP docs, 9894 refs in 29160 files, 0 errors, 0 unchecked`.
+
+The second full run exposed a separate CLI shutdown race: a raw
+SNAPBACK4_THREAD_EXIT write split a counted refusal between formatting
+fragments, so dev_refusals had 20 passes and one failure. The refusal console
+now prepares its complete line before write_all; lifecycle's signal-safe raw
+writes remain unchanged. A deterministic writer injects a lifecycle diagnostic
+after every underlying write: it fails before the repair (37 fragmented lines)
+and passes after it (one intact refusal and one lifecycle line). All four
+console aggregation unit tests pass. Counts, windows, queue bounds, shutdown
+acknowledgement and quiet-empty policy are unchanged. LLP 3000.031 §1.2 records
+this qualification repair; no device-core code changed.
