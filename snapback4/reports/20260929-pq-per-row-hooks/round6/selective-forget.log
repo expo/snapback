@@ -1,0 +1,45 @@
+✖ selective deletion rejects an older ticket with a higher sequence (2.831824ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53.480458
+
+✖ failing tests:
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/remembered-answers.test.mjs:110:1
+✖ selective deletion rejects an older ticket with a higher sequence (2.831824ms)
+  AssertionError [ERR_ASSERTION]: the ticket barrier wins over a higher sequence after selective deletion
+  + actual - expected
+
+  + {
+  +   at: 1,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: 'higher sequence, older ticket',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'rows'
+  +   }
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/remembered-answers.test.mjs:119:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'higher sequence, older ticket', complete: true, cut: null, fresh: true, next: null }, at: 1, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

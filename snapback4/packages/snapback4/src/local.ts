@@ -872,11 +872,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
-    let answerCache = answers.serverAnswers.view(); const changeVersion = watch?.changeVersion;
+    let answerCache = answers.serverAnswers.view(); const owner = watch ?? backgroundWatch, changeVersion = owner?.changeVersion;
     const cold = coldSnapshot(core[deviceControl], !!core[deviceRestore] && !!(watch ?? backgroundWatch)?.serverOnly && !!syncing && !acquired, generation);
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
-    const queryEnvironment = { current: () => !watch || watch.changeVersion === changeVersion,
+    const queryEnvironment = { current: () => !owner || owner.changeVersion === changeVersion,
       revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
@@ -949,21 +949,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   function rerunTables(tables: Set<string>) { rerunLocalTables(watches.values(), tables, scheduleRead); }
   function armPresence(watch: Watch) { armLocalPresence(watch, !!unavailable(), !!syncing && !acquired, () => { void refreshPresence(watch); }); }
   // @ref LLP 3000.018#3.2 — a presence refresh evaluates in the background and publishes only an answer
-  // that nothing replaced meanwhile: expiry, invalidation and store replacement keep their own withdrawal.
+  // still in its change version: queued invalidation need not replace the snapshot object.
   async function refreshPresence(watch: Watch) {
     if (closed || sessionDead || watches.get(watch.key) !== watch) return;
     if (watch.running) return; // The re-run in flight re-arms the refresh when it settles.
-    const shown = watch.snapshot;
+    const shown = watch.snapshot, changeVersion = watch.changeVersion;
     try {
       const result = await runLocal(watch.op, watch.args, undefined, true, watch);
       const { read, tables, nextExpiry, serverExpiry, localWakeup, refresh: after, served, ephemeralRequest, incarnation: revision, authority } = result;
       if (withdrawnLocalResult(watches.values(), watch, result)) { armPresence(watch); return; }
       if (closed || sessionDead || watches.get(watch.key) !== watch) return;
       // A reply that a newer publication or re-run overtook decides nothing: the newer one armed the timer.
-      if (watch.snapshot !== shown || watch.running) return;
+      if (watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion) return;
       if (served && revision === incarnation && authority === answers.revision && (!ephemeralRequest || ephemeralReads.current(ephemeralRequest))) {
         publishLocal(result, () => {
-          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running) return false;
+          if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
           watch.tables = tables;

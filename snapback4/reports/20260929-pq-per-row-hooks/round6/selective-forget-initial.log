@@ -1,0 +1,119 @@
+✖ selective clear fences an in-flight remembered answer at cut undefined (1.89489ms)
+✖ selective clear fences an in-flight remembered answer at cut 10 (0.295182ms)
+✖ selective clear fences an in-flight remembered answer at cut 11 (0.255132ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 59.118908
+
+✖ failing tests:
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:94:40
+✖ selective clear fences an in-flight remembered answer at cut undefined (1.89489ms)
+  AssertionError [ERR_ASSERTION]: a late pre-clear reply cannot restore fallback
+  + actual - expected
+
+  + {
+  +   at: 1,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: 'pre-change',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'rows'
+  +   }
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:102:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'pre-change', complete: true, cut: null, fresh: true, next: null }, at: 1, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:94:40
+✖ selective clear fences an in-flight remembered answer at cut 10 (0.295182ms)
+  AssertionError [ERR_ASSERTION]: a late pre-clear reply cannot restore fallback
+  + actual - expected
+
+  + {
+  +   at: 1,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: 'pre-change',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'rows'
+  +   }
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:102:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'pre-change', complete: true, cut: null, fresh: true, next: null }, at: 1, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:94:40
+✖ selective clear fences an in-flight remembered answer at cut 11 (0.255132ms)
+  AssertionError [ERR_ASSERTION]: a late pre-clear reply cannot restore fallback
+  + actual - expected
+
+  + {
+  +   at: 1,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     cut: null,
+  +     data: 'pre-change',
+  +     fresh: true,
+  +     next: null
+  +   },
+  +   tables: Set(1) {
+  +     'rows'
+  +   }
+  + }
+  - undefined
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/remembered-answers.test.mjs:102:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'pre-change', complete: true, cut: null, fresh: true, next: null }, at: 1, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

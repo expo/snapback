@@ -76332,3 +76332,48 @@ Wasm: 2,040,529 B raw / 592,975 B gzip, 744 B under the unchanged 593,719 B cap,
 zero growth from round 4. No tool installation, push or publication. Local commit
 carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Report: [PQ round 5](./reports/20260929-pq-per-row-hooks/round5/REPORT.md).
+
+
+## 2026-09-29 — Lane PQ round 6: queued presence shares the change version
+
+Read rounds 0–5 prompts/reports and both complete round-5 reviews; applied
+llp-orient. Initial, pre-suite and final fetches found origin/main at b7d05baff,
+already included in this branch, so no merge was necessary. Both review copies
+match the originals.
+
+Background local presence now captures the observed watch's change version for
+evaluation and memory admission, with comparisons before publication and inside
+its final callback. Memory writes have an immediate checkpoint. Presence keeps
+its existing evaluation path. Queue bounds, retention policy, row expiry,
+resets and cadence are unchanged. Updated LLP 3000.023 §7; local.ts stays at
+1,500 lines. No contract, Rust, meter, LV or cap change.
+
+Six wasm/process cases cover all retention policies with eight slots held and
+a second /changes during a queued watch's presence refresh. Snapshot identity
+stays fixed while the version advances; the retired body cannot enter memory
+or publish, and queue service still reaches the current null. Six final-callback
+cases and a memory-boundary case isolate the later checks. A selective-delete
+test rejects an older ticket at a higher sequence; success/rejection request
+tests require zero remaining abort listeners on both signals. Five isolated
+removals yield 16 intended failures, including both exact reviewer mutations.
+A fixed event-loop wait initially missed two process mutation cases; waiting
+for the actual publication boundary fixes that test gap. The ledger retains
+all intermediate controls. No unexpected development-test failure occurred.
+
+Final focused regressions: 63/63; broad affected checks: 815/815; whole guide:
+98/98. Reference audit: 523 LLPs, 9,866 references, no errors or unchecked.
+The one required scripts/test.sh run exited 0 with exactly:
+
+    == 0 failure(s) in 1229 s
+
+Every phase passed. Main clients: 4,747 pass, zero failures/cancellations, ten
+existing conditional skips; final models: 79/79. Qualification failures:
+ours 0, baseline 0, environmental 0. The existing 60-second suite target remains
+exceeded; no timeout, sequence count or budget changed.
+
+Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged
+593,719 B cap, zero growth from round 5. SHA-256:
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+No tools installed, push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Report: [PQ round 6](./reports/20260929-pq-per-row-hooks/round6/REPORT.md).

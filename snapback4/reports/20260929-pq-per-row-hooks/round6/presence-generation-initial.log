@@ -1,0 +1,186 @@
+✖ wasm keep=undefined: a second change during queued presence cannot publish or remember the old body (683.207969ms)
+✖ wasm keep=false: a second change during queued presence cannot publish or remember the old body (204.821832ms)
+✖ wasm keep=true: a second change during queued presence cannot publish or remember the old body (208.180476ms)
+✖ process keep=undefined: a second change during queued presence cannot publish or remember the old body (242.437731ms)
+✖ process keep=false: a second change during queued presence cannot publish or remember the old body (244.429087ms)
+✔ process keep=true: a second change during queued presence cannot publish or remember the old body (260.171782ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1967.442802
+
+✖ failing tests:
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=undefined: a second change during queued presence cannot publish or remember the old body (683.207969ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667351777,
+  -   at: 1790667351727,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:112:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667351777, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667351727, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=false: a second change during queued presence cannot publish or remember the old body (204.821832ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667351984,
+  -   at: 1790667351931,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:112:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667351984, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667351931, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=true: a second change during queued presence cannot publish or remember the old body (208.180476ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667352191,
+  -   at: 1790667352138,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:112:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352191, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352138, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=undefined: a second change during queued presence cannot publish or remember the old body (242.437731ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667352433,
+  -   at: 1790667352378,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:112:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352433, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352378, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=false: a second change during queued presence cannot publish or remember the old body (244.429087ms)
+  AssertionError [ERR_ASSERTION]: the pre-change presence body must not enter fallback memory
+  + actual - expected
+
+    {
+  +   at: 1790667352678,
+  -   at: 1790667352623,
+      nextExpiry: null,
+      read: {
+        complete: true,
+        cut: null,
+        data: {
+          id: 'r',
+          owner: 'dev:alice',
+  +       value: 8
+  -       value: 7
+        },
+        fresh: true,
+        next: null
+      },
+      tables: Set(1) {
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-827x2fyq/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:112:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352678, nextExpiry: null, tables: Set(1) { 'rows' } },
+    expected: { read: { data: [Object], complete: true, cut: null, fresh: true, next: null }, at: 1790667352623, nextExpiry: null, tables: Set(1) { 'rows' } },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -23,6 +23,8 @@ query remote(id: rows):
   return rows[id]
 mutation transfer(id: rows):
   update rows[id] { owner: 'dev:bob' }
+mutation edit(id: rows):
+  update rows[id] { value: 8 }
 `;
 const op = { kind: 'query', name: 'remote' };
 const pause = () => new Promise(resolve => setImmediate(resolve));
@@ -40,6 +42,93 @@ async function fixture(t) {
   ]) }).then(r => r.json());
   assert.equal(seeded.seeded, 1);
   return f;
+}
+
+for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, true]) for (const boundary of ['response', 'callback']) {
+  test(`${tier} keep=${keep}: queued presence checks a second change at the ${boundary} boundary`, async t => {
+    const { url, dir } = await fixture(t), watches = [];
+    const body = Promise.withResolvers(), sync = Promise.withResolvers();
+    let change, blocked = 0, rowQueries = 0, holdSync = false, refresh, memory, refreshing = false;
+    const later = setTimeout, write = RememberedAnswers.prototype.set;
+    t.mock.method(globalThis, 'setTimeout', (run, delay, ...args) => {
+      if (delay === 54321) refresh = run;
+      return later(run, delay, ...args);
+    });
+    t.mock.method(RememberedAnswers.prototype, 'set', function(...args) {
+      if (args[0] === 'remote:{"id":"r"}') memory = this;
+      return write.apply(this, args);
+    });
+    const client = await createLocalClient({ url, persona: 'alice', device: device(tier, dir), fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === '/changes') return new Promise((resolve, reject) => {
+        change = json => resolve(Response.json(json));
+        init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
+      });
+      if (path === '/sync' && holdSync) await sync.promise;
+      if (path.startsWith('/q/')) {
+        if (JSON.parse(init.body).args.id.startsWith('hold')) { blocked++; return parked(init.signal); }
+        const response = await fetch(input, init), json = await response.json();
+        rowQueries++;
+        if (refreshing) await body.promise;
+        return Response.json({ ...json, refresh: 54321 }, { status: response.status });
+      }
+      return fetch(input, init);
+    } });
+    t.after(async () => { watches.forEach(w => w.close()); body.resolve(); sync.resolve(); await client.close(); });
+    await client.sync();
+    const mount = id => {
+      const w = client.observe(op, { id }, { keep }); watches.push(w); w.subscribe(() => {}); return w;
+    };
+    const row = mount('r');
+    await until(() => row.getSnapshot().data?.value === 7 && refresh && memory);
+    const owner = answerObservation(row.getSnapshot());
+    for (let i = 0; i < 8; i++) mount('hold' + i);
+    await until(() => blocked === 8);
+    const mutate = async name => {
+      const result = await fetch(url + '/m/' + name, { method: 'POST', headers: { 'x-snapback-persona': 'alice' },
+        body: JSON.stringify({ id: crypto.randomUUID(), args: { id: 'r' } }) }).then(r => r.json());
+      assert.equal(result.state, 'sent'); return result;
+    };
+    const first = await mutate('edit'), previous = change;
+    change({ seq: first.seq, generation: 1, tables: ['rows'] });
+    await until(() => change !== previous, 'first change and sync finished with all slots held');
+    const shown = row.getSnapshot(), version = owner.changeVersion;
+    assert.equal(owner.running, false, 'the replacement is queued');
+    assert.equal(rowQueries, 1);
+    if (keep === false) assert.deepEqual(shown, { loading: true });
+    else assert.equal(shown.revalidating, true);
+    const remembered = memory.get('remote:{"id":"r"}');
+    refreshing = true; clearTimeout(owner.presenceRefresh); refresh();
+    await until(() => rowQueries === 2, 'presence captured the pre-removal server body');
+    const second = await mutate('transfer'); holdSync = true;
+    if (boundary === 'response') {
+      change({ seq: second.seq, generation: 1, tables: ['rows'] });
+      await until(() => owner.changeVersion !== version, 'second change processed before the presence reply');
+    }
+    assert.equal(owner.snapshot, shown, 'the second invalidation keeps the same queued snapshot object');
+    assert.equal(owner.running, false);
+    let running = owner.running, checks = 0, reached = false;
+    Object.defineProperty(owner, 'running', { configurable: true, set(value) { running = value; }, get() {
+      // The first check follows completed evaluation. The second is inside
+      // publishLocal's callback, after every earlier check has passed.
+      if (++checks === (boundary === 'response' ? 1 : 2)) {
+        reached = true;
+        if (boundary === 'callback') owner.changeVersion = (owner.changeVersion ?? 0) + 1;
+      }
+      return running;
+    } });
+    let published = 0;
+    t.mock.method(owner, 'publish', (...args) => { published++; return Object.getPrototypeOf(owner).publish.apply(owner, args); });
+    body.resolve();
+    await until(() => reached, 'the presence result reached its final publication checks');
+    if (boundary === 'response') assert.equal(memory.get('remote:{"id":"r"}'), remembered, 'the pre-change presence body must not enter fallback memory');
+    else assert.notEqual(owner.changeVersion, version, 'the final callback boundary was reached');
+    assert.equal(published, 0, 'no stale finished answer or synthetic loading publication');
+    assert.equal(owner.snapshot, shown, 'queued policy state is unchanged by the retired refresh');
+    assert.equal(rowQueries, 2, 'the observation replacement still has no slot');
+    refreshing = false; watches.slice(1).forEach(w => w.close());
+    await until(() => row.getSnapshot().data === null, 'the queued replacement still makes progress');
+  });
 }
 
 for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, true]) {

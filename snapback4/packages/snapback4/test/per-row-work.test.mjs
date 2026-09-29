@@ -1,7 +1,8 @@
 // @ref LLP 3000.023#7 — counts pin scheduling and dependency work at 1,000 rows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ReadWork, READ_WORK_LIFETIME } from '../dist/read-work.js';
+import { ReadWork, READ_WORK_LIFETIME, withReadSignal } from '../dist/read-work.js';
+import { getEventListeners } from 'node:events';
 import { observationKey } from '../dist/observe-watch.js';
 import { correctReadExpiries, armReadExpiry, holdReadExpiry, readDeadlineWithdrawn } from '../dist/read-expiry.js';
 import { ReadObservation } from '../dist/read-observation.js';
@@ -9,6 +10,28 @@ import { ServerClock } from '../dist/clock.js';
 import { createClient } from '../dist/client.js';
 import { until } from './helpers/app-server.mjs';
 const drain = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
+
+for (const outcome of ['success', 'rejection']) test(`request abort listeners are removed after ${outcome}`, async () => {
+  const lifetime = new AbortController();
+  for (let request = 0; request < 3; request++) {
+    const attempt = new AbortController(), pending = Promise.withResolvers();
+    let combined;
+    const result = withReadSignal(attempt.signal, lifetime.signal, signal => {
+      combined = signal; return pending.promise;
+    });
+    assert.equal(getEventListeners(attempt.signal, 'abort').length, 1);
+    assert.equal(getEventListeners(lifetime.signal, 'abort').length, 1);
+    if (outcome === 'success') {
+      pending.resolve(request); assert.equal(await result, request);
+    } else {
+      const failure = Error('request rejected');
+      pending.reject(failure); await assert.rejects(result, error => error === failure);
+    }
+    assert.equal(getEventListeners(attempt.signal, 'abort').length, 0, 'attempt listener removed');
+    assert.equal(getEventListeners(lifetime.signal, 'abort').length, 0, 'lifetime listener removed');
+    attempt.abort(); assert.equal(combined.aborted, false, 'finished request is detached');
+  }
+});
 
 test('1,000 observations: at most eight starts per turn, duplicate scheduling coalesces', async () => {
   const turns = [], work = new ReadWork(run => { turns.push(run); return turns.length; });

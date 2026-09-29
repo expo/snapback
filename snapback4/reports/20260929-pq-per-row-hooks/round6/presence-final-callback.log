@@ -1,0 +1,118 @@
+✖ wasm keep=undefined: queued presence checks a second change at the callback boundary (624.948726ms)
+✖ wasm keep=false: queued presence checks a second change at the callback boundary (205.21301ms)
+✖ wasm keep=true: queued presence checks a second change at the callback boundary (199.062792ms)
+✖ process keep=undefined: queued presence checks a second change at the callback boundary (233.582702ms)
+✖ process keep=false: queued presence checks a second change at the callback boundary (238.393593ms)
+✖ process keep=true: queued presence checks a second change at the callback boundary (226.076993ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1852.592092
+
+✖ failing tests:
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=undefined: queued presence checks a second change at the callback boundary (624.948726ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=false: queued presence checks a second change at the callback boundary (205.21301ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ wasm keep=true: queued presence checks a second change at the callback boundary (199.062792ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=undefined: queued presence checks a second change at the callback boundary (233.582702ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=false: queued presence checks a second change at the callback boundary (238.393593ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:48:3
+✖ process keep=true: queued presence checks a second change at the callback boundary (226.076993ms)
+  AssertionError [ERR_ASSERTION]: no stale finished answer or synthetic loading publication
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r6-controls-1xilppb5/snapback4/packages/snapback4/test/per-row-boundaries.test.mjs:126:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
