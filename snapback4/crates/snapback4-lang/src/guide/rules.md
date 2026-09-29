@@ -50,7 +50,7 @@ A mutable child deadline can shorten its life but cannot extend it past the pare
 
 `sync` infers exactly the parent's substituted audience after service grants
 are removed. A conjunction such as membership and an archived flag stays
-`online only`; `check` explains its server reads. A parent-pinned page resolves
+`online only`; `check --verbose` explains its server reads. A parent-pinned page resolves
 authorization once, while completeness still requires the child's own coverage.
 An unknown or mismatched parent takes the server fallback. Retained history
 stays marked `retained: true` beside the server's current page.

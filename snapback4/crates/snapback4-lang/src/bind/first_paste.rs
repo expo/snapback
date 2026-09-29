@@ -57,6 +57,9 @@ pub(super) fn upsert(catalog: &Catalog, site: &Site) -> Option<String> {
     }
     if !keys.iter().all(|key| stable(&key.value, catalog)) { return None; }
     let info = catalog.tables.get(table)?;
+    // A positional prefix names its own unique key, not the index matching
+    // the total arity. Do not guess its insert image from the source syntax.
+    if keys.iter().any(|key| key.column.is_some()) && keys.iter().any(|key| key.column.is_none()) { return None; }
     let columns = if keys.iter().all(|key| key.column.is_some()) {
         keys.iter().map(|key| key.column.clone().unwrap()).collect::<Vec<_>>()
     } else {

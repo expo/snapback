@@ -27,7 +27,7 @@ and the viewer-readable partition covers every secondary unique lookup and
 affected cap group. The image includes key columns, patch and defaults; a
 whole-table cap needs the whole public table. Left groups and unproved
 conditions queue without a predicted row and still send `/m` (guide prediction).
-`check` calls an upsert with an unprovable insert arm `predicts: updates only`,
+`check --verbose` calls an upsert with an unprovable insert arm `predicts: updates only`,
 and lists that arm in its summary with the first failing horizon, rule or cap
 coverage proof. `insert ... if absent` reports the same insert limitation.
 An id supplied to `insert ... if absent`, including a parameter or helper result,

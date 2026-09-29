@@ -76066,3 +76066,47 @@ Later edits do not touch wasm build inputs. Rechecked both review files before
 finalizing. Report: reports/20260929-ag-first-paste/round1/REPORT.md.
 Local fix commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 No push or publication.
+
+## 2026-09-29 — AG round 2: mixed-key safety and predicate count aliases
+
+Read both prior lane prompts/reports and Astra's complete round-1 review.
+Grok's final READY review arrived before the full suite; its filter and cursor
+test-strength observations are addressed too. Mixed positional/named upsert
+keys now receive no branch advice. The regression seeds id A/tag B and executes
+any offered rewrite verbatim: round 1 inserts a second swapped-key row, while
+the corrected compiler preserves the original update and withholds advice.
+Count-view aliases resolve in predicate, key, seek and order planning, retaining
+real count-column precedence and the same aggregate ranking refusals as value.
+Executed alias/canonical cases return identical results and meters.
+
+Audited all current guide cards and README check-output passages: default note
+summaries, verbose rewrites/explanations, and explicit cost/residency details.
+Updated two fact-home strings without removing facts. An authorized same-title
+DM ordered before six groups makes both memory/SQLite held-query witnesses
+detect a lost group filter. They consume the returned cursor and assert only
+the final group on page two; deleting after c also fails both. Controls and all
+development failures are attributed in round2/FAILURES.md. LLP 3000.007 §23
+records the contracts; runtime, authority, disclosure, bounds and meters stay
+unchanged. The only package change is the requested README correction.
+
+Final affected language checks pass: 1 compatibility, 13 first-paste, 99 guide,
+11 lowering, 14 maintains, 10 mixed-key, 41 residency and 5 selected-prefix
+tests. Both device witnesses and 149 CLI tests pass. The new guide assertion
+lives in the existing familiar module to keep guide.rs below 1,500 lines;
+the final whole-guide rerun passes 99/99. README remains 300 lines. Ref-check
+and source whitespace checks pass.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+```text
+== 0 failure(s) in 1354 s
+```
+
+Every stage passed: 4,561 client passes, ten declared skips, and all 79 client
+model tests. Full-suite failures: ours 0, baseline 0, environmental 0. The
+60-second target remains missed; no timeout or ceiling changed. Canonical wasm:
+2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged 593,719 B cap;
+SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Rechecked both final reviews. Report:
+reports/20260929-ag-first-paste/round2/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. No push or publication.

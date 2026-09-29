@@ -645,7 +645,7 @@ A row-keyed view keeps one count per row of another table. Its read rule and
 sync audience are the keyed row's. The key is exactly one equality between
 required references to the same parent; other conjuncts compare source fields
 with member fields or are ordinary source-only predicates. Cap the member group
-by the parent reference; `check` prints this key, fanout and writer recount bound.
+by the parent reference; `check --verbose` prints this key, fanout and writer recount bound.
 
 ```quarry
 table conversations:
@@ -837,8 +837,8 @@ Pin the parent inside the message page. Each nested read authorizes that
 message before enumerating its emoji groups. A complete group-key lookup,
 `reactionTotals[message, emoji]`, returns one scalar; a parent prefix returns
 aggregate rows whose count is `.value` or `.count`; `{ emoji, count }` is shorthand.
-`first 10 by .count` orders by count too. A real group column named `count`
-keeps precedence in projections and ordering. The source's cap of 50 bounds its
+`where .count = 2 first 10 by .count` filters and orders totals. A real group
+column named `count` keeps precedence in predicates, keys, projections and ordering. The source's cap of 50 bounds its
 number of emoji groups. Without such a cap, use a bounded page and cursor.
 
 ```quarry

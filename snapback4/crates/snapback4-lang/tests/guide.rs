@@ -1349,7 +1349,7 @@ fn w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership() {
 fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
     let text = card("search").unwrap().split_once("## Search every chat I'm in").unwrap().1;
     let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let coverage = prose.find("With horizon-free sources, `check` reports horizon-free source coverage for `searchHeld`: it reads one unscoped words index over the messages this device holds, with no membership merge or per-reader copy.").expect("positive source coverage");
+    let coverage = prose.find("With horizon-free sources, `check --verbose` reports horizon-free source coverage for `searchHeld`: it reads one unscoped words index over the messages this device holds, with no membership merge or per-reader copy.").expect("positive source coverage");
     let cost = prose.find("Cold acquisition costs every live message in every held chat").unwrap();
     let refusal = prose.find("refuses E_QUERY_HELD").unwrap();
     assert!(coverage < cost && cost < refusal);

@@ -163,6 +163,90 @@ fn row_valued_positional_upsert_keys_receive_no_speculative_id_rewrite() {
 }
 
 #[test]
+fn mixed_key_upsert_advice_cannot_change_existing_row_identity() {
+    let original = r"table parents:
+  public
+  sync public
+table children:
+  tag: id
+  parent: parents
+  body: text <=100
+  unique tag, id
+  immutable parent
+  read through .parent
+  insert <- allow
+  update <- allow
+  sync
+mutation save(id: id, tag: id, parent: parents, body: text <=100):
+  return upsert children[id, tag = tag] { parent, body }
+";
+    let b = clean(original);
+    let site = b.schema.operations["save"].sites.iter().find(|s| s.kind == "upsert").unwrap();
+    let fixed = original.replace("upsert children[id, tag = tag] { parent, body }", &site.rewrite);
+    for source in std::iter::once(original).chain((!site.rewrite.is_empty()).then_some(fixed.as_str())) {
+        let mut e = engine(source);
+        load(&mut e, "parents", json!({"id":"p"}));
+        load(&mut e, "children", json!({"id":"A","tag":"B","parent":"p","body":"old"}));
+        let ctx = Context::new("alice", [
+            ("id".into(), Value::Id("A".into())), ("tag".into(), Value::Id("B".into())),
+            ("parent".into(), Value::Id("p".into())), ("body".into(), Value::String("new".into())),
+        ].into()).at(100);
+        let out = e.mutate("save", None, ctx).unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+        let rows = e.store().rows("children").unwrap();
+        assert_eq!(rows.len(), 1, "source={source}");
+        for (name, expected) in [("id", "A"), ("tag", "B"), ("parent", "p"), ("body", "new")] {
+            assert_eq!(wire::to_json(rows[0].field(name).unwrap()), json!(expected));
+        }
+    }
+    assert!(site.rewrite.is_empty(), "mixed keys must withhold speculative insert advice");
+}
+
+#[test]
+fn count_alias_predicates_and_keys_keep_real_group_column_precedence() {
+    for field in ["category", "count"] {
+        for read in [
+            "totals where .count = 2 first 10 by .count",
+            "totals where 2 = .count first 10 by .count",
+            "totals where .count = 2 first 10 by .id",
+            "totals[count = 2] first 10 by .id",
+            "totals where .count >= 2 first 10 by .count",
+        ] {
+            let alias = if field == "category" { ", count" } else { "" };
+            let source = format!("table items:\n  {field}: int\n  public\nview totals: count items by .{field}\nquery selected():\n  return {read} {{ {field}, value{alias} }}\n");
+            if field == "category" && read.ends_with("by .id") {
+                // These value-pinned rankings are deliberately refused even
+                // with .value. Alias planning must preserve that refusal.
+                let canonical = source.replace(".count", ".value").replace("[count =", "[value =");
+                let actual = bound(&source);
+                let expected = bound(&canonical);
+                assert!(!expected.diagnostics.is_empty());
+                let messages = |b: &Bound| b.diagnostics.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>();
+                assert_eq!(messages(&actual), messages(&expected), "{source}");
+                continue;
+            }
+            let mut e = engine(&source);
+            for (id, value) in [("a1", 7), ("a2", 7), ("b1", 2)] {
+                load(&mut e, "items", json!({"id":id, field:value}));
+            }
+            let q = e.query("selected", context()).unwrap();
+            let expected = if field == "category" { json!([{"category":7,"count":2,"value":2}]) }
+                else if read.contains(">=") { json!([{"count":2,"value":1},{"count":7,"value":2}]) }
+                else { json!([{"count":2,"value":1}]) };
+            assert_eq!(wire::to_json(&q.data), expected, "{source}");
+            if field == "category" {
+                let canonical = source.replace(".count", ".value").replace("[count =", "[value =");
+                let mut other = engine(&canonical);
+                for (id, value) in [("a1", 7), ("a2", 7), ("b1", 2)] { load(&mut other, "items", json!({"id":id, field:value})); }
+                let other = other.query("selected", context()).unwrap();
+                assert_eq!(q.data, other.data);
+                assert_eq!(q.metered, other.metered);
+            }
+        }
+    }
+}
+
+#[test]
 fn count_alias_orders_aggregate_rows_before_index_planning() {
     for (column, a, z, expected) in [
         ("category: text <=20", json!("a"), json!("z"), json!([1, 2])),

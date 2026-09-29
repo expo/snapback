@@ -270,7 +270,7 @@ it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
 grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
-`online only`; `snapback4 test --residency` measures its cold rows. `check`
+`online only`; `snapback4 test --residency` measures its cold rows. `check --residency`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
 Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
 coverage; see `guide maintains` and the replica census in `guide offline-interactions`.

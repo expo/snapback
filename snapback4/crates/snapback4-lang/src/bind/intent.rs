@@ -65,14 +65,13 @@ impl Requests {
     pub(super) fn read(&mut self, tables: &BTreeMap<String, TableInfo>, read: &mut ReadExpr, rule: bool) {
         if super::validate_key_names(read).is_err() { return; }
         let Some(table) = tables.get(&read.table) else { return; };
-        // @ref LLP 3000.007#23 — resolve count-row order aliases before choosing an index;
+        // @ref LLP 3000.007#23 — resolve count-row aliases before choosing an index;
         // an authored group column named count always keeps precedence.
-        if !table.columns.contains_key("count")
-            && table.maintained.as_ref().is_some_and(|m| m.aggregate == "count") {
-            for column in &mut read.order_keys {
-                if column == "count" { *column = "value".into(); }
-            }
+        for column in read.order_keys.iter_mut().chain(read.keys.iter_mut().filter_map(|key| key.column.as_mut()))
+            .chain(read.seeks.iter_mut().map(|seek| &mut seek.column)) {
+            *column = row_column(table, column).into();
         }
+        if super::validate_key_names(read).is_err() { return; }
         if read.index.is_some() {
             if !rule { self.selected_prefix(table, read); }
             return;
@@ -144,6 +143,7 @@ impl Requests {
         let mut kept = Vec::new();
         for predicate in residual {
             if words.is_none() && let Some((column, op, value)) = comparison(&predicate)
+                .map(|(column, op, value)| (row_column(table, &column).to_owned(), op, value))
                 && order.first() == Some(&column) && self.contexts.safe(read, &value)
                 && !read.seeks.iter().any(|bound| (bound.op.starts_with('<')) == op.starts_with('<')) {
                 read.seeks.push(SeekBound { column, op, value, site: predicate.site().clone() });
@@ -432,12 +432,16 @@ pub(super) fn independent(value: &Expr) -> bool {
 }
 pub(super) fn equality(value: &Expr, table: &TableInfo) -> Option<(String, Expr)> {
     if let Expr::Binary { op, left, right, .. } = value && op == "=" {
-        if let Some(column) = column(left) && independent(right) { return Some((column.into(), *right.clone())); }
-        if let Some(column) = column(right) && independent(left) { return Some((column.into(), *left.clone())); }
+        if let Some(column) = column(left) && independent(right) { return Some((row_column(table, column).into(), *right.clone())); }
+        if let Some(column) = column(right) && independent(left) { return Some((row_column(table, column).into(), *left.clone())); }
     }
     let (value, boolean) = if let Expr::Unary { op, value, .. } = value && op == "not" { (value.as_ref(), false) } else { (value, true) };
     let column = column(value)?;
     (table.columns.get(column)?.kind == TypeKind::Bool).then(|| (column.into(), Expr::Literal { value: Literal::Bool(boolean), site: value.site().clone() }))
+}
+fn row_column<'a>(table: &TableInfo, column: &'a str) -> &'a str {
+    if column == "count" && !table.columns.contains_key(column)
+        && table.maintained.as_ref().is_some_and(|m| m.aggregate == "count") { "value" } else { column }
 }
 pub(super) fn comparison(value: &Expr) -> Option<(String, String, Expr)> {
     let Expr::Binary { op, left, right, .. } = value else { return None; };

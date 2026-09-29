@@ -236,7 +236,7 @@ membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, use `upsert` to insert when absent and update the held row when present.
 An explicit existence branch needs a whole partition; a horizon miss is still unknown.
-`check` labels an upsert with an unprovable insert arm `predicts: updates only`;
+`check --verbose` labels an upsert with an unprovable insert arm `predicts: updates only`;
 that means a held-row update remains eligible, not that the first write predicts.
 `insert ... if absent` with an unprovable insert says `predicts: inserts queue
 without a row`. The summary and residency line name the horizon, read rule or
@@ -320,7 +320,7 @@ A synced read-through child's `upsert` can still queue without a predicted row.
 `why` names that limit. For stable keys and field values it prints an
 update/insert replacement. That choice
 adds a readable-key test; it needs held absence, parent and cap coverage and
-can still queue past a horizon. Row-valued positional keys receive no rewrite.
+can still queue past a horizon. Mixed or row-valued positional keys receive no rewrite.
 Calls, row reads, spreads and key-changing patches
 receive no branch rewrite: testing existence first could change their meaning.
 It is not a `check --fix` repair.
