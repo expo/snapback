@@ -62,9 +62,11 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
 }
 
 #[test]
-fn presence_card_and_starters_teach_the_sdk_words() {
+fn existence_card_and_starters_teach_the_sdk_words() {
     let client = card("client").unwrap();
-    for word in ["`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "member === \"absent\""] {
+    assert!(!client.contains("presence"));
+    assert!(!card("offline-interactions").unwrap().contains("presence"));
+    for word in ["existence(read)", "read.existence", "`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "member === \"absent\""] {
         assert!(client.contains(word), "client missing {word}");
     }
     assert!(client.split_whitespace().count() <= 1200, "keep the client card concise");
@@ -75,10 +77,38 @@ fn presence_card_and_starters_teach_the_sdk_words() {
             if path.is_dir() { visit(&path); }
             else if path.extension().is_some_and(|ext| ext == "ts" || ext == "tsx") {
                 let source = std::fs::read_to_string(&path).unwrap();
-                assert!(!source.contains("\"loading\" in") && !source.contains("'loading' in"), "{} bypasses SDK presence", path.display());
+                assert!(!source.contains("\"loading\" in") && !source.contains("'loading' in"), "{} bypasses SDK existence", path.display());
+                assert!(!source.contains("presence"), "{} uses the old read word", path.display());
                 assert!(!source.contains("ReadState"), "{} copies a private read classifier", path.display());
             }
         }
     }
     visit(&root);
+}
+
+#[test]
+fn missing_row_question_opens_client() {
+    assert_eq!(card("what does a missing row mean"), card("client"));
+}
+#[test]
+fn loading_or_absent_opens_client() {
+    assert_eq!(card("loading or absent"), card("client"));
+}
+#[test]
+fn unknown_membership_offline_opens_interactions() {
+    assert_eq!(card("unknown membership offline"), card("offline-interactions"));
+}
+#[test]
+fn connection_presence_keeps_its_card() {
+    let connected = card("presence").unwrap();
+    assert!(connected.contains("connected[p]"));
+    assert_ne!(Some(connected), card("client"));
+}
+#[test]
+fn membership_wording_covers_pending_predictions_and_withdrawals() {
+    for name in ["client", "offline-interactions"] {
+        let text = card(name).unwrap();
+        assert!(text.contains("unless a pending prediction blocks absence"), "{name}");
+        assert!(text.contains("`loading` means acquisition or later withdrawal"), "{name}");
+    }
 }

@@ -68,6 +68,8 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("benchmark", "bounds"), ("load test", "bounds"),
     ("react", "client"), ("hooks", "client"),
     ("composer", "client"), ("unread", "client"),
+    ("existence", "client"), ("what does a missing row mean", "client"),
+    ("loading or absent", "client"), ("unknown membership offline", "offline-interactions"),
     ("typing", "ephemeral"),
     ("clock", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
