@@ -1,0 +1,46 @@
+[
+  {
+    "name": "small-map-tests",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--lib",
+      "small_map::tests"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-tests",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--lib",
+      "--tests"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "guide-tests",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "full-suite",
+    "command": [
+      "bash",
+      "scripts/test.sh"
+    ],
+    "exit": 0
+  }
+]

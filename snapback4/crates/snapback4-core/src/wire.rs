@@ -51,7 +51,7 @@ pub fn to_json(value: &Value) -> Json {
         Value::String(s) | Value::Id(s) => Json::String(s.clone()),
         Value::Bytes(bytes) => Json::String(crate::value::encode_bytes_hex(bytes)),
         Value::Array(items) => Json::Array(items.iter().map(to_json).collect()),
-        Value::Row(fields) | Value::Map(fields) => Json::Object(fields.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()),
+        Value::Row(fields) | Value::Map(fields) => Json::Object(map_to_json(fields)),
     }
 }
 
@@ -159,7 +159,9 @@ fn other_kind(json: &Json) -> &'static str {
 
 /// The plain JSON of a map of typed values.
 pub fn map_to_json(values: &BTreeMap<String, Value>) -> Map<String, Json> {
-    values.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
+    let mut fields = Map::new();
+    for (key, value) in values { fields.insert(key.clone(), to_json(value)); }
+    fields
 }
 
 #[cfg(test)]

@@ -78468,6 +78468,40 @@ Report, failure ledger and raw evidence:
 reports/20260929-hv-heavy-acquisition/round2/REPORT.md.
 The local repair commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+## 2026-09-29 — WD round 0: recover device wasm headroom
+
+Measured main 38abb89b8e at 2,040,531 B raw / 592,979 B gzip, 740 B below
+593,719. Twiggy's symbolized census identifies duplicated B-tree bulk sorts as
+the cheapest remaining bytes. Keep the B-trees, codecs, fields, messages and
+checks; construct small field/plan maps by insertion and share plain JSON field
+construction. Source savings are 9,654 B gzip. Optional Binaryen 132 branch-tail
+folding/deduplication adds 3,038 B, with temporary gzip filenames excluded from
+selection. Final: 1,930,985 B raw / 580,287 B gzip, 12,692 B recovered and 13,432 B
+headroom. The cap and size-first Rust profile stay fixed. Without Binaryen the
+artifact is 583,325 B; the full recovery needs the disclosed toolchain.
+
+HV already uses the folding pass, so it is not counted twice. A disposable HV
+611f957f85 plus WD source build measures 592,385 B gzip, 1,334 B below the cap;
+this is a size result, not combined behavioral qualification. HV is untouched.
+Five alternating AQ u0500 pairs per mode give median acquisition 2.216 → 2.210 s
+default and 2.343 → 2.229 s Worker. Separate apply medians rise about 21 ms (5.3–5.4%);
+wasm high-water memory stays 57,278,464 B. All 40 browser contexts verify 11,612
+rows and complete offline inboxes. Exact wasm replay matches 119 replies,
+drains and errors, including 5,176,053 persisted bytes and offline reopen.
+All SDK JavaScript and the wasm's printable data strings remain identical.
+
+Affected device tests: 1,385 pass, five declared ignores; new map regressions
+2/2; whole guide 99/99. Ran scripts/test.sh exactly once, exit 0:
+`== 0 failure(s) in 1375 s`. Rust: 4,344 pass / 33 ignores; clients: 5,197 pass /
+ten skips / zero cancellations; full-count models 79/79; fixture wrappers 9/9.
+Every stage passes. Full-run failures: ours 0, baseline 0, environmental 0.
+The inherited 60-second process budget remains exceeded. Qualified source and
+artifact hashes stay fixed; no check, count, timeout or ceiling was relaxed.
+
+Report, per-crate/family/data attribution, size ladder, speed samples and all
+rejected/corrected experiments: reports/20260929-wd-wasm-headroom/REPORT.md.
+LLP 3000.002 records the measured choice. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
 ## 2026-09-29 — LL round 1: keep fallback and terminal refusals live
 
 Merged `origin/main` at `38abb89b8e` first (`02a6fe70dc`), preserving SR, KR,
@@ -78571,3 +78605,50 @@ Report, complete failure ledger, source/artifact hashes and unedited logs:
 reports/20260929-hv-heavy-acquisition/round3/REPORT.md.
 The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+## 2026-09-29 — WD round 1: preserve duplicate-key allocations and heap outcomes
+
+Read the round-0 prompt/report and complete Astra review. Merged origin/main
+cea3b70436 first in 94883eef17, preserving SR/LL and both append-only journal
+histories. Restored ObjectFields' old bulk constructor: equal keys retain the
+last String allocation and last value. Insertion's first-key retention changed
+capacity-sensitive meters despite identical bytes. The new public object/local
+query regression fails on merged round 0 (4,344 B, capped/null versus 249 B,
+complete), then passes after the correction. The reverse capacities preserve
+4,344 B and the heap cut, so shrinking keys cannot masquerade as the fix.
+
+Audited all 22 other small_map call sites individually. Three borrowed-key maps
+can keep a different equal key reference, but consume it only by string contents;
+none observes its identity/capacity. Other sites have unique keys or equal-capacity
+clones. No further production change; document the helper's restriction and the
+correction in LLP 3000.002. No meter, format, error, feature or ceiling changed.
+
+On the merged tree, the fix costs 1,015 B gzip without Binaryen and 1,547 B with
+Binaryen 132. Final source-only artifact: 1,980,279 B raw / 584,341 B gzip,
+9,378 B below 593,719. Optimized: 1,954,344 B raw / 581,808 B gzip, 11,911 B
+headroom. Against round 0's original control it saves 11,171 B optimized,
+829 B short of the original 12,000 B target; the prior 12,692 B recovery is
+historical. No combined-HV qualification is claimed.
+
+Core affected checks: 180 passes, one ignore, plus one nested child probe.
+Device affected checks: 1,385 passes, five ignores; whole guide 99/99.
+Ran scripts/test.sh exactly once, exit 0: `== 0 failure(s) in 1503 s`.
+Rust passes 4,344 with 33 ignores; clients 5,245 with ten skips and zero
+cancellations; fixture wrappers 9/9; full-count models 79/79. All stages pass.
+Full-suite failures: ours 0, baseline 0, environmental 0. The report records two
+corrected setup errors and the required detecting failure, all ours. The old
+round-0 Rust report overcounted by one: its archived summaries total 4,343.
+The inherited nominal 60-second process budget remains exceeded.
+
+Matched wasm replay preserves 119 replies/drains/errors, 5,176,053 persisted
+bytes and offline reopen; all 105 SDK JavaScript files match. Five alternating
+u0500 pairs per mode plus instrumented runs verify all 40 contexts and 11,612
+rows. Median acquisition 2,212.5 → 2,255.6 ms default and 2,451.3 → 2,325.0 ms
+Worker; wasm high-water memory stays 57,278,464 B. Load-1 65.33–70.29 on 96 CPUs
+limits speed inference; no WD build/test overlaps these samples. All 1,637
+recorded qualification input hashes remain fixed and the full suite reproduces
+the final wasm exactly. No count, timeout or assertion was relaxed.
+
+Report, per-site audit and complete failure ledger:
+reports/20260929-wd-wasm-headroom/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; Grok's pending review belongs to a later round.

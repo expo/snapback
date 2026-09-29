@@ -14,8 +14,8 @@ wasm=$out/snapback4_device_bg.wasm
 if command -v wasm-opt >/dev/null; then
   wasm-opt -Os --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/os.wasm" "$wasm"
   if [ "$(gzip -9 -c < "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/os.wasm" "$wasm"; else rm "$out/os.wasm"; fi
-  # HV: preserve Rust's size decisions while folding identical branch tails.
-  # Full Binaryen size passes can increase gzip even when raw bytes shrink.
+  # @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — preserve Rust's size choices while sharing identical branch tails (also measured by HV).
+  # Compare identical gzip headers; temporary filenames must not buy bytes.
   wasm-opt --code-folding --duplicate-function-elimination --dce --vacuum --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/fold.wasm" "$wasm"
   if [ "$(gzip -9 -c < "$out/fold.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/fold.wasm" "$wasm"; else rm "$out/fold.wasm"; fi
 fi
