@@ -28,12 +28,19 @@ three `segments` marked `passed` mean:
   cold app opens its kept store, reports offline and holds the same counts.
   Every query whose arguments are all optional (including no arguments) runs
   through the app's client. `queries` records ready/count/completeness or an
-  explained refusal. A thrown query, loading result or uncaught JS error fails.
+  explained refusal for compiler-declared device-answerable reads. Loading,
+  a thrown query or an uncaught JS error fails for those reads. Server-only
+  reads are recorded as `online-only: unavailable offline (expected)` with
+  their actual `loading` or `E_OFFLINE`-style refusal. The driver compiles
+  this classification from the backend schema and includes the complete
+  eligible query facts in each receipt; missing facts fail. A loading result
+  never determines the classification.
 - `restart`: after another termination and backend restart, the cold app is
   online and its watermark has reached the exact `syncBarrier.seq` passed
   by the driver, not merely a tail persisted after prime. The driver inserts
   this zero-write commit while the backend is stopped; it changes no
-  application data.
+  application data. Eligible server-only queries must return data in both
+  prime and restart; their online loading or refusal fails.
 
 Each segment has timings, a receipt and a screenshot (`smoke-ios-prime.png`,
 `smoke-ios-offline.png`, `smoke-ios-restart.png`). The same driver also keeps
@@ -87,14 +94,34 @@ rechecked during execution and collection. CoreSimulator 27's measured
 framework execute-bit normalization is explicitly recorded; bytes must match.
 The per-project cache and simulator leases preserve concurrent owners.
 
-Qualification limit (2026-09-29): the cal25 app built, directly launched and
-rendered eight retained messages offline, but the unchanged 0.4.7 client's
-`chat.typingInMyRooms` returned `loading`, which fails full smoke. Restart was
-not run. The warm own-build path is implemented; this is not a full native-smoke
-pass or a timing guarantee. The A/B repack experiment has the same blocker,
-so **`--repack` is unavailable**. Do not skip queries or relax smoke
-to turn those runs into passes. Repeatability, physical devices and M6/M8
-qualification remain outside this slice.
+After a successful base build, JS/assets-only edits can reuse its native binary:
+
+```sh
+npx snapback4 witness ios --repack artifacts/native-smoke/build.json \
+  --app-project . --udid "$UDID" --smoke --artifacts artifacts/native-edit
+```
+
+Install and lock `@expo/repack-app` 0.10.3 in the app before the base build.
+This tool is not a Snapback package dependency. `--repack` and `--build` are
+exclusive; repack requires `--app-project` and the same static-config project,
+locked dependencies, native helper, toolchain and fingerprint. Native/config
+changes refuse with `--build` recovery. Both routes exclude expo-updates.
+Repack uses supported `--js-bundle-only` and a fresh export:embed, not a prior
+`dist` export. It checks HBC/compiler, exact native and metadata bytes, and
+bundled assets against that export's resource graph before installation.
+
+`repack.json` and the sealed `proof.json` bind the immutable base, new output,
+changed-file list and tool integrity. Repack smoke uses `repack-smoke-ios-*`
+artifacts and `application-release-repack` proof kind. Each cold launch binds
+the actual embedded HBC/native executable again. A warm `--build` always makes
+a new own-build receipt and remains the fallback. No credentials or signing
+settings are changed, and no native identity is rewritten.
+
+Qualification is limited to the recorded cal25 shape and pinned toolchain.
+A build or repack receipt alone is not a passing smoke result. The unchanged
+published 0.4.7 client's offline ephemeral loading is recorded as expected
+server-only unavailability from compiler facts, with online answers required.
+This qualifies native smoke only, not M6/M8, physical devices or publication.
 
 ## Deeper application scenarios
 
@@ -352,3 +379,10 @@ For example, an app bundled for port 4400 cannot attest the witness on 49371.
 Use the app's matching --port or rebundle the app to consume the preparation
 EXPO_PUBLIC_SNAPBACK_URL value. The witness will not stop someone else's backend
 or accept an unrelated server's session and store as its own proof.
+
+
+E_WITNESS_REPACK means repack changed native bytes, configuration or resources
+outside the pinned export. For example, an unexpected metadata or asset file
+cannot be justified by a successful repack command. Preserve the output and
+logs, then use --build with a fresh artifacts directory. The witness compares
+all Mach-O bytes and requires bundled assets to match export:embed output.

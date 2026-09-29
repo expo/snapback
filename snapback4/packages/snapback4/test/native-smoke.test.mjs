@@ -24,7 +24,7 @@ function fixture(segment, options = {}) {
     ], schema: { operations: { page: { held: true, runs: 'device' } } } } };
     throw Error('unexpected device call ' + req.op);
   } };
-  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment, timeoutMs: 500, baseline: prime, barrierSeq: options.barrierSeq ?? 8 }),
+  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment, timeoutMs: 500, baseline: prime, barrierSeq: options.barrierSeq ?? 8, queryFacts: options.queryFacts ?? { inbox: { runs: 'device', held: false }, page: { runs: 'device', held: true } } }),
     witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => false }, {
     errors: { getGlobalHandler: () => handler, setGlobalHandler: value => { handler = value; } },
     now: () => clock, pause: async () => { clock += 100; options.pause?.(client, state); },
@@ -43,7 +43,7 @@ test('prime waits for acquisition and records device counts, identity and link, 
   assert.deepEqual(f.lines[0].smoke.rows, prime.rows);
   assert.equal(f.lines[0].smoke.storeId, prime.storeId);
   assert.equal(f.reads.length, 0);
-  assert.ok(f.calls.every(c => c.op === 'witness_state'));
+  assert.ok(f.calls.every(c => ['witness_state', 'backend'].includes(c.op)));
 });
 test('offline calls precisely all optional-argument queries on the own client and records counts only', async () => {
   const f = fixture('offline'); await f.run();
@@ -141,4 +141,36 @@ test('a replacement client supersedes an in-flight sample without a failure rece
   assert.equal(f.lines.at(-1).witness.step, 'primed');
   assert.ok(replacement.calls.length > 0);
   assert.ok(!f.lines.some(row => row.witness.step.endsWith(':failed')));
+});
+
+test('compiler server facts permit only expected offline unavailability and require online answers', async () => {
+  const queryFacts = { inbox: { runs: 'server', held: false }, page: { runs: 'device', held: true } };
+  for (const result of [{ loading: true }, { denied: { code: 'E_OFFLINE', message: 'server unavailable' } }]) {
+    const f = fixture('offline', { queryFacts, query: op => op.name === 'inbox' ? result : { data: [] } });
+    await f.run();
+    const q = f.lines[0].smoke.queries[0];
+    assert.equal(q.classification, 'online-only');
+    assert.equal(q.expectation, 'online-only: unavailable offline (expected)');
+    assert.equal(q.state, 'loading' in result ? 'loading' : 'refused');
+    assert.deepEqual(f.lines[0].smoke.queryFacts, queryFacts);
+    for (const segment of ['prime', 'restart']) {
+      const online = fixture(segment, { queryFacts, query: () => result });
+      await assert.rejects(online.run(), /did not answer online/);
+    }
+  }
+  for (const segment of ['prime', 'restart']) {
+    const f = fixture(segment, { queryFacts }); await f.run();
+    assert.deepEqual(f.reads.map(([op]) => op.name), ['inbox']);
+    assert.equal(f.lines[0].smoke.queries[0].state, 'ready');
+  }
+  for (const query of [() => ({ data: [] }), () => ({ denied: { code: 'E_BUG', message: 'bug' } }), () => { throw Error('server query crashed'); }]) {
+    const f = fixture('offline', { queryFacts, query }); await assert.rejects(f.run());
+  }
+});
+test('missing or invalid facts never classify loading as an online-only result', async () => {
+  for (const queryFacts of [{}, { inbox: { runs: 'server', held: false } },
+    { inbox: {}, page: { runs: 'device', held: true } }]) {
+    const f = fixture('offline', { queryFacts, query: () => ({ loading: true }) });
+    await assert.rejects(f.run(), /facts|residency/);
+  }
 });

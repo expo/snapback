@@ -82,15 +82,20 @@ Native sessions use SecureStore; browser persistence is explicit because page sc
 uses the online client. Keep the starter's Metro config and wasm transformer.
 `assets` retains viewed media within its byte budget when a device is available; Expo Go's online tier ignores it.
 
-Prepare an own Release build and attempt native smoke:
+Prepare an own Release build and run native smoke:
 `npx snapback4 witness ios --build . --smoke --udid "$UDID" --artifacts artifacts/native-smoke`.
 The bounded Expo 57.0.22 / RN 0.86.3 / Xcode 27 adapter installs and launches
 without GUI automation or Metro, retaining immutable build and execution proofs.
 Read `npx snapback4 guide witness` for its exact pins, native helper and session
 requirements, installed-app mode (`--bundle-id ID`), and deeper scenarios.
-The cal25 0.4.7 experiment fails full smoke on an offline ephemeral-query loading
-result; restart and repack qualification remain open. `--repack` is unavailable.
-A completed build alone is not a native-smoke pass or a timing guarantee.
+For JS/assets-only edits, use `--repack artifacts/native-smoke/build.json`
+with `--app-project .`, the same simulator and a fresh artifacts directory.
+The app must lock `@expo/repack-app` 0.10.3 before its base build. Native/config
+changes require `--build`. Repack retains the native binary and qualifies its
+new HBC/assets through the same three smoke segments; its proof is labeled
+`application-release-repack`. Compiler-declared server-only reads record
+expected offline unavailability and must answer online. A completed preparation
+alone is not a smoke pass or an M6/M8 application qualification.
 
 ```ts
 // src/client.ts

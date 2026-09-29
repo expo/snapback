@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { inventory, hbc, nativeFiles, differences, seal, installedInventory, shellQuote } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
+import { inventory, hbc, nativeFiles, differences, seal, installedInventory, shellQuote, repackAssets } from '../../../crates/snapback4/src/verbs/witness/payload.mjs';
 
 test('Xcode shell environment keeps executable paths literal', () => {
   const value = "/a path/with'quotes/$HOME/$(printf wrong)/`printf wrong`/node";
@@ -53,5 +53,21 @@ test('source, truncated and wrong magic bundles cannot masquerade as HBC', () =>
     fs.writeFileSync(file, bytes); assert.equal(hbc(file).version, 98);
     seal(path.join(dir, 'build.json'), { result: 'A' });
     assert.throws(() => seal(path.join(dir, 'build.json'), { result: 'B' }), /EEXIST/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('repack assets must be exactly the new bundle export resource graph', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'np-assets-'));
+  try {
+    for (const side of ['app', 'export']) {
+      fs.mkdirSync(path.join(dir, side, 'assets'), { recursive: true });
+      fs.writeFileSync(path.join(dir, side, 'assets/image.png'), 'B');
+    }
+    assert.ok(repackAssets(path.join(dir, 'app'), path.join(dir, 'export')).sha256);
+    fs.writeFileSync(path.join(dir, 'app/assets/image.png'), 'A');
+    assert.throws(() => repackAssets(path.join(dir, 'app'), path.join(dir, 'export')), /E_WITNESS_REPACK/);
+    fs.writeFileSync(path.join(dir, 'app/assets/image.png'), 'B');
+    fs.writeFileSync(path.join(dir, 'app/assets/unreferenced.png'), 'extra');
+    assert.throws(() => repackAssets(path.join(dir, 'app'), path.join(dir, 'export')), /E_WITNESS_REPACK/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

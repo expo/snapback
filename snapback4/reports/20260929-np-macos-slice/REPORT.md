@@ -208,7 +208,7 @@ macOS; no Linux execution is claimed. The actual simulator negatives above are
 separate from fake-simctl tests. The wasm budget and publication path are unchanged.
 
 The runtime/smoke incompatibility is tracked in
-[the filesystem issue](../../../issues/20260929-snapback4-native-smoke-ephemeral-loading.md).
+[the filesystem issue](../../../issues/closed/20260929-snapback4-native-smoke-ephemeral-loading.md).
 The published local-query implementation intentionally returns loading for
 unavailable ephemeral reads; smoke requires ready or explained refusal for
 every optional-argument query. Resolving that contract belongs to the client/

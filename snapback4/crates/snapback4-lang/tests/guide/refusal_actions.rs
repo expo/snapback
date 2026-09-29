@@ -196,6 +196,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_BACKEND", &["Inspect the backend log, run `snapback4 check` in the app", "retry in a fresh artifacts directory"]),
     ("E_WITNESS_BUILD", &["Inspect the named phase log", "choose a fresh artifacts directory"]),
     ("E_WITNESS_NATIVE_COMPAT", &["Use manual installed-app mode", "Do not delete fingerprint exclusions or native modules"]),
+    ("E_WITNESS_REPACK", &["Preserve the output", "use --build"]),
     ("E_WITNESS_HERMES", &["Rebuild through the matching CocoaPods and Hermes toolchain", "a valid header alone does not prove a cold launch"]),
     ("E_WITNESS_PROOF", &["Rebuild the app with the current native witness helper", "Never edit a sealed build receipt"]),
     ("E_WITNESS_ORIGIN", &["Use the app's matching --port or rebundle the app", "will not stop someone else's backend"]),

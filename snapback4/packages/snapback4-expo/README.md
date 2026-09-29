@@ -65,6 +65,13 @@ the executable and embedded HBC, records Release state and binds each launch to
 the external proof; JavaScript records Hermes state. Rebuild the native module
 when adopting it. Ordinary launches remain inactive. Linked expo-updates is
 outside this preparation adapter because an embedded hash cannot attest a cached
-update selected at runtime. The first cal25 experiment remains a partial native
-result: its published 0.4.7 client returns loading for an offline ephemeral query,
-so full smoke fails. See the witness card before interpreting a build receipt.
+update selected at runtime. The JS smoke helper consumes compiler query facts
+from the driver: device-answerable loading fails, while server-only offline
+loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
+must answer online in prime and restart. Client semantics are unchanged.
+
+After an own base build, `witness ios --repack <build.json> --app-project .
+--smoke` qualifies JS/assets-only edits on the same native binary. The app must
+lock @expo/repack-app 0.10.3 before building the base. Repack has distinct proof
+and artifact names; native/config changes require a new own build. See the
+witness card for exact pins, source-helper requirements and smoke limits.

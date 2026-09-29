@@ -11,6 +11,7 @@ type Backend = {
   programs: { name: string; kind: string; args: Record<string, unknown> }[];
   schema: { operations?: Record<string, { runs?: "device" | "server"; held?: boolean }> };
 };
+type Fact = { runs: "device" | "server"; held: boolean };
 type Baseline = State & { origin: string; viewer: string };
 type ErrorUtils = {
   getGlobalHandler(): (error: Error, fatal?: boolean) => void;
@@ -108,7 +109,7 @@ export function createSmoke(container: WitnessContainer, environment: Environmen
     };
     const receipt = (pass: boolean, error?: unknown) => w.receipt({ smoke: {
       segment: w.segment, pass, startedAt, endedAt: now(), durationMs: now() - startedAt,
-      origin, viewer: client.viewer(), link: client.link(), ...state, queries, errors: [...errors],
+      origin, viewer: client.viewer(), link: client.link(), ...state, queryFacts: config.queryFacts, queries, errors: [...errors],
       ...(w.segment === "restart" ? { barrierSeq: config.barrierSeq } : {}),
       ...(error ? { error: error instanceof Error ? error.message : String(error) } : {}),
     } });
@@ -116,23 +117,44 @@ export function createSmoke(container: WitnessContainer, environment: Environmen
       assert(errorUtils, "the native JavaScript error handler is unavailable");
       await wait(async () => { await snapshot(); return ready(); });
       identity();
-      if (w.segment === "offline") {
-        const backend = await read<Backend>("backend");
-        for (const program of backend.programs) {
-          if (program.kind !== "Query" || !Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type)) continue;
-          const fact = backend.schema.operations?.[program.name] ?? {};
-          const op = { kind: "query", name: program.name, ...(fact.runs ? { runs: fact.runs } : {}), ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
-          const result = await client.query(op, {});
-          current();
-          if ("data" in result) {
-            queries.push({ name: program.name, state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
-              complete: result.complete, fresh: result.fresh, cut: result.cut });
-          } else if ("denied" in result && result.denied.code && result.denied.message) {
-            queries.push({ name: program.name, state: "refused", code: result.denied.code, message: result.denied.message });
-          } else { throw new Error(`query ${program.name} returned neither ready nor an explained refusal`); }
-        }
-      } else if (w.segment === "restart") {
+      if (w.segment === "restart") {
         await wait(async () => { await snapshot(); identity(); return ready() && barrier(); });
+      }
+      // @ref LLP 3000.011.005.000#2 — residency comes from compiler facts, never a loading result.
+      const facts = config.queryFacts as Record<string, Fact> | undefined;
+      assert(facts && typeof facts === "object" && !Array.isArray(facts), "missing compiler query facts");
+      const backend = await read<Backend>("backend");
+      const eligible = backend.programs.filter(program => program.kind === "Query"
+        && Object.values(program.args).every(type => type !== null && typeof type === "object" && "Optional" in type));
+      assert(JSON.stringify(eligible.map(p => p.name).sort()) === JSON.stringify(Object.keys(facts).sort()),
+        "compiler query facts do not match the kept program");
+      for (const program of eligible) {
+        const fact = facts[program.name];
+        assert(fact && ["device", "server"].includes(fact.runs) && typeof fact.held === "boolean",
+          `missing compiler residency for ${program.name}`);
+        const classification = fact.runs === "server" ? "online-only" : "device-answerable";
+        if (w.segment !== "offline" && fact.runs !== "server") continue;
+        const op = { kind: "query", name: program.name, runs: fact.runs, ...(fact.held ? { held: true } : {}) } as Query<{}, unknown>;
+        const result = await client.query(op, {});
+        current();
+        const query: Record<string, unknown> = { name: program.name, classification };
+        queries.push(query);
+        if ("data" in result) {
+          Object.assign(query, { state: "ready", count: Array.isArray(result.data) ? result.data.length : result.data == null ? 0 : 1,
+            complete: result.complete, fresh: result.fresh, cut: result.cut });
+        } else if ("denied" in result && result.denied.code && result.denied.message) {
+          Object.assign(query, { state: "refused", code: result.denied.code, message: result.denied.message });
+        } else if ("loading" in result) { query.state = "loading"; }
+        else { throw new Error(`query ${program.name} returned an unknown result`); }
+        if (w.segment === "offline" && fact.runs === "server") {
+          assert(query.state === "loading" || (query.state === "refused" && /^E_OFFLINE(?:_|$)/.test(String(query.code))),
+            `online-only query ${program.name} did not report offline unavailability`);
+          query.expectation = "online-only: unavailable offline (expected)";
+        } else if (fact.runs === "server") {
+          assert(query.state === "ready", `online-only query ${program.name} did not answer online`);
+        } else {
+          assert(query.state === "ready" || query.state === "refused", `query ${program.name} returned neither ready nor an explained refusal`);
+        }
       }
       // Give the mounted app a turn, then attest the state that exists now.
       await pause();

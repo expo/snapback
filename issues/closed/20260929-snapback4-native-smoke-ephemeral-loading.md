@@ -1,6 +1,6 @@
 # Native smoke rejects the published ephemeral-query offline result
 
-Status: Open
+Status: Closed
 Date: 2026-09-29
 Systems: Snapback 4 native witness / generic smoke / published client 0.4.7
 Related: LLP 3000.030 §11; LLP 3000.011.005.000 §2; LLP 3000.017
@@ -31,3 +31,15 @@ with appropriate client coverage. Do not skip this query, convert loading to
 synthetic success, alter the app's schema to evade discovery, or count the
 partial native runs as complete smoke. The NP macOS first slice remains
 unqualified until the selected resolution and full A/B/restart experiment pass.
+
+
+Resolution — 2026-09-29, NP-mac round 1: the supervisor ruled that generic
+smoke uses compiler residency, not observed results. The driver supplies the
+eligible query facts; device-answerable loading still fails. Server-only
+reads record expected offline unavailability and the actual loading/refusal,
+and must answer online in prime and restart. LLP 3000.011.005.000 §2 and the
+witness card record the scope. Client semantics and the subject's published
+client/native engine bytes are unchanged. Native completion evidence belongs
+to `snapback4/reports/20260929-np-macos-slice/round1/REPORT.md`.
+The separate caller-experience follow-up is
+`issues/20260929-snapback4-server-only-query-offline-refusal.md`.

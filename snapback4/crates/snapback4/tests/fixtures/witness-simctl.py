@@ -60,6 +60,10 @@ elif a[0] == 'launch':
                      origin=config['origin'], viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
                      link='offline' if segment == 'offline' else 'online', queries=[])
         smoke['pass'] = smoke.pop('pass_')
+        smoke['queryFacts'] = config['queryFacts']
+        smoke['queries'] = [dict(name=name, classification='online-only' if fact['runs']=='server' else 'device-answerable',
+            **(dict(state='loading', expectation='online-only: unavailable offline (expected)') if fact['runs']=='server' and segment=='offline' else dict(state='ready', count=0)))
+            for name, fact in config['queryFacts'].items() if segment=='offline' or fact['runs']=='server']
         if mode == 'smoke-wrong-origin':
             smoke['origin'] = 'http://127.0.0.1:1'
         if segment == 'restart':

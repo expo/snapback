@@ -2,6 +2,48 @@
 //! captures, timeouts, artifact reservation and cleanup as application scenarios.
 use super::*;
 
+// @ref LLP 3000.011.005.000#2 — compile the owned backend; never classify from a runtime result.
+pub(super) fn query_facts(root: &Path) -> Result<Value> {
+    let bound = crate::project::Project { root: root.to_owned() }.compile().map_err(|e| error("E_WITNESS_BACKEND", e))?;
+    compiled_query_facts(&bound)
+}
+fn compiled_query_facts(bound: &snapback4_lang::Bound) -> Result<Value> {
+    use snapback4_core::ir::{ArgType, ProgramKind};
+    if !bound.diagnostics.is_empty() { return Err(error("E_WITNESS_BACKEND", "cannot compile smoke residency facts; run snapback4 check")); }
+    let mut facts = serde_json::Map::new();
+    for p in &bound.programs {
+        let p = &p.program;
+        if p.kind != ProgramKind::Query || !p.args.values().all(|a| matches!(a, ArgType::Optional(_))) { continue; }
+        let fact = bound.schema.operations.get(&p.name).ok_or_else(|| error("E_WITNESS_BACKEND", format!("missing compiler fact for {}", p.name)))?;
+        if !matches!(fact.runs.as_deref(), Some("device" | "server")) { return Err(error("E_WITNESS_BACKEND", format!("missing residency for {}", p.name))); }
+        facts.insert(p.name.clone(), json!({ "runs": fact.runs, "held": fact.held }));
+    }
+    Ok(Value::Object(facts))
+}
+fn validate_queries(segment: &str, value: &Value, facts: &Value) -> Result<()> {
+    let refuse = || error("E_WITNESS_RECEIPT", format!("{segment} query results do not match compiler residency facts"));
+    let facts_map = facts.as_object().ok_or_else(refuse)?;
+    if &value["queryFacts"] != facts { return Err(refuse()); }
+    let queries = value["queries"].as_array().ok_or_else(refuse)?;
+    let expected: Vec<_> = facts_map.iter().filter(|(_, f)| segment == "offline" || f["runs"] == "server").collect();
+    if queries.len() != expected.len() { return Err(refuse()); }
+    for (name, fact) in expected {
+        let matching: Vec<_> = queries.iter().filter(|q| q["name"] == *name).collect();
+        if matching.len() != 1 { return Err(refuse()); }
+        let q = matching[0];
+        let server = fact["runs"] == "server";
+        if q["classification"] != if server { "online-only" } else { "device-answerable" } { return Err(refuse()); }
+        let explained = q["state"] == "refused" && q["code"].as_str().is_some_and(|s| !s.is_empty()) && q["message"].as_str().is_some_and(|s| !s.is_empty());
+        let ready = q["state"] == "ready" && q["count"].as_u64().is_some();
+        let valid = if server && segment == "offline" {
+            q["expectation"] == "online-only: unavailable offline (expected)" && (q["state"] == "loading"
+                || (explained && q["code"].as_str().is_some_and(|s| s == "E_OFFLINE" || s.starts_with("E_OFFLINE_"))))
+        } else if server { ready } else { ready || explained };
+        if !valid { return Err(refuse()); }
+    }
+    Ok(())
+}
+
 impl Run {
     pub(super) fn execute_smoke(&mut self) -> Result<()> {
         self.manifest["segments"] = json!({
@@ -59,6 +101,7 @@ impl Run {
             self.manifest["segments"][segment]["error"] = json!(problem);
             return Err(problem);
         }
+        validate_queries(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["queryFacts"])?;
         validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
     }
 
@@ -89,7 +132,7 @@ impl Run {
                 Err(e) => { problem.get_or_insert(e); },
             }
             if self.manifest["segments"][segment]["status"] == "passed" {
-                if let Err(e) = validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64()) {
+                if let Err(e) = validate_queries(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["queryFacts"]).and_then(|_| validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())) {
                     self.manifest["segments"][segment]["status"] = json!("failed");
                     problem.get_or_insert(e);
                 }
@@ -136,6 +179,59 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn compiler_classifies_ephemeral_and_online_queries_before_execution() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), r#"
+table heldRows:
+  value: int
+  read <- allow
+  sync public
+table remoteRows:
+  value: int
+  read <- allow
+  online only
+table signals:
+  principal: principal
+  unique byPrincipal: principal
+  read <- allow
+  ephemeral 4s
+query held(c: cursor ?):
+  return heldRows first 10 after c
+query remote(c: cursor ?):
+  return remoteRows first 10 after c
+query ephemeral(c: cursor ?):
+  return signals first 10 after c
+query required(id: heldRows):
+  return heldRows[id]
+"#.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let facts = compiled_query_facts(&bound).unwrap();
+        assert_eq!(facts.as_object().unwrap().len(), 3);
+        assert_eq!(facts["held"]["runs"], "device");
+        assert_eq!(facts["remote"]["runs"], "server");
+        assert_eq!(facts["ephemeral"]["runs"], "server");
+    }
+    #[test]
+    fn receipt_cannot_reclassify_or_skip_a_query() {
+        let facts = json!({"held": {"runs": "device", "held": false}, "remote": {"runs": "server", "held": false}});
+        let mut r = json!({"queryFacts": facts, "queries": [
+            {"name": "held", "classification": "device-answerable", "state": "ready", "count": 0},
+            {"name": "remote", "classification": "online-only", "state": "loading", "expectation": "online-only: unavailable offline (expected)"}
+        ]});
+        assert!(validate_queries("offline", &r, &facts).is_ok());
+        r["queries"][0]["state"] = json!("loading");
+        assert!(validate_queries("offline", &r, &facts).is_err());
+        r["queries"][0]["state"] = json!("ready");
+        r["queries"][1]["classification"] = json!("device-answerable");
+        assert!(validate_queries("offline", &r, &facts).is_err());
+        r["queries"] = json!([]);
+        assert!(validate_queries("offline", &r, &facts).is_err());
+        assert!(validate_queries("prime", &r, &facts).is_err());
+        r["queries"] = json!([{"name":"remote", "classification":"online-only", "state":"ready", "count":0}]);
+        assert!(validate_queries("restart", &r, &facts).is_ok());
+        r["queries"][0]["state"] = json!("loading");
+        assert!(validate_queries("restart", &r, &facts).is_err());
+    }
     #[test]
     fn restart_requires_its_barrier_even_if_newer_than_prime() {
         let prime = json!({ "segment": "prime", "pass": true, "errors": [], "rows": {}, "storeId": "store",

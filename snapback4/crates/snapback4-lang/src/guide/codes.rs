@@ -106,6 +106,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_WITNESS_INPUT", "invalid witness arguments, launch configuration or signal label. Use snapback4 guide witness for the flags and app recipe. guide witness."),
     ("E_WITNESS_BUILD", "own Release preparation failed or exceeded its deadline. Keep its logs, correct the named input and retry --build with fresh artifacts. guide witness."),
     ("E_WITNESS_NATIVE_COMPAT", "native inputs or toolchain are outside the bounded preparation adapter. Use manual installed-app mode for unsupported configurations. guide witness."),
+    ("E_WITNESS_REPACK", "repack changed native bytes, config or unclassified resources. Preserve its logs and output, then use --build with fresh artifacts. guide witness."),
     ("E_WITNESS_HERMES", "the prepared bundle is not matching Hermes bytecode. Use the supported Release toolchain and --build. guide witness."),
     ("E_WITNESS_PROOF", "prepared, installed or native startup payload identity differs. Preserve the failed evidence and rebuild from verified inputs. guide witness."),
     ("E_WITNESS_ORIGIN", "the actual client origin differs from the owned backend. Rebundle for the printed origin or select the matching free port. guide witness."),

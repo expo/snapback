@@ -76037,3 +76037,49 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — NP-mac round 1: complete native A/B smoke; repack accepted
+
+Merged origin/main first (ac6a6076d8 over f9620c815b), preserving both journal
+entries in the sole conflict. Applied the supervisor's smoke ruling: compile
+all eligible query residency facts in the owned backend, carry them in launch
+payloads and receipts, and validate coverage/classification in the driver.
+Device-answerable loading still fails; server-only typing/Insights record
+expected offline loading/E_OFFLINE and must answer online in prime/restart.
+Closed the smoke-contract issue and filed a separate one-shot-refusal follow-up;
+no client semantics or published client/native engine bytes changed.
+
+Own A and warm own B passed all three segments, in 230.746 / 149.000 seconds
+complete invocation. Five B repack+smoke runs passed in 42.666 / 44.714 / 50.521 /
+56.639 / 46.109 seconds: median 46.109 s, nearest-rank p95 56.639 s, including
+hashing, install, prime, cold offline, restart, capture and collection. Warm
+installed dependencies/tools, one preserved native base and booted owned iOS 27
+simulator; same normal session and eight-message fixture throughout. No cold
+package-install or broader-host timing claim. Simulator boot was 19.828 s,
+separate. A's build cache was already warm.
+
+A/B fingerprints and every native Mach-O file agree; HBC 98, actual JS/app
+hashes differ. B changes only main.jsbundle and three scaled image files;
+assets now match the pinned export:embed output exactly. --repack is exposed
+for the bounded static Expo 57.0.22/RN 0.86.3/Xcode 27 adapter, using app-local
+locked @expo/repack-app 0.10.3 and --js-bundle-only. Native/config differences
+refuse to --build. Both routes exclude expo-updates; no identity rewrite,
+bytecode converter, new package dependency or signing repair. The four local
+unpublished witness-helper changes remain separate from 0.4.7 client/core bytes.
+
+Scheme/tamper refusals precede install; injected cold error persists and fails;
+killing owned PID 2287 after its successful restart receipt prevents a pass;
+held simulator lease and busy listener survive refusal. All source controls
+restored, only our UDID 87959305-8A14-4FE5-9EF7-4CE303C03DB0 shut down/deleted.
+Independent Python verification recomputes payloads, HBC and artifact hashes.
+27 driver, 9 witness unit, 23 JS helper/payload/smoke and 98 guide checks pass;
+ref-check has zero errors/unchecked refs. Initial root-workspace invocations,
+stale flag expectation and new guide-output path omissions remain in the logs.
+No core/wasm change; the 593,719 B gzip cap is unchanged, no fresh wasm claim.
+
+LLP 3000.030 §11 steps 1–4 pass and Status is Accepted under the supervisor's
+ruling. M6/M8, physical devices, general SDK coverage, the M1 discovery study,
+wider repeatability and publication remain separate increments. Report and
+raw evidence: reports/20260929-np-macos-slice/round1/REPORT.md. Nothing pushed
+or published. Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

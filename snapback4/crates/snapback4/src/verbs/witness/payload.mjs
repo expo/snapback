@@ -57,3 +57,12 @@ export function installedInventory(expected, actual, native) {
   }
   return actual;
 }
+
+// The pinned export:embed output is the resource graph for this bundle. A
+// directory prefix alone never authorizes new or missing asset bytes.
+export function repackAssets(app, exported) {
+  const actual = inventory(path.join(app, 'assets'));
+  const expected = inventory(path.join(exported, 'assets'));
+  if (actual.sha256 !== expected.sha256) fail('E_WITNESS_REPACK', 'bundled assets differ from export:embed output; use --build');
+  return expected;
+}
