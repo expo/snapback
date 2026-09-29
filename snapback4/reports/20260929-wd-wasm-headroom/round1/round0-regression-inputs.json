@@ -1,0 +1,10 @@
+{
+  "equalBeforeAndAfterMerge": true,
+  "inputs": {
+    "snapback4/crates/snapback4-core/src/value.rs": "9952c5ad5ad992dff5c6e5015ad28d30cfd48947743315132d05cc2d64a0d13c",
+    "snapback4/crates/snapback4-core/src/small_map.rs": "6be8a83f163bc6ea7faae22afc8019b37a28405ed6263a872c567bcd18d88f68",
+    "snapback4/crates/snapback4-core/src/engine/local.rs": "5bb0de44c948c069f6594bb2539162633504c6ee25d2edc45b4d14382eb728ad",
+    "snapback4/crates/snapback4-core/src/engine/runner.rs": "0faab3459dd765e75d89eb8a1de89359ddbfc9389fa6a0496373bddf16c95237",
+    "snapback4/crates/snapback4-core/tests/common/meter.rs": "3197c4c64b627c4f77a66b051d2c6949d962de38f8c45721642d9bf2c45ff3d2"
+  }
+}

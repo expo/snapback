@@ -1,0 +1,14 @@
+{
+  "captureSha256": "c79f9d52216b7586dc34e4f2a1486f11864ac86420ad4021796b358252f58c99",
+  "commands": 44,
+  "operations": {
+    "sync_state": 41,
+    "apply": 3
+  },
+  "comparisons": 119,
+  "persistedRecords": 12740,
+  "persistedBytes": 5176053,
+  "persistedSha256": "01a31f06b7818cfcc4433f2eafae192cb67952d7f38297b218945b1aead39a41",
+  "traceSha256": "401ccd74c59f88d9fe64e9535f4712c14a6653f39119c4468937653f45388110",
+  "equal": true
+}

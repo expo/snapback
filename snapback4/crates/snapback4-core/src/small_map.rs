@@ -1,6 +1,9 @@
 //! Construction for small field/plan maps. Data-sized stores keep their own
 //! bulk construction paths. The representation and ordered iteration remain
 //! BTreeMap; only the temporary sorting machinery is avoided.
+//! Insertion retains the first equal key object and the last value. Use only
+//! where keys are unique or that key choice is unobservable; ObjectFields
+//! must retain bulk construction because its heap charge observes capacity.
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — eliminate sort instantiations without replacing maps or changing serialized bytes.
 use std::collections::BTreeMap;
 

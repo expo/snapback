@@ -44,10 +44,8 @@ impl From<BTreeMap<String, Value>> for ObjectFields {
 }
 impl FromIterator<(String, Value)> for ObjectFields {
     fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
-        // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — reuse insertion for small field maps instead of instantiating a bulk sort per iterator.
-        let mut fields = BTreeMap::new();
-        fields.extend(iter);
-        fields.into()
+        // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — keep bulk construction here: duplicate keys retain the last String allocation, whose capacity the heap meter observes.
+        iter.into_iter().collect::<BTreeMap<_, _>>().into()
     }
 }
 impl std::ops::Deref for ObjectFields {

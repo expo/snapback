@@ -78389,3 +78389,52 @@ The whole guide separately passed 99/99; SDK build/typecheck and docs budgets
 pass. `awaitBoundary()` matches without regeneration; there was no merge
 conflict in that record. Wasm remains 2,040,727 B raw / 592,959 B gzip, 760 B
 below the unchanged 593,719 B cap. No push or publication.
+
+
+## 2026-09-29 — WD round 1: preserve duplicate-key allocations and heap outcomes
+
+Read the round-0 prompt/report and complete Astra review. Merged origin/main
+cea3b70436 first in 94883eef17, preserving SR/LL and both append-only journal
+histories. Restored ObjectFields' old bulk constructor: equal keys retain the
+last String allocation and last value. Insertion's first-key retention changed
+capacity-sensitive meters despite identical bytes. The new public object/local
+query regression fails on merged round 0 (4,344 B, capped/null versus 249 B,
+complete), then passes after the correction. The reverse capacities preserve
+4,344 B and the heap cut, so shrinking keys cannot masquerade as the fix.
+
+Audited all 22 other small_map call sites individually. Three borrowed-key maps
+can keep a different equal key reference, but consume it only by string contents;
+none observes its identity/capacity. Other sites have unique keys or equal-capacity
+clones. No further production change; document the helper's restriction and the
+correction in LLP 3000.002. No meter, format, error, feature or ceiling changed.
+
+On the merged tree, the fix costs 1,015 B gzip without Binaryen and 1,547 B with
+Binaryen 132. Final source-only artifact: 1,980,279 B raw / 584,341 B gzip,
+9,378 B below 593,719. Optimized: 1,954,344 B raw / 581,808 B gzip, 11,911 B
+headroom. Against round 0's original control it saves 11,171 B optimized,
+829 B short of the original 12,000 B target; the prior 12,692 B recovery is
+historical. No combined-HV qualification is claimed.
+
+Core affected checks: 180 passes, one ignore, plus one nested child probe.
+Device affected checks: 1,385 passes, five ignores; whole guide 99/99.
+Ran scripts/test.sh exactly once, exit 0: `== 0 failure(s) in 1503 s`.
+Rust passes 4,344 with 33 ignores; clients 5,245 with ten skips and zero
+cancellations; fixture wrappers 9/9; full-count models 79/79. All stages pass.
+Full-suite failures: ours 0, baseline 0, environmental 0. The report records two
+corrected setup errors and the required detecting failure, all ours. The old
+round-0 Rust report overcounted by one: its archived summaries total 4,343.
+The inherited nominal 60-second process budget remains exceeded.
+
+Matched wasm replay preserves 119 replies/drains/errors, 5,176,053 persisted
+bytes and offline reopen; all 105 SDK JavaScript files match. Five alternating
+u0500 pairs per mode plus instrumented runs verify all 40 contexts and 11,612
+rows. Median acquisition 2,212.5 → 2,255.6 ms default and 2,451.3 → 2,325.0 ms
+Worker; wasm high-water memory stays 57,278,464 B. Load-1 65.33–70.29 on 96 CPUs
+limits speed inference; no WD build/test overlaps these samples. All 1,637
+recorded qualification input hashes remain fixed and the full suite reproduces
+the final wasm exactly. No count, timeout or assertion was relaxed.
+
+Report, per-site audit and complete failure ledger:
+reports/20260929-wd-wasm-headroom/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published; Grok's pending review belongs to a later round.
