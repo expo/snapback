@@ -45,6 +45,8 @@ table notes:
 table audits:
   at: time
   body: text <=40
+  expiresAt: time ?
+  expire at .expiresAt
   by byTime: at, id
   public 'remote expiry witness'
   online only
@@ -71,7 +73,7 @@ query expiryPage(c: cursor ?):
   return audits after c last 3 by .at pageCard
 `;
 
-for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "remembered branch", "remembered branch watch", "remembered branch timer watch"]) {
+for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits", "populated watch", "server pagination", "server pagination watch", "server pagination delayed changes", "server pagination watch delayed changes", "remembered branch", "remembered branch watch", "remembered branch timer watch"]) {
   test(`expiry retry ${scenario} ${tier}`, { timeout: 30000 }, async t => {
     const directory = mkdtempSync(join(tmpdir(), "sb4-expiry-retry-"));
     mkdirSync(join(directory, "snapback"));
@@ -80,10 +82,14 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
     const exit = once(child, "exit");
     let log = "", url, client, live, stop;
     const localGate = gate(), serverGate = gate();
+    const delayedChanges = scenario.endsWith("delayed changes");
+    const changesHeaders = gate(), changesBody = gate(), changesApplied = gate();
+    let heldChanges = false, releasedChanges = false, change;
     child.stdout.on("data", data => { log += data; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
     child.stderr.on("data", data => { log += data; });
     t.after(async () => {
-      localGate.release(); serverGate.release(); stop?.(); live?.close(); await client?.close();
+      localGate.release(); serverGate.release(); changesBody.release(); changesApplied.release();
+      stop?.(); live?.close(); await client?.close();
       if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
       await exit; rmSync(directory, { recursive: true, force: true });
     });
@@ -93,7 +99,10 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
     const rows = [
       { table: "permits", row: { id: "permit", principal: "dev:alice", expiresAt: deadline } },
       { table: "permits", row: { id: "later", principal: "dev:alice", expiresAt: later } },
-      ...["notes", "audits"].flatMap(table => Array.from({ length: 6 }, (_, at) => ({ table, row: { id: `a${at}`, at, body: `${table}-${at}` } }))),
+      ...["notes", "audits"].flatMap(table => Array.from({ length: 6 }, (_, at) => ({ table, row: {
+        id: `a${at}`, at, body: `${table}-${at}`,
+        ...(table === "audits" ? { expiresAt: delayedChanges && at === 2 ? later : null } : {}),
+      } }))),
     ];
     assert.equal((await post("/seed", rows)).seeded, rows.length);
     let wall, clientClock, offline = false, freezeSync = false, interceptLocal, interceptServer;
@@ -107,17 +116,43 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
     const deviceDir = join(directory, "device"); mkdirSync(deviceDir);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() })
       : processDevice({ binary, dir: deviceDir, spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
-    client = await createLocalClient({ url, persona: "alice", waitSeconds: 1,
+    client = await createLocalClient({ url, persona: "alice", waitSeconds: delayedChanges ? 25 : 1,
       fetch: clock.wrap(async (input, init) => {
         if (offline) throw new TypeError("test offline");
         const path = new URL(input).pathname;
-        if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+        if (freezeSync && ["/sync", "/changes"].includes(path)) {
+          // The follow loop asks for sync only after processing the held cut.
+          if (releasedChanges && path === "/sync") changesApplied.release();
+          return parked(init.signal);
+        }
         if (path.startsWith("/q/")) {
           requests.push({ path, args: JSON.parse(init.body).args });
+          if (delayedChanges && !releasedChanges && requests.at(-1).args.c !== null) {
+            releasedChanges = true;
+            changesBody.release();
+            await changesApplied.promise;
+          }
           await interceptServer?.();
         }
         const response = await fetch(input, init);
         if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+        if (delayedChanges && path === "/changes" && !heldChanges) {
+          heldChanges = true;
+          // Fetch can resolve on heartbeat headers before expiry ends the poll.
+          // Deliver its real final body during the continuation, even though
+          // all subsequently dispatched changes/sync requests are parked.
+          const body = response.text();
+          const stream = new ReadableStream({ async start(controller) {
+            try {
+              controller.enqueue(new TextEncoder().encode("\n")); changesHeaders.release();
+              const text = await body;
+              await changesBody.promise;
+              change = JSON.parse(text);
+              controller.enqueue(new TextEncoder().encode(text)); controller.close();
+            } catch (error) { controller.error(error); }
+          } });
+          return new Response(stream, { status: response.status, headers: response.headers });
+        }
         if (path.startsWith("/q/")) serverReplies.push(await response.clone().json());
         return response;
       }),
@@ -131,6 +166,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       } },
     });
     await client.sync();
+    if (delayedChanges) await changesHeaders.promise;
     const remembered = scenario.startsWith("remembered branch");
     if (remembered) {
       const before = await client.query({ kind: "query", name: "branch" }, {});
@@ -243,7 +279,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       }
     };
     let pending;
-    if (scenario === "server pagination") pending = client.query(op, args);
+    if (paginated && !scenario.includes("watch")) pending = client.query(op, args);
     else {
       live ??= client.observe(op, args);
       if (paginated) {
@@ -285,16 +321,34 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
         await until(() => live.getSnapshot().data?.remote === true && live.getSnapshot().data?.secret === "", "post-deadline server answer missing");
       } else {
         const first = await pending;
+        assert.ok("data" in first, JSON.stringify(first));
         assert.deepEqual(first.data.map(row => row.body), ["audits-5", "audits-4", "audits-3"]);
         assert.ok(first.next, "server fallback after expiry must preserve its continuation");
+        assert.notEqual(first.next, replies[0].reply.ok.next, "the expired local branch's cursor must not escape");
+        const firstPageRequests = requests.length;
+        assert.ok(firstPageRequests >= 1 && firstPageRequests <= 3);
+        assert.ok(requests.every(request => request.args.c === null), "every first-page retry keeps its original null cursor");
         interceptLocal = undefined;
         const second = await client.query(op, { c: first.next });
-        assert.deepEqual(second.data.map(row => row.body), ["audits-2", "audits-1", "audits-0"]);
-        // A mounted source invalidated during the held fallback re-reads that
-        // page before publication; the one-shot read needs no observation retry.
-        assert.deepEqual(requests.at(-1).args, { c: first.next });
-        assert.ok(requests.slice(0, -1).every(request => request.args.c === null));
-        assert.ok(requests.length >= 2 && requests.length <= 4, "evidence may retry the first page, never restart its continuation");
+        assert.ok("data" in second, JSON.stringify(second));
+        const suffix = delayedChanges ? ["audits-1", "audits-0"] : ["audits-2", "audits-1", "audits-0"];
+        assert.deepEqual(second.data.map(row => row.body), suffix);
+        assert.equal(second.complete, true); assert.equal(second.next, null);
+        // @ref LLP 3000.029#12 — retries preserve each invocation's input,
+        // including a continuation invalidated by late streamed evidence.
+        const continuationRequests = requests.slice(firstPageRequests);
+        assert.ok(continuationRequests.length > 0);
+        for (const request of continuationRequests) assert.deepEqual(request.args, { c: first.next });
+        assert.ok(requests.length >= 2 && requests.length <= 4, "bounded evidence retries preserve the requested page");
+        if (delayedChanges) {
+          assert.ok(change.tables.includes("permits"));
+          assert.equal(change.seq, serverReplies[0].seq, "even already-known evidence retires the older in-flight attempt");
+          assert.equal(continuationRequests.length, 2, "the delayed change cut must force a continuation retry");
+          assert.deepEqual([...first.data, ...second.data].map(row => row.body),
+            ["audits-5", "audits-4", "audits-3", "audits-1", "audits-0"], "all surviving rows exactly once; expired row absent");
+          t.diagnostic(JSON.stringify({ tier, scenario, firstPageRequests, continuationRequests: continuationRequests.length,
+            rows: [...first.data, ...second.data].map(row => row.body) }));
+        }
       }
     }
   });

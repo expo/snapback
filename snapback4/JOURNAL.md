@@ -75714,3 +75714,58 @@ d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
 No new wasm build, tool installation, push or publication. Report:
 reports/20260928-lv-hook-retention/round7/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Lane LV round 8: preserve each page invocation’s retry cursor
+
+Started from round-7 c89758d1353ef453fb2e7bfb161d70bc89484b97. Read rounds
+0–7’s prompts, reports and journal entries, LLP 3000.029, LLP 3000.028’s read
+and continuation contracts, LLP 3000.016 §2.2 and the client/reads/expiry guide.
+Applied llp-orient. Fetch found main at 4a1e30ca7; merge-tree reported no conflict,
+so no main merge was made. No push, publication or shared tool installation.
+
+The supervisor’s expiry-pagination assertion conflated two query invocations.
+A change poll can return heartbeat headers before the fixture freezes fetch,
+then deliver its expiry body during the second-page call. The dependency fence
+retires that attempt; its retry correctly keeps the second call’s input cursor.
+Controlled delivery of the real body on unmodified round-7 product reproduces
+all four direct/observed wasm/process cases with requests null, next, next and
+correct rows. The ordinary timing probes pass (14 original cases, 50 sequential
+and 100 concurrent pagination runs, plus 20 delayed-fetch runs); they are not
+represented as reproductions of the supervisor’s original packet ordering.
+
+No production fix is warranted. LLP 3000.029 §12 and its Revised line pin the
+per-invocation original-arguments rule and explain the false test assumption.
+The test now checks each call’s request range separately. Four deterministic
+cases require a continuation retry, reject the expired local cursor, preserve
+withdrawal during held fallback, enumerate every surviving row exactly once,
+and omit an expired second-page row. All 18 expiry cases pass. Three isolated
+controls each fail four assertions: the old test, resetting the continuation
+to null, and leaking the expired local cursor. No live SDK was mutated.
+
+Affected suite: 1,021/1,021, including FU overload, retention/fences/footprints/
+ephemeral histories, three browser witnesses and all 333 delivery matrix checks.
+Whole guide: 98/98. The single requested scripts/test.sh run, with local NOFILE
+4096, returns exactly `== 1 failure(s) in 1181 s`, category `client tests`.
+Rust passes 4,288 with 33 ignored; client shards total 4,836 pass / one fail /
+ten skipped; all 79 full-count models and nine fixture tests pass. All 18 expiry
+cases pass inside that run. It is a red full run, not green qualification.
+
+The sole full-run failure is the social starter smoke’s per-chat retained search
+assertion at social-starter.test.mjs:205. Classified ours: an existing LV-contract
+fixture assumption, not baseline or environmental. It reproduces 7/15 times on
+unchanged production code; a separate trace reproduces at attempt 8 and confirms
+the empty result came from the current server at cut 59 while the replica was
+fenced. Explicit sync recovers the exact retained message. Under §7’s existing
+contract the fixture must apply intervening evidence before asserting its device
+retained domain. Added that sync after its online typing-refusal boundary; exact
+row assertions remain. The complete five-test file and 30 repeated smoke cases
+pass. The full run is preserved unchanged; under the requested one-run limit,
+green full-suite qualification remains outstanding before landing.
+
+Canonical rebuilt wasm is byte-identical to round 7: 2,042,203 B raw / 593,641 B
+GNU file-input gzip-9, 78 B under the unchanged 593,719 B cap; SHA-256
+d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
+No product TypeScript/Rust, contract, meter, dependency, timeout or budget change.
+Every failure, expected control and setup error is recorded under
+reports/20260928-lv-hook-retention/round8/. One local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>; push and publication unperformed.

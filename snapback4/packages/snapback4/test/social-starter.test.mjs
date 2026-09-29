@@ -201,6 +201,9 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const retained = await b.query(api.history, { conversation });
   assert.deepEqual(retained.data.map(row => row.id), beforeLeave, "ordinary history keeps only delivered images");
   assert.equal((await online.mutate(api.setTyping, { conversation })).state, "failed", "revoked member cannot renew");
+  // The intervening change poll can fence the replica after the history read.
+  // Apply that evidence before asserting the device's retained search domain.
+  await b.sync();
   const search = await b.query(api.searchChat, { conversation, q: "coffee" });
   assert.deepEqual(search.data.map(row => row.id), [message]);
   // A concurrent sync may withdraw composition. Wait for a ready first page;

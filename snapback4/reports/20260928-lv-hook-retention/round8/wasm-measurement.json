@@ -1,0 +1,15 @@
+{
+  "path": "packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "rawBytes": 2042203,
+  "gzipBytes": 593641,
+  "sha256": "d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466",
+  "capBytes": 593719,
+  "builtBy": "bash scripts/test.sh -> bash scripts/build-wasm.sh",
+  "gzipCommand": [
+    "gzip",
+    "-9",
+    "-c",
+    "packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+  ],
+  "headroomBytes": 78
+}
