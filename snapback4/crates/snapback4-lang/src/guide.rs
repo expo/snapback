@@ -66,10 +66,11 @@ pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes
 pub const ALIASES: &[(&str, &str)] = &[
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
     ("benchmark", "bounds"), ("load test", "bounds"),
-    ("react", "client"), ("hooks", "client"),
+    ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),
+    ("dm", "social"), ("direct message", "social"), ("chat", "social"),
     ("composer", "client"), ("unread", "client"),
     ("typing", "ephemeral"),
-    ("clock", "jobs"),
+    ("clock", "jobs"), ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),

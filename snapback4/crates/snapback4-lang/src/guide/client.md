@@ -44,7 +44,7 @@ results” only for a ready `page.read.complete === false`, not for stale rows
 or a non-null continuation. Follow `page.hasMore` and `page.loadMore`.
 While this device holds a predictable pending write to a table a query reads, that query asks no server; a write with an unknown predicted footprint blocks every query. Writes to unrelated tables do not hold it.
 A withheld answer (a total/extremum over input past the horizon, a point read past it, or another speculative answer) stays `loading`; a local partial answer (`complete: false`, e.g. an order unlike the window's) stays partial. See `guide reads`, `snapback4 why <query>`.
-Keep the main list locally complete and server-needing decorations separate. An unavailable unread aggregate is unknown, not zero, and must not hide the conversation.
+Keep the main list locally complete and server-needing decorations separate. Unknown unread counts never hide the conversation. Unknown membership may queue a durable write for server authorization; only denial or current non-membership disables Send (`guide social`).
 
 ## Queries in rows
 
@@ -52,8 +52,7 @@ Per-row `useQuery` is supported. Equal query names and wire-equivalent arguments
 share one live observation within the same retention policy. Object key order
 does not create another observation; changing `keep` does.
 
-For a large list, return fields in one paged query when they belong to the same read.
-In the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
+For a large list, return fields in one paged query: in the 1,000-row point/page fixture, a list does one evaluation per relevant write; 1,000 distinct row observations do 1,000.
 The pre-port Linux/Chromium wasm sample mounted the same 1,000 fields in 23 ms as one
 list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
 Both do zero evaluations for a known unrelated table write. The client starts
@@ -82,8 +81,9 @@ function ConversationList() {
 `inboxCards` is your application's query and fields. Keep server-needing
 decorations separate when including them would withhold the main list.
 
-## Measure cold acquisition
+## Expo and cold acquisition
 
+For iOS/Android, `snapback4 new my-social --template social` uses `createApp` with `nativeDevice` from `snapback4-expo` in native builds, `webDevice()` on web, and the online tier in Expo Go; use `guide witness` for native proof.
 Use `guide reads` for live propagation measurements; `guide sync` for Worker/default device choices, acquisition progress, measured timings and planning estimates, and the five-profile cold-acquisition recipe with offline reopening checks.
 
 ## Acknowledgements and receipts

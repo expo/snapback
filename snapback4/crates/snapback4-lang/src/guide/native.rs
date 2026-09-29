@@ -1,8 +1,8 @@
 //! The native card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Native jobs and reads: the app's Rust, hosted as wasm, metered like a job
 
-Native jobs and queries run the application's Rust as metered WebAssembly.
-Use them for computations that need floats, vectors or Rust libraries.
+For iOS/Android apps, use the Expo client in `guide client` and native proof in `guide witness`.
+Native jobs and queries run your Rust as metered WebAssembly for floats, vectors or libraries.
 
 ```quarry
 job rescore(): native                    -- the body is snapback/native/, in Rust

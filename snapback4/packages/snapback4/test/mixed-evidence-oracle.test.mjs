@@ -31,7 +31,8 @@ test('reference rejects transient empty member answers and sign-out loading', ()
   assert.throws(() => generation.observe({ data: { body: 'image-5' }, revalidating: true }), /retired program/);
   generation.observe({ loading: true }); generation.observe({ denied: { code: 'APP_DENIED' } });
 });
-for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: 240000 }, async t => {
+// 300 histories take about 200 s on both publication hosts; budget 2 s per history (600 s), still bounding a hang.
+for (const host of ['process', 'wasm']) test(`mixed evidence schedule ${host}: ${seeds} independent histories`, { timeout: Math.max(240000, seeds * 2000) }, async t => {
   const typingSource = ephemeralSource.slice(ephemeralSource.indexOf('table typing:'), ephemeralSource.indexOf('table durableTyping:'));
   const f = await fixture(t, source + typingSource, { watch: true }), headers = { 'x-snapback-persona': 'bob' };
   const backend = await fetch(f.url + '/schema', { headers }).then(r => r.json());

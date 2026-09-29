@@ -98,7 +98,10 @@ fn main() -> ExitCode {
         "witness" => verbs::witness::run(&args[1..]),
         "device" => verbs::device(&options),
         "guide" => {
-            match options.positionals.first().map(String::as_str) {
+            let phrase = options.positionals.join(" ");
+            let keyword = if guide::card(&phrase).is_some() { Some(phrase.as_str()) }
+                else { options.positionals.first().map(String::as_str) };
+            match keyword {
                 None => println!("{}", guide::listing()),
                 Some(keyword) => match guide::card(keyword) {
                     Some(card) => println!("{card}"),
