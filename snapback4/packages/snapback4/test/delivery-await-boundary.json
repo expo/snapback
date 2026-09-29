@@ -65,7 +65,7 @@
   },
   "client.ts": {
     "count": 58,
-    "sha256": "bb8bf72b28d2e0c21c1c371b97a6c8c4dd86dfd60fb516eb560c5150cf2aef1c"
+    "sha256": "3650041a4a0cc9f54641ab8208791a08da4a560a8cc9c3e466a1ea79004b285d"
   },
   "clock.ts": {
     "count": 7,
@@ -164,12 +164,12 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-query.ts": {
-    "count": 29,
-    "sha256": "cbfac9e4f99c1237c88e09d7e3ff5693645e6d55516260b3d5b8d140a517d35b"
+    "count": 30,
+    "sha256": "204e7ac0955da2bb8e04367ae9306efd9b953105579628abf5e3e7af01ab6989"
   },
   "local-reads.ts": {
-    "count": 0,
-    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    "count": 1,
+    "sha256": "de47abe7ed6ee282cbfc0c5213049dd0031f0b19322e9fe8ce3bf7dbf7b92a2c"
   },
   "local-receipts.ts": {
     "count": 17,
@@ -258,6 +258,10 @@
   "read-observation.ts": {
     "count": 3,
     "sha256": "2b8542cc2c44eba20a1ba57d01ddfb2257ae6b799dc80aaf8d1b45faf46b4944"
+  },
+  "read-presence.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "request-wait.ts": {
     "count": 3,

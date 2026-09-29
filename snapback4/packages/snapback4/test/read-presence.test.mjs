@@ -49,6 +49,42 @@ test('whole-union helper and cold pending predicate use the same five words', ()
   }
 });
 
+test('empty publication cannot prove absence when pending storage fails or the incarnation changes', async () => {
+  const env = environment(null, { complete: true, cut: null, next: null }, true, 'none');
+  const failure = Error('pending storage unavailable');
+  env.queued = async () => { throw failure; };
+  await assert.rejects(evaluateLocal(env, { kind: 'query', name: 'point' }, {}, 0, 0), error => error === failure);
+  for (const reject of [false, true]) {
+    env.incarnation = 0;
+    let entered, release;
+    const started = new Promise(resolve => { entered = resolve; });
+    env.queued = () => { entered(); return new Promise((resolve, fail) => { release = () => reject ? fail(failure) : resolve([]); }); };
+    const result = evaluateLocal(env, { kind: 'query', name: 'point' }, {}, 0, 0);
+    await started; env.incarnation++; release();
+    assert.equal(presence((await result).read), 'loading', 'both success and rejection recheck incarnation');
+  }
+});
+
+test('queued presence cache propagates failure and fences stale results before notifying', async () => {
+  const reads = new LocalReads();
+  reads.queued([{ predictable: true, predicted: ['rows/pending'] }]);
+  let updates = 0, notifications = 0;
+  const watches = [{ updatePresence() { updates++; return true; }, subscribers: new Set([() => notifications++]) }];
+  const failure = Error('receipt storage unavailable');
+  await assert.rejects(reads.readQueued(async () => { throw failure; }, watches), error => error === failure);
+  assert.equal(reads.pending(new Set(['rows'])), true);
+  assert.equal(updates, 0); assert.equal(notifications, 0);
+  let release;
+  const stale = reads.readQueued(() => new Promise(resolve => { release = resolve; }), watches);
+  reads.clear([]);
+  release([]); await stale;
+  assert.equal(reads.predictions, null, 'stale empty queue cannot certify absence after a commit');
+  assert.equal(updates, 0); assert.equal(notifications, 0);
+  await reads.readQueued(async () => [], watches);
+  assert.equal(reads.pending(new Set(['rows'])), false);
+  assert.equal(updates, 1); assert.equal(notifications, 1);
+});
+
 test('pending inserts recompute retained absence, including already revalidating and facade-held answers', t => {
   const reads = new LocalReads(), watch = new ReadObservation(true), approvals = new ReadApprovals();
   t.after(() => { approvals.close(); watch.retire(); });
