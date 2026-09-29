@@ -1,0 +1,166 @@
+✖ wasm keep=undefined: reset after the early fence is rejected by the publication callback (481.825304ms)
+✖ wasm keep=false: reset after the early fence is rejected by the publication callback (77.924702ms)
+✖ wasm keep=true: reset after the early fence is rejected by the publication callback (82.085459ms)
+✖ process keep=undefined: reset after the early fence is rejected by the publication callback (116.503893ms)
+✖ process keep=false: reset after the early fence is rejected by the publication callback (121.610199ms)
+✖ process keep=true: reset after the early fence is rejected by the publication callback (112.724418ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1114.217103
+
+✖ failing tests:
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ wasm keep=undefined: reset after the early fence is rejected by the publication callback (481.825304ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ wasm keep=false: reset after the early fence is rejected by the publication callback (77.924702ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ wasm keep=true: reset after the early fence is rejected by the publication callback (82.085459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ process keep=undefined: reset after the early fence is rejected by the publication callback (116.503893ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ process keep=false: reset after the early fence is rejected by the publication callback (121.610199ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:222:3
+✖ process keep=true: reset after the early fence is rejected by the publication callback (112.724418ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:247:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -12,7 +12,7 @@ export function withdrawnLocalResult(watches: Iterable<Watch>, watch: Watch,
 }
 
 export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalReads, clock: ServerClock,
-  closed: () => boolean, unavailable: () => Refusal | null, scheduleRead: (watch: Watch) => void) {
+  closed: () => boolean, unavailable: () => Refusal | null, acquireRead: (watch: Watch) => void) {
   function scheduleExpiry(watch: Watch, nextExpiry: number | null, serverExpiry?: number | null, localWakeup = false) {
     const deadlines = { device: nextExpiry, server: serverExpiry ?? null, localWakeup };
     armReadExpiry(watch, deadlines, clock,
@@ -22,7 +22,7 @@ export function localReadDeadlines(watches: Map<string, Watch>, answers: LocalRe
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
       (watch, d) => scheduleExpiry(watch, d.device, d.server, d.localWakeup),
-      watch => { if (watches.get(watch.key) === watch) scheduleRead(watch); });
+      watch => { if (watches.get(watch.key) === watch) acquireRead(watch); });
   }
   function withdrawExpiry(watch: Watch, d: ReadDeadlines, serverDue: boolean, serverNow: number): () => void {
     // @ref LLP 3000.018#3.2 — fence every displayed expiry, preserving newer memory and its cuts.

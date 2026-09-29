@@ -57,7 +57,10 @@ list query versus 593 ms as per-row hooks (single run, not a timing guarantee).
 Both do zero evaluations for a known unrelated table write. The client starts
 at most eight queued observation attempts per event-loop turn, with at most eight
 active; direct queries and timed presence refreshes use separate paths.
-`keep: false` withdraws before a re-read is queued; retaining watches keep the answer marked `revalidating`. Expiry and scope resets remain immediate.
+`keep: false` withdraws before a re-read is queued; retaining watches keep the answer marked `revalidating`.
+Queue wait precedes a new retention episode: its one-second bound starts when the attempt starts. Later queueing and retries never renew an existing deadline. Expiry and scope resets remain immediate.
+Known unrelated writes also preserve remembered server answers for offline fallback.
+A clock refresh preserves a newer answer whose own deadline is still in the future.
 Dependencies include authorization inputs: a write can re-evaluate every row on the table even when only one id changed.
 
 ```tsx

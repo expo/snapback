@@ -196,7 +196,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     settled.get(write.id)?.resolve(write); settled.delete(write.id); emitWrite(write);
   };
   const answers = new LocalReads();
-  const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), scheduleRead);
+  const { scheduleExpiry, sweepExpiries } = localReadDeadlines(watches, answers, clock, () => closed, () => unavailable(), acquireRead);
   // @ref LLP 3000.013#6 — dispatched mutations own settlement through close.
   const settling = new Set<string>();
   // Unversioned syncedAt may be server time; omit it until a wall-time resync.
@@ -272,7 +272,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
     const affected = [...watches.values()].filter(watch => touched === undefined || (touched.length > 0
       && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
-    const approvals = deferReadNotifications(() => answers.committed(affected, operation));
+    const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
     // Warm applies drain after the watermark. The commit already marks the old
     // answer revalidating; cold acquisition continues publishing progressively.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
@@ -869,7 +869,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     })();
   }
-  // ----- reads -----
   // @ref LLP 3000.016#2.2 — local outcomes and one publication procedure govern every read kind.
   function runLocal<R>(op: Query<unknown, R>, args: unknown, watch?: Watch, quiet = false, backgroundWatch?: Watch, signal?: AbortSignal) {
     // @ref LLP 3000.018#3.2 — each evaluation attempt, a retry included, is a new read for the remembered answers.
@@ -878,6 +877,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const bypass = cold?.control;
     if (cold) clock.raiseIssued(cold.snapshot.issuedFloor);
     const queryEnvironment = {
+      revalidate: !watch || watch.kept || !("data" in watch.snapshot),
       coldRead: bypass,
       serverDeadlineWithdrawn: (deadline: number | null | undefined) => readDeadlineWithdrawn(matchingReads(watches.values(), op, args), deadline),
       get backend() { return backend!; },
@@ -980,11 +980,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   const readWork = new ReadWork<Watch>();
   function scheduleRead(watch: Watch) {
-    if (closed) return;
-    watch.reload(); notify(watch); acquireRead(watch);
+    if (closed || sessionDead) return;
+    watch.reload({ queued: !watch.running }); notify(watch); acquireRead(watch);
   }
   function acquireRead(watch: Watch) {
-    if (closed) return;
+    if (closed || sessionDead) return;
     if (watch.running) { watch.dirty = true; return; }
     readWork.schedule(watch, signal => rerun(watch, signal));
   }
@@ -999,6 +999,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
+      if (watch.kept) watch.reload();
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
@@ -1040,7 +1041,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (retryExpired && !signal.aborted) {
           watch.expiredRetries = Math.min((watch.expiredRetries ?? 0) + 1, 7);
           readWork.retry(watch, Math.min(25 * 2 ** (watch.expiredRetries - 1), 1000), signal => rerun(watch, signal));
-        } else if (dirty || signal.reason === READ_WORK_EXPIRED) void scheduleRead(watch);
+        } else if (dirty || signal.reason === READ_WORK_EXPIRED) void acquireRead(watch);
       }
     }
   }

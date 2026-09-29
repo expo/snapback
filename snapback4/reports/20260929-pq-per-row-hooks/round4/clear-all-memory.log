@@ -1,0 +1,280 @@
+✖ apply: remembered dependencies with footprint [] (1.655492ms)
+✖ apply: remembered dependencies with footprint ["notes"] (0.210856ms)
+✖ apply: remembered dependencies with footprint ["remoteRows"] (0.139769ms)
+✖ apply: remembered dependencies with footprint ["members"] (0.128062ms)
+✔ apply: remembered dependencies with footprint undefined (0.131838ms)
+✖ admit: remembered dependencies with footprint [] (0.145048ms)
+✖ admit: remembered dependencies with footprint ["notes"] (0.122864ms)
+✖ admit: remembered dependencies with footprint ["remoteRows"] (0.132879ms)
+✖ admit: remembered dependencies with footprint ["members"] (0.13374ms)
+✔ admit: remembered dependencies with footprint undefined (0.205799ms)
+✖ settle: remembered dependencies with footprint [] (0.153741ms)
+✖ settle: remembered dependencies with footprint ["notes"] (0.117406ms)
+✖ settle: remembered dependencies with footprint ["remoteRows"] (0.103014ms)
+✖ settle: remembered dependencies with footprint ["members"] (0.113019ms)
+✔ settle: remembered dependencies with footprint undefined (0.061542ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.061923ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.04638ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.052939ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.050856ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.03962ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 8
+ℹ fail 12
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109.772253
+
+✖ failing tests:
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ apply: remembered dependencies with footprint [] (1.655492ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ apply: remembered dependencies with footprint ["notes"] (0.210856ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ apply: remembered dependencies with footprint ["remoteRows"] (0.139769ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ apply: remembered dependencies with footprint ["members"] (0.128062ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ admit: remembered dependencies with footprint [] (0.145048ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ admit: remembered dependencies with footprint ["notes"] (0.122864ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ admit: remembered dependencies with footprint ["remoteRows"] (0.132879ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ admit: remembered dependencies with footprint ["members"] (0.13374ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ settle: remembered dependencies with footprint [] (0.153741ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ settle: remembered dependencies with footprint ["notes"] (0.117406ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:130:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ settle: remembered dependencies with footprint ["remoteRows"] (0.103014ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:124:3
+✖ settle: remembered dependencies with footprint ["members"] (0.113019ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r4-controls-ajdauil2/snapback4/packages/snapback4/test/per-row-retention.test.mjs:131:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

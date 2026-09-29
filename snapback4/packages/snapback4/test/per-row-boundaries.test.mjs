@@ -148,7 +148,11 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
     for (let i = 0; i < 60; i++) await pause();
     assert.equal(owner.resetVersion, 0, 'a scope reset cannot mask the final floor check');
     assert.equal(forbidden.length, 0, 'the withdrawn deadline never returns to subscribers');
-    assert.notEqual(watch.getSnapshot().data?.value, 7);
+    assert.equal(watch.getSnapshot().data?.value, 8, 'the preserved raw answer survives the sweep and rejected body');
+    if (path === 'queued') {
+      const later = Date.now() + 1001; t.mock.method(Date, 'now', () => later);
+      assert.equal(watch.getSnapshot().data?.value, 8, 'held expiry never starts an episode on a newer raw answer');
+    }
     if (path === 'presence') assert.equal(watch.getSnapshot(), newer, 'rejection leaves the displayed answer untouched');
     assert.ok(queries >= 2);
   });

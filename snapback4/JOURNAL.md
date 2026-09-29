@@ -76140,3 +76140,54 @@ duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-s
 Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
 tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
 <noreply@openai.com>. No push or publication.
+
+
+## 2026-09-29 — Lane PQ round 4: dependency memory and queued episode start
+
+Read the round 0–3 records, current prompts, governing LLPs and both full
+round-3 reviews; applied llp-orient. Merged main's BP, MT and calibration
+updates through 17f06ef0c, keeping both journal entries at the only conflict.
+RL had not landed at the final check. Grok's completed review was rechecked.
+
+Known commit footprints now preserve remembered server answers with disjoint
+recorded dependencies and their ordering metadata. Unknown footprints and
+scope resets clear memory. Queueing applies each observation's policy and
+notification immediately, while a new bounded episode starts when its attempt
+starts. Existing deadlines never renew. Row expiry and resets remain exact.
+Clock sweeps requeue acquisition without invalidating a newer unexpired raw
+answer; local sign-out preserves its denial. Updated LLP 3000.023 and the
+client card. No contract, Rust, queue/lifetime, meter or cap change.
+
+Wasm/process unrelated-write-then-offline tests preserve the online-only
+answer. Real-clock React tests mount 1,000 hooks on wasm, Worker and process:
+zero loading renders, 2,000 queries and 1,000 revalidating rows on each;
+replacement start spans 2,030 / 2,114 / 2,257 ms. The controlled feed emits
+heartbeat bytes to keep the real four-second watchdog healthy. Earlier
+missing-heartbeat fixtures caused offline withdrawal; tracing and all failures
+are retained. Six tests detect removal of only the final publication-callback
+resetVersion check. Nine isolated mutations produce 39 expected failures.
+
+Final affected checks: 684/684; whole guide: 98/98; all 18 full-count keep-app
+property sequences pass; SDK build/typecheck and docs budget pass. The one
+required scripts/test.sh run finished with exactly:
+
+    == 1 failure(s) in 1138 s
+       client tests
+
+That run's main client phase had 4,622 pass, 17 fail, ten skips; its subsequent
+79 models and every other phase passed. All 17 failures are ours: twelve
+obsolete enqueue-deadline assertions, three property deadline-recording
+assumptions and two missing-heartbeat browser fixtures. Corrected affected
+runs pass; the full run remains recorded as red and was not repeated. It
+started before the MT merge and before all round-4 corrections. The failure
+ledger also records every intermediate failure and test-strength correction.
+
+Wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchanged 593,719 B
+cap, equal to this lane's round-3 build. Source files remain at or below 1,500
+lines. No tools installed, push or publication. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Report: [PQ round 4](./reports/20260929-pq-per-row-hooks/round4/REPORT.md).
+
+The last pre-commit fetch added main's scheduled backstop ticket records
+(7f540f094), merged as b5803c3d7; runtime and affected test inputs are unchanged.
+Reference audit: 523 LLPs, 9,863 refs, zero errors or unchecked.

@@ -19,7 +19,8 @@ function copyAnswer<T>(from: Read<T>, to: Read<T>): Read<T> {
 
 // @ref LLP 3000.023#3.3 — revalidation preserves freshness, since and answer identity.
 export function revalidatingAnswer<T>(read: Read<T>, bounded: boolean): Read<T> {
-  if (!("data" in read) || read.revalidating) return read;
+  if (!("data" in read)) return read;
+  if (read.revalidating) { beginEpisode(read, read, bounded); return read; }
   const copy = copyAnswer(read, { ...read, revalidating: true });
   beginEpisode(read, copy, bounded);
   return copy;
@@ -67,9 +68,10 @@ export class ReadObservation<T> {
   }
 
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
-    { retain, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
-    if (retain !== false && this.retain) this.reload();
-    else this.publish({ loading: true });
+    { retain, revalidate = true, publishResult = true, accept = (_: R) => true }: { retain?: boolean; revalidate?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
+    // A held-only expiry refresh preserves the raw answer; explicit expiry retries still withdraw.
+    if (retain === false) this.publish({ loading: true });
+    else if (revalidate) this.reload();
     const revision = this.revision;
     notify();
     try {
@@ -106,13 +108,14 @@ export class ReadObservation<T> {
   }
 
   // @ref LLP 3000.023#3.2 — only an invalidation retains; publishing loading always withdraws.
-  reload(): void {
+  reload({ queued = false }: { queued?: boolean } = {}): void {
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, !this.linger);
+    // @ref LLP 3000.023#7 — queue wait precedes a new episode; an existing deadline never moves.
+    this.snapshot = revalidatingAnswer(this.snapshot, !queued && !this.linger);
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();

@@ -106,7 +106,14 @@ export class RememberedAnswers {
     const slot = this.written.get(key), barrier = ++this.tickets;
     this.written.set(key, { seq: slot?.seq, highest: slot?.highest, ticket: barrier, barrier });
   }
-  clear(): void { this.answers.clear(); this.written.clear(); }
+  clear(touched?: readonly string[]): void {
+    if (touched === undefined) { this.answers.clear(); this.written.clear(); return; }
+    if (!touched.length) return;
+    for (const [key, answer] of this.answers) {
+      if (answer.tables.size && !touched.some(table => answer.tables.has(table))) continue;
+      this.answers.delete(key); this.written.delete(key);
+    }
+  }
   get size(): number { return this.answers.size; }
   /** The cache as one read attempt writes it: the server's cut, then the attempt's
    * ticket. A refetch within the attempt is a new read, so it renews the ticket. */
@@ -149,16 +156,16 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#3.1 — ordinary commits begin one bounded revalidation episode.
-  committed(watches: Iterable<LocalWatch>, operation: string): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true): void {
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[]): void {
     this.revision++;
-    this.serverAnswers.clear();
+    this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) watch.reset({ loading: true }); else watch.reload();
+      if (reset) watch.reset({ loading: true }); else watch.reload({ queued: !watch.running });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

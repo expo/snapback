@@ -636,7 +636,7 @@ export function createClient(options: ClientOptions): Client {
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
       (watch, d) => scheduleExpiry(watch, d.server),
-      watch => { if (watches.get(watch.key) === watch) void scheduleRead(watch); });
+      watch => { if (watches.get(watch.key) === watch) void acquireRead(watch); });
   }
 
   function withdrawExpiry(watch: Watch): () => void {
@@ -681,7 +681,10 @@ export function createClient(options: ClientOptions): Client {
   const readWork = new ReadWork<Watch>();
   function scheduleRead(watch: Watch) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    watch.reload(); notify(watch);
+    watch.reload({ queued: !watch.inFlight }); notify(watch);
+    acquireRead(watch);
+  }
+  function acquireRead(watch: Watch) {
     if (watch.inFlight) { watch.dirty = true; return; }
     readWork.schedule(watch, signal => refresh(watch, signal));
   }
@@ -698,7 +701,7 @@ export function createClient(options: ClientOptions): Client {
     const startedWith = answerIdentity(watch.snapshot);
     let exhausted = false, retryExpired = false;
     try {
-      const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, accept: result => {
+      const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, revalidate: watch.kept || !("data" in watch.snapshot), accept: result => {
         if (signal.aborted) return true;
         if (result.deadlineWithdrawn?.()) return true;
         if (!currentRead(result, watch)) return false;
@@ -734,7 +737,7 @@ export function createClient(options: ClientOptions): Client {
       watch.dirty = false;
       if (credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
         if (retryExpired && !signal.aborted) readWork.retry(watch, 25, signal => refresh(watch, signal));
-        else if (dirty || signal.reason === READ_WORK_EXPIRED) void scheduleRead(watch);
+        else if (dirty || signal.reason === READ_WORK_EXPIRED) void acquireRead(watch);
       }
     }
   }

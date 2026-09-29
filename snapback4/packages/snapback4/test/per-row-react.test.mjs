@@ -2,14 +2,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
+import { server as appServer, binary } from './helpers/app-server.mjs';
+import { processDevice } from '../dist/native.js';
 const root = resolve(import.meta.dirname, '../../..');
 
-async function browserFixture(t, harness) {
+async function browserFixture(t, harness, setup = async () => {}) {
   const require = createRequire(join(root, 'packages/snapback4/package.json'));
   const { chromium } = createRequire(join(root, 'package.json'))('playwright-core');
   const { createServer } = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
@@ -25,11 +27,12 @@ async function browserFixture(t, harness) {
       { find: /^react\/jsx-runtime$/, replacement: require.resolve('react/jsx-runtime') },
       { find: /^react\/jsx-dev-runtime$/, replacement: require.resolve('react/jsx-dev-runtime') },
       { find: /^react-dom\/client$/, replacement: require.resolve('react-dom/client') },
-      ...['client', 'react'].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === 'react' ? 'tsx' : 'ts'}`) })),
+      ...['client', 'react', 'local', 'web'].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === 'react' ? 'tsx' : 'ts'}`) })),
     ] } });
   await server.listen();
   browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox'] });
   const page = await browser.newPage();
+  await setup(page);
   await page.goto(server.resolvedUrls.local[0]);
   return page;
 }
@@ -108,9 +111,6 @@ import { createRoot } from 'react-dom/client';
 import { createClient } from 'snapback4/client';
 import { SnapbackProvider, useQuery } from 'snapback4/react';
 window.calls = 0; window.loading = 0; window.ready = 0; window.changed = 0; window.revalidating = 0;
-// Keep the separate LLP 3000.023 retention clock fixed: this test pins queue
-// transitions, and does not select RL's concurrent retention policy.
-const wall = Date.now(); Date.now = () => wall;
 let seq = 1, change;
 const client = createClient({ url: 'http://row-render.test', persona: 'alice', fetch: async (input, init) => {
   const path = new URL(input).pathname;
@@ -137,4 +137,101 @@ const root = createRoot(document.getElementById('root'));
 root.render(<SnapbackProvider client={client}>{Array.from({length:1000}, (_,id) => <Row key={id} id={id}/>)}</SnapbackProvider>);
 window.edit = () => { seq++; change(); };
 window.finish = async () => { root.unmount(); await client.close(); };
+`;
+
+for (const tier of ['wasm', 'worker', 'process']) test(`${tier}: 1,000 per-row hooks retain through a relevant write with the real clock`, async t => {
+  const { url, dir } = await appServer(t, '', readFileSync(new URL('../../../witness/per-row.q', import.meta.url), 'utf8'));
+  const seed = Array.from({ length: 1000 }, (_, slot) => ({ table: 'cards', row: { id: 'c' + slot, slot, owner: 'dev:alice', label: 'original' } }));
+  assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(seed) }).then(r => r.json())).seeded, 1000);
+  let core;
+  t.after(async () => { await core?.close(); });
+  const page = await browserFixture(t, localRowsHarness, async page => {
+    await page.addInitScript(config => { window.pqConfig = config; }, { url, tier });
+    if (tier === 'process') {
+      // The hooks and SDK run in Chromium; these bindings carry the unmodified
+      // process adapter's device calls to its real SQLite process on Node.
+      await page.exposeFunction('pqOpen', async (name, backend) => { core = await processDevice({ binary, dir: join(dir, 'react-device') }).open(name, backend); });
+      await page.exposeFunction('pqCall', request => core.call(request));
+      await page.exposeFunction('pqClose', () => core.close());
+    }
+  });
+  await page.waitForFunction(() => window.pq?.ready);
+  await page.evaluate(() => window.pq.edit());
+  await page.waitForFunction(() => window.pq?.finished() || window.pq?.result().loading > 0);
+  const result = await page.evaluate(() => window.pq.result());
+  t.diagnostic(JSON.stringify({ tier, ...result }));
+  assert.equal(result.loading, 0, 'no loading render after the relevant write');
+  assert.equal(result.calls, 2000, 'one mount and one replacement per distinct observation');
+  assert.equal(result.revalidated, 1000);
+  assert.ok(result.lastStart - result.firstStart > 1000, 'later attempts wait beyond the one-second episode bound');
+  assert.equal(result.wallIsReal, true);
+  assert.equal(result.link, 'online', 'the controlled feed remains live during the queue');
+  await page.evaluate(() => window.pq.finish());
+});
+
+const localRowsHarness = `
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { SnapbackProvider, useQuery } from 'snapback4/react';
+import { createLocalClient } from 'snapback4/local';
+import { webDevice } from 'snapback4/web';
+const {url, tier} = window.pqConfig, reads = new Map(), revalidated = new Set(), starts = [];
+let edited = false, loading = 0, calls = 0;
+const wall = Date.now(), realStart = performance.now();
+const base = tier === 'process' ? { async open(name, backend) {
+  await window.pqOpen(name, backend);
+  return { call: request => window.pqCall(request), close: () => window.pqClose() };
+} } : webDevice({worker: tier === 'worker'});
+const client = await createLocalClient({url, persona:'alice', name:'pq-real-clock', device:{async open(...args){
+  const core = await base.open(...args);
+  return {...core, async call(request, committed) {
+    if(request.op === 'query') {
+      calls++;
+      if(edited) {
+        starts.push(Date.now());
+        // Short service time per attempt forces >1s aggregate queue wait.
+        // No clock or episode duration is altered.
+        await new Promise(resolve => setTimeout(resolve, 15));
+      }
+    }
+    return core.call(request, committed);
+  }};
+}}, fetch: (input, init) => {
+  if(new URL(input).pathname !== '/changes') return fetch(input,init);
+  // Hold change evidence so edit() owns the sync, but keep the real link
+  // watchdog healthy throughout mount and the >1s replacement queue.
+  let timer;
+  return Promise.resolve(new Response(new ReadableStream({
+    start(controller) {
+      const stop = () => {clearInterval(timer); controller.close();};
+      if(init.signal.aborted) {stop(); return;}
+      timer = setInterval(() => controller.enqueue(new Uint8Array([32])), 1000);
+      init.signal.addEventListener('abort',stop,{once:true});
+    },
+    cancel(){clearInterval(timer);}
+  })));
+}});
+await client.sync(); calls = 0;
+const op = {kind:'query',name:'point'};
+function Row({id}) {
+  const read = useQuery(op,{id:'c'+id}); reads.set(id,read);
+  if(edited && read.loading) loading++;
+  if(edited && read.revalidating) revalidated.add(id);
+  return <span>{read.data?.label ?? 'loading'}</span>;
+}
+const root = createRoot(document.getElementById('root'));
+root.render(<SnapbackProvider client={client}>{Array.from({length:1000}, (_,id)=><Row key={id} id={id}/>)}</SnapbackProvider>);
+const ready = () => reads.size === 1000 && [...reads.values()].every(r => r.data && !r.revalidating);
+window.pq = {
+  get ready(){return ready();},
+  async edit(){
+    edited = true;
+    const reply = await fetch(url+'/m/edit',{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify({id:crypto.randomUUID(),args:{id:'c0',label:'changed'}})}).then(r=>r.json());
+    if(reply.state !== 'sent') throw Error(JSON.stringify(reply));
+    await client.sync();
+  },
+  finished: () => ready() && calls === 2000 && reads.get(0).data.label === 'changed',
+  result: () => ({loading,calls,revalidated:revalidated.size,firstStart:starts[0],lastStart:starts.at(-1),wallIsReal:Date.now()-wall >= 1000 && performance.now()-realStart >= 1000,link:client.link()}),
+  finish: async () => {root.unmount(); await client.close();}
+};
 `;

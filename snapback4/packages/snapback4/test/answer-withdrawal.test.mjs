@@ -91,12 +91,13 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     const readOp = kind === "transfer" ? { ...query, name: "ownedSecret" } : query;
     const opened = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const blocked = deferred(), committed = deferred();
-    let armed = false, core, watch, snapshotAtCommit, targetRequest, targetResult;
+    let armed = false, core, watch, snapshotAtCommit, targetRequest, targetResult, attemptStarted = false;
     const resets = [];
     const device = { async open(...args) {
       core = await opened.open(...args);
       return { ...core, async call(request, notifyCommit) {
         if (armed && request.op === "query" && request.name === readOp.name) {
+          attemptStarted = true;
           await blocked.promise;
           if (mode === "throw") throw Error("failed post-commit device read");
           if (mode === "unavailable") return { ok: { loading: true, unknown: true, tables: [] } };
@@ -120,7 +121,7 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
       if (armed && mode === "unavailable" && new URL(input).pathname === `/q/${readOp.name}`) return Response.json({ loading: true });
       if (mode === "retryExhausted") {
         const path = new URL(input).pathname, query = path === `/q/${readOp.name}`;
-        if (armed && query) await blocked.promise;
+        if (armed && query) { attemptStarted = true; await blocked.promise; }
         const response = await fetch(input, init);
         if (query || path === "/changes") {
           const json = await response.json();
@@ -159,9 +160,10 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
       } else {
         assert.equal(body(snapshotAtCommit), "private answer");
         assert.equal(snapshotAtCommit.revalidating, true);
-        const deadline = episodeDeadline(snapshotAtCommit);
-        assert.ok(Number.isFinite(deadline));
+        await until(() => attemptStarted, "the queued replacement attempt starts");
         if (mode === "held") {
+          const deadline = episodeDeadline(watch.getSnapshot());
+          assert.ok(Number.isFinite(deadline), "the bound starts with the attempt, after queue wait");
           let now = deadline - 1;
           t.mock.method(Date, "now", () => now);
           assert.equal(body(watch.getSnapshot()), "private answer");
