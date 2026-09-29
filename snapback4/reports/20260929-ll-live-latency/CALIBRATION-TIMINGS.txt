@@ -1,0 +1,60 @@
+profile-edit-live-visibility       m1-choreo.jsonl              attempt=1 pass=False visibleMs=None waitMs=11022.2 note=Bob's live Alice profile did not become observable within 10000ms
+profile-edit-live-visibility       m1-choreo.jsonl              attempt=2 pass=False visibleMs=None waitMs=11011.6 note=Bob's live Alice profile did not become observable within 10000ms
+profile-edit-live-visibility       m1-choreo.jsonl              attempt=3 pass=True visibleMs=167.3 waitMs=931.7 note=other client observed display name, bio, heading, and feed navigation in 113.8ms
+feed-image-post-live-update        m2-choreo-attempt1.jsonl     attempt=1 pass=False visibleMs=None waitMs=56.6 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-image-post-live-update        m2-choreo-attempt1.jsonl     attempt=2 pass=False visibleMs=None waitMs=1368.2 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-image-post-live-update        m2-choreo-attempt1.jsonl     attempt=3 pass=False visibleMs=None waitMs=1519.1 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-video-post-live-update        m2-choreo-attempt1.jsonl     attempt=1 pass=False visibleMs=None waitMs=215.8 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-video-post-live-update        m2-choreo-attempt1.jsonl     attempt=2 pass=False visibleMs=None waitMs=1475.5 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-video-post-live-update        m2-choreo-attempt1.jsonl     attempt=3 pass=False visibleMs=None waitMs=1240.3 note=ENOENT: no such file or directory, stat '/Users/ccheever/clique-sb4-20260928-astra-cal26/fixtures/so
+feed-image-post-live-update        m2-choreo-attempt2.jsonl     attempt=1 pass=True visibleMs=2613.6 waitMs=2687.7 note=structural image attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo-attempt2.jsonl     attempt=2 pass=False visibleMs=None waitMs=10041.4 note=composer image attachment did not expose semantic value image within 10000ms
+feed-image-post-live-update        m2-choreo-attempt2.jsonl     attempt=3 pass=True visibleMs=3013.7 waitMs=5921.1 note=structural image attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt2.jsonl     attempt=1 pass=True visibleMs=1904.5 waitMs=2421.7 note=structural video attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt2.jsonl     attempt=2 pass=False visibleMs=None waitMs=10031.1 note=composer video attachment did not expose semantic value video within 10000ms
+feed-video-post-live-update        m2-choreo-attempt2.jsonl     attempt=3 pass=True visibleMs=2108.5 waitMs=4335.2 note=structural video attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo-attempt3.jsonl     attempt=1 pass=True visibleMs=2338.2 waitMs=2381.7 note=structural image attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo-attempt3.jsonl     attempt=2 pass=False visibleMs=None waitMs=10142.1 note=composer image attachment did not expose semantic value image within 10000ms
+feed-image-post-live-update        m2-choreo-attempt3.jsonl     attempt=3 pass=True visibleMs=3027.9 waitMs=4799.6 note=structural image attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt3.jsonl     attempt=1 pass=True visibleMs=2314.3 waitMs=3572.6 note=structural video attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt3.jsonl     attempt=2 pass=False visibleMs=None waitMs=10094.2 note=composer video attachment did not expose semantic value video within 10000ms
+feed-video-post-live-update        m2-choreo-attempt3.jsonl     attempt=3 pass=True visibleMs=2630.9 waitMs=4500.9 note=structural video attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo-attempt4.jsonl     attempt=1 pass=True visibleMs=2107.8 waitMs=2287.9 note=structural image attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo-attempt4.jsonl     attempt=2 pass=False visibleMs=None waitMs=10079.2 note=composer image attachment did not expose semantic value image within 10000ms
+feed-image-post-live-update        m2-choreo-attempt4.jsonl     attempt=3 pass=True visibleMs=2037.1 waitMs=4055.5 note=structural image attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt4.jsonl     attempt=1 pass=True visibleMs=1884.4 waitMs=2363.1 note=structural video attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo-attempt4.jsonl     attempt=2 pass=False visibleMs=None waitMs=10051.1 note=composer video attachment did not expose semantic value video within 10000ms
+feed-video-post-live-update        m2-choreo-attempt4.jsonl     attempt=3 pass=True visibleMs=3542 waitMs=4862.7 note=structural video attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo.jsonl              attempt=1 pass=True visibleMs=2762.1 waitMs=2767.9 note=structural image attachment and two-client feed delivery
+feed-image-post-live-update        m2-choreo.jsonl              attempt=2 pass=False visibleMs=None waitMs=10091.6 note=composer image attachment did not expose semantic value image within 10000ms
+feed-image-post-live-update        m2-choreo.jsonl              attempt=3 pass=True visibleMs=4179.9 waitMs=6366.9 note=structural image attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo.jsonl              attempt=1 pass=True visibleMs=1891.8 waitMs=2626.4 note=structural video attachment and two-client feed delivery
+feed-video-post-live-update        m2-choreo.jsonl              attempt=2 pass=False visibleMs=None waitMs=10043.6 note=composer video attachment did not expose semantic value video within 10000ms
+feed-video-post-live-update        m2-choreo.jsonl              attempt=3 pass=True visibleMs=3251.1 waitMs=5910.6 note=structural video attachment and two-client feed delivery
+quoted-reply-excerpt-and-jump      m3-choreo-attempt1.jsonl     attempt=1 pass=True visibleMs=None waitMs=9156 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo-attempt1.jsonl     attempt=2 pass=True visibleMs=None waitMs=8394 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo-attempt1.jsonl     attempt=3 pass=True visibleMs=None waitMs=9853.1 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo-attempt2.jsonl     attempt=1 pass=True visibleMs=None waitMs=10172.1 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo-attempt2.jsonl     attempt=2 pass=True visibleMs=None waitMs=10092.8 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo-attempt2.jsonl     attempt=3 pass=False visibleMs=None waitMs=10004.3 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-input'
+quoted-reply-excerpt-and-jump      m3-choreo.jsonl              attempt=1 pass=False visibleMs=None waitMs=15502.7 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble
+quoted-reply-excerpt-and-jump      m3-choreo.jsonl              attempt=2 pass=True visibleMs=None waitMs=12580.8 note=quoted-excerpt jump selector: sm-convo-quote-preview
+quoted-reply-excerpt-and-jump      m3-choreo.jsonl              attempt=3 pass=False visibleMs=None waitMs=2108.7 note=locator.click: Timeout 30000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-send')[
+photo-message-live-render          m4-choreo-attempt1.jsonl     attempt=1 pass=True visibleMs=10261.1 waitMs=7918.6 note=
+photo-message-live-render          m4-choreo-attempt1.jsonl     attempt=2 pass=True visibleMs=11527 waitMs=5615.9 note=
+photo-message-live-render          m4-choreo-attempt1.jsonl     attempt=3 pass=True visibleMs=9647 waitMs=8377.4 note=
+reaction-live-replace-remove       m4-choreo-attempt1.jsonl     attempt=1 pass=False visibleMs=None waitMs=11756.2 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-reacti
+reaction-live-replace-remove       m4-choreo-attempt1.jsonl     attempt=2 pass=False visibleMs=None waitMs=15100.2 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble
+reaction-live-replace-remove       m4-choreo-attempt1.jsonl     attempt=3 pass=False visibleMs=None waitMs=11430.3 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble
+photo-message-live-render          m4-choreo-attempt2.jsonl     attempt=1 pass=True visibleMs=10088.3 waitMs=8614.6 note=
+photo-message-live-render          m4-choreo-attempt2.jsonl     attempt=2 pass=True visibleMs=8793.6 waitMs=6446.7 note=
+photo-message-live-render          m4-choreo-attempt2.jsonl     attempt=3 pass=True visibleMs=8680.8 waitMs=6710.4 note=
+reaction-live-replace-remove       m4-choreo-attempt2.jsonl     attempt=1 pass=True visibleMs=4678.2 waitMs=12137.9 note=
+reaction-live-replace-remove       m4-choreo-attempt2.jsonl     attempt=2 pass=False visibleMs=None waitMs=12059.8 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble
+reaction-live-replace-remove       m4-choreo-attempt2.jsonl     attempt=3 pass=True visibleMs=7387.7 waitMs=13111.7 note=
+photo-message-live-render          m4-choreo.jsonl              attempt=1 pass=False visibleMs=None waitMs=12691.6 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble
+photo-message-live-render          m4-choreo.jsonl              attempt=2 pass=True visibleMs=8845.4 waitMs=6794.9 note=
+photo-message-live-render          m4-choreo.jsonl              attempt=3 pass=True visibleMs=9924.8 waitMs=5980.2 note=
+reaction-live-replace-remove       m4-choreo.jsonl              attempt=1 pass=True visibleMs=8088.5 waitMs=13922.5 note=
+reaction-live-replace-remove       m4-choreo.jsonl              attempt=2 pass=True visibleMs=5574.5 waitMs=10919.5 note=
+reaction-live-replace-remove       m4-choreo.jsonl              attempt=3 pass=False visibleMs=None waitMs=11690.8 note=locator.waitFor: Timeout 10000ms exceeded. Call log: [2m - waiting for getByTestId('sm-convo-bubble

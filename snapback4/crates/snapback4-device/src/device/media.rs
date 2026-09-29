@@ -139,6 +139,8 @@ impl<S: DeviceStore> Device<S> {
         let mut home = home.clone();
         home["generation"] = json!(self.generation);
         home["expiresAt"] = json!(read.next_expiry);
+        // @ref LLP 3000.023#10 — disjoint commits need not repeat this authorized home read.
+        home["tables"] = json!(read.tables);
         home["type"] = json!(asset.field("type").ok().and_then(|v| v.as_str().ok()));
         tx.rollback()?;
         Ok(home)

@@ -1,0 +1,140 @@
+reports/20260929-ll-live-latency/baseline-process-4cpu.json {
+  profile: { n: 20, p50: 21.262, p95: 27.471, max: 33.138 },
+  'reaction-add': { n: 20, p50: 30.565, p95: 34.624, max: 39.633 },
+  'reaction-replace': { n: 20, p50: 30.733, p95: 34.055, max: 34.472 },
+  'reaction-remove': { n: 20, p50: 30.388, p95: 31.84, max: 37.43 },
+  reply: { n: 20, p50: 56.777, p95: 65.238, max: 68.023 },
+  photo: { n: 20, p50: 62.358, p95: 80.011, max: 80.066 },
+  'feed-image': { n: 20, p50: 30.378, p95: 41.299, max: 42.666 },
+  'once-photo': { n: 20, p50: 64.264, p95: 75.073, max: 83.268 }
+}
+reports/20260929-ll-live-latency/baseline-process-loaded.json {
+  profile: { n: 20, p50: 38.059, p95: 50.199, max: 52.935 },
+  'reaction-add': { n: 20, p50: 87.767, p95: 103.291, max: 103.83 },
+  'reaction-replace': { n: 20, p50: 89.37, p95: 99.154, max: 109.721 },
+  'reaction-remove': { n: 20, p50: 82.896, p95: 97.791, max: 98.958 },
+  reply: { n: 20, p50: 147.291, p95: 171.246, max: 177.458 },
+  photo: { n: 20, p50: 155.675, p95: 163.921, max: 172.194 },
+  'feed-image': { n: 20, p50: 45.099, p95: 51.02, max: 65.301 },
+  'once-photo': { n: 20, p50: 152.912, p95: 181.858, max: 200.701 }
+}
+reports/20260929-ll-live-latency/baseline-process-viewed-loaded.json {
+  profile: { n: 20, p50: 66.91, p95: 87.431, max: 88.606 },
+  'reaction-add': { n: 20, p50: 138.681, p95: 163.5, max: 164.581 },
+  'reaction-replace': { n: 20, p50: 124.702, p95: 173.629, max: 180.075 },
+  'reaction-remove': { n: 20, p50: 105.486, p95: 164.553, max: 176.344 },
+  reply: { n: 20, p50: 135.7, p95: 163.008, max: 170.503 },
+  photo: { n: 20, p50: 136.924, p95: 171.124, max: 177.527 },
+  'feed-image': { n: 20, p50: 72.504, p95: 98.866, max: 100.324 },
+  'once-photo': { n: 20, p50: 149.944, p95: 190.374, max: 205.067 }
+}
+reports/20260929-ll-live-latency/baseline-process-viewed.json {
+  profile: { n: 20, p50: 65.184, p95: 109.153, max: 115.117 },
+  'reaction-add': { n: 20, p50: 104.722, p95: 141.598, max: 150.399 },
+  'reaction-replace': { n: 20, p50: 91.439, p95: 138.845, max: 144.548 },
+  'reaction-remove': { n: 20, p50: 89.397, p95: 137.696, max: 144.66 },
+  reply: { n: 20, p50: 88.031, p95: 95.456, max: 96.554 },
+  photo: { n: 20, p50: 95.419, p95: 106.884, max: 111.352 },
+  'feed-image': { n: 20, p50: 80.708, p95: 119.517, max: 129.449 },
+  'once-photo': { n: 20, p50: 93.546, p95: 104.292, max: 104.913 }
+}
+reports/20260929-ll-live-latency/baseline-process.json {
+  profile: { n: 20, p50: 34.341, p95: 43.835, max: 46.26 },
+  'reaction-add': { n: 20, p50: 68.208, p95: 76.874, max: 78.084 },
+  'reaction-replace': { n: 20, p50: 42.076, p95: 62.732, max: 68.817 },
+  'reaction-remove': { n: 20, p50: 41.215, p95: 63.241, max: 74.065 },
+  reply: { n: 20, p50: 84.592, p95: 92.949, max: 128.192 },
+  photo: { n: 20, p50: 102.06, p95: 110.628, max: 111.807 },
+  'feed-image': { n: 20, p50: 44.228, p95: 50.054, max: 50.191 },
+  'once-photo': { n: 20, p50: 99.969, p95: 116.64, max: 129.012 }
+}
+reports/20260929-ll-live-latency/baseline-wasm-4cpu.json {
+  profile: { n: 20, p50: 13.494, p95: 15.486, max: 18.653 },
+  'reaction-add': { n: 20, p50: 14.552, p95: 15.915, max: 16.459 },
+  'reaction-replace': { n: 20, p50: 14.338, p95: 17.303, max: 18.198 },
+  'reaction-remove': { n: 20, p50: 14.263, p95: 16.507, max: 18.078 },
+  reply: { n: 20, p50: 31.703, p95: 37.717, max: 39.115 },
+  photo: { n: 20, p50: 30.961, p95: 35.129, max: 38.321 },
+  'feed-image': { n: 20, p50: 15.888, p95: 19.157, max: 20.215 },
+  'once-photo': { n: 20, p50: 30.551, p95: 35.604, max: 36.837 }
+}
+reports/20260929-ll-live-latency/baseline-wasm-loaded.json {
+  profile: { n: 20, p50: 25.548, p95: 33.328, max: 35.375 },
+  'reaction-add': { n: 20, p50: 27.904, p95: 36.61, max: 40.742 },
+  'reaction-replace': { n: 20, p50: 28.945, p95: 37.013, max: 43.666 },
+  'reaction-remove': { n: 20, p50: 26.907, p95: 41.019, max: 60.613 },
+  reply: { n: 20, p50: 58.271, p95: 74.647, max: 77.342 },
+  photo: { n: 20, p50: 59.346, p95: 75.168, max: 82.1 },
+  'feed-image': { n: 20, p50: 30.425, p95: 36.606, max: 38.456 },
+  'once-photo': { n: 20, p50: 58.53, p95: 73.808, max: 74.108 }
+}
+reports/20260929-ll-live-latency/baseline-wasm-viewed-loaded.json {
+  profile: { n: 20, p50: 27.281, p95: 35.115, max: 35.567 },
+  'reaction-add': { n: 20, p50: 31.707, p95: 43.229, max: 54.937 },
+  'reaction-replace': { n: 20, p50: 28.848, p95: 36.788, max: 37.845 },
+  'reaction-remove': { n: 20, p50: 29.998, p95: 34.872, max: 60.993 },
+  reply: { n: 20, p50: 59.514, p95: 78.103, max: 78.764 },
+  photo: { n: 20, p50: 64.046, p95: 77.701, max: 79.782 },
+  'feed-image': { n: 20, p50: 33.419, p95: 41.144, max: 47.442 },
+  'once-photo': { n: 20, p50: 62.353, p95: 77.471, max: 79.904 }
+}
+reports/20260929-ll-live-latency/baseline-wasm-viewed.json {
+  profile: { n: 20, p50: 22.714, p95: 31.875, max: 36.007 },
+  'reaction-add': { n: 20, p50: 28.039, p95: 32.407, max: 34.119 },
+  'reaction-replace': { n: 20, p50: 28.084, p95: 32.979, max: 35.342 },
+  'reaction-remove': { n: 20, p50: 27.023, p95: 33.468, max: 35.748 },
+  reply: { n: 20, p50: 61.415, p95: 83.785, max: 92.047 },
+  photo: { n: 20, p50: 62.198, p95: 66.172, max: 67.958 },
+  'feed-image': { n: 20, p50: 31.442, p95: 39.692, max: 40.713 },
+  'once-photo': { n: 20, p50: 61.181, p95: 67.713, max: 69.546 }
+}
+reports/20260929-ll-live-latency/baseline-wasm.json {
+  profile: { n: 20, p50: 21.692, p95: 24.086, max: 24.098 },
+  'reaction-add': { n: 20, p50: 23.968, p95: 26.909, max: 27.513 },
+  'reaction-replace': { n: 20, p50: 23.936, p95: 26.993, max: 27.572 },
+  'reaction-remove': { n: 20, p50: 23.088, p95: 26.604, max: 28.919 },
+  reply: { n: 20, p50: 58.885, p95: 64.531, max: 74.02 },
+  photo: { n: 20, p50: 58.353, p95: 73.443, max: 75.219 },
+  'feed-image': { n: 20, p50: 27.906, p95: 31.676, max: 34.067 },
+  'once-photo': { n: 20, p50: 60.699, p95: 64.487, max: 64.978 }
+}
+reports/20260929-ll-live-latency/final-process-viewed-loaded.json {
+  profile: { n: 20, p50: 41.031, p95: 60.594, max: 65.781 },
+  'reaction-add': { n: 20, p50: 44.285, p95: 47.461, max: 52.674 },
+  'reaction-replace': { n: 20, p50: 41.745, p95: 49.793, max: 50.021 },
+  'reaction-remove': { n: 20, p50: 39.523, p95: 47.171, max: 47.197 },
+  reply: { n: 20, p50: 89.367, p95: 111.215, max: 114.317 },
+  photo: { n: 20, p50: 88.043, p95: 111.088, max: 118.596 },
+  'feed-image': { n: 20, p50: 60.583, p95: 74.922, max: 79.938 },
+  'once-photo': { n: 20, p50: 95.489, p95: 118.846, max: 186.809 }
+}
+reports/20260929-ll-live-latency/final-process-viewed.json {
+  profile: { n: 20, p50: 36.636, p95: 45.385, max: 49.75 },
+  'reaction-add': { n: 20, p50: 35.645, p95: 44.975, max: 47.977 },
+  'reaction-replace': { n: 20, p50: 34.316, p95: 36.87, max: 43.398 },
+  'reaction-remove': { n: 20, p50: 28.782, p95: 33.039, max: 34.133 },
+  reply: { n: 20, p50: 67.629, p95: 72.809, max: 78.872 },
+  photo: { n: 20, p50: 67.808, p95: 77.656, max: 78.022 },
+  'feed-image': { n: 20, p50: 54.687, p95: 75.994, max: 77.343 },
+  'once-photo': { n: 20, p50: 66.565, p95: 83.178, max: 85.799 }
+}
+reports/20260929-ll-live-latency/final-wasm-viewed-loaded.json {
+  profile: { n: 20, p50: 22.61, p95: 33.701, max: 39.882 },
+  'reaction-add': { n: 20, p50: 28.403, p95: 36.146, max: 38.233 },
+  'reaction-replace': { n: 20, p50: 23.059, p95: 37.733, max: 38.043 },
+  'reaction-remove': { n: 20, p50: 24.467, p95: 31.223, max: 31.689 },
+  reply: { n: 20, p50: 57.501, p95: 65.7, max: 68.356 },
+  photo: { n: 20, p50: 58.841, p95: 64.119, max: 75.541 },
+  'feed-image': { n: 20, p50: 34.214, p95: 42.901, max: 43.135 },
+  'once-photo': { n: 20, p50: 57.171, p95: 65.879, max: 69.111 }
+}
+reports/20260929-ll-live-latency/final-wasm-viewed.json {
+  profile: { n: 20, p50: 21.137, p95: 25.024, max: 28.357 },
+  'reaction-add': { n: 20, p50: 21.377, p95: 25.871, max: 26.066 },
+  'reaction-replace': { n: 20, p50: 21.501, p95: 25.669, max: 30.476 },
+  'reaction-remove': { n: 20, p50: 22.12, p95: 23.745, max: 24.16 },
+  reply: { n: 20, p50: 53.293, p95: 57.287, max: 58.557 },
+  photo: { n: 20, p50: 54.219, p95: 66.226, max: 72.272 },
+  'feed-image': { n: 20, p50: 27.26, p95: 35.493, max: 38.112 },
+  'once-photo': { n: 20, p50: 52.47, p95: 60.82, max: 64.876 }
+}

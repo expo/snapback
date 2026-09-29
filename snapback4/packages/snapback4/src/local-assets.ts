@@ -29,7 +29,7 @@ export function assetRetention(options?: AssetRetention): AssetRetention {
 export function changesMediaAuthority(op: string, result: unknown): boolean {
   return op !== "observe_store" || (result as { reset?: boolean } | undefined)?.reset !== false;
 }
-interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
+interface Home { store_id: string; table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string; tables?: string[] }
 interface Entry { confirmed?: true; id: string; home: Home; bytes: number; used: number }
 const identity = (home: Home) => JSON.stringify([home.store_id, home.table, home.row, home.column, home.generation]);
 const absent = (): AssetRead => ({ denied: { code: "E_OFFLINE", family: "link", message: "no retained ordinary media is available offline", retryable: true } });
@@ -89,9 +89,17 @@ export class MediaCache {
       (this.timer as { unref?: () => void }).unref?.();
     }
   }
-  private async check() {
+  private async check(touched?: readonly string[]) {
     let changed = false;
     for (const entry of this.entries.values()) {
+      // @ref LLP 3000.023#10 — these are the interpreter's authorization dependencies,
+      // not just the media-bearing table. Unknown/legacy homes and due deadlines
+      // still recheck; adoption, identity and scope resets pass no footprint.
+      const tables = entry.home.tables;
+      if (touched !== undefined && this.options.keep === "viewed" && entry.confirmed
+        && Array.isArray(tables) && tables.includes(entry.home.table) && tables.every(table => typeof table === "string")
+        && !tables.some(table => touched.includes(table))
+        && (entry.home.expiresAt == null || entry.home.expiresAt > this.now())) continue;
       const home = this.options.keep === "viewed" && entry.confirmed ? await this.home(entry.id, entry.home) : null;
       if (!home || identity(home) !== identity(entry.home) || (home.expiresAt != null && home.expiresAt <= this.now())) {
         await this.drop(entry.id);
@@ -108,7 +116,10 @@ export class MediaCache {
     if (changed) await this.save();
     this.schedule();
   }
-  reconcile() { return this.serial(() => this.check()); }
+  reconcile(touched?: readonly string[]) {
+    const footprint = touched === undefined ? undefined : [...touched];
+    return this.serial(() => this.check(footprint));
+  }
   invalidate(id: string) { return this.serial(async () => { await this.drop(id); await this.save(); this.schedule(); }); }
   async clear() {
     await this.serial(async () => { for (const id of [...this.entries.keys()]) await this.drop(id); await this.save(); });

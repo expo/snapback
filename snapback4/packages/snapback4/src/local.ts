@@ -323,7 +323,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       committed(result);
       deliver();
       if (!result.denied && ["apply", "settle", "withdraw", "dequeue"].includes(String(request.op))) deliveryQueue?.published();
-      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle", "settle_exit"].includes(String(request.op)) && changesMediaAuthority(String(request.op), result.ok)) await media?.reconcile(
+        ["apply", "admit", "settle"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined);
       return result;
     }
     finally { active.delete(work); deliver(); }
@@ -570,7 +571,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try { await history.persistPending(); } catch { retryFlush(); return false; }
     const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
     let watermark = state?.watermark ?? 0;
-    const touched = { tables: new Set<string>(), unknown: false };
+    const touched = { tables: new Set<string>(), unknown: false }, resumed = new Set<Watch>();
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
@@ -726,7 +727,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           observeIncarnation(publishedStore ?? undefined);
           storeIdentity = publishedStore ?? undefined; identified = !!storeIdentity && !publishedState?.backend_required;
           watermark = publishedState?.watermark ?? watermark;
-          if (publishedState) answers.applied(watches.values(), publishedState.watermark);
+          if (publishedState) for (const watch of answers.applied(watches.values(), publishedState.watermark)) resumed.add(watch);
         }
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
@@ -754,8 +755,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } finally {
       if (!closed && adoptedGeneration) {
         for (const watch of watches.values()) void scheduleRead(watch);
-      } else if (!closed && (touched.unknown || touched.tables.size > 0)) {
-        for (const watch of watches.values()) if (touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
+      } else if (!closed && (touched.unknown || touched.tables.size > 0 || resumed.size > 0)) {
+        for (const watch of watches.values()) if (resumed.has(watch) || touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
           if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void scheduleRead(watch); continue; }
@@ -982,11 +983,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return;
     }
     watch.running = true;
-    const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion;
-    const startedWith = answerIdentity(watch.snapshot);
+    const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion, startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
     try {
-      if (watch.kept) watch.reload();
+      if (answers.deferUntilSync(watch, acquired, backend!, unavailable() ?? changesStopped ?? partitionDenied)) return;
       const result = await runLocal(watch.op, watch.args, watch, false, undefined, signal);
       checkRead(signal);
       if (withdrawnLocalResult(watches.values(), watch, result)) return;
