@@ -1,0 +1,6 @@
+{
+  "pid": 1464696,
+  "signal": "SIGTERM",
+  "reason": "Only remaining child; same original presence-refresh assertion leaks its interval on r10. Rerun unchanged assertions with --test-force-exit.",
+  "at": 1790648313.6028705
+}

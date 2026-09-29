@@ -1,0 +1,6 @@
+{
+  "pid": 1297659,
+  "signal": "SIGTERM",
+  "reason": "Only remaining child after other 41 files exited. Original presence-refresh failure bypasses close; timers leave the process alive. Rerun unchanged assertions with --test-force-exit.",
+  "at": 1790648215.6566763
+}

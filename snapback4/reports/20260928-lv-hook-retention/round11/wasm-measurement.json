@@ -1,0 +1,13 @@
+{
+  "raw": 2042203,
+  "gzip": 593573,
+  "cap": 593719,
+  "headroom": 146,
+  "main_reported_gzip": 593573,
+  "delta_vs_reported_main": 0,
+  "sha256": "75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c",
+  "method": "GNU gzip -9 -c file; canonical build in scripts/test.sh",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127"
+}

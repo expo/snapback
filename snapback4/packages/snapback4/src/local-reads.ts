@@ -95,6 +95,13 @@ export class RememberedAnswers {
     if (!this.admit(key, order)) return false;
     this.answers.delete(key); return true;
   }
+  // @ref LLP 3000.029#13 — local successes and denials share the publication
+  // order; a successful replica evaluation is never remembered server data.
+  local(key: string, ticket: number, denied: boolean): boolean {
+    if (!this.admit(key, { ticket, seq: undefined })) return false;
+    if (denied) this.answers.delete(key);
+    return true;
+  }
   /** Local expiry fences every read already begun, while preserving its cuts. */
   forget(key: string): void {
     this.answers.delete(key);
@@ -120,6 +127,7 @@ export class RememberedAnswers {
       get: (key: string) => this.get(key),
       set: (key: string, answer: ServerAnswer, seq?: number) => this.set(key, answer, { seq, ticket }),
       delete: (key: string, seq?: number) => this.delete(key, { seq, ticket }),
+      local: (key: string, denied: boolean) => this.local(key, ticket, denied),
       forget: (key: string) => this.forget(key),
       renew: () => { ticket = this.begin(); },
     };

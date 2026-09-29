@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "--test",
+    "--test-name-pattern=pure local",
+    "/home/ccheever/sb4-intent/lane-lv/snapback4/target/lv-round11/no-success-order/packages/snapback4/test/hook-retention-model.test.mjs"
+  ],
+  "exit": 1,
+  "killed": true
+}

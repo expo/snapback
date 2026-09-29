@@ -1,0 +1,21 @@
+// Isolated negative controls for the independently generated publication order.
+import { cpSync, mkdirSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+const root = resolve('.'), report = import.meta.dirname;
+const dir = join(root, 'target/lv-round11/no-success-order'), pkg = join(dir, 'packages/snapback4');
+mkdirSync(pkg, { recursive: true });
+for (const part of ['dist', 'package.json', 'test']) cpSync(join(root, 'packages/snapback4', part), join(pkg, part), { recursive: true });
+symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
+const file = join(pkg, 'dist/local-reads.js'), source = readFileSync(file, 'utf8');
+const from = 'local(key, ticket, denied) {';
+if (source.split(from).length !== 2) throw Error('mutation must match exactly once');
+writeFileSync(file, source.replace(from, from + '\n        if (!denied) return true;'));
+const command = ['node', '--test', '--test-name-pattern=pure local', join(pkg, 'test/hook-retention-model.test.mjs')];
+const result = spawnSync(command[0], command.slice(1), { encoding: 'utf8', timeout: 30000 });
+const output = result.stdout + result.stderr;
+writeFileSync(join(report, 'no-success-order.log'), output);
+const summary = { command, exit: result.status, killed: result.status === 1 && output.includes('an older local answer cannot win') };
+writeFileSync(join(report, 'controls.json'), JSON.stringify(summary, null, 2) + '\n');
+console.log(JSON.stringify(summary));
+if (!summary.killed) process.exitCode = 1;

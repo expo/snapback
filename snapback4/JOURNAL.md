@@ -75851,3 +75851,50 @@ d82c05104aaab6954278a37c1962ac6735b5e4cf91bdc7ddd7f75eafd4458466.
 No fresh wasm build or runtime Rust change. Report and one completed site/origin
 sweep: reports/20260928-lv-hook-retention/round10/. No tool installation, push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+
+## 2026-09-29 — Lane LV round 11: preserve local evidence and publication order
+
+Fix-forward after LV landed. Required fetch/merge fast-forwarded the lane from
+c3ab7b37e to ee514de11. Read rounds 0–10 prompts/reports/journal, LLP 3000.029,
+the Snapback 4 fence and client/reads guide, and Astra's full post-landing
+round-10 review. Applied llp-orient; no new workflow gate or skill installation.
+
+Local successes and evaluated denials now carry replica provenance to the final
+synchronous reconciliation gate. Both enter the same attempt-ticket order;
+success records no remembered server data, and denial retires its key's memory.
+They replace matching peers without withdrawing other arguments or creating a
+remote fence awaiting sync. Existing remote cuts still fence until applied.
+Both internal search_state failure sites now carry SDK admission origin, with
+terminal checkpoints intact and no E_BOUND code exclusion. Four TypeScript
+production files change, with no new/moved await, meter change or Rust runtime
+change. LLP 3000.029 §13/Revised, guide and operations manual record the rule.
+
+All nine new process/wasm cases fail on round 10, pass on pre-LV ee514de11^1,
+and pass here: acquired held reads remain runnable after NOT_FOUND; a buffered
+older denial cannot replace newer local success; actual search metadata E_BOUND
+preserves a retained page after HTTP 200 decoding leaves about 4 KB. Actual
+native ctx.now is exercised on process, equivalent Quarry clock ordering on
+both substrates. Thirty generated pure-local histories separate evaluation
+from final publication; removing success registration fails all 30. Final
+canonical-wasm targeted run: 45/45; affected: 1,453/1,453, including FU overload,
+333 delivery matrix checks and browser witnesses. FU Rust overload 3/3; whole
+guide 98/98. scripts/test.sh ran once, exit 0, exact summary:
+`== 0 failure(s) in 1322 s`. Full client stage 4,848 pass / ten declared skips;
+full model stage 79/79. No full-suite failure in any attribution category.
+
+Historical census ran 1,007 unchanged pre-LV tests in 42 files: pre-LV 1,007 pass;
+round 10 and round 11 both 788 pass / the same 219 failures. Every difference is
+attributed to prior LV retention/invalidation/order/fixture changes in CENSUS.md;
+none is relabelled a baseline exemption or a green historical comparison.
+No newly failing round-11 plain-read expectation. All initial regression controls,
+30 missing-key fixture errors, server-build/import setup errors, one stale guide
+snapshot, census leaked-timer cleanup and read-only lookup errors are attributed
+in round11/FAILURES.md. Final affected/guide checks pass without timeout changes.
+
+Fresh canonical wasm: 2,042,203 B raw / 593,573 B gzip, equal to main's reported
+size and 146 B below the unchanged 593,719 B cap. SHA-256
+75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+No tool installation, push or publication. Report:
+reports/20260928-lv-hook-retention/round11/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>.

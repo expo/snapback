@@ -1,0 +1,167 @@
+[
+  {
+    "log": "affected.log.gz",
+    "counts": {
+      "tests": "1453",
+      "pass": "1453",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "151494.110611"
+    }
+  },
+  {
+    "log": "before-missing-binary.log.gz",
+    "counts": {
+      "tests": "9",
+      "pass": "0",
+      "fail": "9",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "226.277175"
+    }
+  },
+  {
+    "log": "before.log.gz",
+    "counts": {
+      "tests": "9",
+      "pass": "0",
+      "fail": "9",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "6764.280377"
+    }
+  },
+  {
+    "log": "census-pre-lv.log.gz",
+    "counts": {
+      "tests": "1007",
+      "pass": "1007",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "486348.494636"
+    }
+  },
+  {
+    "log": "census-round10-presence-refresh.log.gz",
+    "counts": {
+      "tests": "10",
+      "pass": "9",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "9651.96316"
+    }
+  },
+  {
+    "log": "census-round10-setup.log.gz",
+    "counts": {
+      "tests": "90",
+      "pass": "46",
+      "fail": "44",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "61494.640485"
+    }
+  },
+  {
+    "log": "census-round10.log.gz",
+    "counts": {
+      "tests": "1007",
+      "pass": "788",
+      "fail": "219",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "296617.632922"
+    }
+  },
+  {
+    "log": "census-round11-presence-refresh.log.gz",
+    "counts": {
+      "tests": "10",
+      "pass": "9",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "9650.118861"
+    }
+  },
+  {
+    "log": "census-round11.log.gz",
+    "counts": {
+      "tests": "1007",
+      "pass": "788",
+      "fail": "219",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "452404.607434"
+    }
+  },
+  {
+    "log": "final-regressions.log.gz",
+    "counts": {
+      "tests": "45",
+      "pass": "45",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "3835.622751"
+    }
+  },
+  {
+    "log": "focused.log.gz",
+    "counts": {
+      "tests": "175",
+      "pass": "145",
+      "fail": "30",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "29330.790325"
+    }
+  },
+  {
+    "log": "model-before.log.gz",
+    "counts": {
+      "tests": "30",
+      "pass": "0",
+      "fail": "30",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "85.79163"
+    }
+  },
+  {
+    "log": "model-fixed.log.gz",
+    "counts": {
+      "tests": "30",
+      "pass": "30",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "151.857013"
+    }
+  },
+  {
+    "log": "no-success-order.log.gz",
+    "counts": {
+      "tests": "30",
+      "pass": "0",
+      "fail": "30",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "112.2813"
+    }
+  },
+  {
+    "log": "pre-lv-regressions.log.gz",
+    "counts": {
+      "tests": "9",
+      "pass": "9",
+      "fail": "0",
+      "cancelled": "0",
+      "skipped": "0",
+      "duration_ms": "3542.566655"
+    }
+  }
+]

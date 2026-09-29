@@ -9,6 +9,7 @@ import { invalidateReadEvidence, readKey } from "./read-observation.ts";
 import { putRetention } from "./read-nonrevoking.ts";
 
 type Result = {
+  localEvidence?: () => boolean;
   admissionRefused?: boolean;
   op: Query<unknown, unknown>; args: unknown; read: Read<unknown>; tables: Set<string>;
   dependencyFree?: boolean; evidenceSerial?: number; invalidated?: boolean; serverOnly?: boolean; seq?: number | undefined;
@@ -25,12 +26,15 @@ export function reconcileLocalRead(answers: LocalReads, watches: ReadIndex<Local
   if (result.serverOnly && (!answers.accepts(result.tables, result.seq, result.evidenceSerial ?? answers.evidenceSerial)
     || (result.seq !== undefined && result.seq < watches.minimum(result.tables)))) return false;
   if (!result.invalidated) return publish();
-  if (!result.dependencyFree) answers.replacement(key, result.seq, result.tables);
+  // @ref LLP 3000.029#13 — a current local evaluation shares matching answers,
+  // but says nothing changed on other keys and has no unapplied remote cut.
+  if (result.localEvidence && !result.localEvidence()) return false;
+  if (!result.localEvidence && !result.dependencyFree) answers.replacement(key, result.seq, result.tables);
   return invalidateReadEvidence(watches, result.op, result.args, result.read, peer => {
     peer.stablePuts = putRetention(backend, result.op.name); peer.tables = new Set(result.tables);
-    peer.serverRead = true; peer.serverOnly = result.serverOnly === true; peer.serverSeq = result.seq;
+    peer.serverRead = !result.localEvidence; peer.serverOnly = result.serverOnly === true; peer.serverSeq = result.seq;
     expiry(peer, result.nextExpiry, result.serverExpiry, result.localWakeup);
-  }, watch, publish, result.tables, result.seq, refresh, result.dependencyFree);
+  }, watch, publish, result.tables, result.seq, refresh, result.dependencyFree || !!result.localEvidence);
 }
 
 export function localReadDeadlines(watches: Map<string, LocalWatch>, answers: LocalReads, clock: ServerClock,

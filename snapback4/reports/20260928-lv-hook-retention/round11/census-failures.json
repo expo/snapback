@@ -1,0 +1,1334 @@
+{
+  "pre_lv": {
+    "tests": 1007,
+    "pass": 1007,
+    "fail": 0
+  },
+  "round10": {
+    "tests": 1007,
+    "pass": 788,
+    "fail": 219
+  },
+  "round11": {
+    "tests": 1007,
+    "pass": 788,
+    "fail": 219
+  },
+  "new_round11_failures": [],
+  "failures": [
+    {
+      "name": "initial backend installation rejects a query already in flight",
+      "location": "packages/snapback4/test/ephemeral-capability.test.mjs:224:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Same-key direct answers now reconcile the mounted peer before schema installation; the old collector included that permitted pre-installation publication. Current test clears the collector at installation."
+    },
+    {
+      "name": "online: kept typing survives member commits and expires during a held re-read",
+      "location": "packages/snapback4/test/ephemeral-keep.test.mjs:45:51",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Membership commits provide dependency evidence and withdraw affected typing views; the old assertion required retention across that evidence."
+    },
+    {
+      "name": "wasm: kept typing survives member commits and expires during a held re-read",
+      "location": "packages/snapback4/test/ephemeral-keep.test.mjs:45:51",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Membership commits provide dependency evidence and withdraw affected typing views; the old assertion required retention across that evidence."
+    },
+    {
+      "name": "process: kept typing survives member commits and expires during a held re-read",
+      "location": "packages/snapback4/test/ephemeral-keep.test.mjs:45:51",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Membership commits provide dependency evidence and withdraw affected typing views; the old assertion required retention across that evidence."
+    },
+    {
+      "name": "expiry retry server pagination wasm",
+      "location": "packages/snapback4/test/expiry-retry-watch.test.mjs:75:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "An expiry/evidence retry may repeat the same invocation. Old assertions demand exactly two total HTTP requests. Current tests require bounded retries, the original cursor per invocation, and exact returned rows, including delayed changes."
+    },
+    {
+      "name": "expiry retry server pagination watch wasm",
+      "location": "packages/snapback4/test/expiry-retry-watch.test.mjs:75:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "An expiry/evidence retry may repeat the same invocation. Old assertions demand exactly two total HTTP requests. Current tests require bounded retries, the original cursor per invocation, and exact returned rows, including delayed changes."
+    },
+    {
+      "name": "expiry retry server pagination process",
+      "location": "packages/snapback4/test/expiry-retry-watch.test.mjs:75:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "An expiry/evidence retry may repeat the same invocation. Old assertions demand exactly two total HTTP requests. Current tests require bounded retries, the original cursor per invocation, and exact returned rows, including delayed changes."
+    },
+    {
+      "name": "expiry retry server pagination watch process",
+      "location": "packages/snapback4/test/expiry-retry-watch.test.mjs:75:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "An expiry/evidence retry may repeat the same invocation. Old assertions demand exactly two total HTTP requests. Current tests require bounded retries, the original cursor per invocation, and exact returned rows, including delayed changes."
+    },
+    {
+      "name": "createApp wasm keep=undefined: held expiry fences late HTTP memory before rollback, preserving newer B",
+      "location": "packages/snapback4/test/keep-app-expiry.test.mjs:10:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "A newer direct answer now replaces displayed peers as well as memory. The old assertion requires displayed A to survive accepted B; current test uses a newer same-image grant to isolate expiry."
+    },
+    {
+      "name": "createApp wasm keep=true: held expiry fences late HTTP memory before rollback, preserving newer B",
+      "location": "packages/snapback4/test/keep-app-expiry.test.mjs:10:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "A newer direct answer now replaces displayed peers as well as memory. The old assertion requires displayed A to survive accepted B; current test uses a newer same-image grant to isolate expiry."
+    },
+    {
+      "name": "createApp keep=undefined property: online, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: online, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: online, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: wasm, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: wasm, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: wasm, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: process, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: process, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined property: process, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: online, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: online, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: online, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: wasm, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: wasm, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: wasm, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: process, seed 23, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: process, seed 44, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=true property: process, seed 445, 50ms authority",
+      "location": "packages/snapback4/test/keep-app-model.test.mjs:33:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old oracle marks dependency-changing local mutations as plain retention. They are invalidations under LLP 3000.029; the current oracle explicitly requires withdrawal."
+    },
+    {
+      "name": "createApp keep=undefined: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+      "location": "packages/snapback4/test/keep-authority-react.test.mjs:11:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old React helper expects loaded pages and inputs to survive a mutation with unknown footprint. That mutation now invalidates its query dependencies."
+    },
+    {
+      "name": "createApp keep=true: useQuery and usePage preserve inputs through 20 replacements, loaded cursors and removal",
+      "location": "packages/snapback4/test/keep-authority-react.test.mjs:11:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old React helper expects loaded pages and inputs to survive a mutation with unknown footprint. That mutation now invalidates its query dependencies."
+    },
+    {
+      "name": "opening remount getter and notifications follow shared replacements, keep=undefined",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:131:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "a live waiting facade holds A until its peer approves shared B, keep=undefined",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:191:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount getter and notifications follow shared replacements, keep=true",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:131:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "a live waiting facade holds A until its peer approves shared B, keep=true",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:191:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount receives the revalidating mark during replacement, keep=undefined",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:242:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount receives the revalidating mark during replacement, keep=true",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:242:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "facade holds A until its device deadline (timer), including a lingering remount",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:268:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "facade holds A until its device deadline (correction), including a lingering remount",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:268:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "facade holds A until its server deadline (timer), including a lingering remount",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:268:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "facade holds A until its server deadline (correction), including a lingering remount",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:268:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held server data ignores a device reobservation wakeup, even when device time is ahead",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:298:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "all facade deadlines withdraw before a subscriber rolls the clock back",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:325:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held approval ends on scope",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:342:74",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held approval ends on denied",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:342:74",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held approval ends on authority",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:342:74",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held approval ends on fence",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:342:74",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held approval ends on linger",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:342:74",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held device deadline is latched by peek before timer delivery",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:377:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held server deadline is latched by snapshot before timer delivery",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:377:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "held server deadline is latched by peek before timer delivery",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:377:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount is notified on reset",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:397:57",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount is notified on denied",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:397:57",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "opening remount is notified on retire",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:397:57",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "independent authority completions preserve the newest check: B-first",
+      "location": "packages/snapback4/test/keep-authority.test.mjs:413:47",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture publishes a different raw image B while requiring the facade to display approval for A. Accepted replacements invalidate that approval; current same-image fixtures isolate deadline/authority behavior."
+    },
+    {
+      "name": "wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "process keep=undefined: displayed expiry fences an older body while preserving newer memory (active)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "wasm keep=true: displayed expiry fences an older body while preserving newer memory (active)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "process keep=true: displayed expiry fences an older body while preserving newer memory (active)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "process keep=true: displayed expiry fences an older body while preserving newer memory (lingering)",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:132:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "wasm keep: an older displayed deadline preserves a newer unexpired remembered answer",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:327:41",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "process keep: an older displayed deadline preserves a newer unexpired remembered answer",
+      "location": "packages/snapback4/test/keep-clock.test.mjs:327:41",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects a newer direct answer to update memory without displayed peers. Peers now adopt the newer answer and its deadline; the former deadline cannot expire it."
+    },
+    {
+      "name": "wasm: keep=undefined across apply publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined across admit publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined across settle publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined across revoke publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined across leave publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined across refusal publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across apply publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across admit publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across settle publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across revoke publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across leave publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined across refusal publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across apply publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across admit publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across settle publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across revoke publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across leave publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true across refusal publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across apply publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across admit publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across settle publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across revoke publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across leave publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true across refusal publishes no loading and replaces the old answer",
+      "location": "packages/snapback4/test/keep-device.test.mjs:72:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=undefined never publishes an evaluation captured before a newer commit",
+      "location": "packages/snapback4/test/keep-device.test.mjs:193:79",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=undefined never publishes an evaluation captured before a newer commit",
+      "location": "packages/snapback4/test/keep-device.test.mjs:193:79",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: keep=true never publishes an evaluation captured before a newer commit",
+      "location": "packages/snapback4/test/keep-device.test.mjs:193:79",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "process: keep=true never publishes an evaluation captured before a newer commit",
+      "location": "packages/snapback4/test/keep-device.test.mjs:193:79",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Apply/admit/settle/revoke/leave/refusal events change dependencies; the old keep assertions retain through that evidence. The closed raw-observation case instead expects the removed one-second host deadline."
+    },
+    {
+      "name": "wasm: a closed raw local observation still latches its episode deadline",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:36:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "process: a closed raw local observation still latches its episode deadline",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:36:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "wasm keep=undefined: expiry withdraws across apply with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "wasm keep=undefined: expiry withdraws across admit with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "wasm keep=true: expiry withdraws across apply with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "wasm keep=true: expiry withdraws across admit with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "process keep=undefined: expiry withdraws across apply with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "process keep=undefined: expiry withdraws across admit with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "process keep=true: expiry withdraws across apply with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "process keep=true: expiry withdraws across admit with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "online keep=undefined: expiry withdraws across notification with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "online keep=true: expiry withdraws across notification with the replacement held",
+      "location": "packages/snapback4/test/keep-expiry.test.mjs:122:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture expects data after an earlier dependency invalidation while waiting for row expiry; LV withdraws at that earlier evidence boundary."
+    },
+    {
+      "name": "local keep: apply fences in-flight answers and keeps active and lingering data",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:121:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "local keep: admit fences in-flight answers and keeps active and lingering data",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:121:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "local keep: settle fences in-flight answers and keeps active and lingering data",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:121:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "keep carries original freshness through reload, and every published result replaces it",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:149:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "online keep: mutation waits without loading, then publishes next",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:265:95",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "online keep: mutation waits without loading, then publishes denied",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:265:95",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "online keep: notification waits without loading, then publishes next",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:265:95",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "online keep: notification waits without loading, then publishes denied",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:265:95",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "online keep: an in-flight answer read before a newer commit never replaces the kept answer",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:309:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "the app client forwards keep while its lifetime fence still withdraws data",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:324:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "createApp keeps a superseded answer while replacement authority is held",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:370:46",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "createApp keeps a superseded answer while replacement authority is held",
+      "location": "packages/snapback4/test/keep-observation.test.mjs:370:46",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Dependency commits with unknown footprints invalidate; accepted different facade images replace old approvals. Unavailable loading alone now retains a valid answer. The old assertions require the opposite policy in these cases."
+    },
+    {
+      "name": "ready list reads survive account restoration, new chat acquisition and pending unread counts",
+      "location": "packages/snapback4/test/page-ready.test.mjs:31:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "A received mutation receipt fences the unapplied replica. The old fixture expects an empty partial scan from behind that cut; current test requires loading until apply."
+    },
+    {
+      "name": "wasm: an accepted loading is published, and recovery never brings back the answer it replaced",
+      "location": "packages/snapback4/test/presence-local.test.mjs:90:6",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "wasm: an accepted background reply does not replace a newer answer another read remembered",
+      "location": "packages/snapback4/test/presence-local.test.mjs:134:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "wasm: an older read's refusal that lands after an accepted background reply does not erase it",
+      "location": "packages/snapback4/test/presence-local.test.mjs:200:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "wasm: an accepted background reply does not undo a newer read's deletion of an absent answer",
+      "location": "packages/snapback4/test/presence-local.test.mjs:319:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "process: an accepted loading is published, and recovery never brings back the answer it replaced",
+      "location": "packages/snapback4/test/presence-local.test.mjs:90:6",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "process: an accepted background reply does not replace a newer answer another read remembered",
+      "location": "packages/snapback4/test/presence-local.test.mjs:134:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "process: an older read's refusal that lands after an accepted background reply does not erase it",
+      "location": "packages/snapback4/test/presence-local.test.mjs:200:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "process: an accepted background reply does not undo a newer read's deletion of an absent answer",
+      "location": "packages/snapback4/test/presence-local.test.mjs:319:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unavailable loading now retains; newer same-key direct results reconcile mounted peers and fence older background/one-shot completions. The old assertions independently publish the older result or require loading to discard retained data."
+    },
+    {
+      "name": "an accepted loading answer is published, and a background failure keeps the answer and the link",
+      "location": "packages/snapback4/test/presence-refresh.test.mjs:156:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old assertion requires unavailable loading to replace valid data; LV retains marked revalidating. Its missing early cleanup leaks an interval when the assertion fails."
+    },
+    {
+      "name": "closing a raw local handle stops its episode timer but keeps the deadline",
+      "location": "packages/snapback4/test/raw-read-deadlines.test.mjs:35:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old raw-handle tests expect the removed one-second host episode deadline, rather than a real device/server answer deadline."
+    },
+    {
+      "name": "resubscribing a raw local handle rearms its original episode deadline",
+      "location": "packages/snapback4/test/raw-read-deadlines.test.mjs:48:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old raw-handle tests expect the removed one-second host episode deadline, rather than a real device/server answer deadline."
+    },
+    {
+      "name": "one replacing fetch ends retention: loading",
+      "location": "packages/snapback4/test/read-observation.test.mjs:7:67",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture requires loading or a failed replacement to discard valid data. LV retains unavailable/failed plain revalidation."
+    },
+    {
+      "name": "one replacing fetch ends retention: failure",
+      "location": "packages/snapback4/test/read-observation.test.mjs:7:67",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old fixture requires loading or a failed replacement to discard valid data. LV retains unavailable/failed plain revalidation."
+    },
+    {
+      "name": "wasm: retained nested rows follow source parents on reordered pages",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:114:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: retained nested rows follow source parents on shifted pages",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:114:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: composed tables sharing an ID keep independent retained rows",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:136:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: projections without id replace a retained copy using its source envelope",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:147:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: retained nested rows follow source parents on reordered pages",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:114:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: retained nested rows follow source parents on shifted pages",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:114:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: composed tables sharing an ID keep independent retained rows",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:136:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: projections without id replace a retained copy using its source envelope",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:147:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: an identityless object merges its identified child rows",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:164:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:180:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: an identityless object merges its identified child rows",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:164:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: an unidentified sibling preserves paired parents and drops an unpaired current row",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:180:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: an anonymous nested page appends only retained history after a partial rejoin",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:200:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: an in-place edit under an anonymous nested page replaces its retained copy",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:219:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: an anonymous nested page appends only retained history after a partial rejoin",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:200:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "process: an in-place edit under an anonymous nested page replaces its retained copy",
+      "location": "packages/snapback4/test/read-through-provenance.test.mjs:219:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper pauses /sync but continues delivering /changes. Those remote dependency cuts fence composition with an unapplied replica. The current helper parks both for these plain provenance controls; separate fence tests deliver changes while holding sync."
+    },
+    {
+      "name": "wasm: an unheld parent falls back without losing retained rows",
+      "location": "packages/snapback4/test/read-through.test.mjs:70:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper still delivers /changes after pausing /sync, so accepted remote dependency cuts fence retained composition. Current plain-read controls park both; explicit remote-fence controls cover the other schedule."
+    },
+    {
+      "name": "process: an unheld parent falls back without losing retained rows",
+      "location": "packages/snapback4/test/read-through.test.mjs:70:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The original shared helper still delivers /changes after pausing /sync, so accepted remote dependency cuts fence retained composition. Current plain-read controls park both; explicit remote-fence controls cover the other schedule."
+    },
+    {
+      "name": "a composed read's refusal removes no answer a later read remembered",
+      "location": "packages/snapback4/test/remembered-answers.test.mjs:112:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old assertion returns an older composed refusal even when a newer answer is remembered. The shared publication order now withholds the older completion; memory remains the newer answer."
+    },
+    {
+      "name": "an earlier read's answer at a higher cut, landing while a composed read is out, is remembered",
+      "location": "packages/snapback4/test/remembered-answers.test.mjs:129:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old assertion returns an older composed refusal even when a newer answer is remembered. The shared publication order now withholds the older completion; memory remains the newer answer."
+    },
+    {
+      "name": "replacement completes and clears revalidation: keep=undefined, \"B\"",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:17:56",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "replacement completes and clears revalidation: keep=undefined, null",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:17:56",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "replacement completes and clears revalidation: keep=undefined, []",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:17:56",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "replacement completes and clears revalidation: keep=undefined, {\"denied\":{\"code\":\"HIDDEN\",\"family\":\"rule\",\"message\":\"hidden\"}}",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:17:56",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=undefined, throw",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=undefined, transportOffline",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=undefined, retryExhausted",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=undefined, loading",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=true, throw",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=true, transportOffline",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=true, retryExhausted",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "hard withdrawals replace retained data: keep=true, loading",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:36:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "one stable episode withdrawal at the deadline via snapshot, late success still lands",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:51:53",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "one stable episode withdrawal at the deadline via peek, late success still lands",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:51:53",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "one stable episode withdrawal at the deadline via timer, late success still lands",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:51:53",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "successful fallback and held composition keep the same episode: keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:80:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source expiry, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source loading, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source transportOffline, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source retain:false, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source reset, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source denied, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source expiry, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source loading, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source transportOffline, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source retain:false, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source reset, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade and opening remount share source denied, keep=true",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:135:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade inherits A's episode timestamp from the invalidation, through B and C authority",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:162:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "an early episode timer rearms to the original deadline without accessor help",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:184:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "facade withdrawal notifies once, including an opening remount, keep=undefined",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:198:46",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "an episode due inside a grouped commit waits until the settled peer is revalidating",
+      "location": "packages/snapback4/test/retention-episode.test.mjs:245:1",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Old assertions require the removed one-second host deadline, treat unavailable/transport/loading as hard withdrawal, or keep an approved facade image after a different source image replaces it. Current tests retain plain revalidation and preserve real expiry/authority boundaries."
+    },
+    {
+      "name": "wasm: resubscription delivers saved row expiry without an accessor, keep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:206:40",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online raw: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online guard: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "online opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm raw: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=undefined, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=false, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm guard: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=undefined",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=false",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "wasm opening remount: offline withdraws both peers before every callback, keep=true, peerKeep=true",
+      "location": "packages/snapback4/test/retention-lifecycle.test.mjs:256:5",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Offline transport alone now retains default/keep:true peers with revalidating and fresh:false. The one keep:false resubscription case now honors explicit opt-out immediately."
+    },
+    {
+      "name": "schema discovery withdraws an overlapping invalidation: keep=undefined",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:19:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "schema discovery withdraws an overlapping invalidation: keep=true",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:19:39",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "online link loss withdraws a live settled answer immediately, keep=undefined",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:54:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "online link loss withdraws a live invalidated answer immediately, keep=undefined",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:54:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "online link loss withdraws a live settled answer immediately, keep=true",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:54:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "online link loss withdraws a live invalidated answer immediately, keep=true",
+      "location": "packages/snapback4/test/retention-online-boundaries.test.mjs:54:3",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "Unknown/overlapping schema dependencies withdraw on evidence; plain link loss now retains with stale freshness. The old assertions require the inverse policies."
+    },
+    {
+      "name": "usePage checks first page deadline before cached return without timer delivery",
+      "location": "packages/snapback4/test/retention-pages.test.mjs:23:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old assertion expects a plain revalidation host deadline at one second. That deadline is removed; current tests retain until an explicit source withdrawal."
+    },
+    {
+      "name": "usePage checks second page deadline before cached return without timer delivery",
+      "location": "packages/snapback4/test/retention-pages.test.mjs:23:38",
+      "attribution": "ours: prior LV contract/fixture delta, not a new round-11 failure",
+      "reason": "The old assertion expects a plain revalidation host deadline at one second. That deadline is removed; current tests retain until an explicit source withdrawal."
+    }
+  ]
+}
