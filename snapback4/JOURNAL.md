@@ -75956,3 +75956,103 @@ margin. Search still fails the midpoint rule in both byte-identical controls;
 Insights flips fail/pass, not a speedup claim. No Mac execution or runtime fix
 is claimed. Report: reports/20260929-sq-storage-read-path/REPORT.md. No push or
 publication. Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+
+## 2026-09-29 — Presence: proven absence in the client contract (LLP 3000.031)
+
+Implemented revision 2 on `sb4/presence`, starting at `1c48df2d88`. Ready reads
+require `presence`; nullable points narrow present to NonNullable and absent to
+null/complete/no-cut, arrays keep their result type, and scalars have no absent
+arm. The whole-union helper supplies the five UI words. Publication uses only
+the disclosed top level and existing completeness/cut/cursor/pending facts:
+nonempty is present first; empty is absent only with all proof conditions;
+otherwise it is partial. Freshness never demotes. Complete local execution
+narrows dependencies; unknown prediction footprints block every read. Native,
+web, online, search, page, mock, facade and retained snapshots now carry the
+field. Queue/admission changes reclassify already-revalidating answers; facade
+holds keep their own dependencies until replacement approval. Answer identity,
+retention episodes, expiry and authority remain unchanged. Self-review caught
+an empty page-chain edge: OR-ing source partial words kept the combined answer
+partial after the final cursor, solely because an earlier page had a cursor.
+A regression failed before the fix. SDK answers now keep pending facts in a
+private WeakMap; accumulation uses those facts and the final cursor. Empty
+pages notify pending changes even while their own word remains partial during
+revalidation. A further 1,024 two-page combinations cover coverage, cuts, final
+cursor, freshness and pending facts. No public field or wire bit is added;
+custom partial literals without SDK facts remain conservatively uncertain.
+
+The client card is 1,104 words / 94 lines, with compiled client and offline
+recipes. The membership statement is restricted to a no-horizon table within
+the conversation's own group with the messages' audience, after that group's
+first acquisition. No `with own keys` widening. Social and web/Expo chat
+starters use presence, keep the composer through read gaps, and disable send
+on membership absent/denied. Added the chat `myMembership` point query. The
+one-view guards retain their independent readiness and deadline checks.
+
+SQLite-only dev tracing records no-candidate at a real uncapped server probe
+miss, never by inferring from an unauthorized result. A storage candidate seen
+before expiry filtering prevents that proof. A prior clause is not replaced.
+Records remain available to `why QUERY`; console output requires
+`dev --log-empty-reads`. Other unrecorded empty answers use the exact clause
+“no probe miss and no rule cause were recorded”. Nested nulls are not empty;
+non-terminal filtered reads still produce no refusal record. Wire formats,
+public authorization/disclosure, durability, retention policy, meters and
+`emit.rs` are unchanged.
+
+Changed old expectations where the decision table wins: nonempty incomplete
+inbox/retained search pages (including the final accumulated page) are present,
+not partial; retained present membership does not disable a durable send;
+`{ outer: { row: null } }` no longer logs EMPTY_READ even with empty logging
+explicitly enabled. Missing point dev evidence is now no-candidate. Parser,
+chat and cost test inventories include the new constant-cost membership query.
+Qualification also caught a missing logger argument in a test helper, a
+missing API stub entry and a new React test selecting a retired StrictMode
+watch; these are fixed. The delivery boundary seal also required review of
+the new query-only pending wait and the cache continuation over existing
+receipt I/O. Both propagate failure; regression tests exercise rejection,
+incarnation checks on success and failure, and stale-revision fencing before
+notification. Updated the reviewed seal without expanding or bypassing the
+existing delivery fault-site census. The full client run also exposed a
+receipt-emission test's timing assumption; a separate full-file run reproduced
+it on the other substrate (`pending` versus `sent` after the default four-second
+caller wait while sync is deliberately throttled). Its two mutations now
+explicitly wait up to 25 seconds for settlement, retaining every exact receipt,
+emission-count, eviction and catch-up assertion. Both substrates pass; product
+wait defaults and retry behavior are unchanged. The social starter typecheck
+then found an incomplete local dependency install: the already declared/locked
+Expo router and image-picker packages were absent. `bun install --frozen-lockfile`
+restored the missing dependencies without changing manifests or the lockfile;
+the generated starter and guide snippets then compiled, with all five social
+starter tests passing.
+
+Regression coverage includes 1,080 evaluateLocal decision-table cases;
+already-revalidating and facade pending changes; wasm/native real hidden versus
+missing wire equality (including dev meters) and equal presence; refused
+admission notification and predicted insertion; combined page presence;
+required-field and scalar/nullable type errors; compiled cards; the no-private-
+loading-classifier starter rule; composer/route/browser lifetimes; and default,
+opt-in, filtered, unrecorded, expired-candidate and nested-null dev trace cases.
+Focused React: 51/51; compiled examples: 8/8; chat: 4/4; guide: 99/99.
+
+Final qualification uses pinned Node 24.18.0 and exports CARGO_INCREMENTAL=0,
+CARGO_PROFILE_TEST_DEBUG=0 and CARGO_PROFILE_DEV_DEBUG=0. Exact blocking command:
+`cd snapback4 && env -u FORCE_COLOR CARGO_INCREMENTAL=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_DEV_DEBUG=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash scripts/test.sh`.
+Result: == 0 failure(s) in 4649 s.
+Root reference check: ref-check: ok — 524 LLP docs, 9858 refs in 28889 files, 0 errors, 0 unchecked.
+Wasm: wasm 2040781 B raw, 592916 B gzip (budget 593719: ok). Canonical measurement/family checks passed, with the
+unchanged 593,719 B gzip ceiling; raw and gzip deltas are both zero. The before
+and after wasm hashes differ in exactly two data-section bytes: panic source
+locations in authorized_point.rs moved from lines 241 to 247 (file offset
+1,997,153) and 235 to 241 (offset 2,004,605). Code and all non-data sections
+are byte-identical. Before SHA-256:
+`d73c88cb87cc29ec8bdd00d840c702c1042d2763f967006bac10ce8701a629eb`;
+after: `7bd5b13fcdbd8a496f6f2710fb252c588ee51eed32626d040a7e0e114ff548a9`.
+
+Optional loading reasons are deferred in
+[the follow-up ticket](../issues/20260928-presence-loading-reasons.md): labeling
+all acquisition/expiry/transport/revalidation withdrawals requires a separate
+fact audit. No speculative or rule-cause field was exposed. The LLP was not
+edited. The requested no-agent constraint precluded the RFC's two-family
+implementation review; self-review and executable checks are recorded instead.
+All work stayed in this worktree and branch: no stash, other machine/worktree,
+spawned agent, push or publication. Detailed report:
+`/Users/ccheever/projects/snapback-sb5-program/presence-impl.final.md`.
