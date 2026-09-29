@@ -44,7 +44,12 @@ for (const keep of [undefined, true]) for (const guarded of keep === undefined ?
         if (path === "/changes") return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
         if (path === "/auth/refresh") return Response.json({ session: { ...session, token: "new-token", principal } });
         if (path === "/auth/logout") return Response.json({ ok: true });
-        if (path.startsWith("/q/")) { const data = marker; if (hold) { heldReads++; await gate.promise; } return Response.json({ data, complete: true }); }
+        if (path.startsWith("/q/")) {
+          const data = marker; if (hold) { heldReads++; await gate.promise; }
+          // @ref LLP 3000.029#8 — these literal queries have no dependencies.
+          // Missing metadata would make their fallback replies invalidate peers.
+          return Response.json({ data, complete: true, tables: [], seq: 10 });
+        }
         throw Error(path);
       },
     });

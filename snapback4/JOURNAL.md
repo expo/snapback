@@ -76002,3 +76002,46 @@ Fresh canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the unchange
 593,719 B cap; SHA-256 3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
 Report: reports/20260929-bp-foreground-first/REPORT.md. No push or publication.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+## 2026-09-29 — Lane MT: the suite on ten CPUs
+
+First fetched and merged origin/main on sb4-intent/mt-ten-core-suite; already
+current at ee514de117825183731eb0c215463f99c4775fe4. Read the Snapback 4 fence,
+LLP 3000, the publication contract and retention/evidence constraints; applied
+llp-orient and checked the current reads/client guide. The M1 calibration host
+was never contacted or loaded. Reproduced here with taskset CPUs 0–9, a 64 GiB
+cgroup cap and no swap; no artificial ambient memory pressure.
+
+The unmodified full suite passed in 1,953 s. The default client pool now uses
+max(1, min(24, floor(os.availableParallelism() / 3))): three files on ten CPUs,
+24 on 96. Acquisition/server-e2e share that pool instead of adding seven
+shard processes outside it. Explicit serial override, Rust scheduling, model
+counts and timeouts remain. Repeated trials exposed three baseline fixture
+races: invalid isolation probes, polling past replacement notifications, and
+synthetic reset queries missing dependency/cut evidence. Corrected the fixtures
+and captured the existing replacement predicate in its subscription. Product
+source and every assertion/timeout remain unchanged. Twelve failed diagnostic
+executions are recorded: eleven baseline observations and one unsuccessful
+candidate of ours, with no environmental test exemption.
+
+Final unchanged source: complete suite green twice pinned to ten CPUs
+(2,064 s and 2,080 s), then unpinned (1,254 s). Each run: 4,305 Rust passed /
+33 ignored, 4,858 clients passed / ten inherited conditional skips, 79 models
+passed and nine fixture-wrapper tests passed; zero failures or cancellations.
+The skipped lanes are not qualified here. Final peak samples: 15.52, 16.26 and
+23.15 GiB. Historical M1 timeouts did not reproduce on Linux; this is not a
+Darwin or M1 single-core-speed qualification.
+
+Documented Cargo test prewarming inside the bumped publication worktree with
+matching SQLite/toolchain/profile inputs. Cold inventory compilation here:
+423 s; subsequent --no-run: all 273 test binaries fresh, 0.25 s wall time.
+Warming skips no test and supplies no receipt. Updated LLP 3000, the command
+sheet and M1 ticket; that ticket stays open for its actual publication record.
+
+All wasm rebuilds equal the local rebuilt baseline: 2,042,203 B raw /
+593,573 B gzip-9, 146 B under the unchanged 593,719 B cap; SHA-256
+75104fe4882479ef2bfd8796df9d655853739084640c11457cffbb50309a6e2c.
+Syntax, whitespace and reference checks pass. Evidence and every failed test's
+duration/limit/classification: [Lane MT report](./reports/20260929-mt-ten-core-suite/REPORT.md).
+Dependencies/cache and diagnostic helpers stayed in the worktree; no shared
+tool installation. Local commit carries Co-Authored-By: GPT-6 Astra
+<noreply@openai.com>. No push or publication.

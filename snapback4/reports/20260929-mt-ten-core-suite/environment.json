@@ -1,0 +1,28 @@
+{
+  "source": "ee514de117825183731eb0c215463f99c4775fe4",
+  "started_at": "2026-09-29T01:36:02.335485+00:00",
+  "host": "Linux expose-builder-pixel 6.8.0-138-generic #138-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 22:41:49 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "cpu_affinity": "0-9",
+  "memory_max_bytes": 68719476736,
+  "memory_swap_max_bytes": 0,
+  "nofile": 4096,
+  "build_env": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "initial_test_script": "32e66b6ed5a1daa15cf2f95440b1e3f6159d4d65b0d0fee28567b39545ad2dc8  scripts/test.sh",
+  "wasm_opt": null,
+  "cpu_model": "AMD EPYC 9454 48-Core Processor",
+  "logical_cpus": 96,
+  "physical_cores": 48,
+  "threads_per_core": 2,
+  "trial_test_script_sha256": "f8eaae52ac7e24703a9f23eb50bd0746cb465557fe90af5bb3b71db34b9bc09d",
+  "qualified_test_script_sha256": "0524ac6f52df8d34170f31c905f08195c5166f09a387196aca9d80fef9521167",
+  "qualified_keep_device_sha256": "d00cbfd46b2091cd447bb3abdcaead02745e85e313596fd54ec18b984025dc05",
+  "qualified_keep_reset_sha256": "d8414c9806ee871a21b0eda417271e395ef739ba355a86d6862021d3005dce7a"
+}
