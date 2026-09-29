@@ -1,0 +1,36 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4-lang)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-dx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 2.08s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-8e2e84704490be50)
+
+running 19 tests
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test round3::composed_missing_row_replaces_a_known_refusal_with_explicit_unknown_cause ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s

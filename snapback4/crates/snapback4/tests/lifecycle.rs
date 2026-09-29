@@ -317,7 +317,9 @@ fn dev_and_serve_report_signals_without_a_configured_worker() {
                 assert_eq!(post(host.port, "/q/changed", json!({"args": {}}))["data"], true);
             }
             let status = host.signal(signal);
-            assert_eq!(status.signal(), Some(signal));
+            if verb == "dev" && matches!(signal, libc::SIGINT | libc::SIGTERM | libc::SIGHUP) {
+                assert_eq!(status.code(), Some(128 + signal));
+            } else { assert_eq!(status.signal(), Some(signal)); }
             let name = match signal { libc::SIGTERM => "SIGTERM", libc::SIGINT => "SIGINT", libc::SIGHUP => "SIGHUP", libc::SIGBUS => "SIGBUS", _ => "SIGABRT" };
             let line = format!("SNAPBACK4_SIGNAL verb={verb} generation={} reason={name} signal={signal}", if verb == "dev" { 2 } else { 1 });
             assert!(host.log().lines().any(|l| l == line), "{}", host.log());
@@ -461,7 +463,7 @@ fn sqlite_replay_survives_counter_split_and_an_offline_cli_backfill() {
     assert_eq!(store.rows("repostEdges").unwrap().len(), 62);
     assert_eq!(post(host.port, "/q/entries", json!({"args": {"c": null}}))["complete"], true);
     assert!(host.child.try_wait().unwrap().is_none());
-    assert_eq!(host.signal(libc::SIGTERM).signal(), Some(libc::SIGTERM));
+    assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
     assert!(host.log().contains("SNAPBACK4_SIGNAL verb=dev generation=2 reason=SIGTERM signal=15"));
 }
 
@@ -514,7 +516,7 @@ fn watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill() {
     assert_eq!(serde_json::from_slice::<Value>(&job.stdout).unwrap()["state"], "done");
     let mut host = Host::start(&dir, &["dev"]);
     assert_eq!(post(host.port, "/q/entries", json!({"args": {"c": null}}))["complete"], true);
-    assert_eq!(host.signal(libc::SIGTERM).signal(), Some(libc::SIGTERM));
+    assert_eq!(host.signal(libc::SIGTERM).code(), Some(143));
     assert!(host.log().contains("SNAPBACK4_SIGNAL verb=dev generation=3 reason=SIGTERM signal=15"));
 }
 
