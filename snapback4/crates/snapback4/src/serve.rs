@@ -125,6 +125,7 @@ pub struct Shared {
 
 impl Shared {
     pub fn now(&self) -> i64 { lock(&self.clock).now() }
+    pub(crate) fn worker_owner(&self) -> Option<Arc<std::fs::File>> { self.owner.as_ref().map(|owner| owner.worker_lock()) }
 }
 
 #[path = "serve_readers.rs"]
@@ -269,7 +270,7 @@ pub fn serve(project: Project, port: u16, mut mode: Mode, bind: &str) -> Result<
     // @ref LLP 3000.007#20.2 — only the owning host may replace replay/schedule policy; deployment shares the same lock.
     // Release startup already owns this lock before selecting its source.
     let mut host_lock = if matches!(mode, Mode::Dev { fresh: false, .. }) {
-        Some(crate::store_owner::command(&project.store_path())?)
+        Some(crate::store_owner::host(&project.store_path())?)
     } else { None };
     // A busy port is a failed start, not permission to change the stopped host's policy.
     let server = Server::http_with_limits((bind, port), tiny_http::ConnectionLimits::default()).map_err(|e| format!("cannot listen on {bind}:{port}: {e}"))?;

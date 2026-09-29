@@ -1608,7 +1608,10 @@ Declare each worker as `snapback/workers/<service>.mjs` (or `.mts` or `.ts`).
 Both dev and serve supervise it with an injected `service:<service>` token,
 name-prefixed redacted logs, bounded restart backoff and shutdown with the host.
 Each worker has a process group; its watchdog kills remaining group members on
-worker exit or server death, including SIGKILL. Failed token retirement keeps
+worker exit or server death, including SIGKILL. Watchdogs retain store ownership
+through group cleanup; Node processes never inherit that descriptor. Restarting
+dev or serve waits up to five seconds for ownership, then reports E_STORE_BUSY
+if it remains held. Leave the ownership sidecar in place. Failed token retirement keeps
 the worker stopped until revocation commits, even after its declaration is removed.
 A failed deletion fences the retired revision on dev and serve; peers renew
 under the new revision. Ordinary queries and effect claims refuse old credentials.
@@ -1622,12 +1625,16 @@ including seats with the same service name.
 Deploy packages this source subtree; helpers belong in subdirectories. Install
 its package dependencies on the deployment host. Symlinks at every level and
 non-regular source files are refused on every launch/restart. Named workers execute
-private copies of validated entry/helper bytes; source-path replacement cannot
+private copies of validated entry/helper bytes under `.snapback4`; source-path replacement cannot
 change the code or selected secrets of that launch. Package dependencies remain
 host-installed code, with `snapback/node_modules` taking precedence over
 project-root packages. Numbered releases use the nearest ancestor containing
-`snapback/node_modules`; install dependencies there. Doctor reports each worker,
+`snapback/node_modules`; install dependencies there. Schema, project and ancestor
+package manifests also use no-follow regular-file copies. Global temporary
+directories never add package lookup locations. Doctor reports each worker,
 including source-blocked, revocation-blocked and ledger-unavailable states.
+Startup clears prior reports with the previous host's credential retirement,
+so a removed declaration cannot retain a running report.
 Automatic dev `snapback/server.*` and `snapback/worker.*` entries likewise execute
 private copies of the schema tree, including generated modules and relative
 helpers. The TypeScript checker's tracked imports elsewhere inside the project

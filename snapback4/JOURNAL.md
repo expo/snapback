@@ -76886,3 +76886,52 @@ No acquisition remeasurement or broader performance claim this round.
 Report: [AQ round 1](reports/20260929-aq-fast-acquisition/round1/REPORT.md).
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+## 2026-09-29 — WK round 5: retain ownership through worker cleanup
+
+Read all prior lane prompts/reports and both complete round-4 reviews; checked
+both input hashes again before commit. Merged origin/main in 22e37b564f, keeping
+both append-only journal histories. Watchdogs now inherit the same ownership
+flock as the host, retain it through group cleanup, and close the descriptor on
+Node execution. Immediate dev/serve restart waits for cleanup before opening the
+store or starting workers. Reachable listeners and unannounced CLI owners retain
+prompt refusal; the address is only a wait hint, never ownership authority.
+Both detecting restart tests record old-worker/helper overlap before the repair
+and none afterward. A descriptor-inheritance mutation fails both tests. The
+initialization-cancellation guard was already correct; a real locked-writer test
+now detects its deletion and requires AbortError after release.
+
+Grok's late review also has detecting repairs: snapshots live under private
+.snapback4 runtime directories, without adding temporary-parent package lookup;
+schema/project/ancestor package manifests use no-follow regular-file copies;
+startup clears prior status with credential retirement so removed workers cannot
+retain running reports. All eight controls fail before and pass after repair.
+The busy-COMMIT test holds a reader through 110 real busy attempts and detects a
+100-retry-cap mutation, including cancellation after provider success. Effect
+semantics, authority, meters and the provider-call/commit ambiguity are unchanged.
+The known Low numeric group-ID reuse concern remains in its existing open ticket.
+No forced-ID-reuse, macOS or actual-provider qualification is claimed.
+
+Ran scripts/test.sh exactly once, exit 1: `== 1 failure(s) in 1379 s`, stage
+cargo test. All three failed tests are ours: an intermediate guide edit moved
+language-00 from Details; unconditional waiting delayed competing-host refusal;
+and waiting behind token minting outlasted its SQLite deadline. Repaired and
+qualified separately: final guide 99/99, replay 15/15, run-admission 27/27,
+affected 125/125, host unit 204 passed with four declared ignores, routes 13/13,
+server end-to-end 9/9, signal cleanup 1/1. The affected final run uses a private
+byte-identical CLI copy after concurrent Cargo relinking disrupted two earlier
+follow-up checks; exact failures, evidence and attribution limits remain in the
+report. Full clients passed 4,820, zero failures, ten declared skips; full final
+models passed 79/79. Every other full stage passed. No baseline/environmental
+full-script test failure; the inherited 60-second process budget remains missed.
+The red full snapshot is retained, not repeated or relabeled after repairs.
+
+The merged guide baseline separately exceeded its word budget by 12 words;
+shortened two language-card prose lines without moving facts or changing examples.
+LLP 3000.009, effects and operations docs co-evolve. Reference and documentation
+checks pass. Canonical wasm: 2,040,529 B raw / 592,975 B gzip, 744 B below the
+unchanged 593,719 B cap; SHA-256
+3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b.
+Report: reports/20260929-wk-supervised-workers/round5/REPORT.md. Local commit
+carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

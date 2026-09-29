@@ -139,7 +139,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let bind = release_bind(options)?;
     let dir = directory(options)?;
     snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
-    let owner = deployment_lock(&dir)?;
+    let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project { root: dir.join("releases").join(current.to_string()) };
     snapback4_core::private_fs::directory(&release.data_dir()).map_err(|e| e.to_string())?;

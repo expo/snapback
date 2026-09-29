@@ -38,13 +38,13 @@ mutation send(roomId: id, body: text <=4000):
 
 Put each worker at `snapback/workers/<service>.mjs` (also `.mts` or `.ts`).
 For example, `snapback/workers/push.mjs` declares the `service:push` worker.
-Both `snapback4 dev` and `snapback4 serve` start it, inject its service token,
+`snapback4 dev` and `snapback4 serve` start it, inject its token,
 prefix logs with `[worker:push]`, restart crashes with 250 ms–5 s backoff, and
-stop its process group with the server, including abrupt server death. A failed
-token retirement stops the worker and suspends replacement until retirement
-succeeds, including when its declaration was removed. A failed deletion fences
-the old revision immediately on dev and serve; peers renew under that revision. Retired revisions cannot
-use ordinary queries while deletion is pending. If a watchdog dies, the host
+stop its group on server exit, including abrupt death. Host restart waits for
+group cleanup (five seconds, then E_STORE_BUSY). Failed token retirement keeps
+the worker stopped until retirement succeeds, even after declaration removal.
+A failed deletion fences the old revision immediately on dev and serve; peers
+renew under that revision. Ordinary queries refuse retired revisions during deletion. If a watchdog dies, the host
 kills its worker group before replacement. Signals sent to a live watchdog
 initiate its group cleanup. A new declaration that cannot start retries after
 repair without requiring another source edit. Tokens are never printed.
@@ -56,12 +56,14 @@ the refusal leaves it live. Manually minted service seats can still refresh.
 
 `snapback4 doctor` shows
 all workers and their last reported states, starts, restarts and crashes,
-including `ledger-unavailable` while retrying a stopped child.
+including `ledger-unavailable` while retrying a stopped child. Startup clears
+prior reports when retiring the previous host's credentials.
 `deploy` copies the workers source subtree; put helpers in subdirectories and
 install package dependencies on the deployment host. Symlinks at any level and
 non-regular source files are refused on every launch and restart, even after
 a source change was rejected. Named workers execute private copies of validated
-entry/helper bytes; replacing the original paths cannot change an in-flight launch.
+entry/helper bytes under private `.snapback4` directories; replacing original paths
+cannot change an in-flight launch. Package manifests also refuse symlinks.
 Package dependencies stay installed on the host, preserving schema-local
 `snapback/node_modules` lookup before project-root packages. For numbered releases,
 serve uses the nearest ancestor containing `snapback/node_modules`; install there.

@@ -10,6 +10,17 @@ fn open(parent: &File, name: &std::ffi::OsStr) -> io::Result<File> {
     if fd < 0 { return Err(io::Error::last_os_error()); }
     Ok(unsafe { File::from_raw_fd(fd) })
 }
+fn copy_package(parent: &File, stage: &Path) -> io::Result<()> {
+    let mut source = match open(parent, std::ffi::OsStr::new("package.json")) {
+        Ok(file) => file,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    if !source.metadata()?.is_file() { return Err(io::Error::other("worker package.json must be a regular file")); }
+    let mut output = File::options().write(true).create_new(true).open(stage.join("package.json"))?;
+    io::copy(&mut source, &mut output)?;
+    Ok(())
+}
 fn entries(dir: &File) -> io::Result<Vec<OsString>> {
     if !dir.metadata()?.is_dir() { return Err(io::Error::other("worker source directory is not a directory")); }
     let fd = unsafe { libc::fcntl(dir.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };
@@ -177,7 +188,11 @@ impl Snapshot {
     }
 
     fn scope(project: &Project) -> io::Result<(Self, PathBuf)> {
-        let template = std::env::temp_dir().join("snapback4-worker-XXXXXX");
+        // A global temporary parent adds its node_modules to Node's search.
+        // Keep launch bytes under this project's private runtime directory.
+        let data = project.data_dir();
+        snapback4_core::private_fs::directory(&data)?;
+        let template = data.canonicalize()?.join("worker-XXXXXX");
         let mut bytes = CString::new(template.as_os_str().as_bytes())?.into_bytes_with_nul();
         if unsafe { libc::mkdtemp(bytes.as_mut_ptr().cast()) }.is_null() { return Err(io::Error::last_os_error()); }
         bytes.pop();
@@ -192,9 +207,7 @@ impl Snapshot {
             if ancestor.join("node_modules").is_dir() {
                 std::os::unix::fs::symlink(ancestor.join("node_modules"), stage.join("node_modules"))?;
             }
-            if ancestor.join("package.json").is_file() {
-                std::fs::copy(ancestor.join("package.json"), stage.join("package.json"))?;
-            }
+            copy_package(&File::open(ancestor)?, &stage)?;
         }
         // Preserve schema-local package precedence as well as module type,
         // using the same trusted host-dependency links as the ancestor scopes.
@@ -203,9 +216,9 @@ impl Snapshot {
         if let Some(packages) = project_root.ancestors().map(|root| root.join("snapback/node_modules")).find(|path| path.is_dir()) {
             std::os::unix::fs::symlink(packages, stage.join("snapback/node_modules"))?;
         }
-        if project_root.join("snapback/package.json").is_file() {
-            std::fs::copy(project_root.join("snapback/package.json"), stage.join("snapback/package.json"))?;
-        }
+        let project_dir = File::open(&project_root)?;
+        let schema = open(&project_dir, std::ffi::OsStr::new("snapback"))?;
+        copy_package(&schema, &stage.join("snapback"))?;
         Ok((owned, stage))
     }
 }

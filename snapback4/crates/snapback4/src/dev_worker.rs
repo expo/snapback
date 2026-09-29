@@ -25,6 +25,9 @@ pub(crate) fn clear_child_session(store: &Store) -> Result<(), RuntimeError> {
     tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
     tx.execute("DELETE FROM _sessions WHERE COALESCE(family, token_digest) IN (SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [])?;
     tx.execute("DELETE FROM _meta WHERE key LIKE 'worker:family:%'", [])?;
+    // The next supervisor owns fresh reports; a removed declaration must not
+    // inherit a running row from the host whose credentials just retired.
+    tx.execute("DELETE FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%'", [])?;
     tx.commit()?;
     Ok(())
 }
@@ -330,7 +333,9 @@ impl DevWorker {
         };
         let mut child_command = command(&process::executable());
         process::isolate(&mut child_command);
-        match child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry).current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).env("SNAPBACK_WORKER_SUPERVISED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        child_command.arg("--internal-worker-watchdog").arg(&self.node).arg(entry);
+        process::retain_owner(&mut child_command, self.shared.worker_owner());
+        match child_command.current_dir(&self.project.root).envs(secrets).env("SNAPBACK_URL", &self.url).env("SNAPBACK_SERVICE_TOKEN", &token).env("SNAPBACK_WORKER_LEDGER", &self.ledger).env("SNAPBACK_WORKER_SUPERVISED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
             Ok(mut child) => {
                 use std::io::BufRead;
                 let mut stdout = std::io::BufReader::new(child.stdout.take().expect("piped stdout"));

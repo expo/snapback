@@ -1,12 +1,30 @@
 //! One watchdog per worker: the pipe is held only by its server owner.
 //! EOF also covers SIGKILL and works on both Linux and macOS.
 // @ref LLP 3000.009#5.3 — the whole worker process group belongs to the host lifetime.
-use std::{os::unix::process::CommandExt, process::{Command, Stdio}, time::{Duration, Instant}};
+use std::{fs::File, os::{fd::{AsRawFd, FromRawFd}, unix::process::CommandExt}, process::{Command, Stdio}, sync::Arc, time::{Duration, Instant}};
 
 static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 extern "C" fn stop_signal(_: libc::c_int) { STOP.store(true, std::sync::atomic::Ordering::Relaxed); }
 
 pub(super) fn isolate(command: &mut Command) { command.process_group(0); }
+
+// Pass the same flock's open file description, never reopen the sidecar.
+// Change inheritance only in the forked watchdog, not the threaded host.
+pub(super) fn retain_owner(command: &mut Command, owner: Option<Arc<File>>) {
+    command.arg(owner.as_ref().map_or(-1, |file| file.as_raw_fd()).to_string());
+    unsafe { command.pre_exec(move || {
+        if let Some(owner) = &owner { inheritance(owner.as_raw_fd(), true)?; }
+        Ok(())
+    }); }
+}
+
+fn inheritance(fd: libc::c_int, inherit: bool) -> std::io::Result<()> {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 { return Err(std::io::Error::last_os_error()); }
+    let flags = if inherit { flags & !libc::FD_CLOEXEC } else { flags | libc::FD_CLOEXEC };
+    if unsafe { libc::fcntl(fd, libc::F_SETFD, flags) } < 0 { return Err(std::io::Error::last_os_error()); }
+    Ok(())
+}
 
 pub(super) fn executable() -> std::path::PathBuf {
     let executable = std::env::current_exe().expect("running executable");
@@ -20,7 +38,14 @@ pub(super) fn executable() -> std::path::PathBuf {
 }
 
 pub(crate) fn watchdog(args: &[String]) -> u8 {
-    if args.len() != 2 { return 1; }
+    if args.len() != 3 { return 1; }
+    let owner_fd = match args[2].parse::<libc::c_int>() { Ok(fd) if fd == -1 || fd >= 3 => fd, _ => return 1 };
+    // Keep ownership through kill/wait/output cleanup, but close it on Node's
+    // exec. Application code must neither unlock it nor prolong its lifetime.
+    let _owner = if owner_fd >= 3 {
+        if inheritance(owner_fd, false).is_err() { return 1; }
+        Some(unsafe { File::from_raw_fd(owner_fd) })
+    } else { None };
     // A host-wide TERM can reach the watchdog too. Survive it long enough to
     // perform the same bounded group cleanup as EOF, even if the host is gone.
     for signal in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP] {

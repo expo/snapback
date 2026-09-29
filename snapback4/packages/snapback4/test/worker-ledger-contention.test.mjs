@@ -49,7 +49,7 @@ ledger.close();process.disconnect();
     child.stderr.on('data', bytes => {s.log += bytes;}); children.push(s); return s;
   };
   const wait = async (s, predicate) => {
-    for (let n=0;n<500;n++) {const found=s.events.find(predicate);if(found)return found;await sleep(5);}
+    for (let n=0;n<1000;n++) {const found=s.events.find(predicate);if(found)return found;await sleep(5);}
     assert.fail(JSON.stringify(s.events)+' '+s.log);
   };
   const first=start('first'), second=start('second');
@@ -64,6 +64,9 @@ ledger.close();process.disconnect();
     if (abort) first.child.send('abort', () => {});
     second.child.send('run');
     await wait(second,e=>e.event==='busy' || e.event==='performed');
+    // Keep the real reader through more than 100 failed commit attempts, so
+    // a large retry cap cannot silently discard the completed receipt.
+    await wait(first,e=>e.event==='error' || (e.event==='busy' && first.events.filter(e=>e.event==='busy' && e.sql==='COMMIT').length>=110));
     reader.exec('ROLLBACK');
     const secondOutcome = await wait(second,e=>['performed','result','error'].includes(e.event));
     if (secondOutcome.event==='performed') second.child.send('finish-provider');
@@ -102,4 +105,29 @@ test('aborting a waiter blocked on SQLITE_BUSY prevents its handler after the lo
     assert.equal(calls,0);
     assert.equal(holder.prepare('SELECT count(*) n FROM completions').get().n,0);
   } finally {holder.close();ledger.close();}
+});
+
+test('aborting initialization blocked on SQLITE_BUSY rejects after the writer lock is released', {timeout:5_000}, async t => {
+  const dir=mkdtempSync(join(tmpdir(),'sb4-ledger-open-abort-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const path=join(dir,'ledger.sqlite'), stop=new AbortController(), holder=new DatabaseSync(path);
+  let busy;
+  const blocked=new Promise(resolve=>{busy=resolve;});
+  const exec=DatabaseSync.prototype.exec;
+  t.mock.method(DatabaseSync.prototype,'exec',function(sql){
+    try {return exec.call(this,sql);}
+    catch(error){if(error.errcode===5)busy();throw error;}
+  });
+  holder.exec('BEGIN IMMEDIATE');
+  try {
+    const pending=WorkerLedger.open(path,stop.signal);
+    const result=pending.then(value=>({value}),error=>({error}));
+    await blocked;
+    stop.abort(); holder.exec('ROLLBACK');
+    const settled=await result;
+    // Close even a mutant's successful open before reporting the failure.
+    settled.value?.close();
+    assert.equal(settled.error?.name,'AbortError');
+    assert.equal(holder.prepare("SELECT count(*) n FROM sqlite_master WHERE name='completions'").get().n,0);
+  } finally {holder.close();}
 });

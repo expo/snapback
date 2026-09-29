@@ -34,12 +34,13 @@ function fixture(t, source) {
   const servers = [];
   t.after(async () => {
     for (const s of servers) { if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGTERM'); await s.done; }
-    for (const row of rows(join(dir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
+    for (const workdir of new Set([dir, ...servers.map(s => s.workdir)]))
+      for (const row of rows(join(workdir, 'starts'))) for (const pid of [row.pid, row.helper]) if (pid && alive(pid)) process.kill(pid, 'SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   });
   return { dir, async start(extra = [], env = {}, watch = false, mode = "dev") {
     const release = join(dir, 'release');
-    if (mode === 'serve') { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
+    if (mode === 'serve' && !existsSync(release)) { const deploy = spawnSync(binary, ['deploy', release], {cwd:dir,encoding:'utf8'}); assert.equal(deploy.status, 0, deploy.stderr); }
     const child = spawn(binary, mode === 'serve' ? ['serve', release, '--port', '0', ...extra] : ['dev', '--port', '0', ...(watch ? [] : ['--no-watch']), ...extra], { cwd: dir, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     const s = { child, done: once(child, 'exit'), log: '', url: '', events: [], workdir: mode === 'serve' ? join(release, 'releases/1') : dir };
     servers.push(s);
@@ -54,6 +55,77 @@ setInterval(()=>{},1000);`;
 async function claim(s, token) {
   return fetch(s.url + '/effects/claim', { method: 'POST', headers: { authorization: 'Bearer '+token, 'content-type': 'application/json' }, body: '{"wait":0}' });
 }
+
+for (const mode of ['dev', 'serve']) test(`${mode} immediate host restart waits for the previous worker group and excludes ownership from Node`, async t => {
+  const f = fixture(t, `import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import {appendFileSync,readFileSync,readdirSync,readlinkSync} from 'node:fs';
+${alive.toString()}
+process.on('SIGTERM',()=>{});
+const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});console.log('ready');setInterval(()=>{},1000)"],{stdio:['ignore','pipe','ignore']});
+await once(helper.stdout,'data');
+let previous=[];try {previous=readFileSync('starts','utf8').trim().split('\\n').map(JSON.parse);}catch{}
+const overlap=previous.flatMap(row=>[row.pid,row.helper]).filter(alive);
+const ownerDescriptors=process.platform==='linux' ? readdirSync('/proc/self/fd').filter(fd=>{try{return readlinkSync('/proc/self/fd/'+fd).endsWith('store.sqlite-owner');}catch{return false;}}) : [];
+appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid,token:process.env.SNAPBACK_SERVICE_TOKEN,overlap,ownerDescriptors})+'\\n');
+setInterval(()=>{},1000);`);
+  const first = await f.start([], {}, false, mode);
+  const starts = join(first.workdir, 'starts');
+  await until(() => rows(starts).length === 1);
+  const old = rows(starts)[0];
+  first.child.kill('SIGKILL'); await first.done;
+  const next = await f.start([], {}, false, mode);
+  await until(() => rows(starts).length === 2);
+  const replacement = rows(starts)[1];
+  assert.deepEqual(replacement.overlap, [], 'replacement must not start during the previous group cleanup');
+  assert.equal(alive(old.pid), false); assert.equal(alive(old.helper), false);
+  for (const row of [old, replacement]) assert.deepEqual(row.ownerDescriptors, [], 'only the watchdog may inherit store ownership');
+  assert.equal((await claim(next, old.token)).status, 401, 'startup still retires the original credential');
+  assert.equal((await claim(next, replacement.token)).status, 200);
+});
+
+for (const [mode, entry] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs']]) test(`${mode} ${entry} snapshot does not add the temporary directory to package lookup`, async t => {
+  const f = fixture(t);
+  const temporary = join(f.dir, 'unrelated-temporary');
+  const packageDir = join(temporary, 'node_modules/wk-parent-only');
+  mkdirSync(packageDir, {recursive:true});
+  writeFileSync(join(packageDir, 'package.json'), '{"name":"wk-parent-only","type":"module","exports":"./index.js"}');
+  writeFileSync(join(packageDir, 'index.js'), 'export default "from-temporary-parent";');
+  writeFileSync(join(f.dir, 'snapback', entry), `import {writeFileSync} from 'node:fs';
+const result=await import('wk-parent-only').then(m=>m.default,error=>error.code);
+writeFileSync('package-lookup',JSON.stringify(result));setInterval(()=>{},1000);`);
+  const s = await f.start([], {TMPDIR:temporary}, false, mode);
+  await until(() => existsSync(join(s.workdir,'package-lookup')));
+  assert.equal(JSON.parse(readFileSync(join(s.workdir,'package-lookup'),'utf8')), 'ERR_MODULE_NOT_FOUND');
+});
+
+for (const scope of ['snapback', 'project', 'ancestor']) test(`named snapshot refuses a symlinked ${scope} package manifest`, async t => {
+  const f = fixture(t, idle);
+  const outside = join(f.dir,'outside-package.json');
+  writeFileSync(outside, '{"type":"module","imports":{"#helper":"./outside.mjs"}}');
+  let project = f.dir, manifest = join(f.dir,scope==='snapback'?'snapback':'','package.json');
+  if (scope === 'ancestor') {
+    project=join(f.dir,'nested'); mkdirSync(join(project,'snapback/workers'),{recursive:true});
+    writeFileSync(join(project,'snapback/schema.q'),'query who():\n  return viewer\n');
+    writeFileSync(join(project,'snapback/workers/push.mjs'),idle);
+  }
+  symlinkSync(outside,manifest);
+  const result=spawnSync(binary,['dev','--port','0','--no-watch'],{cwd:project,encoding:'utf8',timeout:1500});
+  assert.match(result.stderr,/workers:.*(symbolic|symlink|regular|loop)/i);
+  assert.equal(existsSync(join(project,'starts')),false);
+});
+
+for (const mode of ['dev','serve']) test(`${mode} startup clears a removed worker's stale running status after host death`, async t => {
+  const f = fixture(t,idle), first = await f.start([],{},false,mode);
+  await until(()=>rows(join(first.workdir,'starts')).length===1);
+  const doctor = () => spawnSync(binary,['doctor',...(mode==='serve'?['--release',join(f.dir,'release')]:[])],{cwd:f.dir,encoding:'utf8'});
+  await until(()=>doctor().stdout.includes('"state":"running"'));
+  first.child.kill('SIGKILL'); await first.done;
+  rmSync(join(first.workdir,'snapback/workers/push.mjs'));
+  await f.start([],{},false,mode);
+  const report=doctor(); assert.equal(report.status,0,report.stderr);
+  assert.doesNotMatch(report.stdout,/worker\s+last report:/);
+});
 
 for (const entry of ['workers/push.mjs', 'worker.mjs']) test(`supervised ${entry} refuses refresh without logging a bearer across split writes`, async t => {
   const f = fixture(t);
@@ -305,7 +377,7 @@ for (const signal of ['SIGTERM','SIGINT','SIGHUP']) test(`watchdog ${signal} com
   const f = fixture(t, `import {spawn} from 'node:child_process';import {appendFileSync} from 'node:fs';
 const helper=spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],{stdio:'ignore'});
 process.on('SIGTERM',()=>{});appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n');setInterval(()=>{},1000);`);
-  const watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs')],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
+  const watchdog=spawn(binary,['--internal-worker-watchdog',process.execPath,join(f.dir,'snapback/workers/push.mjs'),'-1'],{cwd:f.dir,stdio:['pipe','pipe','pipe']});
   const done=once(watchdog,'exit');watchdog.stdout.resume();watchdog.stderr.resume();
   t.after(async()=>{watchdog.stdin.end();await done;});
   await until(()=>rows(join(f.dir,'starts')).length===1);

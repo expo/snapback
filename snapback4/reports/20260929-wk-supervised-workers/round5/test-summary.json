@@ -1,0 +1,50 @@
+{
+  "command": "scripts/test.sh",
+  "invocations": 1,
+  "exit": 1,
+  "summary": "== 1 failure(s) in 1379 s",
+  "failedStages": [
+    "cargo test"
+  ],
+  "failedTests": [
+    {
+      "test": "familiar::every_moved_fact_has_its_why_or_details_home",
+      "target": "snapback4-lang::guide",
+      "attribution": "ours"
+    },
+    {
+      "test": "competing_starts_preserve_the_live_replay_policy",
+      "target": "snapback4::replay",
+      "attribution": "ours"
+    },
+    {
+      "test": "release_token_owns_the_resolved_database_before_sqlite_open",
+      "target": "snapback4::run_admission",
+      "attribution": "ours"
+    }
+  ],
+  "stageSeconds": {
+    "cargo test": 559,
+    "client tests": 510,
+    "client models": 298
+  },
+  "clients": {
+    "tests": 4830,
+    "passed": 4820,
+    "failed": 0,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0
+  },
+  "finalAffected": {
+    "passed": 125,
+    "failed": 0
+  },
+  "finalGuide": {
+    "passed": 99,
+    "failed": 0
+  }
+}
