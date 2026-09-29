@@ -489,7 +489,9 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   const f = await fixture(t, tier); f.mode("online");
   const client = await f.open(), events = [];
   client.onWrite(write => events.push(write)); f.mode("sent-queued");
-  const first = await client.mutate({ kind: "mutation", name: "add" }, { body: "sent but not caught up" });
+  // This checks terminal emission ownership, not the caller's default wait.
+  // The deliberately refused sync can leave dispatch behind retry backoff.
+  const first = await client.mutate({ kind: "mutation", name: "add" }, { body: "sent but not caught up" }, { waitSeconds: 25 });
   assert.equal(first.state, "sent");
   assert.equal(ok(await f.core().call({ op: "queued" }))[0].sent_seq, first.seq);
   // Acquired local refusals are terminal emissions too, with no outbox row.
@@ -497,7 +499,7 @@ for (const tier of ["wasm", "process"]) test(`W5R2a ${tier}: a sent queued id em
   // Evict A from the receipt window as well: its outbox row must pin emission.
   for (let n = 0; n < 256; n++) await keepReceipt(f.core(), sentReceipt(`other-${n}`, n + 1));
   assert.equal((await client.write(first.id)).state, "sent", "the queued terminal still owns its outcome");
-  const next = await client.mutate({ kind: "mutation", name: "add" }, { body: "trigger the next flush" });
+  const next = await client.mutate({ kind: "mutation", name: "add" }, { body: "trigger the next flush" }, { waitSeconds: 25 });
   assert.equal(next.state, "sent");
   const count = events.filter(write => write.id === first.id).length;
   t.diagnostic(`other_emissions=256 first_id_emissions=${count} queued=${ok(await f.core().call({ op: "queued" })).length}`);
