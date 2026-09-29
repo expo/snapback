@@ -1,0 +1,48 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NYT1TSZ2F87CXKK67A82RS","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYT1WSZJZQVPQZTCV2FK8T","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (2019.741495ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1481.845634ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1720.374471ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1905.263112ms)
+✔ identification timeout settles visibly without sending (wasm) (1656.668279ms)
+✔ identification adoption settles visibly without sending (wasm) (1682.244152ms)
+✔ identification incarnation settles visibly without sending (wasm) (1467.353464ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NYTCYD40B958TZHQWY4FW1","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYTD0GJ1HWMSKP416ZMHDY","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1550.906267ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1883.457464ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1653.482008ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2272.380276ms)
+✔ identification timeout settles visibly without sending (Worker) (1381.415223ms)
+✔ identification adoption settles visibly without sending (Worker) (1768.532951ms)
+✔ identification incarnation settles visibly without sending (Worker) (1586.812889ms)
+✔ process device persists immediate writes before identity and resumes in order (338.967627ms)
+✔ online app takes custody before a held identity probe, including reload (193.528565ms)
+✔ two native owners compare deferred custody without losing or replacing writes (444.200907ms)
+✖ expired identification deadline survives reopen (process) (5734.249705ms)
+✔ expired identification deadline survives reopen (online) (197.804354ms)
+✔ known online commit survives failed receipt saves and same-id restart recovery (887.907802ms)
+✔ known online refusal survives failed receipt saves and same-id restart recovery (155.210646ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 20
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31082.325295
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:257:52
+✖ expired identification deadline survives reopen (process) (5734.249705ms)
+  AssertionError [ERR_ASSERTION]: timed out: durable identification deadline
+      at until (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:283:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

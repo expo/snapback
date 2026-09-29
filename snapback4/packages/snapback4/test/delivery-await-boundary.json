@@ -28,8 +28,8 @@
     "sha256": "7b69513a6cbbd9fc7526d1205d3b02976cb52c3e9c95f6f03d7dc6329c93b4e1"
   },
   "app-online.ts": {
-    "count": 20,
-    "sha256": "fd619008d9be0bf3b2aea45bcc4fd8c33922e555d66d2a453d6d36166be333a6"
+    "count": 21,
+    "sha256": "b5524293c2f070ba51b54bc21a06b0d1f4ba52ce68b1a1dd856135107c649065"
   },
   "app-revocations.ts": {
     "count": 28,
@@ -119,6 +119,10 @@
     "count": 6,
     "sha256": "9f3ec1e7c2b70598362b8d181ed156ba8074448dbad50cb5ec06e3fda78e3c68"
   },
+  "identity-admission.ts": {
+    "count": 5,
+    "sha256": "4366709f302ab752345a5af92b059a8a59d81cda24a9d88182b4d85067a617e8"
+  },
   "identity-principal.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -180,8 +184,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local-receipts.ts": {
-    "count": 17,
-    "sha256": "17d7ff56c344230b66806bd3108c79bbc74938d57c7d00766a180490e3a4b533"
+    "count": 19,
+    "sha256": "292b85308722943626662674687d13a58ace006324bf2b080ceb7ee721899502"
   },
   "local-search.ts": {
     "count": 9,
@@ -200,8 +204,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "local.ts": {
-    "count": 161,
-    "sha256": "6a768a56c9f9440fe0e91c3f063977b21e032eb5fcdf5a5e4477baacc48a6f7a"
+    "count": 164,
+    "sha256": "8f3aed24c6348a4777d895ec8fe4f2ae7117a5b272af92892d3fa322e7dc838c"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -377,7 +381,7 @@
   },
   "web-worker-device.ts": {
     "count": 35,
-    "sha256": "9d7e8b84dd4d16842f66820496b917defd41f3458fd8e75a473e2541b928894a"
+    "sha256": "b9657c17d2ec029636ad17e24da6d936da76c30f0bb5cae28bf46f85295ac47b"
   },
   "web-worker-host.ts": {
     "count": 28,

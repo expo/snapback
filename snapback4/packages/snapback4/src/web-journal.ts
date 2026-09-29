@@ -4,6 +4,7 @@ import { storeLock } from "./app-storage.ts";
 // Synchronous custody until the web device's ordinary admission commits.
 // Exit dispatch evidence also survives until its ordinary status commit.
 // No transport, result, or server settlement lives here.
+import { identityRefusal } from "./identity-admission.ts";
 import type { Change } from "./web.ts";
 import type { Refusal } from "./contract.ts";
 import { runJournal, runJournalAsync, type JournalPlan, type JournalInvoke, type JournalDevice } from "./web-journal-execution.ts";
@@ -100,6 +101,7 @@ export class AdmissionJournal {
   private exits = new Map<string, string>();
   private stagedExits = new Map<string, string>();
   private storeId: string | undefined;
+  private backendId: string | undefined;
   private sequence = 0;
   constructor(private readonly name: string, private readonly exclusive: boolean, private readonly captured?: (id: string) => void) {}
 
@@ -110,13 +112,14 @@ export class AdmissionJournal {
   load(saved: Change[]): void {
     this.transfers.clear();
     this.exits.clear(); this.stagedExits.clear();
-    this.storeId = undefined;
+    this.storeId = undefined; this.backendId = undefined;
     this.remember(saved);
     for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
   }
 
   remember(changes: Change[]): void {
     for (const c of changes) {
+      if (c.s === "m" && c.k === "device:backend-identity") this.backendId = c.v ?? undefined;
       if (c.s === "m" && c.k === "device:store_id") this.storeId = c.v ?? undefined;
       if (c.s === "j") {
         if (c.k.startsWith("exit:")) {
@@ -192,10 +195,12 @@ export class AdmissionJournal {
   capture(request: Record<string, unknown>): AdmissionRecord | undefined {
     const refuse = (message: string): never => { throw new AdmissionError(message); };
     if (!this.exclusive) refuse("no exclusive provider claim; open a webDevice before writing");
+    if ((request.expected_store !== undefined && request.expected_store !== this.storeId)
+      || (request.expected_backend !== undefined && request.expected_backend !== this.backendId)) throw new AdmissionError(identityRefusal(false));
     try {
       const store = storage();
       if (!store) return refuse("localStorage is unavailable; mutation was not admitted");
-      if (!this.storeId) return refuse("the backend store is not identified yet; mutation was not admitted");
+      if (!this.storeId) throw new AdmissionError(identityRefusal(false));
       const requested = request.entry as Entry;
       const entry = { ...requested, seq: this.sequence = Math.max(this.sequence + 1, requested.seq) };
       const key = `${prefix(this.name)}${encodeURIComponent(this.storeId)}:${entry.id}`;
@@ -328,16 +333,18 @@ export class AdmissionJournal {
   }
 
   // @ref LLP 3000.007#20.4 — recovery and live admission allocate from the device's durable counter inside the same serialized chain.
-  admit(device: JournalDevice, entry: unknown, storeId?: string): Record<string, unknown> {
-    return runJournal(this.admission(entry, storeId), request => invoke(device, request));
+  admit(device: JournalDevice, entry: unknown, storeId?: string, generation?: number, backend?: string): Record<string, unknown> {
+    return runJournal(this.admission(entry, storeId, generation, backend), request => invoke(device, request));
   }
 
-  admitWith(call: JournalInvoke, entry: unknown, storeId?: string): Promise<Record<string, unknown>> {
-    return runJournalAsync(this.admission(entry, storeId), call);
+  admitWith(call: JournalInvoke, entry: unknown, storeId?: string, generation?: number, backend?: string): Promise<Record<string, unknown>> {
+    return runJournalAsync(this.admission(entry, storeId, generation, backend), call);
   }
 
-  private *admission(entry: unknown, storeId?: string): JournalPlan<Record<string, unknown>> {
+  private *admission(entry: unknown, storeId?: string, generation?: number, backend?: string): JournalPlan<Record<string, unknown>> {
     const state = yield { op: "sync_state", capture: false };
+    if (generation !== undefined && (state.ok?.generation !== generation || state.ok?.restore_refusal || state.ok?.backend_required)) return { denied: identityRefusal(false) };
+    if (backend !== undefined && state.ok?.adoption_capture?.["device:backend-identity"] !== backend) return { denied: identityRefusal(false) };
     const binding = journalStoreBinding(storeId, state.ok?.store_id);
     if (binding !== "allow") return { denied: bindingRefusal(binding) };
     const next = yield { op: "next_submission" };
@@ -359,5 +366,5 @@ export function writeRefusal(reply: Record<string, unknown>): boolean {
 
 export class AdmissionError extends Error {
   readonly why: Refusal;
-  constructor(message: string) { super(message); this.why = admissionRefusal(message); }
+  constructor(value: string | Refusal) { super(typeof value === "string" ? value : value.message); this.why = typeof value === "string" ? admissionRefusal(value) : value; }
 }

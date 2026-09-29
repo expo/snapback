@@ -1,0 +1,60 @@
+(node:2380388) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ a refused device adopt keeps the previous backend active in JavaScript (5019.563589ms)
+✖ every local prediction invalidates observations, including unrelated tables (5008.817381ms)
+✖ native: a write already sending when a snapshot starts is correlated after catch-up (333.400122ms)
+✖ native: another client sending after sync capture cannot publish an uncorrelated page (1132.283045ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11611.562565
+
+✖ failing tests:
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:490:1
+✖ a refused device adopt keeps the previous backend active in JavaScript (5019.563589ms)
+  'test timed out after 5000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:574:1
+✖ every local prediction invalidates observations, including unrelated tables (5008.817381ms)
+  'test timed out after 5000ms'
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:846:3
+✖ native: a write already sending when a snapshot starts is correlated after catch-up (333.400122ms)
+  AssertionError [ERR_ASSERTION]: the committed write keeps its ID while its full reply is unavailable
+  
+  'sent' !== 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:891:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'sent',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/client-lifecycle.test.mjs:896:26
+✖ native: another client sending after sync capture cannot publish an uncorrelated page (1132.283045ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'sent' !== 'pending'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/client-lifecycle.test.mjs:954:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'sent',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

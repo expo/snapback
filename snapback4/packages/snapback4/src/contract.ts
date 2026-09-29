@@ -146,8 +146,8 @@ export interface MutateOptions {
    * draft and take the next send. Custody is the device outbox, `createApp`'s
    * online intent journal, or the online client's memory queue. Settlement still
    * reaches `onWrite`, `client.write(id)` and a hook's `last`.
-   * `createApp`'s online tier identifies its store before its first custody,
-   * which needs the network. */
+   * Before store identification the promise waits up to 15 seconds without
+   * custody, even at zero. Reload loses that call; timeout is E_ADMISSION_TIMEOUT. */
   // @ref LLP 3000.008.002.000#3-submit-once-then-let-the-user-continue — admission is its own boundary, before settlement.
   readonly waitSeconds?: number;
 }

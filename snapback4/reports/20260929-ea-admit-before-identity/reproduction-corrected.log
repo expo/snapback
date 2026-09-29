@@ -1,0 +1,62 @@
+{"worker":false,"beforeIdentity":[{"state":"pending","id":"01M3NX47X9Z21H3CXRE8HKB1E7"},{"state":"pending","id":"01M3NX47Z9YQZFKYZGER8DAY9J"}]}
+✖ immediate mounted form before identity (wasm) (1272.189961ms)
+{"worker":true,"beforeIdentity":[{"state":"pending","id":"01M3NX48Y4TZF6VZWV5SQ8WBT9"},{"state":"pending","id":"01M3NX490KKZB31PDHYPFW809W"}]}
+✖ immediate mounted form before identity (Worker) (1159.612943ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2527.104978
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:6:37
+✖ immediate mounted form before identity (wasm) (1272.189961ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   undefined,
+  +   undefined
+  -   'E_ADMISSION',
+  -   'E_ADMISSION'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:29:12)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ undefined, undefined ],
+    expected: [ 'E_ADMISSION', 'E_ADMISSION' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:6:37
+✖ immediate mounted form before identity (Worker) (1159.612943ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   undefined,
+  +   undefined
+  -   'E_ADMISSION',
+  -   'E_ADMISSION'
+    ]
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:29:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ undefined, undefined ],
+    expected: [ 'E_ADMISSION', 'E_ADMISSION' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

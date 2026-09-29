@@ -167,7 +167,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_MAINTAIN_EXPIRE" | "E_QUARRY_LIVE_MAINTAIN_PROBE" => "expire",
         "E_ADOPT" => "types",
         "E_TYPE" | "E_DIV_ZERO" | "E_OVERFLOW" | "E_FIELD" => "types",
-        "E_ADMISSION" | "E_INPUT" | "E_WRITE_ID" | "E_WRITE_ID_REUSE" | "E_WRITE_RECEIPT_EXPIRED" | "E_CONFLICT" | "NOT_FOUND" => "writes",
+        "E_ADMISSION" | "E_ADMISSION_STORE" | "E_ADMISSION_TIMEOUT" | "E_INPUT" | "E_WRITE_ID" | "E_WRITE_ID_REUSE" | "E_WRITE_RECEIPT_EXPIRED" | "E_CONFLICT" | "NOT_FOUND" => "writes",
         "E_STRUCTURAL_FANOUT" | "E_OP" | "E_OP_RESERVED" => "programs",
         "E_BOUND" | "E_FANOUT" => "bounds",
         "E_QUERY_HELD" => "search",

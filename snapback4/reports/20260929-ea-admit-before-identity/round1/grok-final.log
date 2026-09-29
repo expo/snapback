@@ -1,0 +1,14 @@
+{"tier":"wasm","replacementOutcome":{"state":"failed","id":"01M3P2XADRBA9XMBMT2C397K0Z","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (wasm) (1394.278328ms)
+{"tier":"Worker","replacementOutcome":{"state":"failed","id":"01M3P2XBK0SKBMZVVP3WQ0MQNH","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (Worker) (1206.403139ms)
+✔ native generation between identity validation and admission refuses the original write unsent (282.516556ms)
+✔ native incarnation between identity validation and admission refuses the original write unsent (252.961265ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3271.600723

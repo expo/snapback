@@ -1,0 +1,37 @@
+✔ online: a deadline behind the issued floor does not loop server refetches (20.909519ms)
+✔ fallback: a deadline behind the issued floor does not loop server refetches (11.431053ms)
+✔ composition: a deadline behind the issued floor does not loop server refetches (3.915119ms)
+✔ syncedAt, device since and remembered server since remain wall time under +25h skew (3.323841ms)
+✔ held device publication enforces the 16.7ms frame bound with controlled scheduling (1.819107ms)
+✔ a one-millisecond recovered floor crossing republishes a held deadline immediately (1.890133ms)
+✔ composition publishes at both deadlines, device first (5.7445ms)
+✔ composition publishes at both deadlines, server first (2.697643ms)
+✔ offline upgrades omit ambiguous round-zero syncedAt until a wall-time resync (1.846388ms)
+✔ an offline reopen clamps versioned freshness saved before a wall rollback (1.418827ms)
+✔ freshness is clamped at publication after wall time rolls back (1.972427ms)
+✔ useNow catches deadline between render and effect installation (33.247482ms)
+✔ useNow catches correction between render and effect installation (4.688327ms)
+✔ useNow catches correction-before-deadline between render and effect installation (3.84995ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=false) (6.13832ms)
+✔ remembered wakeup retains data until its own server deadline (null, early=true) (1.98121ms)
+✔ remembered wakeup retains data until its own server deadline (300, early=false) (1.583884ms)
+✔ remembered wakeup retains data until its own server deadline (600, early=false) (1.611415ms)
+✔ composed data with no server deadline still withdraws at its local row deadline (1.85435ms)
+✔ ten explicit calls during one round share exactly one follow-up (23.468835ms)
+✔ a call during the follow-up waits for its own newer round (4.41682ms)
+✔ a wake-driven round is not doubled (3.450152ms)
+✔ explicit sync during a held wake-driven round observes the newer head (2.169362ms)
+✔ a wake during an explicit round coalesces without an extra round (2.234109ms)
+✔ explicit sync waits for the follow-up's offline fetch (2.319546ms)
+✔ explicit sync waits for the follow-up's device rejection (4.781326ms)
+✔ an older round returning false after network error cannot skip the explicit follow-up (1.950613ms)
+✔ an older round returning false after HTTP 500 cannot skip the explicit follow-up (1.77527ms)
+✔ a failed older round cannot skip the explicit follow-up attempt (1.698946ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 534.93705

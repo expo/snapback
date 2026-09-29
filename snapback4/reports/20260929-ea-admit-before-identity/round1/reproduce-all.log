@@ -1,0 +1,90 @@
+✖ native state reads cannot replace another admission attempt CAS token (67.088616ms)
+✖ deferred admission compares ordinary outbox input atomically (61.448592ms)
+✖ online expiry recovers a peer outcome (settled=false) (1314.839949ms)
+✖ online expiry recovers a peer outcome (settled=true) (1304.634853ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2904.728106
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:3:1
+✖ native state reads cannot replace another admission attempt CAS token (67.088616ms)
+  AssertionError [ERR_ASSERTION]: accepted custody must survive an unrelated state read
+  + actual - expected
+  
+  + Set(1) {
+  - Set(2) {
+      '01M3P2CWVZZ07M8CX7SXWJSXP3',
+  -   '01M3P2CWW1JA4A1W8HFT3VR5K2'
+    }
+  
+      at nativeCustodySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:36:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Set(1) { '01M3P2CWVZZ07M8CX7SXWJSXP3' },
+    expected: Set(2) { '01M3P2CWVZZ07M8CX7SXWJSXP3', '01M3P2CWW1JA4A1W8HFT3VR5K2' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:4:1
+✖ deferred admission compares ordinary outbox input atomically (61.448592ms)
+  AssertionError [ERR_ASSERTION]: deferred admission must reject input already owned by the ordinary outbox
+  + actual - expected
+  
+  + undefined
+  - 'E_WRITE_ID_REUSE'
+  
+      at nativeCustodySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:51:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'E_WRITE_ID_REUSE',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:5:38
+✖ online expiry recovers a peer outcome (settled=false) (1314.839949ms)
+  AssertionError [ERR_ASSERTION]: an executed write can never expire as unsent
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at onlineExpirySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:90:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:5:38
+✖ online expiry recovers a peer outcome (settled=true) (1304.634853ms)
+  AssertionError [ERR_ASSERTION]: [{"state":"failed","id":"01M3P2CY7F9MQAGGG92VX435V9","why":{"code":"E_ADMISSION_TIMEOUT","family":"store","site":"client.mutate","guide":"writes","message":"This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.","rewrite":"check the connection and backend URL, then submit with a new write id"}}]
+      at onlineExpirySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:91:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

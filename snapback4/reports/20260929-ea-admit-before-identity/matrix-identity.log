@@ -1,0 +1,11 @@
+✔ every delivery await is explicitly classified (190.621435ms)
+✔ 53 transient: local.ts:1093 flushOnce (526.415562ms)
+✔ 53 persistent: local.ts:1093 flushOnce (45.46657ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6207.307298

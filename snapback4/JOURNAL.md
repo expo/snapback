@@ -76908,6 +76908,92 @@ Report: reports/20260929-np-macos-slice/round3/REPORT.md. Only the owned simulat
 was used and removed. Nothing pushed or published. Commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 
+### 2026-09-29 — EA round 0: custody before backend store identification
+
+On `sb4-intent/ea-admit-before-identity`, merged `origin/main` at `b7d05baff`
+before final verification. Reproduced calibration d-01's immediate first and
+second `E_ADMISSION` refusal on one mounted form in wasm and Worker. The trace's
+trial table and controlled test both allow a later same-form save after identity;
+there is no demonstrated permanent post-identification latch. Rejected clicks
+had no custody or automatic recovery, leaving the app to retry.
+
+The SDK now takes bounded durable custody with original IDs/input/order before
+identity, exposes it in pending writes, then performs ordinary admission,
+eligible prediction and FIFO delivery. Process SQLite, page-wasm, Worker,
+reload/navigation/orphan recovery and online app custody share the rule.
+Identification expires after 30 wall-clock seconds retained across reload;
+unsent terminal refusals are actionable `E_ADMISSION_TIMEOUT` and
+`E_ADMISSION_STORE`. The native handoff uses compare transactions and an identity
+check at admission; it preserves ordinary commit callbacks, scheduling and the
+initial protocol compatibility diagnostic. Raw device admission keeps its ABI.
+LLP 3000.007 §20.4 records the decision; client/write/why cards and manual updated.
+The paved starter already has no acquisition gate on writes.
+
+Final affected identity/lifecycle/clock run: 96/96, including 20 identity tests.
+Delivery fault matrix: 319/319. Authority/retention: 64/64; retained-answer and
+transport checks: 43/43. Session model: 53/53, including 5,000 online and 5,000
+local sequences. Whole guide: 98/98; doctor/why CLI checks: 1/1 each. Typecheck,
+docs budget and delivery await classification pass. No cap or timeout increased.
+
+Ran `scripts/test.sh` once, exit 1, exact summary:
+`== 3 failure(s) in 1967 s` — cargo test, client tests, client models.
+All full-run failures are lane-owned: guide/diagnostic pins, changed custody
+expectations, wrapper scheduling/callback and online admission defects, plus the
+identity-pending model expectation. Corrected affected reruns are recorded in the
+report. The full-run delivery-matrix child stalled for over 15 minutes and was
+explicitly terminated so the script could finish; its final separate traversal
+passes 319/319. The full suite remains a red recorded snapshot, not a green claim.
+No full-run failure is labelled baseline or environmental; exploratory browser
+response timeouts and missing generated prerequisites are separately itemized.
+
+Canonical wasm: 2,040,529 B raw / 592,974 B gzip; 745 B below the unchanged
+593,719 B cap. Report and complete failure ledger:
+`reports/20260929-ea-admit-before-identity/REPORT.md` and `FAILURES.md`.
+Commit trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
+Nothing pushed or published; calibration app left unchanged.
+
+
+## 2026-09-29 — Lane EA round 1: deferred custody across overlapping owners
+
+Addressed all three Astra Highs and Grok's High/Low from the round 0 reviews.
+Reproduced before fixing: unrelated native state reads replaced a plan's CAS
+expectation and erased accepted custody; an online deadline overwrote a peer's
+executed outcome with an unsent timeout; deferred/ordinary admission accepted
+conflicting input under one ID. Each native attempt now owns its comparison;
+SQLite compares operation, arguments and viewer across both custody forms;
+recovery validates exact input and incarnation. Online expiry adjudicates current
+custody/receipts under the journal lock and never expires dispatched intent.
+
+Grok's two-server scenario executed a click on a replacement during initial
+snapshot staging, on both wasm and Worker. Capture now prefers `/schema`'s
+identity; both tests refuse without a POST. Native identity refusals now expose
+the same actionable value through onWrite and lookup. Added a same-generation
+native incarnation handoff test alongside the generation-change test.
+LLP 3000.007 §20.4 and the E_ADMISSION guide record the repaired constraints.
+
+Final affected admission tests: 32/32; existing online/native custody: 31/31;
+delivery matrix: 319/319; whole guide: 98/98. Extended session model: all 10,000
+sequences pass (5,000 per tier; every sequence includes one of the three custody
+schedules). Full model stage: 91/91 tests, including the existing online model.
+Typecheck and ref-check pass. Counts, timeouts and the wasm cap were not raised.
+
+Ran scripts/test.sh once. Exact summary: `== 1 failure(s) in 1983 s` —
+`client tests`. Client counts: 4604 tests, 4593 pass, 1 fail, 0 cancelled,
+10 skipped. The sole failure is ours, inherited from round 0:
+`web: a legacy admission keeps its floor through upgrade, retirement and rollback`.
+The deferred wrapper dropped `restore_clock_floor`. It also failed in isolation;
+forwarding the original queue request fixes it on web and native. Corrected
+clock/custody tests pass 42/42 plus the new native-wrapper regression 1/1; the
+final matrix and admission runs above include the correction. The full run
+retains its red pre-correction snapshot. No failure is labelled baseline or
+environmental; the report also records every negative control and fixture error.
+
+Wasm: 2,040,529 B raw / 592,974 B gzip, 745 B below the unchanged 593,719 B cap.
+Fetched and merged origin/main at entry and before the full run: already up to
+date at b7d05baff. No conflicts or discarded lane changes. Grok's completed review
+was read and rechecked before completion. Report and failure ledger:
+`reports/20260929-ea-admit-before-identity/round1/REPORT.md` and `FAILURES.md`.
+Co-author trailer: `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`.
 ## 2026-09-29 — Lane PQ round 5: resubscription and in-flight read boundaries
 
 Read rounds 0–4 prompts/reports and both full round-4 reviews; applied llp-orient.
@@ -77511,6 +77597,103 @@ Report: reports/20260929-np-macos-slice/round5/REPORT.md. One appended entry;
 commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-29 — EA round 2: preserve custody across native, peer and restore handoffs
+
+Fetched and merged origin/main first, preserving both sides of the LLP header
+and append-only journal conflicts (33ca394356), then merged later backstop
+state without conflict (95c718c362). RL, AG and AQ changes remain. Read the
+prior prompts/reports and Astra's full NOT READY review. Grok initially had
+progress only; its final NOT READY review arrived during verification. Both
+High findings were addressed and the final file was checked again at finish.
+
+Native admission now reads durable deferred custody every time, verifies
+compare token, captured store, exact input and FIFO in the writer transaction,
+and carries the captured binding into transport. Native expiry reconciles
+ordinary outbox and retained terminal receipts under the same lock; a peer's
+executed write cannot become an unsent timeout. Deferred refusals stay visible
+behind restore until terminal custody commits, while transport remains fenced.
+The freeze-save deletion now fails a peer-expiry schedule paused immediately
+after that save. These detectors first failed against the unfixed code.
+
+Identity publication records SDK wall time atomically, including a native
+publication racing a stale expiry read. Timely publication survives delayed
+observation/reopen; genuinely late publication still expires. Online owners
+hold a per-ID dispatch claim through receipt persistence, so a late original
+or replacement probe cannot duplicate dispatch or clobber peer success.
+Native reads also exposed sync-follow-up and close-correlation lifecycle
+races, now fixed with unchanged existing assertions. Guide and governing LLP
+text describe the final custody rules.
+
+Extended the session model with native binding/FIFO, freeze, peer expiry,
+restore, publication/reopen and successful late-probe schedules. The full
+suite model stage passed 98/98, including 10,000 extended session sequences
+and 3,000 separate online-client interleavings. A full-count follow-up passed
+71/71 with another execution of the same 10,000 session seeds (5,000 per tier),
+not 20,000 distinct seeds. No invariant, timeout or sequence count was relaxed.
+
+Final affected checks: 149/149; delivery matrix 323/323; whole guide 99/99;
+native device suites 30 + 436 passed, one existing ignored; React 50/50;
+close lifecycle 7/7; sync/clock 29/29; nested failure families 48/48. Typecheck,
+build and root LLP ref-check pass. scripts/test.sh ran once, exit 1, exact
+summary: `== 2 failure(s) in 2924 s` (`cargo test`, `client tests`). Both are
+ours: the guide word budget and client failures detailed individually in the
+report ledger. None is assigned to baseline or environment. Every failed
+family was rechecked; five intermediate clock/sync failures were corrected
+and pass the final scoped suites. The full run overlapped late Grok fixes and
+artifact rebuilds, so it does not certify one immutable final revision. The
+60-second full-suite budget remains missed.
+
+Canonical wasm: 2,041,005 B raw / 592,929 B gzip, 790 B below the unchanged
+593,719 B cap. SHA-256:
+3d4de100e2acf705583f345b9902a911713899c8227ac656a223b2ba641ba2ab.
+Report: [EA round 2](reports/20260929-ea-admit-before-identity/round2/REPORT.md),
+with review snapshots, detecting controls, full logs, every failure's
+classification, model coverage and final source hashes. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — EA round 3: wait for identity, then admit normally
+
+Fetched and merged origin/main first (already up to date), preserving RL, AG,
+AQ and the prior integrations. Read all EA prompts/reports and both complete
+round-2 NOT READY reviews. Applied the supervisor's narrower decision in LLP
+3000.007 §20.4: mutate waits in memory up to 15 seconds, with a pending promise
+and visible not-yet-admitted state, then enters ordinary admission in per-client
+call order. The bound is ten times calibration #26's 1.5-second settling
+observation; controlled first-save/burst fixtures took 25–193 ms, and real
+missing-identity refusals arrived at 15.001/15.012 seconds. These are fixture
+measurements, not acquisition performance claims.
+
+Removed durable deferred custody, native binding/CAS/FIFO and settle wrappers,
+publication timestamps/freeze saves, deferred orphan adoption, and online
+pre-identity journal capture/deadlines/claims. Removed their handoff-only test
+and model extensions. Kept public actionable refusal cards, store/generation
+fences, ordinary admission/prediction/recovery/deduplication, and the genuine
+ordinary close-receipt and explicit-sync follow-up fixes with tests. Reload
+loses an unadmitted call, which was never acknowledged as queued. The mounted
+form succeeds on its first call after identification and on a second click;
+timeout repair also works without remounting. A new native regression proves
+ordinary settlement stamps both receipt sequences and replacement retires it,
+covering Grok's history-before-outbox finding without the removed wrapper.
+
+Final admission/startup checks 61/61, delivery matrix 321/321, whole guide
+99/99. scripts/test.sh ran exactly once, exit 1, exact summary:
+`== 1 failure(s) in 1386 s` (`client tests`). Client stage: 4,797 tests,
+4,764 passed, 20 failed, three cancelled, ten existing skips. All unsuccessful
+cases are ours: obsolete unidentified-custody fixtures, stale native close
+expectations, and stale sync instrumentation with a timeout cascade. Corrected
+scoped runs pass 9/9, 9/9 and the complete browser review 55/55. No product
+source changed during the full run. All other stages passed; models passed
+79/79 with the original I1–I13 and 10,000 session sequences plus 3,000 online
+interleavings. No timeout/count/ceiling was raised; the inherited 60-second
+whole-suite budget remains missed.
+
+Canonical wasm: 2,040,529 B raw / 592,974 B gzip, 745 B below the unchanged
+593,719 B cap. SHA-256:
+c5ef5e618918176ef74c65f1424ba40fd054aa4c73cd7983bd6ceff1f590c4d9.
+Report: [EA round 3](reports/20260929-ea-admit-before-identity/round3/REPORT.md),
+including exact removals/retentions, both reviews, every failure classification,
+measurements and logs. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
 ## 2026-09-29 — Lane PQ round 8: retry rejected reads and fit the client card
 
 Merged origin/main 398552255 into PQ round 7 at 62e5ec73a, including AG and AQ.
@@ -77804,3 +77987,139 @@ received the affected and whole-guide reruns; the full suite was not restarted.
 Report and every failure/disposition: reports/20260929-sr-starter-routes/REPORT.md.
 Local commit with Co-Authored-By: GPT-6 Astra <noreply@openai.com>; nothing pushed
 or published. No new calibration score or native runtime qualification is claimed.
+## 2026-09-29 — EA round 4: pin and bound identity through admission
+
+Read all prior EA prompts/reports and the complete Astra and Grok round-3
+reviews; rechecked both review hashes after final validation. First fetched and
+merged origin/main in 57e90132f4, preserving both append-only journal histories
+and the landed PQ, AV and WK changes. Regenerated the conflicted delivery await
+inventory on merged sources; the final inventory covers all 160 sites, with
+49 required and 111 optional classifications and no missing or removed sites.
+
+Round 3's memory-only identity wait remains. Each waiting call now pins its
+first successful store identity and backend fingerprint, including a cached,
+never-identified offline reopen. Every later check and ordinary admission uses
+those pins. Final identity I/O shares the remaining 15-second deadline; only
+waiting behind an earlier ordinary admission pauses that budget. Read rejection
+and timeout use public refusals and onWrite, and temporary unreadiness resumes
+polling. Async E_ADMISSION releases the unadmitted mutation-ID reservation so
+wasm and Worker callers can retry the same ID after storage repair.
+
+Grok's completed review also produced repairs: every readiness publication
+requires completed adoption, native waited admission checks backend-required
+under its writer transaction, and missing browser identity uses the public
+E_ADMISSION_STORE refusal. The tests exercise real legacy-rewind adoption state.
+All eight Astra controls and five Grok controls detect their reviewed defects;
+deleting the final identity check now fails both replacement controls because
+an extra ordinary admission occurs. LLP 3000.007, client/refusal cards, defining
+sentence pins and the operations manual co-evolve. Existing admission modules
+hold the helper and unchanged entry builder; local.ts meets its 1,500-line cap.
+
+Final identity tests pass 39/39, delivery matrix 321/321, whole guide 99/99,
+and TypeScript build/typecheck pass. Reference validation covers 523 LLPs and
+9,916 refs, with zero errors or unchecked refs. Ran scripts/test.sh exactly
+once, exit 0: `== 0 failure(s) in 1297 s`. Rust passed 4,331 with 33 declared
+ignores; clients passed 5,146 with ten existing skips, zero failures and zero
+cancellations; fixture wrappers passed 9/9; final models passed 79/79, including
+10,000 session sequences and 3,000 online-client sequences. All other stages
+passed. Full-run failure attribution: ours 0, baseline 0, environmental 0.
+Frozen source and test hashes remained unchanged through the full run. The
+inherited 60-second process budget remains missed; no ceilings, deadlines or
+model counts were relaxed.
+
+Exploratory failures and negative controls remain in the report's failure
+ledger. An intermediate Node 24.13.1 bundled HTTP parser timer exception was
+environmental, observed in two checks after their individual assertions passed;
+the test fixture now uses the SDK's existing pinned defaultFetch dispatcher.
+The corrected identity run and complete run are green. All other exploratory
+failures are ours; none is attributed to baseline.
+
+Canonical wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged
+593,719 B cap; SHA-256
+76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95.
+Report: reports/20260929-ea-admit-before-identity/round4/REPORT.md. The local
+commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-29 — EA round 5: pins inside browser admission, deadlines across identity work
+
+Merged origin/main b9a4051494 into lane EA before editing (merge c815da6450,
+no conflicts). Read the prior prompts/reports, Astra's round-4 NOT READY review,
+and Grok's completed round-4 READY review when it arrived. Addressed both Astra
+findings, its generation-forwarding coverage gap, and Grok's Low plus surviving
+backend-comparison mutation. Round 3's memory-only wait remains; no deferred
+custody machinery returns.
+
+Wasm and Worker forward the pinned backend fingerprint into the serialized
+journal admission plan, which checks current metadata before any submission or
+outbox admission. Both queued-adoption reproductions now return E_ADMISSION_STORE
+with an empty outbox, cleaned synchronous journal and zero mutation POSTs.
+Independent generation controls catch missing generation forwarding even though
+the backend fingerprint also includes generation. Both forwarding deletions fail
+both browser controls. IdentityWait pauses only during actual predecessor
+ordinary admission; predecessor identity reads consume the same 15-second
+budget. Fake-clock controls catch both the 15-to-30-second extension and identity
+gaps between ordinary admissions. Admission release is idempotent across a later
+receipt/finally. Grok's final Low is fixed by excluding a server-only native
+descriptor from the JS backend comparison; real installer callback tests permit
+descriptor enrichment while still refusing changed schema or programs.
+
+Broad affected checks passed 202/202, whole guide 99/99, delivery matrix 321/321.
+Ran scripts/test.sh exactly once, exit 0: `== 0 failure(s) in 1232 s`.
+Rust passed 4,331 with 33 declared ignores; clients passed 5,152 with ten declared
+skips and no cancellations; fixture wrappers passed 9/9; models passed 79/79,
+including 10,000 session sequences and 3,000 online-client sequences. All other
+stages passed. Full-run failures: ours 0, baseline 0, environmental 0. The
+inherited 60-second suite budget is still missed; no budget/count was relaxed.
+
+The full run's source/test hashes stayed unchanged. Grok arrived during that
+run; its final one-line comparator repair, three detecting tests and doc
+clarifications were applied afterward. Final affected checks passed 83/83,
+including all 48 identity cases; final delivery matrix passed 321/321 and package
+build/typecheck passed. The single full-suite result therefore predates only
+that final Grok delta; no final-revision full-inventory claim is made.
+
+Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged 593,719 B cap.
+LLP 3000.007 §20.4 and the operations manual describe the repaired boundaries.
+Report, review snapshots, all negative controls and exact results:
+reports/20260929-ea-admit-before-identity/round5/REPORT.md. The local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-29 — EA round 6: semantic backend refresh and suspension coverage
+
+Read rounds 0–5's prompts/reports and Astra's full round-5 NOT READY review.
+Merged origin/main 283be371e9 at entry in f1ac03ae46, keeping both histories with
+no conflicts. Round 3's memory-only wait remains; no pre-identity custody returns.
+
+Fixed the false E_ADMISSION_STORE when an offline-restored backend is refreshed
+from real /schema while a mutation's final identity read is held. The comparator
+now uses stable object-key ordering, programs sorted by name and the seven common
+interpreter fields, including their optional defaults. Schema content, ordered
+bodies, store identity, generation and the pinned device fingerprint remain
+checked. A real server/process-device/native-module regression now installs the
+module through a native query, then admits and sends the original waiting write
+exactly once. It fails on round 5 and when raw JSON.stringify is restored. Seven
+controls still refuse changes to each interpreter field; existing schema and
+store/fingerprint controls remain.
+
+Added detecting suspension tests for initial and final identity I/O. They advance
+mocked wall time 15,001 ms without running timers, resolve the held read and
+require E_ADMISSION_TIMEOUT with zero admissions. Production already enforced
+this deadline; deleting either post-I/O check now fails its test, and deleting
+both fails both. No deadline, invariant or assertion was relaxed.
+
+Affected checks passed 216/216; delivery matrix 321/321; whole guide 99/99;
+package build/typecheck and LLP reference validation passed (523 LLPs, 9,916 refs,
+zero errors or unchecked). Ran scripts/test.sh exactly once, exit 0:
+`== 0 failure(s) in 1253 s`. Rust passed 4,331 with 33 declared ignores; clients
+passed 5,166 with ten existing skips and no cancellations; fixture wrappers 9/9;
+models 79/79, including 10,000 session and 3,000 online-client sequences. All
+other stages passed. Full-run failures: ours 0, baseline 0, environmental 0.
+The final source/test/doc hashes stayed unchanged throughout. The inherited
+60-second suite budget remains missed; no budget or count was relaxed.
+
+Wasm: 2,040,531 B raw / 592,979 B gzip, 740 B below the unchanged 593,719 B cap.
+LLP 3000.007 §20.4 and the operations manual explain the semantic comparison.
+Report and all detecting controls: reports/20260929-ea-admit-before-identity/round6/REPORT.md.
+The local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

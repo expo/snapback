@@ -1,0 +1,14 @@
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (3567.375681ms)
+✔ W5R1x process: opener returns an offline unacquired client on network loss (3229.690434ms)
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (5210.071828ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (6276.9854ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18397.48043

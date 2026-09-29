@@ -1,0 +1,13 @@
+{
+  "time": "2026-09-29T14:17:53.046269+00:00",
+  "files": {
+    "llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md": "ec6f54385d5a82e1dd120f3cab0928df5760d15dc4fab6cf291de2405faf3de7",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "f64884d81c003d4471cff64a1c6589862573531352b1c1d48759a6458b797ffd",
+    "snapback4/packages/snapback4/src/backend.ts": "1af4c0ee24a0cbb93abc4aa4de929f2df198c47e056b5b187459cf4fd375703d",
+    "snapback4/packages/snapback4/src/identity-admission.ts": "c96c837c286915dbba57bc0d101b9c472cff2a37f99f384e72b0e93b4c18d577",
+    "snapback4/packages/snapback4/test/admit-before-identity.test.mjs": "3df723d081cd0e86a4b2f387a3760feb1a8dcc18913b70afb0405f13d09293b4"
+  },
+  "frozen_inputs_unchanged": true,
+  "exit": 0,
+  "summary": "== 0 failure(s) in 1253 s"
+}

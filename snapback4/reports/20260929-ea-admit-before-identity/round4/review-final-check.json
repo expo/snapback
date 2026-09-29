@@ -1,0 +1,15 @@
+{
+  "time_utc": "2026-09-29T12:32:06.385600+00:00",
+  "reviews": [
+    {
+      "family": "astra",
+      "sha256": "c05f096789fe0692bfaa9c54446853384b4e31c386c5c2de7b5b4f651792b03e",
+      "matches_review_read_and_addressed": true
+    },
+    {
+      "family": "grok",
+      "sha256": "93309856489abf2c21272d3786196f5b15c1560c08533d93f9e08df005197542",
+      "matches_review_read_and_addressed": true
+    }
+  ]
+}

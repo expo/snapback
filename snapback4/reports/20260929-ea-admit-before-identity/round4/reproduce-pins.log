@@ -1,0 +1,74 @@
+TAP version 13
+# Subtest: waiting calls pin first identity across store replacement
+not ok 1 - waiting calls pin first identity across store replacement
+  ---
+  duration_ms: 187.905338
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:290:49'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'E_ADMISSION_STORE',
+    +   'NOT_MEMBER'
+    -   'E_ADMISSION_STORE'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'E_ADMISSION_STORE'
+    1: 'E_ADMISSION_STORE'
+  actual:
+    0: 'E_ADMISSION_STORE'
+    1: 'NOT_MEMBER'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:321:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+# Subtest: waiting calls pin first identity across backend replacement
+not ok 2 - waiting calls pin first identity across backend replacement
+  ---
+  duration_ms: 170.968331
+  type: 'test'
+  location: '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:290:49'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'E_ADMISSION_STORE',
+    +   'NOT_MEMBER'
+    -   'E_ADMISSION_STORE'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'E_ADMISSION_STORE'
+    1: 'E_ADMISSION_STORE'
+  actual:
+    0: 'E_ADMISSION_STORE'
+    1: 'NOT_MEMBER'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:321:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 477.130232

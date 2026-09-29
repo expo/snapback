@@ -177,7 +177,7 @@ window.mountProgress = (app) => {
     assert.ok(sent.some(write => write.id === click.id));
     await page.evaluate(() => app.close());
   });
-  for (const phase of ['restoring', 'no-device', 'no-claim', 'ephemeral-device', 'storage-full', 'before-first-sync']) await t.test(`synchronous refusal: ${phase}`, async () => {
+  for (const phase of ['restoring', 'no-device', 'no-claim', 'ephemeral-device', 'storage-full']) await t.test(`synchronous refusal: ${phase}`, async () => {
     await witness.reload();
     const result = await page.evaluate(async ({ api, phase, session }) => {
       const storage = localStorageSessionStore(); await keepSession(api, session, storage);

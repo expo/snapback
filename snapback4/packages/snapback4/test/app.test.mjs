@@ -195,7 +195,7 @@ for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears cred
     async delete(key) { if (failDelete) throw Error("session delete failed"); await memory.delete(key); },
   }, fetch: async (input) => new URL(input).pathname === "/auth/guest"
     ? Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } })
-    : Response.json({ ok: true }) });
+    : Response.json({ ok: true, ...(new URL(input).pathname === "/probe" ? { store_id: "journal-failure-test", seq: 0 } : {}) }) });
   t.after(() => app.close());
   await app.ready; await app.auth.guest();
   for (const waitSeconds of [undefined, 0]) {

@@ -1,0 +1,81 @@
+✔ immediate mounted form waits for identity and second save works (wasm) (1454.453529ms)
+ℹ {"tier":"wasm","identityAndFirstSaveMs":84.88434800000005}
+✔ pre-identity burst admits in call order with ordinary prediction (wasm) (1002.44749ms)
+✔ reload discards only the unadmitted call (wasm) (1457.202519ms)
+✔ identity timeout refuses publicly without custody (wasm) (1095.082985ms)
+✔ identity adoption refuses publicly without custody (wasm) (990.042072ms)
+✔ identity incarnation refuses publicly without custody (wasm) (1010.989923ms)
+✔ identity restore refuses publicly without custody (wasm) (937.843572ms)
+✔ immediate mounted form waits for identity and second save works (Worker) (1211.132139ms)
+ℹ {"tier":"Worker","identityAndFirstSaveMs":128.4295149999998}
+✔ pre-identity burst admits in call order with ordinary prediction (Worker) (1268.792906ms)
+✔ reload discards only the unadmitted call (Worker) (1658.367935ms)
+✔ identity timeout refuses publicly without custody (Worker) (1237.132604ms)
+✔ identity adoption refuses publicly without custody (Worker) (1066.792202ms)
+✔ identity incarnation refuses publicly without custody (Worker) (1136.222633ms)
+✔ identity restore refuses publicly without custody (Worker) (1045.672551ms)
+✔ fresh first save and burst wait in memory (process) (347.50278ms)
+ℹ {"tier":"process","identityAndBurstMs":82.21432400000049}
+✔ close and reopen has no unadmitted custody (process) (298.743526ms)
+✔ identity never arrives refuses within 15 seconds and recovers (process) (15291.801561ms)
+ℹ {"tier":"process","timeoutMs":15001.820452}
+✔ fresh first save and burst wait in memory (online) (206.972373ms)
+ℹ {"tier":"online","identityAndBurstMs":26.858282000001054}
+✔ close and reopen has no unadmitted custody (online) (177.856268ms)
+✔ identity never arrives refuses within 15 seconds and recovers (online) (15179.970917ms)
+ℹ {"tier":"online","timeoutMs":15004.950702000002}
+✔ process generation at ordinary admission refuses unsent (267.184675ms)
+✔ process incarnation at ordinary admission refuses unsent (265.451617ms)
+✔ ordinary native settlement stamps a live outbox before replacement (Grok round 2) (271.642366ms)
+✔ settle pins E_STORE_REPLACED, then compacts its id across normal receipt churn and reopen (121.373648ms)
+✔ settle pins E_STORE_RESTORE, then compacts its id across normal receipt churn and reopen (99.748249ms)
+✔ bulk retirement larger than the receipt window preserves every id on reopen (172.985858ms)
+✔ retirement saturation fences new admissions durably; displaced sent id: false (13.123503ms)
+✔ retirement saturation fences new admissions durably; displaced sent id: true (14.153207ms)
+✔ a saturated journal recovers an already-admitted intent as pending while its delivery is held (7.035066ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=false (39.754445ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=true (17.111001ms)
+✔ a persisted terminal receipt never reposts on reopen (3.432315ms)
+✔ the first fresh write after replacement binds B even when the pending journal is empty (15.959495ms)
+✔ retrying the first fresh replacement id recovers its receipt without retiring or executing it twice (5.436109ms)
+✔ failed intent identity persistence refuses admission before any dispatch (3.155861ms)
+✖ close detaches a held first-store probe without admitting its call (12.060189ms)
+✔ intent without an identity: first observed store; dispatched=undefined (12.536262ms)
+✔ intent without an identity: first observed store; dispatched=false (11.842202ms)
+✔ intent without an identity: same first store; dispatched=undefined (12.258486ms)
+✔ intent without an identity: same first store; dispatched=false (12.023805ms)
+✔ intent without an identity: replacement; dispatched=undefined (12.136083ms)
+✔ intent without an identity: replacement; dispatched=false (11.437856ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=undefined (12.345897ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=false (13.4153ms)
+✔ store precondition prevents execution when the endpoint changes after the probe (6.00344ms)
+✔ unpersisted receipt notifications survive the ordinary 256-receipt history window (359.97625ms)
+✔ wire stamps successes and refusals on sync, changes, query, mutation and session endpoints (900.25752ms)
+✔ web: a legacy admission keeps its floor through upgrade, retirement and rollback (434.197102ms)
+(node:1911476) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: a legacy admission keeps its floor through upgrade, retirement and rollback (58.655689ms)
+✔ web orphan recovery after attachment preserves its admission floor through settlement and rollback (5.934547ms)
+✔ a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries (253.593264ms)
+✔ native offline reopen restores legacy offset without issuedOffset or admissions and retains the session (1197.3086ms)
+✔ a real held heartbeat poll learns clock advance from its final body (25171.514786ms)
+✔ native JSON bridge shares device time and restores offline (+25h) (1240.15653ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses) (4240.97178ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last) (4247.502324ms)
+ℹ tests 56
+ℹ suites 0
+ℹ pass 55
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49009.992075
+
+✖ failing tests:
+
+test at packages/snapback4/test/online-intent-store.test.mjs:131:1
+✖ close detaches a held first-store probe without admitting its call (12.060189ms)
+  TypeError: Cannot read properties of null (reading 'pending')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/online-intent-store.test.mjs:135:40)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

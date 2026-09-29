@@ -1,0 +1,15 @@
+{
+  "checked_utc": "2026-09-29T13:24:05.736046+00:00",
+  "reviews": {
+    "astra": {
+      "source": "/home/ccheever/sb4-intent/reviews/ea-r4.astra.md",
+      "sha256": "325f9bc3d97d4a212cebc32307010f5d01d9d1d27b403db922b4cad796df405f",
+      "matches_saved_review": true
+    },
+    "grok": {
+      "source": "/home/ccheever/sb4-intent/reviews/ea-r4.grok.md",
+      "sha256": "20010d46e0e56a65b079886eff5b519dd586657cdc1dc6d73e0d57ea5a974af0",
+      "matches_saved_review": true
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3P72YQ9E4QS05ZSVCJK38CV","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P72YS95PVQQMBTP3EZJB85","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1587.484762ms)
+✔ restore settles deferred custody without transport (wasm) (925.536491ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1515.535728ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1452.998469ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1731.856212ms)
+{"tier":"wasm","replacementOutcome":{"state":"failed","id":"01M3P735HGG820J5VXPTPA9277","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (wasm) (1177.38564ms)
+✔ identification timeout settles visibly without sending (wasm) (1501.385844ms)
+✔ identification adoption settles visibly without sending (wasm) (1834.628462ms)
+✔ identification incarnation settles visibly without sending (wasm) (1440.927582ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3P73BBB40M84Y3DD2E3CXBP","reason":"waiting for backend identification"},{"state":"pending","id":"01M3P73BDD47TNWSFXYRK07D5H","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1534.480894ms)
+✔ restore settles deferred custody without transport (Worker) (993.765704ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1706.087079ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1651.493324ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2173.103835ms)
+{"tier":"Worker","replacementOutcome":{"state":"failed","id":"01M3P73K9MZ3RQ49SKKR98XBPM","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✔ schema binding wins over a staged replacement snapshot (Worker) (1277.939336ms)
+✔ identification timeout settles visibly without sending (Worker) (1660.306873ms)
+✔ identification adoption settles visibly without sending (Worker) (1687.884994ms)
+✔ identification incarnation settles visibly without sending (Worker) (1554.100901ms)
+✔ process device persists immediate writes before identity and resumes in order (428.680863ms)
+✔ online app takes custody before a held identity probe, including reload (1192.570733ms)
+✔ two native owners compare deferred custody without losing or replacing writes (717.991654ms)
+✔ native generation between identity validation and admission refuses the original write unsent (276.235154ms)
+✔ native incarnation between identity validation and admission refuses the original write unsent (280.984292ms)
+✔ expired identification deadline survives reopen (process) (322.295953ms)
+✔ expired identification deadline survives reopen (online) (176.145688ms)
+✔ native state reads cannot replace another admission attempt CAS token (69.172244ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=0) (46.58231ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=1) (49.997778ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=2) (49.348885ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=3) (44.696954ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=4) (43.57989ms)
+✔ deferred and ordinary custody compare exact input atomically (variant=5) (57.22533ms)
+✔ online expiry recovers a peer outcome (settled=false) (11.775177ms)
+✔ online expiry recovers a peer outcome (settled=true) (2.211594ms)
+✔ native cached empty cannot bypass FIFO (1333.669539ms)
+✔ native cached empty cannot bypass captured binding (1314.76626ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3321.942423ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3326.600336ms)
+✔ native handoff model: freeze (50.310747ms)
+✔ native handoff model: binding (56.407704ms)
+✔ native handoff model: fifo (163.564482ms)
+✔ native handoff model: expiry (83.488638ms)
+✔ native device checks deferred binding even without the SDK (143.981925ms)
+✔ restore custody stays visible until unsent refusal commits (421.815193ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30948.900462

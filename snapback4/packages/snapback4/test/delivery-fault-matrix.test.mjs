@@ -30,8 +30,10 @@ globalThis.__rgIterate = async function* (id, iterable) {
   finally { await iterator.return?.(); }
 };
 const { createLocalClient } = await import(pathToFileURL(join(directory, 'dist/local.js')));
+const { webDevice } = await import(pathToFileURL(join(directory, 'dist/web.js')));
 const sites = census();
 const classified = JSON.parse(readFileSync(new URL('./delivery-fault-sites.json',import.meta.url),'utf8'));
+const { resolveClosingWrites } = await import(pathToFileURL(join(directory, 'dist/local-receipts.js')));
 const { MediaCache } = await import(pathToFileURL(join(directory, 'dist/local-assets.js')));
 const { legacyInputRefusal, syncTransport } = await import(pathToFileURL(join(directory, 'dist/local-sync.js')));
 const selected = process.env.RG_MATRIX_SITE === undefined ? sites : sites.filter((_, i) => process.env.RG_MATRIX_SITE.split(',').includes(String(i)));
@@ -47,6 +49,26 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
   test(`${sites.indexOf(site)} ${mode}: ${site.file}:${site.line} ${site.owner}`, async t => {
     enabled = false; target = site.id; failures = 0; budget = mode === 'transient' ? 1 : Infinity; seen.clear(); failed.clear();
     const index = fixtureIndex(sites.indexOf(site)), scenario = recipe(sites.indexOf(site));
+    if (scenario === 'closing') {
+      direct = false; alias = undefined;
+      const f = await fixture(t, 1, {createLocalClient, webDevice, beforeCall() { fault(); }});
+      await until(() => f.client.acquired);
+      const write = await f.client.mutate(op, {conversationId:'c1',body:'confirmed'});
+      assert.equal(write.state,'sent'); await drain();
+      const api = globalThis.__rgClient, outcomes = [];
+      const missing = '00000000000000000000000001';
+      enabled = true;
+      await resolveClosingWrites(async () => ok(await api.call({op:'queued'})), api.history,
+        new Map([write.id,missing].map(id => [id,{resolve:w => outcomes.push(w)}])));
+      enabled = false;
+      assert.equal(outcomes[0].state,'sent','either correlated custody source retains known execution at close');
+      assert.deepEqual(outcomes[1],{state:'pending',id:missing},'unknown custody is never invented as terminal');
+      assert.equal(f.sends.length,1,'receipt recovery does not post');
+      assert.ok(failures > 0,'the close read experienced the injected host fault');
+      assert.ok(seen.has(site.id),'the close await was reached');
+      results.push({index:sites.indexOf(site),id:site.id,mode,recipe:scenario,classification:'optional',injected:failures,reached:true});
+      return;
+    }
     direct = [11,18,26,27,35,42,50,72,156,157].includes(index);
     alias = [49,51,56].includes(index) ? 'local-exit.ts:exitTransport:response.json' : index === 106 ? 'local-exit-settlement.ts:exitRefusalSettlement:options.commit' : index === 138 ? 'changes.ts:changeFeed:doFetch' : undefined;
     let prepared = false, api, suspend, first, queueIds = [], once = false, queueRelease;
@@ -55,7 +77,7 @@ for (const site of selected) for (const mode of (process.env.RG_MATRIX_MODE ? [p
     const ceilings = {examined:8192,index_entries:16384,rule_probes:8192,steps:1000000,heap_bytes:16<<20,output_bytes:1<<20,rows_written:1024};
     const counts = () => Object.fromEntries(Object.keys(ceilings).map(key=>[key,0]));
     const hooks = {
-      createLocalClient,
+      createLocalClient, webDevice,
       ...(scenario === 'exit' ? {onSuspend(callback) { suspend = callback; return ()=>{}; }} : {}),
       async closing() { enabled = false; prepared = false; queueRelease?.(); for(let i=0;i<4;i++) { t.mock.timers.tick(5000); await drain(); } },
       beforeCall(request) { if(scenario === 'acknowledgement' && !queueIds.length && request.op === 'keep_write') throw Error('prepare acknowledgement'); fault();
