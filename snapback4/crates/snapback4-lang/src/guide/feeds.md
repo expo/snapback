@@ -202,16 +202,15 @@ refresh the ranking as time passes. The upper bound excludes future events.
 - Your own events appear immediately. Followers receive new events shortly
   after, normally within a second on an idle host.
 - Following someone copies their newest 50 live events immediately, then the rest
-  of a 1,000-event window. Older posts remain in `posts` and are not copied.
-- Unfollow hides that actor on the next read.
-- `complete` is false while your backfill or cleanup is pending. It describes
-  delivered inbox contents; pending delivery of a new event does not change it.
+  of a 1,000-event window. The first copy commits on the server with the follow;
+  device publication follows sync. Older posts remain in `posts` and are not copied.
+- Unfollow hides that actor on the next read after the device observes its edge.
+- `complete` is false while your backfill or cleanup is pending, or your own
+  follow/unfollow is unsettled or unobserved. New-event delivery alone does not change it.
 - Removal hides the event immediately. Removing an original keeps its card and
   independent reposts; a new repost requires a live original.
 
-Following exposes `id`, `post`, `actor`, `at` and `repost`; key its list by event
-`id`. Shape cards with `{ *, card: posts[.post] }`; retain independent reposts
-even when their original card has `removed: true`.
+Key events by `id`; shape `{ *, card: posts[.post] }`, keeping reposts of removed cards.
 
 The source floors are **global and non-sliding**, fixed at acquisition time,
 not per followed author. New arrivals accumulate; nothing evicts older held
@@ -235,24 +234,25 @@ A full page ending at the floor is data; its next page is withheld. Pending
 backfill or cleanup stays `complete: false` data. Heap/scalar exhaustion remains
 unavailable. The server cannot replace a prediction before it is observed.
 
-Render incompleteness; continue with `next`, or retry the same cursor after cleanup.
-Cursors are not snapshots: concurrent writes can change later pages.
+At your follow/unfollow call, the mounted answer becomes `revalidating` (loading
+with `keep: false`); re-reads stay incomplete until the edge is observed. Then
+copied posts appear, or unfollowed posts disappear; remaining work stays incomplete.
+Render `loading || revalidating || !complete` as “Updating…” before testing
+`data.length === 0` for “No posts”. Continue with `next` or retry after cleanup;
+cursors are not snapshots.
 
-Devices predict their own event's own-inbox copy when inputs are held and
-covered. Follow and unfollow queue without prediction. Offline reads use the
-last synced follows, removals and cards; remote changes arrive on reconnect.
-Reposts need a held original, its event slot and a removal probe; otherwise the entire
-mutation queues without a row. These conditions are necessary: a horizon on
-reposts can still make its unique-pair absence unknown. `check --verbose` classifies each
-transition by its source residency; follow/unfollow remain `predicts: never`.
+Devices predict their own inbox copy with held, covered inputs. Follow/unfollow queue
+without prediction. Offline reads use last-synced edges, removals and cards until reconnect.
+Reposts need a held original, its event slot and a removal probe; otherwise they
+queue without a row. A repost horizon can still make unique-pair absence unknown.
+`check --verbose` classifies transitions by residency; follow/unfollow stay `predicts: never`.
 A synced aggregate over owned events stops prediction only when a transition
 inserts or removes an event of a kind that is not fully synced. Replies and body
 edits still predict. `check` names the aggregate; argument-dependent filters and
 source-slot lookups are decided at runtime. Slot schemas require an event-slot
 capability, so older devices refuse installation or adoption until upgraded.
-Other reads of owned events withhold on a missing row or a range that may contain an unheld kind. A key naming
-a fully synced kind keeps ordinary known absence.
-Use the normal pending-write, freshness and completeness state (`guide app`).
+Other owned-event reads withhold on a missing row or a range with an unheld kind;
+a key naming a fully synced kind keeps known absence. See pending writes in `guide app`.
 
 ## Boundaries and refusals
 

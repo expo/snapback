@@ -56,6 +56,7 @@ export interface QueryEnvironment {
   signal: AbortSignal;
   unavailable(): Refusal | null;
   queued(): Promise<Queued[]>;
+  followingPending?(tables: ReadonlySet<string>): Promise<boolean>;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
   post(path: string, body: unknown, captured?: undefined, ephemeral?: EphemeralRequest): Promise<{ ok: true; json: Record<string, unknown>; obsoleteAuth: boolean; searchIdentity?: string | undefined } | { ok: false }>;
   searchPost(path: string, body: unknown, decode: (response: Response) => Promise<Record<string, unknown>>): ReturnType<QueryEnvironment["post"]>;
@@ -301,6 +302,10 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
       if (result.ephemeralRequest && !env.ephemeralReads.accept(result.ephemeralRequest, result.ephemeral, watch)) {
         return { ...loading, ephemeralStale: true };
       }
+      // @ref LLP 3000.016#own-edge-publication — sent is not observed. Neither
+      // local nor fallback data may certify the reader's unresolved feed input.
+      const followingPending = "data" in result.read && await env.followingPending?.(tables);
+      checkpoint();
       // Rules 1/5: no await between this deadline check and publication.
       const localDue = result.nextExpiry !== null && result.nextExpiry <= env.deviceNow();
       if (origin === "remembered" && localDue) {
@@ -346,6 +351,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);
       }
+      if (followingPending && "data" in result.read) result.read = { ...result.read, complete: false };
       if (origin !== "local" || !("data" in result.read)) return { ...result, serverOnly: origin === "server", localWakeup: origin === "remembered" };
       const fresh = env.link === "online" && env.caughtUp && env.identityChecked;
       return { ...result, read: { ...result.read, fresh, ...(fresh || !env.lastSyncAt ? {} : { since: Math.min(env.lastSyncAt, Date.now()) }) } };
