@@ -1,0 +1,16 @@
+{
+  "base": "aedd35615ad54901a481a01481e5d8f6110c69b4",
+  "node": "v24.13.1",
+  "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasm_bindgen": "wasm-bindgen 0.2.127",
+  "files": {
+    "snapback4/packages/snapback4/test/keep-device.test.mjs": "d9d97f268b7a1784b83557959d7221da97592fc6664773fcf76e04edef4b8522",
+    "snapback4/target/debug/snapback4": "1331c4fc8ea330bef870f170ed5380e27038a601c272b40453ebd034954f9bcf",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b",
+    "snapback4/packages/snapback4/dist/client.js": "c438bb3334e7bfc0771cd32616e901f174233896ac0ab962bcd0b67e09c0e87b",
+    "/home/ccheever/sb4-intent/lane-sr/snapback4/target/sr-baseline-build/debug/snapback4": "8865e8689d867583d7a74f331e349008bfc070a132990dc4f689976ec52055e9"
+  },
+  "before_test_sha256": "1fb2d5fd87245efa217215cf07520d41b3ec06b31294653ca8db8a7733e76471",
+  "baseline_source_comparison_command": "git diff aedd35615a sb4-intent/sr-starter-routes -- snapback4/packages/snapback4/src snapback4/crates/snapback4-core snapback4/crates/snapback4-device snapback4/packages/snapback4/test/keep-device.test.mjs",
+  "baseline_source_comparison_empty": true
+}

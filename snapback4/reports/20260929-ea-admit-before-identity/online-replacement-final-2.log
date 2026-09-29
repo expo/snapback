@@ -1,0 +1,34 @@
+✔ committed admission survives notification from a closing owner (21.459408ms)
+✔ committed admission survives notification from a closed channel (2.788531ms)
+✔ committed admission survives notification from a throwing listener (2.157975ms)
+✔ unsaved online hold stays visible through failed retries in shared journal order (1777.475779ms)
+✔ asynchronous settlement bounds online argument reservations, including another owner's retirement (835.936409ms)
+✔ online custody keeps sent from mutate consistent while receipt saves fail (1.391867ms)
+✔ online custody keeps sent from lookup consistent while receipt saves fail (0.701761ms)
+✔ online custody keeps sent from background consistent while receipt saves fail (1.136634ms)
+✔ online custody keeps failed from mutate consistent while receipt saves fail (0.628091ms)
+✔ online custody keeps failed from lookup consistent while receipt saves fail (0.516324ms)
+✔ online custody keeps failed from background consistent while receipt saves fail (1.929172ms)
+✔ CCP zero-wait custody survives a rejected background dispatch and pre-custody storage refusal (1.857104ms)
+✔ CCP mutation waits use the action clamp and preserve omitted defaults (0.185448ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=undefined) (3.129471ms)
+✔ CCP existing custody is not replaced by a redundant save refusal (wait=0) (2.911014ms)
+✔ CCP two createApp instances recover the known receipt when journal saves fail (20.974401ms)
+ℹ shared journal: 1 execution, recovered=sent, replayed=true
+✔ online app reopens after replacement; replacement accepts session: true (41.263574ms)
+✔ online app reopens after replacement; replacement accepts session: false (17.061876ms)
+✔ logout cancels replacement verification without restoring the old account (7.412672ms)
+✔ close cancels replacement verification without restoring the old account (6.3911ms)
+✔ login cancels replacement verification without restoring the old account (7.903618ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: false (39.582204ms)
+✔ replacement waits for durable retirement of admitted writes; persistence fails: true (32.94167ms)
+✔ replacement pins retired receipt ids at the history limit (0 older unknown failures) (17.903037ms)
+✔ replacement pins retired receipt ids at the history limit (8 older unknown failures) (20.654702ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2754.449285

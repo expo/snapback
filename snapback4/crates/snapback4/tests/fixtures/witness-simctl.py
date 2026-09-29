@@ -21,6 +21,9 @@ if a[0] == 'list':
     if mode == 'ambiguous':
         devices.append({'udid': 'someone-else', 'state': 'Booted'})
     print(json.dumps({'devices': {'com.apple.CoreSimulator.SimRuntime.iOS-26-5': devices}}))
+elif a[0] == 'getenv':
+    assert a == ['getenv', udid, 'HOME']
+    print(root / 'data')
 elif a[0] == 'get_app_container':
     if mode == 'missing':
         print('No such app', file=sys.stderr)
@@ -49,14 +52,25 @@ elif a[0] == 'launch':
         with receipt.open('a') as f:
             f.write(json.dumps({'own': {'keep': True}, 'witness': {'at': '2026-09-14T00:00:00.000Z', 'step': step}}) + '\n')
     if config.get('smoke'):
+        (root / 'smoke-folder').write_text(str(folder))
         segment = config['segment']
         with sqlite3.connect(root / '.snapback4/store.sqlite') as db:
             store_id = db.execute("SELECT value FROM _meta WHERE key='store_id'").fetchone()[0]
             watermark = db.execute('SELECT COALESCE(MAX(seq),0) FROM _commits').fetchone()[0]
         smoke = dict(segment=segment, pass_=True, rows={}, errors=[], acquired=True, backendRequired=False,
-                     origin='test-origin', viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
+                     origin=config['origin'], viewer='dev:alice', storeId=store_id, generation=1, watermark=watermark,
                      link='offline' if segment == 'offline' else 'online', queries=[])
         smoke['pass'] = smoke.pop('pass_')
+        smoke['queryFacts'] = config['queryFacts']
+        smoke['queryGeneration'] = config['queryGeneration']
+        for field in ['queryGeneration', 'generation']:
+            if mode == 'smoke-wrong-' + field:
+                smoke[field] = config['queryGeneration'] + 1
+        smoke['queries'] = [dict(name=name, classification='online-only' if fact['runs']=='server' else 'device-answerable',
+            **(dict(state='loading', expectation='online-only: unavailable offline (expected)') if fact['runs']=='server' and segment=='offline' else dict(state='ready', count=0)))
+            for name, fact in config['queryFacts'].items() if segment=='offline' or fact['runs']=='server']
+        if mode == 'smoke-wrong-origin':
+            smoke['origin'] = 'http://127.0.0.1:1'
         if segment == 'restart':
             assert config['barrierSeq'] == watermark
             if mode == 'smoke-stale-restart':
@@ -107,6 +121,14 @@ elif a[0] == 'io':
     while True:
         time.sleep(.05)
 elif a[0] == 'spawn' and a[2:] == ['launchctl', 'list']:
+    if mode == 'smoke-source-race':
+        count_file = root / 'stopped-checks'
+        count = int(count_file.read_text()) + 1 if count_file.exists() else 1
+        count_file.write_text(str(count))
+        if count == 2:
+            # After driver preparation, before it starts dev's compilation.
+            schema = root / 'snapback/schema.q'
+            schema.write_text(schema.read_text().replace("  public 'fixture'", "  read <- allow\n  online only"))
     print('PID\tStatus\tLabel')
     pid = (root / 'app-pid').read_text() if (root / 'app-pid').exists() else ('6999' if mode == 'running' else '-')
     print(pid + '\t0\tUIKitApplication:dev.test[fixture]')
@@ -117,6 +139,16 @@ elif a[0] == 'spawn' and a[2] == 'kill':
     sys.exit(1)
 elif a[0] == 'spawn':
     def finish(*_):
+        if mode == 'smoke-collected-generation' and (root / 'smoke-folder').exists():
+            # All three launches validated genuine receipts. A later app receipt
+            # must undergo the same generation check during final collection.
+            receipt = Path((root / 'smoke-folder').read_text()) / 'receipts.jsonl'
+            rows = [json.loads(line) for line in receipt.read_text().splitlines()]
+            row = next(r for r in reversed(rows) if r.get('smoke', {}).get('segment') == 'restart')
+            row['smoke']['queryGeneration'] += 1
+            row['witness']['step'] = 'between-steps'
+            with receipt.open('a') as f:
+                f.write(json.dumps(row) + '\n')
         if (root / 'waiting').exists():
             folder = Path((root / 'waiting').read_text())
             step = {'failed-after-done': 'check:failed', 'reordered-after-done': 'primed', 'step-after-done': 'history:running'}.get(mode)

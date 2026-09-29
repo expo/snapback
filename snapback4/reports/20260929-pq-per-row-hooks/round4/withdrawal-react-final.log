@@ -1,0 +1,115 @@
+✔ wasm: apply revocation, keep=undefined, held (568.815021ms)
+✔ wasm: admit revocation, keep=undefined, held (92.557023ms)
+✔ wasm: transfer revocation, keep=undefined, held (91.229272ms)
+✔ wasm: remount revocation, keep=undefined, held (82.220449ms)
+✔ wasm: apply revocation, keep=undefined, throw (1092.118595ms)
+✔ wasm: admit revocation, keep=undefined, throw (83.511114ms)
+✔ wasm: transfer revocation, keep=undefined, throw (100.099028ms)
+✔ wasm: apply revocation, keep=undefined, unavailable (95.6375ms)
+✔ wasm: admit revocation, keep=undefined, unavailable (87.448726ms)
+✔ wasm: transfer revocation, keep=undefined, unavailable (94.984432ms)
+✔ wasm: apply revocation, keep=undefined, retryExhausted (1249.509397ms)
+✔ wasm: admit revocation, keep=undefined, retryExhausted (1268.258139ms)
+✔ wasm: transfer revocation, keep=undefined, retryExhausted (1235.575791ms)
+✔ wasm: apply revocation, keep=false, held (1087.989605ms)
+✔ wasm: admit revocation, keep=false, held (1103.719893ms)
+✔ wasm: transfer revocation, keep=false, held (1075.21638ms)
+✔ wasm: remount revocation, keep=false, held (75.135631ms)
+✔ process: apply revocation, keep=undefined, held (1126.584555ms)
+✔ process: admit revocation, keep=undefined, held (1136.581128ms)
+✔ process: transfer revocation, keep=undefined, held (1129.982538ms)
+✔ process: remount revocation, keep=undefined, held (1170.185267ms)
+✔ process: apply revocation, keep=undefined, throw (1181.276002ms)
+✔ process: admit revocation, keep=undefined, throw (1313.818578ms)
+✔ process: transfer revocation, keep=undefined, throw (1226.831073ms)
+✔ process: apply revocation, keep=undefined, unavailable (1218.591412ms)
+✔ process: admit revocation, keep=undefined, unavailable (174.979145ms)
+✔ process: transfer revocation, keep=undefined, unavailable (1184.913703ms)
+✔ process: apply revocation, keep=undefined, retryExhausted (1348.800251ms)
+✔ process: admit revocation, keep=undefined, retryExhausted (1431.028611ms)
+✔ process: transfer revocation, keep=undefined, retryExhausted (1311.356816ms)
+✔ process: apply revocation, keep=false, held (1134.625436ms)
+✔ process: admit revocation, keep=false, held (1218.2367ms)
+✔ process: transfer revocation, keep=false, held (1120.540825ms)
+✔ process: remount revocation, keep=false, held (1121.422466ms)
+✔ online: revoked data, keep=undefined, held (65.546166ms)
+✔ online: revoked data, keep=undefined, retryExhausted (236.14135ms)
+✔ online: revoked data, keep=undefined, unavailable (64.182623ms)
+✔ online: revoked data, keep=undefined, throw (64.709302ms)
+✔ online: revoked data, keep=false, held (65.402491ms)
+✔ online: revoked data, keep=false, retryExhausted (53.286932ms)
+✔ online: revoked data, keep=false, unavailable (51.507985ms)
+✔ online: revoked data, keep=false, throw (55.484585ms)
+✔ wasm keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (407.889732ms)
+✔ wasm keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (22.472083ms)
+✔ wasm keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (19.097535ms)
+✔ wasm keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (10.751736ms)
+✔ wasm keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (10.319167ms)
+✔ wasm keep=undefined facade=false: close drops active and lingering answers before a held read lands (10.517554ms)
+✔ process keep=undefined facade=false: adoption drops active and lingering answers before a held read lands (57.988098ms)
+✔ process keep=undefined facade=false: replacement drops active and lingering answers before a held read lands (53.101533ms)
+✔ process keep=undefined facade=false: credentials drops active and lingering answers before a held read lands (48.887057ms)
+✔ process keep=undefined facade=false: viewer drops active and lingering answers before a held read lands (41.815497ms)
+✔ process keep=undefined facade=false: sign-out drops active and lingering answers before a held read lands (41.679813ms)
+✔ process keep=undefined facade=false: close drops active and lingering answers before a held read lands (41.448317ms)
+✔ wasm keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (22.3566ms)
+✔ wasm keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (21.128179ms)
+✔ wasm keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (22.304342ms)
+✔ wasm keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (14.96471ms)
+✔ wasm keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (9.612308ms)
+✔ wasm keep=undefined facade=true: close drops active and lingering answers before a held read lands (9.171387ms)
+✔ process keep=undefined facade=true: adoption drops active and lingering answers before a held read lands (52.404328ms)
+✔ process keep=undefined facade=true: replacement drops active and lingering answers before a held read lands (55.149052ms)
+✔ process keep=undefined facade=true: credentials drops active and lingering answers before a held read lands (54.768331ms)
+✔ process keep=undefined facade=true: viewer drops active and lingering answers before a held read lands (48.845694ms)
+✔ process keep=undefined facade=true: sign-out drops active and lingering answers before a held read lands (42.668725ms)
+✔ process keep=undefined facade=true: close drops active and lingering answers before a held read lands (42.787664ms)
+✔ wasm keep=true facade=false: adoption drops active and lingering answers before a held read lands (21.18914ms)
+✔ wasm keep=true facade=false: replacement drops active and lingering answers before a held read lands (19.525827ms)
+✔ wasm keep=true facade=false: credentials drops active and lingering answers before a held read lands (10.952146ms)
+✔ wasm keep=true facade=false: viewer drops active and lingering answers before a held read lands (9.821421ms)
+✔ wasm keep=true facade=false: sign-out drops active and lingering answers before a held read lands (9.094512ms)
+✔ wasm keep=true facade=false: close drops active and lingering answers before a held read lands (9.028162ms)
+✔ process keep=true facade=false: adoption drops active and lingering answers before a held read lands (56.364984ms)
+✔ process keep=true facade=false: replacement drops active and lingering answers before a held read lands (55.02809ms)
+✔ process keep=true facade=false: credentials drops active and lingering answers before a held read lands (46.095652ms)
+✔ process keep=true facade=false: viewer drops active and lingering answers before a held read lands (41.231672ms)
+✔ process keep=true facade=false: sign-out drops active and lingering answers before a held read lands (44.275644ms)
+✔ process keep=true facade=false: close drops active and lingering answers before a held read lands (45.474401ms)
+✔ useQuery and usePage keep canonical arguments across renders, preserving loaded pages (856.357185ms)
+✔ 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders (1904.141338ms)
+✔ wasm: 1,000 per-row hooks retain through a relevant write with the real clock (4202.172972ms)
+ℹ {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661911677,"lastStart":1790661913690,"wallIsReal":true,"events":[{"at":1790661911658,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:43231/harness.jsx:26:11)\n    at LocalReads.clear (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:149:15)\n    at LocalReads.committed (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:138:8)\n    at http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:59\n    at deferReadNotifications (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-notifications.ts:11:3)\n    at invalidateAnswers (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:22)\n    at committed (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:407:37)\n    at http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web.ts:438:172\n    at settle (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web.ts:183:20)\n    at async execute (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web.ts:438:9)"},{"at":1790661911677,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:43231/harness.jsx:26:11)\n    at scheduleRead (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1377:10)\n    at syncRound (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1068:153)"},{"at":1790661913690,"method":"reload","args":[],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":true,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:43231/harness.jsx:26:11)\n    at rerun (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1400:27)\n    at http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1387:41\n    at http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-work.ts:120:13"},{"at":1790661913705,"method":"publish","args":[{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"deadline":1790661914690,"running":true,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:43231/harness.jsx:26:11)\n    at http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1432:13\n    at publishDelivery (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-publication.ts:4:21)\n    at publishLocal (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1310:11)\n    at rerun (http://127.0.0.1:43231/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1417:22)"}]}
+✔ worker: 1,000 per-row hooks retain through a relevant write with the real clock (5124.697622ms)
+ℹ {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1790661916695,"lastStart":1790661918806,"wallIsReal":true,"events":[{"at":1790661916677,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:37073/harness.jsx:26:11)\n    at LocalReads.clear (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:149:15)\n    at LocalReads.committed (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:138:8)\n    at http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:59\n    at deferReadNotifications (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-notifications.ts:11:3)\n    at invalidateAnswers (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:22)\n    at committed (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:407:37)\n    at http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web-worker-device.ts:217:167\n    at Object.commit (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web-worker-host.ts:221:15)\n    at async settle (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/web-worker-device.ts:87:19)"},{"at":1790661916695,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:37073/harness.jsx:26:11)\n    at scheduleRead (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1377:10)\n    at syncRound (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1068:153)"},{"at":1790661918806,"method":"reload","args":[],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":true,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:37073/harness.jsx:26:11)\n    at rerun (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1400:27)\n    at http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1387:41\n    at http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-work.ts:120:13"},{"at":1790661918821,"method":"publish","args":[{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"deadline":1790661919806,"running":true,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:37073/harness.jsx:26:11)\n    at http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1432:13\n    at publishDelivery (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-publication.ts:4:21)\n    at publishLocal (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1310:11)\n    at rerun (http://127.0.0.1:37073/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1417:22)"}]}
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (4961.889558ms)
+ℹ {"tier":"process","loading":1000,"calls":1967,"revalidated":1000,"firstStart":1790661921536,"lastStart":1790661923813,"wallIsReal":true,"events":[{"at":1790661921499,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:38857/harness.jsx:26:11)\n    at LocalReads.clear (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:149:15)\n    at LocalReads.committed (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local-reads.ts:138:8)\n    at http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:59\n    at deferReadNotifications (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-notifications.ts:11:3)\n    at invalidateAnswers (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:328:22)\n    at committed (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:407:37)\n    at call (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:433:5)\n    at async syncRound (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1007:22)"},{"at":1790661921536,"method":"reload","args":[{"queued":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:38857/harness.jsx:26:11)\n    at scheduleRead (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1377:10)\n    at syncRound (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1068:153)"},{"at":1790661923791,"method":"publish","args":[{"loading":true}],"was":{"data":{"id":"c999","label":"original","owner":"dev:alice","slot":999},"complete":true,"cut":null,"fresh":true,"next":null,"revalidating":true},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:38857/harness.jsx:26:11)\n    at http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:478:72\n    at deferReadNotifications (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/read-notifications.ts:11:3)\n    at setLink (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:474:21)\n    at waitForChange (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1170:5)\n    at async http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1180:23"},{"at":1790661923793,"method":"reload","args":[{"queued":true}],"was":{"loading":true},"running":false,"stack":"Error\n    at ReadObservation.<computed> (http://127.0.0.1:38857/harness.jsx:26:11)\n    at scheduleRead (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1377:10)\n    at setLink (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:491:47)\n    at waitForChange (http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1170:5)\n    at async http://127.0.0.1:38857/@fs/home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/src/local.ts:1180:23"}]}
+ℹ tests 83
+ℹ suites 0
+ℹ pass 82
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30797.667329
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-react.test.mjs:142:51
+✖ process: 1,000 per-row hooks retain through a relevant write with the real clock (4961.889558ms)
+  AssertionError [ERR_ASSERTION]: no loading render after the relevant write
+
+  1000 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-react.test.mjs:163:10)
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processImmediate (node:internal/timers:472:9)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1000,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

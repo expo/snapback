@@ -1,3 +1,4 @@
+import { assetError, assetRetryAt } from "./asset-download.ts";
 // The React arm: one provider and hooks over the client card.
 // Every hook returns a value from the card (contract.ts) and nothing else.
 
@@ -12,6 +13,7 @@ import { isReady } from "./contract.ts";
 import { Pages } from "./react-pages.ts";
 import { pendingWritesSource } from "./react-pending-writes.ts";
 import { peekObservation } from "./observe-watch.ts";
+import { readKey } from "./read-key.ts";
 
 const ClientContext = createContext<Client | null>(null);
 
@@ -106,7 +108,7 @@ class Observation<R> {
 /** One live read. Re-renders when the value changes; never throws. */
 export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Read<R> {
   const client = useClient();
-  const key = JSON.stringify(args);
+  const key = readKey(op, args);
   const observed = useMemo(() => new Observation(
     () => client.observe(op, args, options),
     () => peekObservation(client, op, args, options)), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -115,7 +117,7 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ObserveOption
 
 export function usePage<A extends { c?: Cursor | null }, R extends readonly unknown[]>(op: Query<A, R>, args: Omit<A, "c">, options?: ObserveOptions) {
   const client = useClient();
-  const key = JSON.stringify(args);
+  const key = readKey(op, args);
   const pages = useMemo(() => new Pages(client, op, args as A, options), [client, op, key, options?.keep]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
   return { items: snapshot.items, hasMore: snapshot.hasMore, read: snapshot.read, loadMore: pages.loadMore };
@@ -313,7 +315,7 @@ export function useSession(): Session | null {
   return useSyncExternalStore(subscribe, read, read);
 }
 
-export type AssetState = { readonly status: "empty" } | { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal };
+export type AssetState = { readonly status: "empty" } | { readonly status: "loading" } | { readonly status: "ready"; readonly url: string; readonly type: string } | { readonly status: "denied"; readonly why: Refusal } | { readonly status: "error"; readonly why: Refusal };
 
 /** The bytes of an asset a row the viewer may read holds, fetched under
  * the viewer's credentials as a blob URL for `src`. Revoked when the id
@@ -322,29 +324,69 @@ export type AssetState = { readonly status: "empty" } | { readonly status: "load
  * which is the feature. Pass `null` to show nothing. */
 export function useAsset(id: string | null | undefined): AssetState {
   const client = useClient();
-  const [state, setState] = useState<AssetState>({ status: "loading" });
+  const signedOut = useLink() === "signed-out";
+  // @ref LLP 3000.008.002.000#6 — a display handle belongs to this client, principal and asset id, including the render before effect cleanup.
+  // A raw online client can have a bearer before discovering its viewer.
+  // That discovery is not an account change and must not consume a second view.
+  const owner = useMemo(() => ({ client, signedOut, id }), [client, signedOut, id]);
+  const [resolved, setResolved] = useState<{ owner: typeof owner; state: AssetState; lifetime: { live: boolean } }>();
   useEffect(() => {
-    if (!id) {
-      setState({ status: "empty" });
-      return;
-    }
-    let live = true;
+    const { client, signedOut, id } = owner;
+    if (!id || signedOut) return;
+    let live = true, busy = false, recoveryRequested = false;
+    let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
+    const lifetime = { live: true };
     let read: AssetRead | null = null;
-    setState({ status: "loading" });
-    void client.asset(id).then((result) => {
-      read = result;
-      if (!live) {
-        if ("url" in result) result.revoke();
-        return;
+    const publish = (state: AssetState) => setResolved({ owner, state, lifetime });
+    const load = () => {
+      if (!live || busy || client.link() === "signed-out") return;
+      clearTimeout(recoveryTimer); recoveryTimer = undefined;
+      busy = true;
+      publish({ status: "loading" });
+      void client.asset(id).then((result) => {
+        read = result;
+        if (!live) {
+          if ("url" in result) result.revoke();
+          return;
+        }
+        publish("url" in result ? { status: "ready", url: result.url, type: result.type }
+          : { status: assetError(result.denied) ? "error" : "denied", why: result.denied });
+      }).catch((error) => {
+        read = null;
+        if (live) publish({ status: "error", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
+      }).finally(() => {
+        busy = false;
+        if (recoveryRequested) { recoveryRequested = false; recover(); }
+      });
+    };
+    const recover = () => {
+      if (!live) return;
+      if (busy) { recoveryRequested = true; return; }
+      if (read && "denied" in read && assetError(read.denied) && read.denied.retryable === true) {
+        if (Date.now() >= assetRetryAt(read.denied)) load();
+        else if (recoveryTimer === undefined) recoveryTimer = setTimeout(() => {
+          recoveryTimer = undefined; recover();
+        }, Math.min(2_147_483_647, assetRetryAt(read.denied) - Date.now()));
       }
-      setState("url" in result ? { status: "ready", url: result.url, type: result.type } : { status: "denied", why: result.denied });
-    }).catch((error) => {
-      if (live) setState({ status: "denied", why: { code: "E_CLIENT", family: "client", message: `The client did not return an asset outcome. ${error instanceof Error ? error.message : String(error)}` } });
-    });
+    };
+    let link = client.link();
+    const unsubscribe = client.onLink(next => { const before = link; link = next; if (next === "online" && before !== "online") recover(); });
+    const visible = () => { if (globalThis.document?.visibilityState === "visible") recover(); };
+    globalThis.addEventListener?.("focus", recover);
+    globalThis.addEventListener?.("online", recover);
+    globalThis.document?.addEventListener("visibilitychange", visible);
+    queueMicrotask(() => { if (live) load(); });
     return () => {
-      live = false;
+      live = false; lifetime.live = false;
+      clearTimeout(recoveryTimer);
+      unsubscribe();
+      globalThis.removeEventListener?.("focus", recover);
+      globalThis.removeEventListener?.("online", recover);
+      globalThis.document?.removeEventListener("visibilitychange", visible);
       if (read && "url" in read) read.revoke();
     };
-  }, [client, id]);
-  return id ? state : { status: "empty" };
+  }, [owner]);
+  if (!id) return { status: "empty" };
+  if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
+  return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading" };
 }

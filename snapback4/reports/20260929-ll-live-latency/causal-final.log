@@ -1,0 +1,30 @@
+✔ process: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (689.537798ms)
+✔ process: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (488.572013ms)
+✔ process: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (507.117929ms)
+✔ process: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (486.934529ms)
+✔ process: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (502.190346ms)
+✔ process: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (524.694683ms)
+✔ process: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (474.879528ms)
+✔ process: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (460.580624ms)
+✔ process: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (751.893084ms)
+✔ process: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (487.114349ms)
+✔ process: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (491.265429ms)
+✔ wasm: child-add keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (726.904275ms)
+✔ wasm: child-replace keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (322.256812ms)
+✔ wasm: child-remove keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (267.526692ms)
+✔ wasm: parent keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (269.86119ms)
+✔ wasm: joined-profile keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (580.470992ms)
+✔ wasm: authorization keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (540.665583ms)
+✔ wasm: unknown-footprint keep=undefined expire=false drives mounted reads from change through apply without elapsed timers (629.528983ms)
+✔ wasm: child-add keep=false expire=false drives mounted reads from change through apply without elapsed timers (420.188848ms)
+✔ wasm: child-add keep=true expire=false drives mounted reads from change through apply without elapsed timers (244.982997ms)
+✔ wasm: child-add keep=undefined expire=true drives mounted reads from change through apply without elapsed timers (501.626783ms)
+✔ wasm: child-add keep=true expire=true drives mounted reads from change through apply without elapsed timers (420.318143ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14685.137839

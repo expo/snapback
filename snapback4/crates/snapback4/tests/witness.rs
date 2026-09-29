@@ -9,6 +9,32 @@ fn witness_cli_refuses_missing_bundle_with_a_recipe() {
 }
 
 #[test]
+fn preparation_selectors_are_exclusive_and_repack_is_withdrawn() {
+    for (flags, reason) in [
+        (vec!["--bundle-id", "app.test", "--build", "."], "select exactly one"),
+        (vec!["--repack=build.json"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--repack", "build.json", "--app-project", ".", "--smoke"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--repack", "build.json"], "repack is withdrawn; use witness ios --build"),
+        (vec!["--build", ".", "--app-project", "."], "repack is withdrawn; use witness ios --build"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "ios"]).args(flags).output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(reason));
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn build_refuses_linux_before_any_native_helper_runs() {
+    let dir = std::env::temp_dir().join(format!("witness-linux-{}", std::process::id()));
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["witness", "ios", "--build", ".", "--smoke", "--artifacts"]).arg(&dir).output().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_PLATFORM"));
+    assert!(!dir.join("prepare.mjs").exists());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
 fn witness_card_is_published_under_builder_words() {
     for word in ["witness", "simulator", "offline proof"] {
         let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["guide", word]).output().unwrap();
@@ -101,15 +127,66 @@ mod driver {
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
-                .env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
+                .env("WITNESS_TEST_UDID", self.0.file_name().unwrap()).env("WITNESS_TEST_DIR", &self.0).env("WITNESS_TEST_MODE", mode);
             command
         }
         fn run(&self, mode: &str, port: u16) -> std::process::Output {
             self.command(mode, port, std::path::Path::new("artifacts")).output().unwrap()
         }
-        fn port() -> u16 { std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port() }
+        fn port() -> u16 {
+            // Avoid macOS's outbound ephemeral range: another test's HTTP
+            // connection can take a just-probed ephemeral port before dev binds.
+            static NEXT: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+            loop {
+                let offset = NEXT.fetch_add(1, Ordering::Relaxed) as u32;
+                let port = 30000 + ((std::process::id() + offset) % 15000) as u16;
+                if std::net::TcpListener::bind(("127.0.0.1", port)).is_ok() { return port; }
+            }
+        }
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    #[test]
+    fn smoke_facts_come_from_the_generation_served_after_a_source_edit() {
+        let fixture = Fixture::new();
+        let output = fixture.run("smoke-source-race", Fixture::port());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["queryFacts"]["rows"]["runs"], "server");
+        assert_eq!(manifest["queryGeneration"], 1);
+        assert_eq!(manifest["segments"]["offline"]["receipt"]["queries"][0]["classification"], "online-only");
+    }
+
+    #[test]
+    fn smoke_wrong_origin_marks_the_segment_failed() {
+        let fixture = Fixture::new();
+        let output = fixture.run("smoke-wrong-origin", Fixture::port());
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_ORIGIN"));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["segments"]["prime"]["status"], "failed");
+        assert_eq!(manifest["segments"]["offline"]["status"], "not-run");
+    }
+    #[test]
+    fn smoke_wrong_generation_marks_the_segment_failed() {
+        for field in ["queryGeneration", "generation"] {
+            let fixture = Fixture::new();
+            let output = fixture.run(&format!("smoke-wrong-{field}"), Fixture::port());
+            assert!(!output.status.success());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("smoke receipt differs from the served query generation"));
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(manifest["exitStatus"], 1);
+            assert_eq!(manifest["segments"]["prime"]["receipt"]["pass"], true);
+            assert_ne!(manifest["segments"]["prime"]["receipt"][field], manifest["queryGeneration"]);
+            assert_eq!(manifest["segments"]["prime"]["status"], "failed");
+            assert!(manifest["segments"]["prime"]["error"].as_str().unwrap().contains("served query generation"));
+            assert_eq!(manifest["segments"]["offline"]["status"], "not-run");
+            assert_eq!(manifest["segments"]["restart"]["status"], "not-run");
+        }
+    }
+    #[test]
+    fn smoke_collection_revalidates_query_generation() {
+        smoke_rejects_failure_after_receipt("smoke-collected-generation", "restart", "E_WITNESS_RECEIPT");
+    }
     #[test]
     fn smoke_runs_three_cold_launches_and_a_broken_offline_run_fails() {
         for mode in ["smoke", "smoke-broken"] {
@@ -177,7 +254,7 @@ mod driver {
             let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
             assert!(!output.status.success()); let err = String::from_utf8_lossy(&output.stderr);
             assert!(err.contains(code), "{err}");
-            if mode == "missing" { assert!(err.contains("npx expo run:ios --configuration Release --device dedicated"), "{err}"); }
+            if mode == "missing" { assert!(err.contains("--device generic --no-bundler") && err.contains("simctl install"), "{err}"); }
             assert!(!fixture.0.join(".snapback4").exists());
         }
     }
@@ -188,7 +265,7 @@ mod driver {
             assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
             let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
             assert_eq!(manifest["exitStatus"], 0);
-            assert_eq!(manifest["udid"], "dedicated"); assert_eq!(manifest["appBuild"]["CFBundleVersion"], "1");
+            assert_eq!(manifest["udid"], fixture.0.file_name().unwrap().to_str().unwrap()); assert_eq!(manifest["appBuild"]["CFBundleVersion"], "1");
             assert_eq!(manifest["backend"]["port"], port);
             for suffix in ["screen.mp4", "receipts.jsonl", "device.log"] {
                 let path = fixture.0.join(format!("artifacts/offline-ios-{suffix}"));
@@ -255,7 +332,7 @@ mod driver {
     fn cli_refuses_an_existing_app_and_never_terminates_a_replacement() {
         let fixture = Fixture::new(); let output = fixture.run("running", Fixture::port());
         assert!(!output.status.success(), "existing app was taken over");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on dedicated; quit it before starting the witness"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on "));
         assert!(!fixture.0.join("process-events.jsonl").exists());
         assert!(!fixture.0.join(".snapback4").exists());
         let fixture = Fixture::new(); let output = fixture.run("replacement", Fixture::port());

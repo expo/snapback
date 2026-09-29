@@ -1,0 +1,26 @@
+✔ wasm keep=undefined: a full queue cannot postpone the change transition (525.811585ms)
+✔ wasm keep=false: a full queue cannot postpone the change transition (102.646837ms)
+✔ wasm keep=true: a full queue cannot postpone the change transition (115.503315ms)
+✔ process keep=undefined: a full queue cannot postpone the change transition (146.428273ms)
+✔ process keep=false: a full queue cannot postpone the change transition (138.883535ms)
+✔ process keep=true: a full queue cannot postpone the change transition (140.425436ms)
+✔ wasm keep=undefined: queued publication rechecks a floor raised after evaluation (80.470601ms)
+✔ wasm keep=undefined: presence publication rechecks a floor raised after evaluation (327.204823ms)
+✔ wasm keep=false: queued publication rechecks a floor raised after evaluation (89.206494ms)
+✔ wasm keep=false: presence publication rechecks a floor raised after evaluation (314.266271ms)
+✔ wasm keep=true: queued publication rechecks a floor raised after evaluation (86.666999ms)
+✔ wasm keep=true: presence publication rechecks a floor raised after evaluation (329.574734ms)
+✔ process keep=undefined: queued publication rechecks a floor raised after evaluation (120.816438ms)
+✔ process keep=undefined: presence publication rechecks a floor raised after evaluation (364.789531ms)
+✔ process keep=false: queued publication rechecks a floor raised after evaluation (124.203654ms)
+✔ process keep=false: presence publication rechecks a floor raised after evaluation (355.90092ms)
+✔ process keep=true: queued publication rechecks a floor raised after evaluation (109.388771ms)
+✔ process keep=true: presence publication rechecks a floor raised after evaluation (356.447458ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3981.269377

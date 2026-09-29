@@ -1,0 +1,27 @@
+{
+  "sites": 158,
+  "delta": [
+    {
+      "file": "client.ts",
+      "before": {
+        "count": 58,
+        "sha256": "d6e0255fe9ac5a22eddaccbda64860012762c6bb9f6b42b3b9d7d15115d62277"
+      },
+      "after": {
+        "count": 58,
+        "sha256": "b5981ef14b05d20c45663755dae0d97402920df64f48e0d9bb9d250feb095a57"
+      }
+    },
+    {
+      "file": "local-query.ts",
+      "before": {
+        "count": 29,
+        "sha256": "cbfac9e4f99c1237c88e09d7e3ff5693645e6d55516260b3d5b8d140a517d35b"
+      },
+      "after": {
+        "count": 29,
+        "sha256": "691a081ade2d56b5a500f19e4b9c5710397f027cdd8ce2a6d9ecf5073163b93d"
+      }
+    }
+  ]
+}

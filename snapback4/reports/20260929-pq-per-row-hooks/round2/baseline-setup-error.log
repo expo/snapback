@@ -1,0 +1,32 @@
+file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/dist/local-delivery.js:13
+    const serial = _jsxs(T, { children: ["(body: () => Promise", _jsxs(T, { children: ["): Promise", _jsxs(T, { children: [" => ", , "const work = tail.then(body); tail = work.catch(() => ", "); return work; }; const storage: DeliveryStorage = ", update, ": (edit, current) => serial(async () => ", , "for (;;) ", , "const read = await call(", action, ": \"read\" }) as ", value, ": string }; const state = read.value ? JSON.parse(read.value) as DeliveryState : emptyDelivery(); const result = edit(state); const value = JSON.stringify(state); if (value === read.value || (current && !current())) return result; const request = ", op, ": \"delivery\", viewer: env.viewer, action: \"write\", expected: read.value, value }; if (current) ", , "if (!env.collect) return result; // An unsupported host under-reports, never writes stale debt. const reply = await env.collect(request, current); if (reply.denied) throw new Error(reply.denied.code); if (reply.ok) return result; } else if (await call(request)) return result; } }), clear: () => serial(async () => ", await call({ action: "clear" }), "; }), }; const queue = new DeliveryQueue(", (storage, local), ": true, mint: mintId, onOffline: () => env.offline?.(), onSettled: () => scheduleEnumeration(0), ready: () => enabled && !stopped && env.ready(), onRefused: event => env.onRefused?.(event), send: async (mutation, body, signal) => ", , "if (env.refresh()) await env.refresh(); const credentials = env.credentials(), capture = await env.capture(); if (!capture || !env.ready() || signal.aborted || credentials.revision !== env.credentials().revision) return ", json, ": ", ", accepted: false, deferred: true }; const id = capture.transfer_store_id ?? capture.store_id; if (!id) throw new Error(\"delivery needs an observed store identity\"); const response = await env.fetch(`$", env.url, "/m/$", encodeURIComponent(mutation), "`, ", method, ": \"POST\", headers: credentials.headers, body: JSON.stringify(", ...(body, store_id), ": id }), signal }); const json = await response.json() as Record", _jsx("string", {}), ", unknown>; if (signal.aborted || !env.current()) throw new Error(\"obsolete delivery response\"); const why = (json.why ?? json.denied) as Refusal | undefined; if (typeof json.store_id === \"string\" && json.store_id !== id || why?.code === \"E_STORE_REPLACED\") ", env.replaced(), "; return ", json, ": ", ...(json, denied), ": ", code, ": \"E_STORE_REPLACED\" } }, accepted: false }; } const validHead = Number.isSafeInteger(json.head) && Number(json.head) >= 0; const refused = validHead && await env.witness(json.store_id, json.head, capture); if (refused) return ", json, ": env.restored() ? ", ...(json, denied), ": ", code, ": \"E_STORE_RESTORE\" } } : ", ", accepted: false }; if (why?.code === \"E_AUTH\") ", , "if (env.refresh()) await env.refresh(); const obsoleteAuth = credentials.revision !== env.credentials().revision && env.current(); if (!obsoleteAuth) await env.auth(why, credentials.revision); return ", (json, accepted), ": false, obsoleteAuth }; } return ", (json, accepted), ": validHead && json.store_id === id && response.status ", _jsx(, {}), " 500 }; }, }); let enumerationDone = false, enumerationBackoff = 1000; function scheduleEnumeration(delay: number) ", , "if (enumerationTimer || enumerationDone || stopped || !enabled) return; enumerationTimer = setTimeout(() => ", enumerationTimer = undefined, "; void enumerate(); }, delay); (enumerationTimer as ", unref ?  : () => void , ").unref?.(); } const enumerate = async () => ", , "if (enumerating || enumerationDone || stopped || !enabled || !env.current() || !env.ready()) return; enumerating = true; try ",
+
+
+SyntaxError: Unexpected reserved word
+    at compileSourceTextModule (node:internal/modules/esm/utils:318:16)
+    at ModuleLoader.moduleStrategy (node:internal/modules/esm/translators:111:18)
+    at #translate (node:internal/modules/esm/loader:473:20)
+    at afterLoad (node:internal/modules/esm/loader:529:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:534:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:577:36)
+    at afterResolve (node:internal/modules/esm/loader:625:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:631:12)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:160:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:245:17)
+
+Node.js v24.13.1
+✖ /home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs (79.993738ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 95.228361
+
+✖ failing tests:
+
+test at .pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs:1:1
+✖ /home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r2-controls-gpm1f2qs/snapback4/packages/snapback4/test/per-row-publication.test.mjs (79.993738ms)
+  'test failed'

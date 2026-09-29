@@ -1,0 +1,60 @@
+✖ wasm: cancelled transport preserves the earlier failure diagnostic (484.420321ms)
+✖ process: cancelled transport preserves the earlier failure diagnostic (123.646334ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 731.50075
+
+✖ failing tests:
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:135:51
+✖ wasm: cancelled transport preserves the earlier failure diagnostic (484.420321ms)
+  AssertionError [ERR_ASSERTION]: cancellation cannot replace the recorded transport failure
+  + actual - expected
+
+    {
+      code: 'E_OFFLINE',
+      family: 'link',
+  +   message: 'the request did not complete: ABORT_ERR; check the connection and server logs before retrying',
+  -   message: 'the request did not complete: ECONNREFUSED; check the connection and server logs before retrying',
+      retryable: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:185:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: ABORT_ERR; check the connection and server logs before retrying', retryable: true },
+    expected: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: ECONNREFUSED; check the connection and server logs before retrying', retryable: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at .pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:135:51
+✖ process: cancelled transport preserves the earlier failure diagnostic (123.646334ms)
+  AssertionError [ERR_ASSERTION]: cancellation cannot replace the recorded transport failure
+  + actual - expected
+
+    {
+      code: 'E_OFFLINE',
+      family: 'link',
+  +   message: 'the request did not complete: ABORT_ERR; check the connection and server logs before retrying',
+  -   message: 'the request did not complete: ECONNREFUSED; check the connection and server logs before retrying',
+      retryable: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/.pq-r3-controls-81b6v9kq/snapback4/packages/snapback4/test/per-row-liveness.test.mjs:185:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: ABORT_ERR; check the connection and server logs before retrying', retryable: true },
+    expected: { code: 'E_OFFLINE', family: 'link', message: 'the request did not complete: ECONNREFUSED; check the connection and server logs before retrying', retryable: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,39 @@
+✔ wire stamps successes and refusals on sync, changes, query, mutation and session endpoints (254.499194ms)
+✖ web: a legacy admission keeps its floor through upgrade, retirement and rollback (340.075362ms)
+(node:3374640) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ native: a legacy admission keeps its floor through upgrade, retirement and rollback (45.174831ms)
+✔ web orphan recovery after attachment preserves its admission floor through settlement and rollback (7.001034ms)
+✔ a DeviceCore backfill refusal blocks startup without sending or retiring entries, then retries (234.861969ms)
+✔ native offline reopen restores legacy offset without issuedOffset or admissions and retains the session (1151.084726ms)
+✔ a real held heartbeat poll learns clock advance from its final body (25172.149767ms)
+✔ native JSON bridge shares device time and restores offline (+25h) (1220.841452ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses) (4219.989819ms)
+✔ native JSON bridge shares device time and restores offline (-31d, 1500ms startup responses, non-admission last) (4225.572857ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36996.743958
+
+✖ failing tests:
+
+test at packages/snapback4/test/server-clock-wire.test.mjs:64:39
+✖ web: a legacy admission keeps its floor through upgrade, retirement and rollback (340.075362ms)
+  AssertionError [ERR_ASSERTION]: attach commits the backfill before retirement
+  
+  null !== '1004000'
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/server-clock-wire.test.mjs:84:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: '1004000',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

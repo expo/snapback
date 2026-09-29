@@ -1,0 +1,13 @@
+{
+  "base": "aedd35615ad54901a481a01481e5d8f6110c69b4",
+  "node": "v24.13.1",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "exportedSourceMatches": true,
+  "sha256": {
+    "crates/snapback4/src/verbs/init/social/Conversation.tsx": "3768143b8bec1753248b3894ff2b5188e30f1a6cd6853badc3abc6e8c2ec68a8",
+    "crates/snapback4/src/verbs/init/social/Direct.tsx": "e0decae64961e681ab3b8b0ef81f5fda08b78ae6c6944309a431ff007bc4cc3f",
+    "crates/snapback4/src/verbs/init/social/conversation-route.tsx": "4e228fbeb3b4e67a3adf786279d35592cedef1d4869039d1993206eca9f07e34",
+    "target/sr-export/dist-ios/_expo/static/js/ios/entry-ccdd852350cdb481ec835d084dda1779.hbc": "99c5ebaf98683c4104d010b8333164b032987b1b3a0b00ec68bc5694572b8db5",
+    "target/sr-export/dist-ios/_expo/static/js/ios/web-worker-entry-106c3e7fba27a19128e022e2bc313d4a.hbc": "b84c9ce13bf9172e26d034232b2189834e618cc6f65f275df03de2102453c7d8"
+  }
+}

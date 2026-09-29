@@ -1,0 +1,14 @@
+{"worker":false,"beforeIdentity":[{"state":"failed","id":"01M3NX9MPR5D4J75QSYRGGX701","why":{"code":"E_ADMISSION","family":"store","message":"the backend store is not identified yet; mutation was not admitted","site":"client.mutate","rewrite":"wait for app.ready and client.acquired, restore writable localStorage, then retry with the same id","guide":"writes"}},{"state":"failed","id":"01M3NX9MR85ZQT6P68SGEA5DFE","why":{"code":"E_ADMISSION","family":"store","message":"the backend store is not identified yet; mutation was not admitted","site":"client.mutate","rewrite":"wait for app.ready and client.acquired, restore writable localStorage, then retry with the same id","guide":"writes"}}]}
+same mounted form succeeds after identity without route navigation
+✔ immediate mounted form before identity (wasm) (1712.650644ms)
+{"worker":true,"beforeIdentity":[{"state":"failed","id":"01M3NX9NXS4QAT55J0Z1JMY843","why":{"code":"E_ADMISSION","family":"store","message":"the backend store is not identified yet; mutation was not admitted","site":"client.mutate","rewrite":"wait for app.ready and client.acquired, restore writable localStorage, then retry with the same id","guide":"writes"}},{"state":"failed","id":"01M3NX9NYTF1EZGMCREJYKH6V9","why":{"code":"E_ADMISSION","family":"store","message":"the backend store is not identified yet; mutation was not admitted","site":"client.mutate","rewrite":"wait for app.ready and client.acquired, restore writable localStorage, then retry with the same id","guide":"writes"}}]}
+same mounted form succeeds after identity without route navigation
+✔ immediate mounted form before identity (Worker) (1222.88312ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3063.942246

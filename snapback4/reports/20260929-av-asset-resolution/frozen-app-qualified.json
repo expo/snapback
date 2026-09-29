@@ -1,0 +1,32 @@
+[
+  {
+    "surface": "dm",
+    "avatars": 20,
+    "painted": 20,
+    "ready_hook_samples": 50,
+    "page_errors": [],
+    "http_asset_statuses": [
+      200
+    ]
+  },
+  {
+    "surface": "group",
+    "avatars": 20,
+    "painted": 20,
+    "ready_hook_samples": 50,
+    "page_errors": [],
+    "http_asset_statuses": [
+      200
+    ]
+  },
+  {
+    "surface": "feed",
+    "avatars": 22,
+    "painted": 22,
+    "ready_hook_samples": 16,
+    "page_errors": [],
+    "http_asset_statuses": [
+      200
+    ]
+  }
+]

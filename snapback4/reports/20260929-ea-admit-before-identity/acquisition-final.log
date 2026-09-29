@@ -1,0 +1,93 @@
+✔ W5R1x: terminal history is bounded independently of unresolved writes (3.699145ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (4407.160312ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (3074.043585ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1217.083381ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1177.632118ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (5612.305033ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (3030.476329ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1275.117895ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1187.084102ms)
+✔ wasm: schema alone is not acquisition; queued guarded writes survive offline reopen (2094.201181ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ before acquisition write: {"state":"pending","id":"01M3NZ5VE096MAKBZXAAT0NKVX","reason":"waiting for backend identification"}; durable queue: [{"id":"01M3NZ5VE096MAKBZXAAT0NKVX","op":"add","args":{"body":"queued before acquisition"},"state":"queued","reason":"waiting for backend identification","predicted":[]}]
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6129.223689ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1148.505113ms)
+✔ process: schema alone is not acquisition; queued guarded writes survive offline reopen (2153.302371ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ before acquisition write: {"state":"pending","id":"01M3NZ64MCJGD1TVWW3W6NEBDC","reason":"waiting for backend identification"}; durable queue: [{"id":"01M3NZ64MCJGD1TVWW3W6NEBDC","op":"add","args":{"body":"queued before acquisition"},"state":"queued","reason":"waiting for backend identification","predicted":[]}]
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6232.567259ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1177.595548ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (8052.626211ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (7274.047712ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=1
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (11815.241206ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (4209.632979ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=1
+✔ receipt custody retains the first sent outcome across repeated save failures (0.796084ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.119639ms)
+✔ acknowledgement drops an unsaved replacement refusal before any persistence retry (0.237676ms)
+✔ a legacy acknowledgement returns a known authored refusal without saving success (0.164997ms)
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (9201.416601ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (7245.341926ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (7081.158873ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✖ W5 confirmation N3: another owner's durable receipt still notifies this client once (5217.394201ms)
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1404.213069ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1297.390122ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ sequence by wasm: two offline Write results remain pending until settled (1169.123609ms)
+✔ sequence by process: two offline Write results remain pending until settled (1133.905935ms)
+✔ sequence by wasm: provisional rule refusal queues for the server (4193.916949ms)
+✔ sequence by wasm: provisional require refusal queues for the server (4194.912768ms)
+✔ sequence by wasm: provisional constraint refusal queues for the server (5093.695024ms)
+✔ sequence by wasm: provisional named constraint refusal queues for the server (4196.835736ms)
+✔ sequence by wasm: provisional postcondition refusal queues for the server (4213.884126ms)
+✔ sequence by wasm: provisional sequence key refusal queues for the server (4196.900991ms)
+✔ sequence by wasm: provisional old refusal queues for the server (5100.233592ms)
+✔ sequence by wasm: provisional empty index refusal queues for the server (4196.914188ms)
+✔ sequence by wasm: provisional cap group refusal queues for the server (4193.663148ms)
+✔ sequence by wasm: provisional upsert index refusal queues for the server (4177.296187ms)
+✔ sequence by wasm: provisional postcondition index refusal queues for the server (4207.303123ms)
+✔ sequence by wasm: point preserves prediction metadata and authority (177.244982ms)
+✔ sequence by wasm: page preserves prediction metadata and authority (176.711592ms)
+✔ sequence by wasm: short circuit preserves prediction metadata and authority (174.411994ms)
+✔ sequence by wasm: unique independent preserves prediction metadata and authority (173.393217ms)
+✔ sequence by wasm: cap independent preserves prediction metadata and authority (172.426858ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 46
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153992.078465
+
+✖ failing tests:
+
+test at packages/snapback4/test/acquisition.test.mjs:22:55
+✖ W5 confirmation N3: another owner's durable receipt still notifies this client once (5217.394201ms)
+  TypeError: Cannot read properties of undefined (reading 'sent_seq')
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/acquisition.test.mjs:524:53)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

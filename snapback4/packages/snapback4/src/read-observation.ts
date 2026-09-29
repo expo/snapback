@@ -38,8 +38,9 @@ export function revalidatingAnswer<T>(read: Read<T>, bounded = false, pending?: 
   if (!("data" in read)) return read;
   const blocked = pending ?? answerObservation(read)?.pending?.() ?? pendingRead(read);
   const next = readyExistence(read, blocked);
-  if (read.revalidating && (!bounded || episodeDeadline(read) !== undefined)
-    && read.existence === next && (next === "present" || pendingRead(read) === blocked)) return read;
+  if (read.revalidating && read.existence === next && (next === "present" || pendingRead(read) === blocked)) {
+    beginEpisode(read, read, bounded); return read;
+  }
   const copy = copyAnswer<T>(read, readyRead<T>({ ...read, revalidating: true }, blocked));
   beginEpisode(read, copy, bounded);
   return copy;
@@ -80,6 +81,7 @@ export class ReadObservation<T> {
   snapshot: Read<T> = { loading: true };
   kept = false;
   resetVersion = 0;
+  expiredServerDeadline: number | undefined;
   deadlines: ReadDeadlines | undefined;
   expiryTimer: ReturnType<typeof setTimeout> | null = null;
   since: number | undefined;
@@ -88,6 +90,7 @@ export class ReadObservation<T> {
   // @ref LLP 3000.019#3.3 — facade holds belong to this live watch and end with its scope.
   readonly followers = new Set<(change: "answer" | "reset" | "expiry") => (() => void) | void>();
   private revision = 0;
+  private changePending = false;
 
   read(denied: Refusal | null): Read<T> {
     if (denied && (!("denied" in this.snapshot) || this.snapshot.denied.code !== denied.code)) this.reset({ denied });
@@ -100,9 +103,10 @@ export class ReadObservation<T> {
   }
 
   async fetch<R extends { read: Read<T>; transportOffline?: boolean }>(run: () => Promise<R>, notify: () => void,
-    { retain, publishResult = true, accept = (_: R) => true }: { retain?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
-    if (retain !== false && this.retain) this.reload();
-    else this.publish({ loading: true });
+    { retain, revalidate = true, publishResult = true, accept = (_: R) => true }: { retain?: boolean; revalidate?: boolean; publishResult?: boolean; accept?: (result: R) => boolean } = {}): Promise<R & { retryExhausted?: boolean }> {
+    // A held-only expiry refresh preserves the raw answer; explicit expiry retries still withdraw.
+    if (retain === false) this.publish({ loading: true });
+    else if (revalidate) this.reload();
     const revision = this.revision;
     notify();
     try {
@@ -120,6 +124,7 @@ export class ReadObservation<T> {
           await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
           // Close/reset may happen during backoff, before another request starts.
           if (revision !== this.revision) return { ...result, read: this.snapshot };
+          if (this.kept) this.reload(); // A retry starts an episode deferred by in-flight invalidation.
           result = await run();
           continue;
         }
@@ -138,14 +143,15 @@ export class ReadObservation<T> {
     }
   }
 
-  // @ref LLP 3000.023#10 — all change evidence starts a bounded episode.
-  reload(bounded = false): void {
+  // @ref LLP 3000.023#10 — queued change evidence starts its bound at attempt execution.
+  reload(bounded = false, { queued = false }: { queued?: boolean } = {}): void {
+    this.changePending ||= bounded;
     this.read(null);
     if (!this.retain || !("data" in this.snapshot)) {
       if (!("loading" in this.snapshot)) this.publish({ loading: true });
       return;
     }
-    this.snapshot = revalidatingAnswer(this.snapshot, bounded, this.pending?.());
+    this.snapshot = revalidatingAnswer(this.snapshot, !queued && this.changePending, this.pending?.());
     this.kept = true;
     this.episode.arm(this.snapshot);
     this.deliver("answer")();
@@ -164,7 +170,7 @@ export class ReadObservation<T> {
       this.transportOffline = true;
       this.snapshot = offlineAnswer(this.snapshot, this.since);
     }
-    this.reload();
+    this.reload(false, { queued: true });
   }
 
   publish(read: Read<T>): void { this.replace(read); }
@@ -176,6 +182,7 @@ export class ReadObservation<T> {
 
   private replace(read: Read<T>, change: "answer" | "reset" | "expiry" = "answer", deferred = false): () => void {
     this.revision++;
+    this.changePending = false;
     this.episode.clear();
     // Every replacement classifies its own value and facts, never the previous answer.
     // @ref LLP 3000.031#1.1 — existence is recomputed on each published answer.
@@ -193,7 +200,7 @@ export class ReadObservation<T> {
     return deliver;
   }
 
-  reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; return this.replace(read, "reset", deferred); }
+  reset(read: Read<T>, deferred = false): () => void { this.resetVersion++; this.expiredServerDeadline = undefined; return this.replace(read, "reset", deferred); }
   // @ref LLP 3000.023#3.6 — source expiry withdraws its facade hold in the sweep's notification phase.
   expire(): () => void { this.resetVersion++; return this.replace({ loading: true }, "expiry", true); }
 }

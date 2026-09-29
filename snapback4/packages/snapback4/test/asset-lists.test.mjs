@@ -265,7 +265,7 @@ for (const tier of ["native", "wasm"]) for (const [placed, fromOnce] of [[false,
   const options = { url: f.url, persona: "bob", device: { async open(...args) { core = await device.open(...args); return core; } }, waitSeconds: 1, assets: { keep: "viewed", maxBytes: 10000 }, fetch: async (input, init) => {
     if (offline) throw Error("offline");
     const response = await fetch(String(input).replace(f.url, url), init);
-    if (hold && String(input).endsWith(`/assets/${f.a.id}`) && response.status === 200) {
+    if (hold && String(input).endsWith(`/assets/${f.a.id}`) && response.ok) {
       hold = false;
       assert.equal(response.headers.get("accept-ranges"), fromOnce ? "none" : "bytes");
       // Finish the authorized network transfer, but withhold it from the client.

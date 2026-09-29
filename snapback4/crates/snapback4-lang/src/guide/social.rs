@@ -15,14 +15,23 @@ npx snapback4 dev
 
 The installed README explains native, Expo Go and web setup. Its Quarry file
 keeps profiles, follows, Following, likes, retained conversations/messages,
-SDK delivery reporting, typing, ordinary images and once images together.
+DMs, SDK delivery reporting, typing, ordinary images and once images together.
 History uses `where .conversation = conversation` on its explicit horizon
 index, as `guide sync` teaches; receipt pages share its index and cursor.
 Likes declare owner-key coverage and use ordinary `exists likes[post, viewer]`;
 unknown coverage stays loading. See `guide offline-interactions`. Search uses
 one ordinary query per scope, combining current server and retained device
-hits online. `usePage` accumulates by message ID; only `complete: false` shows
+hits online. `usePage` accumulates by message ID; only `existence(page.read) === "partial"` shows
 “Partial results”. Conversation and time are immutable. See `guide search`.
+
+## Background notifications
+
+`snapback/workers/notifications.mjs` declares a supervised worker for dev and
+serve, with `ledger: true` and an injected service token. Connect its provider
+handler and pass `meta.idempotencyKey`; the completion ledger cannot close the
+crash window after provider I/O but before its commit. The starter declares
+`notify` but emits nothing until you wire that behavior. `guide effects` shows
+the provider call and `doctor` shows the worker's state.
 
 ## Typing on the online arm
 
@@ -66,14 +75,42 @@ media keep its known deadline ticking through loading (`guide client`).
 The Router pins conversation to the URL ID, even after its inbox membership
 disappears. Mount this screen keyed by that ID within AppProvider. The composer
 and once viewer sit above transient query states. Room and history choose the
-default bounded one-second revalidating retention, independently of immediately
-withdrawing decorations. No application state caches protected rows.
+SDK default: plain revalidation retains; change evidence bounds it to one second
+after the replacement attempt starts. Decorations withdraw immediately. No application state caches protected rows.
 Loading, refusal and retained history leave draft and focus owned by the same
-screen; identity reset still clears them. Revalidating/retained answers grant
-no action authority. Missing membership disables Send, while server rules
-decide writes. The SDK reports delivery; the screen reports only visible seen
+screen; identity reset still clears them. Revealing/consuming protected content
+needs a current answer. Queueing a durable write needs no membership answer:
+only `denied`, or `existence(member) === "absent"` when fresh and not revalidating, disables Send.
+Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable. The SDK reports delivery; the screen reports only visible seen
 positions. The starter passes foreground and navigation visibility explicitly.
 
 ```tsx
 // src/Conversation.tsx
-"##, include_str!("../../../snapback4/src/verbs/init/social/Conversation.tsx"), "```\n");
+"##, include_str!("../../../snapback4/src/verbs/init/social/Conversation.tsx"), r##"```
+
+## Direct messages and route resolution
+
+Profile's Message button opens `app/dm/[other].tsx`, which mounts `src/Direct.tsx`.
+It waits for a complete, non-revalidating lookup; loading never means absence.
+`directChats` holds two immutable unique `(owner, peer)` rows per DM, synced to
+owner without a horizon. Each participant can resolve their held DMs offline,
+even after leaving; the ID grants no content access or new membership.
+`openDirect` checks the caller's key and inserts both keys and memberships in
+one server transaction. Concurrent opens return the same ID. With the caller's key
+partition acquired, creation predicts; absent coverage queues without rows.
+A prediction cannot know a concurrent server winner: settlement still decides.
+
+```tsx
+// src/Direct.tsx
+"##, include_str!("../../../snapback4/src/verbs/init/social/Direct.tsx"), r##"```
+
+After custody, navigation pins the minted conversation ID with the opening write
+ID. `app/conversation/[id].tsx` observes that write and the replicated lookup:
+a replay may lack a result. Settlement uses `router.setParams({ id })` to replace
+the URL ID without replacing the screen. Its `opening` key keeps the composer;
+history changes keys and reads current rows. No answer is cached in a ref.
+An offline send to a provisional ID may be refused if the server chose another
+conversation; saving the send also saves its peer in account/backend-scoped storage.
+One lookup by the current conversation resolves its links on reopen, showing Edit/Dismiss.
+The last send's success or dismissal removes its link; openings alone save none. Admitted arguments stay unchanged.
+"##);

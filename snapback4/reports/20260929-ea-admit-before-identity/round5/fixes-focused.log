@@ -1,0 +1,20 @@
+✔ process generation at ordinary admission refuses unsent (243.933213ms)
+✔ process incarnation at ordinary admission refuses unsent (223.113518ms)
+✔ timely identity does not expire behind an earlier ordinary admission (3.369049ms)
+✔ final identity I/O keeps only the remaining deadline (queued=false) (1.573829ms)
+✔ final identity I/O keeps only the remaining deadline (queued=true) (1.424134ms)
+✔ temporary unreadiness after first identification continues the bounded wait (1.571035ms)
+✔ browser transaction rejects backend replacement after synchronous capture (wasm) (1337.5ms)
+✔ browser transaction rejects backend replacement after synchronous capture (Worker) (1214.149615ms)
+✔ FIFO wait behind identity I/O consumes the identity budget (2.449862ms)
+✔ browser transaction checks generation independently of backend (wasm) (1022.792462ms)
+✔ browser transaction checks generation independently of backend (Worker) (1075.552208ms)
+✔ FIFO deadline counts identity gaps between ordinary admissions (1.943533ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5289.975685

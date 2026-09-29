@@ -84,7 +84,7 @@ impl Runner<'_> {
         let definition = &self.schema.tables[table];
         let Some(sync) = &definition.sync else { return Ok(false) };
         if sync.horizon.is_some() || self.tx.retained_group(table, index, key)? { return Ok(false); }
-        let pinned: std::collections::BTreeMap<_, _> = definition.index(index).expect("validated index").columns().into_iter().zip(key).collect();
+        let pinned: std::collections::BTreeMap<_, _> = crate::small_map::collect(definition.index(index).expect("validated index").columns().into_iter().zip(key));
         match &sync.audience {
             Audience::Public => Ok(true),
             Audience::Column(column) => Ok(pinned.get(column).is_some_and(|value| value.as_str() == Ok(self.context.viewer.as_str()))),

@@ -1,0 +1,3978 @@
+[
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/before-install-stderr.log",
+    "path": "raw/a-ownbuild-1/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/before-install-stdout.log",
+    "path": "raw/a-ownbuild-1/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/build-settings.log",
+    "path": "raw/a-ownbuild-1/build-settings.log.gz",
+    "bytes": 91904,
+    "sha256": "11d48f6e4b8234aadcf14a22d228159a733057ff05ec74859fa4899a5778f776",
+    "gzipBytes": 12260,
+    "gzipSha256": "4f2a55acccc73489676958d022c2da0540bbe94133cba80fac2c5dc2de44af9e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/build.json",
+    "path": "raw/a-ownbuild-1/build.json.gz",
+    "bytes": 10353101,
+    "sha256": "d36c8dda72ac621dc3c5d1e4b256c0fcc387d8e1b1587c2a96dc0d060e604718",
+    "gzipBytes": 1854833,
+    "gzipSha256": "0cad7292f7cf058b2b139442abd1f478e606a6a12edb243d8f5ac1da545db4cc"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/fingerprint-after.log",
+    "path": "raw/a-ownbuild-1/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/fingerprint-before.log",
+    "path": "raw/a-ownbuild-1/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/hermes-version.log",
+    "path": "raw/a-ownbuild-1/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/install-check.mjs",
+    "path": "raw/a-ownbuild-1/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/installed.json",
+    "path": "raw/a-ownbuild-1/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "54ba687db1a6515651e91c0c16162cce033333c7d6b945c5a3de6ef501ccfb67",
+    "gzipBytes": 5299,
+    "gzipSha256": "24e782e01e8a38c378f40ca4df475d20b185aae8e36cd56b86f6accc37c12150"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/payload.mjs",
+    "path": "raw/a-ownbuild-1/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/plist-13.log",
+    "path": "raw/a-ownbuild-1/plist-13.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/pod-version.log",
+    "path": "raw/a-ownbuild-1/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/pods.log",
+    "path": "raw/a-ownbuild-1/pods.log.gz",
+    "bytes": 15992,
+    "sha256": "baf4f1f42410889d02a3229312baa33d412fb575d9854b45f28a3de424e8bc58",
+    "gzipBytes": 2847,
+    "gzipSha256": "81dc17a9f9e1f53353093d910aeeae78fb64008e6eaad15c3bbad8fcc879386e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/preparation-phases.json",
+    "path": "raw/a-ownbuild-1/preparation-phases.json.gz",
+    "bytes": 8718,
+    "sha256": "29ff16ee0cda7197db441a8ddbbea156a1a68fc91a0a0208c16d99b7c7af47ba",
+    "gzipBytes": 1931,
+    "gzipSha256": "407f0445621f6134e246606e5ec6cb986d83c98dd8633a42c8e6ab7546139d90"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/preparation-stderr.log",
+    "path": "raw/a-ownbuild-1/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/preparation-stdout.log",
+    "path": "raw/a-ownbuild-1/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/prepare.mjs",
+    "path": "raw/a-ownbuild-1/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/preserve-app.log",
+    "path": "raw/a-ownbuild-1/preserve-app.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/proof.json",
+    "path": "raw/a-ownbuild-1/proof.json.gz",
+    "bytes": 101972,
+    "sha256": "4459808a0b9c8c71540fa329bf58ea2af2ce050155d5e1c4b1f6578531bd5bbc",
+    "gzipBytes": 18341,
+    "gzipSha256": "f795a4eb6a7b43c1986a85d2d6584dfc3e2acf061b02d3165790ae389b7b2761"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/public-config.log",
+    "path": "raw/a-ownbuild-1/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/resolved-native.json",
+    "path": "raw/a-ownbuild-1/resolved-native.json.gz",
+    "bytes": 16271018,
+    "sha256": "5c5d89903afbe7d51f922dc135d0f59a914b5c77caa4c8ac1ca8e0aa8351e3b2",
+    "gzipBytes": 2428772,
+    "gzipSha256": "08426602015fcb9c39564c5747b54a32828dca4a32801087f76fbb58db2735d1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/runtime.log",
+    "path": "raw/a-ownbuild-1/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "6fd048df26689dcf6dd427e3356b3f6a68d20acc70413a5c9a6aae531091287a",
+    "gzipBytes": 1254,
+    "gzipSha256": "47691f7e3fd87d937b776c4e26fbd1ddf80095f220eff106fe2089990ec82209"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/schemes.log",
+    "path": "raw/a-ownbuild-1/schemes.log.gz",
+    "bytes": 3364,
+    "sha256": "1f1328bdba19916749783c1b4c50bb4747dda2068d17003740e9064173303d37",
+    "gzipBytes": 931,
+    "gzipSha256": "faaf06b395392e88017c43b766a8eb9b1dd93458570c03a32fbe420c093d477a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/sdk-build.log",
+    "path": "raw/a-ownbuild-1/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/sdk-version.log",
+    "path": "raw/a-ownbuild-1/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-backend-stdout.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-backend.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-backend.log.gz",
+    "bytes": 14870,
+    "sha256": "03b23f8536062776942371e6089012283785650651a5c0ecac12dca638f67274",
+    "gzipBytes": 1368,
+    "gzipSha256": "e5d2defc9f25c8a9739f26aa401033e41b5c8559d64badd9bd3724025f7308a2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-device.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-device.log.gz",
+    "bytes": 27092912,
+    "sha256": "f067c978461446c2b48593101cd22ed092e6b3b00d37f4451ba33be48fcd2715",
+    "gzipBytes": 857097,
+    "gzipSha256": "202f59fd2121c80c7846eed8387e95641ee279864f6f824e9e836b7e360e7626"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-launch.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "f6b73910fe63cae7d947e75028212be32c4f5e1704f0bb6285f9a7d53b5673b8",
+    "gzipBytes": 57,
+    "gzipSha256": "25193411a406ee77cd35bae6d217badc28369ebd61692c82a48c1fe474912ba1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-log-stderr.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-receipts.jsonl",
+    "path": "raw/a-ownbuild-1/smoke-ios-receipts.jsonl.gz",
+    "bytes": 15760,
+    "sha256": "37b4fb20fea0ed9b9b85050b6af3ad1c84c47b0a41f39bf5ae1daabf0f49602c",
+    "gzipBytes": 2186,
+    "gzipSha256": "07badb0b8531e2cac8dcbd91d368fc688a0bc097385217e9331ae91bc4c23317"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-run.json",
+    "path": "raw/a-ownbuild-1/smoke-ios-run.json.gz",
+    "bytes": 26150,
+    "sha256": "bafd4414abfc66cf56187ef23aa003eecdf17815118e48b167b9f5828dcd014f",
+    "gzipBytes": 3292,
+    "gzipSha256": "38686e518c73bed883e9bad1037742639012fa9187a0692613e847e0351c4ba7"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/smoke-ios-video.log",
+    "path": "raw/a-ownbuild-1/smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/snapshot.log",
+    "path": "raw/a-ownbuild-1/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/source-inputs.json",
+    "path": "raw/a-ownbuild-1/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "2d14e6f4e948e1878f881b3be90219bfa4775a9e53c527f9c6a00e3aee4b292d",
+    "gzipBytes": 7401,
+    "gzipSha256": "7ed3672c713ed209e29eddf2624a57dde62651fb72b6f07c08780e61f5d39423"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-collection-stderr.log",
+    "path": "raw/a-ownbuild-1/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-collection-stdout.log",
+    "path": "raw/a-ownbuild-1/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-install-stderr.log",
+    "path": "raw/a-ownbuild-1/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-install-stdout.log",
+    "path": "raw/a-ownbuild-1/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-offline-stderr.log",
+    "path": "raw/a-ownbuild-1/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-offline-stdout.log",
+    "path": "raw/a-ownbuild-1/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-prime-stderr.log",
+    "path": "raw/a-ownbuild-1/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-prime-stdout.log",
+    "path": "raw/a-ownbuild-1/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-restart-stderr.log",
+    "path": "raw/a-ownbuild-1/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify-restart-stdout.log",
+    "path": "raw/a-ownbuild-1/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/verify.mjs",
+    "path": "raw/a-ownbuild-1/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/xcode-build.log",
+    "path": "raw/a-ownbuild-1/xcode-build.log.gz",
+    "bytes": 4050513,
+    "sha256": "e502455061b7810cc39d25e6003e46a67bd654172b3320cf43c686a516ae939f",
+    "gzipBytes": 476765,
+    "gzipSha256": "958c3f34074976816246eacd978e5cb7f57d2c9e47089eda9ff9ee704fd47421"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1/xcode-version.log",
+    "path": "raw/a-ownbuild-1/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1-command.json",
+    "path": "raw/a-ownbuild-1-command.json.gz",
+    "bytes": 1643,
+    "sha256": "b00004aa9de979b5a94cb71a32ddb797b1ad59bff8c4e4b007837b068cf3bbd2",
+    "gzipBytes": 653,
+    "gzipSha256": "0ddfd8557ace56a402b95c56f35dc21383b881936a741a4a8cb7d2eb02fc4e16"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/a-ownbuild-1.log",
+    "path": "raw/a-ownbuild-1.log.gz",
+    "bytes": 443,
+    "sha256": "ec53178eb35cfde6b22dc32cac99149e07acfaa208db77c9678927d886f7c841",
+    "gzipBytes": 213,
+    "gzipSha256": "94a9de57b208cd19edf10d54a2c231b202e4d532abd6e13ab8cfa8bea4976166"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/before-install-stderr.log",
+    "path": "raw/b-repack-1/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/before-install-stdout.log",
+    "path": "raw/b-repack-1/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/fingerprint-after.log",
+    "path": "raw/b-repack-1/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/fingerprint-before.log",
+    "path": "raw/b-repack-1/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/hermes-version.log",
+    "path": "raw/b-repack-1/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/install-check.mjs",
+    "path": "raw/b-repack-1/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/installed.json",
+    "path": "raw/b-repack-1/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/payload.mjs",
+    "path": "raw/b-repack-1/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/plist-11.log",
+    "path": "raw/b-repack-1/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/plist-12.log",
+    "path": "raw/b-repack-1/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/plist-9.log",
+    "path": "raw/b-repack-1/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/pod-version.log",
+    "path": "raw/b-repack-1/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/preparation-phases.json",
+    "path": "raw/b-repack-1/preparation-phases.json.gz",
+    "bytes": 7240,
+    "sha256": "47f0b53d23304fb29254b016a30cc19461bfc287bb54a091a6a2d94560e15aa6",
+    "gzipBytes": 1577,
+    "gzipSha256": "f457cfcfe45f1e7479eb7a9fe062cb0b744865911bd40e5885673054358c539b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/preparation-stderr.log",
+    "path": "raw/b-repack-1/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/preparation-stdout.log",
+    "path": "raw/b-repack-1/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/prepare.mjs",
+    "path": "raw/b-repack-1/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/proof.json",
+    "path": "raw/b-repack-1/proof.json.gz",
+    "bytes": 101987,
+    "sha256": "3e4b60d32a931faad9e2d1fccc92d0c8008545a00c7799658e6b696736e8ce9e",
+    "gzipBytes": 18367,
+    "gzipSha256": "d883e32f67c6b7e1da8080b5a73c5456e4209352e36999470c790e03e1e1b6c5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/public-config.log",
+    "path": "raw/b-repack-1/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-backend.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-backend.log.gz",
+    "bytes": 4082,
+    "sha256": "54511847e47b5d8430d59dbe7028ea302e0110014154d41fafdc18a0351d7c0f",
+    "gzipBytes": 859,
+    "gzipSha256": "ec8e5b508fcb506d7b97dd6a3da648756ba0d7fb9861157ab0c30af941170412"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-device.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-device.log.gz",
+    "bytes": 13622977,
+    "sha256": "4cfe3c97df8894935366aaef465be128b0b01ec01337fb7e8fdf02b751377c45",
+    "gzipBytes": 494957,
+    "gzipSha256": "b500f8dacadb4367eeaf1b33b4e162802f32b158e82efa544257a44f5c7c5e5e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-launch.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "fd22e9dd823c51fdef4dbde5596aacfd0e3168d0adba9472742383e2b6210657",
+    "gzipBytes": 58,
+    "gzipSha256": "3fcdfe0464e5ca82e46783e337dcffb218c0f6a5ccd141ebef6d0cec80870044"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-log-stderr.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/b-repack-1/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "225fa0363af672a72ee46b04f23d647f5d2db0ee5ada78f0add01a8e2a04c826",
+    "gzipBytes": 2222,
+    "gzipSha256": "33c591aef094bdbea8ba6497f58c2777d9f47c2e708f0d1c865ce4421407df72"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-run.json",
+    "path": "raw/b-repack-1/repack-smoke-ios-run.json.gz",
+    "bytes": 26292,
+    "sha256": "4a7638da8e2e1a5940cdf9411e85d2c10c3433c54c1d949d1eb05e4a2d9b2a31",
+    "gzipBytes": 3297,
+    "gzipSha256": "58f95264ceb5fa67c57f5fbf6f5708bfac57ae4459280d423bbce8ba25b25372"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack-smoke-ios-video.log",
+    "path": "raw/b-repack-1/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack.json",
+    "path": "raw/b-repack-1/repack.json.gz",
+    "bytes": 10269737,
+    "sha256": "031e1da8ff69590812192c820f7bc9859375d7ffb81b4b897e4e4dbf89eeffbf",
+    "gzipBytes": 1841912,
+    "gzipSha256": "39014cabe0bec85fba67b3e8befef0dffd0b838fb98defc40bfefb051abf4af6"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/repack.log",
+    "path": "raw/b-repack-1/repack.log.gz",
+    "bytes": 288,
+    "sha256": "062790a7f43084e53f200ab5643e30e811ce831661b114217a22c91196301d72",
+    "gzipBytes": 207,
+    "gzipSha256": "ef143ed4412b541c4f9eef39283d0bfb5471d34e94a5a5cd922f79b6e7e1741a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/resolved-native.json",
+    "path": "raw/b-repack-1/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/runtime.log",
+    "path": "raw/b-repack-1/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "43f33142a0e75c2ee0f085c147f82dc153306ee34f2fe0a925cfde90715a38f7",
+    "gzipBytes": 1254,
+    "gzipSha256": "54e431534bee7f9b5dbbdd8ad6639b4ef31c8aefb5bd85125476fc6ac03a0038"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/sdk-build.log",
+    "path": "raw/b-repack-1/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/sdk-version.log",
+    "path": "raw/b-repack-1/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/snapshot.log",
+    "path": "raw/b-repack-1/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/source-inputs.json",
+    "path": "raw/b-repack-1/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-collection-stderr.log",
+    "path": "raw/b-repack-1/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-collection-stdout.log",
+    "path": "raw/b-repack-1/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-install-stderr.log",
+    "path": "raw/b-repack-1/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-install-stdout.log",
+    "path": "raw/b-repack-1/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-offline-stderr.log",
+    "path": "raw/b-repack-1/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-offline-stdout.log",
+    "path": "raw/b-repack-1/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-prime-stderr.log",
+    "path": "raw/b-repack-1/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-prime-stdout.log",
+    "path": "raw/b-repack-1/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-restart-stderr.log",
+    "path": "raw/b-repack-1/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify-restart-stdout.log",
+    "path": "raw/b-repack-1/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/verify.mjs",
+    "path": "raw/b-repack-1/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1/xcode-version.log",
+    "path": "raw/b-repack-1/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1-command.json",
+    "path": "raw/b-repack-1-command.json.gz",
+    "bytes": 1732,
+    "sha256": "b4a01420621cf235f95b8f3d1af98bcc2538bc412c76f05eec4e71c61c132309",
+    "gzipBytes": 672,
+    "gzipSha256": "a2eb29f57fecc66a753a8d1112841c7ab867125952b3ebd13894168932a4cf39"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-1.log",
+    "path": "raw/b-repack-1.log.gz",
+    "bytes": 455,
+    "sha256": "2509470226382c788eea3738aff3872bb6b63a1de439a8d06be43312408eca95",
+    "gzipBytes": 215,
+    "gzipSha256": "0c6cfeadb2fa587d979a7600d275b33443b6db6109cd2154a8472a0769c63bed"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/before-install-stderr.log",
+    "path": "raw/b-repack-2/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/before-install-stdout.log",
+    "path": "raw/b-repack-2/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/fingerprint-after.log",
+    "path": "raw/b-repack-2/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/fingerprint-before.log",
+    "path": "raw/b-repack-2/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/hermes-version.log",
+    "path": "raw/b-repack-2/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/install-check.mjs",
+    "path": "raw/b-repack-2/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/installed.json",
+    "path": "raw/b-repack-2/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/payload.mjs",
+    "path": "raw/b-repack-2/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/plist-11.log",
+    "path": "raw/b-repack-2/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/plist-12.log",
+    "path": "raw/b-repack-2/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/plist-9.log",
+    "path": "raw/b-repack-2/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/pod-version.log",
+    "path": "raw/b-repack-2/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/preparation-phases.json",
+    "path": "raw/b-repack-2/preparation-phases.json.gz",
+    "bytes": 7238,
+    "sha256": "fe5e5fa03bfced9ad1320dc3bf52d8eb7713cef51f1ae3205f69d25f7f2f8845",
+    "gzipBytes": 1576,
+    "gzipSha256": "8298bcc4aa373a3970b06baea776b59d7c149754270c83cd9b8d6da33b095f7d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/preparation-stderr.log",
+    "path": "raw/b-repack-2/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/preparation-stdout.log",
+    "path": "raw/b-repack-2/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/prepare.mjs",
+    "path": "raw/b-repack-2/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/proof.json",
+    "path": "raw/b-repack-2/proof.json.gz",
+    "bytes": 101987,
+    "sha256": "82a71a6765404c896751ad808ceff99ff48fd980a1789a5bb987988651e24587",
+    "gzipBytes": 18366,
+    "gzipSha256": "a9759932926b4cafbe7e6d7eeb3470336f47781a4009049dcc9d1557f38642b6"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/public-config.log",
+    "path": "raw/b-repack-2/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-backend.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-backend.log.gz",
+    "bytes": 4024,
+    "sha256": "c85c173d739d8c60d51afc34b1ac5409c57fdaf857c8602071d81df4e75cd184",
+    "gzipBytes": 818,
+    "gzipSha256": "e7533130af35976a787bc8452b5f4aeaea4c165a3462607c470b1704b56642e7"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-device.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-device.log.gz",
+    "bytes": 13665553,
+    "sha256": "cf6108917bd8d4d081747d994da85fbb2fd3d99b8fc8fc213302ce5c301686e6",
+    "gzipBytes": 498532,
+    "gzipSha256": "fbe3e3a082f62afc5cf46d28cf3f7bbb468f9bd073b34d1559403a7ab227884f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-launch.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "c96a08061ad89c722f90e0023c1c87712bc33c7056bee6afd5bf95fcb635c47c",
+    "gzipBytes": 56,
+    "gzipSha256": "cca97ca65d943df24c039153eb60edfb00614a449c90b1a19e57163bd9e6661e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-log-stderr.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/b-repack-2/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "65dc3e4fa5a615fe47bb7ddca666366756cb71e67c6e776290bcd465cd04fc8b",
+    "gzipBytes": 2235,
+    "gzipSha256": "2513e370d74ab52d16e5883f7a13ae7bfa4aeb6fc81e9d09fbe7af703387d524"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-run.json",
+    "path": "raw/b-repack-2/repack-smoke-ios-run.json.gz",
+    "bytes": 26291,
+    "sha256": "e1ffe8d313f7f4a4ee23054d6b617a69072fd36d131162492372e530b8139a85",
+    "gzipBytes": 3300,
+    "gzipSha256": "2b63571ab318e4371dbe0c09c951d696ccb01cb1876ad4a0e174975b650dabe9"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack-smoke-ios-video.log",
+    "path": "raw/b-repack-2/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack.json",
+    "path": "raw/b-repack-2/repack.json.gz",
+    "bytes": 10269735,
+    "sha256": "1b996da57fea28986c7660b0d47fdb55618620e551659fd08c65159f9a029470",
+    "gzipBytes": 1841911,
+    "gzipSha256": "f7695e9f343d92489c931f8d11b87491f2861df309096a261415fab06ab5e58f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/repack.log",
+    "path": "raw/b-repack-2/repack.log.gz",
+    "bytes": 288,
+    "sha256": "613308395056a89ca354a37256f3e9a8dcfe5c11a7e070fc5bba54794696ef82",
+    "gzipBytes": 205,
+    "gzipSha256": "5a8fc2958c6e54e67844358bf4935cd62ca7118bf6a9eb0b51c8f3e94a0d682d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/resolved-native.json",
+    "path": "raw/b-repack-2/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/runtime.log",
+    "path": "raw/b-repack-2/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "7e43f25823746427fd863b5e6f09754c80ef931dbb83610fb9843d2d2caceea8",
+    "gzipBytes": 1253,
+    "gzipSha256": "da8311204516d1240e0c4d139cb918ffb828f9f9fa1a6984a7817c1302272faf"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/sdk-build.log",
+    "path": "raw/b-repack-2/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/sdk-version.log",
+    "path": "raw/b-repack-2/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/snapshot.log",
+    "path": "raw/b-repack-2/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/source-inputs.json",
+    "path": "raw/b-repack-2/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-collection-stderr.log",
+    "path": "raw/b-repack-2/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-collection-stdout.log",
+    "path": "raw/b-repack-2/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-install-stderr.log",
+    "path": "raw/b-repack-2/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-install-stdout.log",
+    "path": "raw/b-repack-2/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-offline-stderr.log",
+    "path": "raw/b-repack-2/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-offline-stdout.log",
+    "path": "raw/b-repack-2/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-prime-stderr.log",
+    "path": "raw/b-repack-2/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-prime-stdout.log",
+    "path": "raw/b-repack-2/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-restart-stderr.log",
+    "path": "raw/b-repack-2/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify-restart-stdout.log",
+    "path": "raw/b-repack-2/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/verify.mjs",
+    "path": "raw/b-repack-2/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2/xcode-version.log",
+    "path": "raw/b-repack-2/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2-command.json",
+    "path": "raw/b-repack-2-command.json.gz",
+    "bytes": 1732,
+    "sha256": "3f38f70b97cdde2fa2f491b976b4b70c249cd5470790c13eab96b63c98b4daab",
+    "gzipBytes": 673,
+    "gzipSha256": "e32990d47cbf282ad9cba34c87c511a2fa222f23642ed7b7d766a62c56e6afa5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-2.log",
+    "path": "raw/b-repack-2.log.gz",
+    "bytes": 455,
+    "sha256": "e74cb6d87fe4657a017a872253a887fe47b77eced0d42abbdd61ff275b1f0719",
+    "gzipBytes": 215,
+    "gzipSha256": "6a76f4cecb87f2376f6fe3ca3a202241f6ddc9611a32a8b0c0c57fa70b827ae8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/before-install-stderr.log",
+    "path": "raw/b-repack-3/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/before-install-stdout.log",
+    "path": "raw/b-repack-3/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/fingerprint-after.log",
+    "path": "raw/b-repack-3/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/fingerprint-before.log",
+    "path": "raw/b-repack-3/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/hermes-version.log",
+    "path": "raw/b-repack-3/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/install-check.mjs",
+    "path": "raw/b-repack-3/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/installed.json",
+    "path": "raw/b-repack-3/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/payload.mjs",
+    "path": "raw/b-repack-3/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/plist-11.log",
+    "path": "raw/b-repack-3/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/plist-12.log",
+    "path": "raw/b-repack-3/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/plist-9.log",
+    "path": "raw/b-repack-3/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/pod-version.log",
+    "path": "raw/b-repack-3/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/preparation-phases.json",
+    "path": "raw/b-repack-3/preparation-phases.json.gz",
+    "bytes": 7243,
+    "sha256": "da740e573e71cc97e5f7e2f7b11ec6f35f80197cfa82c48dbce46bb561021939",
+    "gzipBytes": 1584,
+    "gzipSha256": "6ad8e6e3e7810c4d714a3d2b3e409869d6b16ef82c885c8fd9f8e108393813f3"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/preparation-stderr.log",
+    "path": "raw/b-repack-3/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/preparation-stdout.log",
+    "path": "raw/b-repack-3/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/prepare.mjs",
+    "path": "raw/b-repack-3/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/proof.json",
+    "path": "raw/b-repack-3/proof.json.gz",
+    "bytes": 101987,
+    "sha256": "0b240b556891fa9aeac9f244a148f9133c7c6c9af0025c8ce0aaab8b568c45aa",
+    "gzipBytes": 18368,
+    "gzipSha256": "d8baf49368351a2366dbf4f3bdede8237209864574433b0d2aaca4226bc45c11"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/public-config.log",
+    "path": "raw/b-repack-3/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-backend.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-backend.log.gz",
+    "bytes": 4082,
+    "sha256": "bbb5f0b37d6235a25a5cf4ba95e5201b8c6d4683dcb43c755a9842fb224a0a32",
+    "gzipBytes": 858,
+    "gzipSha256": "6483c2dd288b4eeb79b2c3d5bd22817fad8d71df87812d24f829105f4ab97ae8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-device.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-device.log.gz",
+    "bytes": 13671094,
+    "sha256": "a3435b83265e065c82cc152e220a11e153b4e2c79a220feb7e5eb7189cb10a4f",
+    "gzipBytes": 496909,
+    "gzipSha256": "b582cc5600648598347474151658ca8934604ea0e5c733f355d0fe7aa1a6d49a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-launch.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "ed8319e9fa92fb4b0adddaaeb1763af36b50d110ad1cb3882782710f1e2e381a",
+    "gzipBytes": 58,
+    "gzipSha256": "acbf875bc32cee7a52426010606ca6d339d1b6fddbe9d637b2f3748d5fdcd593"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-log-stderr.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/b-repack-3/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "02099112b16452ba52a20f56ae533225e5f626295424c44a2dafea457dffeac0",
+    "gzipBytes": 2212,
+    "gzipSha256": "de140a2e5ac9195789c03d975388310fc812a267d6734d520d199d2192b0a5c0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-run.json",
+    "path": "raw/b-repack-3/repack-smoke-ios-run.json.gz",
+    "bytes": 26292,
+    "sha256": "224f19959ad95c7b6f8b80a6d294f2403a4e97253c029e312d6043972425dfa4",
+    "gzipBytes": 3299,
+    "gzipSha256": "5589b389a965f40deb289cc1547e05dc0b93dfaf06f87b68f01ce28e2edc71b3"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack-smoke-ios-video.log",
+    "path": "raw/b-repack-3/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack.json",
+    "path": "raw/b-repack-3/repack.json.gz",
+    "bytes": 10269740,
+    "sha256": "5f83142b9bd908b4b398d6d4970c01b11a95aa687d4bcf43410edcdeb5cf8c16",
+    "gzipBytes": 1841922,
+    "gzipSha256": "a6d0d5271fcbdc1c5659686ed2e41257c43413c1cd896dc2efda0b84e96ede9f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/repack.log",
+    "path": "raw/b-repack-3/repack.log.gz",
+    "bytes": 291,
+    "sha256": "291ecb9ccdc90ae409ccf0a1966e9489c929f5e0fc877c4dfa8f9f9093145ba2",
+    "gzipBytes": 209,
+    "gzipSha256": "dd48a0ad9fe3e8868ed6a2fae891fb58d6310da99f262aa3a528195f674fecdf"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/resolved-native.json",
+    "path": "raw/b-repack-3/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/runtime.log",
+    "path": "raw/b-repack-3/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "46d35b26a83119262523b5931b5e8ee91ea4f1b7513515d6bf9c3bd36ab7ff77",
+    "gzipBytes": 1254,
+    "gzipSha256": "d4ae883f6240b7cfe334d45dc679ee3579265255636fe1d35185f35721e62c36"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/sdk-build.log",
+    "path": "raw/b-repack-3/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/sdk-version.log",
+    "path": "raw/b-repack-3/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/snapshot.log",
+    "path": "raw/b-repack-3/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/source-inputs.json",
+    "path": "raw/b-repack-3/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-collection-stderr.log",
+    "path": "raw/b-repack-3/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-collection-stdout.log",
+    "path": "raw/b-repack-3/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-install-stderr.log",
+    "path": "raw/b-repack-3/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-install-stdout.log",
+    "path": "raw/b-repack-3/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-offline-stderr.log",
+    "path": "raw/b-repack-3/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-offline-stdout.log",
+    "path": "raw/b-repack-3/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-prime-stderr.log",
+    "path": "raw/b-repack-3/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-prime-stdout.log",
+    "path": "raw/b-repack-3/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-restart-stderr.log",
+    "path": "raw/b-repack-3/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify-restart-stdout.log",
+    "path": "raw/b-repack-3/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/verify.mjs",
+    "path": "raw/b-repack-3/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3/xcode-version.log",
+    "path": "raw/b-repack-3/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3-command.json",
+    "path": "raw/b-repack-3-command.json.gz",
+    "bytes": 1732,
+    "sha256": "7eef0b792af7c56efb160f4146198799eaaa185d257e8499c7ed194a49a4f041",
+    "gzipBytes": 673,
+    "gzipSha256": "84fd42c0924ef301320a9e42de04890f7d5fb23ff4017859f20f78b6d6779790"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-3.log",
+    "path": "raw/b-repack-3.log.gz",
+    "bytes": 455,
+    "sha256": "a9a201b05c8fe59ca71d4320a2af5661231055c8001ee981f0755a447e125387",
+    "gzipBytes": 215,
+    "gzipSha256": "f08bb9892b11e45ae92e7a4588c5042dd73dc26bfd45695badeb4ada5fe74167"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/before-install-stderr.log",
+    "path": "raw/b-repack-4/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/before-install-stdout.log",
+    "path": "raw/b-repack-4/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/fingerprint-after.log",
+    "path": "raw/b-repack-4/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/fingerprint-before.log",
+    "path": "raw/b-repack-4/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/hermes-version.log",
+    "path": "raw/b-repack-4/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/install-check.mjs",
+    "path": "raw/b-repack-4/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/installed.json",
+    "path": "raw/b-repack-4/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/payload.mjs",
+    "path": "raw/b-repack-4/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/plist-11.log",
+    "path": "raw/b-repack-4/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/plist-12.log",
+    "path": "raw/b-repack-4/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/plist-9.log",
+    "path": "raw/b-repack-4/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/pod-version.log",
+    "path": "raw/b-repack-4/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/preparation-phases.json",
+    "path": "raw/b-repack-4/preparation-phases.json.gz",
+    "bytes": 7241,
+    "sha256": "e9341d8191ea670a0b29b9cc3ebd96187d12bea07ba00713cddd95b3d829036a",
+    "gzipBytes": 1582,
+    "gzipSha256": "15aeaacb774ad375ddd63faf6342d1ee65510c1000e0d25f69c6ba0073a7c0d2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/preparation-stderr.log",
+    "path": "raw/b-repack-4/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/preparation-stdout.log",
+    "path": "raw/b-repack-4/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/prepare.mjs",
+    "path": "raw/b-repack-4/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/proof.json",
+    "path": "raw/b-repack-4/proof.json.gz",
+    "bytes": 101987,
+    "sha256": "959a5b6a7816197107e787b87f0769ffb9dec6e9e917703bc3ac3385a251f195",
+    "gzipBytes": 18364,
+    "gzipSha256": "b44c04acc95df498ecf3ffcc1f6986d378fddd66377c7319c46537e3649ae232"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/public-config.log",
+    "path": "raw/b-repack-4/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-backend.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-backend.log.gz",
+    "bytes": 4024,
+    "sha256": "f21ed9d7fedacb2b0166e38ada83932db3b02201d1b929bcc4287f685fa74ec7",
+    "gzipBytes": 817,
+    "gzipSha256": "2d874473da66b0cf17afdd729ce01031413efc3239c448386eefc5c1e39f79db"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-device.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-device.log.gz",
+    "bytes": 13667163,
+    "sha256": "4df59cb0d04c64d14fb2fc2de837c4bbb85fbded9ef6eafffa0ab6c594b484ca",
+    "gzipBytes": 496431,
+    "gzipSha256": "ba7086e79dd4237d8df94950232fe9284105d0f22e0c22c2aa1da19f864fc718"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-launch.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "4cda6123dd9cacf13c38850777e30d0d6ff331526551d46be0c60cf2f938fc74",
+    "gzipBytes": 57,
+    "gzipSha256": "804ae648bbe7559106722e5df14800724f57830e97b7c9f40351662dc925e035"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-log-stderr.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/b-repack-4/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "39ad1bc79da8f19006595e63176232d4a1c6aac5e06a6a3f1c91fae1872fc57d",
+    "gzipBytes": 2223,
+    "gzipSha256": "82f4cb9bf49daa868a616b029827e43bb0f92cac185d31ef222790c3ee545d8e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-run.json",
+    "path": "raw/b-repack-4/repack-smoke-ios-run.json.gz",
+    "bytes": 26291,
+    "sha256": "e5d21264f45a16931f641b8c7cc2c928d4793c0f10adced2a4022631f91ad113",
+    "gzipBytes": 3303,
+    "gzipSha256": "50007249880ea1d42ad1950d273f19f0d5ec0596bcf951e04506a1aa49e341dd"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack-smoke-ios-video.log",
+    "path": "raw/b-repack-4/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack.json",
+    "path": "raw/b-repack-4/repack.json.gz",
+    "bytes": 10269738,
+    "sha256": "cde9f4970f1b9216f6af5b9e216e7b936580ccf4a2e216e1c69e65290c5e8351",
+    "gzipBytes": 1841915,
+    "gzipSha256": "afcc1dc7ecc8e758aa460c3119ce2155e326877b498788f8a28d13ce20e77a14"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/repack.log",
+    "path": "raw/b-repack-4/repack.log.gz",
+    "bytes": 291,
+    "sha256": "fdcfa071c6e0788439dd672795dbf2bbe23887fb7c8c336d737e75c1abd3d3df",
+    "gzipBytes": 208,
+    "gzipSha256": "0030363d7a567b0f3abb328ff8b1dd0e5d078180b977a5487e0e8edfa93e97cd"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/resolved-native.json",
+    "path": "raw/b-repack-4/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/runtime.log",
+    "path": "raw/b-repack-4/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "fa2a5419133b850e1c50474cee3c1a91e76918706f9e0dc8fba6da3a31885ae1",
+    "gzipBytes": 1253,
+    "gzipSha256": "4b43ac0efcff4c8e51e745a849af2a1e61fa4eb912be5e57e3fd385eddd43a6c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/sdk-build.log",
+    "path": "raw/b-repack-4/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/sdk-version.log",
+    "path": "raw/b-repack-4/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/snapshot.log",
+    "path": "raw/b-repack-4/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/source-inputs.json",
+    "path": "raw/b-repack-4/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-collection-stderr.log",
+    "path": "raw/b-repack-4/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-collection-stdout.log",
+    "path": "raw/b-repack-4/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-install-stderr.log",
+    "path": "raw/b-repack-4/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-install-stdout.log",
+    "path": "raw/b-repack-4/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-offline-stderr.log",
+    "path": "raw/b-repack-4/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-offline-stdout.log",
+    "path": "raw/b-repack-4/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-prime-stderr.log",
+    "path": "raw/b-repack-4/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-prime-stdout.log",
+    "path": "raw/b-repack-4/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-restart-stderr.log",
+    "path": "raw/b-repack-4/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify-restart-stdout.log",
+    "path": "raw/b-repack-4/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/verify.mjs",
+    "path": "raw/b-repack-4/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4/xcode-version.log",
+    "path": "raw/b-repack-4/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4-command.json",
+    "path": "raw/b-repack-4-command.json.gz",
+    "bytes": 1732,
+    "sha256": "b5a6d3a1873fc31118f76d545533e802bcb571801572a322431aaf130d6577df",
+    "gzipBytes": 674,
+    "gzipSha256": "d8a9cdf290e37ee91224df8108edcca1860dd6376ecc6cbc4774b152608e2164"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-4.log",
+    "path": "raw/b-repack-4.log.gz",
+    "bytes": 455,
+    "sha256": "f4f9ed3987b056bd478a216398dfe602d2db5a3e4c219d52e14c49889dbcdad9",
+    "gzipBytes": 215,
+    "gzipSha256": "19c7e687b5cfc85bf6f53cc37ddd30baff55b396368f78c3d66739f7c82c70ec"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/before-install-stderr.log",
+    "path": "raw/b-repack-5/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/before-install-stdout.log",
+    "path": "raw/b-repack-5/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/fingerprint-after.log",
+    "path": "raw/b-repack-5/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/fingerprint-before.log",
+    "path": "raw/b-repack-5/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/hermes-version.log",
+    "path": "raw/b-repack-5/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/install-check.mjs",
+    "path": "raw/b-repack-5/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/installed.json",
+    "path": "raw/b-repack-5/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/payload.mjs",
+    "path": "raw/b-repack-5/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/plist-11.log",
+    "path": "raw/b-repack-5/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/plist-12.log",
+    "path": "raw/b-repack-5/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/plist-9.log",
+    "path": "raw/b-repack-5/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/pod-version.log",
+    "path": "raw/b-repack-5/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/preparation-phases.json",
+    "path": "raw/b-repack-5/preparation-phases.json.gz",
+    "bytes": 7238,
+    "sha256": "c7eadda69525ed02c8ed6ca45811f7487949f6e4fefcc619d479f7719bed17e6",
+    "gzipBytes": 1583,
+    "gzipSha256": "7fbe2566411f18d79275e342ecaeda9c0c8500919f1c76d7379761094c6a9b25"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/preparation-stderr.log",
+    "path": "raw/b-repack-5/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/preparation-stdout.log",
+    "path": "raw/b-repack-5/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/prepare.mjs",
+    "path": "raw/b-repack-5/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/proof.json",
+    "path": "raw/b-repack-5/proof.json.gz",
+    "bytes": 101987,
+    "sha256": "1f3bcc0f9aeec04b94f4f810b1964cfebef7df245d87f3d262d9c32a08697f75",
+    "gzipBytes": 18365,
+    "gzipSha256": "51101e4a8f87e0efa0398ccf854de1c50b0cfa2513aa4aa3a7a1ad7bcef67c6b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/public-config.log",
+    "path": "raw/b-repack-5/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-backend.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-backend.log.gz",
+    "bytes": 4082,
+    "sha256": "a6850cf52c2d69a924dfcf843aa5650584ccfb36c4837d30ad307c09b7c862ec",
+    "gzipBytes": 859,
+    "gzipSha256": "503897ecc9d84680a7955b14f51dd207d388387e3c78b2f671a8fddffe60ae4a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-device.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-device.log.gz",
+    "bytes": 13616450,
+    "sha256": "38146944b77268e57e67ac79629ff1c3264de9537141272478cf2cafc39c6135",
+    "gzipBytes": 495279,
+    "gzipSha256": "76513453c570dc8b47292372f42822447f63e63d9623349d26ac442aef42b6de"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-launch.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "88bc9bff027c01155c1b264d40f43174621ad21ef9064323cb7371a253308b93",
+    "gzipBytes": 56,
+    "gzipSha256": "0dd678a1e1ea7fb273e7b6748cab182755c5a7dab201928c3086fa35379b6f43"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-log-stderr.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/b-repack-5/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "7063efa4f0bda945eafea66203b4972ec3444ebd0e5662f954563d9de4352857",
+    "gzipBytes": 2227,
+    "gzipSha256": "fbfeb47961bd100c2627d52d9ac9703060c59f7933a39fad41e4af1a8212d552"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-run.json",
+    "path": "raw/b-repack-5/repack-smoke-ios-run.json.gz",
+    "bytes": 26292,
+    "sha256": "ba3a8feab4f66d849b2bb7247937ce729d9a3322b4629d29d31dfe87a274a82a",
+    "gzipBytes": 3302,
+    "gzipSha256": "7b43b9c2af196afe665b7ac7a53da0e6a8d7abb17b997118789eaa38ef8271cc"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack-smoke-ios-video.log",
+    "path": "raw/b-repack-5/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack.json",
+    "path": "raw/b-repack-5/repack.json.gz",
+    "bytes": 10269735,
+    "sha256": "e3ee55f24b1473c92b1325a074ef36f6a4e6e3371cc23bd31cf8cb72efbacf3f",
+    "gzipBytes": 1841922,
+    "gzipSha256": "971f0d4f7a98a23bb875082134bdd7ee7a6e8328fe0426049c733127f4a5388a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/repack.log",
+    "path": "raw/b-repack-5/repack.log.gz",
+    "bytes": 289,
+    "sha256": "32104856a5e58f444e05dc837db4d2bd0ca933b03914f855866f15547acb5b30",
+    "gzipBytes": 207,
+    "gzipSha256": "dced0b69838a15469b4ebc0b90c7bcc050b8b029cb15ed826c30d49633518b54"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/resolved-native.json",
+    "path": "raw/b-repack-5/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/runtime.log",
+    "path": "raw/b-repack-5/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "6fef4fb89bb543ee02c34bbbf94d30141992dde1bb3f6318aef468a6c400bac8",
+    "gzipBytes": 1254,
+    "gzipSha256": "8d62cebd95efa62ec99167a93a933b4934bcab1dd98de85546f28e4d98a8f6d2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/sdk-build.log",
+    "path": "raw/b-repack-5/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/sdk-version.log",
+    "path": "raw/b-repack-5/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/snapshot.log",
+    "path": "raw/b-repack-5/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/source-inputs.json",
+    "path": "raw/b-repack-5/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-collection-stderr.log",
+    "path": "raw/b-repack-5/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-collection-stdout.log",
+    "path": "raw/b-repack-5/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-install-stderr.log",
+    "path": "raw/b-repack-5/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-install-stdout.log",
+    "path": "raw/b-repack-5/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-offline-stderr.log",
+    "path": "raw/b-repack-5/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-offline-stdout.log",
+    "path": "raw/b-repack-5/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-prime-stderr.log",
+    "path": "raw/b-repack-5/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-prime-stdout.log",
+    "path": "raw/b-repack-5/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-restart-stderr.log",
+    "path": "raw/b-repack-5/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify-restart-stdout.log",
+    "path": "raw/b-repack-5/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/verify.mjs",
+    "path": "raw/b-repack-5/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5/xcode-version.log",
+    "path": "raw/b-repack-5/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5-command.json",
+    "path": "raw/b-repack-5-command.json.gz",
+    "bytes": 1732,
+    "sha256": "9bb9df95765067f3904fbe4f67c020ba17f4fb03e849ce44486dd6f6a2f36125",
+    "gzipBytes": 671,
+    "gzipSha256": "57f45d6e182ad582c47a9242af1e5a26b2e4afd505478be1c5352983dfce8ffe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-repack-5.log",
+    "path": "raw/b-repack-5.log.gz",
+    "bytes": 455,
+    "sha256": "85bf82ef8c969bdcf728cd27a6f529518fa8b3794c39f1bfe74e7f572cbb9d5d",
+    "gzipBytes": 216,
+    "gzipSha256": "edcff43cfd756e4cc238090df4b5ce156178f4feca759ef9f3fe1cd520b02585"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/before-install-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/before-install-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/build-settings.log",
+    "path": "raw/b-warm-ownbuild-1/build-settings.log.gz",
+    "bytes": 91904,
+    "sha256": "11d48f6e4b8234aadcf14a22d228159a733057ff05ec74859fa4899a5778f776",
+    "gzipBytes": 12260,
+    "gzipSha256": "4f2a55acccc73489676958d022c2da0540bbe94133cba80fac2c5dc2de44af9e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/build.json",
+    "path": "raw/b-warm-ownbuild-1/build.json.gz",
+    "bytes": 10353115,
+    "sha256": "4560a16fc93b294b27c291fd2e57915e9a0f035eb6f65ceff4c881ebc9ef0512",
+    "gzipBytes": 1854808,
+    "gzipSha256": "26ce1438f4f53b6aa2d1ec27259a39c9da0446c6a5e403b9587e1aa604a8a03c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/fingerprint-after.log",
+    "path": "raw/b-warm-ownbuild-1/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/fingerprint-before.log",
+    "path": "raw/b-warm-ownbuild-1/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/hermes-version.log",
+    "path": "raw/b-warm-ownbuild-1/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/install-check.mjs",
+    "path": "raw/b-warm-ownbuild-1/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/installed.json",
+    "path": "raw/b-warm-ownbuild-1/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "11cdad5da38cf5017d25259e167808ab24414cc9b9db976c8e8d84aae0fe6c32",
+    "gzipBytes": 5285,
+    "gzipSha256": "cb5c37e3e669d33c3c72261b36352284adcc0462edff51bcc9717daaba8a8c3d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/payload.mjs",
+    "path": "raw/b-warm-ownbuild-1/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/plist-13.log",
+    "path": "raw/b-warm-ownbuild-1/plist-13.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/pod-version.log",
+    "path": "raw/b-warm-ownbuild-1/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/pods.log",
+    "path": "raw/b-warm-ownbuild-1/pods.log.gz",
+    "bytes": 15992,
+    "sha256": "a285aba414c050d82a1117107d3d586991b02bfb1b7b6886d18f42cc79a3d26f",
+    "gzipBytes": 2847,
+    "gzipSha256": "8436a81056189a33fcba491671e327b0349e92965303531cbd9b41275f467885"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/preparation-phases.json",
+    "path": "raw/b-warm-ownbuild-1/preparation-phases.json.gz",
+    "bytes": 8727,
+    "sha256": "c8399ec8196db241f49ad249b9252d80ad314b9551c891233b51ba7e7baa8291",
+    "gzipBytes": 1925,
+    "gzipSha256": "f79a2fe5afe5b4941823e21ced7b2d241ad945eccc76b3868de192320b210eda"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/preparation-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/preparation-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/prepare.mjs",
+    "path": "raw/b-warm-ownbuild-1/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/preserve-app.log",
+    "path": "raw/b-warm-ownbuild-1/preserve-app.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/proof.json",
+    "path": "raw/b-warm-ownbuild-1/proof.json.gz",
+    "bytes": 101986,
+    "sha256": "a76ebd3127d2e764be79e8e0654edc45be81aaac60322fc4a9f2963db7afdfc6",
+    "gzipBytes": 18334,
+    "gzipSha256": "ecfbd8184a71e9789f356e7a5e3940a6ddf1bb2d1b5c7bbbc71dea7e15209396"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/public-config.log",
+    "path": "raw/b-warm-ownbuild-1/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/resolved-native.json",
+    "path": "raw/b-warm-ownbuild-1/resolved-native.json.gz",
+    "bytes": 16271018,
+    "sha256": "c9ad59708f69b0bad3125722c67409206ef92d7ddabdb8dd0b2d36cdd0f99296",
+    "gzipBytes": 2428763,
+    "gzipSha256": "2b935c7a6425dfb5967995c1933b8d1424a14cf2d4f41ba2d7ab4cf360f715cf"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/runtime.log",
+    "path": "raw/b-warm-ownbuild-1/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "27c54cd12cbc35fb5848f5dbf00f207c17c28e6917e7eec49fb0ae576645b899",
+    "gzipBytes": 1254,
+    "gzipSha256": "a6e8a5abf3304ac220bfe28f9467ea3a15243f5396cff718b637109133f16b9b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/schemes.log",
+    "path": "raw/b-warm-ownbuild-1/schemes.log.gz",
+    "bytes": 3364,
+    "sha256": "1f1328bdba19916749783c1b4c50bb4747dda2068d17003740e9064173303d37",
+    "gzipBytes": 931,
+    "gzipSha256": "faaf06b395392e88017c43b766a8eb9b1dd93458570c03a32fbe420c093d477a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/sdk-build.log",
+    "path": "raw/b-warm-ownbuild-1/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/sdk-version.log",
+    "path": "raw/b-warm-ownbuild-1/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-backend-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-backend.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-backend.log.gz",
+    "bytes": 4082,
+    "sha256": "140a81af2fecc4b48695d62e953906368dcf573e8fd3217ca91ad05e123582f4",
+    "gzipBytes": 856,
+    "gzipSha256": "b511b0d238148bf29a75a46a772a13523e59c88161bd5f622734343d2bbd6cf3"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-device.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-device.log.gz",
+    "bytes": 13634099,
+    "sha256": "29cef312ebde408a8298bee2bb9d4ffbf8cbe432849799719560c5ca8ad303f9",
+    "gzipBytes": 494975,
+    "gzipSha256": "4899020353166143161c7150bfef3fecb2ee0f6afeb09e07a1f57fa5970c32ca"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-launch.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-launch.log.gz",
+    "bytes": 72,
+    "sha256": "3c3a2c3393aaa67f7692ca230aa55c800f08bf9e791c8707c3a87fb426302480",
+    "gzipBytes": 57,
+    "gzipSha256": "fcb78da5446de1410ce33c16501dc7e6c441610eb2ab42c25245fbf86e9c0f89"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-log-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-receipts.jsonl",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-receipts.jsonl.gz",
+    "bytes": 15759,
+    "sha256": "9d2a05b334201471532ade543e444516c0a4496fec0f98756acc71298f77489f",
+    "gzipBytes": 2169,
+    "gzipSha256": "5677cb21f8ea7152be95563a77263fe1e29ea6fef709ead7c8b32b46fd948566"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-run.json",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-run.json.gz",
+    "bytes": 26273,
+    "sha256": "e05d3656958f111b8a1b2b74ea6ee1739d6620ed277ae9308668990428e8c981",
+    "gzipBytes": 3303,
+    "gzipSha256": "727e886b1ca83d20aee621a1bc580f700e11211d23b296b936de92640376e3bb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/smoke-ios-video.log",
+    "path": "raw/b-warm-ownbuild-1/smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/snapshot.log",
+    "path": "raw/b-warm-ownbuild-1/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/source-inputs.json",
+    "path": "raw/b-warm-ownbuild-1/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-collection-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-collection-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-install-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-install-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-offline-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-offline-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-prime-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-prime-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-restart-stderr.log",
+    "path": "raw/b-warm-ownbuild-1/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify-restart-stdout.log",
+    "path": "raw/b-warm-ownbuild-1/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/verify.mjs",
+    "path": "raw/b-warm-ownbuild-1/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/xcode-build.log",
+    "path": "raw/b-warm-ownbuild-1/xcode-build.log.gz",
+    "bytes": 2515394,
+    "sha256": "c481a8c3bff7603c219fb5d922a7e0c1bc2f024b9ba324651144f0f17dcadbf9",
+    "gzipBytes": 224955,
+    "gzipSha256": "4f3bb2305e219d8915c5ab0b0eb61e92bc9d9a5d4e00e823717ce69622b57375"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1/xcode-version.log",
+    "path": "raw/b-warm-ownbuild-1/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1-command.json",
+    "path": "raw/b-warm-ownbuild-1-command.json.gz",
+    "bytes": 1648,
+    "sha256": "8eccc7a808b723cf312f3fb40c8ff1aac3e92935aea3387ef82b390e07c9cc91",
+    "gzipBytes": 655,
+    "gzipSha256": "a07243c19896220108382d7b96722fdc38d61bd34b0770bb2e3d7dd63403068e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/b-warm-ownbuild-1.log",
+    "path": "raw/b-warm-ownbuild-1.log.gz",
+    "bytes": 444,
+    "sha256": "b5054852eb069f9fb50e1a984e3fd1b5ef3fd62ff69863b14637eb2e30e00176",
+    "gzipBytes": 215,
+    "gzipSha256": "31418e830e5b5836affa215ea4a9788dcd812c3f38456b67465f4bffaf235dd6"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/build-cli-2.log",
+    "path": "raw/build-cli-2.log.gz",
+    "bytes": 546,
+    "sha256": "8ee5e2c16ed4d014b82576383ae26a3af216e6a436d53a0fef6d6c8f15990d96",
+    "gzipBytes": 319,
+    "gzipSha256": "4a2a9f1d6d33a07dca5673c9f81a4ee642f0f4b5f67e6af982da2d5feb52171e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/build-cli.log",
+    "path": "raw/build-cli.log.gz",
+    "bytes": 445,
+    "sha256": "3693ec870cb96715593541227101e0c7aa54313d7912b51aa1a1249cbd25ff64",
+    "gzipBytes": 308,
+    "gzipSha256": "832a949611207b7f3ea76737dc2fbb8ff181aa9d63bae3bcfa1aa22aa3706058"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/cleanup.json",
+    "path": "raw/cleanup.json.gz",
+    "bytes": 974,
+    "sha256": "44a294b472c12af1d6ea108f25901288141ced2ea1898ec90f58267d75f5507a",
+    "gzipBytes": 470,
+    "gzipSha256": "0979a27e5793224747b16e4d1356fb6956f75cf40992bd12146e8ba55d6f0820"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/compressed-app-sizes.json",
+    "path": "raw/compressed-app-sizes.json.gz",
+    "bytes": 708,
+    "sha256": "e2a4f23735c3d794b12c1bceb853090b845830240cca44dfcebb73730a4b38f2",
+    "gzipBytes": 322,
+    "gzipSha256": "2e824514d89c9d50bb2682d0f9c868b93cfb02f87b3a31fca5af1f4d897b3fc8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-busy-port/repack-smoke-ios-run.json",
+    "path": "raw/control-busy-port/repack-smoke-ios-run.json.gz",
+    "bytes": 399,
+    "sha256": "d924e131b4d09e7c267a6c968cadb5b2f7901bb09a67eb328335645b9d92977b",
+    "gzipBytes": 292,
+    "gzipSha256": "4f9638689deb48361b0123bc800eed63fbb4d9cbf54d02694da8dcef87152985"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-busy-port-command.json",
+    "path": "raw/control-busy-port-command.json.gz",
+    "bytes": 1736,
+    "sha256": "0eebdbe0e68afef053e521e1b0c3cf113947242c5aa8a0c7c6bc577a9a6d4ddf",
+    "gzipBytes": 674,
+    "gzipSha256": "7d7b145f930ba7cbc3e380ae7854188b1bcf6abb47f1d7c2db35d9a8fefd9244"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-busy-port.log",
+    "path": "raw/control-busy-port.log.gz",
+    "bytes": 168,
+    "sha256": "abaf715fdd8b4f136850ce3998a9c59d0af58b5201153606ea33dd0167294dcf",
+    "gzipBytes": 164,
+    "gzipSha256": "465b1adbf11f9c3f923b87e8609f4615e58daf6fdf914cdfc823d3c23090cffd"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/before-install-stderr.log",
+    "path": "raw/control-cold-error/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/before-install-stdout.log",
+    "path": "raw/control-cold-error/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/fingerprint-after.log",
+    "path": "raw/control-cold-error/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/fingerprint-before.log",
+    "path": "raw/control-cold-error/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/hermes-version.log",
+    "path": "raw/control-cold-error/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/install-check.mjs",
+    "path": "raw/control-cold-error/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/installed.json",
+    "path": "raw/control-cold-error/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "a9b84e90d557a08739e395ddf256da6ef9bb20f1c5e9378fdf26980a5246289c",
+    "gzipBytes": 5290,
+    "gzipSha256": "c2f81969415b9217f0a1984876b4190e94669804da6b4e3e0915749eedf82b27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/payload.mjs",
+    "path": "raw/control-cold-error/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/plist-11.log",
+    "path": "raw/control-cold-error/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/plist-12.log",
+    "path": "raw/control-cold-error/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/plist-9.log",
+    "path": "raw/control-cold-error/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/pod-version.log",
+    "path": "raw/control-cold-error/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/preparation-phases.json",
+    "path": "raw/control-cold-error/preparation-phases.json.gz",
+    "bytes": 7270,
+    "sha256": "67a1acd46f67ffc2d162f9c16cf7b8503f01c6a80f5a26b14d3ac978aedd32d4",
+    "gzipBytes": 1592,
+    "gzipSha256": "fbbf2175f609d3e2ac37097e02ecb9f124848ba6ba3748004196ae5e6d318eaf"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/preparation-stderr.log",
+    "path": "raw/control-cold-error/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/preparation-stdout.log",
+    "path": "raw/control-cold-error/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/prepare.mjs",
+    "path": "raw/control-cold-error/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/proof.json",
+    "path": "raw/control-cold-error/proof.json.gz",
+    "bytes": 102011,
+    "sha256": "ea3179bf6eac1698db2ea5bb391739ff32fec899ff7bbec4042a80e4b5832225",
+    "gzipBytes": 18380,
+    "gzipSha256": "374d26f685da26d3a66ca868e6f12b0b896d8c0fbc19afeed995bdec430cb5d0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/public-config.log",
+    "path": "raw/control-cold-error/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 23,
+    "sha256": "5b4c91c32006e15cc73099fa5eec387ea76ac432e9d5c4327c8f42d186599485",
+    "gzipBytes": 41,
+    "gzipSha256": "f20881ae0baf2c4b1cce791a506374a65df21f5dc3121676ae883264f1174301"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-backend.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-backend.log.gz",
+    "bytes": 2070,
+    "sha256": "e2d413052e3cca4760d5013b33afb5ad4552c0fc63f71e0e2465118351c8264d",
+    "gzipBytes": 759,
+    "gzipSha256": "4a5e9d49f64295a08429079128186e417b1bd1654be17405ce2a0fa954e923b7"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-device.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-device.log.gz",
+    "bytes": 7038414,
+    "sha256": "52b9b0c71bdfc47f457e55e28f3d076f8f36d6813f2eb5c5341c97c386e34db6",
+    "gzipBytes": 257056,
+    "gzipSha256": "020356b8df62657b674413ea7f3ba5e79ae4f6905a087305f8391ce8752aa55a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-launch.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-launch.log.gz",
+    "bytes": 48,
+    "sha256": "ceb3efa115c807f51f88b4eed241954beb0eacd3485f6d8f52db93f38bfc222c",
+    "gzipBytes": 51,
+    "gzipSha256": "6ba65c2df7c32b8af22d5b7c5708472b13432bdefe83c20910fb8e942399bf54"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-log-stderr.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/control-cold-error/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 7376,
+    "sha256": "be83c66ae127b2b05b118a28ffc7e0103c3e19a75d2838c1ee166273dd40072b",
+    "gzipBytes": 1840,
+    "gzipSha256": "5c827fcc88bc330dadc26f350166671690ef23a0d454d771e711cbe3a3b5e755"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-run.json",
+    "path": "raw/control-cold-error/repack-smoke-ios-run.json.gz",
+    "bytes": 13211,
+    "sha256": "5075f428c6da2b7f83bfad0b253e1122112934f1caead9e9ab6c369229ea9464",
+    "gzipBytes": 2785,
+    "gzipSha256": "29c9a865f063bc2f04fccdfacf7a0e1b8524475d9645f17070051017722a58b0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack-smoke-ios-video.log",
+    "path": "raw/control-cold-error/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack.json",
+    "path": "raw/control-cold-error/repack.json.gz",
+    "bytes": 10269775,
+    "sha256": "d12b55c4476ef6483a2a80a388dee58ab0f99d75b35076aedce7bf8f280fd9ca",
+    "gzipBytes": 1841925,
+    "gzipSha256": "b4d686bf3dda724d63e61cfdffecddb6f8097d43ac974c9aa8f0bfbd6e7640a0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/repack.log",
+    "path": "raw/control-cold-error/repack.log.gz",
+    "bytes": 296,
+    "sha256": "1669bda0c3aeeaa8f12e6bc348d79de033ba2681d3e2c06756fccfaccbe44ddc",
+    "gzipBytes": 215,
+    "gzipSha256": "d511e796208ff2aa29727c9b229fc86fa21eaebe53fad1dc076a646d21a758c7"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/resolved-native.json",
+    "path": "raw/control-cold-error/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/runtime.log",
+    "path": "raw/control-cold-error/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "c15174dc217a3af1e51277fdfe7691f55eec6d15943b9b8181b4c01fb8874799",
+    "gzipBytes": 1254,
+    "gzipSha256": "4d7e64c48628218eda1a75a1473ddd2840cefed598b75c44ed9fb48f1766dcd1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/sdk-build.log",
+    "path": "raw/control-cold-error/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/sdk-version.log",
+    "path": "raw/control-cold-error/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/snapshot.log",
+    "path": "raw/control-cold-error/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/source-inputs.json",
+    "path": "raw/control-cold-error/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "7b55917aa99c7b89e014a736a773c3e23678f3b9666f61335a98bf5bfec6797c",
+    "gzipBytes": 7394,
+    "gzipSha256": "3532b0e785f75e25f7729dfaf57182da91c05590c6c259a5a35ab7df77ea857d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-collection-stderr.log",
+    "path": "raw/control-cold-error/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-collection-stdout.log",
+    "path": "raw/control-cold-error/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-install-stderr.log",
+    "path": "raw/control-cold-error/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-install-stdout.log",
+    "path": "raw/control-cold-error/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-offline-stderr.log",
+    "path": "raw/control-cold-error/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-offline-stdout.log",
+    "path": "raw/control-cold-error/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-prime-stderr.log",
+    "path": "raw/control-cold-error/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify-prime-stdout.log",
+    "path": "raw/control-cold-error/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/verify.mjs",
+    "path": "raw/control-cold-error/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error/xcode-version.log",
+    "path": "raw/control-cold-error/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error-command.json",
+    "path": "raw/control-cold-error-command.json.gz",
+    "bytes": 1740,
+    "sha256": "fe54a6c0c6159acf6b844b6a85bd7090c997669bf0e20c2e42faab9c3b8ab6c5",
+    "gzipBytes": 680,
+    "gzipSha256": "6e2baaf1d8c2bfba5ea716be21be05507e3efa33c70043da57fba9da2d1e01b2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-cold-error.log",
+    "path": "raw/control-cold-error.log.gz",
+    "bytes": 287,
+    "sha256": "5b0675e04613e42a1af2f6db45df1433f2b44c9c37ecd9c29f6a99be5a860250",
+    "gzipBytes": 182,
+    "gzipSha256": "92ab999bdbdc6bcbea09cf91e99e433d0a2522fce340038c1ddf2ec2d8995a8c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-concurrent-owner/repack-smoke-ios-run.json",
+    "path": "raw/control-concurrent-owner/repack-smoke-ios-run.json.gz",
+    "bytes": 456,
+    "sha256": "8707a73455a3f7798fb514c487861b9de3d95a127579164cc5d439050d46cbba",
+    "gzipBytes": 335,
+    "gzipSha256": "d710d335b06d514ffa606097606b90ce09968e97e42d6ee7f4195475cd7f0feb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-concurrent-owner-command.json",
+    "path": "raw/control-concurrent-owner-command.json.gz",
+    "bytes": 1743,
+    "sha256": "05de0a6d50c012348ad7640e51310bcdeec38a7704e50a9d78b23109d8abf668",
+    "gzipBytes": 681,
+    "gzipSha256": "fd959a712ecd9098042e2333ecff61c68cad69dea89ae4d40d24efd27719919e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-concurrent-owner.log",
+    "path": "raw/control-concurrent-owner.log.gz",
+    "bytes": 225,
+    "sha256": "b56ecd69367358791ca31fec377a2f10056ed8abcd135ad33c2db88d235653fa",
+    "gzipBytes": 200,
+    "gzipSha256": "9cd6be084dff5bc632510c9263bfe1fbce053887cea18bc1b11443e70d43fceb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/before-install-stderr.log",
+    "path": "raw/control-death-restart/before-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/before-install-stdout.log",
+    "path": "raw/control-death-restart/before-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/fingerprint-after.log",
+    "path": "raw/control-death-restart/fingerprint-after.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/fingerprint-before.log",
+    "path": "raw/control-death-restart/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/hermes-version.log",
+    "path": "raw/control-death-restart/hermes-version.log.gz",
+    "bytes": 232,
+    "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000",
+    "gzipBytes": 196,
+    "gzipSha256": "0f8eeb67fa264403e89c3e10b71cdc21ec59642081a658c9086f5ae770d42584"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/install-check.mjs",
+    "path": "raw/control-death-restart/install-check.mjs.gz",
+    "bytes": 223,
+    "sha256": "51843ade8eb85d783ca78854b0c86deb3b33e69bab6d2db863bbe9e4d7822740",
+    "gzipBytes": 157,
+    "gzipSha256": "6fec4fdc78d318750c7d152d62ad3396d63f996c265fae6ef353b37b9dd5a4c8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/installed.json",
+    "path": "raw/control-death-restart/installed.json.gz",
+    "bytes": 28138,
+    "sha256": "be2ed6fa9529693e8f008d4b70bec94b9412537a2aa08b4eb3f522b51564959d",
+    "gzipBytes": 5286,
+    "gzipSha256": "6ecb2bbf16701f45e19e3bc4fea27a31c174f36b390ccbfc606bae93639bdebe"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/payload.mjs",
+    "path": "raw/control-death-restart/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/plist-11.log",
+    "path": "raw/control-death-restart/plist-11.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/plist-12.log",
+    "path": "raw/control-death-restart/plist-12.log.gz",
+    "bytes": 127,
+    "sha256": "825ae6149387844847dbc52cb4d91b4b4d45e55fd842fe07a03b9fe19de0df39",
+    "gzipBytes": 112,
+    "gzipSha256": "2637eccece85908369395801b026dd45585ee5c78f1cedb417ed3ae1c324e519"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/plist-9.log",
+    "path": "raw/control-death-restart/plist-9.log.gz",
+    "bytes": 2585,
+    "sha256": "a9a1d2e3515cc7d656c992924f6960a00a7cbef74ff8a5e1a964cfa791dd95b7",
+    "gzipBytes": 1077,
+    "gzipSha256": "c17e5208fb0a9fe68f364a3f4883ca5da3b6980b9c95bacbc15bd7bec8184f3c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/pod-version.log",
+    "path": "raw/control-death-restart/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/preparation-phases.json",
+    "path": "raw/control-death-restart/preparation-phases.json.gz",
+    "bytes": 7281,
+    "sha256": "37c9ec184841d7ae8e45a895db4c3bdc11fae875eb48339a28ce913034a05469",
+    "gzipBytes": 1591,
+    "gzipSha256": "674f830e2385f1e7b72a24ea61c8a85f23cbca6e70385c08419defccd97744e4"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/preparation-stderr.log",
+    "path": "raw/control-death-restart/preparation-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/preparation-stdout.log",
+    "path": "raw/control-death-restart/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/prepare.mjs",
+    "path": "raw/control-death-restart/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/proof.json",
+    "path": "raw/control-death-restart/proof.json.gz",
+    "bytes": 102021,
+    "sha256": "18c5e9862ebe83a74f88e9e0c2edc16f41b030efa50e630c2e1e96f2c83baae4",
+    "gzipBytes": 18381,
+    "gzipSha256": "1a9ebcd6a4b05b54d9a4cbf0a45471fe917d16ab4aa4b08e1595f4de592546e5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/public-config.log",
+    "path": "raw/control-death-restart/public-config.log.gz",
+    "bytes": 501,
+    "sha256": "7e81ca04fbc281898dd418e2e93bb75956bbbb036cbe279e0c4c6c7cf55a9172",
+    "gzipBytes": 314,
+    "gzipSha256": "9772663d568e6ae4b2ba2092962d3e9927e9559fc20209e5bbe5f9e649ee5df5"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-backend-stdout.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-backend-stdout.log.gz",
+    "bytes": 46,
+    "sha256": "708c0c9e65311097a1d46296d347ea664a1bf6d35c60c7d0be5d9c27356aeba3",
+    "gzipBytes": 44,
+    "gzipSha256": "4f1df31905a69b3aa273771fdc36371f041a268e2131d633aaabfa21a8c295e8"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-backend.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-backend.log.gz",
+    "bytes": 5366,
+    "sha256": "c19eb3c008c1973c84f5216b90f33e047e7739ba5c0a7b8a96a4bc03004c2965",
+    "gzipBytes": 919,
+    "gzipSha256": "dd4b54341a83bd683d62cbee2b2230a1aad86d56bfaab1ac78396fdb8589ca20"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-device.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-device.log.gz",
+    "bytes": 15258256,
+    "sha256": "e81a53e0b7a437ee1a5275cb7bfbe6e324de04433b8e5d25195020a0e121412a",
+    "gzipBytes": 534390,
+    "gzipSha256": "18e9eee9d3ea105c75b9a37b162e667508bdb004c43e24a3342b57440e5655b2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-launch.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-launch.log.gz",
+    "bytes": 68,
+    "sha256": "a9306ad5488762a762cd6120e62057080dda3f1bcf85f9c4347bb6709c4c3ed1",
+    "gzipBytes": 56,
+    "gzipSha256": "1768c0aede97665333a315b99504a1f41db293b72126dea8b8a44f3e8178d243"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-log-stderr.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-log-stderr.log.gz",
+    "bytes": 44,
+    "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "gzipBytes": 63,
+    "gzipSha256": "cb7cabf6e5b60a2a7b77382d766433b1fd511e7fd96dec0408afbb03038a624c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-receipts.jsonl",
+    "path": "raw/control-death-restart/repack-smoke-ios-receipts.jsonl.gz",
+    "bytes": 15795,
+    "sha256": "2a00eeb24289b85785f5fd2d536efc60c93a7d0cebaad425caa3dd7e86cb783b",
+    "gzipBytes": 2227,
+    "gzipSha256": "2bcaf76c7d26bd7f8cb6a46caba9bfbcc4ddffec72ce0dc1470da5a47c6fa97d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-run.json",
+    "path": "raw/control-death-restart/repack-smoke-ios-run.json.gz",
+    "bytes": 26553,
+    "sha256": "cfc097f9318f77e1fc44d833d000e46ee922009364d0af8b9d97696afcf734e0",
+    "gzipBytes": 3363,
+    "gzipSha256": "e19603a119e539637b27ee2d652c6f4d0ed2fc91f58da41b6118a7c8167fb593"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack-smoke-ios-video.log",
+    "path": "raw/control-death-restart/repack-smoke-ios-video.log.gz",
+    "bytes": 131,
+    "sha256": "b4bdd586f7b3093229f3d6a1a9b78a7622b1c8d1c1645dd0e15a3a169cce24ad",
+    "gzipBytes": 139,
+    "gzipSha256": "6a7adb30092dc9df787467ad93d1db0dcc61b66d395a9b7d9940d89e44f4bb58"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack.json",
+    "path": "raw/control-death-restart/repack.json.gz",
+    "bytes": 10269789,
+    "sha256": "799890d2d34197d6c4d28c0002b6a03ed166c54971bc97897ec28a15e8fda8b3",
+    "gzipBytes": 1841921,
+    "gzipSha256": "1000d8fed0e46cce248f8eef44f853f63732c99ca5013d91d430b351c51ecb7b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/repack.log",
+    "path": "raw/control-death-restart/repack.log.gz",
+    "bytes": 299,
+    "sha256": "911cc7cd62a15242c9ba3aec4b13c412aff88c51de8f8b3e5c171eacf1a2511a",
+    "gzipBytes": 217,
+    "gzipSha256": "5f0a9fc8ac4f663f7d4ad83490dcd44c1d0d5758abd00c80cc91985089acf990"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/resolved-native.json",
+    "path": "raw/control-death-restart/resolved-native.json.gz",
+    "bytes": 16271258,
+    "sha256": "d9b86241cdb7a0f30cf03d8dd52a1eb569582e36679ba1d2f51a917c916732e8",
+    "gzipBytes": 2428845,
+    "gzipSha256": "867cfa05cb5baa95cc733a0a4c548657e1e5208e0f3fabbae406c2f0536f98b1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/runtime.log",
+    "path": "raw/control-death-restart/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "a54275622be0b6c9228892430e1a8990b43cc4fdfd4997057d55f8d44be75159",
+    "gzipBytes": 1254,
+    "gzipSha256": "1b782297324e3d27acd9e6f25a5a8868f8cf260ca49e498682c14d53bf3d680d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/sdk-build.log",
+    "path": "raw/control-death-restart/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/sdk-version.log",
+    "path": "raw/control-death-restart/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/snapshot.log",
+    "path": "raw/control-death-restart/snapshot.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/source-inputs.json",
+    "path": "raw/control-death-restart/source-inputs.json.gz",
+    "bytes": 27030,
+    "sha256": "c11b001e447a06e79273156d8398dae0834a3b4c7232a147e8e1357148ffb430",
+    "gzipBytes": 7394,
+    "gzipSha256": "4cd02192b9a83ec6722dfa0416ecb57a4145567753e773b7f2d83056ce8f053f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-collection-stderr.log",
+    "path": "raw/control-death-restart/verify-collection-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-collection-stdout.log",
+    "path": "raw/control-death-restart/verify-collection-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-install-stderr.log",
+    "path": "raw/control-death-restart/verify-install-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-install-stdout.log",
+    "path": "raw/control-death-restart/verify-install-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-offline-stderr.log",
+    "path": "raw/control-death-restart/verify-offline-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-offline-stdout.log",
+    "path": "raw/control-death-restart/verify-offline-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-prime-stderr.log",
+    "path": "raw/control-death-restart/verify-prime-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-prime-stdout.log",
+    "path": "raw/control-death-restart/verify-prime-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-restart-stderr.log",
+    "path": "raw/control-death-restart/verify-restart-stderr.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify-restart-stdout.log",
+    "path": "raw/control-death-restart/verify-restart-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/verify.mjs",
+    "path": "raw/control-death-restart/verify.mjs.gz",
+    "bytes": 167,
+    "sha256": "72ee8cc8791a982924bf6ba5c9548e5643e9fe8642482e6532e3f3ca919c0108",
+    "gzipBytes": 154,
+    "gzipSha256": "7d43419b6b2dc9202ae6f4921d6eb4faf6822960d31fc8c5c9661a99fb7c2df2"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart/xcode-version.log",
+    "path": "raw/control-death-restart/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart-command.json",
+    "path": "raw/control-death-restart-command.json.gz",
+    "bytes": 1743,
+    "sha256": "ec1581a0c79e9deb11a173370f418738bb2b63b97a0fbd13a4e3e2d2c7cc1a58",
+    "gzipBytes": 683,
+    "gzipSha256": "560998b473f6304775e52ff62a4091d4314c36b0e2b93da02c4789d52b2135d1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart-injection.json",
+    "path": "raw/control-death-restart-injection.json.gz",
+    "bytes": 183,
+    "sha256": "6f66a8702543381754e8e0f2710d0da51b57bdd2f59055a47bec45488015e75f",
+    "gzipBytes": 164,
+    "gzipSha256": "f3177e0f3ba9979f59364baf9571d7cc7513d8f1544109d20d26733f991f888f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-death-restart.log",
+    "path": "raw/control-death-restart.log.gz",
+    "bytes": 419,
+    "sha256": "6d73051062a9aaefee3536ebd244315f29c37223ac81acf34ff0ef2f525f3e5c",
+    "gzipBytes": 210,
+    "gzipSha256": "032582e9d6da7ab2836cae9e324023ab7f91a220fd33cdddb5c307145672ca4b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/fingerprint-before.log",
+    "path": "raw/control-scheme/fingerprint-before.log.gz",
+    "bytes": 26336,
+    "sha256": "52b65d83a1ceda039785f371c7000d05344931b042cc3b1214a9287c496d5864",
+    "gzipBytes": 5777,
+    "gzipSha256": "c1638fa279345a8a3f60302b26c5505923208ad15f89b942ed21ea6c5108f663"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/input-differences.json",
+    "path": "raw/control-scheme/input-differences.json.gz",
+    "bytes": 1380,
+    "sha256": "d72ea8c1a1b2764c79ff40b71eee0f75fe8d91215962535a582725f9fc614b07",
+    "gzipBytes": 344,
+    "gzipSha256": "56495084b0689ea297708ad6a5ff1840858741ab797f34cfe79e1ab8329508bf"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/payload.mjs",
+    "path": "raw/control-scheme/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/pod-version.log",
+    "path": "raw/control-scheme/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/preparation-failure.json",
+    "path": "raw/control-scheme/preparation-failure.json.gz",
+    "bytes": 2886,
+    "sha256": "c1166c79b870e5d8496820769e9642f1205f734a266ab72365d1b0abed439047",
+    "gzipBytes": 927,
+    "gzipSha256": "3da9d7e3c1670a045ae7fe9323d410c519cedc996f1844f777525534898e870a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/preparation-phases.json",
+    "path": "raw/control-scheme/preparation-phases.json.gz",
+    "bytes": 2473,
+    "sha256": "c8c6fd0ed41beb47c34038759b36229035392db137cffc09aeba36cd7df38a50",
+    "gzipBytes": 797,
+    "gzipSha256": "4f6b68d20d7bc2b41cf59d1f2fb4359d6e657ed1b4a4a3180c02f1fa8fd37360"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/preparation-stderr.log",
+    "path": "raw/control-scheme/preparation-stderr.log.gz",
+    "bytes": 144,
+    "sha256": "f6b0c13f8ebec1e98ae23462aaab37bada4727fab3af7ef000b8dc57d7adcf4c",
+    "gzipBytes": 142,
+    "gzipSha256": "c6190cab778d6f413a665af93bd5a1ae3a73a137a705f77653e498396c593f48"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/preparation-stdout.log",
+    "path": "raw/control-scheme/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/prepare.mjs",
+    "path": "raw/control-scheme/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/repack-smoke-ios-run.json",
+    "path": "raw/control-scheme/repack-smoke-ios-run.json.gz",
+    "bytes": 396,
+    "sha256": "4062a8cbdc52581b6f7498a9ecf1298cd01cf35b0c3ad5b512163085cf875e53",
+    "gzipBytes": 287,
+    "gzipSha256": "54d4690668568cd8f2cd8c69f03749c60e2cac5d61d2b48ad15cb6026788e68c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/runtime.log",
+    "path": "raw/control-scheme/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "c15174dc217a3af1e51277fdfe7691f55eec6d15943b9b8181b4c01fb8874799",
+    "gzipBytes": 1254,
+    "gzipSha256": "4d7e64c48628218eda1a75a1473ddd2840cefed598b75c44ed9fb48f1766dcd1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/sdk-build.log",
+    "path": "raw/control-scheme/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/sdk-version.log",
+    "path": "raw/control-scheme/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme/xcode-version.log",
+    "path": "raw/control-scheme/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme-command.json",
+    "path": "raw/control-scheme-command.json.gz",
+    "bytes": 1735,
+    "sha256": "5d9906aac6a5b7126d3ef2c85ba78592ee1333f15d0fba671676a517b87d1eec",
+    "gzipBytes": 677,
+    "gzipSha256": "7666ec7ffade0895dccb5bf2fbdb20405d31549593002e8bcc810a6c0810f69c"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-scheme.log",
+    "path": "raw/control-scheme.log.gz",
+    "bytes": 165,
+    "sha256": "b2159bc0d43c26b255e3077ba86c7a9793ba54f7b7c37622f1bb9b8ace432937",
+    "gzipBytes": 152,
+    "gzipSha256": "b88848b571acb3ef73d330c6b6536d0f71ba6bd20242e00c5f131cc1d479b4dc"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/fingerprint-before.log",
+    "path": "raw/control-tampered-base/fingerprint-before.log.gz",
+    "bytes": 26324,
+    "sha256": "1855a1d0370efd91cf0e0b4a2106c57550f1dc7656b1ba432e2340b6c389137d",
+    "gzipBytes": 5766,
+    "gzipSha256": "5a3e48cf28300efcf6871ca479790a115efa477dc3bff8e87f26b9b597179676"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/payload.mjs",
+    "path": "raw/control-tampered-base/payload.mjs.gz",
+    "bytes": 4007,
+    "sha256": "1f2155c6bb69cccaaeceed3d849574cdc44108fb1eedbd79194beaa46bb88554",
+    "gzipBytes": 1749,
+    "gzipSha256": "354d659ed7cac5f0108d5b0eb4ef8af4e9c85c5377068f1905b7d9f81bc13a04"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/pod-version.log",
+    "path": "raw/control-tampered-base/pod-version.log.gz",
+    "bytes": 7,
+    "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b",
+    "gzipBytes": 27,
+    "gzipSha256": "38b11b2b40b232056fe038d1795130da5a854be9a5957533ba415c0a276531ab"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/preparation-failure.json",
+    "path": "raw/control-tampered-base/preparation-failure.json.gz",
+    "bytes": 2809,
+    "sha256": "c42c84530936797ae2b9b75313cdce67a9573772fff959e83539a11138b2c25d",
+    "gzipBytes": 886,
+    "gzipSha256": "c3b492fa7aaedd6bffb5b587a3008cbf7f35a83b7a76ecaf03a1057fd176f5c0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/preparation-phases.json",
+    "path": "raw/control-tampered-base/preparation-phases.json.gz",
+    "bytes": 2474,
+    "sha256": "3787e76149c4e5e37c80cd342ef3281cf83b8dd0844eeac6eeec0d3624b88b3f",
+    "gzipBytes": 795,
+    "gzipSha256": "15d09206fe3eeb6c8852b93f21650dfc8f1cb6605083f1087592176fbc1aab22"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/preparation-stderr.log",
+    "path": "raw/control-tampered-base/preparation-stderr.log.gz",
+    "bytes": 66,
+    "sha256": "b52d747a4cad60a023a1e659fecfeb9cdc1c914af02cf7790f24f915bd49f401",
+    "gzipBytes": 83,
+    "gzipSha256": "7b643777d5eec154b8d4ab7ea4091ac92cb4e0c317f7e527709f097abf9eb445"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/preparation-stdout.log",
+    "path": "raw/control-tampered-base/preparation-stdout.log.gz",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gzipBytes": 20,
+    "gzipSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/prepare.mjs",
+    "path": "raw/control-tampered-base/prepare.mjs.gz",
+    "bytes": 16755,
+    "sha256": "ef5b087c37dce4b71f41a292893441adf9c08988ce4ec6f9a95b3c0f09def9c2",
+    "gzipBytes": 5489,
+    "gzipSha256": "0e3ca640931ec699a52e5d29fdc29ea02ae58396f861c31841ec3a507f577a27"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/repack-smoke-ios-run.json",
+    "path": "raw/control-tampered-base/repack-smoke-ios-run.json.gz",
+    "bytes": 318,
+    "sha256": "e18d9725b830f6b4bc894ececc420a9be54b330c6f125975fcb97d2ee126d305",
+    "gzipBytes": 242,
+    "gzipSha256": "00fe3d359094a040293565db794362b0c588b2d98c24a612cb3eb686d61bb68b"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/runtime.log",
+    "path": "raw/control-tampered-base/runtime.log.gz",
+    "bytes": 20033,
+    "sha256": "c15174dc217a3af1e51277fdfe7691f55eec6d15943b9b8181b4c01fb8874799",
+    "gzipBytes": 1254,
+    "gzipSha256": "4d7e64c48628218eda1a75a1473ddd2840cefed598b75c44ed9fb48f1766dcd1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/sdk-build.log",
+    "path": "raw/control-tampered-base/sdk-build.log.gz",
+    "bytes": 7,
+    "sha256": "62cbab419e9a35d0a85cc03b9d4bb98e5dae96591632655688ac714805d333be",
+    "gzipBytes": 27,
+    "gzipSha256": "6f1d81e64e99fb9d978a175303f207ae926eb19e3b84e09af13f8004168954cb"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/sdk-version.log",
+    "path": "raw/control-tampered-base/sdk-version.log.gz",
+    "bytes": 5,
+    "sha256": "7b01c549928398a045692f24bcac7803b348524cdd76f21265b02984b2ba556a",
+    "gzipBytes": 25,
+    "gzipSha256": "bdbd47d7ddd5ab0b5f97b87ef5b284f6f809fbb20765d3ee22bdb59034e1f57f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base/xcode-version.log",
+    "path": "raw/control-tampered-base/xcode-version.log.gz",
+    "bytes": 33,
+    "sha256": "694b44731d0b415c5b11d844151e466d7f5e200a95627efda377f232f1a6ab77",
+    "gzipBytes": 52,
+    "gzipSha256": "598ed29500a7237223f861f18efced2f9f01b3e893f8485d67f9fd9d0517164e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base-command.json",
+    "path": "raw/control-tampered-base-command.json.gz",
+    "bytes": 1748,
+    "sha256": "91a4747b145681e057a013b0e4b0a8c47d3b12e7aa1eb9f37723f2b15f2dc323",
+    "gzipBytes": 681,
+    "gzipSha256": "60bc3806ff862da673739afdcfee65614e6acd8b4c09995fbb976de59d32ba59"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/control-tampered-base.log",
+    "path": "raw/control-tampered-base.log.gz",
+    "bytes": 87,
+    "sha256": "0751475997cf57eb103caa5bc85f20aab1ca556314f61e3f4bfba582ab6580eb",
+    "gzipBytes": 104,
+    "gzipSha256": "f8988262c2670e231689b3c5b974c08175493bc7b7d23bfb591b72ed536b698d"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/device-types.json",
+    "path": "raw/device-types.json.gz",
+    "bytes": 64328,
+    "sha256": "96d335258081671854ac94ea0afb6ae77b8b7efc5892942fc8856d1e6f31be0f",
+    "gzipBytes": 2975,
+    "gzipSha256": "76d599cf01e25a1ed0857d3d816792b1212282b9912eb86ec8b5b581a0267c0a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/driver-tests-2.log",
+    "path": "raw/driver-tests-2.log.gz",
+    "bytes": 3354,
+    "sha256": "1f3db56e09cf960699b464052122f63e7f0963425802665b1226b278f81075b3",
+    "gzipBytes": 1341,
+    "gzipSha256": "17ac8cc3d1cb2341eb3bb7dcef33627f6036fd436856431fcf3dde7ba6372556"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/driver-tests-final.log",
+    "path": "raw/driver-tests-final.log.gz",
+    "bytes": 2783,
+    "sha256": "6212c445d8b5eaa896ba1158f7c832005102b6ea017c0f6d885fcb19cd9b6378",
+    "gzipBytes": 1117,
+    "gzipSha256": "eaa07899623be9a5ca2b5b5820a1dfcec409b981b9922efef3f9388796ba40a1"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/driver-tests.log",
+    "path": "raw/driver-tests.log.gz",
+    "bytes": 444,
+    "sha256": "2fc34b5a6a881a6b3b08e53e47ec3a7000428dbf3bf705226a436f75fe6aba53",
+    "gzipBytes": 237,
+    "gzipSha256": "595cd396a7ed3d68aece640e0f7a972b053d30a0cfee5faba930abb18de99f7e"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/guide-tests-final-2.log",
+    "path": "raw/guide-tests-final-2.log.gz",
+    "bytes": 7145,
+    "sha256": "4ea66b43c29ded77c3a768ec8b2abf705e88bc41c1b20648e412b706cf0f25ce",
+    "gzipBytes": 2550,
+    "gzipSha256": "d36a3bff4449c804130cbd6be2d5b9931261b085d1dc29e1202e5e99f0dded64"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/guide-tests-final.log",
+    "path": "raw/guide-tests-final.log.gz",
+    "bytes": 7859,
+    "sha256": "9abf3f3e97c31c8e97d21cce6b4b54aa52b38394038d76032da33d7dd43b1771",
+    "gzipBytes": 2809,
+    "gzipSha256": "411fccd1b7b68dc29bda3989d556e8e04eb1eb14993680916e23391f9ccbbf6f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/guide-tests.log",
+    "path": "raw/guide-tests.log.gz",
+    "bytes": 7246,
+    "sha256": "9ef54dd4b8bda1cce682c73100ce0b3a486115b3eefb407dfbcaa2edebe92790",
+    "gzipBytes": 2568,
+    "gzipSha256": "3018668b28ce978f7361a790819700098bbd6d4ae0da89a665345dbff007466a"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/helper-tests-final.log",
+    "path": "raw/helper-tests-final.log.gz",
+    "bytes": 2320,
+    "sha256": "43bb0951cce2e5a0ffd14b57cba53b9628032592b59ea78871e3a3a6f7fb71fe",
+    "gzipBytes": 1140,
+    "gzipSha256": "2cdbcfce1de6d1639eddd7741be1d643679483597d6f923dba3bf9f5ca22b9c6"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/helper-tests.log",
+    "path": "raw/helper-tests.log.gz",
+    "bytes": 2322,
+    "sha256": "d1ad22a0a51458f4beca038bb2f403cbadaa1416539da1ae09f151b6ac8b3218",
+    "gzipBytes": 1144,
+    "gzipSha256": "c9cb81d7ffbe943e047d06ac4c19c1ff94dc1a2de0b8eabfac68e50d5c246170"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/host-pins.json",
+    "path": "raw/host-pins.json.gz",
+    "bytes": 1776,
+    "sha256": "cdf83ea260bfb3f3267832297304621fb0b2c5970ad3f0518d154d93bd69cb92",
+    "gzipBytes": 477,
+    "gzipSha256": "0be47a1247380481506ee7907622d08ad855111105f417d7cbe01e43c58e7ff0"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/independent-verification.json",
+    "path": "raw/independent-verification.json.gz",
+    "bytes": 36958,
+    "sha256": "fc74d3c260ce52b5cc4fd3f9aaca0156552d46826baa326709308e6ec5c06641",
+    "gzipBytes": 3204,
+    "gzipSha256": "855f7e36fa9959768d30b6ace7ae447527027abb670b17dc1cbff5da5fa8e17f"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/ownership-controls.json",
+    "path": "raw/ownership-controls.json.gz",
+    "bytes": 379,
+    "sha256": "96c1983001761630c900a44527b4a6a1d31ceb9c7b27506f0bf65d59165b3301",
+    "gzipBytes": 245,
+    "gzipSha256": "da37687a94ef9d77c0363454d52484689a6000c83388cfd67ab3fc4fd5ba25fd"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/package-pins.json",
+    "path": "raw/package-pins.json.gz",
+    "bytes": 2832,
+    "sha256": "48b246f3eb01cba457ee148c570549271b4abe9013f7a6d143254f0bdb695536",
+    "gzipBytes": 1188,
+    "gzipSha256": "2e59d0571c308bfcd64fd7e0572a0ae7ddebe447b427168e2f9def2aa8fcd3b4"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/ref-check.log",
+    "path": "raw/ref-check.log.gz",
+    "bytes": 80,
+    "sha256": "04cb11ada336b5da55bd859c7f5e2b12cbd1a55bdca9ede0025b2fe160a9a2a7",
+    "gzipBytes": 93,
+    "gzipSha256": "7c6f810fb70ef7c9588ceed4597d80368fd5fc112db529d239cbd588908c4941"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/runtimes.json",
+    "path": "raw/runtimes.json.gz",
+    "bytes": 20033,
+    "sha256": "a1996bbef2bf6975639318fdd9fc03dda6b77caaaf054dba23ea4ab57564ba39",
+    "gzipBytes": 1254,
+    "gzipSha256": "58f33302d33104f6fd66136931739368517ede1323cdc941b53cac6218b67220"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/simulator-boot.log",
+    "path": "raw/simulator-boot.log.gz",
+    "bytes": 4609,
+    "sha256": "b4b5b4391f832f72eaa393d446e88b25550e6529b653f847740d525295df49f8",
+    "gzipBytes": 610,
+    "gzipSha256": "966ec733d699a7b2ff48ecf851734784223b46f13b8cab3fa5ad0dd548b63b51"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/simulator-setup.json",
+    "path": "raw/simulator-setup.json.gz",
+    "bytes": 90,
+    "sha256": "8338af791078c6aefab411c37f9620fe91945d91ed9fd163f6c5b7498a29cb27",
+    "gzipBytes": 106,
+    "gzipSha256": "437bbc18e9975404417fd35168187d590cc1d45a612b49917f1b88e2a3af2222"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/timings.json",
+    "path": "raw/timings.json.gz",
+    "bytes": 551,
+    "sha256": "bc8b8b8e8b75f7a107b922806944093e97491b8b4b0692b0529371cad4fae6e4",
+    "gzipBytes": 356,
+    "gzipSha256": "69ca93a5665415a06c7521c829cade3dbaff5e5938ef7df9f860562def5589be"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/witness-unit-tests-2.log",
+    "path": "raw/witness-unit-tests-2.log.gz",
+    "bytes": 1587,
+    "sha256": "58ea445660ed8274dbd9a240a56d58a33d3ba09f5589ab4161e55955c8b4a031",
+    "gzipBytes": 748,
+    "gzipSha256": "344f23dd04ec86608bff3e2be40ac3711967188ba426fee6441fb2fce8531413"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/witness-unit-tests-final.log",
+    "path": "raw/witness-unit-tests-final.log.gz",
+    "bytes": 1597,
+    "sha256": "b9df7dc279dbc705b5ba3de4bb48e9b638c7394128cb5a91a1ab72ca5e8a71bf",
+    "gzipBytes": 749,
+    "gzipSha256": "99ff0cf6353481dfe702ff8194040a7e18814bd577dfbfe66ff2f337eae18138"
+  },
+  {
+    "local": "/Users/ccheever/sb4-np/evidence/round1/witness-unit-tests.log",
+    "path": "raw/witness-unit-tests.log.gz",
+    "bytes": 444,
+    "sha256": "2fc34b5a6a881a6b3b08e53e47ec3a7000428dbf3bf705226a436f75fe6aba53",
+    "gzipBytes": 237,
+    "gzipSha256": "595cd396a7ed3d68aece640e0f7a972b053d30a0cfee5faba930abb18de99f7e"
+  }
+]

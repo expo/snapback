@@ -17,15 +17,15 @@ function fixture(segment, options = {}) {
   const device = { call: async req => {
     calls.push(req);
     if (req.op === 'witness_state') return { ok: structuredClone(state) };
-    if (req.op === 'backend') return { ok: { programs: [
+    if (req.op === 'backend') return { ok: { generation: options.backendGeneration ?? 1, programs: [
       { name: 'inbox', kind: 'Query', args: {} },
-      { name: 'page', kind: 'Query', args: { c: { Optional: 'Cursor' }, filter: { Optional: { Text: { max: 100 } } } } },
+      { name: 'page', kind: 'Query', native: options.native === true, args: { c: { Optional: 'Cursor' }, filter: { Optional: { Text: { max: 100 } } } } },
       { name: 'required', kind: 'Query', args: { id: { Ref: { table: 'conversations' } }, c: { Optional: 'Cursor' } } },
       { name: 'write', kind: 'Mutation', args: {} }, { name: 'job', kind: 'job', args: {} },
-    ], schema: { operations: { page: { held: true, runs: 'device' } } } } };
+    ], schema: { operations: options.operations ?? { inbox: { runs: 'device' }, page: { held: true, runs: 'device' } } } } };
     throw Error('unexpected device call ' + req.op);
   } };
-  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment, timeoutMs: 500, baseline: prime, barrierSeq: options.barrierSeq ?? 8 }),
+  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment, timeoutMs: 500, queryGeneration: options.queryGeneration ?? 1, baseline: prime, barrierSeq: options.barrierSeq ?? 8, queryFacts: options.queryFacts ?? { inbox: { runs: 'device', held: false }, page: { runs: 'device', held: true } } }),
     witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => false }, {
     errors: { getGlobalHandler: () => handler, setGlobalHandler: value => { handler = value; } },
     now: () => clock, pause: async () => { clock += 100; options.pause?.(client, state); },
@@ -44,7 +44,7 @@ test('prime waits for acquisition and records device counts, identity and link, 
   assert.deepEqual(f.lines[0].smoke.rows, prime.rows);
   assert.equal(f.lines[0].smoke.storeId, prime.storeId);
   assert.equal(f.reads.length, 0);
-  assert.ok(f.calls.every(c => c.op === 'witness_state'));
+  assert.ok(f.calls.every(c => ['witness_state', 'backend'].includes(c.op)));
 });
 test('offline calls precisely all optional-argument queries on the own client and records counts only', async () => {
   const f = fixture('offline'); await f.run();
@@ -142,4 +142,60 @@ test('a replacement client supersedes an in-flight sample without a failure rece
   assert.equal(f.lines.at(-1).witness.step, 'primed');
   assert.ok(replacement.calls.length > 0);
   assert.ok(!f.lines.some(row => row.witness.step.endsWith(':failed')));
+});
+
+test('compiler server facts permit only expected offline unavailability and require online answers', async () => {
+  const queryFacts = { inbox: { runs: 'server', held: false }, page: { runs: 'device', held: true } };
+  for (const result of [{ loading: true }, { denied: { code: 'E_OFFLINE', message: 'server unavailable' } }]) {
+    const f = fixture('offline', { queryFacts, operations: queryFacts, query: op => op.name === 'inbox' ? result : { data: [] } });
+    await f.run();
+    const q = f.lines[0].smoke.queries[0];
+    assert.equal(q.classification, 'online-only');
+    assert.equal(q.expectation, 'online-only: unavailable offline (expected)');
+    assert.equal(q.state, 'loading' in result ? 'loading' : 'refused');
+    assert.deepEqual(f.lines[0].smoke.queryFacts, queryFacts);
+    for (const segment of ['prime', 'restart']) {
+      const online = fixture(segment, { queryFacts, operations: queryFacts, query: () => result });
+      await assert.rejects(online.run(), /did not answer online/);
+    }
+  }
+  for (const segment of ['prime', 'restart']) {
+    const f = fixture(segment, { queryFacts, operations: queryFacts }); await f.run();
+    assert.deepEqual(f.reads.map(([op]) => op.name), ['inbox']);
+    assert.equal(f.lines[0].smoke.queries[0].state, 'ready');
+  }
+  for (const query of [() => ({ data: [] }), () => ({ denied: { code: 'E_BUG', message: 'bug' } }), () => { throw Error('server query crashed'); }]) {
+    const f = fixture('offline', { queryFacts, operations: queryFacts, query }); await assert.rejects(f.run());
+  }
+});
+test('missing or invalid facts never classify loading as an online-only result', async () => {
+  for (const queryFacts of [{}, { inbox: { runs: 'server', held: false } },
+    { inbox: {}, page: { runs: 'device', held: true } }]) {
+    const f = fixture('offline', { queryFacts, operations: queryFacts, query: () => ({ loading: true }) });
+    await assert.rejects(f.run(), /facts|residency/);
+  }
+});
+
+test('all residency and held facts must match the kept generation before any query', async () => {
+  for (const segment of ['prime', 'offline', 'restart']) {
+    for (const delta of [
+      { queryFacts: { inbox: { runs: 'device', held: false }, page: { runs: 'server', held: true } } },
+      { queryFacts: { inbox: { runs: 'device', held: false }, page: { runs: 'device', held: false } } },
+      { operations: { inbox: { runs: 'device' } } },
+      { backendGeneration: 2 }, { queryGeneration: 2 },
+    ]) {
+      const f = fixture(segment, { ...delta, query: () => ({ loading: true }) });
+      await assert.rejects(f.run(), /kept backend/);
+      assert.equal(f.reads.length, 0);
+      assert.ok(!f.lines.some(row => row.smoke?.pass === true));
+    }
+  }
+});
+
+test('conditional native queries refuse generic smoke instead of excusing a missing module', async () => {
+  for (const segment of ['prime', 'offline', 'restart']) {
+    const f = fixture(segment, { native: true, query: () => ({ loading: true }) });
+    await assert.rejects(f.run(), /native queries require an application witness/);
+    assert.equal(f.reads.length, 0);
+  }
 });

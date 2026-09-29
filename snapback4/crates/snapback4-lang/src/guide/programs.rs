@@ -61,7 +61,8 @@ Pages still need uniform plain prefixes; unswept expiry costs examined work
 ```
 my-app/
   snapback/schema.q          the backend: tables, rules, sync, queries, mutations
-  snapback/worker.mts        optional Node ESM worker: effects and actions (dev starts it)
+  snapback/workers/push.mjs  declared Node worker; dev and serve start it (guide effects: ledger: true)
+  snapback/worker.mts        optional single Node ESM worker: effects and actions (dev starts it)
   snapback/generated/package.json  ESM boundary for generated artifacts
   snapback/generated/api.ts  written by `check`; never edited, never committed
   src/                       your client: React on the web, React Native on Expo

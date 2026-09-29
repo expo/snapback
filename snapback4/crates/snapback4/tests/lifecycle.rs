@@ -355,7 +355,15 @@ fn a_signal_still_cleans_up_the_application_worker() {
     for verb in ["dev", "serve"] {
         let dir = Directory::new();
         let source = dir.0.join("snapback/worker.mjs");
-        fs::write(&source, "import { writeFileSync } from 'node:fs'; process.on('SIGTERM', () => { writeFileSync(new URL('../worker-stopped', import.meta.url), 'yes'); process.exit(0); }); writeFileSync(new URL('../worker-pid', import.meta.url), String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+        // Automatic dev entries run from private validated snapshots. The
+        // fixture owns its observation directory independently of module URLs.
+        fs::write(&source, format!(r#"
+import {{ writeFileSync }} from 'node:fs';
+const root = {};
+process.on('SIGTERM', () => {{ writeFileSync(root + '/worker-stopped', 'yes'); process.exit(0); }});
+writeFileSync(root + '/worker-pid', String(process.pid));
+setInterval(() => {{}}, 1000);
+"#, serde_json::to_string(&dir.0).unwrap())).unwrap();
         let release = dir.0.join("release");
         if verb == "serve" { assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success()); }
         let args = if verb == "dev" { vec!["dev"] } else { vec!["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()] };

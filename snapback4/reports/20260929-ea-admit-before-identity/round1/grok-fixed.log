@@ -1,0 +1,78 @@
+{"tier":"wasm","replacementOutcome":{"state":"failed","id":"01M3P2WEC0D8J2WCTF93G9CCN0","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✖ schema binding wins over a staged replacement snapshot (wasm) (2189.805024ms)
+{"tier":"Worker","replacementOutcome":{"state":"failed","id":"01M3P2WFQMK2S6N23PSSE2537Z","why":{"code":"E_ADMISSION_STORE","family":"store","site":"client.mutate","guide":"writes","message":"The backend changed before this write could be admitted. Review the current backend, then submit a new attempt.","rewrite":"reload the current backend and review the draft before submitting with a new write id"}},"posts":[]}
+✖ schema binding wins over a staged replacement snapshot (Worker) (1465.711111ms)
+✔ native generation between identity validation and admission refuses the original write unsent (284.046221ms)
+✔ native incarnation between identity validation and admission refuses the original write unsent (277.347119ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4350.338573
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:146:3
+✖ schema binding wins over a staged replacement snapshot (wasm) (2189.805024ms)
+  route.fetch: Request context disposed.
+  Call log:
+  [2m  - → GET http://127.0.0.1:39143/changes?since=1&wait=25&heartbeat=1&store_id=1cc63626195c9a671b2d26166e8924c8[22m
+  [2m    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36[22m
+  [2m    - accept: */*[22m
+  [2m    - accept-encoding: gzip,deflate,br[22m
+  [2m    - origin: http://127.0.0.1:36451[22m
+  [2m    - referer: http://127.0.0.1:36451/[22m
+  [2m    - content-type: application/json[22m
+  [2m    - sec-ch-ua: "Chromium";v="151", "Not=A?Brand";v="99"[22m
+  [2m    - sec-ch-ua-mobile: ?0[22m
+  [2m    - sec-ch-ua-platform: "Linux"[22m
+  [2m    - x-snapback-persona: alice[22m
+  [2m  - ← 200 OK[22m
+  [2m    - content-type: application/json[22m
+  [2m    - cache-control: no-store, no-transform[22m
+  [2m    - x-accel-buffering: no[22m
+  [2m    - transfer-encoding: chunked[22m
+  [2m    - vary: Origin[22m
+  [2m    - access-control-expose-headers: X-Snapback-Time, X-Snapback-Clock, Server-Timing[22m
+  [2m    - access-control-allow-headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range[22m
+  [2m    - access-control-allow-methods: GET, POST, OPTIONS[22m
+  [2m    - access-control-allow-origin: http://127.0.0.1:36451[22m
+  [2m    - server-timing: total;dur=1.123, wait;dur=0.238, engine;dur=0.595, cpu;dur=1.012[22m
+  
+      at /home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:166:36 {
+    name: 'Error'
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:146:3
+✖ schema binding wins over a staged replacement snapshot (Worker) (1465.711111ms)
+  route.fetch: Request context disposed.
+  Call log:
+  [2m  - → GET http://127.0.0.1:42709/changes?since=1&wait=25&heartbeat=1&store_id=7c82704ef08f0101b4b7538e0485017f[22m
+  [2m    - user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36[22m
+  [2m    - accept: */*[22m
+  [2m    - accept-encoding: gzip,deflate,br[22m
+  [2m    - origin: http://127.0.0.1:39227[22m
+  [2m    - referer: http://127.0.0.1:39227/[22m
+  [2m    - content-type: application/json[22m
+  [2m    - sec-ch-ua: "Chromium";v="151", "Not=A?Brand";v="99"[22m
+  [2m    - sec-ch-ua-mobile: ?0[22m
+  [2m    - sec-ch-ua-platform: "Linux"[22m
+  [2m    - x-snapback-persona: alice[22m
+  [2m  - ← 200 OK[22m
+  [2m    - content-type: application/json[22m
+  [2m    - cache-control: no-store, no-transform[22m
+  [2m    - x-accel-buffering: no[22m
+  [2m    - transfer-encoding: chunked[22m
+  [2m    - vary: Origin[22m
+  [2m    - access-control-expose-headers: X-Snapback-Time, X-Snapback-Clock, Server-Timing[22m
+  [2m    - access-control-allow-headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range[22m
+  [2m    - access-control-allow-methods: GET, POST, OPTIONS[22m
+  [2m    - access-control-allow-origin: http://127.0.0.1:39227[22m
+  [2m    - server-timing: total;dur=1.240, wait;dur=0.253, engine;dur=0.638, cpu;dur=1.076[22m
+  
+      at /home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:166:36 {
+    name: 'Error'
+  }

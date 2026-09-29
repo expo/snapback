@@ -1,0 +1,28 @@
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (363.384707ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can close (322.634379ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can remount (324.879142ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (718.915904ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can close (353.506904ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can remount (349.159509ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (383.760212ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can close (396.996337ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can remount (383.349095ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can inspect (326.991769ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can close (319.848504ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can remount (322.098335ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can inspect (356.528101ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can close (347.015135ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can remount (349.488051ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can inspect (419.031148ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can close (384.639839ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can remount (380.721757ms)
+✔ online keep=undefined: first schema installation resets pre-discovery watches before callbacks (42.954832ms)
+✔ online keep=true: first schema installation resets pre-discovery watches before callbacks (40.72535ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7009.768296

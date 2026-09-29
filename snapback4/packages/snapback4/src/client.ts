@@ -1,10 +1,11 @@
 import { readyRead } from "./read-existence.ts";
+import { matchingReads } from "./read-key.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, pauseProbe, refusal, overloaded } from "./http-response.ts";
 import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
-import { armReadExpiry, correctReadExpiries } from "./read-expiry.ts";
+import { armReadExpiry, correctReadExpiries, readDeadlineWithdrawn } from "./read-expiry.ts";
 import { bindWatchPeek, observationKey, endLingering, closeWatchAnswers, observeWatch } from "./observe-watch.ts";
 import type { BackendJson } from "./backend.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
@@ -23,10 +24,12 @@ import { deferStart, trackRotation } from "./client-start.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
+import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
 import type { ObserveOptions, Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
+import { assetQueue } from "./asset-download.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
 import { waitForCaller } from "./request-wait.ts";
@@ -54,6 +57,7 @@ export interface ClientOptions {
 }
 
 interface QueryResult<R> {
+  deadlineWithdrawn?: () => boolean;
   delivery?: unknown; credential?: number | undefined;
   read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null;
   transportOffline?: boolean; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown;
@@ -172,6 +176,7 @@ export function createClient(options: ClientOptions): Client {
   let closed = false;
   let delivery: ReturnType<typeof onlineDelivery> | undefined;
   const aborter = new AbortController();
+  const downloads = assetQueue();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   const closingResponses = new ClosingResponses();
@@ -233,7 +238,7 @@ export function createClient(options: ClientOptions): Client {
     for (const watch of watches.values()) watchEphemeral(watch);
     if (firstBackend) {
       const deliver = resetWatches(false); deliver();
-      for (const watch of watches.values()) { notify(watch); void refresh(watch); }
+      for (const watch of watches.values()) { notify(watch); void scheduleRead(watch); }
     }
     // Seeding is safe only after existing answers have been retired. Later
     // generations still belong to the poll's invalidation path.
@@ -248,10 +253,10 @@ export function createClient(options: ClientOptions): Client {
     schemaLoading = true;
     queryEpoch++;
     const deliver = resetWatches(false); deliver();
-    for (const watch of watches.values()) { notify(watch); void refresh(watch); }
+    for (const watch of watches.values()) { notify(watch); void scheduleRead(watch); }
     const fallback = setInterval(() => {
       if (closed || storeRefusal || !credentials || !watches.size) { clearInterval(fallback); return; }
-      for (const watch of watches.values()) void refresh(watch);
+      for (const watch of watches.values()) void scheduleRead(watch);
     }, 500);
     try {
       let backoff = 25;
@@ -265,7 +270,7 @@ export function createClient(options: ClientOptions): Client {
     } finally {
       clearInterval(fallback);
       schemaLoading = false;
-      if (backendLoaded && !closed && !storeRefusal && credentials) for (const watch of watches.values()) void refresh(watch);
+      if (backendLoaded && !closed && !storeRefusal && credentials) for (const watch of watches.values()) void scheduleRead(watch);
     }
   }
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
@@ -335,7 +340,7 @@ export function createClient(options: ClientOptions): Client {
     if (next === "online") {
       void delivery?.reconnect();
       void flush();
-      for (const watch of watches.values()) void refresh(watch);
+      for (const watch of watches.values()) void scheduleRead(watch);
     } else if (next === "signed-out") failUnsentWrites(auth());
   };
 
@@ -344,7 +349,7 @@ export function createClient(options: ClientOptions): Client {
     viewer = next;
     void delivery?.reset(true);
     resetWatches();
-    if (credentials) for (const watch of watches.values()) void refresh(watch);
+    if (credentials) for (const watch of watches.values()) void scheduleRead(watch);
     for (const listener of viewerListeners) listener(next);
   };
 
@@ -462,7 +467,7 @@ export function createClient(options: ClientOptions): Client {
       for (const listener of [...sessionListeners]) listener(session);
       if (!closed) {
         setLink("online");
-        for (const watch of watches.values()) void refresh(watch);
+        for (const watch of watches.values()) void scheduleRead(watch);
         scheduleRefresh();
       }
       return refreshed;
@@ -487,9 +492,9 @@ export function createClient(options: ClientOptions): Client {
 
   // A quiet request is a background presence refresh: its failure retries on the
   // refresh timer and says nothing about the link (LLP 3000.018 §3.2).
-  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false) {
+  function post(path: string, body: unknown, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal) {
     let arrived = false;
-    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, eph, quiet), eph?.signal ?? aborter.signal, () => arrived).then(result => {
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }, captured, eph, quiet, signal), signal ?? eph?.signal ?? aborter.signal, () => arrived).then(result => {
       // A terminal store change owns outstanding effect outcomes: preserve its
       // explicit unknown-outcome refusal instead of an ordinary offline retry.
       if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
@@ -500,9 +505,9 @@ export function createClient(options: ClientOptions): Client {
     return request;
   }
 
-  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false): Promise<{ ok: true; json: Record<string, unknown>; revision?: number } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}, captured?: ClosingResponse, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<{ ok: true; json: Record<string, unknown>; revision?: number } | { ok: false }> {
     if (refreshing) await refreshing;
-    if (closed || !credentials || storeRefusal || (eph && !ephemeralReads.current(eph))) return { ok: false };
+    if (signal?.aborted || closed || !credentials || storeRefusal || (eph && !ephemeralReads.current(eph))) return { ok: false };
     const revision = credentialRevision;
     const floor = minimumReadSeq;
     let encoded: string;
@@ -528,13 +533,13 @@ export function createClient(options: ClientOptions): Client {
       }
       // A synchronous dispatch subscriber can end or rotate this session.
       if (closed || !credentials || storeRefusal || refreshing || revision !== credentialRevision) return { ok: false };
-      const send = () => doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: eph?.signal ?? aborter.signal } : {}) });
+      const send = () => doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: signal ?? eph?.signal ?? aborter.signal } : {}) });
       const { response, json } = path.startsWith("/q/")
-        ? await readWithAdmissionRetry(send, () => !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)), eph?.signal ?? aborter.signal)
+        ? await readWithAdmissionRetry(send, () => !closed && credentials && revision === credentialRevision && (!eph || ephemeralReads.current(eph)) && !signal?.aborted, signal ?? eph?.signal ?? aborter.signal)
         : await send().then(async response => ({ response, json: await readResponse(response) }));
       // Late bodies are consumed without adoption. A parsed effect response
       // already known at close still finishes its local settlement.
-      if (eph && !ephemeralReads.current(eph)) return { ok: false };
+      if (signal?.aborted || (eph && !ephemeralReads.current(eph))) return { ok: false };
       captured?.capture(json, response.status);
       if (closed) return { ok: false };
       arrived(true);
@@ -553,29 +558,33 @@ export function createClient(options: ClientOptions): Client {
         arrived(false);
         if (attempt === 3) return { ok: false };
         await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
-        return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet);
+        return sendPost(path, body, attempt + 1, arrived, captured, eph, quiet, signal);
       }
       if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json, revision };
     } catch (error) {
+      if (signal?.aborted) return { ok: false };
       transportFailure = transportRefusal(error);
-      if (credentials && !quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
+      if (!signal?.aborted && credentials && !quiet && (!eph || ephemeralReads.current(eph))) setLink("offline");
       return { ok: false };
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false): Promise<QueryResult<R>> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
+    checkRead(signal);
     const eph = ephemeralTables(op).length ? ephemeralReads.request() : undefined;
-    const result = await runQueryOnce(op, args, eph, quiet);
-    return { ...result, ...(eph ? { ephemeralRequest: eph } : {}) };
+    const result = await withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => runQueryOnce(op, args, eph, quiet, stopped));
+    checkRead(signal);
+    return { ...result, deadlineWithdrawn: () => result.nextExpiry !== null && result.nextExpiry > clock.estimatedServerNow()
+      && readDeadlineWithdrawn(matchingReads(watches.values(), op, args), result.nextExpiry), ...(eph ? { ephemeralRequest: eph } : {}) };
   }
-  async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false): Promise<QueryResult<R>> {
+  async function runQueryOnce<A, R>(op: Query<A, R>, args: A, eph?: EphemeralRequest, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
     const epoch = queryEpoch;
     if (closed || storeRefusal || changesRefusal) return { read: { denied: storeRefusal ?? changesRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
-    const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet);
+    const result = await post(`/q/${op.name}`, { args }, undefined, eph, quiet, signal);
     if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
     if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
@@ -613,7 +622,7 @@ export function createClient(options: ClientOptions): Client {
         deliver?.();
         if (watches.get(watch.key) !== watch) return;
         if (reset) notify(watch);
-        void refresh(watch, changed);
+        void scheduleRead(watch, changed);
       };
     });
   }
@@ -630,7 +639,7 @@ export function createClient(options: ClientOptions): Client {
   function sweepExpiries() {
     correctReadExpiries(watches.values(), clock, withdrawExpiry,
       (watch, d) => scheduleExpiry(watch, d.server),
-      watch => { if (watches.get(watch.key) === watch) void refresh(watch); });
+      watch => { if (watches.get(watch.key) === watch) void acquireRead(watch); });
   }
 
   function withdrawExpiry(watch: Watch): () => void {
@@ -660,7 +669,7 @@ export function createClient(options: ClientOptions): Client {
     // A reply that a newer publication or read overtook decides nothing: the newer one armed the timer.
     if (watch.snapshot !== shown || watch.inFlight) return;
     // A failed or stale reply keeps the answer and the interval, and retries.
-    if (result.transportOffline || !currentRead(result, watch)) { schedulePresence(watch, false); return; }
+    if (result.transportOffline || result.deadlineWithdrawn?.() || !currentRead(result, watch)) { schedulePresence(watch, false); return; }
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
     watch.publish(result.read);
@@ -672,9 +681,19 @@ export function createClient(options: ClientOptions): Client {
     schedulePresence(watch, true, result.refresh);
   }
 
-  async function refresh(watch: Watch, changed = false) {
+  const readWork = new ReadWork<Watch>();
+  function scheduleRead(watch: Watch, changed = false) {
     if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
-    if (watch.retain) { watch.reload(changed); notify(watch); }
+    watch.reload(changed, { queued: true }); notify(watch);
+    acquireRead(watch);
+  }
+  function acquireRead(watch: Watch) {
+    if (watch.inFlight) { watch.dirty = true; return; }
+    readWork.schedule(watch, signal => refresh(watch, signal));
+  }
+  async function refresh(watch: Watch, signal: AbortSignal) {
+    if (watches.get(watch.key) !== watch) return;
+    if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
     if (watch.inFlight) {
       watch.dirty = true;
       return;
@@ -682,19 +701,26 @@ export function createClient(options: ClientOptions): Client {
     // @ref LLP 3000.023#3.5 — every option follows the reset fence; retention never renews an episode.
     watch.inFlight = true;
     const resetVersion = watch.resetVersion;
-    let exhausted = false;
+    let exhausted = false, retryExpired = false;
     try {
-      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { publishResult: false, accept: result => {
+      const result = await duringRead(watch.fetch(() => runQuery(watch.op, watch.args, false, signal), () => notify(watch), { publishResult: false, revalidate: watch.kept || !("data" in watch.snapshot), accept: result => {
+        if (signal.aborted) return true;
+        if (result.deadlineWithdrawn?.()) return true;
+        // Due bodies return to the paced queue without exhausting the sequence retry round.
+        if (result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) return true;
         if (!currentRead(result, watch)) return false;
         // Install deadlines before publication: a subscriber can close synchronously.
         if (!result.transportOffline) scheduleExpiry(watch, result.nextExpiry);
         return true;
-      } });
+      } }), signal);
+      checkRead(signal);
+      if (result.deadlineWithdrawn?.()) return;
       if (resetVersion !== watch.resetVersion) { watch.dirty = credentials; return; }
       const { tables, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
       if (storeRefusal || !currentRead(result, watch)) {
+        if (!storeRefusal && result.nextExpiry !== null && result.nextExpiry <= clock.estimatedServerNow()) { retryExpired = true; return; }
         if (storeRefusal) watch.reset({ denied: storeRefusal }); else watch.failed(result.transportOffline);
         if (!watch.kept) scheduleExpiry(watch, null);
         schedulePresence(watch, false);
@@ -709,13 +735,14 @@ export function createClient(options: ClientOptions): Client {
       if (exhausted && !watch.kept) scheduleExpiry(watch, null);
       schedulePresence(watch, !exhausted && !result.transportOffline, result.refresh);
     } catch {
-      if (!closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
+      if (!signal.aborted && !closed && resetVersion === watch.resetVersion && watches.get(watch.key) === watch) { watch.failed(link === "offline"); notify(watch); }
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if (dirty && credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
-        void refresh(watch);
+      if (credentials && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
+        if (retryExpired && !signal.aborted) readWork.retry(watch, 25, signal => refresh(watch, signal));
+        else if (dirty || signal.reason === READ_WORK_EXPIRED) void acquireRead(watch);
       }
     }
   }
@@ -804,7 +831,7 @@ export function createClient(options: ClientOptions): Client {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
           for (const watch of watches.values()) {
-            if (changedGeneration || !json.tables || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch, true);
+            if (changedGeneration || !json.tables || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void scheduleRead(watch, true);
           }
         }
       } catch (error) {
@@ -841,7 +868,7 @@ export function createClient(options: ClientOptions): Client {
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
       entry.resolve(outcome);
       emitWrite(outcome);
-      for (const watch of watches.values()) void refresh(watch, true);
+      for (const watch of watches.values()) void scheduleRead(watch, true);
     } else {
       // A 400 carries `denied` (an input or auth refusal), a judged write
       // carries `why`; neither is the link's fault.
@@ -920,7 +947,7 @@ export function createClient(options: ClientOptions): Client {
       // this continuation runs. Do not start an additional retry round here.
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      if (!currentRead(result)) return { loading: true };
+      if (result.deadlineWithdrawn?.() || !currentRead(result)) return { loading: true };
       acceptDelivery(result, result.read);
       return result.read;
     },
@@ -929,8 +956,9 @@ export function createClient(options: ClientOptions): Client {
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
         () => Object.assign(new ReadObservation<unknown>(keep), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), presenceRefresh: null, subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null }),
-        watch => { watchEphemeral(watch); void refresh(watch); void poll(); },
-        watch => ephemeralReads.remove(watch), () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null));
+        watch => { watchEphemeral(watch); void scheduleRead(watch); void poll(); },
+        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
+        watch => { watch.dirty = false; return readWork.cancel(watch); });
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
@@ -994,16 +1022,19 @@ export function createClient(options: ClientOptions): Client {
       if (refreshing) await refreshing;
       if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
-      const revision = credentialRevision;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal);
+      const revision = credentialRevision, assetPrincipal = viewer;
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal, () => !storeRefusal && !closed && credentials && revision === credentialRevision, downloads);
       if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
         return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
-      // @ref LLP 3000#http-overload-diagnostics — rotation cannot prove a once-view download was not consumed.
+      // @ref LLP 3000.008.002.000#6 — completed bytes stay with the same principal; rotation cannot authorize a replay.
       if (revision !== credentialRevision) {
+        if ("url" in read && assetPrincipal !== null && assetPrincipal === viewer) return read;
         if ("denied" in read) {
-          if (read.denied.code === "E_AUTH" || (read.denied.code === "E_RATE_LIMIT" && read.denied.retryable)) return client.asset(id);
+          // Admission backoff belongs to the transfer, not its bearer. Keep
+          // the outcome (including Retry-After) for permitted hook recovery.
+          if (read.denied.code === "E_AUTH") return client.asset(id);
           return read;
         }
         read.revoke();
@@ -1070,6 +1101,7 @@ export function createClient(options: ClientOptions): Client {
       await Promise.all([closing, draining]);
     },
     close() {
+      readWork.clear();
       if (closing) return closing;
       closed = true;
       void delivery?.stop();

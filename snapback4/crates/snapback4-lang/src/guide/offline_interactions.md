@@ -45,16 +45,17 @@ its four-key size is neither a lifetime bound nor this policy's byte cost.
 A no-horizon membership table synced within the conversation's own group with the messages' audience holds every current readable membership after that group's first acquisition. The viewer's row is `present` or `absent` offline unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal, not denial or absence. Offline `absent` is absence at the acquired watermark, including after leaving. This does not apply to windowed, online-only or differently partitioned memberships, or follow from retained messages.
 
 ```tsx
-import { existence } from "snapback4/contract";
+import { existence, isReady } from "snapback4/contract";
 import { useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function SendPermission({ conversationId }: { conversationId: string }) {
-  const member = existence(useQuery(api.myMembership, { conversationId }));
-  return <button disabled={member === "absent" || member === "denied"}>Send</button>;
+  const member = useQuery(api.myMembership, { conversationId });
+  const blocked = existence(member) === "denied" || (existence(member) === "absent" && isReady(member) && member.fresh && !member.revalidating);
+  return <button disabled={blocked}>Send</button>;
 }
 ```
 
-Keep the composer mounted through `loading`/`partial`; neither disables send. The mutation still checks authority. `with own keys` remains for structurally caller-owned keys, never admin-written membership rows. See `guide client` for the complete composer.
+Keep the composer mounted through `loading`/`partial`; neither disables send. Queueing needs no membership answer: only denial or fresh, non-revalidating absence disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `with own keys` remains for structurally caller-owned keys, never admin-written membership rows. See `guide client` for the complete composer.
 
 ## Public aggregate alternative and its cost
 

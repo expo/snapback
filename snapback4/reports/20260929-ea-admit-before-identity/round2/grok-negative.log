@@ -1,0 +1,105 @@
+✖ online successful late probe preserves peer dispatch (original-store) (14.930837ms)
+✖ online successful late probe preserves peer dispatch (replacement-store) (3.439314ms)
+✖ identification publication survives a delayed queue read (native=false, late=false) (389.259599ms)
+✔ identification publication survives a delayed queue read (native=false, late=true) (2.935028ms)
+✖ identification publication survives a delayed queue read (native=true, late=false) (43.140465ms)
+✔ identification publication survives a delayed queue read (native=true, late=true) (28.805542ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 594.116442
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:6:62
+✖ online successful late probe preserves peer dispatch (original-store) (14.930837ms)
+  AssertionError [ERR_ASSERTION]: a successful late probe cannot duplicate a peer dispatch
+  
+  2 !== 1
+  
+      at onlineExpirySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:98:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-custody-races.test.mjs:6:62
+✖ online successful late probe preserves peer dispatch (replacement-store) (3.439314ms)
+  AssertionError [ERR_ASSERTION]: an executed write can never expire as unsent
+  + actual - expected
+  
+  + 'failed'
+  - 'pending'
+  
+      at onlineExpirySchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-custody-model.mjs:100:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'failed',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-publication.test.mjs:3:71
+✖ identification publication survives a delayed queue read (native=false, late=false) (389.259599ms)
+  AssertionError [ERR_ASSERTION]: publication before the deadline survives delayed admission
+  + actual - expected
+  
+  + {
+  +   code: 'E_ADMISSION_TIMEOUT',
+  +   family: 'store',
+  +   guide: 'writes',
+  +   message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.',
+  +   rewrite: 'check the connection and backend URL, then submit with a new write id',
+  +   site: 'client.mutate'
+  + }
+  - undefined
+  
+      at identityPublicationSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:31:19)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_ADMISSION_TIMEOUT', family: 'store', site: 'client.mutate', guide: 'writes', message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.', rewrite: 'check the connection and backend URL, then submit with a new write id' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/identity-publication.test.mjs:3:71
+✖ identification publication survives a delayed queue read (native=true, late=false) (43.140465ms)
+  AssertionError [ERR_ASSERTION]: publication before the deadline survives delayed admission
+  + actual - expected
+  
+  + {
+  +   code: 'E_ADMISSION_TIMEOUT',
+  +   family: 'store',
+  +   guide: 'writes',
+  +   message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.',
+  +   rewrite: 'check the connection and backend URL, then submit with a new write id',
+  +   site: 'client.mutate'
+  + }
+  - undefined
+  
+      at identityPublicationSchedule (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/helpers/identity-handoffs.mjs:31:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'E_ADMISSION_TIMEOUT', family: 'store', site: 'client.mutate', guide: 'writes', message: 'This write could not identify its backend within 30 seconds and was not sent. Reconnect, then submit a new attempt.', rewrite: 'check the connection and backend URL, then submit with a new write id' },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

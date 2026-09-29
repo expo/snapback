@@ -71,7 +71,7 @@ export class WorkerRuntime {
   }
 
   private journalChanges(changes: Change[]): Change[] {
-    return changes.filter(c => c.s === "j" || c.s === "o" || (c.s === "m" && c.k === "device:store_id"));
+    return changes.filter(c => c.s === "j" || c.s === "o" || (c.s === "m" && ["device:store_id", "device:backend-identity"].includes(c.k)));
   }
 
   private async commit(extra: Change[]): Promise<Change[]> {

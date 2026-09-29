@@ -106,6 +106,6 @@ For a public Following feed, declare `maintain feed: timeline`; run `snapback4 g
 Mounted same-key client reads keep their answer marked `revalidating` through
 refetch, reconnect and transport failure. Local commits replace directly from
 the replica; commits, online receipts, durable/ephemeral `/changes` and `/sync`
-publications bound the held answer to one
-second. See [the client card](crates/snapback4-lang/src/guide/client.md) and
-[LLP 3000.023 §10](../llp/3000.023-answers-stay-on-screen.rfc.md#10-plain-revalidation-keeps-the-answer-lane-rl-2026-09-29).
+publications bound the held answer to one second after its replacement attempt
+starts; queueing never renews an existing deadline. See [the client card](crates/snapback4-lang/src/guide/client.md) and
+[LLP 3000.023 §10](../llp/3000.023-answers-stay-on-screen.rfc.md#10-revalidation-change-evidence-and-queued-reads-rl-and-pq-2026-09-29).

@@ -1,0 +1,274 @@
+✖ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (161.600687ms)
+✖ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (136.175548ms)
+✖ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (135.368638ms)
+✖ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (599.064052ms)
+✖ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (161.05566ms)
+✖ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (160.459968ms)
+✖ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (195.604582ms)
+✖ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (193.658426ms)
+✖ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (192.715212ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 0
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2084.996909
+
+✖ failing tests:
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (161.600687ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 225,
+  +     indexEntries: 0,
+  +     outputBytes: 13,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 225, indexEntries: 0, outputBytes: 13, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (136.175548ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 225,
+  +     indexEntries: 0,
+  +     outputBytes: 13,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 225, indexEntries: 0, outputBytes: 13, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (135.368638ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   meter: {
+  +     cut: null,
+  +     examined: 1,
+  +     heapBytes: 225,
+  +     indexEntries: 0,
+  +     outputBytes: 13,
+  +     probes: 0,
+  +     rowsWritten: 0,
+  +     steps: 3
+  +   },
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null, meter: { cut: null, examined: 1, heapBytes: 225, indexEntries: 0, outputBytes: 13, probes: 0, rowsWritten: 0, steps: 3 } },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (599.064052ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (161.05566ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (160.459968ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (195.604582ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (193.658426ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:387:3
+✖ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (192.715212ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   complete: true,
+  +   cut: null,
+  +   data: true,
+  +   fresh: true,
+  +   next: null
+  -   loading: true
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:406:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: true, next: null },
+    expected: { loading: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

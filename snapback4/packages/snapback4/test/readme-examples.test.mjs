@@ -26,6 +26,8 @@ import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
   myMembership: Query<{ conversationId: string }, { id: string } | null>;
+  members: Query<{ conversationId: string }, { id: string }[]>;
+  inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
   messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;
   setTyping: Ephemeral<{ room: string }, null>;
   stopTyping: Ephemeral<{ room: string }, null>;
@@ -229,7 +231,7 @@ test("client card composer clears at submit and offers refused text without repl
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      existence, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -259,27 +261,29 @@ test("client card composer clears at submit and offers refused text without repl
   }
 });
 
-test("client card composer disables only refused or proven absent membership", async () => {
+test("client card composer disables only denied or fresh non-revalidating absent membership", async () => {
   const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
     .match(/export function Composer[\s\S]*?\n}/)?.[0];
   assert.ok(source);
-  for (const member of [
-    { loading: true }, { denied: { message: 'no' } },
-    readyRead({ data: null, complete: true, cut: null, fresh: false }),
-    readyRead({ data: null, complete: false, cut: null, fresh: false }),
-    readyRead({ data: { id: 'me' }, complete: true, cut: null, fresh: false, revalidating: true }),
+  for (const [member, blocked] of [
+    [{ loading: true }, false], [{ denied: { message: 'no' } }, true],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true }), true],
+    [readyRead({ data: null, complete: true, cut: null, fresh: false }), false],
+    [readyRead({ data: null, complete: true, cut: null, fresh: true, revalidating: true }), false],
+    [readyRead({ data: null, complete: false, cut: null, fresh: true }), false],
+    [readyRead({ data: null, complete: true, cut: 'budget', fresh: true }), false],
+    [readyRead({ data: { id: 'me' }, complete: true, cut: null, fresh: false, revalidating: true }), false],
   ]) {
     let called = false;
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, existence, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, isReady: read => "data" in read, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },
     });
     const button = Composer({ conversationId: 'room' }).children[1];
-    const blocked = ['absent', 'denied'].includes(existence(member));
     assert.equal(button.props.disabled, blocked, existence(member));
     button.props.onClick();
     assert.equal(called, !blocked, 'the handler guards a stale click too');

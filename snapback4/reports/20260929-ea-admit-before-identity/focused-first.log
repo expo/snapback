@@ -1,0 +1,12 @@
+{"worker":false,"beforeIdentity":[{"state":"pending","id":"01M3NX9MSCMVFN80M4E5X6QRVN","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NX9MVDPY5BBPBRCN61EDZB","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (wasm) (1856.330742ms)
+{"worker":true,"beforeIdentity":[{"state":"pending","id":"01M3NX9P2HR023P8F5RCAVPAY9","reason":"queued without a row: not acquired yet"},{"state":"pending","id":"01M3NX9P4G5NB9DEKSTZFEA08M","reason":"queued without a row: not acquired yet"}]}
+✔ immediate mounted form before identity (Worker) (1325.177388ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3271.206913

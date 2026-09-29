@@ -1,0 +1,12 @@
+{
+  "client.ts": {
+    "before": {
+      "count": 58,
+      "sha256": "87f60b19c89c943cea190a8cf53465eef22fe60943888fe90cecb3b49267bd70"
+    },
+    "after": {
+      "count": 58,
+      "sha256": "9242b3d5f1920269fc9069857adf33d94e348960e273f7baac5fdd7b335ca8e8"
+    }
+  }
+}

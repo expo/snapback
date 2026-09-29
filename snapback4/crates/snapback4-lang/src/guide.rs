@@ -66,12 +66,13 @@ pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "indexes
 pub const ALIASES: &[(&str, &str)] = &[
     ("latency", "bounds"), ("performance", "bounds"), ("p95", "bounds"),
     ("benchmark", "bounds"), ("load test", "bounds"),
-    ("react", "client"), ("hooks", "client"),
+    ("react", "client"), ("hooks", "client"), ("expo", "client"), ("ios", "client"), ("react native", "client"),
+    ("dm", "social"), ("direct message", "social"), ("chat", "social"),
     ("composer", "client"), ("unread", "client"),
     ("existence", "client"), ("what does a missing row mean", "client"),
     ("loading or absent", "client"), ("unknown membership offline", "offline-interactions"),
     ("typing", "ephemeral"),
-    ("clock", "jobs"),
+    ("clock", "jobs"), ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     ("simulator", "witness"), ("offline proof", "witness"),
     ("grammar", "language"), ("quarry", "language"),
     ("view", "maintains"), ("views", "maintains"), ("maintain", "maintains"), ("aggregates", "maintains"), ("time", "language"),
@@ -82,7 +83,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("migration", "evolution"), ("migrate", "evolution"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
     ("reports", "receipts"), ("delivery", "receipts"), ("receipt", "receipts"), ("delivered", "receipts"), ("read receipts", "receipts"), ("ticks", "receipts"), ("watermark", "receipts"),
-    ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"),
+    ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "personas"), ("login", "personas"), ("session", "personas"),
     ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
@@ -471,7 +472,91 @@ deleting the row releases all.
 Stored list ids from before list placement are not backfilled, and rewriting
 the cell with the same ids does not claim them. Readers still get
 E_ASSET_UNKNOWN (the upload owner can still preview) until a write places and
-claims fresh uploads in the cell."##,
+claims fresh uploads in the cell.
+
+## Author avatars inside message rows
+
+Keep the avatar on its profile. Read that profile by the message's sender,
+then pass the returned avatar id to `useAsset`, just as in a feed or chat list.
+The profile's read rule authorizes the bytes; a message reference neither
+grants nor removes that authority. Do not place the same upload on each message.
+
+```quarry
+table profiles:
+  principal: principal
+  displayName: text <=50
+  avatar: image <=10000000 ?
+  unique principal
+  public 'Profiles are discoverable'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  sync public last 500 by .id
+query profileById(principal: principal):
+  return profiles[principal = principal]
+```
+
+```tsx
+import { useAsset, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+// In each DM/group bubble: <AuthorAvatar sender={message.sender} />
+export function AuthorAvatar({ sender }: { sender: string }) {
+  const profile = useQuery(api.profileById, { principal: sender });
+  const author = "data" in profile ? profile.data : null;
+  const avatar = useAsset(author?.avatar?.id ?? null);
+  if ("denied" in profile) return <span role="alert">{profile.denied.message}</span>;
+  if ("loading" in profile) return <span>Loading author…</span>;
+  if (avatar.status === "denied" || avatar.status === "error") return <span role="alert">{avatar.why.message}</span>;
+  if (avatar.status === "loading") return <span>Loading avatar…</span>;
+  return avatar.status === "ready"
+    ? <img src={avatar.url} alt={author?.displayName ?? "Author"} />
+    : <span>{author?.displayName ?? "Unknown author"}</span>;
+}
+```
+
+`null` means `empty`, not a failed download. Inspect the profile read and the
+asset's `why` when its status is `denied` or `error` separately; an initials placeholder must not hide a refusal.
+Transient transport failures report `status: "error"` with `why.code` (for
+example `E_OFFLINE`, `E_HTTP_RESPONSE` or exhausted `E_RATE_LIMIT`) and a
+message. Authorization, missing/revoked assets and consumed views remain
+`status: "denied"`. The hook retries safe transport errors on reconnect,
+window refocus or return to a visible document. An event during Retry-After
+waits for its deadline; an event during a transfer waits for its outcome, then
+retries only a safe failure once. Unmount cancels recovery. The hook never
+refetches a ready handle or automatically retries a refused/revoked asset.
+
+Ordinary downloads use a full-file Range request, which cannot consume a
+one-view grant. They retry resets, timeouts and transient HTTP failures with
+backoff and jitter: at most four attempts and ten seconds total backoff.
+After headers, five seconds without bytes ends a streaming attempt; empty
+chunks do not count. A progressing stream has no total-duration deadline.
+Buffered bodies allow one minute plus their Content-Length at 32 KiB/s; an
+unknown length uses the server's 64 MiB ceiling (35 min 8 s). Before fetch
+resolves, headers may be hidden behind a buffered body, so the same unknown-size
+allowance applies. This also delays detecting a host that never returns headers.
+Queue/backoff wait has a separate thirty-second budget, renewed only by bytes;
+body transfer time does not spend it. Refusal bodies still have five seconds.
+Retry-After remains a minimum through stalled error bodies, credential rotation
+and hook recovery.
+At most six asset transfers run per client, including their response bodies. SDK wait deadlines and post-body storage/display failures
+report a client error and do not mark the device offline (`guide refusals`). Ordinary construction
+failures can recover on a later event; ambiguous once failures cannot. A queue
+budget expiring during Retry-After preserves that refusal and minimum.
+Completed bytes survive same-principal bearer rotation without another fetch;
+local downloads starting during refresh wait for the new bearer.
+A once asset refuses Range before consumption; the SDK then requests it without
+Range. A lost once response returns an explained error and is never replayed;
+only explicit admission refusals can retry that transfer. Raw `client.asset`
+returns `{ denied: why }` on exhaustion; call it again after connectivity
+returns. Native `assetSource` delegates transfers to the host image view.
+Repeated ordinary avatars may mount independently. Replacing the avatar id
+or client retires the previous handle. Account switches replace the client;
+raw sign-out retires it through the signed-out state. Viewer discovery alone
+does not fetch again. A signed-out hook with a non-null id reports `E_AUTH`.
+A released or unreadable home reports `E_ASSET_UNKNOWN` on download;
+a fetch while offline without retained bytes reports `E_OFFLINE`; an already
+ready handle is not refetched just because the link drops. A loading profile
+has not supplied an asset id yet. One-view photos use the explicit-open viewer
+in `guide client`, never this automatically fetched avatar pattern."##,
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,
         "reads" => reads::CARD,

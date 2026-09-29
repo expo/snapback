@@ -1,0 +1,21 @@
+✔ native cached empty cannot bypass FIFO (1336.567117ms)
+✔ native cached empty cannot bypass captured binding (1327.141831ms)
+✔ native late capture cannot expire a peer execution (settled=false) (3327.80961ms)
+✔ native late capture cannot expire a peer execution (settled=true) (3324.243237ms)
+✔ native handoff model: freeze (54.709531ms)
+✔ native handoff model: binding (57.141976ms)
+✔ native handoff model: fifo (57.333844ms)
+✔ native handoff model: expiry (54.953587ms)
+✔ native device checks deferred binding even without the SDK (51.448374ms)
+✔ native retired receipts preserve exact input (0) (51.087593ms)
+✔ native retired receipts preserve exact input (1) (48.16313ms)
+✔ native retired receipts preserve exact input (2) (49.461075ms)
+✔ restore custody stays visible until unsent refusal commits (406.420276ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10277.397428

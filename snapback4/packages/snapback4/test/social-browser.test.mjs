@@ -7,7 +7,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { chromiumExecutable } from "../../../witness/lib.mjs";
-import { server, binary } from "./helpers/app-server.mjs";
+import { server, binary, until } from "./helpers/app-server.mjs";
 import { guest, signup, login } from "snapback4/auth";
 import { createClient } from "snapback4/client";
 import { harness, nativeViews, routerHarness, onlineClientHarness, searchHarness } from "./helpers/social-browser.mjs";
@@ -67,7 +67,7 @@ test("social recipes in React/browser: real online signals and media, controlled
       { find: "expo-image-picker", replacement: join(dir, "picker.js") },
       { find: "starter-route", replacement: join(dir, "app/conversation/[id].tsx") },
       { find: "expo-router", replacement: join(dir, "router.jsx") },
-      { find: "../../src/client", replacement: join(dir, "route-client.js") },
+      { find: /^(\.\.\/\.\.\/src|\.)\/client$/, replacement: join(dir, "route-client.js") },
       { find: "./intent-store", replacement: join(dir, "src/intent-store.web.ts") },
       { find: "real-client", replacement: join(root, "packages/snapback4/src/client.ts") },
       { find: "snapback4/client", replacement: join(dir, "online-client.js") },
@@ -105,14 +105,19 @@ test("social recipes in React/browser: real online signals and media, controlled
       window.setRead("messageReceipts", { denied: { code: "NOT_MEMBER", message: "Decoration refused" } });
       window.setRead("receiptMember", window.ready({ principal: "alice" }, { revalidating: true }));
     });
-    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), false, "retained present membership does not disable a durable send");
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+    assert.equal(await composer.inputValue(), "my draft");
+    await page.evaluate(() => { window.setRead("receiptMember", { denied: { code: "NOT_MEMBER", message: "Removed" } }); });
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true);
     assert.equal(await composer.inputValue(), "my draft");
     for (const uncertain of ["loading", "partial"]) {
       await page.evaluate(state => window.setRead("receiptMember", state === "loading" ? { loading: true } : window.ready(null, { complete: false })), uncertain);
       assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), false, uncertain);
     }
     await page.evaluate(() => { window.setRead("receiptMember", window.ready(null)); });
-    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true, "proven absent membership disables send");
+    await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isDisabled(), true);
+    assert.equal(await composer.inputValue(), "my draft");
     await page.evaluate(() => window.leave());
     await page.evaluate(() => { window.setRead("history", window.ready(window.historyRows.map(row => ({ ...row, retained: true })), { fresh: false })); });
     assert.equal(await composer.evaluate(node => document.activeElement === node), true);
@@ -121,6 +126,25 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.evaluate(() => window.rejoin()); await page.evaluate(() => window.restore());
     assert.equal(await composer.inputValue(), "my draft");
     assert.deepEqual(await page.evaluate(() => window.components), { mounts: 1, unmounts: 0 });
+  });
+
+  await t.test("loading, revalidating and offline membership allow custody and eventual server delivery", async () => {
+    for (const state of ["loading", "revalidating", "offline", "incomplete"]) {
+      await page.evaluate(state => window.setRead("receiptMember", state === "revalidating" ? window.ready(null, { revalidating: true }) : state === "incomplete" ? window.ready(null, { complete: false }) : { loading: true }), state);
+      await page.getByText("Membership is being checked. You can queue a message.").waitFor();
+      assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+      await page.evaluate(() => window.drop());
+      const text = `queued with ${state} membership`;
+      await composer.fill(text);
+      await page.getByRole("button", { name: "Send", exact: true }).click();
+      await page.waitForFunction(async text => (await window.savedSends()).some(w => w.op === "send" && w.args.text === text), text);
+      assert.equal(await composer.inputValue(), "");
+      assert.ok(!(await page.evaluate(() => window.serverHistory())).data.some(row => row.text === text));
+      await page.evaluate(() => window.reconnect());
+      await page.waitForFunction(async text => (await window.serverHistory()).data.some(row => row.text === text), text);
+      await page.waitForFunction(async () => !(await window.savedSends()).some(w => w.op === "send"));
+    }
+    await page.evaluate(async () => { window.restore(); await Promise.all(window.onlineArms.map(arm => arm.query({ name: "typingIn", kind: "query" }, { conversation: window.historyRows[0].conversation }))); });
   });
 
   await t.test("older bubbles share the history cursor and retain text when receipts withdraw", async () => {
@@ -307,6 +331,8 @@ test("social recipes in React/browser: real online signals and media, controlled
 
   await t.test("two offline sends keep independent failures and attachment arguments after another session leaves", async () => {
     await page.evaluate(() => window.drop());
+    assert.equal((await page.evaluate(() => window.leave())).state, "sent");
+    await page.evaluate(() => window.setRead("receiptMember", { loading: true }));
     await composer.fill("first offline message");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await page.waitForFunction(async () => (await window.savedSends()).filter(w => w.op === "send").length === 1);
@@ -318,13 +344,12 @@ test("social recipes in React/browser: real online signals and media, controlled
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await page.waitForFunction(async () => (await window.savedSends()).filter(w => w.op === "send").length === 2);
     assert.ok(!(await page.evaluate(() => window.serverHistory())).data.some(row => row.text.includes("offline message")), "neither send reached the server while offline");
-    assert.equal((await page.evaluate(() => window.leave())).state, "sent");
     await page.evaluate(() => window.reconnect());
     try { await page.getByRole("button", { name: "Edit unsent message" }).nth(1).waitFor({ timeout: 5000 }); }
     catch (error) { throw Error(String(error) + JSON.stringify(await page.evaluate(async () => ({ pending: await window.savedSends(), text: document.body.innerText, settlements: await window.sendOutcomes() })))); }
     const failed = page.locator('[data-testid^="send-"]');
     assert.equal(await failed.count(), 2, JSON.stringify(await failed.allTextContents()));
-    assert.match(await failed.nth(0).innerText(), /first offline message/);
+    assert.match(await failed.nth(0).innerText(), /Not sent.*first offline message/s);
     const outcomes = await page.evaluate(() => window.sendOutcomes());
     assert.ok(outcomes.every(entry => entry.outcome?.state === "failed" && entry.outcome.why.code === "NOT_MEMBER"), JSON.stringify(outcomes));
     assert.match(await failed.nth(1).innerText(), /second offline message.*Attached once photo/s);
@@ -476,4 +501,280 @@ test("social search in React/browser uses current server and retained device pag
       } finally { await page.evaluate(() => window.finishSearch?.()); await context.close(); }
     });
   }
+});
+
+// @ref LLP 3000.028#8 — route IDs belong to navigation, drafts survive settlement.
+test("social DM routes: slow lookup, profile open, offline reopen and canonical settlement preserve the draft", { timeout: 120_000 }, async t => {
+  const { directHarness, directRouter } = await import("./helpers/social-direct-browser.mjs");
+  const dir = mkdtempSync(join(root, ".social-direct-"));
+  let vite, browser;
+  t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
+  for (const args of [["new", dir, "--template", "social"], ["check"]]) {
+    const run = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+  }
+  const { url } = await server(t, undefined, readFileSync(join(dir, "snapback/schema.q"), "utf8"));
+  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const { api } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+  const sessions = await Promise.all([guest(url), guest(url), guest(url)]);
+  sessions.forEach(value => assert.equal(value.ok, true));
+  const [alice, bob, carol] = sessions.map(value => value.session);
+  const peer = createClient({ url, token: bob.token }), racer = createClient({ url, token: carol.token });
+  t.after(() => Promise.all([peer.close(), racer.close()]));
+  assert.equal((await peer.mutate(api.saveProfile, { name: "Bob" })).state, "sent");
+  writeFileSync(join(dir, "fixture.json"), JSON.stringify({ url, session: alice }));
+  for (const [name, contents] of [["harness.jsx", directHarness], ["native.jsx", nativeViews], ["router.jsx", directRouter],
+    ["route-client.js", `export const url = ${JSON.stringify(url)};`],
+    ["picker.js", 'export async function launchImageLibraryAsync() { return { canceled: true }; }'],
+    ["index.html", '<div id="root"></div><script type="module" src="/harness.jsx"></script>']]) writeFileSync(join(dir, name), contents);
+  writeFileSync(join(dir, "device.wasm"), readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")));
+  const require = createRequire(join(root, "packages/snapback4/package.json"));
+  const { createServer } = await import(pathToFileURL(require.resolve("vite")).href);
+  vite = await createServer({ root: dir, configFile: false, logLevel: "error", server: { host: "127.0.0.1", port: 0, fs: { allow: [root] } },
+    resolve: { alias: [
+      { find: /^react$/, replacement: require.resolve("react") },
+      { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
+      { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
+      { find: "react-native", replacement: join(dir, "native.jsx") },
+      { find: "expo-router", replacement: join(dir, "router.jsx") },
+      { find: "expo-image-picker", replacement: join(dir, "picker.js") },
+      { find: /^(\.\.\/\.\.\/src|\.)\/client$/, replacement: join(dir, "route-client.js") },
+      { find: "./intent-store", replacement: join(dir, "src/intent-store.web.ts") },
+      ...["client", "react", "app", "auth", "contract", "web"].map(name => ({ find: `snapback4/${name}`, replacement: join(root, `packages/snapback4/src/${name}.${name === "react" ? "tsx" : "ts"}`) })),
+    ] }, esbuild: { jsx: "automatic" } });
+  await vite.listen();
+  const { chromium } = createRequire(join(root, "package.json"))("playwright-core");
+  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+  const page = await browser.newPage(), errors = [];
+  page.on("pageerror", error => errors.push(String(error)));
+  await page.goto(vite.resolvedUrls.local[0]);
+  await page.waitForFunction(() => window.fixtureReady);
+  await page.getByRole("textbox", { name: "Account to follow" }).fill(bob.principal);
+  await page.getByRole("button", { name: "Message Bob", exact: true }).waitFor();
+  await page.evaluate(() => window.holdLookup(true));
+  await page.getByRole("button", { name: "Message Bob", exact: true }).click();
+  await page.getByText("Opening direct message…").waitFor();
+  await new Promise(resolve => setTimeout(resolve, 250));
+  assert.deepEqual(await page.evaluate(() => window.dmAttempts), [], "a slow loading lookup never creates");
+  await page.evaluate(() => window.holdLookup(false));
+  await page.getByTestId("composer").waitFor();
+  await page.waitForFunction(async () => !(await window.pendingDM()).some(w => w.op === "openDirect"));
+  const online = await until(async () => {
+    const read = await peer.query(api.directConversation, { other: alice.principal });
+    return read.data && read;
+  }, "online DM visible at peer").catch(async error => { throw Error(String(error) + await page.locator("body").innerText() + JSON.stringify(await page.evaluate(() => window.dmAttempts))); });
+  assert.ok(online.data?.conversation, JSON.stringify(online));
+  const canonical = online.data.conversation;
+  assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "successful opening without sends leaves no association");
+  await page.waitForFunction(id => window.routeDM().id === id, canonical);
+  const repeat = await peer.mutate(api.openDirect, { id: "peer-proposal", other: alice.principal });
+  assert.equal(repeat.state, "sent"); assert.equal(repeat.result, canonical);
+  await page.evaluate(() => window.syncDM());
+  await page.evaluate(() => window.dropDM());
+  await page.evaluate(() => window.profileDM());
+  await page.evaluate(other => window.openDM(other), bob.principal);
+  await page.waitForFunction(id => window.routeDM().id === id, canonical);
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 1, "held offline key resolves without creating");
+  await page.getByTestId("composer").waitFor();
+
+  // This replica knows no Carol DM. Carol creates one after it goes offline.
+  const raced = await racer.mutate(api.openDirect, { id: "carol-canonical", other: alice.principal });
+  assert.equal(raced.state, "sent", JSON.stringify(raced));
+  await page.evaluate(() => window.profileDM());
+  await page.evaluate(other => window.openDM(other), carol.principal);
+  await page.getByTestId("composer").waitFor();
+  const provisional = await page.evaluate(() => window.routeDM().id);
+  assert.notEqual(provisional, raced.result);
+  assert.equal((await page.evaluate(() => window.pendingDM())).some(w => w.op === "openDirect"), true);
+  const opening = await page.evaluate(() => window.routeDM().opening);
+  await page.evaluate(() => window.profileDM());
+  await page.evaluate(other => window.openDM(other), carol.principal);
+  await page.getByTestId("composer").waitFor();
+  assert.equal(await page.evaluate(() => window.routeDM().id), provisional);
+  assert.equal(await page.evaluate(() => window.routeDM().opening), opening, "reopening a prediction recovers its original settlement owner");
+  await page.getByTestId("composer").fill("sent against the provisional ID");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send"));
+  await page.getByTestId("composer").fill("draft while the peer wins");
+  await page.getByTestId("composer").focus();
+  await page.evaluate(() => { window.draftNode = document.querySelector('[data-testid="composer"]'); });
+  await page.evaluate(() => window.connectDM());
+  await page.waitForFunction(id => window.routeDM().id === id, raced.result);
+  assert.ok(page.url().endsWith("/conversation/" + raced.result));
+  assert.equal(await page.getByTestId("composer").inputValue(), "draft while the peer wins");
+  assert.equal(await page.getByTestId("composer").evaluate(node => node === window.draftNode && document.activeElement === node), true);
+  await page.getByRole("button", { name: "Edit unsent message" }).waitFor();
+  assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
+  await page.evaluate(() => window.holdLookup(true));
+  assert.equal(await page.getByTestId("composer").inputValue(), "draft while the peer wins", "later lookup withdrawal cannot unmount the route");
+  assert.equal(await page.evaluate(() => window.dmAttempts.length), 2);
+  await page.evaluate(() => window.holdLookup(false));
+  await t.test("failed provisional sends survive Profile reopen and a full reload", async () => {
+    const original = (await page.evaluate(() => window.savedDM())).intents;
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(other => window.openDM(other), carol.principal);
+    await page.waitForFunction(id => window.routeDM().id === id, raced.result);
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.match(await page.locator('[data-testid^="send-"]').innerText(), /Not sent.*sent against the provisional ID/s);
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => window.navigateDM({ id }), raced.result);
+    await page.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, original, "admitted arguments never change");
+    assert.deepEqual(await page.evaluate(() => window.dmAttempts), [], "recovery never resubmits opening");
+    await page.getByRole("button", { name: "Edit unsent message" }).click();
+    assert.equal(await page.getByTestId("composer").inputValue(), original[0].args.text);
+    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    assert.equal(await page.locator('[data-testid^="send-"]').count(), 0);
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "final dismissal empties the journal store");
+  });
+
+  await t.test("a sent receipt without result recovers the route from its replicated key", async () => {
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.holdLookup(true));
+    await page.evaluate(({ opening, provisional, other }) => {
+      window.withoutResultDM = opening;
+      window.navigateDM({ id: provisional, proposed: provisional, opening, other });
+    }, { opening, provisional, other: carol.principal });
+    await page.waitForFunction(() => window.recoveredDM.length > 0);
+    const recovered = await page.evaluate(() => window.recoveredDM.at(-1));
+    assert.equal(recovered.state, "sent"); assert.equal("result" in recovered, false);
+    assert.equal(await page.evaluate(() => window.routeDM().id), provisional, "receipt alone supplies no destination");
+    await page.getByTestId("composer").fill("recovered receipt draft");
+    await page.evaluate(() => window.holdLookup(false));
+    await page.waitForFunction(id => window.routeDM().id === id, raced.result, { timeout: 5000 });
+    assert.equal(await page.getByTestId("composer").inputValue(), "recovered receipt draft");
+  });
+
+  await t.test("real stale negative membership after leave, sync, disconnect and re-invite permits Send", async () => {
+    await page.evaluate(id => window.navigateDM({ id }), canonical);
+    const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
+    assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await page.evaluate(() => window.syncDM());
+    const absent = await page.evaluate(id => window.memberDM(id), canonical);
+    assert.equal(absent.data, null); assert.equal(absent.fresh, true);
+    await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
+    await page.evaluate(() => window.dropDM());
+    assert.equal((await peer.mutate(api.add, { conversation: canonical, principal: alice.principal })).state, "sent");
+    const stale = await page.evaluate(id => window.memberDM(id), canonical);
+    assert.equal(stale.data, null); assert.equal(stale.complete, true); assert.equal(stale.fresh, false);
+    assert.ok(!stale.revalidating, "real completed offline absence, not injected loading");
+    await page.waitForFunction(id => {
+      const answer = window.membersDM[id];
+      return answer?.data === null && answer.complete && answer.fresh === false && !answer.revalidating;
+    }, canonical);
+    await page.getByText("Membership is being checked. You can queue a message.").waitFor({ timeout: 5000 });
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+    await page.getByTestId("composer").fill("queued after offline re-invite");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await page.waitForFunction(async () => (await window.pendingDM()).some(w => w.op === "send" && w.args.text === "queued after offline re-invite"));
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.historyDM(id)).data?.some(row => row.text === "queued after offline re-invite"), canonical);
+  });
+
+  await t.test("stale absent membership queues offline and server refuses at sync without re-invitation", async () => {
+    await page.evaluate(id => window.navigateDM({ id }), canonical);
+    const leaving = await page.evaluate(id => window.leaveDM(id), canonical);
+    assert.notEqual(leaving.state, "failed", JSON.stringify(leaving));
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", leaving.id);
+    await page.evaluate(() => window.syncDM());
+    await page.getByText("You are no longer a member. Your draft stays here.").waitFor();
+    await page.evaluate(() => window.dropDM());
+    await page.waitForFunction(id => {
+      const answer = window.membersDM[id];
+      return answer?.existence === "absent" && answer.fresh === false && !answer.revalidating;
+    }, canonical);
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).isEnabled(), true);
+    await page.getByTestId("composer").fill("queued despite stale absence");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w =>
+      w.op === "send" && w.args.text === "queued despite stale absence"), "stale absence reaches SDK custody");
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    const failed = page.getByTestId(`send-${queued.id}`);
+    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor();
+    assert.match(await failed.innerText(), /Not sent.*queued despite stale absence/s);
+    assert.ok(!(await peer.query(api.history, { conversation: canonical })).data.some(row => row.text === "queued despite stale absence"));
+    await failed.getByRole("button", { name: "Dismiss", exact: true }).click();
+  });
+
+  await t.test("leaving before settlement recovers failed sends on a bare canonical route", async () => {
+    await page.evaluate(() => window.connectDM());
+    const fourth = await guest(url); assert.equal(fourth.ok, true);
+    const latePeer = createClient({ url, token: fourth.session.token });
+    t.after(() => latePeer.close());
+    await page.evaluate(() => window.dropDM());
+    const winner = await latePeer.mutate(api.openDirect, { id: "unmounted-canonical", other: alice.principal });
+    assert.equal(winner.state, "sent");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(other => window.openDM(other), fourth.session.principal);
+    await page.getByTestId("composer").waitFor();
+    const proposed = await page.evaluate(() => window.routeDM().id);
+    assert.notEqual(proposed, winner.result);
+    await page.getByTestId("composer").fill("left before settlement");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const queued = await until(async () => (await page.evaluate(() => window.pendingDM())).find(w => w.op === "send" && w.args.conversation === proposed), "provisional send admitted");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "failed", queued.id);
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => window.navigateDM({ id }), winner.result);
+    const failed = page.getByTestId(`send-${queued.id}`);
+    await failed.getByRole("button", { name: "Edit unsent message" }).waitFor({ timeout: 5000 });
+    assert.match(await failed.innerText(), /Not sent.*left before settlement/s);
+    const saved = (await page.evaluate(() => window.savedDM())).intents.find(i => i.id === queued.id);
+    assert.deepEqual(saved.args, queued.args, "recovery does not retarget an admitted send");
+    assert.deepEqual((await latePeer.query(api.history, { conversation: winner.result })).data, [], "no automatic resend to the canonical destination");
+    await failed.getByRole("button", { name: "Edit unsent message" }).click();
+    assert.equal(await page.getByTestId("composer").inputValue(), queued.args.text);
+    await failed.getByRole("button", { name: "Dismiss", exact: true }).click();
+    assert.equal(await failed.count(), 0);
+  });
+  await t.test("failed and abandoned openings without sends leave no associations", async () => {
+    await page.evaluate(() => window.profileDM());
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {});
+    await page.evaluate(other => window.openDM(other), alice.principal);
+    await page.waitForFunction(async () => {
+      const attempt = window.dmAttempts.at(-1);
+      const receipt = attempt && await window.writeDM(attempt.options.id);
+      return receipt?.state === "failed" && receipt.why.code === "SELF_DM";
+    });
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "terminal failed opening has no journal reference");
+    await page.evaluate(() => window.profileDM());
+    await page.evaluate(() => window.dropDM());
+    const abandonedPeer = await guest(url);
+    assert.equal(abandonedPeer.ok, true);
+    await page.evaluate(other => window.openDM(other), abandonedPeer.session.principal);
+    await page.getByTestId("composer").waitFor();
+    const abandoned = await page.evaluate(() => window.routeDM().opening);
+    assert.ok((await page.evaluate(() => window.pendingDM())).some(w => w.id === abandoned));
+    await page.evaluate(() => window.profileDM());
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "abandoned pending opening has no sends needing recovery");
+    await page.evaluate(() => window.connectDM());
+    await page.waitForFunction(async id => (await window.writeDM(id))?.state === "sent", abandoned);
+    assert.deepEqual(await page.evaluate(() => window.savedDM()), {}, "unmounted successful opening leaves no association");
+  });
+
+  await t.test("a bare route recovers its sends with one lookup despite 100 unresolved peers", async () => {
+    const intents = Array.from({ length: 101 }, (_, n) => ({ id: `unknown-send-${n}`,
+      args: { conversation: `unresolved-${n}`, text: `recoverable ${n}`, photo: null } }));
+    const proposals = intents.map((intent, n) => ({ proposed: intent.args.conversation,
+      other: n === 100 ? bob.principal : `unknown-peer-${n}` }));
+    await page.evaluate(saved => window.seedSavedDM(saved), { intents, proposals });
+    await page.reload(); await page.waitForFunction(() => window.fixtureReady);
+    await page.evaluate(id => { window.dmLookups = []; window.navigateDM({ id }); }, canonical);
+    const recovery = page.getByTestId("send-unknown-send-100");
+    await recovery.getByRole("button", { name: "Dismiss", exact: true }).waitFor();
+    assert.match(await recovery.innerText(), /recoverable 100/);
+    const lookups = await page.evaluate(() => window.dmLookups);
+    assert.deepEqual(lookups, [{ op: "directPeer", args: { conversation: canonical } }],
+      "the screen mounts one route lookup, never a lookup for each unresolved peer");
+    assert.deepEqual((await page.evaluate(() => window.savedDM())).intents, intents, "unrelated recoverable sends remain intact");
+    await recovery.getByRole("button", { name: "Dismiss", exact: true }).click();
+    const kept = await page.evaluate(() => window.savedDM());
+    assert.deepEqual(kept.intents, intents.slice(0, 100));
+    assert.deepEqual(kept.proposals, proposals.slice(0, 100), "dismissal retires only the final send's association");
+  });
+  await page.evaluate(() => window.finishDM());
+  assert.deepEqual(errors, []);
 });

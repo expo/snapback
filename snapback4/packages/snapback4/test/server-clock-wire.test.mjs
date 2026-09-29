@@ -64,7 +64,8 @@ test('wire stamps successes and refusals on sync, changes, query, mutation and s
 for (const tier of ['web', 'native']) test(`${tier}: a legacy admission keeps its floor through upgrade, retirement and rollback`, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-legacy-clock-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   const persist = memoryPersistence();
-  const device = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
+  const raw = tier === 'web' ? webDevice({ wasm, persist }) : processDevice({ dir, binary: binary() });
+  const device = raw;
   let wall = 1_004_000, core = await device.open('legacy-clock', { initial_backend: modelBackend });
   t.after(() => core.close());
   await core.close();

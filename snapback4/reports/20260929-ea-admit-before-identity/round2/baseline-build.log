@@ -1,0 +1,13 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.8 (/home/ccheever/sb4-intent/lane-ea/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.8 (/home/ccheever/sb4-intent/lane-ea/snapback4/crates/snapback4)
+    Finished `dev` profile [unoptimized] target(s) in 4.20s
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/

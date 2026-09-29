@@ -1,0 +1,681 @@
+✖ immediate mounted form before identity (wasm) (275.593063ms)
+✖ deferred burst, prediction, ids and reload (wasm) (13.116548ms)
+✖ same-turn navigation before deferred custody commits (wasm) (11.106905ms)
+✖ identification timeout settles visibly without sending (wasm) (10.884843ms)
+✖ identification adoption settles visibly without sending (wasm) (11.187076ms)
+✖ immediate mounted form before identity (Worker) (11.06309ms)
+✖ deferred burst, prediction, ids and reload (Worker) (16.530664ms)
+✖ same-turn navigation before deferred custody commits (Worker) (10.460778ms)
+✖ identification timeout settles visibly without sending (Worker) (10.474078ms)
+✖ identification adoption settles visibly without sending (Worker) (10.924622ms)
+✔ process device persists immediate writes before identity and resumes in order (359.081655ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 853.181838
+
+✖ failing tests:
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:61:3
+✖ immediate mounted form before identity (wasm) (275.593063ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-Jm51vz/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-Jm51vz/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-Jm51vz/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-Jm51vz/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:62:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-Jm51vz/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-Jm51vz/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-Jm51vz/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-Jm51vz/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-Jm51vz/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:89:3
+✖ deferred burst, prediction, ids and reload (wasm) (13.116548ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-kutvk1/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-kutvk1/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-kutvk1/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-kutvk1/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-kutvk1/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-kutvk1/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-kutvk1/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-kutvk1/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-kutvk1/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:116:3
+✖ same-turn navigation before deferred custody commits (wasm) (11.106905ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-6jcig2/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-6jcig2/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-6jcig2/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-6jcig2/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:117:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-6jcig2/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-6jcig2/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-6jcig2/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-6jcig2/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-6jcig2/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:131:50
+✖ identification timeout settles visibly without sending (wasm) (10.884843ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-LOy1vQ/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-LOy1vQ/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:132:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-LOy1vQ/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-LOy1vQ/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-LOy1vQ/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:131:50
+✖ identification adoption settles visibly without sending (wasm) (11.187076ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-NReIJF/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-NReIJF/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-NReIJF/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-NReIJF/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:132:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-NReIJF/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-NReIJF/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-NReIJF/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-NReIJF/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-NReIJF/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:61:3
+✖ immediate mounted form before identity (Worker) (11.06309ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-D5vzDB/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-D5vzDB/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-D5vzDB/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-D5vzDB/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:62:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-D5vzDB/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-D5vzDB/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-D5vzDB/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-D5vzDB/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-D5vzDB/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:89:3
+✖ deferred burst, prediction, ids and reload (Worker) (16.530664ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-sG2QxZ/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-sG2QxZ/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:90:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-sG2QxZ/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-sG2QxZ/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-sG2QxZ/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:116:3
+✖ same-turn navigation before deferred custody commits (Worker) (10.460778ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-YF1Bd2/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-YF1Bd2/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:117:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-YF1Bd2/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-YF1Bd2/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-YF1Bd2/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:131:50
+✖ identification timeout settles visibly without sending (Worker) (10.474078ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-H1fzP4/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-H1fzP4/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-H1fzP4/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-H1fzP4/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:132:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-H1fzP4/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-H1fzP4/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-H1fzP4/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-H1fzP4/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-H1fzP4/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }
+
+test at packages/snapback4/test/admit-before-identity.test.mjs:131:50
+✖ identification adoption settles visibly without sending (Worker) (10.924622ms)
+  Build failed with 2 errors:
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-AK6aTh/harness.ts:6:31 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-AK6aTh/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/index.html
+  [38;5;246m───╯[0m
+  
+  [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-AK6aTh/harness.ts:7:28 [38;5;246m][0m
+     [38;5;246m│[0m
+   [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+   [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+   [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+   [38;5;240m  │[0m 
+   [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-AK6aTh/harness.ts' is imported by the following path:
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+   [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/index.html
+  [38;5;246m───╯[0m
+  
+      at aggregateBindingErrorsIntoJsError (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:48:18)
+      at unwrapBindingResult (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/error-CRNyaqoL.mjs:18:128)
+      at #build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/rolldown/dist/shared/rolldown-B-jRyK4b.mjs:133:34)
+      at async buildEnvironment (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34082:66)
+      at async Object.build (file:///home/ccheever/sb4-intent/lane-ea/snapback4/node_modules/vite/dist/node/chunks/node.js:34503:19)
+      at async launch (file:///home/ccheever/sb4-intent/lane-ea/snapback4/witness/lib.mjs:113:3)
+      at async browser (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:24:13)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:132:15)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    errors: [
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js' in ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-AK6aTh/harness.ts:6:31 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m6 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mE[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react/index.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                               ──────────────────────────────────────────────┬─────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                             ╰─────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-AK6aTh/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/index.html
+      [38;5;246m───╯[0m
+      ],
+      [Error: [31m[UNRESOLVED_IMPORT] [0mCould not resolve '/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js' in ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+         [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m ../../../../../tmp/sb4-witness-AK6aTh/harness.ts:7:28 [38;5;246m][0m
+         [38;5;246m│[0m
+       [38;5;246m7 │[0m [38;5;249mi[0m[38;5;249mm[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mr[0m[38;5;249me[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mR[0m[38;5;249mo[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mr[0m[38;5;249mo[0m[38;5;249mm[0m[38;5;249m [0m"/home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/node_modules/react-dom/client.js"[38;5;249m;[0m
+       [38;5;240m  │[0m                            ────────────────────────────────────────────────┬────────────────────────────────────────────────  
+       [38;5;240m  │[0m                                                                            ╰────────────────────────────────────────────────── Module not found.
+       [38;5;240m  │[0m 
+       [38;5;240m  │[0m [38;5;115mHelp[0m: '../../../../../tmp/sb4-witness-AK6aTh/harness.ts' is imported by the following path:
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/harness.ts
+       [38;5;240m  │[0m         - ../../../../../tmp/sb4-witness-AK6aTh/index.html
+      [38;5;246m───╯[0m
+      ]
+    ]
+  }

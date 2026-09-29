@@ -41,13 +41,44 @@ pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample
     let token_digest = digest(token);
     let Some(session) = authority::live_session(tx, &token_digest, sample.now)? else { return Ok(None) };
     if session.kind != "service" || !is_service(&session.principal) { return Ok(None); }
-    let supervised_family = tx.meta("worker:session-family")?;
-    if supervised_family.as_deref() == Some(session.family.as_str())
-        && tx.meta("worker:session-revision")?.as_deref() != Some(sample.supervisor_revision.to_string().as_str())
-    {
-        return Ok(None);
-    }
+    if !supervisor_current(tx, &session.family, sample.supervisor_revision)? { return Ok(None); }
     Ok(Some(session.principal))
+}
+
+// All authenticated doors use the same family fence, in their session snapshot.
+// @ref LLP 3000.009#5.3 — failed retirement cannot preserve query authority.
+pub(crate) fn supervisor_current(tx: &Tx<'_>, family: &str, revision: usize) -> Result<bool, RuntimeError> {
+    let supervised_family = tx.meta("worker:session-family")?;
+    if supervised_family.as_deref() == Some(family)
+        && tx.meta("worker:session-revision")?.as_deref() != Some(revision.to_string().as_str())
+    {
+        return Ok(false);
+    }
+    // @ref LLP 3000.009#5.3 — each named worker has an independently revoked family.
+    if let Some(stored_revision) = tx.meta(&format!("worker:family:{}", family))? {
+        if stored_revision != revision.to_string() { return Ok(false); }
+    }
+    Ok(true)
+}
+
+pub(crate) fn resolve_session_tx(tx: &Tx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<(String, String)>, RuntimeError> {
+    let Some(session) = authority::live_session(tx, token_digest, now)? else { return Ok(None); };
+    if let Some(revision) = revision {
+        if !supervisor_current(tx, &session.family, revision)? { return Ok(None); }
+    }
+    Ok(Some((session.principal, session.kind)))
+}
+
+/// Host authentication, including ordinary queries and mutations.
+pub fn resolve_supervised(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<(String, String)>, RuntimeError> {
+    let tx = store.authority_transaction()?;
+    let resolved = resolve_session_tx(&tx, &digest(token), sample.now, Some(sample.supervisor_revision))?;
+    tx.rollback()?;
+    Ok(resolved)
+}
+
+pub fn resolve_read_only_supervised(store: &Store, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
+    store.resolve_session_snapshot(&digest(token), sample.now, expected_store_id, Some(sample.supervisor_revision))
 }
 
 /// Read-only wrapper for host doors that do not already own a writer
@@ -177,7 +208,7 @@ pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, S
 /// identity change does. The serving writer retains custody of cleanup.
 // @ref LLP 3000.017#3.3 — ephemeral-only poll wakes finish without the engine mutex.
 pub fn resolve_read_only(store: &Store, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<(String, String)>, RuntimeError> {
-    store.resolve_session_snapshot(&digest(token), now, expected_store_id)
+    store.resolve_session_snapshot(&digest(token), now, expected_store_id, None)
 }
 
 fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {

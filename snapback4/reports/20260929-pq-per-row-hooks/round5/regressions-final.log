@@ -1,0 +1,236 @@
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (437.441643ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (66.879512ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (64.439004ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (105.028305ms)
+✔ process keep=false: sign-out never replaces its denial with loading (99.348193ms)
+✔ process keep=true: sign-out never replaces its denial with loading (103.949459ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (24.679216ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (21.967332ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (22.021073ms)
+✔ wasm: an unrelated replicated write preserves online-only memory offline (80.597471ms)
+✔ process: an unrelated replicated write preserves online-only memory offline (122.630716ms)
+✔ apply: remembered dependencies with footprint [] (0.344547ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.115113ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.061372ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.051217ms)
+✔ apply: remembered dependencies with footprint undefined (0.049384ms)
+✔ admit: remembered dependencies with footprint [] (0.037697ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.036264ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.035783ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.029724ms)
+✔ admit: remembered dependencies with footprint undefined (0.026479ms)
+✔ settle: remembered dependencies with footprint [] (0.028983ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.031457ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.044987ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.032037ms)
+✔ settle: remembered dependencies with footprint undefined (0.025018ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.024026ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.019139ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.04744ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.02646ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.021863ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.3478ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.17985ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.187472ms)
+✔ queued observation still withdraws at row expiry (0.46044ms)
+✔ queued observation still withdraws at reset (0.238878ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (90.813011ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (127.255988ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (80.773004ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (98.274724ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (79.970792ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (136.196308ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (116.677805ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (126.637491ms)
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (82.553303ms)
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (90.099913ms)
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (74.179603ms)
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (116.453319ms)
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (114.990796ms)
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (110.138485ms)
+✔ closing a raw local handle stops its episode timer but keeps the deadline (2.716361ms)
+✔ wasm: resubscribing a raw local handle starts a bounded episode (1506.242454ms)
+✔ wasm: resubscribing a raw local handle rearms its original episode (1109.953676ms)
+✔ process: resubscribing a raw local handle starts a bounded episode (1133.653565ms)
+✔ process: resubscribing a raw local handle rearms its original episode (1140.772475ms)
+✔ closed raw local handle checks its device deadline when closed before it is due (1.185146ms)
+✔ closed raw local handle checks its device deadline when closed after it is due (0.484226ms)
+✔ closed raw local handle checks its server deadline when closed before it is due (0.610124ms)
+✔ closed raw local handle checks its server deadline when closed after it is due (0.519368ms)
+✔ a closed remembered answer ignores a local wakeup but still checks its server deadline (0.632238ms)
+✔ raw snapshot latches its device row deadline before timers, keep=undefined (1.094701ms)
+✔ raw peek latches its device row deadline before timers, keep=undefined (0.479609ms)
+✔ raw snapshot latches its server row deadline before timers, keep=undefined (0.52093ms)
+✔ raw peek latches its server row deadline before timers, keep=undefined (0.598317ms)
+✔ raw snapshot latches its device row deadline before timers, keep=true (0.634822ms)
+✔ raw peek latches its device row deadline before timers, keep=true (0.418177ms)
+✔ raw snapshot latches its server row deadline before timers, keep=true (0.345218ms)
+✔ raw peek latches its server row deadline before timers, keep=true (0.343074ms)
+ℹ tests 68
+ℹ suites 0
+ℹ pass 62
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5045.472985
+
+✖ failing tests:
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (82.553303ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     complete: true,
+  +     cut: null,
+  +     data: true,
+  +     fresh: true,
+  +     next: null,
+  +     revalidating: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { data: true, complete: true, cut: null, fresh: true, next: null, revalidating: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (90.099913ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     loading: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { loading: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (74.179603ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     complete: true,
+  +     cut: null,
+  +     data: true,
+  +     fresh: true,
+  +     next: null,
+  +     revalidating: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { data: true, complete: true, cut: null, fresh: true, next: null, revalidating: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (116.453319ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     complete: true,
+  +     cut: null,
+  +     data: true,
+  +     fresh: true,
+  +     next: null,
+  +     revalidating: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { data: true, complete: true, cut: null, fresh: true, next: null, revalidating: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=false: cancellation after checkRead leaves publication and watch state untouched (114.990796ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     loading: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { loading: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/per-row-retention.test.mjs:255:3
+✖ process keep=true: cancellation after checkRead leaves publication and watch state untouched (110.138485ms)
+  AssertionError [ERR_ASSERTION]: no subscriber sees a cancelled completion
+  + actual - expected
+
+  + [
+  +   {
+  +     complete: true,
+  +     cut: null,
+  +     data: true,
+  +     fresh: true,
+  +     next: null,
+  +     revalidating: true
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/per-row-retention.test.mjs:296:12)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { data: true, complete: true, cut: null, fresh: true, next: null, revalidating: true }, { denied: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

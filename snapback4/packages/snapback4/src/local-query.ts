@@ -1,4 +1,5 @@
 import { readyRead } from "./read-existence.ts";
+import { checkRead } from "./read-work.ts";
 import { combinedCursor, ordinarySearch } from "./local-search.ts";
 import { EphemeralReads, type EphemeralRequest } from "./ephemeral-reads.ts";
 // Query publication procedure (LLP 3000.016 §2.2):
@@ -27,13 +28,16 @@ import type { Queued } from "./local-types.ts";
 import { hasRetainedRows, keepRetainedRows } from "./local-through.ts";
 import type { ColdReadControl } from "./device-control.ts";
 
-type Result<R> = { transportOffline?: boolean; retryExhausted?: boolean; existenceTables?: Set<string> | null; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
+type Result<R> = { deadlineWithdrawn?: true; existenceTables?: Set<string> | null; transportOffline?: boolean; retryExhausted?: boolean; searchAttempt?: true; serverOnly?: boolean; delivery?: unknown; credential?: number | undefined; ephemeralRequest?: EphemeralRequest; ephemeral?: unknown; ephemeralStale?: boolean; retryExpired?: boolean; read: Read<R>; tables: Set<string>; nextExpiry: number | null; serverExpiry?: number | null; localWakeup?: boolean; rowProvenance?: unknown; refresh?: number | undefined; served?: boolean; seq?: number | undefined };
 type Candidate<R> = { result: Result<R>; origin: "local" | "server" | "remembered" | "composed" };
 type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; speculative?: boolean; denied?: Refusal };
 type Outcome = Coverage & { loading?: boolean; data?: unknown; retainedRows?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
 class Interrupted<R> { constructor(readonly result: Result<R>) {} }
 
 export interface QueryEnvironment {
+  current?(): boolean;
+  revalidate?: boolean;
+  serverDeadlineWithdrawn?(deadline: number | null | undefined): boolean;
   coldRead?: ColdReadControl | undefined;
   backend: BackendJson;
   ephemeralReads: EphemeralReads;
@@ -110,6 +114,8 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
   const checkpoint = () => {
     const denied = env.unavailable() ?? env.partitionDenied;
     if (denied) throw new Interrupted<R>({ read: { denied }, tables, nextExpiry: null });
+    checkRead(env.signal);
+    if (env.current && !env.current()) throw new Interrupted<R>(loading);
     if (revision !== env.incarnation || authority !== env.authority) throw new Interrupted<R>(loading);
     if (env.coldRead && !env.coldRead.current()) throw new Interrupted<R>(loading);
   };
@@ -199,7 +205,7 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
     };
     // The observation may retain a previous answer during transport; only this
     // procedure publishes the returned candidate after its final checks.
-    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, ...(retain ? {} : { retain: false }) }) : await fetch(); checkpoint();
+    const result = watch ? await watch.fetch(async () => { const candidate = await fetch(); checkpoint(); return { ...candidate, read: candidate.result.read }; }, () => env.notify(watch), { publishResult: false, revalidate: env.revalidate ?? true, ...(retain ? {} : { retain: false }) }) : await fetch(); checkpoint();
     return result;
   };
   // @ref LLP 3000.007#20.22.1 — known meter cuts and retained history do not ask the server for the same work.
@@ -335,10 +341,12 @@ export async function evaluateLocal<R>(env: QueryEnvironment, op: Query<unknown,
         return origin === "remembered" ? { read: watch ? { loading: true } : { denied: env.offline() }, tables, nextExpiry: result.nextExpiry, localWakeup: true }
           : { ...loading, retryExpired: !!watch && (origin === "server" || origin === "composed") };
       }
+      if ("data" in result.read && env.serverDeadlineWithdrawn?.(result.serverExpiry)) return { ...loading, deadlineWithdrawn: true };
       if (result.credential !== undefined && result.credential !== env.credentialRevision) return loading;
       // Rule 5: only accepted server answers enter the lifetime cache. Expiry
       // of a local/server candidate does not invalidate independent memory.
       if (origin === "server" || origin === "composed") {
+        checkpoint();
         // @ref LLP 3000.018#3.2 — a composed read's reply, which is not remembered, still takes its place in the order.
         if (remember && "data" in result.read) env.serverAnswers.set(key, { read: result.read, at: Date.now(), nextExpiry: result.serverExpiry ?? null, tables: new Set(tables) }, result.seq);
         else env.serverAnswers.delete(key, result.seq);

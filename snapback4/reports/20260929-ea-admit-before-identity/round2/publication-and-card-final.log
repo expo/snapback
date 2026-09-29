@@ -1,0 +1,31 @@
+✔ identification publication survives a delayed queue read (native=false, late=false, reopen=false) (381.459918ms)
+✔ identification publication survives a delayed queue read (native=false, late=false, reopen=true) (3.638914ms)
+✔ identification publication survives a delayed queue read (native=false, late=true, reopen=false) (2.087658ms)
+✔ identification publication survives a delayed queue read (native=false, late=true, reopen=true) (2.841979ms)
+✔ identification publication survives a delayed queue read (native=true, late=false, reopen=false) (54.992269ms)
+✔ identification publication survives a delayed queue read (native=true, late=false, reopen=true) (49.598345ms)
+✔ identification publication survives a delayed queue read (native=true, late=true, reopen=false) (37.958309ms)
+✔ identification publication survives a delayed queue read (native=true, late=true, reopen=true) (53.384649ms)
+✔ native expiry transaction rechecks a peer identity publication (52.100004ms)
+✔ README client card members are functions on both tiers, except device-only sync (21.963928ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ online session: rotation adopts the bearer before notification; revocation closes (3.439115ms)
+✔ online token: rotation adopts the bearer before notification; revocation closes (1.172988ms)
+✔ online session: signOut clears the session and notifies once (0.741842ms)
+✔ online session: current refusal clears the session; an obsolete refusal retries the same write id (27.871131ms)
+✔ online query caps repeated obsolete-credential refetches (177.108088ms)
+✔ online reconnect probe caps repeated obsolete-credential refetches (2495.294482ms)
+✔ online session: near-expiry rotates before a protected read; concurrent refreshes coalesce (2.053017ms)
+✔ online session: a refresh rejects principal changes and never adopts an unread replacement after close (3.084192ms)
+✔ online assets revoke late credential-bound URLs across rotation, sign-out and close (3.955608ms)
+✔ mintId keeps burst and rollback ids monotonic without advancing their timestamp (71.302053ms)
+✔ mintId refuses entropy-field exhaustion without poisoning a later millisecond (2.840567ms)
+✔ mintId does not publish timestamp state when secure entropy throws (2.232866ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2918.989459

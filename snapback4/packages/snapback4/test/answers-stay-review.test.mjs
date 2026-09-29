@@ -26,6 +26,8 @@ for (const keep of [undefined, true]) for (const operation of ['apply', 'admit',
     t.after(() => owner.retire()); owner.publish(ready('A'));
     new LocalReads().committed([owner], operation);
     assert.equal(owner.snapshot.data, 'A', 'commit does not flash loading');
+    assert.equal(episodeDeadline(owner.snapshot), undefined, 'commit queues the bound');
+    owner.reload(); // The replacement attempt starts.
     assert.equal(episodeDeadline(owner.snapshot), 2000);
     if (failure === 'throw') await assert.rejects(owner.fetch(async () => { throw Error('device read failed'); }, () => {}));
     else now = 2000;
@@ -252,7 +254,11 @@ for (const host of ['process', 'wasm']) test(`${host}: pre-change replica comple
   watch.subscribe(() => seen.push(watch.getSnapshot())); await old.arrived.promise;
   const receipt = await f.post('/m/remove', { id: 'remove', args: {} });
   evidence = { seq: receipt.seq, tables: ['members', 'messages'] }; change.release.resolve();
-  await sync.arrived.promise; seen.length = 0; old.release.resolve(); await next.arrived.promise;
+  await sync.arrived.promise; seen.length = 0; old.release.resolve();
+  // The retired attempt cannot publish; its replacement starts the bound and
+  // parks until sync rather than evaluating an already-known older replica.
+  await until(() => typeof episodeDeadline(watch.getSnapshot()) === 'number');
+  await delay(20);
   assert.ok(seen.every(read => !read.data || read.revalidating), 'pre-change completion cannot publish a settled answer');
   next.release.resolve(); sync.release.resolve();
   await until(() => watch.getSnapshot().loading, 'failed replacement keeps the change bound');

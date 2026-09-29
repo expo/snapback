@@ -1,0 +1,225 @@
+--- a/snapback4/crates/snapback4/src/verbs/witness.rs
++++ b/snapback4/crates/snapback4/src/verbs/witness.rs
+@@ -17,7 +17,7 @@
+ struct Options {
+     bundle: String, udid: Option<String>, segment: String, artifacts: PathBuf,
+     port: u16, timeout: Duration, prime: bool, relaunch: bool, smoke: bool,
+-    build: Option<PathBuf>,
++    build: Option<PathBuf>, repack: Option<PathBuf>, app_project: Option<PathBuf>,
+ }
+ impl Options {
+     fn parse(args: &[String]) -> Result<Self> {
+@@ -26,31 +26,31 @@
+         let mut iter = args.iter().skip(1);
+         while let Some(flag) = iter.next() {
+             let Some(key) = flag.strip_prefix("--") else { return Err(error("E_WITNESS_INPUT", format!("unexpected argument {flag}"))); };
+-            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
++            if !["bundle-id", "udid", "segment", "artifacts", "port", "timeout", "prime", "relaunch", "smoke", "build", "repack", "app-project"].contains(&key) { return Err(error("E_WITNESS_INPUT", format!("unknown flag --{key}"))); }
+             let value = if ["prime", "relaunch", "smoke"].contains(&key) { String::new() } else {
+                 iter.next().filter(|s| !s.starts_with("--")).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} requires a value")))?
+             };
+             if flags.insert(key, value).is_some() { return Err(error("E_WITNESS_INPUT", format!("duplicate --{key}"))); }
+         }
+         let required = |key| flags.get(key).filter(|s| !s.is_empty()).cloned().ok_or_else(|| error("E_WITNESS_INPUT", format!("--{key} is required; see snapback4 guide witness")));
+-        let selectors = ["bundle-id", "build"].iter().filter(|k| flags.contains_key(**k)).count();
++        let selectors = ["bundle-id", "build", "repack"].iter().filter(|k| flags.contains_key(**k)).count();
+         if selectors == 0 { return Err(error("E_WITNESS_INPUT", "--bundle-id is required for installed-app mode, or use --build <project>")); }
+-        if selectors != 1 { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id or --build")); }
++        if selectors != 1 || flags.contains_key("app-project") != flags.contains_key("repack") { return Err(error("E_WITNESS_INPUT", "select exactly one of --bundle-id, --build or --repack; --repack requires --app-project")); }
+         let bundle = flags.get("bundle-id").cloned().unwrap_or_default();
+         if !bundle.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-') { return Err(error("E_WITNESS_INPUT", "invalid bundle identifier")); }
+         let smoke = flags.contains_key("smoke");
+-        if !smoke && flags.contains_key("build") {
++        if !smoke && (flags.contains_key("build") || flags.contains_key("repack")) {
+             return Err(error("E_WITNESS_INPUT", "prepared proof currently requires --smoke; application scenarios use installed-app mode"));
+         }
+         if smoke && ["segment", "prime", "relaunch"].iter().any(|key| flags.contains_key(key)) {
+             return Err(error("E_WITNESS_INPUT", "--smoke owns prime, offline and restart; omit --segment, --prime and --relaunch"));
+         }
+-        let segment = if smoke { "smoke".into() } else { required("segment")? };
++        let segment = if smoke { if flags.contains_key("repack") { "repack-smoke".into() } else { "smoke".into() } } else { required("segment")? };
+         if !name(&segment) || segment == "prime" { return Err(error("E_WITNESS_INPUT", "--segment uses letters, digits, hyphens or underscores; prime is reserved")); }
+         let artifacts = PathBuf::from(required("artifacts")?);
+         let port = flags.get("port").map_or(Ok(4400), |s| s.parse::<u16>()).ok().filter(|p| *p > 0).ok_or_else(|| error("E_WITNESS_INPUT", "--port must be 1..65535"))?;
+         let seconds = flags.get("timeout").map_or(Ok(120), |s| s.parse::<u64>()).ok().filter(|s| *s > 0 && *s <= 86400).ok_or_else(|| error("E_WITNESS_INPUT", "--timeout must be 1..86400 seconds per step"))?;
+-        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from) })
++        Ok(Self { bundle, udid: flags.get("udid").cloned(), segment, artifacts, port, timeout: Duration::from_secs(seconds), prime: smoke || flags.contains_key("prime"), relaunch: flags.contains_key("relaunch"), smoke, build: flags.get("build").map(PathBuf::from), repack: flags.get("repack").map(PathBuf::from), app_project: flags.get("app-project").map(PathBuf::from) })
+     }
+ }
+ 
+@@ -387,7 +387,7 @@
+     let _port = reserve(options.port)?;
+     let proof = preparation::prepare_app(&mut options, &udid)?;
+     drop(_port);
+-    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the bounded adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
++    let app = simctl(&["get_app_container", &udid, &options.bundle, "app"], options.timeout).map_err(|e| error("E_WITNESS_APP", format!("{} is not installed on {udid}: {e}\nUse witness ios --build <project> --smoke for the qualified adapter, or expo run:ios --configuration Release --device generic --no-bundler --output <private-output> then simctl install the exact product", options.bundle)))?;
+     let container = PathBuf::from(simctl(&["get_app_container", &udid, &options.bundle, "data"], options.timeout)?);
+     let plist = Path::new(&app).join("Info.plist");
+     let mut build = json!({});
+@@ -475,8 +475,8 @@
+             assert_eq!(o.segment, segment, "application protocol stays unchanged");
+             assert_eq!(artifact_segment(&o), format!("installed-{segment}"));
+         }
+-        let o = options(&["ios", "--build", ".", "--smoke", "--artifacts", "unused"]);
+-        assert_eq!(artifact_segment(&o), "smoke");
++        let o = options(&["ios", "--repack", "build.json", "--app-project", ".", "--smoke", "--artifacts", "unused"]);
++        assert_eq!(artifact_segment(&o), "repack-smoke");
+     }
+     #[test]
+     fn prepared_scenario_scope_is_explicit() {
+--- a/snapback4/crates/snapback4/src/verbs/witness/smoke.rs
++++ b/snapback4/crates/snapback4/src/verbs/witness/smoke.rs
+@@ -54,10 +54,7 @@
+         }) { entry["receipt"] = receipt; }
+         result?;
+         if self.manifest["segments"][segment]["receipt"]["origin"] != self.manifest["backend"]["origin"] {
+-            let problem = error("E_WITNESS_ORIGIN", "smoke client origin differs from the witness-owned backend; rebundle or choose its matching --port");
+-            self.manifest["segments"][segment]["status"] = json!("failed");
+-            self.manifest["segments"][segment]["error"] = json!(problem);
+-            return Err(problem);
++            return Err(error("E_WITNESS_ORIGIN", "smoke client origin differs from the witness-owned backend; rebundle or choose its matching --port"));
+         }
+         validate_receipt(segment, &self.manifest["segments"][segment]["receipt"], &self.manifest["segments"]["prime"]["receipt"], self.manifest["syncBarrier"]["seq"].as_u64())
+     }
+--- a/snapback4/crates/snapback4/src/verbs/witness/preparation.rs
++++ b/snapback4/crates/snapback4/src/verbs/witness/preparation.rs
+@@ -34,15 +34,17 @@
+ }
+ 
+ pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Value>> {
+-    let Some(project) = options.build.as_ref() else { return Ok(None); };
++    let Some(project) = options.build.as_ref().or(options.app_project.as_ref()) else { return Ok(None); };
+     let project = fs::canonicalize(project).map_err(|e| error("E_WITNESS_BUILD", e))?;
+     let _project_lease = lease(&project.join(".snapback4-witness/owner.lock"))?;
+     let helper = options.artifacts.join("prepare.mjs");
+     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
+     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
++    let mode = if options.build.is_some() { "build" } else { "repack" };
+     let origin = format!("http://127.0.0.1:{}", options.port);
+-    node(options, &[helper.to_str().unwrap(), project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin], "preparation")?;
+-    let receipt = options.artifacts.join("build.json");
++    node(options, &[helper.to_str().unwrap(), mode, project.to_str().unwrap(), options.artifacts.to_str().unwrap(), udid, &origin,
++        options.repack.as_ref().and_then(|p| p.to_str()).unwrap_or("")], "preparation")?;
++    let receipt = options.artifacts.join(if mode == "build" { "build.json" } else { "repack.json" });
+     let prepared: Value = serde_json::from_slice(&fs::read(&receipt).map_err(|e| error("E_WITNESS_PROOF", e))?).map_err(|e| error("E_WITNESS_PROOF", e))?;
+     options.bundle = prepared["executedApp"]["info"]["CFBundleIdentifier"].as_str().ok_or_else(|| error("E_WITNESS_BUILD", "prepared app has no bundle identifier"))?.to_owned();
+     if app_pid(&simctl(&["spawn", udid, "launchctl", "list"], options.timeout)?, &options.bundle)?.is_some() {
+@@ -68,7 +70,7 @@
+             "authentication": "normal application flow; driver provides no credentials/session",
+             "reset": "one install before prime, existing data/keychain preserved; no reset or reinstall between segments",
+             "limits": "Native smoke only; authentication and nonempty fixture are application responsibilities. No M6/M8 admission." } });
+-    proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] });
++    if mode == "build" { proof["nativeBase"] = json!({ "app": prepared["executedApp"]["inventory"]["sha256"], "build": artifact(&receipt)?["sha256"], "fingerprint": prepared["nativeFingerprint"]["fingerprint"]["hash"] }); }
+     let path = options.artifacts.join("proof.json");
+     let mut file = OpenOptions::new().create_new(true).write(true).open(&path).map_err(|e| error("E_WITNESS_PROOF", e))?;
+     file.write_all(&serde_json::to_vec_pretty(&proof).unwrap()).map_err(|e| error("E_WITNESS_PROOF", e))?;
+--- a/snapback4/crates/snapback4/src/verbs/witness/prepare.mjs
++++ b/snapback4/crates/snapback4/src/verbs/witness/prepare.mjs
+@@ -3,9 +3,10 @@
+ import path from 'node:path';
+ import { createRequire } from 'node:module';
+ import { spawnSync } from 'node:child_process';
+-import { hash, fail, readJSON, seal, inventory, hbc, nativeFiles, differences, shellQuote } from './payload.mjs';
++import { isDeepStrictEqual } from 'node:util';
++import { hash, fail, readJSON, seal, inventory, hbc, nativeFiles, differences } from './payload.mjs';
+ 
+-const [projectArg, artifactsArg, udid, origin] = process.argv.slice(2);
++const [mode, projectArg, artifactsArg, udid, origin, receiptArg] = process.argv.slice(2);
+ const out = path.resolve(artifactsArg), project = fs.realpathSync(projectArg);
+ const started = Date.now(), deadline = started + 900_000, phases = [];
+ const cache = path.join(project, '.snapback4-witness'), snapshot = path.join(cache, 'snapshot');
+@@ -64,7 +65,7 @@
+   }
+   if (inputs.config.expo?.newArchEnabled !== true || (inputs.config.expo?.jsEngine && inputs.config.expo.jsEngine !== 'hermes')) fail('E_WITNESS_BUILD', 'this adapter requires New Architecture and Hermes');
+   // An embedded-bundle hash cannot attest an Updates-selected cached bundle.
+-  if (fs.existsSync(path.join(project, 'node_modules/expo-updates'))) fail('E_WITNESS_NATIVE_COMPAT', 'linked expo-updates is outside own-build proof support; use manual installed-app mode');
++  if (fs.existsSync(path.join(project, 'node_modules/expo-updates'))) fail('E_WITNESS_NATIVE_COMPAT', 'linked expo-updates is outside both prepared proof routes; use manual installed-app mode');
+   const fingerprintOptions = { platforms: ['ios'], silent: true, sourceSkips: 0 };
+   // Use a clean child environment for config/plugin evaluation, not ambient secrets.
+   const fpScript = `const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),${JSON.stringify(fingerprintOptions)}).then(x=>console.log(JSON.stringify(x)))`;
+@@ -73,7 +74,18 @@
+     sdkBuild: command('sdk-build', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-build-version'], project), pod: command('pod-version', 'pod', ['--version'], project),
+     runtime: JSON.parse(command('runtime', 'xcrun', ['simctl', 'list', 'runtimes', '--json'], project)).runtimes.map(({ identifier, version, buildversion }) => ({ identifier, version, buildversion })), architecture: 'arm64' };
+   const nativeFingerprint = { version: '0.20.13', options: fingerprintOptions, fingerprint };
+-  if (!toolchain.xcode.startsWith('Xcode 27.0\n') || toolchain.sdk !== '27.0') fail('E_WITNESS_BUILD', 'this adapter is limited to Xcode 27.0 / iOS simulator SDK 27.0 only; use installed-app mode');
++  if (!toolchain.xcode.startsWith('Xcode 27.0\n') || toolchain.sdk !== '27.0') fail('E_WITNESS_BUILD', 'this adapter is qualified for Xcode 27.0 / iOS simulator SDK 27.0 only; use installed-app mode');
++  let base = null;
++  if (mode === 'repack') {
++    base = readJSON(receiptArg);
++    if (base.format !== 1 || base.project !== project || base.proofKind !== 'application-release') fail('E_WITNESS_NATIVE_COMPAT', 'receipt is not an own-build base for this project; use --build');
++    const baseApp = path.join(path.dirname(path.resolve(receiptArg)), 'base.app');
++    if (inventory(baseApp).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'immutable base bytes changed; use --build');
++    sameInputs(base.inputs, inputs);
++    if (JSON.stringify(base.toolchain) !== JSON.stringify(toolchain) || base.nativeFingerprint.fingerprint.hash !== fingerprint.hash) fail('E_WITNESS_NATIVE_COMPAT', 'toolchain or Expo fingerprint changed; use --build');
++    if (version('@expo/repack-app') !== '0.10.3') fail('E_WITNESS_REPACK', 'repack requires installed @expo/repack-app 0.10.3; use --build');
++    base.sourceApp = baseApp;
++  }
+   // Stable private path permits warm Xcode intermediates. A project lease in
+   // the Rust parent excludes competing writers; each run retains its inputs.
+   fs.mkdirSync(snapshot, { recursive: true });
+@@ -84,10 +96,10 @@
+   seal(path.join(out, 'source-inputs.json'), source);
+   const expoCLI = path.join(snapshot, 'node_modules/expo/bin/cli');
+   const publicConfig = JSON.parse(command('public-config', process.execPath, [expoCLI, 'config', '--type', 'public', '--json']));
+-  let app, settings = null;
+-  {
++  let app, transformation = null, settings = null;
++  if (mode === 'build') {
+     if (!fs.existsSync(path.join(snapshot, 'ios'))) command('prebuild', process.execPath, [expoCLI, 'prebuild', '--platform', 'ios', '--no-install']);
+-    fs.writeFileSync(path.join(snapshot, 'ios/.xcode.env.local'), `export NODE_BINARY=${shellQuote(process.execPath)}\n`);
++    fs.writeFileSync(path.join(snapshot, 'ios/.xcode.env.local'), `export NODE_BINARY=${JSON.stringify(process.execPath)}\n`);
+     command('pods', 'pod', ['install'], path.join(snapshot, 'ios'));
+     const workspaces = fs.readdirSync(path.join(snapshot, 'ios')).filter(n => n.endsWith('.xcworkspace'));
+     if (workspaces.length !== 1) fail('E_WITNESS_BUILD', 'no unique iOS workspace; use installed-app mode');
+@@ -107,6 +119,13 @@
+     app = fs.realpathSync(app);
+     command('preserve-app', '/bin/cp', ['-cR', app, path.join(out, 'base.app')]);
+     app = path.join(out, 'base.app');
++  } else {
++    const repackCLI = path.join(snapshot, 'node_modules/@expo/repack-app/build/index.js');
++    const pkg = readJSON(path.join(snapshot, 'node_modules/@expo/repack-app/package.json'));
++    const cli = path.join(snapshot, 'node_modules/@expo/repack-app', typeof pkg.bin === 'string' ? pkg.bin : Object.values(pkg.bin)[0]);
++    app = path.join(out, 'repacked.app');
++    command('repack', process.execPath, [cli, '--platform', 'ios', '--js-bundle-only', '--source-app', base.sourceApp, '--output', app, '--working-directory', path.join(out, 'repack-work'), '--skip-working-dir-cleanup']);
++    transformation = { tool: '@expo/repack-app', version: '0.10.3', source: base.executedApp.inventory.sha256, changes: differences(base.executedApp.inventory.files, inventory(app).files) };
+   }
+   const executedApp = appInfo(app);
+   if (!executedApp.info.UIApplicationSceneManifest) fail('E_WITNESS_BUILD', 'iOS 27 requires UIScene; migrate the project native lifecycle before --build; see guide witness');
+@@ -116,6 +135,19 @@
+   if (hash(fs.readFileSync(podCompiler)) !== compiler.sha256) fail('E_WITNESS_HERMES', 'CocoaPods and JS export resolve different Hermes compilers');
+   const hbcVersion = Number(compiler.version.match(/HBC bytecode version:\s*(\d+)/)?.[1]);
+   if (executedApp.javascript.version !== hbcVersion) fail('E_WITNESS_HERMES', 'bundle and installed compiler HBC versions differ');
++  if (base) {
++    if (JSON.stringify(executedApp.native) !== JSON.stringify(base.executedApp.native)) fail('E_WITNESS_REPACK', 'native Mach-O bytes changed; use --build');
++    if (executedApp.javascript.version !== base.executedApp.javascript.version || JSON.stringify(compiler) !== JSON.stringify(base.compiler)) fail('E_WITNESS_HERMES', 'base/repack Hermes compiler or bytecode changed');
++    if (!isDeepStrictEqual(executedApp.info, base.executedApp.info)) fail('E_WITNESS_REPACK', 'Info.plist semantics changed; use --build');
++    for (const row of transformation.changes) {
++      if (!(row.path === 'main.jsbundle' || row.path.startsWith('assets/') || row.path === 'EXConstants.bundle/app.config' || row.path === 'Expo.plist' || row.path === 'Info.plist' || row.path.startsWith('_CodeSignature/'))) fail('E_WITNESS_REPACK', `unclassified changed resource ${row.path}; use --build`);
++    }
++    if (JSON.stringify(publicConfig) !== JSON.stringify(base.publicConfig)) fail('E_WITNESS_REPACK', 'public config changed');
++    if (!isDeepStrictEqual(readJSON(path.join(app, 'EXConstants.bundle/app.config')), readJSON(path.join(base.sourceApp, 'EXConstants.bundle/app.config')))) fail('E_WITNESS_REPACK', 'embedded public config changed; use --build');
++    if (!isDeepStrictEqual(plist(path.join(app, 'Expo.plist')), plist(path.join(base.sourceApp, 'Expo.plist')))) fail('E_WITNESS_REPACK', 'Expo.plist semantics changed; use --build');
++    if (inventory(base.sourceApp).sha256 !== base.executedApp.inventory.sha256) fail('E_WITNESS_PROOF', 'base changed during repack');
++    if (executedApp.javascript.sha256 === base.executedApp.javascript.sha256) fail('E_WITNESS_REPACK', 'repack did not produce changed JavaScript');
++  }
+   const after = nativeInput(project);
+   sameInputs(inputs, after, 'E_WITNESS_PROOF');
+   if (inventory(project, sourceOmit).sha256 !== source.sha256) fail('E_WITNESS_PROOF', 'live source changed during preparation');
+@@ -124,12 +156,12 @@
+   if (fpAfter.hash !== fingerprint.hash) fail('E_WITNESS_PROOF', 'native fingerprint changed during preparation');
+   const resolved = { ios: inventory(snapshot, p => !['ios', 'node_modules'].includes(p.split('/')[0]) || p === 'ios/build'), podLock: hash(fs.readFileSync(path.join(snapshot, 'ios/Podfile.lock'))), properties: readJSON(path.join(snapshot, 'ios/Podfile.properties.json')) };
+   seal(path.join(out, 'resolved-native.json'), resolved);
+-  const result = { format: 1, proofKind: 'application-release', project, startedAt: started, durationMs: Date.now() - started,
+-    inputs, nativeFingerprint, source, publicConfig, toolchain, compiler, settings, executedApp, phases, origin,
+-    buildResult: inventory(path.join(out, 'build.xcresult')),
+-    nativeBase: null,
++  const result = { format: 1, proofKind: base ? 'application-release-repack' : 'application-release', project, startedAt: started, durationMs: Date.now() - started,
++    inputs, nativeFingerprint, source, publicConfig, toolchain, compiler, settings, executedApp, transformation, phases, origin,
++    buildResult: base ? null : inventory(path.join(out, 'build.xcresult')),
++    nativeBase: base ? { app: base.executedApp.inventory.sha256, build: hash(fs.readFileSync(receiptArg)), fingerprint: base.nativeFingerprint.fingerprint.hash } : null,
+     resolvedNative: hash(fs.readFileSync(path.join(out, 'resolved-native.json'))) };
+-  seal(path.join(out, 'build.json'), result);
++  seal(path.join(out, base ? 'repack.json' : 'build.json'), result);
+ } catch (error) {
+   seal(path.join(out, 'preparation-failure.json'), { startedAt: started, durationMs: Date.now() - started, error: String(error), phases });
+   console.error(String(error)); process.exitCode = 1;

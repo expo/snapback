@@ -23,11 +23,15 @@ export const groups = {
   hold: [10,130,131,132],
   clock: [134],
   auth: [11,18,26,27],
+  closing: [159,160],
 };
 // Keep the existing fixture cases attached to their semantic await after the
 // shared HTTP decoder moved body I/O. The census still pins every exact ID;
 // new sites have no default classification. Case 156 is the new overload pause.
 export function fixtureIndex(index) {
+  // EA round 2: close reads both custody sources before reporting unknown.
+  if (index === 95 || index === 96) return index + 64;
+  if (index > 96) index -= 2;
   // Round 3: the probe's admission refusal owns one paced recovery wait.
   if (index === 35) return 157;
   if (index > 35) index -= 1;

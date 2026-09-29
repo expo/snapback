@@ -4,6 +4,27 @@ import { mkdtempSync, appendFileSync, readFileSync, existsSync, writeFileSync, r
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+test('prepared launch requires a native observation and preserves its hashes in the strict envelope', async () => {
+  const { createWitness } = await import('../../snapback4-expo/src/witness-core.ts');
+  const lines = [], container = { witnessLaunch: JSON.stringify({ segment: 'prime', timeoutMs: 1000, proof: { sha256: 'expected' } }),
+    witnessAppend: line => lines.push(JSON.parse(line)), witnessSignaled: () => true };
+  assert.throws(() => createWitness(container), /E_WITNESS_PROOF/);
+  const runtime = { scriptURL: 'file:///app/main.jsbundle', dev: false, hermes: true, launcherManifestPresent: false, updatesPresent: false, updatesManifestPresent: false };
+  const native = { ...container, witnessObservation: url => {
+    assert.equal(url, runtime.scriptURL);
+    return { format: 2, javascriptSha256: 'native-read', executableSha256: 'native-exe' };
+  } };
+  for (const change of [{ scriptURL: null }, { scriptURL: 'http://localhost:8081/index.bundle' }, { dev: true }, { hermes: false }, { launcherManifestPresent: true }, { updatesPresent: true }, { updatesManifestPresent: true }]) {
+    assert.throws(() => createWitness(native, { ...runtime, ...change }), /E_WITNESS_PROOF/);
+  }
+  assert.ok(lines.every(row => row.witness.step === "launched:failed"));
+  lines.length = 0;
+  createWitness(native, runtime);
+  assert.equal(lines[0].startup.dev, false);
+  assert.equal(lines[0].startup.javascriptSha256, 'native-read');
+  assert.deepEqual(Object.keys(lines[0].witness).sort(), ['at', 'step']);
+});
+
 test("witness is inert without a launch; a fake container preserves receipts and gates reconnect", async () => {
   const { createWitness } = await import("../../snapback4-expo/src/witness-core.ts");
   assert.equal(createWitness(null), null);
@@ -75,4 +96,10 @@ test("receipt serialization cannot replace the witness envelope", async () => {
   const object = { get app() { object.witness = { step: "done" }; return true; } };
   await w.receipt(object);
   assert.equal(lines.at(-1).witness.step, "launched");
+});
+
+test('only empty launcher/update manifests permit prepared startup', async () => {
+  const { manifestPresent } = await import('../../snapback4-expo/src/witness-core.ts');
+  for (const value of [null, undefined, '', '{}', {}]) assert.equal(manifestPresent(value), false);
+  for (const value of ['broken-json', '{"bundleUrl":"http://localhost"}', { metadata: {} }, 'null', 'true']) assert.equal(manifestPresent(value), true);
 });

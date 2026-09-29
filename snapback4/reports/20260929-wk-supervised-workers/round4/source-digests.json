@@ -1,0 +1,23 @@
+{
+  "issues/closed/20260929-snapback4-worker-ledger-intermittent-duplicate.md": "a2dd0eb34e32042df741d9a8a850c79fe3636c3c1ca499bdf9581001ecc80c5c",
+  "llp/3000.009-general-purpose-backend.rfc.md": "f757c31c02012b6bf4fbfc83f1c270087014fdd294f8a5fd68467e05b003f824",
+  "snapback4/JOURNAL.md": "13705592e304f7d66e285de369601fb8ce3a06120bfe8f7dddc02034bfa890ff",
+  "snapback4/crates/snapback4-lang/src/guide/actions.rs": "ca6a6fb5f6cd5d71ad292c1ef49fcab0972bff843203f525a1e948eb35adf7a4",
+  "snapback4/crates/snapback4-lang/src/guide/effects.rs": "a7f3365ab982bc85bab3b9f1ee767f81257c222e74d774098e498051836ea870",
+  "snapback4/crates/snapback4/src/dev_worker.rs": "e87eb1cba6ab9fb9e9efcd0b52f7e2743691d2ef3cac3c6ec2a978ad5de1e55e",
+  "snapback4/crates/snapback4/src/worker_declarations.rs": "a13f4e99564430410d8c5596918938f0e630e04637da2d930ccb10abe4df9d3d",
+  "snapback4/crates/snapback4/tests/lifecycle.rs": "eccd288ab3d9960d38fd7983c0f8fc13314dfcaa4c413817705f8aff61867d24",
+  "snapback4/crates/snapback4/tests/serve_adoption/worker.rs": "1b5301be1af5a6518df37378c948bfaf2de9c3d6bacd7ad0b155aacd7435cc4c",
+  "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "af71118bd59f9a604fd256cd80e5f47d334313f0d18ad34bcdc7644373bcd0d5",
+  "snapback4/packages/snapback4/SERVER.md": "8c5e3dd230b8453dcd7001da718c82961d45f8c5e92f26912b529bbad6dea53c",
+  "snapback4/packages/snapback4/src/worker-ledger.ts": "9833b7f746dab896dc46aca15cc78baa3f0951ae69780c95d5c9f2bbe1654447",
+  "snapback4/packages/snapback4/src/worker.ts": "3f474777f20e50868617693e9302819e16956518a0ba395efd5ae6001d06e25f",
+  "snapback4/packages/snapback4/test/delivery-await-boundary.json": "b94eb26dc6f2a055f8aba65af0866a08de821d4ea7bd1b212a6f427c10ac95c3",
+  "snapback4/packages/snapback4/test/fixtures/routes.mjs": "424a4e95f1608e60e71bb0ac9de64d67e5fea93790504b81d20275706ae61f34",
+  "snapback4/packages/snapback4/test/routes.test.mjs": "f5a4a56ba28a57c72b56f0165bfac8786a290c06a71232748d98040b4c50b867",
+  "snapback4/packages/snapback4/test/server-e2e.test.mjs": "4aaebfcdd92ce81ae129114ccee9a71c33e6570e5e1620bb638ab7d5186db2a5",
+  "snapback4/packages/snapback4/test/supervised-workers.test.mjs": "06f27644364596aa550522880ddd3f77c340ef801130d08f7b9c5b4110095ecf",
+  "snapback4/packages/snapback4/test/worker-ledger-contention.test.mjs": "b88cb88afa4b2352e86d2e8cb3a2ec2bc1079f87dcfd127af75c460cc9ac254b",
+  "snapback4/packages/snapback4/test/worker-regressions.test.mjs": "d753dd2d8aa9598b542e5cde894e384bde000b8237441118633e3daa9608a597",
+  "snapback4/packages/snapback4/test/worker.test.mjs": "a5b1cd6a6d227132e6770ebc27386f54ad96191bb8ea3395a21fd7f30dbacb41"
+}

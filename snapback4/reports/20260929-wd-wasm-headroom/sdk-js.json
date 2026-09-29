@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "jsFiles": 105,
+    "jsRawBytes": 871915,
+    "perFileGzipSum": 246844,
+    "jsTreeSha256": "1625fa805e535852cebf90184c3edbd7354504030e3c2fb1d375fb01a0327fa2"
+  },
+  "final": {
+    "jsFiles": 105,
+    "jsRawBytes": 871915,
+    "perFileGzipSum": 246844,
+    "jsTreeSha256": "1625fa805e535852cebf90184c3edbd7354504030e3c2fb1d375fb01a0327fa2"
+  }
+}

@@ -1,0 +1,14 @@
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (13.807071ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.229893ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.265238ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (366.283434ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1945.958239ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1620.877029ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4072.582499

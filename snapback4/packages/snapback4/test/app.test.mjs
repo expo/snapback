@@ -195,7 +195,7 @@ for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears cred
     async delete(key) { if (failDelete) throw Error("session delete failed"); await memory.delete(key); },
   }, fetch: async (input) => new URL(input).pathname === "/auth/guest"
     ? Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } })
-    : Response.json({ ok: true }) });
+    : Response.json({ ok: true, ...(new URL(input).pathname === "/probe" ? { store_id: "journal-failure-test", seq: 0 } : {}) }) });
   t.after(() => app.close());
   await app.ready; await app.auth.guest();
   for (const waitSeconds of [undefined, 0]) {
@@ -924,9 +924,22 @@ test("native smoke observes only the published replacement of a near-expiry rest
   const initial = createApp({ url, sessionStore: storage });
   await initial.ready; assert.equal((await initial.auth.guest()).ok, true);
   const saved = initial.client.session(); await initial.close();
+  // The launch must carry the real served compiler facts, just as the driver
+  // does. Session replacement must not bypass the helper's residency checks.
+  const response = await fetch(url + '/schema', { headers: { authorization: `Bearer ${saved.token}` } });
+  assert.equal(response.status, 200);
+  const backend = await response.json();
+  const queryFacts = Object.fromEntries(backend.programs.filter(program => program.kind === 'Query'
+    && Object.values(program.args).every(type => type !== null && typeof type === 'object' && 'Optional' in type))
+    .map(program => {
+      const fact = backend.schema.operations[program.name];
+      return [program.name, { runs: fact.runs, held: fact.held ?? false }];
+    }));
+  assert.deepEqual(Object.keys(queryFacts), ['list']);
   await keepSession(url, { ...saved, expiresAt: Date.now() + 3600_000 }, storage);
   const receipts = [], published = [];
-  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment: 'prime', timeoutMs: 5000 }),
+  const runner = createSmoke({ witnessLaunch: JSON.stringify({ smoke: true, segment: 'prime', timeoutMs: 5000,
+    queryFacts, queryGeneration: backend.generation }),
     witnessAppend: line => receipts.push(JSON.parse(line)), witnessSignaled: () => false }, {
     errors: { getGlobalHandler: () => () => {}, setGlobalHandler: () => {} },
   });
@@ -967,7 +980,11 @@ test("native smoke observes only the published replacement of a near-expiry rest
   assert.notEqual(app.client.session().token, saved.token);
   await until(() => receipts.some(row => row.witness.step === 'primed'), 'replacement smoke receipt');
   assert.ok(!receipts.some(row => row.witness.step.endsWith(':failed')));
-  assert.equal(receipts.find(row => row.smoke).smoke.pass, true);
+  const smoke = receipts.find(row => row.smoke).smoke;
+  assert.equal(smoke.pass, true);
+  assert.deepEqual(smoke.queryFacts, queryFacts);
+  assert.equal(smoke.queryGeneration, backend.generation);
+  assert.equal(smoke.generation, backend.generation);
   await app.close(); assert.equal(detached, 1);
 });
 

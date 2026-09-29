@@ -55,7 +55,7 @@ import { appendFileSync, existsSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 const stop = new AbortController();
 process.once("SIGTERM", () => stop.abort()); process.once("SIGINT", () => stop.abort());
-function record(name: string, value: unknown) { appendFileSync(new URL("../" + name + ".jsonl", import.meta.url), JSON.stringify(value) + "\\n", {flush:true}); }
+function record(name: string, value: unknown) { appendFileSync(process.cwd() + "/" + name + ".jsonl", JSON.stringify(value) + "\\n", {flush:true}); }
 async function verify(req: RouteRequest, ctx: VerificationContext<"HOOK_KEY">): Promise<boolean> {
   const bytes = await req.rawBody();
   const expected = createHmac("sha256", ctx.secrets.HOOK_KEY).update(bytes).digest();

@@ -1,0 +1,28 @@
+✖ suspended runtime refuses late initial identity before timer delivery (4.422679ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 108.408436
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/admit-before-identity.test.mjs:683:43
+✖ suspended runtime refuses late initial identity before timer delivery (4.422679ms)
+  AssertionError [ERR_ASSERTION]: late initial identity cannot start a final read
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ea/snapback4/packages/snapback4/test/admit-before-identity.test.mjs:702:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

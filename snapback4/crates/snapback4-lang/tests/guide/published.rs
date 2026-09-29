@@ -23,13 +23,19 @@ fn shipped_files() -> BTreeSet<String> {
 // on repository files. Keep exact paths: accepting an entire src/ tree would
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
+    // The builder's own Expo inputs and generated native-proof outputs.
+    "package-lock.json", "app.json", "build.json", "proof.json",
+    "artifacts/native-smoke/build.json",
     "snapback/schema.q", "snapback/social.q", "snapback/jobs.q", "snapback/*.q",
     "snapback/server.ts", "snapback/worker.ts", "snapback/worker.mts",
+    "snapback/workers/<service>.mjs", "snapback/workers/push.mjs",
+    "snapback/workers/notifications.mjs", "/durable/path/effects.sqlite",
     "snapback/generated/api.ts", "snapback/generated/server.ts",
     "snapback/generated/native.rs", "snapback/generated/native.wasm",
     "snapback/generated/package.json", "snapback/generated/residency.json",
     "snapback/native/Cargo.toml", ".snapback4/store.sqlite",
     ".snapback4/dev-refusals/<storeId>/<instance>.json",
+    "app/dm/[other].tsx", "app/conversation/[id].tsx", "src/Direct.tsx",
     "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",

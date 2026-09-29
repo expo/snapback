@@ -4,6 +4,20 @@ use std::{collections::{BTreeMap, BTreeSet}, io::{Read, Write}};
 
 pub(crate) fn validate_environment(schema: &Schema) -> Result<(), String> { values(schema).map(|_| ()) }
 
+// @ref LLP 3000.009#5.3 — named entries opt into individual declared secrets;
+// the conventional generated runtime still hosts the complete registry.
+pub(super) fn for_entry(source: &std::path::Path, declared: &BTreeMap<String, String>) -> Result<BTreeMap<String, String>, String> {
+    let text = std::fs::read_to_string(source).map_err(|e| format!("worker secrets: {e}"))?;
+    let mut selected = BTreeMap::new();
+    for names in text.lines().filter_map(|line| line.trim().strip_prefix("// snapback4 secrets:")) {
+        for name in names.split(|c: char| c.is_whitespace() || c == ',').filter(|s| !s.is_empty()) {
+            let value = declared.get(name).ok_or_else(|| format!("worker secrets: {name} is not a declared action, effect or route secret"))?;
+            selected.insert(name.to_owned(), value.clone());
+        }
+    }
+    Ok(selected)
+}
+
 pub(super) fn values(schema: &Schema) -> Result<BTreeMap<String, String>, String> {
     let names: BTreeSet<_> = schema.action_specs.values().flat_map(|spec| &spec.work.secrets)
         .chain(schema.routes.values().flat_map(|spec| &spec.work.secrets))
@@ -50,18 +64,35 @@ impl Redactor {
     }
 }
 
-pub(super) fn pipe(mut input: impl Read + Send + 'static, secrets: Vec<Vec<u8>>) {
+pub(super) fn pipe(mut input: impl Read + Send + 'static, secrets: Vec<Vec<u8>>, name: String) {
     std::thread::spawn(move || {
         let mut redactor = Redactor::new(secrets);
         let mut bytes = [0; 4096];
-        let mut output = std::io::stderr();
+        let output = std::io::stderr();
         let mut ready = Vec::new();
+        let mut pending = Vec::new();
+        let mut emit = |bytes: &[u8], eof: bool| -> std::io::Result<()> {
+            pending.extend_from_slice(bytes);
+            loop {
+                let size = pending.iter().position(|b| *b == b'\n').map(|n| n + 1)
+                    .or_else(|| (pending.len() >= 8192).then_some(8192))
+                    .or_else(|| (eof && !pending.is_empty()).then_some(pending.len()));
+                let Some(size) = size else { break; };
+                let mut out = output.lock();
+                write!(out, "[worker:{name}] ")?;
+                out.write_all(&pending[..size])?;
+                if pending[size - 1] != b'\n' { out.write_all(b"\n")?; }
+                out.flush()?;
+                pending.drain(..size);
+            }
+            Ok(())
+        };
         loop {
             ready.clear();
             match input.read(&mut bytes) {
-                Ok(0) => { let _ = redactor.write(&[], true, &mut ready); let _ = output.write_all(&ready); break; }
+                Ok(0) => { let _ = redactor.write(&[], true, &mut ready); let _ = emit(&ready, true); break; }
                 Ok(n) => {
-                    if redactor.write(&bytes[..n], false, &mut ready).is_err() || output.write_all(&ready).is_err() { break; }
+                    if redactor.write(&bytes[..n], false, &mut ready).is_err() || emit(&ready, false).is_err() { break; }
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                 Err(_) => break,

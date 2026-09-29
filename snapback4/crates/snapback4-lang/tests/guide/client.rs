@@ -6,6 +6,8 @@ mod published;
 fn client_aliases_keep_typing_on_ephemeral() {
     let client = card("client").unwrap();
     assert!(client.lines().count() <= 130);
+    assert!(client.contains("eight queued observation attempts"));
+    assert!(client.contains("direct queries and timed presence refreshes use separate paths"));
     for alias in ["client", "react", "hooks", "composer", "unread"] {
         assert_eq!(card(alias), Some(client));
         assert!(snapback4_lang::guide::listing().contains(alias));
@@ -64,9 +66,9 @@ fn w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes() {
 #[test]
 fn existence_card_and_starters_teach_the_sdk_words() {
     let client = card("client").unwrap();
-    assert!(!client.contains("presence"));
+    assert!(!client.contains("read.presence"));
     assert!(!card("offline-interactions").unwrap().contains("presence"));
-    for word in ["existence(read)", "read.existence", "`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "member === \"absent\""] {
+    for word in ["existence(read)", "read.existence", "`loading`", "`denied`", "`present`", "`absent`", "`partial`", "absence at the acquired watermark", "no horizon", "conversation's own group", "messages' audience", "existence(member) === \"absent\""] {
         assert!(client.contains(word), "client missing {word}");
     }
     assert!(client.split_whitespace().count() <= 1200, "keep the client card concise");

@@ -1,0 +1,326 @@
+{
+  "production": {
+    "sha256": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95",
+    "rawBytes": 2040531,
+    "sections": [
+      {
+        "section": "type",
+        "offset": 8,
+        "payloadBytes": 761,
+        "framedBytes": 764
+      },
+      {
+        "section": "import",
+        "offset": 772,
+        "payloadBytes": 683,
+        "framedBytes": 686
+      },
+      {
+        "section": "function",
+        "offset": 1458,
+        "payloadBytes": 8434,
+        "framedBytes": 8437
+      },
+      {
+        "section": "table",
+        "offset": 9895,
+        "payloadBytes": 7,
+        "framedBytes": 9
+      },
+      {
+        "section": "memory",
+        "offset": 9904,
+        "payloadBytes": 3,
+        "framedBytes": 5
+      },
+      {
+        "section": "global",
+        "offset": 9909,
+        "payloadBytes": 25,
+        "framedBytes": 27
+      },
+      {
+        "section": "export",
+        "offset": 9936,
+        "payloadBytes": 275,
+        "framedBytes": 278
+      },
+      {
+        "section": "element",
+        "offset": 10214,
+        "payloadBytes": 1018,
+        "framedBytes": 1021
+      },
+      {
+        "section": "code",
+        "offset": 11235,
+        "payloadBytes": 1935793,
+        "framedBytes": 1935797
+      },
+      {
+        "section": "data",
+        "offset": 1947032,
+        "payloadBytes": 93363,
+        "framedBytes": 93367
+      },
+      {
+        "section": "custom",
+        "offset": 2040399,
+        "payloadBytes": 68,
+        "framedBytes": 70,
+        "name": "name"
+      },
+      {
+        "section": "custom",
+        "offset": 2040469,
+        "payloadBytes": 60,
+        "framedBytes": 62,
+        "name": "producers"
+      }
+    ],
+    "dataSegments": [
+      {
+        "index": 0,
+        "bytes": 93308,
+        "printableAsciiRunsBytes": 53434,
+        "printableAsciiRuns": 1063,
+        "nonAsciiOrShortBytes": 39874,
+        "asciiStringsSha256": "1e22e13705e41688df01d27b4c47a3555708e9f22781d8754e4096b5be002c83",
+        "sha256": "466a682f62ffad5a547189384144087ba1e26ed2a5991cb5edcc65208a9062af"
+      },
+      {
+        "index": 1,
+        "bytes": 36,
+        "printableAsciiRunsBytes": 0,
+        "printableAsciiRuns": 0,
+        "nonAsciiOrShortBytes": 36,
+        "asciiStringsSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "sha256": "9be117957c4f1958863882494d0c669e07acb0f800a0d699a024bc6d07ff8b42"
+      }
+    ]
+  },
+  "symbols": {
+    "note": "Separate symbol-bearing post-bindgen counterpart; raw shallow ownership, not additive gzip prices. Inlined callees belong to callers.",
+    "attributedBytes": 2042133,
+    "crates": {
+      "snapback4_core": 542956,
+      "alloc": 475405,
+      "serde_json": 412862,
+      "core": 253526,
+      "snapback4_device": 215805,
+      "module/data/glue": 107618,
+      "dlmalloc": 7302,
+      "serde_core": 6703,
+      "sha2": 5033,
+      "std": 3124,
+      "wasm_bindgen": 2795,
+      "digest": 2111,
+      "zmij": 2080,
+      "__rustc": 1240,
+      "itoa": 1222,
+      "compiler_builtins": 1036,
+      "js_sys": 372,
+      "generic_array": 346,
+      "getrandom": 310,
+      "serde": 264,
+      "block_buffer": 14,
+      "memchr": 9
+    },
+    "classes": {
+      "core application": 566663,
+      "serde deserialize": 445548,
+      "B-tree machinery": 443251,
+      "device application": 199324,
+      "data": 93370,
+      "other": 92633,
+      "serde serialize": 69506,
+      "serde_json other": 58422,
+      "sorting": 46843,
+      "formatting/panic": 26573
+    },
+    "genericFamilies": {
+      "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct": 233448,
+      "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_seq": 24144,
+      "formatting/panic (non-generic names)": 23787,
+      "<serde_json::de::MapAccess<serde_json::read::StrRead> as serde_core::de::MapAccess>::next_key_seed": 23691,
+      "core::slice::sort::stable::drift::sort": 23414,
+      "<serde_json::de::SeqAccess<serde_json::read::StrRead> as serde_core::de::SeqAccess>::next_element_seed": 20283,
+      "core::slice::sort::stable::quicksort::stable_partition": 18674,
+      "core::slice::sort::stable::quicksort::quicksort": 18489,
+      "snapback4_device::call::call": 16027,
+      "core::ptr::drop_glue": 15499,
+      "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_map": 14973,
+      "<serde_json::ser::Compound<&mut alloc::vec::Vec<u8>, serde_json::ser::CompactFormatter> as serde_core::ser::SerializeMap>::serialize_entry": 13213,
+      "core::slice::sort::stable::drift::create_run": 12813,
+      "<alloc::collections::btree::map::BTreeMap<_, _, _> as core::clone::Clone>::clone::clone_subtree": 12582,
+      "<serde_json::de::VariantAccess<serde_json::read::StrRead> as serde_core::de::EnumAccess>::variant_seed": 9639,
+      "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_str": 8836,
+      "core::slice::sort::shared::smallsort::small_sort_general_with_scratch": 7948,
+      "<snapback4_core::engine::runner::Runner>::prepaid_scan": 7084,
+      "snapback4_core::json_codec::to_text": 6961,
+      "core::slice::sort::shared::smallsort::bidirectional_merge": 6514,
+      "core::slice::sort::stable::driftsort_main": 6292,
+      "snapback4_device::device::store_identity::observe": 6269,
+      "<serde_json::de::MapAccess<serde_json::read::StrRead> as serde_core::de::MapAccess>::next_value_seed": 6200,
+      "<&mut serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> as serde_core::ser::Serializer>::collect_seq": 6037,
+      "<&mut serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>> as serde_core::ser::Serializer>::collect_map": 5918,
+      "core::slice::sort::shared::smallsort::sort4_stable": 5219,
+      "snapback4_device::device::deferred::stage": 4806,
+      "snapback4_device::device::snapshot::retain": 4653,
+      "core::iter::adapters::try_process": 4286,
+      "core::slice::sort::stable::merge::merge": 4243,
+      "snapback4_device::device::snapshot::stage": 4015,
+      "<serde_core::de::value::MapAccessDeserializer<snapback4_core::ir::lane_source::Replay<serde_json::de::MapAccess<serde_json::read::StrRead>>> as serde_core::de::Deserializer>::deserialize_any": 3995,
+      "core::slice::sort::shared::pivot::median3_rec": 3422,
+      "snapback4_device::device::encoded": 3384,
+      "serde_json::de::from_trait": 3239,
+      "snapback4_device::device::delivery::publish": 3221,
+      "snapback4_device::device::store_identity::keep_write": 3185,
+      "snapback4_device::device::recorded::covered": 2781,
+      "<alloc::collections::btree::map::BTreeMap<alloc::string::String, snapback4_core::value::Value> as core::iter::traits::collect::FromIterator<(alloc::string::String, snapback4_core::value::Value)>>::from_iter": 2766,
+      "core::slice::sort::shared::smallsort::insert_tail": 2765
+    },
+    "largestFunctions": [
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::statements::{closure#0}",
+        "bytes": 27489
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::row_changed",
+        "bytes": 25058
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::insert_attempt",
+        "bytes": 17498
+      },
+      {
+        "name": "snapback4_device::call::call::<snapback4_device::memory::MemoryStore>::{closure#0}",
+        "bytes": 15765
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::scan_consumed",
+        "bytes": 12637
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::merge_with_words",
+        "bytes": 12582
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::expr",
+        "bytes": 11431
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::builtin",
+        "bytes": 10490
+      },
+      {
+        "name": "<snapback4_device::device::Device<snapback4_device::memory::MemoryStore>>::apply_publication_inner",
+        "bytes": 9700
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::merge_lazy",
+        "bytes": 9167
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::get_prepared",
+        "bytes": 8511
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_device::device::StreamPage as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 8460
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::discover_words",
+        "bytes": 8202
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Maintain as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 6920
+      },
+      {
+        "name": "snapback4_device::device::deferred::events_recording",
+        "bytes": 6581
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Table as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 6542
+      },
+      {
+        "name": "snapback4_device::device::store_identity::observe::<snapback4_device::memory::MemoryTx>",
+        "bytes": 6269
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::ir::Scan as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 6262
+      },
+      {
+        "name": "<alloc::vec::Vec<snapback4_core::ir::Stmt> as core::clone::Clone>::clone",
+        "bytes": 6229
+      },
+      {
+        "name": "<snapback4_device::device::Device<snapback4_device::memory::MemoryStore>>::delivery",
+        "bytes": 6127
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::timeline::Timeline as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 5963
+      },
+      {
+        "name": "snapback4_device::device::delivery::collect",
+        "bytes": 5959
+      },
+      {
+        "name": "core::num::imp::flt2dec::strategy::dragon::format_shortest",
+        "bytes": 5881
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::probe_witness_uncached",
+        "bytes": 5747
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_device::device::Queued as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 5324
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::Execution as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 5179
+      },
+      {
+        "name": "<snapback4_core::engine::runner::Runner>::word_bounds",
+        "bytes": 5036
+      },
+      {
+        "name": "core::num::imp::flt2dec::strategy::dragon::format_exact",
+        "bytes": 4915
+      },
+      {
+        "name": "snapback4_device::device::deferred::stage::<snapback4_device::memory::MemoryTx>",
+        "bytes": 4806
+      },
+      {
+        "name": "<dlmalloc::dlmalloc::Dlmalloc<dlmalloc::sys::System>>::malloc",
+        "bytes": 4693
+      },
+      {
+        "name": "snapback4_device::device::snapshot::retain::<snapback4_device::memory::MemoryTx>",
+        "bytes": 4653
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::SearchComposition as serde_core::de::Deserialize>::deserialize::__Visitor>",
+        "bytes": 4562
+      },
+      {
+        "name": "<&mut serde_json::de::Deserializer<serde_json::read::StrRead> as serde_core::de::Deserializer>::deserialize_struct::<<snapback4_core::schema::capabilities::Wire>::deserialize::__Visitor>",
+        "bytes": 4557
+      },
+      {
+        "name": "sha2::sha256::compress256",
+        "bytes": 4534
+      },
+      {
+        "name": "<snapback4_device::device::Device<snapback4_device::memory::MemoryStore>>::search_state",
+        "bytes": 4319
+      }
+    ]
+  }
+}

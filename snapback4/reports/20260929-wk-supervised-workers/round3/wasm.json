@@ -1,0 +1,8 @@
+{
+  "rawBytes": 2040529,
+  "gzipBytes": 592975,
+  "capGzipBytes": 593719,
+  "marginGzipBytes": 744,
+  "sha256": "3fb9d26ca58097b01fb3fcfdf6f0c02b0416d1969565bd84e7d463b7fa98998b",
+  "gzipCommand": "gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm"
+}

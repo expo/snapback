@@ -1,0 +1,150 @@
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (848.300544ms)
+✔ wasm keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (107.317396ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, rollback) (399.953887ms)
+✔ process keep=undefined: pre-expiry HTTP body cannot restore memory (active, exact deadline) (145.264551ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (339.06726ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (100.068882ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (346.695103ms)
+✔ wasm keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (111.965202ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, rollback) (401.962126ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (active, exact deadline) (149.383695ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, rollback) (392.466634ms)
+✔ process keep=true: pre-expiry HTTP body cannot restore memory (lingering, exact deadline) (148.635293ms)
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6059.654341ms)
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6105.663376ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6053.568885ms)
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6050.494715ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6114.137048ms)
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6103.292673ms)
+✔ online keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (78.114136ms)
+✔ wasm keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (86.602818ms)
+✔ process keep=undefined: split-clock correction expires active and lingering answers; rollback cannot resurrect them (148.266088ms)
+✔ online keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (61.332534ms)
+✔ wasm keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (94.415768ms)
+✔ process keep=true: split-clock correction expires active and lingering answers; rollback cannot resurrect them (127.675016ms)
+✔ wasm keep: lingering remembered answer survives a device wakeup but expires on the server clock (118.413275ms)
+✔ process keep: lingering remembered answer survives a device wakeup but expires on the server clock (165.749862ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (65.590626ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (97.90646ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (correction) (154.175214ms)
+✔ online keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (74.38761ms)
+✔ wasm keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (89.385169ms)
+✔ process keep: one expiry subscriber's rollback cannot spare another expired watch (timer) (140.737784ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (active) (90.051827ms)
+✔ wasm keep: expired remembered answer never returns after rollback and released reads (lingering) (93.221578ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (active) (194.053943ms)
+✔ process keep: expired remembered answer never returns after rollback and released reads (lingering) (208.969478ms)
+✔ wasm keep: an older displayed deadline preserves a newer unexpired remembered answer (102.029069ms)
+✔ process keep: an older displayed deadline preserves a newer unexpired remembered answer (159.913815ms)
+✔ armReadExpiry: split clocks schedule the device deadline in its own domain (0.427881ms)
+✔ armReadExpiry: split clocks schedule the server deadline in its own domain (0.107111ms)
+✔ armReadExpiry: long deadlines clamp and rearm without premature expiry (0.238447ms)
+✔ online keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (143.284161ms)
+✔ online keep=false: queued recovery cannot republish a withdrawn deadline after rollback (145.431179ms)
+✔ online keep=true: queued recovery cannot republish a withdrawn deadline after rollback (157.124875ms)
+✔ wasm keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (170.904277ms)
+✔ wasm keep=false: queued recovery cannot republish a withdrawn deadline after rollback (166.390552ms)
+✔ wasm keep=true: queued recovery cannot republish a withdrawn deadline after rollback (170.969555ms)
+✔ process keep=undefined: queued recovery cannot republish a withdrawn deadline after rollback (224.13632ms)
+✔ process keep=false: queued recovery cannot republish a withdrawn deadline after rollback (225.09709ms)
+✔ process keep=true: queued recovery cannot republish a withdrawn deadline after rollback (224.139915ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 44
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44072.76205
+
+✖ failing tests:
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6059.654341ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=undefined: displayed expiry fences an older body while preserving newer memory (active) (6105.663376ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (active) (6053.568885ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ wasm keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6050.494715ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (active) (6114.137048ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keep-clock.test.mjs:132:3
+✖ process keep=true: displayed expiry fences an older body while preserving newer memory (lingering) (6103.292673ms)
+  AssertionError [ERR_ASSERTION]: timed out: expired fetch finishes and recovery publishes
+      at until (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/helpers/app-server.mjs:19:10)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/keep-clock.test.mjs:196:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

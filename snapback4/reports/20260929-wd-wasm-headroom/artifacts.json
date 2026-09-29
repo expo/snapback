@@ -1,0 +1,68 @@
+[
+  {
+    "name": "baseline",
+    "raw": 2040531,
+    "gzip": 592979,
+    "sha256": "76ffca354815401fdf2f29ed59d9a4a2b14d3abbbdf76cda9bc8c4f4efaefc95"
+  },
+  {
+    "name": "fields",
+    "raw": 2020505,
+    "gzip": 592379,
+    "sha256": "dc44265021022e7dc5f28e5d6a9f7ce1018feab5e0a9bb0a4b0d66ab1c7cd086"
+  },
+  {
+    "name": "maps",
+    "raw": 1968977,
+    "gzip": 585493,
+    "sha256": "ab4ad4eaaf3dff4e0b8f376b2f84aabe595895e76caf24802e2e0c87ab2d2559"
+  },
+  {
+    "name": "row-maps",
+    "raw": 1956976,
+    "gzip": 583325,
+    "sha256": "ea7ddfe66ca3b9850abfb8583a3837d8e9bc71b4dc9bc3103a1515f345a57bf2"
+  },
+  {
+    "name": "final",
+    "raw": 1930985,
+    "gzip": 580287,
+    "sha256": "76895d9b17314944be7f768f4baf6d96e44d02acd36533706ea1d2a7df4da447"
+  },
+  {
+    "name": "profile-s",
+    "raw": 2262918,
+    "gzip": 687227,
+    "sha256": "e97d72f3e14919578d9b4cc5575baf95141624fdbac71d7033a9e9191f6ee6e1"
+  },
+  {
+    "name": "inline-threshold-zero",
+    "raw": 2048763,
+    "gzip": 598817,
+    "sha256": "b3aee0cffadc3e93cf57299acd69eba8a2ceaf82637420e0a1747530db28ad03"
+  },
+  {
+    "name": "baseline-fold",
+    "raw": 2009047,
+    "gzip": 590250,
+    "sha256": "283400dd28205aa338115fcaa7ed84000354c0192c6740613cdb67cc4fce0bfc"
+  },
+  {
+    "name": "baseline-merge",
+    "raw": 1994474,
+    "gzip": 597507,
+    "sha256": "f0cf989adcf210db7408c97802e3a6155310bf79a1278e82af7c629180f40bbc"
+  },
+  {
+    "name": "baseline-outline-multivalue",
+    "raw": 2041953,
+    "gzip": 616284,
+    "sha256": "6b02183128228e7b2a183f638d6f5cc145cbb470e617e2b37dd448d1e9c54859"
+  },
+  {
+    "name": "baseline-Os",
+    "raw": 1875901,
+    "gzip": 677480,
+    "sha256": "68d4cf463420a7eb1dbef047588911fb19b889523ace31732b016c4fa4abdc8f"
+  }
+]

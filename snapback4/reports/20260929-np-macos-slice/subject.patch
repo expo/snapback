@@ -1,0 +1,468 @@
+--- a/app/_layout.tsx
++++ b/app/_layout.tsx
+@@ -1,3 +1,4 @@
++import { NPProbe } from "../src/NPProbe";
+ import React from "react";
+ import { Slot } from "expo-router";
+ import { AppProvider } from "snapback4/react";
+@@ -5,11 +6,14 @@
+ import { app } from "../src/client";
+ export default function Layout() {
+   return (
++    <>
++    <NPProbe />
+     <AppProvider app={app}>
+       <NavigationProvider>
+         <Slot />
+       </NavigationProvider>
+     </AppProvider>
++    </>
+   );
+ }
+ // stage0 warm marker 1790654592
+--- a/src/client.ts
++++ b/src/client.ts
+@@ -1,3 +1,4 @@
++import { proofDevice } from "./np-gate";
+ import { Platform } from "react-native";
+ import * as SecureStore from "expo-secure-store";
+ import { createApp } from "snapback4/app";
+@@ -29,7 +30,7 @@
+     Platform.OS === "web"
+       ? webDevice()
+       : nativeAvailable()
+-        ? nativeDevice
++        ? proofDevice
+         : undefined,
+   assets: { keep: "viewed", maxBytes: 67108864 },
+ });
+--- a/src/NPProbe.tsx
++++ b/src/NPProbe.tsx
+@@ -0,0 +1,88 @@
++// First import observes the application's embedded public configuration.
++import Constants from 'expo-constants';
++import React, { useEffect, useState } from 'react';
++import { View, Text, Image, NativeModules } from 'react-native';
++import { Asset } from 'expo-asset';
++import { requireOptionalNativeModule } from 'expo-modules-core';
++import * as Font from 'expo-font';
++import * as SecureStore from 'expo-secure-store';
++import { createClient, mintId } from 'snapback4/client';
++import { signup } from 'snapback4/auth';
++import { api } from '../snapback/generated/api';
++import { launch, observation, releaseSmoke, native } from './np-gate';
++import { app, url } from './client';
++import { router } from 'expo-router';
++export const marker = 'NP B';
++const initial = { name: Constants.expoConfig?.name, scheme: Constants.expoConfig?.scheme,
++  bundleId: Constants.expoConfig?.ios?.bundleIdentifier, manifest: Constants.manifest,
++  manifest2: Constants.manifest2, devLauncherManifest: NativeModules.EXDevLauncher?.manifestString ?? null, updates: requireOptionalNativeModule('ExpoUpdates'), scriptURL: NativeModules.SourceCode?.getConstants?.().scriptURL ?? NativeModules.SourceCode?.scriptURL, dev: __DEV__, hermes: !!(globalThis as any).HermesInternal };
++const image = require('../assets/np/probe.png');
++const media = require('../assets/np/probe.wav');
++const font = require('../assets/np/probe.ttf');
++const pause = (ms = 100) => new Promise(r => setTimeout(r, ms));
++function assert(ok: unknown, message: string): asserts ok { if (!ok) throw Error(message); }
++async function until<T>(read: () => Promise<T | null>): Promise<T> {
++  for (let n = 0; n < 900; n++) { const value = await read(); if (value !== null) return value; await pause(); }
++  throw Error('NP fixture/probe timeout');
++}
++let began = false;
++export function NPProbe() {
++  const [status, setStatus] = useState('opening'), [loaded, setLoaded] = useState(false), [done, setDone] = useState(false);
++  useEffect(() => {
++    if (!launch?.smoke || began) return; began = true; observation({ phase: 'effect-started', initial });
++    void (async () => {
++      assert(!initial.dev && initial.hermes && initial.name === 'Clique' && initial.scheme === 'snapback4chat' && initial.bundleId === 'app.clique.astra', 'initial embedded config differs');
++      assert(!initial.devLauncherManifest && !initial.manifest2 && !initial.updates, 'unexpected launcher/updates manifest');
++      assert(initial.scriptURL?.includes('.app/main.jsbundle') && initial.scriptURL?.startsWith('file:'), 'runtime did not launch the embedded bundle');
++      setStatus('loading font'); observation({ phase: 'font-start' }); await Font.loadAsync({ NPFont: font }); observation({ phase: 'font-ready' });
++      setStatus('loading local media'); const asset = Asset.fromModule(media); observation({ phase: 'media-start', uri: asset.uri }); await asset.downloadAsync(); observation({ phase: 'media-ready' });
++      assert(asset.localUri?.startsWith('file:'), 'local media did not resolve from embedded assets');
++      setStatus('restoring session'); await app.ready; observation({ phase: 'app-ready', state: app.auth.state });
++      const key = 'np.fixture.conversation';
++      let conversation = await SecureStore.getItemAsync(key);
++      if (launch.segment === 'prime' && !conversation) {
++        // Ordinary password authentication; no credentials are logged or retained in evidence.
++        const nonce = mintId(), password = mintId() + mintId();
++        const signed = await app.auth.signup(`np-${nonce}@example.invalid`, password);
++        assert(signed.ok, 'normal test signup failed');
++        const bob = await signup(url, `np-bob-${nonce}@example.invalid`, mintId() + mintId());
++        assert(bob.ok, 'normal second test account signup failed');
++        const other = createClient({ url, session: bob.session });
++        const write = async (client: any, op: any, args: any) => {
++          const settled: any[] = []; const off = client.onWrite((w: any) => settled.push(w));
++          try {
++            const r = await client.mutate(op, args); assert(r.state !== 'failed', `${op.name} refused: ${r.why?.code}`);
++            const final = r.state === 'sent' ? r : await until(async () => settled.find(w => w.id === r.id) ?? null);
++            assert(final.state === 'sent', `${op.name} did not settle successfully`); return final;
++          } finally { off(); }
++        };
++        await write(other, api.saveProfile, { displayName: 'NP Bob', handle: 'npb' + nonce.slice(-10).toLowerCase(), bio: '', location: '', link: null });
++        await write(app.client, api.saveProfile, { displayName: 'NP Alice', handle: 'npa' + nonce.slice(-10).toLowerCase(), bio: '', location: '', link: null });
++        conversation = mintId();
++        await write(app.client, api.chat.createGroup, { conversationId: conversation, title: 'Native proof history', description: 'Normal test fixture', other: bob.session.principal });
++        for (let n = 1; n <= 8; n++) await write(app.client, api.chat.send, { messageId: mintId(), conversation, text: `Retained native history ${n}`, quote: null });
++        await other.close();
++        await SecureStore.setItemAsync(key, conversation);
++      }
++      assert(conversation, 'missing primed conversation');
++      const history = await until(async () => {
++        const r = await app.client.query(api.chat.history, { conversation });
++        return 'data' in r && r.data.length === 8 ? r : null;
++      });
++      assert(app.client.link() === (launch.segment === 'offline' ? 'offline' : 'online'), 'unexpected client link');
++      router.replace('/conversation/id/' + conversation);
++      setStatus(`${launch.segment}: ${history.data.length} held messages`);
++      observation({ marker, initial, media: { local: true, type: asset.type, hash: asset.hash }, font: Font.isLoaded('NPFont'), conversation, historyCount: history.data.length, fresh: history.fresh, origin: url });
++      setDone(true);
++    })().catch(error => { setStatus(String(error)); native.witnessAppend(JSON.stringify({ error: String(error), witness: { at: new Date().toISOString(), step: 'np:failed' } }) + '\n'); });
++  }, []);
++  useEffect(() => {
++    if (done && loaded) void (async () => { await pause(900); observation({ marker, imageLoaded: true }); releaseSmoke(); })();
++  }, [done, loaded]);
++  if (!launch?.smoke) return null;
++  return <View style={{ paddingTop: 55, paddingHorizontal: 12, paddingBottom: 8, backgroundColor: '#eaf4ff' }}>
++    <Text style={{ fontSize: 20, fontFamily: done ? 'NPFont' : undefined }}>{marker} · {status}</Text>
++    <Text>{launch.proof?.proofKind} {launch.proof?.sha256?.slice(0, 12)}</Text>
++    <Image source={image} style={{ width: 120, height: 32 }} onLoad={() => setLoaded(true)} onError={() => { throw Error('NP bundled scaled image failed'); }} />
++  </View>;
++}
+--- a/src/np-gate.ts
++++ b/src/np-gate.ts
+@@ -0,0 +1,20 @@
++import { requireOptionalNativeModule } from 'expo-modules-core';
++import { nativeDevice } from 'snapback4-expo';
++export const native = requireOptionalNativeModule<any>('Snapback4');
++export const launch = native?.witnessLaunch ? JSON.parse(native.witnessLaunch) : null;
++let ready = false;
++const waiting = new Set<() => void>();
++export function releaseSmoke() { ready = true; for (const start of waiting) start(); waiting.clear(); }
++export const proofDevice = launch?.smoke ? { async open(...args: Parameters<typeof nativeDevice.open>) {
++  const core = await nativeDevice.open(...args), attach = core.onClient;
++  core.onClient = (client, origin) => {
++    let stop: void | (() => void), active = true;
++    const start = () => { if (active) stop = attach?.(client, origin); };
++    if (ready) start(); else waiting.add(start);
++    return () => { active = false; waiting.delete(start); stop?.(); };
++  };
++  return core;
++}} : nativeDevice;
++export function observation(fields: Record<string, unknown>) {
++  native.witnessAppend(JSON.stringify({ np: fields, witness: { at: new Date().toISOString(), step: 'launched' } }) + '\n');
++}
+--- a/ios/Clique/AppDelegate.swift
++++ b/ios/Clique/AppDelegate.swift
+@@ -20,13 +20,7 @@
+     reactNativeDelegate = delegate
+     reactNativeFactory = factory
+ 
+-#if os(iOS) || os(tvOS)
+-    window = UIWindow(frame: UIScreen.main.bounds)
+-    factory.startReactNative(
+-      withModuleName: "main",
+-      in: window,
+-      launchOptions: launchOptions)
+-#endif
++
+ 
+     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+   }
+@@ -67,3 +61,29 @@
+ #endif
+   }
+ }
++
++// NP host correction: iOS 27 requires a scene lifecycle. Preserve Expo's
++// factory, generated dependency providers, embedded bundle and application identity.
++class SceneDelegate: UIResponder, UIWindowSceneDelegate {
++  var window: UIWindow?
++  func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
++    guard let scene = scene as? UIWindowScene,
++      let app = UIApplication.shared.delegate as? AppDelegate,
++      let factory = app.reactNativeFactory else { return }
++    let window = UIWindow(windowScene: scene)
++    self.window = window
++    app.window = window
++    factory.startReactNative(withModuleName: "main", in: window, launchOptions: nil)
++    for context in connectionOptions.urlContexts {
++      _ = app.application(UIApplication.shared, open: context.url, options: [:])
++    }
++  }
++  func scene(_ scene: UIScene, openURLContexts contexts: Set<UIOpenURLContext>) {
++    guard let app = UIApplication.shared.delegate as? AppDelegate else { return }
++    for context in contexts { _ = app.application(UIApplication.shared, open: context.url, options: [:]) }
++  }
++  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
++    guard let app = UIApplication.shared.delegate as? AppDelegate else { return }
++    _ = app.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
++  }
++}
+--- a/ios/Clique/Info.plist
++++ b/ios/Clique/Info.plist
+@@ -99,5 +99,22 @@
+ 	<string>Light</string>
+ 	<key>UIViewControllerBasedStatusBarAppearance</key>
+ 	<false/>
++	<key>UIApplicationSceneManifest</key>
++	<dict>
++		<key>UIApplicationSupportsMultipleScenes</key>
++		<false/>
++		<key>UISceneConfigurations</key>
++		<dict>
++			<key>UIWindowSceneSessionRoleApplication</key>
++			<array>
++				<dict>
++					<key>UISceneConfigurationName</key>
++					<string>Default Configuration</string>
++					<key>UISceneDelegateClassName</key>
++					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
++				</dict>
++			</array>
++		</dict>
++	</dict>
+ </dict>
+ </plist>
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,7 @@
+     "snapback4-expo": "0.4.7"
+   },
+   "devDependencies": {
++    "@expo/repack-app": "0.10.3",
+     "@types/react": "~19.2.4",
+     "babel-preset-expo": "57.0.11",
+     "prettier": "3.6.2",
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -28,6 +28,7 @@
+         "snapback4-expo": "0.4.7"
+       },
+       "devDependencies": {
++        "@expo/repack-app": "0.10.3",
+         "@types/react": "~19.2.4",
+         "babel-preset-expo": "57.0.11",
+         "prettier": "3.6.2",
+@@ -1627,6 +1628,31 @@
+         "semver": "^7.6.0"
+       }
+     },
++    "node_modules/@expo/repack-app": {
++      "version": "0.10.3",
++      "resolved": "https://registry.npmjs.org/@expo/repack-app/-/repack-app-0.10.3.tgz",
++      "integrity": "sha512-jFjizoGPiP2VZZiP4Nl0guohcOTvOHnWdzT/zz4snw9B3IwsQ3tWLnVMxNb+d4ed5yQqGuhwrnGNQfaxAbJKhw==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "commander": "^14.0.2",
++        "picocolors": "^1.1.1",
++        "zsign-wasm": "^0.0.4"
++      },
++      "bin": {
++        "repack-app": "bin/cli.js"
++      }
++    },
++    "node_modules/@expo/repack-app/node_modules/commander": {
++      "version": "14.0.3",
++      "resolved": "https://registry.npmjs.org/commander/-/commander-14.0.3.tgz",
++      "integrity": "sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": ">=20"
++      }
++    },
+     "node_modules/@expo/require-utils": {
+       "version": "57.0.5",
+       "resolved": "https://registry.npmjs.org/@expo/require-utils/-/require-utils-57.0.5.tgz",
+@@ -3251,6 +3277,13 @@
+         "url": "https://opencollective.com/core-js"
+       }
+     },
++    "node_modules/core-util-is": {
++      "version": "1.0.3",
++      "resolved": "https://registry.npmjs.org/core-util-is/-/core-util-is-1.0.3.tgz",
++      "integrity": "sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/cross-fetch": {
+       "version": "3.2.0",
+       "resolved": "https://registry.npmjs.org/cross-fetch/-/cross-fetch-3.2.0.tgz",
+@@ -4390,6 +4423,13 @@
+         "node": ">= 4"
+       }
+     },
++    "node_modules/immediate": {
++      "version": "3.0.6",
++      "resolved": "https://registry.npmjs.org/immediate/-/immediate-3.0.6.tgz",
++      "integrity": "sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/inherits": {
+       "version": "2.0.4",
+       "resolved": "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz",
+@@ -4479,6 +4519,13 @@
+       "engines": {
+         "node": ">=8"
+       }
++    },
++    "node_modules/isarray": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/isarray/-/isarray-1.0.0.tgz",
++      "integrity": "sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==",
++      "dev": true,
++      "license": "MIT"
+     },
+     "node_modules/isexe": {
+       "version": "2.0.0",
+@@ -4644,6 +4691,19 @@
+         "node": ">=6"
+       }
+     },
++    "node_modules/jszip": {
++      "version": "3.10.2",
++      "resolved": "https://registry.npmjs.org/jszip/-/jszip-3.10.2.tgz",
++      "integrity": "sha512-3l+rb15IOWtUhU0H5MFqES/T6Kh7abYwjosBey/vD6hDt8zoEffkSC5Ws5SGtgVw3gBx2NEbhTeSW1+kWkpyTQ==",
++      "dev": true,
++      "license": "(MIT OR GPL-3.0-or-later)",
++      "dependencies": {
++        "lie": "~3.3.0",
++        "pako": "~1.0.2",
++        "readable-stream": "~2.3.6",
++        "setimmediate": "^1.0.5"
++      }
++    },
+     "node_modules/kleur": {
+       "version": "3.0.3",
+       "resolved": "https://registry.npmjs.org/kleur/-/kleur-3.0.3.tgz",
+@@ -4669,6 +4729,16 @@
+       "license": "MIT",
+       "engines": {
+         "node": ">=6"
++      }
++    },
++    "node_modules/lie": {
++      "version": "3.3.0",
++      "resolved": "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz",
++      "integrity": "sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "immediate": "~3.0.5"
+       }
+     },
+     "node_modules/lighthouse-logger": {
+@@ -5853,6 +5923,13 @@
+         "node": ">=4"
+       }
+     },
++    "node_modules/pako": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/pako/-/pako-1.0.11.tgz",
++      "integrity": "sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==",
++      "dev": true,
++      "license": "(MIT AND Zlib)"
++    },
+     "node_modules/parse-png": {
+       "version": "2.1.0",
+       "resolved": "https://registry.npmjs.org/parse-png/-/parse-png-2.1.0.tgz",
+@@ -6048,6 +6125,13 @@
+       "engines": {
+         "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+       }
++    },
++    "node_modules/process-nextick-args": {
++      "version": "2.0.1",
++      "resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.1.tgz",
++      "integrity": "sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==",
++      "dev": true,
++      "license": "MIT"
+     },
+     "node_modules/progress": {
+       "version": "2.0.3",
+@@ -6519,6 +6603,29 @@
+         }
+       }
+     },
++    "node_modules/readable-stream": {
++      "version": "2.3.8",
++      "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-2.3.8.tgz",
++      "integrity": "sha512-8p0AUk4XODgIewSi0l8Epjs+EVnWiK7NoDIEGU0HhE7+ZyY8D1IMY7odu5lRrFXGg71L15KG8QrPmum45RTtdA==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "core-util-is": "~1.0.0",
++        "inherits": "~2.0.3",
++        "isarray": "~1.0.0",
++        "process-nextick-args": "~2.0.0",
++        "safe-buffer": "~5.1.1",
++        "string_decoder": "~1.1.1",
++        "util-deprecate": "~1.0.1"
++      }
++    },
++    "node_modules/readable-stream/node_modules/safe-buffer": {
++      "version": "5.1.2",
++      "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz",
++      "integrity": "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/regenerate": {
+       "version": "1.4.2",
+       "resolved": "https://registry.npmjs.org/regenerate/-/regenerate-1.4.2.tgz",
+@@ -7073,6 +7180,23 @@
+         "node": ">=4"
+       }
+     },
++    "node_modules/string_decoder": {
++      "version": "1.1.1",
++      "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.1.1.tgz",
++      "integrity": "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "safe-buffer": "~5.1.0"
++      }
++    },
++    "node_modules/string_decoder/node_modules/safe-buffer": {
++      "version": "5.1.2",
++      "resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz",
++      "integrity": "sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/string-width": {
+       "version": "4.2.3",
+       "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz",
+@@ -7471,6 +7595,13 @@
+         }
+       }
+     },
++    "node_modules/util-deprecate": {
++      "version": "1.0.2",
++      "resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz",
++      "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/utils-merge": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/utils-merge/-/utils-merge-1.0.1.tgz",
+@@ -7912,6 +8043,16 @@
+       "funding": {
+         "url": "https://github.com/sponsors/colinhacks"
+       }
++    },
++    "node_modules/zsign-wasm": {
++      "version": "0.0.4",
++      "resolved": "https://registry.npmjs.org/zsign-wasm/-/zsign-wasm-0.0.4.tgz",
++      "integrity": "sha512-KaehP8RheShV5CG3Ku5UjodiXgQbuRj5xYS7fmAd1lsa/yLqHi0KhS6MzhIkKLxeofxfqWsg9toKNjFy/5Mt+w==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "jszip": "^3.10.1"
++      }
+     }
+   }
+ }

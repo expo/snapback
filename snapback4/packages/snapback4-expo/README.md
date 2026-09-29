@@ -58,3 +58,27 @@ runner, commands and artifact contract are in `snapback4 guide witness`
 (aliases: `simulator`, `offline proof`) and the client package README's
 “Proving it on an iOS simulator”. No Expo Go or Metro process supplies a
 Release witness.
+
+Own-build preparation (`witness ios --build … --smoke`) needs the updated native
+witness helper in this source revision. Its synchronous native observation hashes
+the executable and the file selected by React Native SourceCode.scriptURL.
+Selection must resolve to the verified installed main.jsbundle; unknown, remote
+or alternate URLs fail, as do runtime __DEV__ true/unknown and launcher/updates
+manifest presence. The validator
+checks Release/Hermes, the selected path and hashes against the external proof. Rebuild the native module
+when adopting it. Ordinary launches remain inactive. Linked expo-updates is
+outside this preparation adapter because an embedded hash cannot attest a cached
+update selected at runtime. The JS smoke helper consumes compiler query facts
+from the driver, bound to the generation actually served. It checks every
+runs/held fact against the kept backend before querying. Stale facts fail;
+device-answerable loading fails, while server-only offline
+loading or E_OFFLINE is recorded as expected unavailability. Server-only reads
+must answer online in prime and restart. Conditional native-module queries
+require an application witness; generic smoke refuses that unsupported shape. Client semantics are unchanged.
+
+After JS/assets edits, repeat `witness ios --build . --smoke` with the same
+dedicated simulator and a fresh artifacts directory. Warm Xcode intermediates
+are reused; each run builds the current app and seals a new receipt. Repack
+is withdrawn. Five complete warm build-plus-smoke runs on the shared M5 Pro mini
+measured 159.841 s median / 197.562 s nearest-rank p95, all passing; cold native preparation was about six minutes, with smoke and setup
+additional. See `guide witness` for pins, scope and exact invocation.

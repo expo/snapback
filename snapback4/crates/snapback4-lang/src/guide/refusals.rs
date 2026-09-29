@@ -137,7 +137,12 @@ the original exception in `message` and repair the client adapter to return
 the declared outcome. A missing write reply does not establish whether the
 server admitted it; collect with the original intent ID before starting
 another write. An asset hook's exception likewise needs its underlying
-client error repaired before retrying.
+client error repaired before retrying. SDK asset wait deadlines and failures to
+retain or display downloaded bytes also use E_CLIENT, without declaring the
+device offline. Reduce concurrent transfers for a queue timeout; inspect the
+host storage/Blob error for a construction failure. Ordinary ranged downloads
+can recover on a later focus/reconnect event; one-view construction failures
+remain non-retryable because their view may already be consumed.
 
 E_CLOSED means the client closed while a request was in flight. For example,
 calling `client.close()` immediately after starting an online mutation

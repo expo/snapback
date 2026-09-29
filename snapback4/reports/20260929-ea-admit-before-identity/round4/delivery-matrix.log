@@ -1,0 +1,1940 @@
+TAP version 13
+# Subtest: every delivery await is explicitly classified
+ok 1 - every delivery await is explicitly classified
+  ---
+  duration_ms: 144.959093
+  type: 'test'
+  ...
+# Subtest: 0 transient: local.ts:148 read
+ok 2 - 0 transient: local.ts:148 read
+  ---
+  duration_ms: 420.031242
+  type: 'test'
+  ...
+# Subtest: 0 persistent: local.ts:148 read
+ok 3 - 0 persistent: local.ts:148 read
+  ---
+  duration_ms: 43.746324
+  type: 'test'
+  ...
+# Subtest: 1 transient: local.ts:149 lookup
+ok 4 - 1 transient: local.ts:149 lookup
+  ---
+  duration_ms: 44.636046
+  type: 'test'
+  ...
+# Subtest: 1 persistent: local.ts:149 lookup
+ok 5 - 1 persistent: local.ts:149 lookup
+  ---
+  duration_ms: 38.804636
+  type: 'test'
+  ...
+# Subtest: 2 transient: local.ts:151 save
+ok 6 - 2 transient: local.ts:151 save
+  ---
+  duration_ms: 90.159401
+  type: 'test'
+  ...
+# Subtest: 2 persistent: local.ts:151 save
+ok 7 - 2 persistent: local.ts:151 save
+  ---
+  duration_ms: 48.301454
+  type: 'test'
+  ...
+# Subtest: 3 transient: local.ts:218 refreshAcquired
+ok 8 - 3 transient: local.ts:218 refreshAcquired
+  ---
+  duration_ms: 30.680492
+  type: 'test'
+  ...
+# Subtest: 3 persistent: local.ts:218 refreshAcquired
+ok 9 - 3 persistent: local.ts:218 refreshAcquired
+  ---
+  duration_ms: 50.955467
+  type: 'test'
+  ...
+# Subtest: 4 transient: local.ts:287 captureStore
+ok 10 - 4 transient: local.ts:287 captureStore
+  ---
+  duration_ms: 34.615223
+  type: 'test'
+  ...
+# Subtest: 4 persistent: local.ts:287 captureStore
+ok 11 - 4 persistent: local.ts:287 captureStore
+  ---
+  duration_ms: 30.055908
+  type: 'test'
+  ...
+# Subtest: 5 transient: local.ts:294 call
+ok 12 - 5 transient: local.ts:294 call
+  ---
+  duration_ms: 35.198557
+  type: 'test'
+  ...
+# Subtest: 5 persistent: local.ts:294 call
+ok 13 - 5 persistent: local.ts:294 call
+  ---
+  duration_ms: 29.828967
+  type: 'test'
+  ...
+# Subtest: 6 transient: local.ts:322 call
+ok 14 - 6 transient: local.ts:322 call
+  ---
+  duration_ms: 55.674853
+  type: 'test'
+  ...
+# Subtest: 6 persistent: local.ts:322 call
+ok 15 - 6 persistent: local.ts:322 call
+  ---
+  duration_ms: 29.708027
+  type: 'test'
+  ...
+# Subtest: 7 transient: local.ts:326 call
+ok 16 - 7 transient: local.ts:326 call
+  ---
+  duration_ms: 29.346696
+  type: 'test'
+  ...
+# Subtest: 7 persistent: local.ts:326 call
+ok 17 - 7 persistent: local.ts:326 call
+  ---
+  duration_ms: 29.577342
+  type: 'test'
+  ...
+# Subtest: 8 transient: local.ts:511 sendPost
+ok 18 - 8 transient: local.ts:511 sendPost
+  ---
+  duration_ms: 28.241671
+  type: 'test'
+  ...
+# Subtest: 8 persistent: local.ts:511 sendPost
+ok 19 - 8 persistent: local.ts:511 sendPost
+  ---
+  duration_ms: 28.883823
+  type: 'test'
+  ...
+# Subtest: 9 transient: local.ts:514 sendPost
+ok 20 - 9 transient: local.ts:514 sendPost
+  ---
+  duration_ms: 31.445128
+  type: 'test'
+  ...
+# Subtest: 9 persistent: local.ts:514 sendPost
+ok 21 - 9 persistent: local.ts:514 sendPost
+  ---
+  duration_ms: 34.738688
+  type: 'test'
+  ...
+# Subtest: 10 transient: local.ts:520 sendPost
+ok 22 - 10 transient: local.ts:520 sendPost
+  ---
+  duration_ms: 51.804058
+  type: 'test'
+  ...
+# Subtest: 10 persistent: local.ts:520 sendPost
+ok 23 - 10 persistent: local.ts:520 sendPost
+  ---
+  duration_ms: 29.370001
+  type: 'test'
+  ...
+# Subtest: 11 transient: local.ts:527 sendPost
+ok 24 - 11 transient: local.ts:527 sendPost
+  ---
+  duration_ms: 29.805132
+  type: 'test'
+  ...
+# Subtest: 11 persistent: local.ts:527 sendPost
+ok 25 - 11 persistent: local.ts:527 sendPost
+  ---
+  duration_ms: 34.601524
+  type: 'test'
+  ...
+# Subtest: 12 transient: local.ts:538 sendPost
+ok 26 - 12 transient: local.ts:538 sendPost
+  ---
+  duration_ms: 28.597014
+  type: 'test'
+  ...
+# Subtest: 12 persistent: local.ts:538 sendPost
+ok 27 - 12 persistent: local.ts:538 sendPost
+  ---
+  duration_ms: 30.524159
+  type: 'test'
+  ...
+# Subtest: 13 transient: local.ts:570 syncRound
+ok 28 - 13 transient: local.ts:570 syncRound
+  ---
+  duration_ms: 28.76163
+  type: 'test'
+  ...
+# Subtest: 13 persistent: local.ts:570 syncRound
+ok 29 - 13 persistent: local.ts:570 syncRound
+  ---
+  duration_ms: 50.557852
+  type: 'test'
+  ...
+# Subtest: 14 transient: local.ts:571 syncRound
+ok 30 - 14 transient: local.ts:571 syncRound
+  ---
+  duration_ms: 27.968373
+  type: 'test'
+  ...
+# Subtest: 14 persistent: local.ts:571 syncRound
+ok 31 - 14 persistent: local.ts:571 syncRound
+  ---
+  duration_ms: 26.965491
+  type: 'test'
+  ...
+# Subtest: 15 transient: local.ts:589 syncRound
+ok 32 - 15 transient: local.ts:589 syncRound
+  ---
+  duration_ms: 28.332968
+  type: 'test'
+  ...
+# Subtest: 15 persistent: local.ts:589 syncRound
+ok 33 - 15 persistent: local.ts:589 syncRound
+  ---
+  duration_ms: 18.773887
+  type: 'test'
+  ...
+# Subtest: 16 transient: local.ts:604 syncRound
+ok 34 - 16 transient: local.ts:604 syncRound
+  ---
+  duration_ms: 27.53303
+  type: 'test'
+  ...
+# Subtest: 16 persistent: local.ts:604 syncRound
+ok 35 - 16 persistent: local.ts:604 syncRound
+  ---
+  duration_ms: 21.490545
+  type: 'test'
+  ...
+# Subtest: 17 transient: local.ts:632 syncRound
+ok 36 - 17 transient: local.ts:632 syncRound
+  ---
+  duration_ms: 21.174241
+  type: 'test'
+  ...
+# Subtest: 17 persistent: local.ts:632 syncRound
+ok 37 - 17 persistent: local.ts:632 syncRound
+  ---
+  duration_ms: 29.935828
+  type: 'test'
+  ...
+# Subtest: 18 transient: local.ts:642 syncRound
+ok 38 - 18 transient: local.ts:642 syncRound
+  ---
+  duration_ms: 49.084606
+  type: 'test'
+  ...
+# Subtest: 18 persistent: local.ts:642 syncRound
+ok 39 - 18 persistent: local.ts:642 syncRound
+  ---
+  duration_ms: 29.352385
+  type: 'test'
+  ...
+# Subtest: 19 transient: local.ts:656 syncRound
+ok 40 - 19 transient: local.ts:656 syncRound
+  ---
+  duration_ms: 39.192626
+  type: 'test'
+  ...
+# Subtest: 19 persistent: local.ts:656 syncRound
+ok 41 - 19 persistent: local.ts:656 syncRound
+  ---
+  duration_ms: 32.719055
+  type: 'test'
+  ...
+# Subtest: 20 transient: local.ts:661 syncRound
+ok 42 - 20 transient: local.ts:661 syncRound
+  ---
+  duration_ms: 40.613864
+  type: 'test'
+  ...
+# Subtest: 20 persistent: local.ts:661 syncRound
+ok 43 - 20 persistent: local.ts:661 syncRound
+  ---
+  duration_ms: 32.746495
+  type: 'test'
+  ...
+# Subtest: 21 transient: local.ts:677 syncRound
+ok 44 - 21 transient: local.ts:677 syncRound
+  ---
+  duration_ms: 65.032523
+  type: 'test'
+  ...
+# Subtest: 21 persistent: local.ts:677 syncRound
+ok 45 - 21 persistent: local.ts:677 syncRound
+  ---
+  duration_ms: 26.268758
+  type: 'test'
+  ...
+# Subtest: 22 transient: local.ts:679 syncRound
+ok 46 - 22 transient: local.ts:679 syncRound
+  ---
+  duration_ms: 42.704234
+  type: 'test'
+  ...
+# Subtest: 22 persistent: local.ts:679 syncRound
+ok 47 - 22 persistent: local.ts:679 syncRound
+  ---
+  duration_ms: 28.972015
+  type: 'test'
+  ...
+# Subtest: 23 transient: local.ts:687 syncRound
+ok 48 - 23 transient: local.ts:687 syncRound
+  ---
+  duration_ms: 35.128673
+  type: 'test'
+  ...
+# Subtest: 23 persistent: local.ts:687 syncRound
+ok 49 - 23 persistent: local.ts:687 syncRound
+  ---
+  duration_ms: 35.256394
+  type: 'test'
+  ...
+# Subtest: 24 transient: local.ts:688 syncRound
+ok 50 - 24 transient: local.ts:688 syncRound
+  ---
+  duration_ms: 32.432456
+  type: 'test'
+  ...
+# Subtest: 24 persistent: local.ts:688 syncRound
+ok 51 - 24 persistent: local.ts:688 syncRound
+  ---
+  duration_ms: 56.124286
+  type: 'test'
+  ...
+# Subtest: 25 transient: local.ts:690 syncRound
+ok 52 - 25 transient: local.ts:690 syncRound
+  ---
+  duration_ms: 31.472128
+  type: 'test'
+  ...
+# Subtest: 25 persistent: local.ts:690 syncRound
+ok 53 - 25 persistent: local.ts:690 syncRound
+  ---
+  duration_ms: 37.191621
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page
+# Subtest: 26 transient: local.ts:707 syncRound
+ok 54 - 26 transient: local.ts:707 syncRound
+  ---
+  duration_ms: 51.901594
+  type: 'test'
+  ...
+# Subtest: 26 persistent: local.ts:707 syncRound
+ok 55 - 26 persistent: local.ts:707 syncRound
+  ---
+  duration_ms: 80.240371
+  type: 'test'
+  ...
+# Subtest: 27 transient: local.ts:714 syncRound
+ok 56 - 27 transient: local.ts:714 syncRound
+  ---
+  duration_ms: 49.900838
+  type: 'test'
+  ...
+# Subtest: 27 persistent: local.ts:714 syncRound
+ok 57 - 27 persistent: local.ts:714 syncRound
+  ---
+  duration_ms: 29.876169
+  type: 'test'
+  ...
+# Subtest: 28 transient: local.ts:722 syncRound
+ok 58 - 28 transient: local.ts:722 syncRound
+  ---
+  duration_ms: 27.249105
+  type: 'test'
+  ...
+# Subtest: 28 persistent: local.ts:722 syncRound
+ok 59 - 28 persistent: local.ts:722 syncRound
+  ---
+  duration_ms: 37.076539
+  type: 'test'
+  ...
+# Subtest: 29 transient: local.ts:745 syncRound
+ok 60 - 29 transient: local.ts:745 syncRound
+  ---
+  duration_ms: 29.722538
+  type: 'test'
+  ...
+# Subtest: 29 persistent: local.ts:745 syncRound
+ok 61 - 29 persistent: local.ts:745 syncRound
+  ---
+  duration_ms: 43.921456
+  type: 'test'
+  ...
+# Subtest: 30 transient: local.ts:748 syncRound
+ok 62 - 30 transient: local.ts:748 syncRound
+  ---
+  duration_ms: 28.748891
+  type: 'test'
+  ...
+# Subtest: 30 persistent: local.ts:748 syncRound
+ok 63 - 30 persistent: local.ts:748 syncRound
+  ---
+  duration_ms: 62.072712
+  type: 'test'
+  ...
+# Subtest: 31 transient: local.ts:774 probe
+ok 64 - 31 transient: local.ts:774 probe
+  ---
+  duration_ms: 29.206566
+  type: 'test'
+  ...
+# Subtest: 31 persistent: local.ts:774 probe
+ok 65 - 31 persistent: local.ts:774 probe
+  ---
+  duration_ms: 27.603256
+  type: 'test'
+  ...
+# Subtest: 32 transient: local.ts:776 probe
+ok 66 - 32 transient: local.ts:776 probe
+  ---
+  duration_ms: 28.943803
+  type: 'test'
+  ...
+# Subtest: 32 persistent: local.ts:776 probe
+ok 67 - 32 persistent: local.ts:776 probe
+  ---
+  duration_ms: 27.38596
+  type: 'test'
+  ...
+# Subtest: 33 transient: local.ts:777 probe
+ok 68 - 33 transient: local.ts:777 probe
+  ---
+  duration_ms: 32.06061
+  type: 'test'
+  ...
+# Subtest: 33 persistent: local.ts:777 probe
+ok 69 - 33 persistent: local.ts:777 probe
+  ---
+  duration_ms: 27.297669
+  type: 'test'
+  ...
+# Subtest: 34 transient: local.ts:779 probe
+ok 70 - 34 transient: local.ts:779 probe
+  ---
+  duration_ms: 29.361328
+  type: 'test'
+  ...
+# Subtest: 34 persistent: local.ts:779 probe
+ok 71 - 34 persistent: local.ts:779 probe
+  ---
+  duration_ms: 51.740183
+  type: 'test'
+  ...
+# Subtest: 35 transient: local.ts:783 probe
+ok 72 - 35 transient: local.ts:783 probe
+  ---
+  duration_ms: 28.168022
+  type: 'test'
+  ...
+# Subtest: 35 persistent: local.ts:783 probe
+ok 73 - 35 persistent: local.ts:783 probe
+  ---
+  duration_ms: 74.3215
+  type: 'test'
+  ...
+# Subtest: 36 transient: local.ts:787 probe
+ok 74 - 36 transient: local.ts:787 probe
+  ---
+  duration_ms: 29.387246
+  type: 'test'
+  ...
+# Subtest: 36 persistent: local.ts:787 probe
+ok 75 - 36 persistent: local.ts:787 probe
+  ---
+  duration_ms: 30.282027
+  type: 'test'
+  ...
+# Subtest: 37 transient: local.ts:797 waitForChange
+ok 76 - 37 transient: local.ts:797 waitForChange
+  ---
+  duration_ms: 88.701298
+  type: 'test'
+  ...
+# Subtest: 37 persistent: local.ts:797 waitForChange
+ok 77 - 37 persistent: local.ts:797 waitForChange
+  ---
+  duration_ms: 56.315052
+  type: 'test'
+  ...
+# Subtest: 38 transient: local.ts:798 waitForChange
+ok 78 - 38 transient: local.ts:798 waitForChange
+  ---
+  duration_ms: 63.375782
+  type: 'test'
+  ...
+# Subtest: 38 persistent: local.ts:798 waitForChange
+ok 79 - 38 persistent: local.ts:798 waitForChange
+  ---
+  duration_ms: 105.44752
+  type: 'test'
+  ...
+# Subtest: 39 transient: local.ts:801 waitForChange
+ok 80 - 39 transient: local.ts:801 waitForChange
+  ---
+  duration_ms: 64.517191
+  type: 'test'
+  ...
+# Subtest: 39 persistent: local.ts:801 waitForChange
+ok 81 - 39 persistent: local.ts:801 waitForChange
+  ---
+  duration_ms: 71.610241
+  type: 'test'
+  ...
+# Subtest: 40 transient: local.ts:806 waitForChange
+ok 82 - 40 transient: local.ts:806 waitForChange
+  ---
+  duration_ms: 55.528984
+  type: 'test'
+  ...
+# Subtest: 40 persistent: local.ts:806 waitForChange
+ok 83 - 40 persistent: local.ts:806 waitForChange
+  ---
+  duration_ms: 102.939094
+  type: 'test'
+  ...
+# Subtest: 41 transient: local.ts:808 waitForChange
+ok 84 - 41 transient: local.ts:808 waitForChange
+  ---
+  duration_ms: 55.040213
+  type: 'test'
+  ...
+# Subtest: 41 persistent: local.ts:808 waitForChange
+ok 85 - 41 persistent: local.ts:808 waitForChange
+  ---
+  duration_ms: 80.127663
+  type: 'test'
+  ...
+# Subtest: 42 transient: local.ts:811 waitForChange
+ok 86 - 42 transient: local.ts:811 waitForChange
+  ---
+  duration_ms: 84.23408
+  type: 'test'
+  ...
+# Subtest: 42 persistent: local.ts:811 waitForChange
+ok 87 - 42 persistent: local.ts:811 waitForChange
+  ---
+  duration_ms: 79.916696
+  type: 'test'
+  ...
+# Subtest: 43 transient: local.ts:813 waitForChange
+ok 88 - 43 transient: local.ts:813 waitForChange
+  ---
+  duration_ms: 62.776505
+  type: 'test'
+  ...
+# Subtest: 43 persistent: local.ts:813 waitForChange
+ok 89 - 43 persistent: local.ts:813 waitForChange
+  ---
+  duration_ms: 108.839078
+  type: 'test'
+  ...
+# Subtest: 44 transient: local.ts:820 waitForChange
+ok 90 - 44 transient: local.ts:820 waitForChange
+  ---
+  duration_ms: 55.226252
+  type: 'test'
+  ...
+# Subtest: 44 persistent: local.ts:820 waitForChange
+ok 91 - 44 persistent: local.ts:820 waitForChange
+  ---
+  duration_ms: 62.77922
+  type: 'test'
+  ...
+# Subtest: 45 transient: local.ts:838 waitForChange
+ok 92 - 45 transient: local.ts:838 waitForChange
+  ---
+  duration_ms: 56.939126
+  type: 'test'
+  ...
+# Subtest: 45 persistent: local.ts:838 waitForChange
+ok 93 - 45 persistent: local.ts:838 waitForChange
+  ---
+  duration_ms: 103.11641
+  type: 'test'
+  ...
+# Subtest: 46 transient: local.ts:847 follow
+ok 94 - 46 transient: local.ts:847 follow
+  ---
+  duration_ms: 56.078949
+  type: 'test'
+  ...
+# Subtest: 46 persistent: local.ts:847 follow
+ok 95 - 46 persistent: local.ts:847 follow
+  ---
+  duration_ms: 54.258583
+  type: 'test'
+  ...
+# Subtest: 47 transient: local.ts:850 follow
+ok 96 - 47 transient: local.ts:850 follow
+  ---
+  duration_ms: 55.179752
+  type: 'test'
+  ...
+# Subtest: 47 persistent: local.ts:850 follow
+ok 97 - 47 persistent: local.ts:850 follow
+  ---
+  duration_ms: 76.150638
+  type: 'test'
+  ...
+# Subtest: 48 transient: local.ts:855 follow
+ok 98 - 48 transient: local.ts:855 follow
+  ---
+  duration_ms: 60.491475
+  type: 'test'
+  ...
+# Subtest: 48 persistent: local.ts:855 follow
+ok 99 - 48 persistent: local.ts:855 follow
+  ---
+  duration_ms: 53.657073
+  type: 'test'
+  ...
+# Subtest: 49 transient: local.ts:1063 flush
+ok 100 - 49 transient: local.ts:1063 flush
+  ---
+  duration_ms: 28.082793
+  type: 'test'
+  ...
+# Subtest: 49 persistent: local.ts:1063 flush
+ok 101 - 49 persistent: local.ts:1063 flush
+  ---
+  duration_ms: 25.987898
+  type: 'test'
+  ...
+# Subtest: 50 transient: local.ts:1081 flushOnce
+ok 102 - 50 transient: local.ts:1081 flushOnce
+  ---
+  duration_ms: 27.510718
+  type: 'test'
+  ...
+# Subtest: 50 persistent: local.ts:1081 flushOnce
+ok 103 - 50 persistent: local.ts:1081 flushOnce
+  ---
+  duration_ms: 52.294683
+  type: 'test'
+  ...
+# Subtest: 51 transient: local.ts:1083 flushOnce
+ok 104 - 51 transient: local.ts:1083 flushOnce
+  ---
+  duration_ms: 33.083241
+  type: 'test'
+  ...
+# Subtest: 51 persistent: local.ts:1083 flushOnce
+ok 105 - 51 persistent: local.ts:1083 flushOnce
+  ---
+  duration_ms: 78.323932
+  type: 'test'
+  ...
+# Subtest: 52 transient: local.ts:1085 flushOnce
+ok 106 - 52 transient: local.ts:1085 flushOnce
+  ---
+  duration_ms: 26.861906
+  type: 'test'
+  ...
+# Subtest: 52 persistent: local.ts:1085 flushOnce
+ok 107 - 52 persistent: local.ts:1085 flushOnce
+  ---
+  duration_ms: 28.670123
+  type: 'test'
+  ...
+# Subtest: 53 transient: local.ts:1089 flushOnce
+ok 108 - 53 transient: local.ts:1089 flushOnce
+  ---
+  duration_ms: 25.826497
+  type: 'test'
+  ...
+# Subtest: 53 persistent: local.ts:1089 flushOnce
+ok 109 - 53 persistent: local.ts:1089 flushOnce
+  ---
+  duration_ms: 63.421071
+  type: 'test'
+  ...
+# Subtest: 54 transient: local.ts:1091 flushOnce
+ok 110 - 54 transient: local.ts:1091 flushOnce
+  ---
+  duration_ms: 28.12003
+  type: 'test'
+  ...
+# Subtest: 54 persistent: local.ts:1091 flushOnce
+ok 111 - 54 persistent: local.ts:1091 flushOnce
+  ---
+  duration_ms: 43.982128
+  type: 'test'
+  ...
+# Subtest: 55 transient: local.ts:1091 flushOnce
+ok 112 - 55 transient: local.ts:1091 flushOnce
+  ---
+  duration_ms: 27.403857
+  type: 'test'
+  ...
+# Subtest: 55 persistent: local.ts:1091 flushOnce
+ok 113 - 55 persistent: local.ts:1091 flushOnce
+  ---
+  duration_ms: 28.402613
+  type: 'test'
+  ...
+# Subtest: 56 transient: local.ts:1096 flushOnce
+ok 114 - 56 transient: local.ts:1096 flushOnce
+  ---
+  duration_ms: 28.397375
+  type: 'test'
+  ...
+# Subtest: 56 persistent: local.ts:1096 flushOnce
+ok 115 - 56 persistent: local.ts:1096 flushOnce
+  ---
+  duration_ms: 28.294171
+  type: 'test'
+  ...
+# Subtest: 57 transient: local.ts:1097 flushOnce
+ok 116 - 57 transient: local.ts:1097 flushOnce
+  ---
+  duration_ms: 26.409769
+  type: 'test'
+  ...
+# Subtest: 57 persistent: local.ts:1097 flushOnce
+ok 117 - 57 persistent: local.ts:1097 flushOnce
+  ---
+  duration_ms: 50.064433
+  type: 'test'
+  ...
+# Subtest: 58 transient: local.ts:1099 flushOnce
+ok 118 - 58 transient: local.ts:1099 flushOnce
+  ---
+  duration_ms: 26.231933
+  type: 'test'
+  ...
+# Subtest: 58 persistent: local.ts:1099 flushOnce
+ok 119 - 58 persistent: local.ts:1099 flushOnce
+  ---
+  duration_ms: 29.581378
+  type: 'test'
+  ...
+# Subtest: 59 transient: local.ts:1104 flushOnce
+ok 120 - 59 transient: local.ts:1104 flushOnce
+  ---
+  duration_ms: 25.638134
+  type: 'test'
+  ...
+# Subtest: 59 persistent: local.ts:1104 flushOnce
+ok 121 - 59 persistent: local.ts:1104 flushOnce
+  ---
+  duration_ms: 29.119086
+  type: 'test'
+  ...
+# Subtest: 60 transient: local.ts:1110 flushOnce
+ok 122 - 60 transient: local.ts:1110 flushOnce
+  ---
+  duration_ms: 28.390335
+  type: 'test'
+  ...
+# Subtest: 60 persistent: local.ts:1110 flushOnce
+ok 123 - 60 persistent: local.ts:1110 flushOnce
+  ---
+  duration_ms: 29.3095
+  type: 'test'
+  ...
+# Subtest: 61 transient: local.ts:1113 flushOnce
+ok 124 - 61 transient: local.ts:1113 flushOnce
+  ---
+  duration_ms: 26.635667
+  type: 'test'
+  ...
+# Subtest: 61 persistent: local.ts:1113 flushOnce
+ok 125 - 61 persistent: local.ts:1113 flushOnce
+  ---
+  duration_ms: 50.277042
+  type: 'test'
+  ...
+# Subtest: 62 transient: local.ts:1116 flushOnce
+ok 126 - 62 transient: local.ts:1116 flushOnce
+  ---
+  duration_ms: 26.596559
+  type: 'test'
+  ...
+# Subtest: 62 persistent: local.ts:1116 flushOnce
+ok 127 - 62 persistent: local.ts:1116 flushOnce
+  ---
+  duration_ms: 32.055182
+  type: 'test'
+  ...
+# Subtest: 63 transient: local.ts:1121 flushOnce
+ok 128 - 63 transient: local.ts:1121 flushOnce
+  ---
+  duration_ms: 25.835469
+  type: 'test'
+  ...
+# Subtest: 63 persistent: local.ts:1121 flushOnce
+ok 129 - 63 persistent: local.ts:1121 flushOnce
+  ---
+  duration_ms: 26.763418
+  type: 'test'
+  ...
+# Subtest: 64 transient: local.ts:1130 flushOnce
+ok 130 - 64 transient: local.ts:1130 flushOnce
+  ---
+  duration_ms: 28.857864
+  type: 'test'
+  ...
+# Subtest: 64 persistent: local.ts:1130 flushOnce
+ok 131 - 64 persistent: local.ts:1130 flushOnce
+  ---
+  duration_ms: 26.303721
+  type: 'test'
+  ...
+# Subtest: 65 transient: local.ts:1134 flushOnce
+ok 132 - 65 transient: local.ts:1134 flushOnce
+  ---
+  duration_ms: 27.210589
+  type: 'test'
+  ...
+# Subtest: 65 persistent: local.ts:1134 flushOnce
+ok 133 - 65 persistent: local.ts:1134 flushOnce
+  ---
+  duration_ms: 50.495529
+  type: 'test'
+  ...
+# Subtest: 66 transient: local.ts:1146 flushOnce
+ok 134 - 66 transient: local.ts:1146 flushOnce
+  ---
+  duration_ms: 25.539046
+  type: 'test'
+  ...
+# Subtest: 66 persistent: local.ts:1146 flushOnce
+ok 135 - 66 persistent: local.ts:1146 flushOnce
+  ---
+  duration_ms: 25.572526
+  type: 'test'
+  ...
+# Subtest: 67 transient: local.ts:1150 flushOnce
+ok 136 - 67 transient: local.ts:1150 flushOnce
+  ---
+  duration_ms: 26.149009
+  type: 'test'
+  ...
+# Subtest: 67 persistent: local.ts:1150 flushOnce
+ok 137 - 67 persistent: local.ts:1150 flushOnce
+  ---
+  duration_ms: 26.445703
+  type: 'test'
+  ...
+# Subtest: 68 transient: local.ts:1151 flushOnce
+ok 138 - 68 transient: local.ts:1151 flushOnce
+  ---
+  duration_ms: 28.669833
+  type: 'test'
+  ...
+# Subtest: 68 persistent: local.ts:1151 flushOnce
+ok 139 - 68 persistent: local.ts:1151 flushOnce
+  ---
+  duration_ms: 26.080997
+  type: 'test'
+  ...
+# Subtest: 69 transient: local.ts:1154 flushOnce
+ok 140 - 69 transient: local.ts:1154 flushOnce
+  ---
+  duration_ms: 24.572719
+  type: 'test'
+  ...
+# Subtest: 69 persistent: local.ts:1154 flushOnce
+ok 141 - 69 persistent: local.ts:1154 flushOnce
+  ---
+  duration_ms: 81.824023
+  type: 'test'
+  ...
+# Subtest: 70 transient: local.ts:1158 replayOnOpen
+ok 142 - 70 transient: local.ts:1158 replayOnOpen
+  ---
+  duration_ms: 29.451864
+  type: 'test'
+  ...
+# Subtest: 70 persistent: local.ts:1158 replayOnOpen
+ok 143 - 70 persistent: local.ts:1158 replayOnOpen
+  ---
+  duration_ms: 25.189293
+  type: 'test'
+  ...
+# Subtest: 71 transient: local.ts:1163 replayOnOpen
+ok 144 - 71 transient: local.ts:1163 replayOnOpen
+  ---
+  duration_ms: 28.122553
+  type: 'test'
+  ...
+# Subtest: 71 persistent: local.ts:1163 replayOnOpen
+ok 145 - 71 persistent: local.ts:1163 replayOnOpen
+  ---
+  duration_ms: 28.560289
+  type: 'test'
+  ...
+# Subtest: 72 transient: local.ts:1166 replayOnOpen
+ok 146 - 72 transient: local.ts:1166 replayOnOpen
+  ---
+  duration_ms: 28.041753
+  type: 'test'
+  ...
+# Subtest: 72 persistent: local.ts:1166 replayOnOpen
+ok 147 - 72 persistent: local.ts:1166 replayOnOpen
+  ---
+  duration_ms: 26.828426
+  type: 'test'
+  ...
+# Subtest: 73 transient: local.ts:1167 replayOnOpen
+ok 148 - 73 transient: local.ts:1167 replayOnOpen
+  ---
+  duration_ms: 52.448133
+  type: 'test'
+  ...
+# Subtest: 73 persistent: local.ts:1167 replayOnOpen
+ok 149 - 73 persistent: local.ts:1167 replayOnOpen
+  ---
+  duration_ms: 27.008556
+  type: 'test'
+  ...
+# Subtest: 74 transient: local.ts:1169 replayOnOpen
+ok 150 - 74 transient: local.ts:1169 replayOnOpen
+  ---
+  duration_ms: 30.561986
+  type: 'test'
+  ...
+# Subtest: 74 persistent: local.ts:1169 replayOnOpen
+ok 151 - 74 persistent: local.ts:1169 replayOnOpen
+  ---
+  duration_ms: 28.412118
+  type: 'test'
+  ...
+# Subtest: 75 transient: local.ts:1444 commit
+ok 152 - 75 transient: local.ts:1444 commit
+  ---
+  duration_ms: 30.452943
+  type: 'test'
+  ...
+# Subtest: 75 persistent: local.ts:1444 commit
+ok 153 - 75 persistent: local.ts:1444 commit
+  ---
+  duration_ms: 28.583454
+  type: 'test'
+  ...
+# Subtest: 76 transient: local.ts:1446 commit
+ok 154 - 76 transient: local.ts:1446 commit
+  ---
+  duration_ms: 25.904283
+  type: 'test'
+  ...
+# Subtest: 76 persistent: local.ts:1446 commit
+ok 155 - 76 persistent: local.ts:1446 commit
+  ---
+  duration_ms: 26.198383
+  type: 'test'
+  ...
+# Subtest: 77 transient: local.ts:1455 listenForExit
+ok 156 - 77 transient: local.ts:1455 listenForExit
+  ---
+  duration_ms: 50.894176
+  type: 'test'
+  ...
+# Subtest: 77 persistent: local.ts:1455 listenForExit
+ok 157 - 77 persistent: local.ts:1455 listenForExit
+  ---
+  duration_ms: 25.794148
+  type: 'test'
+  ...
+# Subtest: 78 transient: local-receipts.ts:11 settleReceipt
+ok 158 - 78 transient: local-receipts.ts:11 settleReceipt
+  ---
+  duration_ms: 27.281875
+  type: 'test'
+  ...
+# Subtest: 78 persistent: local-receipts.ts:11 settleReceipt
+ok 159 - 78 persistent: local-receipts.ts:11 settleReceipt
+  ---
+  duration_ms: 29.824762
+  type: 'test'
+  ...
+# Subtest: 79 transient: local-receipts.ts:12 settleReceipt
+ok 160 - 79 transient: local-receipts.ts:12 settleReceipt
+  ---
+  duration_ms: 26.31623
+  type: 'test'
+  ...
+# Subtest: 79 persistent: local-receipts.ts:12 settleReceipt
+ok 161 - 79 persistent: local-receipts.ts:12 settleReceipt
+  ---
+  duration_ms: 32.698274
+  type: 'test'
+  ...
+# Subtest: 80 transient: local-receipts.ts:30 receiptBatch
+ok 162 - 80 transient: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 25.440007
+  type: 'test'
+  ...
+# Subtest: 80 persistent: local-receipts.ts:30 receiptBatch
+ok 163 - 80 persistent: local-receipts.ts:30 receiptBatch
+  ---
+  duration_ms: 25.84249
+  type: 'test'
+  ...
+# Subtest: 81 transient: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 164 - 81 transient: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 77.216044
+  type: 'test'
+  ...
+# Subtest: 81 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+ok 165 - 81 persistent: local-receipts.ts:43 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 39.946175
+  type: 'test'
+  ...
+# Subtest: 82 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 166 - 82 transient: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 16.629006
+  type: 'test'
+  ...
+# Subtest: 82 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+ok 167 - 82 persistent: local-receipts.ts:44 deliverAcknowledgedReceipt
+  ---
+  duration_ms: 16.414085
+  type: 'test'
+  ...
+# Subtest: 83 transient: local-receipts.ts:65 syncSettledWrites
+ok 168 - 83 transient: local-receipts.ts:65 syncSettledWrites
+  ---
+  duration_ms: 26.134738
+  type: 'test'
+  ...
+# Subtest: 83 persistent: local-receipts.ts:65 syncSettledWrites
+ok 169 - 83 persistent: local-receipts.ts:65 syncSettledWrites
+  ---
+  duration_ms: 59.945988
+  type: 'test'
+  ...
+# Subtest: 84 transient: local-receipts.ts:66 syncSettledWrites
+ok 170 - 84 transient: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 24.934621
+  type: 'test'
+  ...
+# Subtest: 84 persistent: local-receipts.ts:66 syncSettledWrites
+ok 171 - 84 persistent: local-receipts.ts:66 syncSettledWrites
+  ---
+  duration_ms: 83.427473
+  type: 'test'
+  ...
+# Subtest: 85 transient: local-receipts.ts:70 recoverReceipt
+ok 172 - 85 transient: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 26.509269
+  type: 'test'
+  ...
+# Subtest: 85 persistent: local-receipts.ts:70 recoverReceipt
+ok 173 - 85 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 30.396739
+  type: 'test'
+  ...
+# Subtest: 86 transient: local-receipts.ts:70 recoverReceipt
+ok 174 - 86 transient: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 25.609742
+  type: 'test'
+  ...
+# Subtest: 86 persistent: local-receipts.ts:70 recoverReceipt
+ok 175 - 86 persistent: local-receipts.ts:70 recoverReceipt
+  ---
+  duration_ms: 27.549185
+  type: 'test'
+  ...
+# Subtest: 87 transient: local-receipts.ts:74 recoverReceipt
+ok 176 - 87 transient: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 28.362323
+  type: 'test'
+  ...
+# Subtest: 87 persistent: local-receipts.ts:74 recoverReceipt
+ok 177 - 87 persistent: local-receipts.ts:74 recoverReceipt
+  ---
+  duration_ms: 29.564653
+  type: 'test'
+  ...
+# Subtest: 88 transient: local-receipts.ts:82 lookupWrite
+ok 178 - 88 transient: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 53.765665
+  type: 'test'
+  ...
+# Subtest: 88 persistent: local-receipts.ts:82 lookupWrite
+ok 179 - 88 persistent: local-receipts.ts:82 lookupWrite
+  ---
+  duration_ms: 26.1495
+  type: 'test'
+  ...
+# Subtest: 89 transient: local-receipts.ts:86 lookupWrite
+ok 180 - 89 transient: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 30.949797
+  type: 'test'
+  ...
+# Subtest: 89 persistent: local-receipts.ts:86 lookupWrite
+ok 181 - 89 persistent: local-receipts.ts:86 lookupWrite
+  ---
+  duration_ms: 29.017523
+  type: 'test'
+  ...
+# Subtest: 90 transient: local-receipts.ts:88 lookupWrite
+ok 182 - 90 transient: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 30.44426
+  type: 'test'
+  ...
+# Subtest: 90 persistent: local-receipts.ts:88 lookupWrite
+ok 183 - 90 persistent: local-receipts.ts:88 lookupWrite
+  ---
+  duration_ms: 31.909783
+  type: 'test'
+  ...
+# Subtest: 91 transient: local-receipts.ts:94 lookupWrite
+ok 184 - 91 transient: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 30.253674
+  type: 'test'
+  ...
+# Subtest: 91 persistent: local-receipts.ts:94 lookupWrite
+ok 185 - 91 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 54.685162
+  type: 'test'
+  ...
+# Subtest: 92 transient: local-receipts.ts:94 lookupWrite
+ok 186 - 92 transient: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 30.815726
+  type: 'test'
+  ...
+# Subtest: 92 persistent: local-receipts.ts:94 lookupWrite
+ok 187 - 92 persistent: local-receipts.ts:94 lookupWrite
+  ---
+  duration_ms: 31.246961
+  type: 'test'
+  ...
+# Subtest: 93 transient: local-receipts.ts:108 terminalDeviceCall
+ok 188 - 93 transient: local-receipts.ts:108 terminalDeviceCall
+  ---
+  duration_ms: 25.301841
+  type: 'test'
+  ...
+# Subtest: 93 persistent: local-receipts.ts:108 terminalDeviceCall
+ok 189 - 93 persistent: local-receipts.ts:108 terminalDeviceCall
+  ---
+  duration_ms: 31.788542
+  type: 'test'
+  ...
+# Subtest: 94 transient: local-receipts.ts:117 readQueued
+ok 190 - 94 transient: local-receipts.ts:117 readQueued
+  ---
+  duration_ms: 25.115462
+  type: 'test'
+  ...
+# Subtest: 94 persistent: local-receipts.ts:117 readQueued
+ok 191 - 94 persistent: local-receipts.ts:117 readQueued
+  ---
+  duration_ms: 25.637003
+  type: 'test'
+  ...
+# Subtest: 95 transient: local-receipts.ts:132 resolveClosingWrites
+ok 192 - 95 transient: local-receipts.ts:132 resolveClosingWrites
+  ---
+  duration_ms: 10.028154
+  type: 'test'
+  ...
+# Subtest: 95 persistent: local-receipts.ts:132 resolveClosingWrites
+ok 193 - 95 persistent: local-receipts.ts:132 resolveClosingWrites
+  ---
+  duration_ms: 9.540444
+  type: 'test'
+  ...
+# Subtest: 96 transient: local-receipts.ts:135 resolveClosingWrites
+ok 194 - 96 transient: local-receipts.ts:135 resolveClosingWrites
+  ---
+  duration_ms: 33.935988
+  type: 'test'
+  ...
+# Subtest: 96 persistent: local-receipts.ts:135 resolveClosingWrites
+ok 195 - 96 persistent: local-receipts.ts:135 resolveClosingWrites
+  ---
+  duration_ms: 9.824048
+  type: 'test'
+  ...
+# Subtest: 97 transient: writes.ts:160 keep
+ok 196 - 97 transient: writes.ts:160 keep
+  ---
+  duration_ms: 26.388527
+  type: 'test'
+  ...
+# Subtest: 97 persistent: writes.ts:160 keep
+ok 197 - 97 persistent: writes.ts:160 keep
+  ---
+  duration_ms: 30.559252
+  type: 'test'
+  ...
+# Subtest: 98 transient: writes.ts:187 acknowledged
+ok 198 - 98 transient: writes.ts:187 acknowledged
+  ---
+  duration_ms: 25.512326
+  type: 'test'
+  ...
+# Subtest: 98 persistent: writes.ts:187 acknowledged
+ok 199 - 98 persistent: writes.ts:187 acknowledged
+  ---
+  duration_ms: 38.199891
+  type: 'test'
+  ...
+# Subtest: 99 transient: writes.ts:193 acknowledged
+ok 200 - 99 transient: writes.ts:193 acknowledged
+  ---
+  duration_ms: 17.224408
+  type: 'test'
+  ...
+# Subtest: 99 persistent: writes.ts:193 acknowledged
+ok 201 - 99 persistent: writes.ts:193 acknowledged
+  ---
+  duration_ms: 14.141251
+  type: 'test'
+  ...
+# Subtest: 100 transient: writes.ts:200 persistPending
+ok 202 - 100 transient: writes.ts:200 persistPending
+  ---
+  duration_ms: 25.774999
+  type: 'test'
+  ...
+# Subtest: 100 persistent: writes.ts:200 persistPending
+ok 203 - 100 persistent: writes.ts:200 persistPending
+  ---
+  duration_ms: 49.547581
+  type: 'test'
+  ...
+# Subtest: 101 transient: writes.ts:206 read
+ok 204 - 101 transient: writes.ts:206 read
+  ---
+  duration_ms: 24.042205
+  type: 'test'
+  ...
+# Subtest: 101 persistent: writes.ts:206 read
+ok 205 - 101 persistent: writes.ts:206 read
+  ---
+  duration_ms: 30.392613
+  type: 'test'
+  ...
+# Subtest: 102 transient: writes.ts:209 read
+ok 206 - 102 transient: writes.ts:209 read
+  ---
+  duration_ms: 25.012087
+  type: 'test'
+  ...
+# Subtest: 102 persistent: writes.ts:209 read
+ok 207 - 102 persistent: writes.ts:209 read
+  ---
+  duration_ms: 28.576985
+  type: 'test'
+  ...
+# Subtest: 103 transient: writes.ts:221 lookup
+ok 208 - 103 transient: writes.ts:221 lookup
+  ---
+  duration_ms: 32.678766
+  type: 'test'
+  ...
+# Subtest: 103 persistent: writes.ts:221 lookup
+ok 209 - 103 persistent: writes.ts:221 lookup
+  ---
+  duration_ms: 29.212415
+  type: 'test'
+  ...
+# Subtest: 104 transient: writes.ts:223 lookup
+ok 210 - 104 transient: writes.ts:223 lookup
+  ---
+  duration_ms: 53.690774
+  type: 'test'
+  ...
+# Subtest: 104 persistent: writes.ts:223 lookup
+ok 211 - 104 persistent: writes.ts:223 lookup
+  ---
+  duration_ms: 30.075007
+  type: 'test'
+  ...
+# Subtest: 105 transient: local-exit.ts:38 exitTransport
+ok 212 - 105 transient: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 26.89128
+  type: 'test'
+  ...
+# Subtest: 105 persistent: local-exit.ts:38 exitTransport
+ok 213 - 105 persistent: local-exit.ts:38 exitTransport
+  ---
+  duration_ms: 25.32822
+  type: 'test'
+  ...
+# Subtest: 106 transient: local-exit.ts:41 exitTransport
+ok 214 - 106 transient: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 25.915559
+  type: 'test'
+  ...
+# Subtest: 106 persistent: local-exit.ts:41 exitTransport
+ok 215 - 106 persistent: local-exit.ts:41 exitTransport
+  ---
+  duration_ms: 28.182784
+  type: 'test'
+  ...
+# Subtest: 107 transient: local-exit.ts:42 exitTransport
+ok 216 - 107 transient: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 25.458025
+  type: 'test'
+  ...
+# Subtest: 107 persistent: local-exit.ts:42 exitTransport
+ok 217 - 107 persistent: local-exit.ts:42 exitTransport
+  ---
+  duration_ms: 25.732866
+  type: 'test'
+  ...
+# Subtest: 108 transient: local-exit-settlement.ts:22 exitRefusalSettlement
+ok 218 - 108 transient: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 50.142331
+  type: 'test'
+  ...
+# Subtest: 108 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+ok 219 - 108 persistent: local-exit-settlement.ts:22 exitRefusalSettlement
+  ---
+  duration_ms: 26.532212
+  type: 'test'
+  ...
+# Subtest: 109 transient: local-exit-settlement.ts:25 exitRefusalSettlement
+ok 220 - 109 transient: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 25.463202
+  type: 'test'
+  ...
+# Subtest: 109 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+ok 221 - 109 persistent: local-exit-settlement.ts:25 exitRefusalSettlement
+  ---
+  duration_ms: 26.515608
+  type: 'test'
+  ...
+# Subtest: 110 transient: local-assets.ts:52 call
+ok 222 - 110 transient: local-assets.ts:52 call
+  ---
+  duration_ms: 25.76211
+  type: 'test'
+  ...
+# Subtest: 110 persistent: local-assets.ts:52 call
+ok 223 - 110 persistent: local-assets.ts:52 call
+  ---
+  duration_ms: 39.377765
+  type: 'test'
+  ...
+# Subtest: 111 transient: local-assets.ts:70 home
+ok 224 - 111 transient: local-assets.ts:70 home
+  ---
+  duration_ms: 25.669201
+  type: 'test'
+  ...
+# Subtest: 111 persistent: local-assets.ts:70 home
+ok 225 - 111 persistent: local-assets.ts:70 home
+  ---
+  duration_ms: 37.074897
+  type: 'test'
+  ...
+# Subtest: 112 transient: local-assets.ts:73 save
+ok 226 - 112 transient: local-assets.ts:73 save
+  ---
+  duration_ms: 50.757192
+  type: 'test'
+  ...
+# Subtest: 112 persistent: local-assets.ts:73 save
+ok 227 - 112 persistent: local-assets.ts:73 save
+  ---
+  duration_ms: 26.191522
+  type: 'test'
+  ...
+# Subtest: 113 transient: local-assets.ts:79 drop
+ok 228 - 113 transient: local-assets.ts:79 drop
+  ---
+  duration_ms: 26.839983
+  type: 'test'
+  ...
+# Subtest: 113 persistent: local-assets.ts:79 drop
+ok 229 - 113 persistent: local-assets.ts:79 drop
+  ---
+  duration_ms: 37.214315
+  type: 'test'
+  ...
+# Subtest: 114 transient: local-assets.ts:95 check
+ok 230 - 114 transient: local-assets.ts:95 check
+  ---
+  duration_ms: 26.087837
+  type: 'test'
+  ...
+# Subtest: 114 persistent: local-assets.ts:95 check
+ok 231 - 114 persistent: local-assets.ts:95 check
+  ---
+  duration_ms: 38.982974
+  type: 'test'
+  ...
+# Subtest: 115 transient: local-assets.ts:97 check
+ok 232 - 115 transient: local-assets.ts:97 check
+  ---
+  duration_ms: 25.990892
+  type: 'test'
+  ...
+# Subtest: 115 persistent: local-assets.ts:97 check
+ok 233 - 115 persistent: local-assets.ts:97 check
+  ---
+  duration_ms: 62.988924
+  type: 'test'
+  ...
+# Subtest: 116 transient: local-assets.ts:104 check
+ok 234 - 116 transient: local-assets.ts:104 check
+  ---
+  duration_ms: 27.069588
+  type: 'test'
+  ...
+# Subtest: 116 persistent: local-assets.ts:104 check
+ok 235 - 116 persistent: local-assets.ts:104 check
+  ---
+  duration_ms: 38.168445
+  type: 'test'
+  ...
+# Subtest: 117 transient: local-assets.ts:108 check
+ok 236 - 117 transient: local-assets.ts:108 check
+  ---
+  duration_ms: 25.413768
+  type: 'test'
+  ...
+# Subtest: 117 persistent: local-assets.ts:108 check
+ok 237 - 117 persistent: local-assets.ts:108 check
+  ---
+  duration_ms: 25.744453
+  type: 'test'
+  ...
+# Subtest: 118 transient: request-wait.ts:20 postForCaller
+ok 238 - 118 transient: request-wait.ts:20 postForCaller
+  ---
+  duration_ms: 28.418197
+  type: 'test'
+  ...
+# Subtest: 118 persistent: request-wait.ts:20 postForCaller
+ok 239 - 118 persistent: request-wait.ts:20 postForCaller
+  ---
+  duration_ms: 25.793257
+  type: 'test'
+  ...
+# Subtest: 119 transient: request-wait.ts:21 postForCaller
+ok 240 - 119 transient: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 25.899596
+  type: 'test'
+  ...
+# Subtest: 119 persistent: request-wait.ts:21 postForCaller
+ok 241 - 119 persistent: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 55.407504
+  type: 'test'
+  ...
+# Subtest: 120 transient: request-wait.ts:21 postForCaller
+ok 242 - 120 transient: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 26.316891
+  type: 'test'
+  ...
+# Subtest: 120 persistent: request-wait.ts:21 postForCaller
+ok 243 - 120 persistent: request-wait.ts:21 postForCaller
+  ---
+  duration_ms: 32.169713
+  type: 'test'
+  ...
+# Subtest: 121 transient: local-sync.ts:51 legacyInput
+ok 244 - 121 transient: local-sync.ts:51 legacyInput
+  ---
+  duration_ms: 37.41755
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 121 persistent: local-sync.ts:51 legacyInput
+ok 245 - 121 persistent: local-sync.ts:51 legacyInput
+  ---
+  duration_ms: 22.735258
+  type: 'test'
+  ...
+# Subtest: 122 transient: local-sync.ts:68 syncTransport
+ok 246 - 122 transient: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 27.295726
+  type: 'test'
+  ...
+# Subtest: 122 persistent: local-sync.ts:68 syncTransport
+ok 247 - 122 persistent: local-sync.ts:68 syncTransport
+  ---
+  duration_ms: 18.093449
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 123 transient: local-sync.ts:69 syncTransport
+ok 248 - 123 transient: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 35.414471
+  type: 'test'
+  ...
+# snapback4: the server refused the partition: E_INPUT: sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes
+# Subtest: 123 persistent: local-sync.ts:69 syncTransport
+ok 249 - 123 persistent: local-sync.ts:69 syncTransport
+  ---
+  duration_ms: 46.920859
+  type: 'test'
+  ...
+# Subtest: 124 transient: local-sync.ts:70 syncTransport
+ok 250 - 124 transient: local-sync.ts:70 syncTransport
+  ---
+  duration_ms: 34.61874
+  type: 'test'
+  ...
+# Subtest: 124 persistent: local-sync.ts:70 syncTransport
+ok 251 - 124 persistent: local-sync.ts:70 syncTransport
+  ---
+  duration_ms: 21.882091
+  type: 'test'
+  ...
+# Subtest: 125 transient: device-restore.ts:57 restoreWitness
+ok 252 - 125 transient: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 28.666748
+  type: 'test'
+  ...
+# Subtest: 125 persistent: device-restore.ts:57 restoreWitness
+ok 253 - 125 persistent: device-restore.ts:57 restoreWitness
+  ---
+  duration_ms: 27.644338
+  type: 'test'
+  ...
+# Subtest: 126 transient: local-backend.ts:25 loadBackend
+ok 254 - 126 transient: local-backend.ts:25 loadBackend
+  ---
+  duration_ms: 41.793291
+  type: 'test'
+  ...
+# Subtest: 126 persistent: local-backend.ts:25 loadBackend
+ok 255 - 126 persistent: local-backend.ts:25 loadBackend
+  ---
+  duration_ms: 25.369322
+  type: 'test'
+  ...
+# Subtest: 127 transient: local-native.ts:16 installNativeAttempt
+ok 256 - 127 transient: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 55.969315
+  type: 'test'
+  ...
+# Subtest: 127 persistent: local-native.ts:16 installNativeAttempt
+ok 257 - 127 persistent: local-native.ts:16 installNativeAttempt
+  ---
+  duration_ms: 35.195293
+  type: 'test'
+  ...
+# Subtest: 128 transient: local-native.ts:28 installNativeAttempt
+ok 258 - 128 transient: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 29.243311
+  type: 'test'
+  ...
+# Subtest: 128 persistent: local-native.ts:28 installNativeAttempt
+ok 259 - 128 persistent: local-native.ts:28 installNativeAttempt
+  ---
+  duration_ms: 26.508167
+  type: 'test'
+  ...
+# Subtest: 129 transient: local-native.ts:41 installNativeAttempt
+ok 260 - 129 transient: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 28.088864
+  type: 'test'
+  ...
+# Subtest: 129 persistent: local-native.ts:41 installNativeAttempt
+ok 261 - 129 persistent: local-native.ts:41 installNativeAttempt
+  ---
+  duration_ms: 29.168399
+  type: 'test'
+  ...
+# Subtest: 130 transient: local-native.ts:43 installNativeAttempt
+ok 262 - 130 transient: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 27.271589
+  type: 'test'
+  ...
+# Subtest: 130 persistent: local-native.ts:43 installNativeAttempt
+ok 263 - 130 persistent: local-native.ts:43 installNativeAttempt
+  ---
+  duration_ms: 27.127475
+  type: 'test'
+  ...
+# Subtest: 131 transient: local-native.ts:46 installNativeAttempt
+ok 264 - 131 transient: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 52.352971
+  type: 'test'
+  ...
+# Subtest: 131 persistent: local-native.ts:46 installNativeAttempt
+ok 265 - 131 persistent: local-native.ts:46 installNativeAttempt
+  ---
+  duration_ms: 27.034625
+  type: 'test'
+  ...
+# Subtest: 132 transient: pending-writes.ts:50 revision
+ok 266 - 132 transient: pending-writes.ts:50 revision
+  ---
+  duration_ms: 27.214955
+  type: 'test'
+  ...
+# Subtest: 132 persistent: pending-writes.ts:50 revision
+ok 267 - 132 persistent: pending-writes.ts:50 revision
+  ---
+  duration_ms: 26.226986
+  type: 'test'
+  ...
+# Subtest: 133 transient: pending-writes.ts:57 record
+ok 268 - 133 transient: pending-writes.ts:57 record
+  ---
+  duration_ms: 26.85787
+  type: 'test'
+  ...
+# Subtest: 133 persistent: pending-writes.ts:57 record
+ok 269 - 133 persistent: pending-writes.ts:57 record
+  ---
+  duration_ms: 28.566258
+  type: 'test'
+  ...
+# Subtest: 134 transient: pending-writes.ts:60 record
+ok 270 - 134 transient: pending-writes.ts:60 record
+  ---
+  duration_ms: 27.220814
+  type: 'test'
+  ...
+# Subtest: 134 persistent: pending-writes.ts:60 record
+ok 271 - 134 persistent: pending-writes.ts:60 record
+  ---
+  duration_ms: 26.982196
+  type: 'test'
+  ...
+# Subtest: 135 transient: clock.ts:89 wrapped
+ok 272 - 135 transient: clock.ts:89 wrapped
+  ---
+  duration_ms: 51.244832
+  type: 'test'
+  ...
+# Subtest: 135 persistent: clock.ts:89 wrapped
+ok 273 - 135 persistent: clock.ts:89 wrapped
+  ---
+  duration_ms: 30.521165
+  type: 'test'
+  ...
+# Subtest: 136 transient: clock.ts:135 save
+ok 274 - 136 transient: clock.ts:135 save
+  ---
+  duration_ms: 27.274404
+  type: 'test'
+  ...
+# Subtest: 136 persistent: clock.ts:135 save
+ok 275 - 136 persistent: clock.ts:135 save
+  ---
+  duration_ms: 25.904403
+  type: 'test'
+  ...
+# Subtest: 137 transient: changes.ts:52 changeFeed
+ok 276 - 137 transient: changes.ts:52 changeFeed
+  ---
+  duration_ms: 55.633652
+  type: 'test'
+  ...
+# Subtest: 137 persistent: changes.ts:52 changeFeed
+ok 277 - 137 persistent: changes.ts:52 changeFeed
+  ---
+  duration_ms: 103.610241
+  type: 'test'
+  ...
+# Subtest: 138 transient: changes.ts:61 changeFeed
+ok 278 - 138 transient: changes.ts:61 changeFeed
+  ---
+  duration_ms: 53.344495
+  type: 'test'
+  ...
+# Subtest: 138 persistent: changes.ts:61 changeFeed
+ok 279 - 138 persistent: changes.ts:61 changeFeed
+  ---
+  duration_ms: 61.183401
+  type: 'test'
+  ...
+# Subtest: 139 transient: changes.ts:70 changeFeed
+ok 280 - 139 transient: changes.ts:70 changeFeed
+  ---
+  duration_ms: 55.457438
+  type: 'test'
+  ...
+# Subtest: 139 persistent: changes.ts:70 changeFeed
+ok 281 - 139 persistent: changes.ts:70 changeFeed
+  ---
+  duration_ms: 100.884501
+  type: 'test'
+  ...
+# Subtest: 140 transient: changes.ts:74 changeFeed
+ok 282 - 140 transient: changes.ts:74 changeFeed
+  ---
+  duration_ms: 53.807769
+  type: 'test'
+  ...
+# Subtest: 140 persistent: changes.ts:74 changeFeed
+ok 283 - 140 persistent: changes.ts:74 changeFeed
+  ---
+  duration_ms: 77.029766
+  type: 'test'
+  ...
+# Subtest: 141 transient: local-search.ts:14 searchReplyIdentity
+ok 284 - 141 transient: local-search.ts:14 searchReplyIdentity
+  ---
+  duration_ms: 90.893863
+  type: 'test'
+  ...
+# Subtest: 141 persistent: local-search.ts:14 searchReplyIdentity
+ok 285 - 141 persistent: local-search.ts:14 searchReplyIdentity
+  ---
+  duration_ms: 29.560066
+  type: 'test'
+  ...
+# Subtest: 142 transient: local-search.ts:68 decode
+ok 286 - 142 transient: local-search.ts:68 decode
+  ---
+  duration_ms: 34.12435
+  type: 'test'
+  ...
+# Subtest: 142 persistent: local-search.ts:68 decode
+ok 287 - 142 persistent: local-search.ts:68 decode
+  ---
+  duration_ms: 27.381044
+  type: 'test'
+  ...
+# Subtest: 143 transient: local-search.ts:77 decode
+ok 288 - 143 transient: local-search.ts:77 decode
+  ---
+  duration_ms: 34.770567
+  type: 'test'
+  ...
+# Subtest: 143 persistent: local-search.ts:77 decode
+ok 289 - 143 persistent: local-search.ts:77 decode
+  ---
+  duration_ms: 32.050555
+  type: 'test'
+  ...
+# Subtest: 144 transient: local-search.ts:154 ordinarySearch
+ok 290 - 144 transient: local-search.ts:154 ordinarySearch
+  ---
+  duration_ms: 33.86413
+  type: 'test'
+  ...
+# Subtest: 144 persistent: local-search.ts:154 ordinarySearch
+ok 291 - 144 persistent: local-search.ts:154 ordinarySearch
+  ---
+  duration_ms: 51.258673
+  type: 'test'
+  ...
+# Subtest: 145 transient: local-search.ts:188 ordinarySearch
+ok 292 - 145 transient: local-search.ts:188 ordinarySearch
+  ---
+  duration_ms: 34.386382
+  type: 'test'
+  ...
+# Subtest: 145 persistent: local-search.ts:188 ordinarySearch
+ok 293 - 145 persistent: local-search.ts:188 ordinarySearch
+  ---
+  duration_ms: 27.044089
+  type: 'test'
+  ...
+# Subtest: 146 transient: local-search.ts:195 ordinarySearch
+ok 294 - 146 transient: local-search.ts:195 ordinarySearch
+  ---
+  duration_ms: 32.892625
+  type: 'test'
+  ...
+# Subtest: 146 persistent: local-search.ts:195 ordinarySearch
+ok 295 - 146 persistent: local-search.ts:195 ordinarySearch
+  ---
+  duration_ms: 30.177391
+  type: 'test'
+  ...
+# Subtest: 147 transient: local-search.ts:205 ordinarySearch
+ok 296 - 147 transient: local-search.ts:205 ordinarySearch
+  ---
+  duration_ms: 33.14224
+  type: 'test'
+  ...
+# Subtest: 147 persistent: local-search.ts:205 ordinarySearch
+ok 297 - 147 persistent: local-search.ts:205 ordinarySearch
+  ---
+  duration_ms: 27.067765
+  type: 'test'
+  ...
+# Subtest: 148 transient: local-search.ts:207 ordinarySearch
+ok 298 - 148 transient: local-search.ts:207 ordinarySearch
+  ---
+  duration_ms: 58.206786
+  type: 'test'
+  ...
+# Subtest: 148 persistent: local-search.ts:207 ordinarySearch
+ok 299 - 148 persistent: local-search.ts:207 ordinarySearch
+  ---
+  duration_ms: 33.291813
+  type: 'test'
+  ...
+# Subtest: 149 transient: local-search.ts:220 ordinarySearch
+ok 300 - 149 transient: local-search.ts:220 ordinarySearch
+  ---
+  duration_ms: 33.726104
+  type: 'test'
+  ...
+# Subtest: 149 persistent: local-search.ts:220 ordinarySearch
+ok 301 - 149 persistent: local-search.ts:220 ordinarySearch
+  ---
+  duration_ms: 32.976581
+  type: 'test'
+  ...
+# Subtest: 150 transient: local-query.ts:266 route
+ok 302 - 150 transient: local-query.ts:266 route
+  ---
+  duration_ms: 29.766245
+  type: 'test'
+  ...
+# Subtest: 150 persistent: local-query.ts:266 route
+ok 303 - 150 persistent: local-query.ts:266 route
+  ---
+  duration_ms: 26.284982
+  type: 'test'
+  ...
+# Subtest: 151 transient: local-query.ts:271 route
+ok 304 - 151 transient: local-query.ts:271 route
+  ---
+  duration_ms: 27.027795
+  type: 'test'
+  ...
+# Subtest: 151 persistent: local-query.ts:271 route
+ok 305 - 151 persistent: local-query.ts:271 route
+  ---
+  duration_ms: 50.789801
+  type: 'test'
+  ...
+# Subtest: 152 transient: local-query.ts:273 route
+ok 306 - 152 transient: local-query.ts:273 route
+  ---
+  duration_ms: 34.190499
+  type: 'test'
+  ...
+# Subtest: 152 persistent: local-query.ts:273 route
+ok 307 - 152 persistent: local-query.ts:273 route
+  ---
+  duration_ms: 25.731164
+  type: 'test'
+  ...
+# Subtest: 153 transient: local-query.ts:277 route
+ok 308 - 153 transient: local-query.ts:277 route
+  ---
+  duration_ms: 33.086506
+  type: 'test'
+  ...
+# Subtest: 153 persistent: local-query.ts:277 route
+ok 309 - 153 persistent: local-query.ts:277 route
+  ---
+  duration_ms: 29.575109
+  type: 'test'
+  ...
+# Subtest: 154 transient: local-query.ts:280 route
+ok 310 - 154 transient: local-query.ts:280 route
+  ---
+  duration_ms: 25.839496
+  type: 'test'
+  ...
+# Subtest: 154 persistent: local-query.ts:280 route
+ok 311 - 154 persistent: local-query.ts:280 route
+  ---
+  duration_ms: 26.138003
+  type: 'test'
+  ...
+# Subtest: 155 transient: local-query.ts:281 route
+ok 312 - 155 transient: local-query.ts:281 route
+  ---
+  duration_ms: 62.380354
+  type: 'test'
+  ...
+# Subtest: 155 persistent: local-query.ts:281 route
+ok 313 - 155 persistent: local-query.ts:281 route
+  ---
+  duration_ms: 26.340596
+  type: 'test'
+  ...
+# Subtest: 156 transient: http-response.ts:42 readResponse
+ok 314 - 156 transient: http-response.ts:42 readResponse
+  ---
+  duration_ms: 26.861967
+  type: 'test'
+  ...
+# Subtest: 156 persistent: http-response.ts:42 readResponse
+ok 315 - 156 persistent: http-response.ts:42 readResponse
+  ---
+  duration_ms: 25.516002
+  type: 'test'
+  ...
+# Subtest: 157 transient: http-response.ts:42 readResponse
+ok 316 - 157 transient: http-response.ts:42 readResponse
+  ---
+  duration_ms: 25.798715
+  type: 'test'
+  ...
+# Subtest: 157 persistent: http-response.ts:42 readResponse
+ok 317 - 157 persistent: http-response.ts:42 readResponse
+  ---
+  duration_ms: 33.325584
+  type: 'test'
+  ...
+# Subtest: 158 transient: local.ts:1084 flushOnce
+ok 318 - 158 transient: local.ts:1084 flushOnce
+  ---
+  duration_ms: 25.210254
+  type: 'test'
+  ...
+# Subtest: 158 persistent: local.ts:1084 flushOnce
+ok 319 - 158 persistent: local.ts:1084 flushOnce
+  ---
+  duration_ms: 25.813427
+  type: 'test'
+  ...
+# Subtest: 159 transient: local-assets.ts:48 remove
+ok 320 - 159 transient: local-assets.ts:48 remove
+  ---
+  duration_ms: 49.993699
+  type: 'test'
+  ...
+# Subtest: 159 persistent: local-assets.ts:48 remove
+ok 321 - 159 persistent: local-assets.ts:48 remove
+  ---
+  duration_ms: 38.887751
+  type: 'test'
+  ...
+1..321
+# tests 321
+# suites 0
+# pass 321
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17862.262399

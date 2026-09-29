@@ -1,0 +1,12 @@
+✔ native state reads cannot replace another admission attempt CAS token (61.689139ms)
+✔ deferred admission compares ordinary outbox input atomically (41.206576ms)
+✔ online expiry recovers a peer outcome (settled=false) (1313.267753ms)
+✔ online expiry recovers a peer outcome (settled=true) (1306.099397ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2834.208036

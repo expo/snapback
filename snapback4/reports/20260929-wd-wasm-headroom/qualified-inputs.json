@@ -1,0 +1,21 @@
+{
+  "../snapback4/crates/snapback4-core/src/engine/components.rs": "7979b4e18d424083dcd15e41900a17aadc8bf8342cc51f28656e11fdaa226e38",
+  "../snapback4/crates/snapback4-core/src/engine/maintains.rs": "f63790b83c5a7e5417385184642783a841c781c274ca77cb3f086ed10a21571e",
+  "../snapback4/crates/snapback4-core/src/engine/pages.rs": "c3517b9918e790fd1c6eb8f1547f0c13c48e1dd4ea3ca7a1444623e7e9295674",
+  "../snapback4/crates/snapback4-core/src/engine/read_auth.rs": "dcb36c0ad83e4c7d4d35ca372f5564e1fb567b98762e85b19ead0afa523e48e0",
+  "../snapback4/crates/snapback4-core/src/engine/read_point.rs": "28b37cf4da8c6ca01bca62ae7f9c5c306d8ac8e917351260fa7d15e580003d81",
+  "../snapback4/crates/snapback4-core/src/engine/row_views.rs": "cccd33299d6a89db235dec04e0814b47f9d76e4bb44cd6fb06b356d6e9ca8230",
+  "../snapback4/crates/snapback4-core/src/engine/rules.rs": "0e5529e90ce40701caf4a91c29f77ed6368d035c19e5935f1331b4405b2bef4f",
+  "../snapback4/crates/snapback4-core/src/engine/runner.rs": "0faab3459dd765e75d89eb8a1de89359ddbfc9389fa6a0496373bddf16c95237",
+  "../snapback4/crates/snapback4-core/src/engine/through_read.rs": "0060ce47098d955b071524a457b6cac88a03484a450691f070cf59add661a243",
+  "../snapback4/crates/snapback4-core/src/lib.rs": "3ffdc039117432b79207e78069e7a87a08fc2d0cdf0bc31d83ba6036b0400bec",
+  "../snapback4/crates/snapback4-core/src/value.rs": "9952c5ad5ad992dff5c6e5015ad28d30cfd48947743315132d05cc2d64a0d13c",
+  "../snapback4/crates/snapback4-core/src/wire.rs": "580a08853f4ecfa5853ed02eabd0124d49c5b6e44e5b81caadabdf893c174077",
+  "../snapback4/crates/snapback4-device/src/device.rs": "54d54c7ecd4872ec26d38c84aa4f9ea03b3f9e00146e50d1a75f938280097fa1",
+  "../snapback4/crates/snapback4-device/src/device/deferred.rs": "79175103c62bdd01fe45fb45cb06eae2278915031106ef33453a7b1928baecf3",
+  "../snapback4/crates/snapback4-device/src/device/history.rs": "e42cafbbac1de7f7d5a2be7d88aa20a23d892bf1d02f13cbf10ed6f2c4076f90",
+  "../snapback4/crates/snapback4-device/src/device/snapshot.rs": "b56d53bd09e01792928687bd36c0bb4b73cf9669f2719c735a4c43e982769c00",
+  "../snapback4/crates/snapback4-device/tests/codec.rs": "2a5919cddb2682cdbca2c81d2a32a9fac688bd00c249ef2660b38c56791e9926",
+  "../snapback4/scripts/build-wasm.sh": "44996325e0e0ca2079fc93102e0f82e5d3b3f881f50cda599bb1709cea5e8cf1",
+  "crates/snapback4-core/src/small_map.rs": "6be8a83f163bc6ea7faae22afc8019b37a28405ed6263a872c567bcd18d88f68"
+}

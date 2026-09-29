@@ -92,6 +92,37 @@ test("forget fences absent keys too and a rejected answer still names its cut", 
   assert.equal(answers.get("k")?.read.data, "current");
 });
 
+for (const cut of [undefined, 10, 11]) test(`selective clear fences an in-flight remembered answer at cut ${cut}`, () => {
+  const answers = new RememberedAnswers();
+  const row = value => ({ ...answer(value), tables: new Set(['rows']) });
+  answers.view().set('row', row('before'), 10);
+  answers.view().set('other', { ...answer('unrelated'), tables: new Set(['notes']) }, 10);
+  const held = answers.view(), unrelated = answers.get('other');
+  answers.clear(['rows']);
+  held.set('row', row('pre-change'), cut);
+  assert.equal(answers.get('row'), undefined, 'a late pre-clear reply cannot restore fallback');
+  assert.equal(answers.get('other'), unrelated, 'disjoint remembered data is untouched');
+  const next = answers.view(); next.set('row', row('after'), 11);
+  assert.equal(answers.get('row')?.read.data, 'after');
+  held.delete('row', 12);
+  assert.equal(answers.get('row')?.read.data, 'after', 'an old refusal cannot remove replacement memory');
+});
+
+test('selective deletion rejects an older ticket with a higher sequence', () => {
+  const answers = new RememberedAnswers();
+  const row = value => ({ ...answer(value), tables: new Set(['rows']) });
+  answers.view().set('row', row('before'), 10);
+  answers.view().set('other', { ...answer('unrelated'), tables: new Set(['notes']) }, 10);
+  const older = answers.view(), unrelated = answers.get('other');
+  answers.clear(['rows']);
+  assert.equal(answers.get('row'), undefined);
+  older.set('row', row('higher sequence, older ticket'), 20);
+  assert.equal(answers.get('row'), undefined, 'the ticket barrier wins over a higher sequence after selective deletion');
+  assert.equal(answers.get('other'), unrelated);
+  answers.view().set('row', row('after'), 20);
+  assert.equal(answers.get('row')?.read.data, 'after', 'a ticket begun after deletion is accepted');
+});
+
 // A read of a device program: the device's observation, then the server's reply.
 function reading(answers, { call, reply }) {
   const program = { name: "read", kind: "Query", args: {}, body: [], runs: "device" };
@@ -107,6 +138,20 @@ function reading(answers, { call, reply }) {
 }
 // The device holds retained rows: the read composes them with the server's answer and
 // remembers no whole answer of its own.
+test("the final memory checkpoint rejects a change after the earlier acceptance check", async () => {
+  const answers = new RememberedAnswers(); let current = true;
+  const env = reading(answers, {
+    call: async () => ({ ok: { loading: true, unknown: true, tables: [] } }),
+    reply: () => ({ data: 'before change', complete: true, seq: 10 }),
+  });
+  env.current = () => current;
+  env.serverDeadlineWithdrawn = () => { current = false; return false; };
+  const result = await evaluateLocal(env, { kind: 'query', name: 'read' }, {}, 0, 0);
+  assert.equal(current, false, 'the read reached the final acceptance boundary');
+  assert.deepEqual(result.read, { loading: true });
+  assert.equal(answers.get('read:{}'), undefined, 'an obsolete body must not enter memory before the final checkpoint');
+});
+
 const retained = { ok: { data: [{ id: "kept" }], unknown: true, complete: false, retainedRows: [true], tables: [] } };
 const refused = seq => ({ denied: { code: "NOT_HERE", family: "rule", message: "not here" }, seq });
 

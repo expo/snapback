@@ -1,0 +1,12 @@
+queued-withdrawal 1
+late-queued-floor 1
+late-presence-floor 1
+online-abort-diagnostic 1
+local-abort-diagnostic 1
+due-online-newer 1
+due-local-newer 1
+backoff-holds-slot 1
+accept-floor 1
+delayed-cancel 1
+delayed-invalidation 1
+delayed-stale-callback 1

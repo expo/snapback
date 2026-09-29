@@ -1,0 +1,116 @@
+✔ immediate mounted form waits for identity and second save works (wasm) (1423.691073ms)
+ℹ {"tier":"wasm","identityAndFirstSaveMs":86.258734}
+✔ pre-identity burst admits in call order with ordinary prediction (wasm) (1008.285668ms)
+✔ reload discards only the unadmitted call (wasm) (1382.067654ms)
+✔ identity timeout refuses publicly without custody (wasm) (1060.873009ms)
+✔ identity adoption refuses publicly without custody (wasm) (1011.525042ms)
+✔ identity incarnation refuses publicly without custody (wasm) (1098.796404ms)
+✔ identity restore refuses publicly without custody (wasm) (1052.054132ms)
+✔ immediate mounted form waits for identity and second save works (Worker) (2003.439085ms)
+ℹ {"tier":"Worker","identityAndFirstSaveMs":195.97975899999983}
+✔ pre-identity burst admits in call order with ordinary prediction (Worker) (1380.373966ms)
+✔ reload discards only the unadmitted call (Worker) (1747.387669ms)
+✔ identity timeout refuses publicly without custody (Worker) (1534.977145ms)
+✔ identity adoption refuses publicly without custody (Worker) (1274.72245ms)
+✔ identity incarnation refuses publicly without custody (Worker) (1368.660002ms)
+✔ identity restore refuses publicly without custody (Worker) (1196.066361ms)
+✔ fresh first save and burst wait in memory (process) (334.778473ms)
+ℹ {"tier":"process","identityAndBurstMs":69.02070999999705}
+✔ close and reopen has no unadmitted custody (process) (325.806136ms)
+✔ identity never arrives refuses within 15 seconds and recovers (process) (15275.340357ms)
+ℹ {"tier":"process","timeoutMs":15002.087962000001}
+✔ fresh first save and burst wait in memory (online) (474.990906ms)
+ℹ {"tier":"online","identityAndBurstMs":17.864493000000948}
+✔ close and reopen has no unadmitted custody (online) (183.620567ms)
+✔ identity never arrives refuses within 15 seconds and recovers (online) (15193.079348ms)
+ℹ {"tier":"online","timeoutMs":15011.000841999994}
+✔ process generation at ordinary admission refuses unsent (250.225697ms)
+✔ process incarnation at ordinary admission refuses unsent (254.705911ms)
+✔ ordinary native settlement stamps a live outbox before replacement (Grok round 2) (245.161707ms)
+✔ timely identity does not expire behind an earlier ordinary admission (1.670523ms)
+✔ online incompatible-store signal interrupts a held probe before custody (169.788288ms)
+✔ web capture fences a replacement in the gap after the identity read (4.480024ms)
+✔ waiting calls pin first identity across store replacement (279.512127ms)
+✔ waiting calls pin first identity across backend replacement (275.499313ms)
+✔ final identity recheck hang produces a public unsent refusal (239.513653ms)
+✔ final identity recheck reject produces a public unsent refusal (255.669936ms)
+✔ waiting E_ADMISSION releases the same-id reservation (wasm) (1035.766996ms)
+✔ waiting E_ADMISSION releases the same-id reservation (Worker) (1133.604302ms)
+✔ final identity I/O keeps only the remaining deadline (queued=false) (1.006248ms)
+✔ final identity I/O keeps only the remaining deadline (queued=true) (0.58097ms)
+✔ adoption-required store waits before any custody (reopen=false) (372.827317ms)
+✔ adoption-required store waits before any custody (reopen=true) (355.904485ms)
+✔ temporary unreadiness after first identification continues the bounded wait (1.11439ms)
+✔ native admission fences backend-required after the final read (239.763637ms)
+✔ empty browser capture reports a public identity refusal (0.623735ms)
+✔ browser transaction rejects backend replacement after synchronous capture (wasm) (965.177505ms)
+✔ browser transaction rejects backend replacement after synchronous capture (Worker) (1034.018315ms)
+✔ FIFO wait behind identity I/O consumes the identity budget (1.738225ms)
+✔ browser transaction checks generation independently of backend (wasm) (942.243345ms)
+✔ browser transaction checks generation independently of backend (Worker) (1044.252193ms)
+✔ FIFO deadline counts identity gaps between ordinary admissions (1.334951ms)
+✔ waiting admission after restored backend refresh: native descriptor (1.776382ms)
+✔ waiting admission after restored backend refresh: schema (0.645578ms)
+✔ waiting admission after restored backend refresh: programs (0.544917ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=false (42.131041ms)
+✔ unpersisted terminal intent reopens only on its acknowledged store; replacement=true (17.754769ms)
+✔ a persisted terminal receipt never reposts on reopen (3.9373ms)
+✔ the first fresh write after replacement binds B even when the pending journal is empty (15.979278ms)
+✔ retrying the first fresh replacement id recovers its receipt without retiring or executing it twice (5.762726ms)
+✔ failed intent identity persistence refuses admission before any dispatch (3.335119ms)
+✔ close detaches a held first-store probe without admitting its call (14.57964ms)
+✔ intent without an identity: first observed store; dispatched=undefined (12.495837ms)
+✔ intent without an identity: first observed store; dispatched=false (11.387045ms)
+✔ intent without an identity: same first store; dispatched=undefined (11.111613ms)
+✔ intent without an identity: same first store; dispatched=false (12.381435ms)
+✔ intent without an identity: replacement; dispatched=undefined (11.658322ms)
+✔ intent without an identity: replacement; dispatched=false (12.43749ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=undefined (12.927094ms)
+✔ intent without an identity: return to first store after a replacement; dispatched=false (11.444962ms)
+✔ store precondition prevents execution when the endpoint changes after the probe (4.27046ms)
+✔ unpersisted receipt notifications survive the ordinary 256-receipt history window (356.81557ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1566.762986ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1134.404072ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1120.102738ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1134.904532ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (1682.20761ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3PNBF5JVSRE20NXPNNA4GAR","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (1634.962545ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3PNBGSHT1FQR7J504B9YZHQ","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 A native: already-open owners equal input, offline (265.823553ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners equal input, in-flight send (1175.79312ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, offline (1162.363343ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, in-flight send (1167.274423ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B native: evicted explicit row outcome reaches server replay (2308.451126ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3PNBP3Q7YVKQ1V57PC59DKT","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B native: evicted changed guard outcome reaches server replay (2186.315463ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M3PNBRC8HTFYJPZKJG65TVCE","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals online: one caller ID is independent per principal (156.901103ms)
+ℹ tier=online principals=2 applications=2 posts=2
+✔ W6R1 principals memory: one caller ID is independent per principal (197.641079ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+✔ W6R1 principals native: one caller ID is independent per principal (251.078966ms)
+ℹ tier=native principals=2 applications=2 posts=2
+✔ W6R1 online closed: retrying a sent ID cannot emit a contradictory failure (1.440008ms)
+✔ W6R1 online signed-out: retrying a sent ID cannot emit a contradictory failure (1.618326ms)
+✔ server write ids bind raw arguments and operation names across independent clients (139.165083ms)
+ℹ tests 83
+ℹ suites 0
+ℹ pass 83
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77676.639225

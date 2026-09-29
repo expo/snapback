@@ -1,0 +1,31 @@
+{"tier":"wasm","beforeIdentity":[{"state":"pending","id":"01M3NYWDTC8PA9W17AXZPF5GVY","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYWDWE64HG8CPKB6JCQZ6N","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (wasm) (1589.337822ms)
+✔ deferred burst, prediction, ids and reload (wasm) (1499.910832ms)
+✔ same-turn navigation before deferred custody commits (wasm) (1553.871764ms)
+✔ an unidentified closed tab transfers custody in order (wasm) (1683.453483ms)
+✔ identification timeout settles visibly without sending (wasm) (1398.176548ms)
+✔ identification adoption settles visibly without sending (wasm) (1692.026803ms)
+✔ identification incarnation settles visibly without sending (wasm) (1500.297825ms)
+{"tier":"Worker","beforeIdentity":[{"state":"pending","id":"01M3NYWR98DREF8E0YXXVBPMAB","reason":"waiting for backend identification"},{"state":"pending","id":"01M3NYWRBB1S0NXTNCZPMASAH8","reason":"waiting for backend identification"}]}
+✔ immediate mounted form before identity (Worker) (1528.561578ms)
+✔ deferred burst, prediction, ids and reload (Worker) (1837.804208ms)
+✔ same-turn navigation before deferred custody commits (Worker) (1716.407919ms)
+✔ an unidentified closed tab transfers custody in order (Worker) (2308.112607ms)
+✔ identification timeout settles visibly without sending (Worker) (1520.657568ms)
+✔ identification adoption settles visibly without sending (Worker) (1789.196502ms)
+✔ identification incarnation settles visibly without sending (Worker) (1711.335063ms)
+✔ process device persists immediate writes before identity and resumes in order (313.978551ms)
+✔ online app takes custody before a held identity probe, including reload (210.484795ms)
+✔ two native owners compare deferred custody without losing or replacing writes (488.56295ms)
+✔ expired identification deadline survives reopen (process) (294.023341ms)
+✔ expired identification deadline survives reopen (online) (169.880117ms)
+✔ known online commit survives failed receipt saves and same-id restart recovery (201.24853ms)
+✔ known online refusal survives failed receipt saves and same-id restart recovery (161.412224ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24997.210914

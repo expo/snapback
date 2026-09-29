@@ -327,8 +327,13 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   // fixture includes the new first-10 site spelling and selection explanation.
   const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
   assert.equal(pinned.length,2950);
-  assert.deepEqual(newApp.backendBytes,pinned,'byte-for-byte canonical capability-free 0.4 backend');
-  assert.equal(JSON.stringify(newApp.backend),pinned.toString());
+  // /schema also reports the serving store's random identity (LLP 3000.007 §20.4),
+  // which is not program content: pin the backend bytes without that last key.
+  const schemaText=newApp.backendBytes.toString('utf8'),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
+  assert.ok(identity,'/schema reports the serving store identity as its last key');
+  assert.deepEqual(Buffer.from(schemaText.slice(0,identity.index)+'}'),pinned,'byte-for-byte canonical capability-free 0.4 backend');
+  const {store_id:_servedStore,...backendProgram}=newApp.backend;
+  assert.equal(JSON.stringify(backendProgram),pinned.toString());
   // Stored schema uses Rust's field order; /schema uses canonical key order.
   // Pin its exact change against the real 0.2.33 encoding, allowing only the
   // two documented diagnostic strings per read site, never structural drift.

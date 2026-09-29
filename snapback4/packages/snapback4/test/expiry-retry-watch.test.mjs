@@ -111,10 +111,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       fetch: clock.wrap(async (input, init) => {
         if (offline) throw new TypeError("test offline");
         const path = new URL(input).pathname;
-        // Isolate expiry retry from change evidence, including a poll whose
-        // streaming headers arrived before freezeSync but whose body did not.
-        if (path === "/changes") return parked(init.signal);
-        if (freezeSync && ["/sync", "/changes"].includes(path)) return parked(init.signal);
+        if (path === "/changes" || (freezeSync && path === "/sync")) return parked(init.signal);
         if (path.startsWith("/q/")) {
           requests.push({ path, args: JSON.parse(init.body).args });
           await interceptServer?.();
@@ -170,12 +167,12 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["chained permits
       wall = deadline;
       await reached.promise; // Timer fired; the device reobservation is held.
       assert.equal(calls, 2);
-      // @ref LLP 3000.023#3.5 — re-read start retains the answer and marks the existing episode.
-      assert.deepEqual(live.getSnapshot(), { ...before, revalidating: true }, "local wakeup preserves the remembered value, freshness and age");
+      // @ref LLP 3000.023#10 — a wakeup acquires without invalidating the remembered answer.
+      assert.equal(live.getSnapshot(), before, "local wakeup preserves the remembered value, freshness and age");
       assert.equal(answerIdentity(live.getSnapshot()), answerIdentity(before));
-      assert.equal(publications.length, 2, "the revalidating mark notifies without a loading reset");
+      assert.equal(publications.length, 1, "a wakeup does not publish an invalidation");
       localGate.release();
-      await until(() => publications.length === 3 && live.getSnapshot().revalidating === true, "timer reobservation did not publish its offline replacement");
+      await until(() => publications.length === 2 && live.getSnapshot().revalidating === true, "timer reobservation did not publish its replacement");
       assert.ok(publications.every(read => read.data === true && read.fresh === false));
       assert.deepEqual(requests, [{ path: "/q/branch", args: {} }]);
       return;

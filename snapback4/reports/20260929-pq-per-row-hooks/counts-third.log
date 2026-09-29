@@ -1,0 +1,24 @@
+✔ Astra 5 browser wasm: builder profile gate survives another profile update and unrelated mutation (3085.65848ms)
+ℹ sequential unrelated write
+ℹ sequential unrelated write settled
+ℹ overlap sync captured
+ℹ overlap prediction admitted
+ℹ {"route":"/conversation/bob","mounts":1,"loadingAfterData":0,"profile":"alice"}
+✔ Astra 5 browser online: builder profile gate survives another profile update and unrelated mutation (2449.99228ms)
+ℹ sequential unrelated write
+ℹ sequential unrelated write settled
+ℹ {"route":"/conversation/bob","mounts":1,"loadingAfterData":0,"profile":"alice"}
+✔ 1,000 observations: at most eight starts per turn, duplicate scheduling coalesces (12.236725ms)
+✔ eight in flight, cancellation, rejection and rescheduling release capacity (1.171385ms)
+✔ wire-equivalent arguments share a watch, retention policies stay distinct (0.261011ms)
+✔ online 1,000 rows: N relevant evaluations, zero unrelated, eight concurrent requests (359.088736ms)
+✔ wasm 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1161.696714ms)
+✔ process 1,000 rows: known apply, empty apply, unrelated apply and duplicate hooks (1161.020271ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5692.494265

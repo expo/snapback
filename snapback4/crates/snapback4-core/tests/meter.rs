@@ -21,6 +21,60 @@ use snapback4_core::value::{Value, object};
 use snapback4_core::{Engine, Schema, WriteState};
 
 #[test]
+fn duplicate_object_keys_keep_the_last_allocation_and_query_heap_outcome() {
+    use snapback4_core::engine::{local, ReadCut};
+    use snapback4_core::rows::MemoryRows;
+    use std::collections::BTreeMap;
+
+    fn entries(first_capacity: usize, last_capacity: usize) -> [(String, Value); 2] {
+        let key = |capacity| {
+            let mut key = String::with_capacity(capacity);
+            key.push('x');
+            key
+        };
+        [(key(first_capacity), Value::Int(1)), (key(last_capacity), Value::Int(2))]
+    }
+    for (first_capacity, last_capacity) in [(4096, 1), (1, 4096)] {
+        let baseline = Value::Row(BTreeMap::from(entries(first_capacity, last_capacity)).into());
+        let actual = object(entries(first_capacity, last_capacity));
+        assert_eq!(serde_json::to_vec(&actual).unwrap(), serde_json::to_vec(&baseline).unwrap());
+        let query = |row| {
+            let program = Program {
+                name: "duplicate_keys".into(), kind: ProgramKind::Query,
+                args: BTreeMap::new(), read_time_granularity_ms: None,
+                returned_shapes: BTreeMap::new(), native: false,
+                body: vec![Stmt::Return(Expr::Array(vec![Expr::Literal(row)]))],
+            };
+            local::query(&MemoryRows::new(), &Schema::default(), &program, context(),
+                Ceilings { heap_bytes: 1024, ..Ceilings::default() }).unwrap()
+        };
+        let expected = query(baseline);
+        let result = query(actual.clone());
+        // Array evaluation reserves four Value slots; the shared row charges
+        // 40 + 80 + the retained key's capacity.
+        let heap = 4 * std::mem::size_of::<Value>() as u64 + 40 + 80 + last_capacity as u64;
+        println!("duplicate keys {first_capacity}->{last_capacity}: baseline={} B complete={}, actual={} B complete={}",
+            expected.metered.heap_bytes, expected.complete, result.metered.heap_bytes, result.complete);
+        assert_eq!(expected.metered.heap_bytes, heap);
+        assert_eq!(result.metered.heap_bytes, heap);
+        assert_eq!(result.complete, last_capacity == 1);
+        assert_eq!(result.complete, expected.complete);
+        assert_eq!(result.data, expected.data);
+        assert_eq!(result.cut, expected.cut);
+        assert_eq!(result.capped_at, expected.capped_at);
+        if last_capacity == 1 {
+            assert_eq!(result.data, Value::Array(vec![object([("x", Value::Int(2))])]));
+            assert_eq!(result.cut, None);
+        } else {
+            assert_eq!(result.data, Value::Null);
+            assert_eq!(result.cut, Some(ReadCut::Meter));
+            assert_eq!(result.capped_at.as_ref().map(|cut| cut.0), Some(MeterKind::HeapBytes));
+        }
+        assert_eq!(actual.as_object().unwrap().keys().next().unwrap().capacity(), last_capacity);
+    }
+}
+
+#[test]
 fn heap_cut_stops_queries_and_rolls_back_mutations() {
     for push in [false, true] {
         let programs = vec![

@@ -10,16 +10,42 @@ export interface WitnessContainer {
   readonly witnessLaunch: string | null;
   witnessAppend(line: string): void;
   witnessSignaled(label: string): boolean;
+  witnessObservation?(scriptURL: string | null): Record<string, unknown> | null;
+}
+
+export function manifestPresent(value: unknown): boolean {
+  if (value == null || value === "") return false;
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return true; }
+  }
+  return value === null || typeof value !== "object" || Object.keys(value).length > 0;
 }
 
 // @ref LLP 3000.007#20.10 — app-owned receipts, completed steps and container-file signals
-export function createWitness(container: WitnessContainer | null): Witness | null {
+export function createWitness(container: WitnessContainer | null, runtime?: { scriptURL: string | null; dev: boolean; hermes: boolean; launcherManifestPresent: boolean; updatesPresent: boolean; updatesManifestPresent: boolean }): Witness | null {
   if (!container?.witnessLaunch) return null;
   const { segment, timeoutMs } = JSON.parse(container.witnessLaunch);
   if (typeof segment !== "string" || !segment || !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
     throw new Error("E_WITNESS_INPUT: invalid witness launch configuration");
   }
   const native = container;
+  if (JSON.parse(container.witnessLaunch).proof) {
+    try {
+    if (!runtime || runtime.launcherManifestPresent !== false || runtime.updatesPresent !== false || runtime.updatesManifestPresent !== false || runtime.dev !== false || runtime.hermes !== true || !runtime.scriptURL?.startsWith("file://")) {
+      throw new Error("E_WITNESS_PROOF: prepared launch requires a selected local bundle in Release Hermes with no launcher/updates manifest");
+    }
+    const startup = native.witnessObservation?.(runtime.scriptURL);
+    if (!startup) throw new Error("E_WITNESS_PROOF: rebuild the native witness helper");
+    native.witnessAppend(JSON.stringify({ startup: { ...startup,
+      hermes: runtime.hermes, dev: runtime.dev, launcherManifestPresent: runtime.launcherManifestPresent,
+      updatesPresent: runtime.updatesPresent, updatesManifestPresent: runtime.updatesManifestPresent },
+      witness: { at: new Date().toISOString(), step: "launched" } }) + "\n");
+    } catch (error) {
+      native.witnessAppend(JSON.stringify({ error: String(error), witness: {
+        at: new Date().toISOString(), step: "launched:failed" } }) + "\n");
+      throw error;
+    }
+  }
   let current = "launched";
   let active = false;
   const append = (object: Record<string, unknown>, step: string) => {

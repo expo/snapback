@@ -1,0 +1,135 @@
+✔ expiry retry chained permits wasm (552.321288ms)
+✔ expiry retry populated watch wasm (179.667729ms)
+✔ expiry retry server pagination wasm (176.400981ms)
+✖ expiry retry server pagination watch wasm (165.907144ms)
+✔ expiry retry remembered branch wasm (157.351064ms)
+✔ expiry retry remembered branch watch wasm (160.376831ms)
+✖ expiry retry remembered branch timer watch wasm (256.425449ms)
+✔ expiry retry chained permits process (198.96146ms)
+✔ expiry retry populated watch process (216.240761ms)
+✔ expiry retry server pagination process (203.109841ms)
+✖ expiry retry server pagination watch process (210.202868ms)
+✔ expiry retry remembered branch process (191.480532ms)
+✔ expiry retry remembered branch watch process (192.554843ms)
+✖ expiry retry remembered branch timer watch process (294.933574ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 10
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3277.096705
+
+✖ failing tests:
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry server pagination watch wasm (165.907144ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:293:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry remembered branch timer watch wasm (256.425449ms)
+  AssertionError [ERR_ASSERTION]: local wakeup preserves the remembered value, freshness and age
+  + actual - expected
+
+    {
+      complete: true,
+      cut: null,
+      data: true,
+      fresh: false,
+      next: null,
+  -   revalidating: true,
+      since: 1790664404925
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:171:14)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: false, next: null, since: 1790664404925 },
+    expected: { data: true, complete: true, cut: null, fresh: false, next: null, since: 1790664404925, revalidating: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry server pagination watch process (210.202868ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+      {
+        c: null
+      },
+      {
+  +     c: null
+  +   },
+  +   {
+        c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0'
+      }
+    ]
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:293:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { c: null }, { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    expected: [ { c: null }, { c: 'WzIsImF1ZGl0cyIsImJ5VGltZSIsIkRlc2MiLFt7Im5hbWUiOiJhdCIsImtpbmQiOiJUaW1lIn0seyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSW50IjozfSx7IklkIjoiYTMifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/expiry-retry-watch.test.mjs:75:3
+✖ expiry retry remembered branch timer watch process (294.933574ms)
+  AssertionError [ERR_ASSERTION]: local wakeup preserves the remembered value, freshness and age
+  + actual - expected
+
+    {
+      complete: true,
+      cut: null,
+      data: true,
+      fresh: false,
+      next: null,
+  -   revalidating: true,
+      since: 1790664406431
+    }
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pq/snapback4/packages/snapback4/test/expiry-retry-watch.test.mjs:171:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { data: true, complete: true, cut: null, fresh: false, next: null, since: 1790664406431 },
+    expected: { data: true, complete: true, cut: null, fresh: false, next: null, since: 1790664406431, revalidating: true },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

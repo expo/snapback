@@ -1,5 +1,5 @@
 import type { Queued } from "./local-types.ts";
-import type { Query } from "./contract.ts";
+import type { Query, Refusal } from "./contract.ts";
 import { ReadObservation } from "./read-observation.ts";
 import { presenceRefresh } from "./presence-refresh.ts";
 import type { BackendJson } from "./backend.ts";
@@ -33,8 +33,12 @@ export interface LocalWatch extends ReadObservation<unknown> {
   subscribers: Set<() => void>;
   running: boolean;
   dirty: boolean;
+  changeVersion?: number;
   /** Reported change not yet published by this replica. */
   changeCut?: number;
+  /** Resume at sync publication even when its final footprint is disjoint. */
+  waitingForSync?: boolean;
+  answerRevision?: number;
   expiredRetries?: number;
   expiryTimer: ReturnType<typeof setTimeout> | null;
   incarnation: number;
@@ -57,7 +61,7 @@ export function notifyLocalWatch(watch: LocalWatch): void {
   for (const subscriber of watch.subscribers) subscriber();
 }
 
-export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => Promise<void>): void {
+export function rerunLocalTables(watches: Iterable<LocalWatch>, tables: Set<string>, rerun: (watch: LocalWatch) => void): void {
   if (!tables.size) return;
   for (const watch of watches) if (watch.tables.size === 0 || [...watch.tables].some(table => tables.has(table))) void rerun(watch);
 }
@@ -110,7 +114,14 @@ export class RememberedAnswers {
     const slot = this.written.get(key), barrier = ++this.tickets;
     this.written.set(key, { seq: slot?.seq, highest: slot?.highest, ticket: barrier, barrier });
   }
-  clear(): void { this.answers.clear(); this.written.clear(); }
+  clear(touched?: readonly string[]): void {
+    if (touched === undefined) { this.answers.clear(); this.written.clear(); return; }
+    if (!touched.length) return;
+    for (const [key, answer] of this.answers) {
+      if (answer.tables.size && !touched.some(table => answer.tables.has(table))) continue;
+      this.forget(key);
+    }
+  }
   get size(): number { return this.answers.size; }
   /** The cache as one read attempt writes it: the server's cut, then the attempt's
    * ticket. A refetch within the attempt is a new read, so it renews the ticket. */
@@ -153,6 +164,12 @@ export class LocalReads {
   revision = 0;
   predictions: readonly string[] | null = null;
   admissions = 0;
+  // @ref LLP 3000.031#1.1 — one-shot and observed reads share the admission fence.
+  admitting(watches: () => Iterable<LocalWatch>): () => void {
+    const notify = () => { for (const watch of watches()) if (watch.updateExistence()) notifyLocalWatch(watch); };
+    this.admissions++; notify();
+    return () => { this.admissions--; notify(); };
+  }
   pending(tables: Set<string> | null, predictions = this.predictions): boolean {
     return this.admissions > 0 || pendingTables(predictions, tables);
   }
@@ -173,15 +190,35 @@ export class LocalReads {
   // pre-change evaluations without resetting the displayed answer.
   changed(watch: LocalWatch, cut?: number): void {
     this.serverAnswers.forget(`${watch.op.name}:${JSON.stringify(watch.args)}`);
-    watch.resetVersion++;
+    watch.changeVersion = (watch.changeVersion ?? 0) + 1;
     if (cut !== undefined) watch.changeCut = Math.max(watch.changeCut ?? cut, cut);
+  }
+
+  // @ref LLP 3000.023#10 — only held queries forbid every future server fallback.
+  // Previous routing cannot prove the next branch or coverage. Terminal
+  // refusals must reach runLocal's checkpoint even after a watch has parked.
+  deferUntilSync(watch: LocalWatch, acquired: boolean, backend: BackendJson, denied: Refusal | null): boolean {
+    if (watch.kept) watch.reload();
+    const program = backend.programs.find(program => program.name === watch.op.name);
+    const held = backend.schema.operations?.[watch.op.name]?.held ?? program?.held ?? watch.op.held ?? false;
+    if (!denied && acquired && watch.changeCut !== undefined) {
+      watch.waitingForSync = true;
+      return held;
+    }
+    delete watch.waitingForSync;
+    return false;
   }
 
   // @ref LLP 3000.023#10 — an old replica cannot discharge reported change
   // evidence. Only published sync progress or a whole server answer at the cut
   // qualifies; a composed answer may still contain pre-change local rows.
-  applied(watches: Iterable<LocalWatch>, watermark: number): void {
-    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) delete watch.changeCut;
+  applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+    const ready: LocalWatch[] = [];
+    for (const watch of watches) if (watch.changeCut !== undefined && watermark >= watch.changeCut) {
+      delete watch.changeCut;
+      if (watch.waitingForSync) { delete watch.waitingForSync; ready.push(watch); }
+    }
+    return ready;
   }
 
   current(watch: LocalWatch, result: { read: import("./contract.ts").Read<unknown>; serverOnly?: boolean; seq?: number | undefined }): boolean {
@@ -196,18 +233,18 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#10 — ordinary commits re-read without withdrawing the displayed answer.
-  committed(watches: Iterable<LocalWatch>, operation: string): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation));
+  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched);
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true): void {
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[]): void {
     this.revision++;
     this.predictions = null;
-    this.serverAnswers.clear();
+    this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
-      if (reset) delete watch.changeCut;
-      if (reset) watch.reset({ loading: true }); else watch.reload(true);
+      if (reset) { delete watch.changeCut; delete watch.waitingForSync; }
+      if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

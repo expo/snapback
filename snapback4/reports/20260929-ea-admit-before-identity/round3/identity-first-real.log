@@ -1,0 +1,34 @@
+✔ immediate mounted form waits for identity and second save works (wasm) (1557.492861ms)
+ℹ {"tier":"wasm","identityAndFirstSaveMs":82.99691800000005}
+✔ pre-identity burst admits in call order with ordinary prediction (wasm) (1076.196844ms)
+✔ reload discards only the unadmitted call (wasm) (1478.153285ms)
+✔ identity timeout refuses publicly without custody (wasm) (1190.978091ms)
+✔ identity adoption refuses publicly without custody (wasm) (1026.582733ms)
+✔ identity incarnation refuses publicly without custody (wasm) (1093.041051ms)
+✔ identity restore refuses publicly without custody (wasm) (1028.520878ms)
+✔ immediate mounted form waits for identity and second save works (Worker) (1385.088317ms)
+ℹ {"tier":"Worker","identityAndFirstSaveMs":193.11844999999994}
+✔ pre-identity burst admits in call order with ordinary prediction (Worker) (1167.88529ms)
+✔ reload discards only the unadmitted call (Worker) (1925.073418ms)
+✔ identity timeout refuses publicly without custody (Worker) (1307.457934ms)
+✔ identity adoption refuses publicly without custody (Worker) (1127.957084ms)
+✔ identity incarnation refuses publicly without custody (Worker) (1215.412804ms)
+✔ identity restore refuses publicly without custody (Worker) (1310.710598ms)
+✔ fresh first save and burst wait in memory (process) (475.982542ms)
+ℹ {"tier":"process","identityAndBurstMs":138.20635599999878}
+✔ close and reopen has no unadmitted custody (process) (322.737145ms)
+✔ identity never arrives refuses within 15 seconds and recovers (process) (15286.872616ms)
+ℹ {"tier":"process","timeoutMs":15000.940554999997}
+✔ fresh first save and burst wait in memory (online) (206.774167ms)
+ℹ {"tier":"online","identityAndBurstMs":24.73482299999887}
+✔ close and reopen has no unadmitted custody (online) (182.563019ms)
+✔ identity never arrives refuses within 15 seconds and recovers (online) (15198.911789ms)
+ℹ {"tier":"online","timeoutMs":15011.732495999997}
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49725.911091

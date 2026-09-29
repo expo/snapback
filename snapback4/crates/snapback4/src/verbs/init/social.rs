@@ -15,6 +15,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
     value["scripts"]["web"] = json!("expo start --web");
     package.1 = super::pretty(&value);
     files.extend([
+        ("snapback/workers/notifications.mjs", include_str!("social/notifications.mjs").to_owned()),
         ("snapback/schema.q", include_str!("social/schema.q").to_owned()),
         ("README.md", include_str!("social/README.md").to_owned()),
         ("src/intents.ts", include_str!("social/intents.ts").to_owned()),
@@ -28,8 +29,10 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
         ("src/Chats.tsx", include_str!("social/Chats.tsx").to_owned()),
         ("src/Search.tsx", include_str!("social/Search.tsx").to_owned()),
         ("src/Profile.tsx", include_str!("social/Profile.tsx").to_owned()),
+        ("src/Direct.tsx", include_str!("social/Direct.tsx").to_owned()),
         ("app/_layout.tsx", include_str!("social/layout.tsx").to_owned()),
         ("app/conversation/[id].tsx", include_str!("social/conversation-route.tsx").to_owned()),
+        ("app/dm/[other].tsx", "import { useLocalSearchParams } from 'expo-router';\nimport Direct from '../../src/Direct';\nexport default function DirectRoute() { const { other } = useLocalSearchParams<{ other: string }>(); return <Direct other={other} />; }\n".to_owned()),
         ("app/(tabs)/_layout.tsx", "import { Tabs } from 'expo-router';\nexport default function Layout() { return <Tabs><Tabs.Screen name=\"index\" options={{ title: 'Following' }} /><Tabs.Screen name=\"chats\" options={{ title: 'Chats' }} /><Tabs.Screen name=\"search\" options={{ title: 'Search' }} /><Tabs.Screen name=\"profile\" options={{ title: 'Profile' }} /></Tabs>; }\n".to_owned()),
         ("app/(tabs)/index.tsx", "export { default } from '../../src/Feed';\n".to_owned()),
         ("app/(tabs)/chats.tsx", "export { default } from '../../src/Chats';\n".to_owned()),
