@@ -316,11 +316,12 @@ rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
 invent an empty row or mint different IDs on replay.
 
-## Read-through upserts: explicit insert/update
+## Read-through upserts
 
-An `upsert` on a read-through child queues without a row, even on a synced
-table. `why` points here; it generates no rewrite. Keep `upsert` and observe
-queued/sent/failed state, or adapt this explicit pattern to your schema:
+A read-through child uses its parent key to prove readability. With a live,
+current parent and the child's whole audience partition acquired, an upsert
+keyed by that parent predicts both insert and update. It keeps the same server
+return value and authority as any upsert; a refusal rolls back the prediction.
 
 ```quarry
 table messages:
@@ -342,27 +343,22 @@ table reactions:
   sync
 
 mutation setReaction(message: messages, emoji: text 1..32) predicts:
-  if exists reactions[message, viewer]:
-    update reactions[message, viewer] { emoji }
-  else:
-    insert reactions { message, principal: viewer, emoji }
-  return null
+  return upsert reactions[message, viewer] { emoji }
 ```
 
-This example deliberately returns null. It is a design pattern, not an
-equivalent replacement expression. Evaluate effectful inputs in the intended
-order; map each named key explicitly. A shared helper must handle every
-caller's argument types, including rows versus references. Decide return values
-and downstream effects explicitly: insert returns its supplied image, whereas
-upsert reads back the row, which can include optional/defaulted fields or be
-null after expiry. An existence test also needs read authority: hidden writable
-rows cannot safely select the insert branch. Do not make private parents public
-to obtain prediction; this example's public messages are a product choice.
+Private membership parents work the same way; do not make parents public to
+obtain prediction. Every secondary unique key and cap group must also pin the
+parent or independently prove a wholly readable partition. A parent may have a
+horizon if this parent row is held; a child horizon still prevents insert
+prediction. Unknown coverage, retained-only or provisional parents, absent or
+expired parents, and exhausted allowances queue a missing upsert without a row.
+An expiring cap group also prevents insert prediction. A held target can still
+predict its update. `insert ... if absent` on a child remains server-only.
 
-Static eligibility still needs held facts at the call. Missing coverage, a
-horizon miss, Left groups, unknown authority or exhausted prediction allowances
-can queue without rows; expiring cap groups can block insert prediction too.
-The extra existence read consumes the meter. Inspect `snapback4 why <op>` and
-observe settlement with `guide writes`; changing syntax supplies no coverage.
+For that remaining case, an explicit `if exists reactions[message, viewer]`
+branch with `update` on a hit and `insert` on a miss is an application pattern,
+not an equivalent expression rewrite: decide return values and effect order
+explicitly, and keep the existence read's coverage and authority requirements.
+It supplies no missing coverage. Prefer the upsert above for set-state writes.
 
 "##;

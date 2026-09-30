@@ -1,0 +1,128 @@
+   Compiling zeroize v1.9.0
+   Compiling opaque-debug v0.3.1
+   Compiling chunked_transfer v1.5.0
+   Compiling log v0.4.34
+   Compiling ascii v1.1.0
+   Compiling httpdate v1.0.3
+   Compiling inout v0.1.4
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling hmac v0.12.1
+   Compiling poly1305 v0.8.0
+   Compiling cipher v0.4.4
+   Compiling tiny_http v0.12.0 (/home/ccheever/sb4-intent/lane-qx/snapback4/vendor/tiny_http)
+   Compiling chacha20 v0.9.1
+   Compiling chacha20poly1305 v0.10.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 13.93s
+     Running tests/check.rs (target/debug/deps/check-b3654bd2f066150f)
+
+running 82 tests
+test b2_why_fanout_keeps_its_example_with_bounded_card_context ... ok
+test w13b_near_ceiling_requires_more_than_half_and_reports_each_counter ... ok
+test guide_prediction_is_a_stdout_card ... ok
+test guide_unknown_word_suggests_cards_on_stdout ... ok
+test w13b_cut_log_suppresses_per_operation_and_site_with_a_count ... ok
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text ... ok
+test guide_lists_aliases_and_resolves_them_on_stdout ... ok
+test w10r1_empty_job_keeps_its_independent_repair ... ok
+test w10c_check_keeps_independent_errors_and_other_operations ... ok
+test check_explains_held_dispatch_and_generates_the_client_marker ... ok
+test w10r1_nested_job_prelude_keeps_its_independent_repair ... ok
+test why_rule_distinguishes_readable_and_unreadable_collision_targets ... ok
+test w11_expiry_synthesizes_sweep_indexes_without_source_repairs ... ok
+test b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied ... ok
+test w10r2_repeated_unknown_prints_its_section_under_the_first_site ... ok
+test w13c_cost_reports_meter_domains_and_prefix_existence_as_scans ... ok
+test w9c_check_validates_unique_refusal_codes_like_require ... ok
+test audience_bounds::unrelated_job_costs_keep_visibility_without_digest_advice ... ok
+test audience_bounds::job_cost_advice_uses_the_pinned_groups_query_ceiling ... ok
+test w10r1_multiple_job_prelude_statements_keep_the_independent_repair ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+test w10r2_why_placement_has_its_own_section ... ok
+test w10r2_why_syntax_has_its_own_section ... ok
+test w10r2_why_emit_in_query_has_its_own_section ... ok
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+test b2_every_check_summarizes_zero_one_and_three_never_mutations ... ok
+test first_paste::failing_check_keeps_the_terse_prediction_reason ... FAILED
+test w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic ... ok
+test w9r1b_why_wide_merge_opens_the_notes_card ... ok
+test w10r2_why_unknown_has_its_own_section ... ok
+test r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds ... ok
+test w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded ... ok
+test w9b_why_prints_a_codes_card_paragraph ... ok
+test w10a_inline_sections_have_a_check_wide_bound_and_stable_order ... ok
+test w10c_check_hides_only_the_redundant_operation_cascade ... ok
+test upsert_insert_proof_and_service_grants_reach_check_and_why ... ok
+test w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap ... ok
+test er_expiry_cost_names_backlog_attempt_and_atomic_refusal ... ok
+test w11r2_generic_application_refusals_do_not_claim_the_feed_recipe ... ok
+test w10a_repeated_refusals_explain_once_and_preserve_json ... ok
+test w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store ... ok
+test first_paste::read_through_upsert_has_no_obsolete_server_only_note ... ok
+test w13c_check_fix_parenthesizes_an_inner_matching_read ... ok
+test w9a_check_states_held_source_coverage_only_without_horizons ... ok
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... ok
+test w10r1_correcting_equality_still_requires_a_job_chunk ... ok
+test notes_stay_short_and_verbose_explains_each_code_once ... ok
+test column_trending_cost_has_one_merge_and_derived_bounds ... ok
+test fixture_test_reports_cursorless_top_n_complete ... ok
+test audience_bounds::builder_why_names_inherited_horizon_and_the_jobs_actual_meter ... ok
+test w11r1c_help_describes_residency_without_query_meters ... ok
+test natural_forms_diagnostics_are_authored_in_plain_verbose_and_json ... ok
+test horizon_check_and_why_keep_the_same_advice_across_checks ... ok
+test w13b_starter_has_no_near_ceiling_summary ... ok
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+test check_adoption::w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store ... ok
+test w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean ... ok
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+test first_paste::terse_check_counts_and_explains_search_behavior_warnings ... ok
+test w8r1b_release_from_a_used_dev_store_never_returns_read_meters ... ok
+test w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary ... ok
+test changed_default_rechecks_unchanged_cap ... ok
+test check_accepts_contextual_defaults_for_an_empty_dev_table ... ok
+test check_reports_all_narrowing_sites_in_text_and_json_without_adopting ... ok
+test check_adoption::w8c_watching_host_reopens_after_external_adoption_while_cli_refuses ... ok
+test w9b_new_maintains_share_one_note_without_pre_adoption_counts ... ok
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... ok
+test check_uses_explicit_store_and_locates_index_and_table_refusals ... ok
+test check_without_a_store_and_additive_or_fitting_adoption_are_quiet ... ok
+test check_preserves_database_and_wal_bytes_with_live_and_stopped_dev ... ok
+test changed_default_rechecks_unchanged_unique_index ... ok
+test inspection_materializes_required_literals_but_not_optional_defaults ... ok
+test maintained_column_inspection_is_public_and_missing_storage_reads_zero ... ok
+test w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema ... ok
+test row_view_check_matches_engine_chunk_size_and_commit_count ... ok
+test changed_default_that_still_fits_existing_groups_is_adoptable ... ok
+test r2_n4_inspection_defaults_equal_stored_values_and_group_together ... ok
+test w11r1c_toolchain_why_explains_node_start_failure_too ... ok
+test w11_why_every_registered_code_returns_its_dedicated_section ... ok
+test check_adoption::w8c_startup_waits_for_the_adoption_lock_to_clear ... ok
+test check_adoption::w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save ... ok
+
+failures:
+
+---- first_paste::failing_check_keeps_the_terse_prediction_reason stdout ----
+
+thread 'first_paste::failing_check_keeps_the_terse_prediction_reason' (2211396) panicked at crates/snapback4/tests/check/first_paste.rs:11:9:
+1 mutations have insert arms that may queue; 1 eligible mutations may queue past a horizon — snapback4 why <op>
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_paste::failing_check_keeps_the_terse_prediction_reason
+
+test result: FAILED. 81 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.65s
+
+error: test failed, to rerun pass `-p snapback4 --test check`

@@ -1,0 +1,52 @@
+✖ wasm: read-through upsert predicts both arms and server refusal rolls back (635.005882ms)
+✔ wasm: read-through upsert horizon child coverage queues (267.04647ms)
+✔ wasm: read-through upsert missing child coverage queues (251.863678ms)
+✖ process: read-through upsert predicts both arms and server refusal rolls back (302.012702ms)
+✔ process: read-through upsert horizon child coverage queues (299.614777ms)
+✔ process: read-through upsert missing child coverage queues (328.91854ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2218.761983
+
+✖ failing tests:
+
+test at packages/snapback4/test/read-through-upsert.test.mjs:25:92
+✖ wasm: read-through upsert predicts both arms and server refusal rolls back (635.005882ms)
+  AssertionError [ERR_ASSERTION]: {"args":{"emoji":"like","message":"m"},"id":"qx-first","new_ids":[],"now":1790781268522,"observed_seq":null,"op":"setReaction","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:bob"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qx/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:46:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/read-through-upsert.test.mjs:25:92
+✖ process: read-through upsert predicts both arms and server refusal rolls back (302.012702ms)
+  AssertionError [ERR_ASSERTION]: {"args":{"emoji":"like","message":"m"},"id":"qx-first","new_ids":[],"now":1790781269339,"observed_seq":null,"op":"setReaction","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:bob"}
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-qx/snapback4/packages/snapback4/test/read-through-upsert.test.mjs:46:9)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

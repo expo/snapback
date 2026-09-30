@@ -1,0 +1,136 @@
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+error[E0425]: cannot find type `WriteOutcome` in module `snapback4_core::engine`
+  --> crates/snapback4-device/tests/first_instinct.rs:32:93
+   |
+32 | fn write(e:&mut Engine,name:&str,viewer:&str,input:Json,nonce:u64)->snapback4_core::engine::WriteOutcome {
+   |                                                                                             ^^^^^^^^^^^^ not found in `snapback4_core::engine`
+
+warning: unused import: `Value`
+ --> crates/snapback4-device/tests/first_instinct.rs:5:39
+  |
+5 | use snapback4_core::{Engine, Context, Value, WriteState, wire};
+  |                                       ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StreamPage`
+ --> crates/snapback4-device/tests/first_instinct.rs:6:41
+  |
+6 | use snapback4_device::{device::{Device, StreamPage, Queued}, store::DeviceStore};
+  |                                         ^^^^^^^^^^
+
+error[E0283]: type annotations needed
+  --> crates/snapback4-device/tests/first_instinct.rs:20:53
+   |
+20 |     let rows=rows.into_iter().map(|(name,row)|(name.into(),wire::row_from_json(&e.schema().tables[name],&row).unwrap())).collect();
+   |                                                     ^^^^
+   |
+   = note: the type must implement `From<&str>`
+   = note: required for `&str` to implement `Into<_>`
+help: try using a fully qualified path to specify the expected types
+   |
+20 -     let rows=rows.into_iter().map(|(name,row)|(name.into(),wire::row_from_json(&e.schema().tables[name],&row).unwrap())).collect();
+20 +     let rows=rows.into_iter().map(|(name,row)|(<&str as Into<T>>::into(name),wire::row_from_json(&e.schema().tables[name],&row).unwrap())).collect();
+   |
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+  --> crates/snapback4-device/tests/first_instinct.rs:33:78
+   |
+33 |     let args=input.as_object().unwrap().iter().map(|(key,value)|(key.clone(),wire::from_json(value))).collect();
+   |                                                                              ^^^^^^^^^^^^^^^ ----- argument #1 of type `&ArgType` is missing
+   |
+note: function defined here
+  --> crates/snapback4-core/src/wire.rs:59:8
+   |
+59 | pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
+   |        ^^^^^^^^^
+help: provide the argument
+   |
+33 |     let args=input.as_object().unwrap().iter().map(|(key,value)|(key.clone(),wire::from_json(/* &ArgType */, value))).collect();
+   |                                                                                              +++++++++++++++
+
+error[E0277]: a value of type `BTreeMap<std::string::String, snapback4_core::Value>` cannot be built from an iterator over elements of type `(std::string::String, Result<snapback4_core::Value, std::string::String>)`
+    --> crates/snapback4-device/tests/first_instinct.rs:33:103
+     |
+  33 |     let args=input.as_object().unwrap().iter().map(|(key,value)|(key.clone(),wire::from_json(value))).collect();
+     |                                                                                                       ^^^^^^^ value of type `BTreeMap<std::string::String, snapback4_core::Value>` cannot be built from `std::iter::Iterator<Item=(std::string::String, Result<snapback4_core::Value, std::string::String>)>`
+     |
+help: the trait `FromIterator<(std::string::String, Result<snapback4_core::Value, std::string::String>)>` is not implemented for `BTreeMap<std::string::String, snapback4_core::Value>`
+      but trait `FromIterator<(std::string::String, snapback4_core::Value)>` is implemented for it
+    --> /home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc/src/collections/btree/map.rs:2539:1
+     |
+2539 | impl<K: Ord, V> FromIterator<(K, V)> for BTreeMap<K, V> {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for that trait implementation, expected `snapback4_core::Value`, found `Result<snapback4_core::Value, std::string::String>`
+note: the method call chain might not have had the expected associated types
+    --> crates/snapback4-device/tests/first_instinct.rs:33:48
+     |
+  33 |     let args=input.as_object().unwrap().iter().map(|(key,value)|(key.clone(),wire::from_json(value))).collect();
+     |              -----                      ------ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Iterator::Item` changed to `(String, Result<Value, String>)` here
+     |              |                          |
+     |              |                          `Iterator::Item` is `(&String, &Value)` here
+     |              this expression has type `Value`
+note: required by a bound in `std::iter::Iterator::collect`
+    --> /home/ccheever/.rustup/toolchains/1.97.0-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2077:19
+     |
+2077 |     fn collect<B: FromIterator<Self::Item>>(self) -> B
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Iterator::collect`
+
+error[E0061]: this method takes 2 arguments but 3 arguments were supplied
+    --> crates/snapback4-device/tests/first_instinct.rs:79:11
+     |
+  79 |         d.settle("unacquired",&json!({"state":"failed","why":{"code":"TEST","family":"rule"}}),None).unwrap();
+     |           ^^^^^^              ---------------------------------------------------------------- unexpected argument #2 of type `&serde_json::Value`
+     |
+note: method defined here
+    --> crates/snapback4-device/src/device.rs:1098:12
+     |
+1098 |     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
+     |            ^^^^^^
+help: remove the extra argument
+     |
+  79 -         d.settle("unacquired",&json!({"state":"failed","why":{"code":"TEST","family":"rule"}}),None).unwrap();
+  79 +         d.settle("unacquired",None).unwrap();
+     |
+
+error[E0061]: this method takes 2 arguments but 3 arguments were supplied
+    --> crates/snapback4-device/tests/first_instinct.rs:85:11
+     |
+  85 |         d.settle("update",&json!({"state":"failed","why":{"code":"REACTION_REFUSED","family":"rule"}}),None).unwrap();
+     |           ^^^^^^          ---------------------------------------------------------------------------- unexpected argument #2 of type `&serde_json::Value`
+     |
+note: method defined here
+    --> crates/snapback4-device/src/device.rs:1098:12
+     |
+1098 |     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
+     |            ^^^^^^
+help: remove the extra argument
+     |
+  85 -         d.settle("update",&json!({"state":"failed","why":{"code":"REACTION_REFUSED","family":"rule"}}),None).unwrap();
+  85 +         d.settle("update",None).unwrap();
+     |
+
+error[E0061]: this method takes 2 arguments but 3 arguments were supplied
+    --> crates/snapback4-device/tests/first_instinct.rs:87:11
+     |
+  87 |         d.settle("insert",&json!({"state":"failed","why":{"code":"REACTION_REFUSED","family":"rule"}}),None).unwrap();
+     |           ^^^^^^          ---------------------------------------------------------------------------- unexpected argument #2 of type `&serde_json::Value`
+     |
+note: method defined here
+    --> crates/snapback4-device/src/device.rs:1098:12
+     |
+1098 |     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
+     |            ^^^^^^
+help: remove the extra argument
+     |
+  87 -         d.settle("insert",&json!({"state":"failed","why":{"code":"REACTION_REFUSED","family":"rule"}}),None).unwrap();
+  87 +         d.settle("insert",None).unwrap();
+     |
+
+Some errors have detailed explanations: E0061, E0277, E0283, E0425.
+For more information about an error, try `rustc --explain E0061`.
+warning: `snapback4-device` (test "first_instinct") generated 2 warnings
+error: could not compile `snapback4-device` (test "first_instinct") due to 7 previous errors; 2 warnings emitted

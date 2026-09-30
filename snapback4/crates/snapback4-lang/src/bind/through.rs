@@ -4,6 +4,7 @@ use super::catalog::TableInfo;
 use crate::{ast::*, diag::Diagnostic};
 use snapback4_core::schema::through::{CHILDREN, DEADLINE, PARENT_DEADLINE, Through};
 use std::collections::{BTreeMap, BTreeSet};
+mod paths;
 
 fn reference(info: &TableInfo) -> Option<String> {
     info.decl.rules.iter().find_map(|rule| match &rule.value {
@@ -12,7 +13,7 @@ fn reference(info: &TableInfo) -> Option<String> {
             _ => None,
         },
         _ => None,
-    })
+    }).or_else(|| paths::reference(info))
 }
 
 pub(super) fn expand(tables: &mut BTreeMap<String, TableInfo>, diagnostics: &mut Vec<Diagnostic>) {
@@ -39,13 +40,13 @@ fn one(
         return Ok(());
     };
     let info = tables[name].clone();
-    let site = &info
+    let site = info
         .decl
         .rules
         .iter()
         .find(|r| r.effect == Effect::Read)
-        .unwrap()
-        .site;
+        .map(|r| &r.site)
+        .unwrap_or(&info.decl.site);
     let fail = |message: String, rewrite: String| {
         Diagnostic::new(site, "E_READ_THROUGH", message, rewrite).guide("rules")
     };
@@ -86,7 +87,7 @@ fn one(
                 format!(
                     "{name}.{reference} must be a required reference to an ordinary application table"
                 ),
-                format!("{reference}: parents\nimmutable {reference}\nread through .{reference}"),
+                format!("{reference}: {}\nimmutable {reference}\nread through .{reference}", match info.columns.get(&reference) { Some(ScalarType { kind: TypeKind::Ref { table }, .. }) => table.as_str(), _ => "parents" }),
             ));
         }
     };
@@ -194,6 +195,7 @@ fn one(
     if let Some(error) = errors.into_iter().next() {
         return Err(error);
     }
+    paths::check_rule(&info, &reference, &value)?;
     let expiring = info.decl.expire.is_some()
         || parent_info.decl.expire.is_some()
         || parent_info.through.as_ref().is_some_and(|t| t.expiring);
@@ -208,6 +210,7 @@ fn one(
         )
     ));
     let info = tables.get_mut(name).unwrap();
+    paths::sync(&mut info.decl, &reference, &captures)?;
     info.through = Some(Through {
         reference: reference.clone(),
         parent,
@@ -225,12 +228,7 @@ fn one(
         );
     }
     info.captures = captures;
-    info.decl
-        .rules
-        .iter_mut()
-        .find(|r| r.effect == Effect::Read)
-        .unwrap()
-        .value = value;
+    info.decl.rules.iter_mut().find(|r| r.effect == Effect::Read).unwrap().value = value;
     let mut add_index = |name: &str, columns: Vec<String>| {
         info.indexes.push(IndexDecl {
             name: name.into(),

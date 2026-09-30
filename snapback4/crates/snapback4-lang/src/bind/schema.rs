@@ -258,7 +258,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         columns.insert(core::through::DEADLINE.into(), core::ColumnType::Time);
         indexes.insert("$expiry".into(), core::Index::of(&[core::through::DEADLINE, "id"], false));
     }
-    let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
+    let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. }) || matches!(&s.audience, SyncAudience::Target { prefix, .. } if info.through.is_some() && prefix.iter().any(|p| info.captures.contains_key(p)))), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
     let mut sequences = BTreeMap::new();
     for column in &decl.columns {
@@ -314,7 +314,7 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
                 return Err(sync_error(&sync.site, format!("sync to {table} names an unknown table"), name_rewrite(table, catalog.tables.keys().map(String::as_str), None)));
             };
             for column in prefix {
-                if !info.columns.contains_key(column) && column != "id" {
+                if !info.columns.contains_key(column) && !info.captures.contains_key(column) && column != "id" {
                     return Err(sync_error(&sync.site, format!("sync to {table}[.{column}] names an undeclared column of {}", info.decl.name), name_rewrite(column, info.columns.keys().map(String::as_str), None)));
                 }
             }

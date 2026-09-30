@@ -1,0 +1,19 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 1.29s
+     Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-534d7da5270d3ca0)
+
+running 1 test
+test durable_schema_and_types_keep_base_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/membership_paths.rs (target/debug/deps/membership_paths-7f3d4b34b12c7806)
+
+running 3 tests
+test explicit_through_can_name_its_authored_sync_path ... ok
+test path_refusals_are_targeted_and_repairs_compile ... ok
+test generated_paths_have_identical_schema_programs_and_residency ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+

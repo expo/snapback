@@ -465,7 +465,7 @@
     "id": "language-01",
     "card": "language",
     "home": "Details",
-    "text": "One file, `snapback/schema.q`, holds tables, views, shapes, helpers,\nprograms and schedules, in any order; more `.q` files beside it are modules\n(their operations are `<module>.<name>`) sharing one namespace. Schedules use that\nqualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous\nbare module job gets this rewrite from `check --fix`. Comments\nstart with `--`. Blocks indent with two spaces. Everything the compiler\naccepts is below; the suite compiles every block and runs the core program."
+    "text": "`snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules\nin any order. Other `.q` files share its namespace; their operations and scheduled\njobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name.\nComments start with `--`; blocks indent two spaces. The suite compiles every block."
   },
   {
     "id": "language-02",
@@ -489,7 +489,7 @@
     "id": "language-05",
     "card": "language",
     "home": "Details",
-    "text": "Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.\nNamed keys select columns explicitly. `t where predicate first 20 by .at\nafter c` pages matching rows. `last` reverses the order; id breaks ties.\nOptional filters use `(status = null or .status = status)` to select a plan\nfor absent or present inputs; an empty `matching q` needle browses in order.\n`count(t where predicate)`, `sum(t where predicate, .amount)`,\n`min(t where predicate, .col)` and `max(t where predicate, .col)` stream a\ndomain. Min/max skip null values, as SQL does, and return null for an empty\nor all-null domain; otherwise they return the value's type. The second argument\nalso accepts a scalar row expression, such as `2 if .state = 2 else 1` or\n`.amount + 1`; `.field` binds the aggregate row, and named locals stay in scope.\nExpressions scan the domain (constant under a declared cap, growing otherwise).\nAn expression that can bind an enclosing shape's row is ambiguous: put the\naggregate in a helper and pass enclosing values by name. For literal `.col`, an ordered\nindex seeks to the first visible matching non-null value; otherwise the\nengine scans under its meters. `check --cost` names the plan. A cut aggregate\nis unavailable, never a partial answer (even before `?? 2`). A device needs\ncomplete coverage of the domain. Rules apply before any comparison. `exists` stops\nat a visible match; an unknown domain cannot establish absence."
+    "text": "`t[id]` reads one row; positional composite keys require an unambiguous declared\nunique key. Named keys select columns. `t where predicate first 20 by .at after c`\npages ascending; `last` descends, with id breaking ties. Optional filters use\n`(status = null or .status = status)`; empty `matching q` browses in order.\n`count`, `sum`, `min` and `max` stream domains. Min/max skip nulls and return null\nfor empty/all-null domains, otherwise the value's type. Their second argument\naccepts scalar row expressions; `.field` binds that row and named locals remain\nin scope. Move ambiguous enclosing-row references into a helper with named inputs.\nLiteral `.col` extrema seek the first visible matching non-null indexed value;\nother expressions scan under meters (constant under a cap, growing otherwise). `check --cost` names the plan. A cut aggregate\nis unavailable, including before `??`; devices need complete domain coverage.\nRules precede comparisons. `exists` stops at a visible match; unknown domains\ncannot prove absence. See `guide reads`."
   },
   {
     "id": "language-06",
@@ -597,13 +597,13 @@
     "id": "language-23",
     "card": "language",
     "home": "Details",
-    "text": "A predicate states which rows belong in a read. `by .at` orders by a column;\n`first` ascends and `last` descends, with `id` breaking ties in that direction.\nThe compiler selects or synthesizes indexes. A positional key must name one\nunambiguous declared unique key; named keys make the intended columns explicit.\n`search` declares searchable text, and unnamed `unique` declares a unique key.\nDuration literals are integer milliseconds in any expression."
+    "text": "The compiler plans predicates, ordering, `search` and unnamed `unique` indexes\n(`guide indexes`). Durations are integer milliseconds in any expression."
   },
   {
     "id": "language-24",
     "card": "language",
     "home": "Details",
-    "text": "The public activity union supplies a private delivered feed for each reader."
+    "text": "The public activity union below supplies each reader's private\ndelivered feed."
   },
   {
     "id": "language-25",

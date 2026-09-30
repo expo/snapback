@@ -1,0 +1,214 @@
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 12.08s
+     Running tests/membership_paths.rs (target/debug/deps/membership_paths-7f3d4b34b12c7806)
+
+running 3 tests
+test generated_paths_have_identical_schema_programs_and_residency ... FAILED
+test explicit_through_can_name_its_authored_sync_path ... FAILED
+test path_refusals_are_targeted_and_repairs_compile ... FAILED
+
+failures:
+
+---- generated_paths_have_identical_schema_programs_and_residency stdout ----
+
+thread 'generated_paths_have_identical_schema_programs_and_residency' (1927837) panicked at crates/snapback4-lang/tests/membership_paths.rs:5:51:
+[Diagnostic { site: Site { file: "schema.q", line: 40, col: 3 }, code: "E_SYNC", message: "sync to members[.$parent.group] names an undeclared column of reactions", rewrite: "declared names: emoji, parent, principal", guide: "sync", mechanical: false, cascade_of: None }]
+table groups:
+  title: text <=20
+  public
+  insert <- allow
+  sync public
+
+table members:
+  group: groups
+  principal: principal
+  unique group, principal
+  immutable group, principal
+  cap 50 by group
+  read <- exists members[.group, viewer]
+  insert <- exists members[.group, viewer] or created groups[.group]
+  delete <- allow
+  sync
+
+table messages:
+  group: groups
+  immutable group
+  read <- exists members[.group, viewer]
+  insert <- allow
+  update <- allow
+  retain until-revoked
+  sync last 10 by .id
+
+
+table reactions:
+  parent: messages
+  principal: principal
+  emoji: text <=32
+  immutable parent, principal
+  unique parent, principal
+  cap 50 by parent
+  read <- exists members[.parent.group, viewer]
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  retain until-revoked
+  sync to members[.parent.group]
+
+query page(parent: messages):
+  return reactions where .parent = parent by .principal
+
+mutation react(parent: messages, emoji: text <=32, allowed: bool):
+  require allowed else REACTION_REFUSED
+  return upsert reactions[parent, viewer] { emoji }
+
+mutation membership(group: groups, who: principal, present: bool):
+  if present:
+    insert members { group: group, principal: who } if absent
+  else:
+    delete members[group, who]
+
+mutation move(message: messages, group: groups):
+  update messages[message] { group: group }
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- explicit_through_can_name_its_authored_sync_path stdout ----
+
+thread 'explicit_through_can_name_its_authored_sync_path' (1927836) panicked at crates/snapback4-lang/tests/membership_paths.rs:5:51:
+[Diagnostic { site: Site { file: "schema.q", line: 46, col: 3 }, code: "E_SYNC", message: "sync to members[.$parent.$message.group] names an undeclared column of reactions", rewrite: "declared names: emoji, parent, principal", guide: "sync", mechanical: false, cascade_of: None }]
+table groups:
+  title: text <=20
+  public
+  insert <- allow
+  sync public
+
+table members:
+  group: groups
+  principal: principal
+  unique group, principal
+  immutable group, principal
+  cap 50 by group
+  read <- exists members[.group, viewer]
+  insert <- exists members[.group, viewer] or created groups[.group]
+  delete <- allow
+  sync
+
+table messages:
+  group: groups
+  immutable group
+  read <- exists members[.group, viewer]
+  insert <- allow
+  update <- allow
+  retain until-revoked
+  sync last 10 by .id
+
+table links:
+  message: messages
+  immutable message
+  read through .message
+  insert <- allow
+  sync
+
+table reactions:
+  parent: links
+  principal: principal
+  emoji: text <=32
+  immutable parent, principal
+  unique parent, principal
+  cap 50 by parent
+  read through .parent
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  retain until-revoked
+  sync to members[.parent.message.group]
+
+query page(parent: links):
+  return reactions where .parent = parent by .principal
+
+mutation react(parent: links, emoji: text <=32, allowed: bool):
+  require allowed else REACTION_REFUSED
+  return upsert reactions[parent, viewer] { emoji }
+
+mutation membership(group: groups, who: principal, present: bool):
+  if present:
+    insert members { group: group, principal: who } if absent
+  else:
+    delete members[group, who]
+
+mutation move(message: messages, group: groups):
+  update messages[message] { group: group }
+
+
+---- path_refusals_are_targeted_and_repairs_compile stdout ----
+
+thread 'path_refusals_are_targeted_and_repairs_compile' (1927838) panicked at crates/snapback4-lang/tests/membership_paths.rs:5:51:
+[Diagnostic { site: Site { file: "schema.q", line: 40, col: 3 }, code: "E_SYNC", message: "sync to members[.$parent.group] names an undeclared column of reactions", rewrite: "declared names: emoji, parent, principal", guide: "sync", mechanical: false, cascade_of: None }]
+table groups:
+  title: text <=20
+  public
+  insert <- allow
+  sync public
+
+table members:
+  group: groups
+  principal: principal
+  unique group, principal
+  immutable group, principal
+  cap 50 by group
+  read <- exists members[.group, viewer]
+  insert <- exists members[.group, viewer] or created groups[.group]
+  delete <- allow
+  sync
+
+table messages:
+  group: groups
+  immutable group
+  read <- exists members[.group, viewer]
+  insert <- allow
+  update <- allow
+  retain until-revoked
+  sync last 10 by .id
+
+
+table reactions:
+  parent: messages
+  principal: principal
+  emoji: text <=32
+  immutable parent
+  unique parent, principal
+  cap 50 by parent
+  read <- exists members[.parent.group, viewer]
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  retain until-revoked
+  sync to members[.parent.group]
+
+query page(parent: messages):
+  return reactions where .parent = parent by .principal
+
+mutation react(parent: messages, emoji: text <=32, allowed: bool):
+  require allowed else REACTION_REFUSED
+  return upsert reactions[parent, viewer] { emoji }
+
+mutation membership(group: groups, who: principal, present: bool):
+  if present:
+    insert members { group: group, principal: who } if absent
+  else:
+    delete members[group, who]
+
+mutation move(message: messages, group: groups):
+  update messages[message] { group: group }
+
+
+
+failures:
+    explicit_through_can_name_its_authored_sync_path
+    generated_paths_have_identical_schema_programs_and_residency
+    path_refusals_are_targeted_and_repairs_compile
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4-lang --test membership_paths`

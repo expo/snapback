@@ -152,6 +152,17 @@ can answer offline within the acquired boundary, including timestamp ties.
 Other orders need the server; a held query stays local with incomplete coverage.
 `online only` currently applies to tables and views, not query headers.
 
+`read <- exists members[.message.conversation, viewer]` with
+`sync to members[.message.conversation]` means `read through .message` and `sync`.
+The child must spell its parent's whole rule, with `immutable message` and
+`immutable conversation`. Links must be required, without defaults. This adopts
+parent authorization, inherited expiry and deletion protection. Three-hop paths
+work through an already inherited parent: the same captures preserve audiences,
+acquisition, withdrawals, prediction and meters. E_READ_THROUGH rejects nullable
+or changing links and different child rules with a declaration repair; use it
+only to inherit the whole parent audience. Explicit sync must match that audience.
+See `guide language` for a compiled example and `guide rules` for lifetime details.
+
 An unheld put below the boundary is dropped; a held row whose key
 moves below it remains available to point reads but is excluded from the suffix.
 A put moving above the boundary joins the suffix. Continuous renewal keeps the

@@ -1,0 +1,18 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"state":"failed","id":"01M3SD2QR93VVK9GTK1JDE2NH7","why":{"code":"E_ADMISSION","family":"store","message":"the device has no synchronous admission journal","site":"client.mutate","rewrite":"open a webDevice() with an exclusive persistence claim before writing","guide":"writes"}}
+
+'failed' !== 'sent'
+
+    at file:///home/ccheever/sb4-intent/lane-qx/snapback4/reports/20260930-qx-first-instinct-forms/tools/measure.mjs:36:106 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'failed',
+  expected: 'sent',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

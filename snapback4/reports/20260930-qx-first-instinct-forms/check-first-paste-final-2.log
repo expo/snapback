@@ -1,0 +1,27 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-qx/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 5.39s
+     Running tests/check.rs (target/debug/deps/check-b3654bd2f066150f)
+
+running 7 tests
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test first_paste::failing_check_keeps_the_terse_prediction_reason ... ok
+test first_paste::read_through_upsert_has_no_obsolete_server_only_note ... ok
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+test first_paste::membership_paths_keep_check_residency_output ... ok
+test first_paste::terse_check_counts_and_explains_search_behavior_warnings ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.09s
+

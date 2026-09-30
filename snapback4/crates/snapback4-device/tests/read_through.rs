@@ -39,7 +39,8 @@ fn run<H:Host>(host:&mut H) {
     let unknown=query(&mut device,"page","unheld",100);
     assert_eq!(unknown["complete"],false,"{unknown}");assert_eq!(unknown["unknown"],true,"{unknown}");
     assert!(device.predict("post","alice",&json!({"id":"miss","task":"unheld","body":"hello"}),100,vec![],1).unwrap_err().code()=="E_PREDICT");
-    for name in ["put","maybe"] { assert_eq!(device.predict(name,"alice",&json!({"id":"c","task":"t"}),100,vec![],1).unwrap_err().code(),"E_PREDICT"); }
+    assert!(device.predict("put","alice",&json!({"id":"c","task":"t"}),100,vec![],1).is_ok(), "an already held child predicts its update");
+    assert_eq!(device.predict("maybe","alice",&json!({"id":"c","task":"t"}),100,vec![],1).unwrap_err().code(),"E_PREDICT");
     let count=query(&mut device,"countFor","t",100);
     assert_eq!(count["data"],1,"{count}");assert_eq!(count["complete"],true,"{count}");
     let unknown=query(&mut device,"countFor","unheld",100);

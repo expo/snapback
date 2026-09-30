@@ -85,12 +85,8 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 if let Some(parent) = &definition.through {
-                    if kind != "insert" {
-                        // @ref LLP 3000.007#23 — upsert branches are an author choice; give a guide pointer, never generated code.
-                        let mut reason = format!("{kind} on a read-through child queues without a row");
-                        if kind == "upsert" {
-                            reason.push_str("; see `snapback4 guide prediction`, section 'Read-through upserts: explicit insert/update', for a pattern to adapt and its prediction limits");
-                        }
+                    if kind == "insert-if-absent" {
+                        let reason = format!("{kind} on a read-through child queues without a row; use upsert for a set-state write (guide prediction)");
                         fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: kind.into(), class: SiteClass::Server,
                             reason, rewrite: String::new() });
                     }
