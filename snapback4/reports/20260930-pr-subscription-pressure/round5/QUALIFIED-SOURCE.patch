@@ -1,0 +1,215 @@
+diff --git a/snapback4/crates/snapback4-lang/src/guide/client.md b/snapback4/crates/snapback4-lang/src/guide/client.md
+index ab8b5977a6..fcdb147bcd 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/client.md
++++ b/snapback4/crates/snapback4-lang/src/guide/client.md
+@@ -1,5 +1,7 @@
+ # Client: answers stay on screen
+ 
++Submit at custody.
++
+ ```tsx
+ import { useState } from "react"; import { useMutation, useQuery } from "snapback4/react";
+ import { existence, isReady } from "snapback4/contract";
+@@ -23,32 +25,32 @@ export function Composer({ conversationId }: { conversationId: string }) {
+ Membership with no horizon in the conversation's own group and messages' audience proves presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+ Only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence queues; sync authorizes/refuses. `loading`/`partial` never disable.
+ 
+-`waitSeconds: 0` returns at custody; `inFlight` covers admission. Acquisition never gates it after session readiness. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Identification resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+-Restore refused text into an empty draft; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
+-Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Dismiss after lookup settles. New attempts need new ids; replay omits historical results. Web/Expo starters include this journal.
++`waitSeconds: 0` returns at custody; `inFlight` covers admission. Acquisition never gates it after session readiness. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
++Restore refused text into empty drafts; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
++Persist `{ id: mintId(), args }` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never auto-resend. Dismiss after lookup settles. New attempts need new ids; replay omits historical results. Web/Expo starters include this journal.
+ 
+ ## Honest read boundaries
+ 
+-`query(op, args)` settles ready/denied after device/server evaluation and authority: four rounds/30 seconds including queues/approval while runnable, then retryable `E_QUERY_RETRY`. Permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or `E_OFFLINE`. Terminal refusals win; ready may be partial/stale.
++`query(op, args)` settles ready/denied after device/server evaluation and authority: four rounds/30 seconds including queues/approval while runnable, exhaustion refuses retryable `E_QUERY_RETRY`; proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Admitted writes precede ready data. `online only` waits online unless `held`; offline uses permitted device data or immediate `E_OFFLINE`. Terminal refusals win; ready may be partial/stale.
+ `existence(read)` classifies; `isReady(read)` enables `read.existence` narrowing.
+ 
+ | Meaning | UI decision |
+ | --- | --- |
+ | `loading` | Withheld/unavailable: keep composers, headers and routes mounted. |
+ | `denied` | Refusal: show its message; disable the durable action. |
+-| `present` | Render nonempty values, including incomplete coverage. |
++| `present` | Render nonempty values, including incomplete. |
+ | `absent` | Proven empty answer: resolve the missing route/row. |
+ | `partial` | Uncertain empty: show “Partial results”, never absence/denial. |
+ 
+ Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
+ Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
+-Same-key plain refetch, reconnect and failed retries retain `revalidating` answers without timeout. Replacements recompute existence. Local changes get one second at attempt execution, excluding capacity wait; online change evidence includes queue wait because it may revoke access. Failure/timeout withdraws. Applied scope loss withdraws dependent groups immediately, including staged removals; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
++Plain refetch/reconnect/retries retain `revalidating` answers without timeout. Replacements recompute existence. Local changes get one second/attempt, excluding capacity wait; online change evidence includes queue wait because it may revoke access. Failure/timeout withdraws. Applied scope loss withdraws dependent groups immediately, including staged removals; older replicas wait for publication. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets and generation changes withdraw immediately.
+ Search with `usePage` per scope: render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Loading items prove nothing. Unknown unread counts never hide conversations.
+ 
+ ## Queries in rows
+ 
+ Wire-equivalent names/arguments share observations per retention policy. Prefer paging: 1,000 row hooks require 1,000 evaluations/write. Disjoint writes do zero; authorization inputs are dependencies.
+-Eight observation starts/turn, eight active; direct queries and timed presence refreshes are separate. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
++At most eight queued observation attempts start/turn, eight active; direct queries and timed presence refreshes use separate paths. Local budgets pause in the queue; retries never replenish them. Expiry/resets stay immediate. Online evidence can overtake ordinary work at most eight times; occupied slots can still cause sibling withdrawal.
+ 
+ ```tsx
+ import { useQuery, usePage } from "snapback4/react";
+@@ -79,7 +81,7 @@ Every milestone: `npm run export:ios` for Hermes; Mac/Xcode: `npm run native:smo
+ 
+ ## One-view photos
+ 
+-Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Explicit Open fetches once; recycling/refetch preserves its handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
++Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Open fetches once; recycling/refetch preserves its handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
+ 
+ ```tsx
+ import { useEffect, useRef, useState } from "react";
+@@ -109,5 +111,4 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
+ }
+ ```
+ 
+-`useAsset` revokes on unmount. Once media cannot refetch (`E_ASSET_VIEWED`); handles are transient.
+-Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
++`useAsset` revokes on unmount. Once media cannot refetch (`E_ASSET_VIEWED`); handles are transient. Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.
+diff --git a/snapback4/packages/snapback4/src/local-reads.ts b/snapback4/packages/snapback4/src/local-reads.ts
+index b3d3df3110..7b50fa52cb 100644
+--- a/snapback4/packages/snapback4/src/local-reads.ts
++++ b/snapback4/packages/snapback4/src/local-reads.ts
+@@ -187,20 +187,21 @@ export function queuedPredictions(entries: readonly Queued[]): readonly string[]
+ /** Every local commit fences reads; retained replacements keep the change bound. */
+ export class LocalReads {
+   revision = 0;
+-  evidenceEpoch = 0;
+-  evidence(): void { this.evidenceEpoch++; }
+-  detach(watch: LocalWatch): void { watch.detachedEpoch = this.evidenceEpoch; }
++  // @ref LLP 3000.023#10 — detached answers and pending results share one fence.
++  evidence(): void { this.revision++; }
++  detach(watch: LocalWatch): void { watch.detachedEpoch = this.revision; }
+   predictions: readonly string[] | null = null;
+   admissions = 0;
+   private scopeCuts: ScopeLoss[] = [];
+   private readonly notifiedCuts = new Map<string | undefined, number>();
+   /** Notifications invalidate memory even when its last observation is closed.
+    * The existing revision fences every older evaluation, including unseen keys. */
+-  notified(tables: readonly string[] | undefined, cut: number): void {
+-    if (tables === undefined || tables.length) this.revision++;
++  notified(tables: readonly string[] | undefined, cut: number, advanced = true): readonly string[] | undefined {
++    if (advanced && !tables?.length) tables = undefined;
+     this.evidence();
+     this.serverAnswers.clear(tables);
+     for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
++    return tables;
+   }
+   resume(watch: LocalWatch): void {
+     if (watch.detachedEpoch === undefined) return;
+@@ -260,6 +261,7 @@ export class LocalReads {
+   // qualifies; a composed answer may still contain pre-change local rows.
+   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
+     this.evidence();
++    this.serverAnswers.clear();
+     for (const [table, cut] of this.notifiedCuts) if (cut <= watermark) this.notifiedCuts.delete(table);
+     this.scopeCuts = this.scopeCuts.filter(loss => loss.watermark > watermark);
+     return [...watches].filter(watch => this.reconcile(watch, watermark));
+@@ -289,7 +291,7 @@ export class LocalReads {
+       if (!("denied" in watch.snapshot) || watch.snapshot.denied.code !== denied.code) watch.reset({ denied });
+       return;
+     }
+-    if (detached && watch.detachedEpoch !== this.evidenceEpoch) {
++    if (detached && watch.detachedEpoch !== this.revision) {
+       delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync;
+       if (!("loading" in watch.snapshot)) watch.reset({ loading: true }, false, "detached-change");
+     }
+@@ -353,11 +355,12 @@ export class LocalReads {
+ 
+   // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
+   committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+-    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched, operation);
++    // A partition footprint cannot certify server-only authorization, including recovery/no-op publication.
++    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation);
+   }
+ 
+   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
+-    this.revision++; this.evidence();
++    this.evidence();
+     if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); }
+     this.predictions = null;
+     this.serverAnswers.clear(reset ? undefined : touched);
+diff --git a/snapback4/packages/snapback4/src/local.ts b/snapback4/packages/snapback4/src/local.ts
+index f36bc9dc7e..dc912c1acb 100644
+--- a/snapback4/packages/snapback4/src/local.ts
++++ b/snapback4/packages/snapback4/src/local.ts
+@@ -259,7 +259,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+   }
+   function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[]) {
+     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
+-    const affected = [...watches.values()].filter(watch => touched === undefined || (touched.length > 0
++    const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup) || (touched.length > 0
+       && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
+     const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
+     // Warm applies drain after watermark publication; cold acquisition remains progressive.
+@@ -426,7 +426,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+     credentialRevision += 1;
+     const approvals = deferReadNotifications(() => {
+       endLingering(watches.values());
+-      answers.serverAnswers.clear(); answers.revision++; answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
++      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+     });
+     const rotation = rotateSession(base, token, doFetch);
+     rotatingSession = rotation;
+@@ -753,7 +753,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+       if (!closed && adoptedGeneration) {
+         for (const watch of watches.values()) void scheduleRead(watch);
+       } else if (!closed && (touched.unknown || touched.tables.size > 0 || resumed.size > 0)) {
+-        for (const watch of watches.values()) if (resumed.has(watch) || touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
++        for (const watch of watches.values()) if (resumed.has(watch) || watch.serverRead || watch.deadlines?.localWakeup || touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
+       } else if (!closed && caughtUp && identityChecked) {
+         for (const watch of watches.values()) {
+           if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void scheduleRead(watch); continue; }
+@@ -817,7 +817,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
+       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
+       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
+-      answers.notified(json.tables, json.seq);
++      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq);
+       const shrank = json.seq < Math.max(seq, capture.watermark);
+       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
+       const generationChanged = json.generation !== undefined && json.generation !== generation;
+@@ -825,9 +825,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
+       const changed = replaced || shrank || generationChanged || json.seq > seq;
+       if (changed) {
+         seq = Math.max(seq, json.seq);
+-        const touched = new Set(json.tables ?? []);
++        const touched = new Set(notifiedTables ?? []);
+         for (const watch of watches.values()) {
+-          if (!json.tables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
++          if (!notifiedTables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
+         }
+       }
+       return changed;
+diff --git a/snapback4/packages/snapback4/test/per-row-retention.test.mjs b/snapback4/packages/snapback4/test/per-row-retention.test.mjs
+index ebb09a0fce..971194c3bf 100644
+--- a/snapback4/packages/snapback4/test/per-row-retention.test.mjs
++++ b/snapback4/packages/snapback4/test/per-row-retention.test.mjs
+@@ -90,7 +90,7 @@ for (const keep of [undefined, false, true]) test(`online keep=${keep}: held-onl
+   assert.equal(watch.getSnapshot(), newer, 'no new episode was started by the held-only sweep');
+ });
+ 
+-for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replicated write preserves online-only memory offline`, async t => {
++for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replica publication revalidates server answers before offline reuse`, async t => {
+   const { url, dir } = await server(t, '', source);
+   assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'remoteRows', row: { id: 'r', value: 7 } }]) }).then(r => r.json())).seeded, 1);
+   let online = true, queries = 0, localQueries = 0;
+@@ -111,8 +111,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replicated w
+   assert.equal((await fetch(url + '/m/add', { method: 'POST', headers: { 'x-snapback-persona': 'alice' },
+     body: JSON.stringify({ id: crypto.randomUUID(), args: {} }) }).then(r => r.json())).state, 'sent');
+   await client.sync();
+-  for (let i = 0; i < 30; i++) await pause();
+-  assert.deepEqual({ queries, localQueries }, before, 'unrelated applies do no replacement query');
++  await until(() => queries > before.queries && watch.getSnapshot().data === true && !watch.getSnapshot().revalidating, 'publication reauthorizes the server answer');
+   online = false; await client.sync();
+   await until(() => client.link() === 'offline');
+   await until(() => watch.getSnapshot().data === true && watch.getSnapshot().fresh === false && watch.getSnapshot().revalidating === true,
+@@ -127,7 +126,7 @@ for (const operation of ['apply', 'admit', 'settle', 'clear_rows']) for (const f
+     for (const [key, tables] of [['remote', ['remoteRows', 'members']], ['note', ['notes']], ['opaque', []]])
+       memory.set(key, { read: ready(true), at: 0, nextExpiry: null, tables: new Set(tables) }, { seq: 2, ticket: memory.begin() });
+     reads.committed([], operation, footprint);
+-    const cleared = operation === 'clear_rows' || footprint === undefined;
++    const cleared = operation === 'apply' || operation === 'clear_rows' || footprint === undefined;
+     assert.equal(!!memory.get('remote'), !cleared && !footprint.some(table => ['remoteRows', 'members'].includes(table)));
+     assert.equal(!!memory.get('note'), !cleared && !footprint.includes('notes'));
+     assert.equal(!!memory.get('opaque'), !cleared && footprint.length === 0);

@@ -1346,19 +1346,27 @@ installation, or client close withdraws the answer immediately. A successful
 server fallback keeps retaining while device composition finishes, subject to
 any existing online-change episode. Expiry retry transport explicitly withdraws, including with `keep: true`.
 Closing the client cancels row deadlines before publishing its stable denial. A
-closed local observation records the client evidence epoch at detach. Any later
+closed local observation records the client authority revision at detach. Any later
 change notification, commit, publication, scope loss, refusal or reset discards
 its saved answer before reuse, even for unrelated evidence. Getters never park
 detached owners. Resubscription checks the device watermark and evaluates before
 returning data; without later evidence it rearms the original row deadlines.
 Only notifications intersecting the query's tables hold that reevaluation for
 sync; unknown dependencies stay conservative. The metadata wait cancels with
-the observation or its 30-second attempt lifetime. Notifications also invalidate
-intersecting remembered answers with no live owner, including online-only data
-that produces an empty sync footprint. Older in-flight replies, copied recovery
-candidates and pending facade approvals cannot republish them. Completed memory
-for unrelated tables remains available; credential rotation and terminal refusals
-retire all remembered answers.
+the observation or its 30-second attempt lifetime. Notifications invalidate
+intersecting remembered answers without needing a live owner. Empty advancing
+notifications and every sync publication clear all remembered server answers:
+replica footprints cannot certify unchanged online-only authorization, even when
+nonempty. This includes recovery, staged applies and no-op sync. Mounted server,
+composed and recovered answers revalidate through the existing bounded queue. Authorized
+online-only/out-of-horizon fallback can therefore become unavailable offline
+until a server query refills it; authorized replica rows remain available.
+Quiet empty polls with no advance preserve authority and completed memory;
+they carry no change evidence and must not exhaust bounded query retries. Disjoint local admissions,
+settlements and known notification tables do too. Pending evaluations, detached answers and facade approvals all check one
+monotonic authority revision. Every terminal refusal advances it; later successful
+sync cannot restore an older response's authority. Credential rotation and
+terminal refusals retire all remembered answers.
 Lingering handles remain live and keep precise audience matching. Observed server expiry also
 fences remembered answers, so clock rollback cannot recover the expired body,
 while preserving newer answers whose server deadlines have not arrived.

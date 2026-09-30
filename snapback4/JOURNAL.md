@@ -80722,3 +80722,61 @@ inherited 597,247 B cap; NA does not raise it. Report, every sample and failure:
 reports/20260930-na-native-acquisition/round1/REPORT.md and FAILURES.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 5: sync memory retirement and one authority fence
+
+Read rounds 0–4 and both complete round-4 reviews (Astra NOT READY; Grok READY).
+Merged origin/main 267788df36 first in 56571c0274, preserving both sides,
+including main's bounded one-shot settlement, receipts and acquisition work.
+
+Every apply/publication now retires all remembered server answers before
+fallible post-commit work and again at observed publication. Empty, unknown,
+housekeeping and unrelated nonempty replica footprints cannot prove server-only
+authorization unaffected. This includes no-op sync and lost-ack recovery, with
+no new watermark tracker. Server/composed/recovered live owners revalidate
+through existing provenance and the bounded queue. Every terminal refusal
+advances authority permanently; a later success cannot bless an older reply or
+facade approval. Detached answers and pending results share that same revision;
+the redundant evidence epoch is deleted. Known empty nonadvancing polls carry
+no change evidence and preserve authority, avoiding bounded-query starvation.
+
+Twenty-seven new tests: sixteen real-device authorization regressions and five
+unit authority/memory regressions fail round 4; a quiet-poll preservation test
+also fails its older conservative rule, with five passing controls. The original
+six P1 schedules independently fail current main. Final affected qualification
+verifies all 440 unique cases (439/440 then the corrected nine-case unit file),
+including the two failures from the full suite; delivery fault/boundary checks
+321/321, whole guide 107/107, SDK build/typecheck pass. No runtime bound, retry
+count, timeout or skip relaxed. The publication audit lists every reuse route.
+
+Actual social starter read paths on both devices: after zero-event sync,
+within-horizon availability stays 12/14 offline; outside the horizon it changes
+13/14 → 11/14 because profile and messagePhoto lose saved fallback. All 14 recover
+online. The empty durable page reports typing housekeeping, proving why empty-only
+invalidation is insufficient. Final pressure runs retain 124 observations/device,
+42 unique messages/history and peaks of 116 queued/eight active. One normal wasm
+active expiry and four forced active expiries are retained; zero queue-only
+withdrawals. The final LL comparison completes 1,280 actions, zero timeouts.
+Maximum flow publication p95 (merged pre-fix → final), ms: wasm 0/3 load
+147.433→57.594 / 107.387→100.015; process 84.884→152.416 / 172.674→250.326.
+Additional HTTP work and higher process p95 are explicit; ambient loads differ.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 1 failure(s) in 1349 s`.
+Client pool: 5,706 pass / two fail / ten existing skips. Both failures are ours:
+process app history/inbox after leave and online unread-badge fallback returned
+E_QUERY_RETRY because quiet polls repeatedly advanced authority. Both pass on
+the merged baseline, fail the first fix and pass with the one-line quiet-poll
+guard. Applied that correction only after the full run; complete affected files
+then pass. All other stages pass: Rust 4,438 / 33 existing ignores, wrappers 9,
+serial models 79. Full failures: ours two, baseline/environmental zero. All 2,327
+captured inputs remain unchanged across the run. This remains a failed full run;
+no full rerun and no worker intervention. The inherited 60-second budget is exceeded.
+
+Merged wasm: 1,994,357 B raw / 598,401 B gzip, 1,154 B above incoming 597,247.
+Raise the ratchet exactly to 598,401, no slack, to preserve both main's receipt
+implementation and PR audience metadata. No round-5 Rust product change; this
+is a whole merged-artifact cost, not per-feature attribution. Reason recorded
+in the budget, report and commit. LLP 3000.023 §10 records the fence rules.
+Evidence and every failure: reports/20260930-pr-subscription-pressure/round5/REPORT.md
+and FAILURES.md. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

@@ -187,20 +187,22 @@ export function queuedPredictions(entries: readonly Queued[]): readonly string[]
 /** Every local commit fences reads; retained replacements keep the change bound. */
 export class LocalReads {
   revision = 0;
-  evidenceEpoch = 0;
-  evidence(): void { this.evidenceEpoch++; }
-  detach(watch: LocalWatch): void { watch.detachedEpoch = this.evidenceEpoch; }
+  // @ref LLP 3000.023#10 — detached answers and pending results share one fence.
+  evidence(): void { this.revision++; }
+  detach(watch: LocalWatch): void { watch.detachedEpoch = this.revision; }
   predictions: readonly string[] | null = null;
   admissions = 0;
   private scopeCuts: ScopeLoss[] = [];
   private readonly notifiedCuts = new Map<string | undefined, number>();
   /** Notifications invalidate memory even when its last observation is closed.
    * The existing revision fences every older evaluation, including unseen keys. */
-  notified(tables: readonly string[] | undefined, cut: number): void {
-    if (tables === undefined || tables.length) this.revision++;
+  notified(tables: readonly string[] | undefined, cut: number, advanced = true): readonly string[] | undefined {
+    if (!advanced && tables?.length === 0) return tables;
+    if (advanced && !tables?.length) tables = undefined;
     this.evidence();
     this.serverAnswers.clear(tables);
     for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));
+    return tables;
   }
   resume(watch: LocalWatch): void {
     if (watch.detachedEpoch === undefined) return;
@@ -260,6 +262,7 @@ export class LocalReads {
   // qualifies; a composed answer may still contain pre-change local rows.
   applied(watches: Iterable<LocalWatch>, watermark: number): LocalWatch[] {
     this.evidence();
+    this.serverAnswers.clear();
     for (const [table, cut] of this.notifiedCuts) if (cut <= watermark) this.notifiedCuts.delete(table);
     this.scopeCuts = this.scopeCuts.filter(loss => loss.watermark > watermark);
     return [...watches].filter(watch => this.reconcile(watch, watermark));
@@ -289,7 +292,7 @@ export class LocalReads {
       if (!("denied" in watch.snapshot) || watch.snapshot.denied.code !== denied.code) watch.reset({ denied });
       return;
     }
-    if (detached && watch.detachedEpoch !== this.evidenceEpoch) {
+    if (detached && watch.detachedEpoch !== this.revision) {
       delete watch.scopeCut; delete watch.changeCut; delete watch.waitingForSync;
       if (!("loading" in watch.snapshot)) watch.reset({ loading: true }, false, "detached-change");
     }
@@ -353,11 +356,12 @@ export class LocalReads {
 
   // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
   committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched, operation);
+    // A partition footprint cannot certify server-only authorization, including recovery/no-op publication.
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), operation === "apply" ? undefined : touched, operation);
   }
 
   clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
-    this.revision++; this.evidence();
+    this.evidence();
     if (reset) { this.scopeCuts = []; this.notifiedCuts.clear(); }
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);

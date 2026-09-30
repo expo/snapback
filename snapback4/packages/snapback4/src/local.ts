@@ -259,7 +259,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   function invalidateAnswers(delivery: (() => void)[], operation: string, touched?: readonly string[]) {
     if (!["apply", "admit", "settle"].includes(operation)) touched = undefined;
-    const affected = [...watches.values()].filter(watch => touched === undefined || (touched.length > 0
+    const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup) || (touched.length > 0
       && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
     const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
     // Warm applies drain after watermark publication; cold acquisition remains progressive.
@@ -426,7 +426,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      answers.serverAnswers.clear(); answers.revision++; answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
+      answers.serverAnswers.clear(); answers.evidence(); for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -753,7 +753,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!closed && adoptedGeneration) {
         for (const watch of watches.values()) void scheduleRead(watch);
       } else if (!closed && (touched.unknown || touched.tables.size > 0 || resumed.size > 0)) {
-        for (const watch of watches.values()) if (resumed.has(watch) || touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
+        for (const watch of watches.values()) if (resumed.has(watch) || watch.serverRead || watch.deadlines?.localWakeup || touched.unknown || watch.tables.size === 0 || [...watch.tables].some((t) => touched.tables.has(t))) void scheduleRead(watch);
       } else if (!closed && caughtUp && identityChecked) {
         for (const watch of watches.values()) {
           if (runsOnServer(backend!, watch.op, nativeReady) || watch.kept || watch.changeCut !== undefined) { void scheduleRead(watch); continue; }
@@ -817,7 +817,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture)) return false;
-      answers.notified(json.tables, json.seq);
+      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq);
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -825,9 +825,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
-        const touched = new Set(json.tables ?? []);
+        const touched = new Set(notifiedTables ?? []);
         for (const watch of watches.values()) {
-          if (!json.tables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
+          if (!notifiedTables || watch.tables.size === 0 || [...watch.tables].some((table) => touched.has(table))) void scheduleRead(watch, true, json.seq);
         }
       }
       return changed;

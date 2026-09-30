@@ -1,0 +1,12 @@
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (5418.572456ms)
+ℹ {"tier":"wasm","withdrawals":[[{"at":2009.5,"historyEventIndex":15,"query":"history","cause":"change-timeout","queued":false,"inFlight":true,"queueEntry":{"at":832.4,"remainingMs":null},"historyHoldMs":1013.3000001907349}],[]],"gaps":[4,0],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (4333.561096ms)
+ℹ {"tier":"process","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9910.617097

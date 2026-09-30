@@ -1,0 +1,2194 @@
+{
+  "sdk": "file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/dist/",
+  "schema": "crates/snapback4/src/verbs/init/social/schema.q",
+  "samples": [
+    {
+      "tier": "wasm",
+      "horizon": false,
+      "rememberedBefore": 1,
+      "beforeAdvance": 1,
+      "rememberedAfter": 1,
+      "publication": [
+        {
+          "watermark": 11,
+          "events": 0
+        }
+      ],
+      "online": [
+        {
+          "name": "inbox",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 1.095
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.599
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.647
+        },
+        {
+          "name": "history",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.921
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.463
+        },
+        {
+          "name": "profile",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.469
+        },
+        {
+          "name": "directConversation",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.566
+        },
+        {
+          "name": "directPeer",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.513
+        },
+        {
+          "name": "feed",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.946
+        },
+        {
+          "name": "postState",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.483
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.536
+        },
+        {
+          "name": "search",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 12.237
+        },
+        {
+          "name": "searchChat",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 8.024
+        },
+        {
+          "name": "typingIn",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 7.722
+        }
+      ],
+      "unchangedOffline": [
+        {
+          "name": "inbox",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 1.1
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.635
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.684
+        },
+        {
+          "name": "history",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.937
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.192
+        },
+        {
+          "name": "profile",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.577
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.595
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.612
+        },
+        {
+          "name": "feed",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.523
+        },
+        {
+          "name": "postState",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.669
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.556
+        },
+        {
+          "name": "search",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 1.698
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.228
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.322
+        }
+      ],
+      "afterAdvance": [
+        {
+          "name": "inbox",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 1.056
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.578
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.572
+        },
+        {
+          "name": "history",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.677
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.083
+        },
+        {
+          "name": "profile",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.546
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.566
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.523
+        },
+        {
+          "name": "feed",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.963
+        },
+        {
+          "name": "postState",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.476
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.504
+        },
+        {
+          "name": "search",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 1.369
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.484
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.366
+        }
+      ],
+      "recovered": [
+        {
+          "name": "inbox",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 1.154
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.551
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.478
+        },
+        {
+          "name": "history",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.531
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.96
+        },
+        {
+          "name": "profile",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.501
+        },
+        {
+          "name": "directConversation",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.442
+        },
+        {
+          "name": "directPeer",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.511
+        },
+        {
+          "name": "feed",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.846
+        },
+        {
+          "name": "postState",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.523
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.581
+        },
+        {
+          "name": "search",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 10.259
+        },
+        {
+          "name": "searchChat",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 7.569
+        },
+        {
+          "name": "typingIn",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 6.373
+        }
+      ]
+    },
+    {
+      "tier": "wasm",
+      "horizon": true,
+      "rememberedBefore": 3,
+      "beforeAdvance": 3,
+      "rememberedAfter": 3,
+      "publication": [
+        {
+          "watermark": 12,
+          "events": 0
+        }
+      ],
+      "online": [
+        {
+          "name": "inbox",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 0.935
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.604
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.503
+        },
+        {
+          "name": "history",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 1.518
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.459
+        },
+        {
+          "name": "profile",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 8.11
+        },
+        {
+          "name": "directConversation",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.709
+        },
+        {
+          "name": "directPeer",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.515
+        },
+        {
+          "name": "feed",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.887
+        },
+        {
+          "name": "postState",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.409
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 6.294
+        },
+        {
+          "name": "search",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 18.037
+        },
+        {
+          "name": "searchChat",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 13.698
+        },
+        {
+          "name": "typingIn",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 5.982
+        }
+      ],
+      "unchangedOffline": [
+        {
+          "name": "inbox",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 0.82
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.48
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.465
+        },
+        {
+          "name": "history",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 1.453
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.042
+        },
+        {
+          "name": "profile",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.274
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.447
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.416
+        },
+        {
+          "name": "feed",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.777
+        },
+        {
+          "name": "postState",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.456
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.611
+        },
+        {
+          "name": "search",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.137
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 2.152
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.348
+        }
+      ],
+      "afterAdvance": [
+        {
+          "name": "inbox",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 0.929
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.53
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.551
+        },
+        {
+          "name": "history",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 1.469
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.52
+        },
+        {
+          "name": "profile",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.496
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.541
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.527
+        },
+        {
+          "name": "feed",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 0.962
+        },
+        {
+          "name": "postState",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.468
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.889
+        },
+        {
+          "name": "search",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 2.089
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 2.197
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.407
+        }
+      ],
+      "recovered": [
+        {
+          "name": "inbox",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 0.928
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.46
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.582
+        },
+        {
+          "name": "history",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 1.475
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.354
+        },
+        {
+          "name": "profile",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 7.44
+        },
+        {
+          "name": "directConversation",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.669
+        },
+        {
+          "name": "directPeer",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.555
+        },
+        {
+          "name": "feed",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.194
+        },
+        {
+          "name": "postState",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.547
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 5.937
+        },
+        {
+          "name": "search",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 17.616
+        },
+        {
+          "name": "searchChat",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 12.355
+        },
+        {
+          "name": "typingIn",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 6.537
+        }
+      ]
+    },
+    {
+      "tier": "process",
+      "horizon": false,
+      "rememberedBefore": 1,
+      "beforeAdvance": 1,
+      "rememberedAfter": 1,
+      "publication": [
+        {
+          "watermark": 11,
+          "events": 0
+        }
+      ],
+      "online": [
+        {
+          "name": "inbox",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 3.029
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.225
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.153
+        },
+        {
+          "name": "history",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.317
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.089
+        },
+        {
+          "name": "profile",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.14
+        },
+        {
+          "name": "directConversation",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.066
+        },
+        {
+          "name": "directPeer",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.224
+        },
+        {
+          "name": "feed",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.154
+        },
+        {
+          "name": "postState",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.076
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.155
+        },
+        {
+          "name": "search",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 13.724
+        },
+        {
+          "name": "searchChat",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 9.487
+        },
+        {
+          "name": "typingIn",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 14.083
+        }
+      ],
+      "unchangedOffline": [
+        {
+          "name": "inbox",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 2.27
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.303
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.223
+        },
+        {
+          "name": "history",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.385
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.204
+        },
+        {
+          "name": "profile",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.145
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.281
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.15
+        },
+        {
+          "name": "feed",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.116
+        },
+        {
+          "name": "postState",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.061
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.173
+        },
+        {
+          "name": "search",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 2.797
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.058
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.937
+        }
+      ],
+      "afterAdvance": [
+        {
+          "name": "inbox",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 3.431
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.245
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.149
+        },
+        {
+          "name": "history",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.277
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.085
+        },
+        {
+          "name": "profile",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.026
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.019
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.011
+        },
+        {
+          "name": "feed",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.871
+        },
+        {
+          "name": "postState",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.957
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.018
+        },
+        {
+          "name": "search",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 2.485
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.915
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.669
+        }
+      ],
+      "recovered": [
+        {
+          "name": "inbox",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 2.191
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.762
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.061
+        },
+        {
+          "name": "history",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.21
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.945
+        },
+        {
+          "name": "profile",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.181
+        },
+        {
+          "name": "directConversation",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.053
+        },
+        {
+          "name": "directPeer",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.255
+        },
+        {
+          "name": "feed",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.919
+        },
+        {
+          "name": "postState",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.956
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.032
+        },
+        {
+          "name": "search",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 11.82
+        },
+        {
+          "name": "searchChat",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 1,
+          "ms": 8.956
+        },
+        {
+          "name": "typingIn",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 9.386
+        }
+      ]
+    },
+    {
+      "tier": "process",
+      "horizon": true,
+      "rememberedBefore": 3,
+      "beforeAdvance": 3,
+      "rememberedAfter": 3,
+      "publication": [
+        {
+          "watermark": 11,
+          "events": 0
+        }
+      ],
+      "online": [
+        {
+          "name": "inbox",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 3.533
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.272
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.107
+        },
+        {
+          "name": "history",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 3.315
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 10.414
+        },
+        {
+          "name": "profile",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 8.77
+        },
+        {
+          "name": "directConversation",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 2.06
+        },
+        {
+          "name": "directPeer",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.233
+        },
+        {
+          "name": "feed",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.126
+        },
+        {
+          "name": "postState",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.115
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 7.871
+        },
+        {
+          "name": "search",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 22.284
+        },
+        {
+          "name": "searchChat",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 16.404
+        },
+        {
+          "name": "typingIn",
+          "phase": "online",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 7.113
+        }
+      ],
+      "unchangedOffline": [
+        {
+          "name": "inbox",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 1.932
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.03
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 0.987
+        },
+        {
+          "name": "history",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 3.036
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 10.104
+        },
+        {
+          "name": "profile",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 3.329
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.202
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.107
+        },
+        {
+          "name": "feed",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 3.438
+        },
+        {
+          "name": "postState",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.068
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.732
+        },
+        {
+          "name": "search",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.505
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline before advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.492
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline before advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 1.244
+        }
+      ],
+      "afterAdvance": [
+        {
+          "name": "inbox",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 3.858
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.179
+        },
+        {
+          "name": "receiptMember",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.093
+        },
+        {
+          "name": "history",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 3.671
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 10.69
+        },
+        {
+          "name": "profile",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 3.342
+        },
+        {
+          "name": "directConversation",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.16
+        },
+        {
+          "name": "directPeer",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.067
+        },
+        {
+          "name": "feed",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 1.988
+        },
+        {
+          "name": "postState",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 0.992
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": true,
+          "fresh": false,
+          "queryRequests": 0,
+          "ms": 1.538
+        },
+        {
+          "name": "search",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 4.427
+        },
+        {
+          "name": "searchChat",
+          "phase": "offline after empty advance",
+          "ready": true,
+          "complete": false,
+          "fresh": false,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 5.161
+        },
+        {
+          "name": "typingIn",
+          "phase": "offline after empty advance",
+          "ready": false,
+          "denied": "E_OFFLINE",
+          "queryRequests": 0,
+          "ms": 0.743
+        }
+      ],
+      "recovered": [
+        {
+          "name": "inbox",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 2,
+          "queryRequests": 0,
+          "ms": 2.798
+        },
+        {
+          "name": "conversationScreen",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.194
+        },
+        {
+          "name": "receiptMember",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.082
+        },
+        {
+          "name": "history",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 3.18
+        },
+        {
+          "name": "messageReceipts",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 0,
+          "ms": 10.513
+        },
+        {
+          "name": "profile",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 9.983
+        },
+        {
+          "name": "directConversation",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.37
+        },
+        {
+          "name": "directPeer",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.187
+        },
+        {
+          "name": "feed",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 1,
+          "queryRequests": 0,
+          "ms": 2.098
+        },
+        {
+          "name": "postState",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 0,
+          "ms": 1.074
+        },
+        {
+          "name": "messagePhoto",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "queryRequests": 1,
+          "ms": 8.041
+        },
+        {
+          "name": "search",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 20.367
+        },
+        {
+          "name": "searchChat",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 20,
+          "queryRequests": 1,
+          "ms": 15.071
+        },
+        {
+          "name": "typingIn",
+          "phase": "online recovery",
+          "ready": true,
+          "complete": true,
+          "fresh": true,
+          "rows": 0,
+          "queryRequests": 1,
+          "ms": 8.44
+        }
+      ]
+    }
+  ]
+}
