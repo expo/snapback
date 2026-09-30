@@ -61,7 +61,7 @@ export function mockId(): string {
 
 export function createMockClient(options: MockOptions): MockClient {
   const actions = new Map<string, Promise<Act>>();
-  const tables = options.ephemeral ? { ...options.tables } : options.tables;
+  const tables = options.ephemeral ? Object.assign(Object.create(null), options.tables) : options.tables;
   let link: Link = options.link ?? "online";
   let viewer = options.viewer;
   let seq = 0;

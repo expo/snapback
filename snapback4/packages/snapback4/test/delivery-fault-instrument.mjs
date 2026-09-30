@@ -116,6 +116,9 @@ export function instrument(destination) {
 // keepalive-retry exercises a committed mutation with a lost reply, identical
 // ID/body/authority snapshots, exhausted retry, fresh failures and partial-response failure.
 // No outbox admission, settlement, persistence or publication await is added.
+// PR round 3: captureStore before an observation with a notified cut is a
+// read-only watermark check. It does not admit, send, settle or persist writes;
+// incarnation/publication/signal fences still qualify its subsequent evaluation.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {

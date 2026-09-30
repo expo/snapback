@@ -1,6 +1,7 @@
+import { inspect, type ReadInspection } from "./inspection.ts";
 import { assetError, assetRetryAt } from "./asset-download.ts";
 // The React arm: one provider and hooks over the client card.
-// Every hook returns a value from the card (contract.ts) and nothing else.
+// Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, Write } from "./contract.ts";
@@ -389,4 +390,17 @@ export function useAsset(id: string | null | undefined): AssetState {
   if (!id) return { status: "empty" };
   if (signedOut) return { status: "denied", why: { code: "E_AUTH", family: "auth", message: "Sign in before loading an asset.", rewrite: "read the asset's home row with the signed-in client, then pass its asset id to useAsset", guide: "assets" } };
   return resolved?.owner === owner && resolved.lifetime.live ? resolved.state : { status: "loading" };
+}
+
+/** Opt-in development overlay data; disabled means no timer or inspection work. */
+export function useInspection(enabled = false): ReadInspection | null {
+  const client = useClient();
+  const [sample, setSample] = useState<{ client: Client; value: ReadInspection } | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    const refresh = () => setSample({ client, value: inspect(client) });
+    refresh(); const timer = setInterval(refresh, 250);
+    return () => clearInterval(timer);
+  }, [client, enabled]);
+  return enabled && sample?.client === client ? sample.value : null;
 }

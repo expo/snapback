@@ -1,0 +1,8 @@
+{
+  "raw": 1983105,
+  "gzip": 595440,
+  "sha256": "5b1a9a11d1922c3a4e67168914c295c070d3457e8cffe10594b377d00d7518f4",
+  "budget": 595440,
+  "budgetSha256": "7671996463fafad5b9d04a100a6ed0f9e0bbadace945982afac9bbe8738df096",
+  "method": "scripts/build-wasm.sh: gzip -9 -c file, including filename header"
+}

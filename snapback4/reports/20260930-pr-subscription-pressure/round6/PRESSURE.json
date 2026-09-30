@@ -1,0 +1,38 @@
+{
+  "convergence-affected-process.json": [
+    {
+      "observations": 124,
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": 0,
+      "peakQueued": 116,
+      "peakInFlight": 8
+    },
+    {
+      "observations": 124,
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": 0,
+      "peakQueued": 116,
+      "peakInFlight": 8
+    }
+  ],
+  "convergence-affected-wasm.json": [
+    {
+      "observations": 124,
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": 0,
+      "peakQueued": 116,
+      "peakInFlight": 8
+    },
+    {
+      "observations": 124,
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": 0,
+      "peakQueued": 116,
+      "peakInFlight": 8
+    }
+  ]
+}

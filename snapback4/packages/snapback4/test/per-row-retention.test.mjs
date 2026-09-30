@@ -90,7 +90,7 @@ for (const keep of [undefined, false, true]) test(`online keep=${keep}: held-onl
   assert.equal(watch.getSnapshot(), newer, 'no new episode was started by the held-only sweep');
 });
 
-for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replicated write preserves online-only memory offline`, async t => {
+for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replica publication revalidates server answers before offline reuse`, async t => {
   const { url, dir } = await server(t, '', source);
   assert.equal((await fetch(url + '/seed', { method: 'POST', body: JSON.stringify([{ table: 'remoteRows', row: { id: 'r', value: 7 } }]) }).then(r => r.json())).seeded, 1);
   let online = true, queries = 0, localQueries = 0;
@@ -111,8 +111,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: an unrelated replicated w
   assert.equal((await fetch(url + '/m/add', { method: 'POST', headers: { 'x-snapback-persona': 'alice' },
     body: JSON.stringify({ id: crypto.randomUUID(), args: {} }) }).then(r => r.json())).state, 'sent');
   await client.sync();
-  for (let i = 0; i < 30; i++) await pause();
-  assert.deepEqual({ queries, localQueries }, before, 'unrelated applies do no replacement query');
+  await until(() => queries > before.queries && watch.getSnapshot().data === true && !watch.getSnapshot().revalidating, 'publication reauthorizes the server answer');
   online = false; await client.sync();
   await until(() => client.link() === 'offline');
   await until(() => watch.getSnapshot().data === true && watch.getSnapshot().fresh === false && watch.getSnapshot().revalidating === true,
@@ -127,7 +126,7 @@ for (const operation of ['apply', 'admit', 'settle', 'clear_rows']) for (const f
     for (const [key, tables] of [['remote', ['remoteRows', 'members']], ['note', ['notes']], ['opaque', []]])
       memory.set(key, { read: ready(true), at: 0, nextExpiry: null, tables: new Set(tables) }, { seq: 2, ticket: memory.begin() });
     reads.committed([], operation, footprint);
-    const cleared = operation === 'clear_rows' || footprint === undefined;
+    const cleared = operation === 'apply' || operation === 'clear_rows' || footprint === undefined;
     assert.equal(!!memory.get('remote'), !cleared && !footprint.some(table => ['remoteRows', 'members'].includes(table)));
     assert.equal(!!memory.get('note'), !cleared && !footprint.includes('notes'));
     assert.equal(!!memory.get('opaque'), !cleared && footprint.length === 0);

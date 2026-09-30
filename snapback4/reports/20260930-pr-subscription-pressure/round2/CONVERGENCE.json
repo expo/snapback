@@ -1,0 +1,122 @@
+{
+  "convergence-active-process.json.gz": [
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [
+        {
+          "at": 3094.21,
+          "historyEventIndex": 18,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 512.221,
+            "remainingMs": null
+          },
+          "historyHoldMs": 997.5808230000002
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [
+        {
+          "at": 2654.629,
+          "historyEventIndex": 18,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 70.795,
+            "remainingMs": null
+          },
+          "historyHoldMs": 997.7836970000008
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "convergence-active-wasm.json.gz": [
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [
+        {
+          "at": 3055.9,
+          "historyEventIndex": 18,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 891.4,
+            "remainingMs": null
+          },
+          "historyHoldMs": 1004
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [
+        {
+          "at": 2314.7,
+          "historyEventIndex": 18,
+          "query": "history",
+          "cause": "change-timeout",
+          "queued": false,
+          "inFlight": true,
+          "queueEntry": {
+            "at": 133.9,
+            "remainingMs": null
+          },
+          "historyHoldMs": 1005.3000001907349
+        }
+      ],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "convergence-final-process.json.gz": [
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ],
+  "convergence-final-wasm.json.gz": [
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    },
+    {
+      "rows": 42,
+      "unique": 42,
+      "withdrawals": [],
+      "peakQueued": 116,
+      "peakActive": 8
+    }
+  ]
+}

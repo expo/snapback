@@ -1,0 +1,7 @@
+{
+  "changed": [
+    "packages/snapback4/src/local.ts"
+  ],
+  "reason": "Only detached resumes read the watermark; consume the detach marker after successful validation, checking cancellation before mutation.",
+  "full_suite_summary": "== 0 failure(s) in 1261 s"
+}

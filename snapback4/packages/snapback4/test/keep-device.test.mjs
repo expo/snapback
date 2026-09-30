@@ -69,7 +69,7 @@ async function fixture(t) {
 }
 
 for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) for (const change of ["apply", "admit", "settle", "revoke", "leave", "refusal"]) {
-  test(`${tier}: keep=${keep} across ${change} publishes no loading and replaces the old answer`, { timeout: 30_000 }, async t => {
+  test(`${tier}: keep=${keep} across ${change} retains ordinary answers and withdraws known scope loss`, { timeout: 30_000 }, async t => {
     const { directory, url, post, kick } = await fixture(t);
     const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const readOp = change === "refusal" ? { ...query, name: "required" } : query;
@@ -108,12 +108,16 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
       : (change === "revoke" || change === "refusal") ? kick()
       : client.mutate({ kind: "mutation", name: change === "leave" ? "leave" : "edit" }, change === "leave" ? {} : { body: "next answer" });
     await atCommit.promise;
-    assert.ok("data" in snapshot, JSON.stringify(snapshot));
-    assert.equal(snapshot.revalidating, true);
-    assert.equal(snapshot.fresh, true, "revalidation preserves server freshness");
+    if (change === "revoke" || change === "refusal") {
+      assert.deepEqual(snapshot, { loading: true }, "applied membership removal withdraws synchronously");
+    } else {
+      assert.ok("data" in snapshot, JSON.stringify(snapshot));
+      assert.equal(snapshot.revalidating, true);
+      assert.equal(snapshot.fresh, true, "revalidation preserves server freshness");
+    }
     assert.equal(plain.getSnapshot().loading, true, "a keep subscriber cannot change the default watch");
     if (change === "revoke" || change === "leave") {
-      assert.equal(snapshot.data.body, "private answer", "explicit keep accepts the withdrawn row until the re-read");
+      if (change === "leave") assert.equal(snapshot.data.body, "private answer", "prediction alone has not yet applied a scope removal");
       if (change === "revoke") assert.equal((await core.call({ op: "query", name: "secret", args: {}, viewer: "dev:bob", now: Date.now() })).ok.data, null, "the actual device has already revoked the row");
     }
     if (change === "leave") assert.ok(captured.result.ok.predicted.includes("members/bob"));
@@ -126,7 +130,9 @@ for (const keep of [undefined, true]) for (const tier of ["wasm", "process"]) fo
     assert.equal(joined.getSnapshot(), lingering.getSnapshot(), "remount sees the current committed answer");
     assert.ok(values.length > 0);
     const beforeReplacement = change === "refusal" ? values.slice(0, values.findIndex(read => "denied" in read) + 1) : values;
-    assert.ok(beforeReplacement.every(read => !("loading" in read)), JSON.stringify(values));
+    // @ref LLP 3000.023#10 — confirmed scope loss is an immediate boundary, including after a predicted leave.
+    if (["revoke", "leave", "refusal"].includes(change)) assert.ok(beforeReplacement.some(read => "loading" in read), "scope removal publishes withdrawal");
+    else assert.ok(beforeReplacement.every(read => !("loading" in read)), JSON.stringify(values));
   });
 }
 

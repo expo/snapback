@@ -1,0 +1,29 @@
+✔ wasm: no-owner revocation must retire remembered content (1894.390123ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"dcdfd689ddb5a62000274606d3dbf8e5"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"dcdfd689ddb5a62000274606d3dbf8e5","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: no-owner revocation must retire remembered content (1518.250244ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"4fbe9ff0fc4c1bfb56e2cc22976e53ee"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"4fbe9ff0fc4c1bfb56e2cc22976e53ee","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: resumed handle inherits unrelated notification (594.276408ms)
+✔ wasm: resumed handle inherits intersecting notification (1453.952934ms)
+✔ process: resumed handle inherits unrelated notification (244.129738ms)
+✔ process: resumed handle inherits intersecting notification (1473.547252ms)
+✔ notification cuts keep unknown dependencies conservative and forget applied tables (0.595233ms)
+✔ queue selection scales linearly, priority=false (298.699519ms)
+ℹ [{"n":1000,"inspections":1124,"ms":28.935209},{"n":10000,"inspections":11249,"ms":268.242729}]
+✔ queue selection scales linearly, priority=true (295.889176ms)
+ℹ [{"n":1000,"inspections":1124,"ms":23.019882999999993},{"n":10000,"inspections":11249,"ms":272.655032}]
+✔ wasm: cancelled resumed watermark releases running (622.512197ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ wasm: expired resumed watermark releases running (176.137299ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: cancelled resumed watermark releases running (208.699985ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: expired resumed watermark releases running (205.562433ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3913.320741

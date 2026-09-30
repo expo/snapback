@@ -1,0 +1,12 @@
+✔ process: app screen and history after leave, remount and offline/online reopen (3251.738518ms)
+ℹ {"inbox":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"}}
+✔ unread badge uses server fallback online and keeps its bound after cold offline reopen (1580.592697ms)
+ℹ {"remote":{"data":6,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5100.059125

@@ -1,0 +1,52 @@
+✖ process: app screen and history after leave, remount and offline/online reopen (1319.798106ms)
+✖ unread badge uses server fallback online and keeps its bound after cold offline reopen (695.537316ms)
+ℹ {"remote":{"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2290.467259
+
+✖ failing tests:
+
+test at packages/snapback4/test/ordinary-history.test.mjs:200:3
+✖ process: app screen and history after leave, remount and offline/online reopen (1319.798106ms)
+  AssertionError [ERR_ASSERTION]: {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+  + actual - expected
+  
+  + undefined
+  - 'retained text'
+  
+      at assertScreen (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/ordinary-history.test.mjs:215:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/ordinary-history.test.mjs:224:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'retained text',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/unread-range.test.mjs:156:1
+✖ unread badge uses server fallback online and keeps its bound after cold offline reopen (695.537316ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 6
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/unread-range.test.mjs:176:52)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 6,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

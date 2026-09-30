@@ -1,0 +1,40 @@
+reports/20260930-pr-subscription-pressure/round5/ll-qualified-process-0.json {
+  profile: { n: 20, p50: 22.305, p95: 36.305, max: 47.75 },
+  'reaction-add': { n: 20, p50: 35.525, p95: 44.633, max: 77.151 },
+  'reaction-replace': { n: 20, p50: 35.567, p95: 52.245, max: 57.529 },
+  'reaction-remove': { n: 20, p50: 38.384, p95: 45.145, max: 57.94 },
+  reply: { n: 20, p50: 64.149, p95: 82.432, max: 161.996 },
+  photo: { n: 20, p50: 67.958, p95: 89.732, max: 109.185 },
+  'feed-image': { n: 20, p50: 34.284, p95: 43.818, max: 149.764 },
+  'once-photo': { n: 20, p50: 71.051, p95: 152.416, max: 196.226 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-qualified-process-3.json {
+  profile: { n: 20, p50: 39.399, p95: 47.671, max: 50.261 },
+  'reaction-add': { n: 20, p50: 75.636, p95: 99.921, max: 106.462 },
+  'reaction-replace': { n: 20, p50: 94.671, p95: 123.606, max: 127.736 },
+  'reaction-remove': { n: 20, p50: 107.955, p95: 134.295, max: 151.732 },
+  reply: { n: 20, p50: 134.765, p95: 199.789, max: 215.287 },
+  photo: { n: 20, p50: 144.098, p95: 250.326, max: 315.312 },
+  'feed-image': { n: 20, p50: 53.794, p95: 73.696, max: 74.691 },
+  'once-photo': { n: 20, p50: 154.534, p95: 205.501, max: 215.468 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-qualified-wasm-0.json {
+  profile: { n: 20, p50: 21.119, p95: 26.58, max: 29.772 },
+  'reaction-add': { n: 20, p50: 22.242, p95: 30.24, max: 32.142 },
+  'reaction-replace': { n: 20, p50: 21.744, p95: 29.336, max: 29.846 },
+  'reaction-remove': { n: 20, p50: 22.967, p95: 27.803, max: 29.904 },
+  reply: { n: 20, p50: 46.371, p95: 55.173, max: 56.814 },
+  photo: { n: 20, p50: 46.682, p95: 57.594, max: 62.171 },
+  'feed-image': { n: 20, p50: 21.228, p95: 27.456, max: 31.026 },
+  'once-photo': { n: 20, p50: 47.757, p95: 56.459, max: 74.843 }
+}
+reports/20260930-pr-subscription-pressure/round5/ll-qualified-wasm-3.json {
+  profile: { n: 20, p50: 34.456, p95: 43.487, max: 47.187 },
+  'reaction-add': { n: 20, p50: 37.675, p95: 45.339, max: 50.783 },
+  'reaction-replace': { n: 20, p50: 39.723, p95: 59.187, max: 73.848 },
+  'reaction-remove': { n: 20, p50: 38.608, p95: 48.282, max: 49.968 },
+  reply: { n: 20, p50: 81.012, p95: 96.887, max: 108.286 },
+  photo: { n: 20, p50: 79.371, p95: 100.015, max: 101.21 },
+  'feed-image': { n: 20, p50: 38.421, p95: 49.756, max: 54.931 },
+  'once-photo': { n: 20, p50: 79.237, p95: 93.083, max: 98.293 }
+}

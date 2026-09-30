@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-30T07:01:24Z",
+  "uname": "Linux 6.8.0-138-generic",
+  "node": "v24.13.1",
+  "bun": "1.3.14",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "wasmBindgen": "wasm-bindgen 0.2.127",
+  "availableCPUs": 96,
+  "LLaffinity": [
+    0,
+    1,
+    2,
+    3
+  ]
+}

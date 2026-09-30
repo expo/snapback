@@ -145,7 +145,7 @@ query search(q: text <=100, c: cursor ?):
         let mut device = fixture();
         let tx = device.store.read_transaction().unwrap();
         let groups = decoded(r#"{"messages":{"[\"left\"]":"Left","[\"held\"]":"Held","[\"rejoined\"]":{"Rejoined":[]}}}"#).unwrap();
-        let reading = history::Reading { tx: &tx, schema: &device.schema, groups,
+        let reading = history::Reading { scopes: None, tx: &tx, schema: &device.schema, groups,
             boundaries: boundary::Boundaries::load(&tx, false).unwrap(), retained: std::cell::Cell::new(false) };
         for room in ["left", "held", "rejoined"] {
             let row = snapback4_core::wire::row_from_json(&device.schema.tables["messages"],

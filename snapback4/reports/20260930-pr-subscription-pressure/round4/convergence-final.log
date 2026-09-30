@@ -1,0 +1,12 @@
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (5420.610475ms)
+ℹ {"tier":"wasm","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (4457.029191ms)
+ℹ {"tier":"process","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10043.961334

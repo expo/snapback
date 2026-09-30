@@ -1,0 +1,125 @@
+[
+  {
+    "run": "affected.log",
+    "classification": "ours",
+    "failures": [
+      "online keep=undefined: invalidating an acquisition leaves replacement queue wait outside the episode",
+      "online keep=true: invalidating an acquisition leaves replacement queue wait outside the episode"
+    ]
+  },
+  {
+    "run": "assertion-round1.log",
+    "classification": "ours \u2014 expected rejection of deliberate stale-reply mutation",
+    "failures": [
+      "wasm: apply revocation, keep=undefined, throw",
+      "wasm: apply revocation, keep=undefined, unavailable",
+      "process: apply revocation, keep=undefined, throw",
+      "process: apply revocation, keep=undefined, unavailable"
+    ]
+  },
+  {
+    "run": "offline-order.log",
+    "classification": "ours",
+    "failures": [
+      "wasm: offline-before removal only withdraws its room and resumes",
+      "process: offline-before removal only withdraws its room and resumes"
+    ]
+  },
+  {
+    "run": "regressions-first.log",
+    "classification": "ours",
+    "failures": [
+      "wasm: published removal only withdraws its room and resumes",
+      "wasm: staged removal only withdraws its room and resumes",
+      "wasm: offline removal only withdraws its room and resumes",
+      "process: published removal only withdraws its room and resumes",
+      "process: staged removal only withdraws its room and resumes",
+      "process: offline removal only withdraws its room and resumes"
+    ]
+  },
+  {
+    "run": "regressions-second.log",
+    "classification": "ours",
+    "failures": [
+      "wasm: offline removal only withdraws its room and resumes",
+      "process: offline removal only withdraws its room and resumes"
+    ]
+  },
+  {
+    "run": "round0-controls-complete.log",
+    "classification": "baseline \u2014 deliberate round 0 negative control",
+    "failures": [
+      "unused inspection records no timings and allocates no withdrawal callbacks",
+      "compound scope matching skips disjoint groups and watches with no tables",
+      "wasm: published removal only withdraws its room and resumes",
+      "wasm: staged removal only withdraws its room and resumes",
+      "wasm: offline removal only withdraws its room and resumes",
+      "wasm: offline-before removal only withdraws its room and resumes",
+      "process: published removal only withdraws its room and resumes",
+      "process: staged removal only withdraws its room and resumes",
+      "process: offline removal only withdraws its room and resumes",
+      "process: offline-before removal only withdraws its room and resumes",
+      "wasm: terminal change-feed refusal bypasses eight occupied slots",
+      "process: terminal change-feed refusal bypasses eight occupied slots",
+      "online scope-ambiguous change evidence expires while waiting for capacity",
+      "online viewer replacement is inspected as viewer, not schema reset"
+    ]
+  },
+  {
+    "run": "round0-controls-final.log",
+    "classification": "baseline \u2014 deliberate round 0 negative control",
+    "failures": [
+      "unused inspection records no timings and allocates no withdrawal callbacks",
+      "compound scope matching skips disjoint groups and watches with no tables",
+      "wasm: published removal only withdraws its room and resumes",
+      "wasm: staged removal only withdraws its room and resumes",
+      "wasm: offline removal only withdraws its room and resumes",
+      "process: published removal only withdraws its room and resumes",
+      "process: staged removal only withdraws its room and resumes",
+      "process: offline removal only withdraws its room and resumes",
+      "wasm: terminal change-feed refusal bypasses eight occupied slots",
+      "process: terminal change-feed refusal bypasses eight occupied slots",
+      "online scope-ambiguous change evidence expires while waiting for capacity",
+      "online viewer replacement is inspected as viewer, not schema reset"
+    ]
+  },
+  {
+    "run": "round0-controls-new-mount-final.log",
+    "classification": "baseline \u2014 deliberate round 0 negative control",
+    "failures": [
+      "a pending group removal fences an initial observation until actual publication"
+    ]
+  },
+  {
+    "run": "round0-controls-new-mount.log",
+    "classification": "ours \u2014 negative-control compatibility error, corrected in final control",
+    "failures": [
+      "a pending group removal fences an initial observation until actual publication"
+    ]
+  },
+  {
+    "run": "round0-controls.log",
+    "classification": "baseline \u2014 deliberate round 0 negative control",
+    "failures": [
+      "unused inspection records no timings and allocates no withdrawal callbacks",
+      "compound scope matching skips disjoint groups and watches with no tables",
+      "wasm: published removal only withdraws its room and resumes",
+      "wasm: staged removal only withdraws its room and resumes",
+      "wasm: offline removal only withdraws its room and resumes",
+      "process: published removal only withdraws its room and resumes",
+      "process: staged removal only withdraws its room and resumes",
+      "process: offline removal only withdraws its room and resumes",
+      "wasm: terminal change-feed refusal bypasses eight occupied slots",
+      "process: terminal change-feed refusal bypasses eight occupied slots",
+      "online scope-ambiguous change evidence expires while waiting for capacity",
+      "online viewer replacement is inspected as viewer, not schema reset"
+    ]
+  },
+  {
+    "run": "withdrawal-first.log",
+    "classification": "ours",
+    "failures": [
+      "inspection groups shared observations, measures queue/attempt time, and records bounded withdrawal causes"
+    ]
+  }
+]

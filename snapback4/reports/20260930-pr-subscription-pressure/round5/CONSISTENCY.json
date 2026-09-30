@@ -1,0 +1,10 @@
+{
+  "fullInputs": 2327,
+  "fullChanged": [],
+  "afterFullChanged": [
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+    "snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs",
+    "snapback4/packages/snapback4/src/local-reads.ts"
+  ],
+  "finalMeasurementHashChanges": []
+}

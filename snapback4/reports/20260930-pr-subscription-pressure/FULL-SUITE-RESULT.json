@@ -1,0 +1,119 @@
+{
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT bash scripts/test.sh",
+  "runs": 1,
+  "exit": 1,
+  "summary": "== 1 failure(s) in 1376 s",
+  "failedSteps": [
+    "client tests"
+  ],
+  "rust": {
+    "passed": 4362,
+    "failed": 0,
+    "ignored": 33
+  },
+  "clients": {
+    "tests": 5330,
+    "passed": 5298,
+    "failed": 22,
+    "skipped": 10,
+    "cancelled": 0
+  },
+  "fixtures": {
+    "passed": 9
+  },
+  "models": {
+    "passed": 79,
+    "failed": 0,
+    "skipped": 0
+  },
+  "failures": [
+    {
+      "name": "wasm: apply revocation, keep=undefined, held",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, throw",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, unavailable",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: apply revocation, keep=undefined, retryExhausted",
+      "classification": "ours"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, held",
+      "classification": "ours"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, throw",
+      "classification": "ours"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, unavailable",
+      "classification": "ours"
+    },
+    {
+      "name": "process: apply revocation, keep=undefined, retryExhausted",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=undefined across revoke publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=undefined across leave publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=undefined across refusal publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=undefined across revoke publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=undefined across leave publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=undefined across refusal publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=true across revoke publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=true across leave publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: keep=true across refusal publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=true across revoke publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=true across leave publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "process: keep=true across refusal publishes no loading and replaces the old answer",
+      "classification": "ours"
+    },
+    {
+      "name": "README TypeScript examples compile and call every public function",
+      "classification": "ours"
+    },
+    {
+      "name": "wasm: two offline devices, 124 mounted observations each, exactly-once history",
+      "classification": "ours"
+    }
+  ]
+}

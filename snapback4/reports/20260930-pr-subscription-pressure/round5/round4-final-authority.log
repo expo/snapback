@@ -1,0 +1,156 @@
+✔ notification: one authority revision retires detached and pending answers (1.390274ms)
+✖ apply publication: one authority revision retires detached and pending answers (0.455232ms)
+✔ local commit: one authority revision retires detached and pending answers (0.192689ms)
+✖ scope cut: one authority revision retires detached and pending answers (0.307201ms)
+✖ partition refusal: one authority revision retires detached and pending answers (0.2ms)
+✔ reset: one authority revision retires detached and pending answers (0.131126ms)
+✖ a known quiet poll preserves detached and pending authority without another counter (0.725247ms)
+✖ every terminal refusal advances authority, even when the same refusal repeats without owners (2.785916ms)
+✖ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.405238ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 3
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 126.231462
+
+✖ failing tests:
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:14:5
+✖ apply publication: one authority revision retires detached and pending answers (0.455232ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:18:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:14:5
+✖ scope cut: one authority revision retires detached and pending answers (0.307201ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:18:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:14:5
+✖ partition refusal: one authority revision retires detached and pending answers (0.2ms)
+  AssertionError [ERR_ASSERTION]: pending publication must never regain its old authority
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:18:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:22:1
+✖ a known quiet poll preserves detached and pending authority without another counter (0.725247ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be reference-equal to "expected":
+  + actual - expected
+  
+    {
+  +   loading: true
+  -   complete: true,
+  -   data: 'saved',
+  -   existence: 'present',
+  -   fresh: true
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:29:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { loading: true },
+    expected: { data: 'saved', complete: true, fresh: true, existence: 'present' },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:31:1
+✖ every terminal refusal advances authority, even when the same refusal repeats without owners (2.785916ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(reads.revision > authority)
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:36:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/subscription-pressure-authority.test.mjs:39:1
+✖ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.405238ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   at: 0,
+  +   nextExpiry: null,
+  +   read: {
+  +     complete: true,
+  +     data: 'saved',
+  +     fresh: true
+  +   },
+  +   tables: Set(1) {
+  +     'profiles'
+  +   }
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-pr/snapback4/packages/snapback4/test/subscription-pressure-authority.test.mjs:44:33)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { read: { data: 'saved', complete: true, fresh: true }, at: 0, tables: Set(1) { 'profiles' }, nextExpiry: null },
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

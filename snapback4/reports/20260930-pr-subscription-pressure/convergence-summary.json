@@ -1,0 +1,114 @@
+[
+  {
+    "tier": "wasm",
+    "version": "controlled-main",
+    "device": 0,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": [
+      {
+        "at": 2712.6,
+        "duration": 753.3,
+        "queued": 55,
+        "inFlight": 8,
+        "cause": "change-timeout"
+      }
+    ]
+  },
+  {
+    "tier": "wasm",
+    "version": "controlled-main",
+    "device": 1,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": [
+      {
+        "at": 1963.1,
+        "duration": 737.1,
+        "queued": 55,
+        "inFlight": 8,
+        "cause": "change-timeout"
+      }
+    ]
+  },
+  {
+    "tier": "wasm",
+    "version": "qualified",
+    "device": 0,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": []
+  },
+  {
+    "tier": "wasm",
+    "version": "qualified",
+    "device": 1,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": []
+  },
+  {
+    "tier": "process",
+    "version": "controlled-main",
+    "device": 0,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": [
+      {
+        "at": 3263.252,
+        "duration": 363.997,
+        "queued": 28,
+        "inFlight": 8,
+        "cause": "change-timeout"
+      }
+    ]
+  },
+  {
+    "tier": "process",
+    "version": "controlled-main",
+    "device": 1,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": [
+      {
+        "at": 2716.13,
+        "duration": 358.664,
+        "queued": 28,
+        "inFlight": 8,
+        "cause": "change-timeout"
+      }
+    ]
+  },
+  {
+    "tier": "process",
+    "version": "qualified",
+    "device": 0,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": []
+  },
+  {
+    "tier": "process",
+    "version": "qualified",
+    "device": 1,
+    "observations": 124,
+    "maxQueued": 116,
+    "maxInFlight": 8,
+    "finalRows": 42,
+    "gaps": []
+  }
+]

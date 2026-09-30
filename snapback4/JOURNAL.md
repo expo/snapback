@@ -79287,6 +79287,135 @@ reports/20260929-fw-follow-window/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+### 2026-09-30 — PR round 0: mounted answers survive subscription queue pressure
+
+Reproduced calibration #27's subscription-pressure shape on real wasm and process
+clients: history, 40 reaction reads, 40 receipts, 40 profiles, two feeds and
+search — 124 observations per device. Two independent offline writers reconnect;
+a concurrent real edit retires each held history attempt into the populated queue.
+Main withdraws each history once (wasm gaps 753.3/737.1 ms; process 363.997/358.664
+ms). All four fixed normal histories have zero gaps and render the 42 rows,
+including each device's offline message exactly once. Peak queue 116, eight active.
+The separate 81-observation held-slot control fails on main at 1,010.807/1,012.096
+ms while the history is queued, with 73 waiting and eight active. It passes fixed.
+
+The episode starts with its own attempt and pauses for capacity queue wait,
+including requeue after a newer commit invalidates an attempt. Consumed budget is
+never restored. Source and approved facade copies share timing; timers, peeks and
+snapshot deadline checks agree. Plain revalidation remains unbounded, while
+running evaluation, retry backoff and waiting for sync retain their existing
+bound. PQ's eight starts per turn/eight active and LL's pending-cut parking,
+fallback, media dependency and publication fences are unchanged. Applied scope
+removal also exposed a baseline gap: it now resets dependent observations in the
+commit notification boundary, immediately, even behind held slots. Other hard
+boundaries remain immediate. No contract.ts, Rust, wire, outbox or horizon change.
+
+Added the auxiliary inspect(client) API from snapback4/inspection and opt-in
+useInspection(development) overlay data. It groups source observations by query,
+reports subscribers/queued/in-flight/revalidating/withdrawn/loading, retains 64
+withdrawal causes and queue/attempt p50/p95/max over 256 completed attempts. No
+arguments or answer data. Facades forward their current source; invalidated or
+unknown clients are unsupported. The private scheduler binding remains internal.
+The client card's screen-flash recipe is 117 lines / 1,194 words; compiled TSX
+examples cover both public functions. LLP 3000.023 §10 records the design and
+NOT-DOING records the expressly requested bounded inspection surface.
+
+The unchanged LL harness measured 640 actions before and 640 after, all eight
+flows, wasm/process, zero/three busy workers, four-CPU affinity. Maximum flow
+commit-to-publication p95 before→after: wasm idle 46.964→45.042 ms, wasm loaded
+94.598→100.604, process idle 78.520→95.519, process loaded 218.916→358.139.
+Shared-host load grew 55.5→132.27 in the last pair. Four alternating process
+controls measured 236.000/472.833/249.785/220.074 ms (main/fixed/main/fixed), with
+ending loads 78.15/137.13/87.03/65.95. The final adjacent pair shows no regression;
+earlier high-load fixed samples exceeded 300 ms and remain disclosed. All 1,920
+actions completed without timeout; reactions retain zero media home reads. No
+universal latency claim is made from a shared-host sample.
+
+Affected retention/React/pressure 376/376, review 38/38, post-suite corrections
+87/87, final pressure 12/12, whole guide 105/105, typecheck/build and await
+classification pass. Both final main convergence controls fail for queued=true,
+in-flight=false; the causal regressions still require no gaps at all while queued.
+Ran scripts/test.sh exactly once with the package SQLite policy, exit 1:
+
+    == 1 failure(s) in 1376 s
+       client tests
+
+Rust 4,362 passes / 33 declared ignores; client pool 5,298 passes / 22 failures /
+ten existing skips; fixtures 9/9; serial models 79/79 including both full 5,000-
+sequence walks. No cancellations. All 468 recorded inputs stayed unchanged during
+the run. The 22 failures are ours: twenty obsolete membership-retention assertions,
+one missing public example/internal export, and one overbroad no-gap assertion
+in the new real-time harness. Corrected and reran the affected files; the full run
+remains red and was not repeated. Baseline failures 0; environmental failures 0.
+All failing names, setup mistakes and detecting controls remain in the ledger.
+The inherited nominal 60-second full-suite budget remains exceeded.
+
+The loaded wasm failure was reproduced with four empty publications following a
+1,004.6-ms active hold: queued=false/in-flight=true. The test now distinguishes
+this legitimate bound from queue-only expiry, attributes every gap, and verifies
+every rendered ID. Its deliberate 1.1-second active-hold variant passes 2/2 while
+preserving all four legitimate withdrawals. The final normal run has zero gaps.
+After the full run the only SDK edit split the public/private inspection exports;
+episode, membership and scheduler semantics did not change.
+
+Wasm remains 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B
+ratchet, byte-identical to this lane's baseline. No budget increase. Report,
+interactive timeline, per-flow LL measurements, hashes, full output and raw traces:
+reports/20260930-pr-subscription-pressure/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-30 — PR round 1: audience-specific withdrawal under pressure
+
+Merged `origin/main` `f1b1f0077e` into lane PR before the review repairs
+(merge `c586a5904f`), preserving round 0's local queue clock and PQ's eight
+starts/eight active attempts. Applied scope removals now use private device
+read dependencies recorded before projection: point audiences and evaluated
+range/count prefixes. Leaving one room leaves the other room's mounted answers
+visible. Empty-table observations do not match. Raw subscribers receive staged
+withdrawals even with no published footprint; pending group cuts fence old
+replica/server answers, remounts and one-shot reads until publication, and
+parked watches recover even with an empty final footprint or an intervening
+offline period. Legacy/server/composed answers without certified group
+provenance remain conservative at the table boundary.
+
+Terminal local change-feed refusals publish immediately on wasm and process.
+Online ambiguous change evidence starts its budget on receipt and keeps it
+running while queued; local capacity waits remain excluded. Inspection does
+not collect diagnostic timings, answer history or per-watch callbacks before
+opt-in. Viewer withdrawals say `viewer`. The closed-facade comment now states
+that final deadlines may shorten but cannot extend. Public contract comments,
+the client card and LLP 3000.023 changed together. The withdrawal assertions now
+observe the following failure publication; convergence requires `inFlight`
+for legitimate timeouts. Deliberate stale-reply and idle-timeout controls show
+the old assertions miss those defects and the strengthened assertions catch them.
+
+Verification: 80 final affected tests plus the new-mount unit passed; 15 new
+regressions fail on round-0 SDK bytes. Rust device tests: 1,391 passes, zero
+failures, five existing ignores. Whole guide: 105 passes. Normal and forced
+active-timeout wasm/process convergence each finishes with 42 unique messages
+per history, with the eight-active bound intact. Reference check: zero errors.
+The one required complete `scripts/test.sh` invocation passed with the exact
+summary **`== 0 failure(s) in 1268 s`**; its client pool passed 5,335 tests
+(10 existing prerequisite/platform skips), then all 79 serial model tests passed.
+All 1,644 recorded inputs match before/after. The nominal 60-second suite budget
+remains unmet; no count, timeout or concurrency setting was weakened.
+
+LL's unchanged harness completed 1,920 trials over baseline, paired after and
+final cells with zero timeouts. Round-0 → final maximum per-flow publication
+p95, zero/three load workers: wasm 45.535/80.605 → 47.257/92.070 ms;
+process 79.111/399.202 → 81.163/195.408 ms. Asset-home medians are unchanged.
+Other lanes shared the host, so these are not controlled speedup/regression
+claims. Full flow tables, traces, hashes and every development failure's
+classification are in [the round-1 report](./reports/20260930-pr-subscription-pressure/round1/REPORT.md).
+
+Wasm measures **1,983,105 raw / 595,440 gzip bytes**, versus round 0
+1,978,828 / 593,225 (+4,277 raw / +2,215 gzip). The audience dependencies are
+necessary to preserve unrelated shaped/count answers without guessing query
+semantics in JavaScript. Per the lane prompt's explicit ratchet allowance,
+`metrics/wasm-budget.json` rises from 593,719 to exactly **595,440** (+1,721 B,
+no headroom), with the same reason in this commit. `local.ts` remains at 1,500
+lines. Nothing pushed or published.
 
 ### 2026-09-30 — RX round 0: declarative receipt prototype
 
@@ -79608,6 +79737,46 @@ reports/20260929-sl-suite-under-load/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-30 — PR round 2: validate saved answers before reuse
+
+Merged main `cb64e6aa11` first into lane PR (`2a10a83e7a`), preserving both
+journal sides. **Main has the reused-closed-handle revocation defect**: its SDK
+fails all four wasm/process × published/staged controls. Saved local snapshots
+now check pending audience cuts, terminal refusal, incarnation and missed
+revisions before exposure or reinsertion. The audit covers lingering handles,
+peek, createApp, recovery memory without a mounted owner, and one-shot approval
+waits. A detached handle that missed a commit conservatively reevaluates.
+
+Server-backed and composed answers preserve audience dependencies from public
+program/caller inputs across all branches; opaque selectors and absent metadata
+remain documented table-wide exceptions. Closed facade deadlines latch when
+first observed, while their fixed copies follow same-answer existence metadata.
+ObserveOptions now documents unbounded plain retention and bounded change
+retention for both retaining policies. Online evidence rereads precede ordinary
+queued work, preserving eight starts/eight active and the queue-inclusive
+revocation bound; completely occupied slots can still blank an online sibling.
+LLP 3000.023 §10, the client guide and client reference record these boundaries.
+
+Final affected tests: **138 passed**; whole guide: **105 passed**; ref-check:
+**525 LLPs / 10,002 refs, zero errors**. Thirty new regressions include 18
+behavior/doc failures against round 1. Both dual-device tiers converge to 42
+unique messages per history with zero normal-run gaps, peak 116 queued / 8
+active. Forced slow attempts withdraw only while actually in flight. The 16
+complete LL cells (2,560 actions) have zero timeouts; report tables distinguish
+the paired SDK control from historical end-to-end results and shared-host noise.
+Wasm remains **1,983,105 raw / 595,440 gzip bytes**, with no ratchet increase.
+
+Ran `scripts/test.sh` once: **`== 1 failure(s) in 1260 s`**, exit 1. Client tests
+had 5,357 passes, eight failures and ten existing skips; all 79 serial models
+passed. The eight failures were our outdated expectations: four demanded
+cross-handle snapshot object aliases despite separate closed deadlines; four
+explicitly expected revoked rows to reappear until a timeout. Corrected to
+assert answer identity/content/stability and immediate revocation with no stale
+callbacks; all pass in the 138-test follow-up. The full run remains recorded red.
+The last SDK correction was built before its client phase; later edits changed
+test assertions only. Source/artifact hashes and every development failure,
+including our setup mistakes and the isolated/full-passing native timing failure,
+are in [the round-2 report](reports/20260930-pr-subscription-pressure/round2/REPORT.md).
 ### 2026-09-30 — QX round 0: first-instinct membership paths and reaction upserts
 
 Chose equivalent membership-path sugar. `read <- exists members[.message.conversation,
@@ -80136,6 +80305,104 @@ reports/20260930-ka-keepalive-reuse/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-30 — PR round 3: one detached-evidence rule and bounded overtaking
+
+Merged origin/main `42ba3ffb90` first in `b30a06da77`, preserving both journal
+histories, native-smoke guidance and pressure guidance. Read rounds 0–2's
+prompts/reports and Astra's full round-2 review. One client evidence epoch now
+covers commits, accepted changes, publication, cuts, refusals and resets even
+without live owners. A detached handle records the epoch; later evidence
+discards its saved answer/cuts before reuse. Removed round 2's answerRevision
+bookkeeping and separate restore cases. Getters never park detached owners.
+Resumption checks the real device watermark once before evaluation, then consumes
+the detach marker; mounted changes keep their prior path. Pending scope and
+notified-cut authority, audience precision and closed deadlines remain.
+
+Evidence can overtake ordinary FIFO work at most eight starts; five ordinary
+reads start at 1/10/19/28/37 under continuing hot evidence. Eight starts/turn and
+eight active remain. Scope composition and other raw-name dictionaries use
+null prototypes/own keys; constructor, __proto__, toString and hasOwnProperty
+work on both real devices. All 21 core regressions fail on round 2; an additional
+mock __proto__ control fails there too. Final affected tests: 527 passed; final
+delivery fault/boundary checks: 321 passed. Whole guide: 106 passed, client card
+114 lines/1,196 words. Ref-check: 525 LLPs/10,013 refs, zero errors. LLP 3000.023
+§10 records the epoch and fairness rules.
+
+Ran scripts/test.sh exactly once, exit 0, exact summary:
+`== 0 failure(s) in 1261 s`. Rust 4,368 passes/33 existing ignores; client pool
+5,417 passes/10 existing skips; wrappers 9 passes; models 79 passes at full counts.
+Full-run failures: ours 0, baseline 0, environmental 0. All 1,659 recorded inputs
+stayed unchanged throughout. The full run precedes the final detached-only
+watermark optimization: only local.ts changes among those inputs afterward;
+527 affected and 321 boundary checks cover it, with final SDK/device bytes equal
+to the isolated measured candidate. No second full run or unchanged final-source
+full qualification is claimed. The inherited nominal 60-second budget remains
+exceeded. Earlier guide-budget and PQ ordering failures were ours and fixed
+without weakening assertions; the failure ledger retains them.
+
+Normal real-device/Chromium convergence delivers 42 unique messages per history
+with zero gaps, peak 116 queued/eight active. Forced gaps occur only in active
+attempts. LL completed 2,080 actions with zero timeouts. Initial broad watermark
+checks slowed both alternating loaded-process samples (173.673→204.450 and
+193.992→244.176 ms); the final path removes that needless mounted-read work.
+Final maximum flow p95, zero/three workers: wasm 70.583/93.483 ms; process
+127.581/179.059 ms. These shared-host measurements do not establish a universal
+latency improvement; all earlier slower samples remain recorded.
+
+Wasm stays 1,983,105 B raw/595,440 B gzip, exactly the unchanged cap. local.ts
+stays at 1,500 lines. Report, complete failure classifications, source boundaries,
+artifact hashes and compressed traces:
+reports/20260930-pr-subscription-pressure/round3/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+
+## 2026-09-30 — PR round 4: saved memory follows owner-independent evidence
+
+Merged origin/main `6e03a7e7c9` first in `8d4d1c6caf`, keeping both sides.
+Accepted notifications now clear intersecting remembered answers without a live
+owner, including online-only data followed by empty sync. The existing authority
+revision fences first replies, copied recovery candidates and facade approvals.
+Credential rotation and terminal partition refusal retire memory too. The saved
+answer audit covers every evidence channel; no recovery cache or ordering domain
+was added. Detached handles keep round 3's conservative epoch rule, but inherit
+only intersecting unpublished table cuts from one map cleared at publication or
+reset. Resumed metadata uses duringRead for close and 30-second cancellation.
+
+Two FIFO pending maps eliminate per-selection backlog copies while preserving
+eight starts/eight active and eight-start bounded overtaking. Twenty regressions
+fail on round 3 and pass here. Final focused checks: 41 passed; delivery/new-check
+run: 340 passed; real 30-second expiry: both devices pass. Broad affected run was
+779/780: one old private-queue assertion was ours, corrected without changing its
+withdrawal/capacity expectations; the corrected 17-test run passes. Whole guide:
+106 passed. LLP 3000.023 §10 and the client reference record the rules; local.ts
+remains 1,500 lines. The failure ledger preserves our initial test syntax error,
+measurement-instrument OOM and incompatible internal-method control selection.
+
+Ran scripts/test.sh exactly once: **`== 0 failure(s) in 1244 s`**, exit 0.
+Rust 4,368 pass/33 existing ignores; client pool 5,440 pass/ten existing skips;
+fixture wrappers nine pass; full-count serial models 79 pass. Full-run failures:
+ours zero, baseline zero, environmental zero. Production source stayed fixed.
+Two test edits completed while Rust ran, before the client pool; all final 1,664
+input hashes match. No second full run or unchanged-test-tree claim from launch.
+The inherited nominal 60-second suite budget remains exceeded.
+
+Normal Chromium/real-device convergence yields 42 unique messages per history,
+zero gaps, peak 116 queued/eight active; forced withdrawals are in flight only.
+LL's 640 actions have zero timeouts: maximum flow p95 wasm 95.269/107.138 ms and
+process 71.543/172.251 ms at zero/three workers. Higher historical wasm samples
+remain reported with shared-host limitations. Queue-only 10,000-job medians fall
+from 140.613 to 25.082 ms ordinary and 462.708 to 26.253 ms priority. Deterministic
+key visits scale from 1,124 at 1,000 to 11,249 at 10,000. Wasm remains
+1,983,105 raw / 595,440 gzip bytes, exactly the unchanged cap. Report, complete
+failure ledger, audit, boundaries, hashes and traces:
+reports/20260930-pr-subscription-pressure/round4/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+Final reference audit: a wrong-working-directory invocation found zero LLPs and
+reported 1,302 errors (ours, retained in the failure ledger). Re-running from the
+repository root passes: 525 LLP docs / 10,015 refs, zero errors and unchecked refs.
 ### 2026-09-30 — QX round 1: prove changed constraint populations
 
 Merged origin/main 42ba3ffb904f first in 503f24696c, retaining both journal
@@ -80455,3 +80722,93 @@ inherited 597,247 B cap; NA does not raise it. Report, every sample and failure:
 reports/20260930-na-native-acquisition/round1/REPORT.md and FAILURES.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 5: sync memory retirement and one authority fence
+
+Read rounds 0–4 and both complete round-4 reviews (Astra NOT READY; Grok READY).
+Merged origin/main 267788df36 first in 56571c0274, preserving both sides,
+including main's bounded one-shot settlement, receipts and acquisition work.
+
+Every apply/publication now retires all remembered server answers before
+fallible post-commit work and again at observed publication. Empty, unknown,
+housekeeping and unrelated nonempty replica footprints cannot prove server-only
+authorization unaffected. This includes no-op sync and lost-ack recovery, with
+no new watermark tracker. Server/composed/recovered live owners revalidate
+through existing provenance and the bounded queue. Every terminal refusal
+advances authority permanently; a later success cannot bless an older reply or
+facade approval. Detached answers and pending results share that same revision;
+the redundant evidence epoch is deleted. Known empty nonadvancing polls carry
+no change evidence and preserve authority, avoiding bounded-query starvation.
+
+Twenty-seven new tests: sixteen real-device authorization regressions and five
+unit authority/memory regressions fail round 4; a quiet-poll preservation test
+also fails its older conservative rule, with five passing controls. The original
+six P1 schedules independently fail current main. Final affected qualification
+verifies all 440 unique cases (439/440 then the corrected nine-case unit file),
+including the two failures from the full suite; delivery fault/boundary checks
+321/321, whole guide 107/107, SDK build/typecheck pass. No runtime bound, retry
+count, timeout or skip relaxed. The publication audit lists every reuse route.
+
+Actual social starter read paths on both devices: after zero-event sync,
+within-horizon availability stays 12/14 offline; outside the horizon it changes
+13/14 → 11/14 because profile and messagePhoto lose saved fallback. All 14 recover
+online. The empty durable page reports typing housekeeping, proving why empty-only
+invalidation is insufficient. Final pressure runs retain 124 observations/device,
+42 unique messages/history and peaks of 116 queued/eight active. One normal wasm
+active expiry and four forced active expiries are retained; zero queue-only
+withdrawals. The final LL comparison completes 1,280 actions, zero timeouts.
+Maximum flow publication p95 (merged pre-fix → final), ms: wasm 0/3 load
+147.433→57.594 / 107.387→100.015; process 84.884→152.416 / 172.674→250.326.
+Additional HTTP work and higher process p95 are explicit; ambient loads differ.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 1 failure(s) in 1349 s`.
+Client pool: 5,706 pass / two fail / ten existing skips. Both failures are ours:
+process app history/inbox after leave and online unread-badge fallback returned
+E_QUERY_RETRY because quiet polls repeatedly advanced authority. Both pass on
+the merged baseline, fail the first fix and pass with the one-line quiet-poll
+guard. Applied that correction only after the full run; complete affected files
+then pass. All other stages pass: Rust 4,438 / 33 existing ignores, wrappers 9,
+serial models 79. Full failures: ours two, baseline/environmental zero. All 2,327
+captured inputs remain unchanged across the run. This remains a failed full run;
+no full rerun and no worker intervention. The inherited 60-second budget is exceeded.
+
+Merged wasm: 1,994,357 B raw / 598,401 B gzip, 1,154 B above incoming 597,247.
+Raise the ratchet exactly to 598,401, no slack, to preserve both main's receipt
+implementation and PR audience metadata. No round-5 Rust product change; this
+is a whole merged-artifact cost, not per-feature attribution. Reason recorded
+in the budget, report and commit. LLP 3000.023 §10 records the fence rules.
+Evidence and every failure: reports/20260930-pr-subscription-pressure/round5/REPORT.md
+and FAILURES.md. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-30 — PR round 6: no-op sync schedules every invalidated owner
+
+Read rounds 0–5 prompts/reports and both complete round-5 reviews. Fetched and
+attempted origin/main first: remote and local ref both remain 267788df36,
+already included through 56571c0274, so Git reports Already up to date.
+Both histories remain; no new merge was necessary.
+
+Five changed lines in local.ts carry apply's actual invalidated owners into
+sync's existing resumption set. Its final scheduling now covers empty footprints,
+keep:false and absent change cuts, even when invalidation clears recovery
+provenance or post-commit work throws. No new registry, timer, revision or cache;
+authority, scope cuts, eight starts/eight active, queue clocks and fairness remain.
+LLP 3000.023 §10 and the round-6 publication audit record this liveness rule.
+
+Eighteen real-device tests cover wasm/process, all three retention settings and
+empty/unknown/unrelated footprints. Round 5 passes sixteen and fails both
+empty-footprint keep:false cases: loading after 1.5 s, one HTTP query, no work.
+An exact-commit SDK rebuild independently fails both. Final affected run passes
+1,821/1,821; extra deadline/page checks 20/20; whole guide 107/107. Build/typecheck,
+refs and whitespace checks pass. All 230 captured input/artifact hashes match.
+The first test draft used the wrong inspection-count path (three failures and
+one cancellation); that setup error and both detecting controls are retained.
+No final failures, cancellations or skips. No existing assertion was weakened.
+
+The Chromium pressure harness converges all four histories to 42 unique messages
+with zero withdrawals, 124 observations/device, peak 116 queued/eight active.
+No new LL or social-fallback timing claim. Existing wasm matches round 5:
+1,994,357 B raw / 598,401 B gzip, at the unchanged ratchet. No rebuild.
+Full suite omitted as requested for a scheduling-only fix. Report and audit:
+reports/20260930-pr-subscription-pressure/round6/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

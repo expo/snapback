@@ -1,0 +1,17 @@
+✔ notification: one authority revision retires detached and pending answers (1.402171ms)
+✔ apply publication: one authority revision retires detached and pending answers (0.170375ms)
+✔ local commit: one authority revision retires detached and pending answers (0.181172ms)
+✔ scope cut: one authority revision retires detached and pending answers (0.29358ms)
+✔ partition refusal: one authority revision retires detached and pending answers (0.21343ms)
+✔ reset: one authority revision retires detached and pending answers (0.124917ms)
+✔ a known quiet poll preserves detached and pending authority without another counter (0.165428ms)
+✔ every terminal refusal advances authority, even when the same refusal repeats without owners (0.174551ms)
+✔ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.286179ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105.408871

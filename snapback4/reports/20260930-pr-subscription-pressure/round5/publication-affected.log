@@ -1,0 +1,522 @@
+✔ online: four retired publications refuse with a retryable code (407.318988ms)
+✔ online: ignored transport abort still settles and fences the late answer (255.625163ms)
+✔ online: close settles an outstanding one-shot without waiting for transport (150.279714ms)
+✔ online: signOut settles an outstanding one-shot without waiting for transport (148.757903ms)
+✔ wasm: four retired publications refuse with a retryable code (758.539746ms)
+✔ wasm: ignored transport abort still settles and fences the late answer (287.18216ms)
+✔ wasm: close settles an outstanding one-shot without waiting for transport (170.802443ms)
+✔ wasm: signOut settles an outstanding one-shot without waiting for transport (182.288929ms)
+✔ process: four retired publications refuse with a retryable code (473.29454ms)
+✔ process: ignored transport abort still settles and fences the late answer (328.938914ms)
+✔ process: close settles an outstanding one-shot without waiting for transport (227.075574ms)
+✔ process: signOut settles an outstanding one-shot without waiting for transport (223.93646ms)
+✔ app-online: four retired publications refuse with a retryable code (367.418777ms)
+✔ app-online: ignored transport abort still settles and fences the late answer (255.995719ms)
+✔ app-online: close settles an outstanding one-shot without waiting for transport (150.787276ms)
+✔ app-online: signOut settles an outstanding one-shot without waiting for transport (150.482118ms)
+✔ app-wasm: four retired publications refuse with a retryable code (427.31745ms)
+✔ app-wasm: ignored transport abort still settles and fences the late answer (302.86153ms)
+✔ app-wasm: close settles an outstanding one-shot without waiting for transport (183.467576ms)
+✔ app-wasm: signOut settles an outstanding one-shot without waiting for transport (186.566981ms)
+✔ app-process: four retired publications refuse with a retryable code (472.211837ms)
+✔ app-process: ignored transport abort still settles and fences the late answer (337.728817ms)
+✔ app-process: close settles an outstanding one-shot without waiting for transport (236.838076ms)
+✔ app-process: signOut settles an outstanding one-shot without waiting for transport (237.43497ms)
+✔ wasm: device queue wait behind observations is inside the one-shot deadline (270.112537ms)
+✔ wasm: an unexpired permitted remembered answer still serves offline (181.429411ms)
+✔ process: device queue wait behind observations is inside the one-shot deadline (225.908545ms)
+✔ process: an unexpired permitted remembered answer still serves offline (243.228484ms)
+✔ app-wasm: device queue wait behind observations is inside the one-shot deadline (176.558651ms)
+✔ app-wasm: an unexpired permitted remembered answer still serves offline (181.624524ms)
+✔ app-process: device queue wait behind observations is inside the one-shot deadline (232.340145ms)
+✔ app-process: an unexpired permitted remembered answer still serves offline (237.871224ms)
+✔ app-online: blocked facade authority shares the same deadline (152.462706ms)
+✔ app-wasm: blocked facade authority shares the same deadline (182.014588ms)
+✔ app-process: blocked facade authority shares the same deadline (235.34583ms)
+▶ wasm: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (846.638115ms)
+  ✔ session 1 (462.29206ms)
+  ✔ session 2 (368.783441ms)
+  ✔ session 3 (440.799868ms)
+  ✔ session 4 (317.010586ms)
+  ✔ session 5 (423.770986ms)
+  ✔ session 6 (419.188187ms)
+  ✔ session 7 (343.285817ms)
+  ✔ session 8 (463.328132ms)
+  ✔ session 9 (323.33846ms)
+  ✔ session 10 (432.262392ms)
+  ✔ session 11 (308.413992ms)
+✔ wasm: seeded one-shot/write/link/deadline/close model (5152.443027ms)
+▶ process: seeded one-shot/write/link/deadline/close model
+  ✔ session 0 (549.534085ms)
+  ✔ session 1 (543.057368ms)
+  ✔ session 2 (483.688167ms)
+  ✔ session 3 (496.150677ms)
+  ✔ session 4 (463.13319ms)
+  ✔ session 5 (506.14819ms)
+  ✔ session 6 (485.819402ms)
+  ✔ session 7 (452.301425ms)
+  ✔ session 8 (470.767373ms)
+  ✔ session 9 (396.541134ms)
+  ✔ session 10 (555.110563ms)
+  ✔ session 11 (460.080094ms)
+✔ process: seeded one-shot/write/link/deadline/close model (5863.875163ms)
+✔ wasm: a terminal change-stream refusal wins a blocked query deadline (573.694897ms)
+✔ wasm: restore refusal wins a blocked query deadline (191.979062ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ wasm: partition refusal wins a blocked query deadline (197.122731ms)
+✔ wasm: impossible held count refuses in one evaluation and never contacts the server (190.667547ms)
+✔ wasm: a held query retries a concurrent prediction and can answer its other branch (194.004237ms)
+✔ process: a terminal change-stream refusal wins a blocked query deadline (220.266639ms)
+✔ process: restore refusal wins a blocked query deadline (237.737464ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ process: partition refusal wins a blocked query deadline (244.210415ms)
+✔ process: impossible held count refuses in one evaluation and never contacts the server (241.635195ms)
+✔ process: a held query retries a concurrent prediction and can answer its other branch (234.968674ms)
+✔ app-wasm: a terminal change-stream refusal wins a blocked query deadline (208.19758ms)
+✔ app-wasm: restore refusal wins a blocked query deadline (201.197919ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition refusal wins a blocked query deadline (218.288284ms)
+✔ app-wasm: impossible held count refuses in one evaluation and never contacts the server (203.554101ms)
+✔ app-wasm: a held query retries a concurrent prediction and can answer its other branch (201.57203ms)
+✔ app-process: a terminal change-stream refusal wins a blocked query deadline (238.956451ms)
+✔ app-process: restore refusal wins a blocked query deadline (248.986184ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition refusal wins a blocked query deadline (252.422113ms)
+✔ app-process: impossible held count refuses in one evaluation and never contacts the server (246.054078ms)
+✔ app-process: a held query retries a concurrent prediction and can answer its other branch (252.924807ms)
+✔ online: restore wins the transport deadline (2.713427ms)
+✔ online: reset wins the transport deadline (1.154471ms)
+✔ facade: restore wins the transport deadline (10.98257ms)
+✔ facade: restore wins the authority deadline (0.92751ms)
+✔ facade: reset wins the transport deadline (11.601938ms)
+✔ facade: reset wins the authority deadline (0.905307ms)
+✔ app-online: logout scope change wins a blocked authority deadline (150.950821ms)
+✔ app-online: viewer scope change wins a blocked authority deadline (152.39188ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791661691291}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ app-wasm: logout scope change wins a blocked authority deadline (181.580687ms)
+✔ app-wasm: viewer scope change wins a blocked authority deadline (228.096574ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791661691662}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ app-process: logout scope change wins a blocked authority deadline (240.288077ms)
+✔ app-process: viewer scope change wins a blocked authority deadline (310.559026ms)
+ℹ {"signedIn":{"ok":true,"session":{"kind":"user","principal":"dev:alice","token":"alice-session","expiresAt":1791661692169}},"auth":{"state":"signed-in","viewer":"dev:alice"}}
+✔ online: held queries retain the terminal server refusal (155.620429ms)
+✔ app-online: held queries retain the terminal server refusal (157.854608ms)
+✔ mock: a retired one-shot rereads instead of returning the old value (26.932786ms)
+✔ mock: genuine publication exhaustion uses the shared retryable refusal (176.935616ms)
+✔ mock: closed and signed-out clients preserve terminal refusals (1.197094ms)
+✔ mock: a throwing evaluator settles with the shared client refusal (0.692167ms)
+✔ guide: stale one-shot continuations refuse and retain the first-page recovery (1.156974ms)
+✔ guide: server-needing decorations remain separate (0.476124ms)
+✔ online: terminal changes refusal at transport deadline (158.373596ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ app-online: terminal changes refusal at transport deadline (158.739334ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ app-online: terminal changes refusal at authority deadline (165.764343ms)
+ℹ {"next":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}},"pending":{"denied":{"code":"E_SYNC","family":"sync","retryable":false,"message":"change stream refused"}}}
+✔ wasm: a time-dependent held miss rereads across its cutoff (1174.037973ms)
+✔ wasm: a held miss dependent on arguments remains retryable (275.108495ms)
+✔ wasm: a held miss dependent on coverage remains retryable (413.790387ms)
+✔ wasm: a held miss dependent on membership remains retryable (373.603246ms)
+✔ process: a time-dependent held miss rereads across its cutoff (1226.782175ms)
+✔ process: a held miss dependent on arguments remains retryable (331.09099ms)
+✔ process: a held miss dependent on coverage remains retryable (428.725211ms)
+✔ process: a held miss dependent on membership remains retryable (433.485466ms)
+✔ app-wasm: a time-dependent held miss rereads across its cutoff (1188.315743ms)
+✔ app-wasm: a held miss dependent on arguments remains retryable (288.364713ms)
+✔ app-wasm: a held miss dependent on coverage remains retryable (368.6215ms)
+✔ app-wasm: a held miss dependent on membership remains retryable (390.47329ms)
+✔ app-process: a time-dependent held miss rereads across its cutoff (1243.683948ms)
+✔ app-process: a held miss dependent on arguments remains retryable (331.326112ms)
+✔ app-process: a held miss dependent on coverage remains retryable (438.333622ms)
+✔ app-process: a held miss dependent on membership remains retryable (443.981707ms)
+✔ guide: the client contract names only proven permanent held refusals (0.438057ms)
+✔ app-wasm: changes wins a blocked opening authority deadline (181.772696ms)
+✔ app-wasm: changes wins a blocked final authority deadline (191.080606ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition wins a blocked opening authority deadline (198.346957ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-wasm: partition wins a blocked final authority deadline (199.882649ms)
+✔ app-wasm: restore wins a blocked opening authority deadline (241.040624ms)
+✔ app-wasm: restore wins a blocked final authority deadline (203.504988ms)
+✔ app-process: changes wins a blocked opening authority deadline (244.960579ms)
+✔ app-process: changes wins a blocked final authority deadline (241.538811ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition wins a blocked opening authority deadline (259.756005ms)
+snapback4: the server refused the partition: E_SYNC: partition refused
+✔ app-process: partition wins a blocked final authority deadline (259.134253ms)
+✔ app-process: restore wins a blocked opening authority deadline (256.654086ms)
+✔ app-process: restore wins a blocked final authority deadline (259.182856ms)
+✔ online: online-only view settles with link up and refuses offline without a served answer (196.261581ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ online: concurrent write retires the final continuation and query rereads (188.270954ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ online: deadline crossed after evaluation rereads before return (183.716199ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ wasm: online-only view settles with link up and refuses offline without a served answer (516.5573ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797687225}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ wasm: concurrent write retires the final continuation and query rereads (194.47954ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ wasm: deadline crossed after evaluation rereads before return (213.558345ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: online-only view settles with link up and refuses offline without a served answer (235.790175ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797687871}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ process: concurrent write retires the final continuation and query rereads (235.988141ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: deadline crossed after evaluation rereads before return (259.589054ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: online-only view settles with link up and refuses offline without a served answer (162.750426ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-online: concurrent write retires the final continuation and query rereads (192.047745ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":782,"indexEntries":0,"outputBytes":98,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-online: deadline crossed after evaluation rereads before return (187.819398ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: online-only view settles with link up and refuses offline without a served answer (245.821541ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797689153}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-wasm: concurrent write retires the final continuation and query rereads (204.344456ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-wasm: deadline crossed after evaluation rereads before return (216.589768ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: online-only view settles with link up and refuses offline without a served answer (242.714493ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+ℹ {"data":1,"complete":true,"cut":null,"fresh":false,"next":null,"existence":"present","since":1790797689818}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-process: concurrent write retires the final continuation and query rereads (249.092622ms)
+ℹ {"data":{"at":1,"body":"own-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: deadline crossed after evaluation rereads before return (282.33813ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ wasm: an unavailable held online-only view refuses instead of returning loading (176.565021ms)
+ℹ {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ wasm: online-only view with an admitted unobserved write, link up (266.621274ms)
+ℹ [{"id":"01M3SXRDTA13NKNBYYB0YG86GH","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRDTA13NKNBYYB0YG86GJ"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ wasm: online-only view with an admitted unobserved write, link down (172.368561ms)
+ℹ [{"id":"01M3SXRE2PBKD7FCHX02QPEF4W","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRE2PBKD7FCHX02QPEF4X"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ process: an unavailable held online-only view refuses instead of returning loading (232.865802ms)
+ℹ {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ process: online-only view with an admitted unobserved write, link up (352.867527ms)
+ℹ [{"id":"01M3SXREHFZQABA15YSVX06BKS","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXREHFZQABA15YSVX06BKT"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ process: online-only view with an admitted unobserved write, link down (230.802941ms)
+ℹ [{"id":"01M3SXREW7FXA4HNSZ8653JRJ3","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXREW7FXA4HNSZ8653JRJ4"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-wasm: an unavailable held online-only view refuses instead of returning loading (204.039288ms)
+ℹ {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-wasm: online-only view with an admitted unobserved write, link up (286.663373ms)
+ℹ [{"id":"01M3SXRF8EYAS7A4V26KHTSGN3","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRF8EYAS7A4V26KHTSGN4"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ app-wasm: online-only view with an admitted unobserved write, link down (178.39277ms)
+ℹ [{"id":"01M3SXRFH59XJVMBRBM0STAK10","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRFH59XJVMBRBM0STAK11"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-process: an unavailable held online-only view refuses instead of returning loading (230.205515ms)
+ℹ {"denied":{"code":"E_QUERY_HELD","family":"client","retryable":false,"site":"client.query","guide":"search","message":"this held query needs data the device cannot acquire; use the online path and remove held, or sync its required data"}}
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ app-process: online-only view with an admitted unobserved write, link up (337.693505ms)
+ℹ [{"id":"01M3SXRFZNY0H5H4QN3XSVC81C","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRFZNY0H5H4QN3XSVC81D"]}]
+ℹ {"denied":{"code":"E_QUERY_RETRY","family":"client","retryable":true,"site":"client.query","guide":"client","message":"the read did not settle within four rounds or 30 seconds; retry the query"}}
+✔ app-process: online-only view with an admitted unobserved write, link down (236.822342ms)
+ℹ [{"id":"01M3SXRGABNH1Y4H7E53YETGNA","op":"send","args":{"body":"before-read"},"state":"queued","predicted":["messages/01M3SXRGABNH1Y4H7E53YETGNB"]}]
+ℹ {"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: test link down; check the connection and server logs before retrying","retryable":true}}
+✔ online: a mounted answer's withdrawn deadline cannot return loading to a one-shot (195.208042ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot (216.814505ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: a mounted answer's withdrawn deadline cannot return loading to a one-shot (270.170223ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: a mounted answer's withdrawn deadline cannot return loading to a one-shot (194.205179ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":427,"indexEntries":0,"outputBytes":51,"probes":0,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: a mounted answer's withdrawn deadline cannot return loading to a one-shot (237.762782ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: a mounted answer's withdrawn deadline cannot return loading to a one-shot (276.657596ms)
+ℹ {"data":{"id":"bob","name":"Bob"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: a write during facade approval forces another read (191.273364ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":792,"indexEntries":0,"outputBytes":103,"probes":1,"rowsWritten":0,"steps":3},"existence":"present"}
+✔ app-wasm: a write during facade approval forces another read (185.750948ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: a write during facade approval forces another read (247.570011ms)
+ℹ {"data":{"at":1,"body":"approved-write","id":"item","room":"room"},"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ online: mounted observations do not starve a one-shot (165.075491ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+✔ wasm: mounted observations do not starve a one-shot (194.155034ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ process: mounted observations do not starve a one-shot (245.996322ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-online: mounted observations do not starve a one-shot (168.67856ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"meter":{"cut":null,"examined":1,"heapBytes":946,"indexEntries":0,"outputBytes":9,"probes":1,"rowsWritten":0,"steps":12},"existence":"present"}
+✔ app-wasm: mounted observations do not starve a one-shot (227.434883ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ app-process: mounted observations do not starve a one-shot (254.845575ms)
+ℹ {"data":1,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}
+✔ wasm keep=undefined: sign-out never replaces its denial with loading (542.807614ms)
+✔ wasm keep=false: sign-out never replaces its denial with loading (172.449032ms)
+✔ wasm keep=true: sign-out never replaces its denial with loading (160.886291ms)
+✔ process keep=undefined: sign-out never replaces its denial with loading (214.905854ms)
+✔ process keep=false: sign-out never replaces its denial with loading (220.824195ms)
+✔ process keep=true: sign-out never replaces its denial with loading (215.633835ms)
+✔ online keep=undefined: held-only expiry preserves the newer raw answer beyond one second (28.281727ms)
+✔ online keep=false: held-only expiry preserves the newer raw answer beyond one second (22.924058ms)
+✔ online keep=true: held-only expiry preserves the newer raw answer beyond one second (23.127132ms)
+✔ wasm: an unrelated replica publication revalidates server answers before offline reuse (188.47487ms)
+✔ process: an unrelated replica publication revalidates server answers before offline reuse (237.128611ms)
+✔ apply: remembered dependencies with footprint [] (0.257065ms)
+✔ apply: remembered dependencies with footprint ["notes"] (0.065498ms)
+✔ apply: remembered dependencies with footprint ["remoteRows"] (0.042284ms)
+✔ apply: remembered dependencies with footprint ["members"] (0.071968ms)
+✔ apply: remembered dependencies with footprint undefined (0.067461ms)
+✔ admit: remembered dependencies with footprint [] (0.048643ms)
+✔ admit: remembered dependencies with footprint ["notes"] (0.143745ms)
+✔ admit: remembered dependencies with footprint ["remoteRows"] (0.0662ms)
+✔ admit: remembered dependencies with footprint ["members"] (0.044968ms)
+✔ admit: remembered dependencies with footprint undefined (0.034331ms)
+✔ settle: remembered dependencies with footprint [] (0.030005ms)
+✔ settle: remembered dependencies with footprint ["notes"] (0.057236ms)
+✔ settle: remembered dependencies with footprint ["remoteRows"] (0.044597ms)
+✔ settle: remembered dependencies with footprint ["members"] (0.029534ms)
+✔ settle: remembered dependencies with footprint undefined (0.04016ms)
+✔ clear_rows: remembered dependencies with footprint [] (0.030305ms)
+✔ clear_rows: remembered dependencies with footprint ["notes"] (0.02653ms)
+✔ clear_rows: remembered dependencies with footprint ["remoteRows"] (0.023235ms)
+✔ clear_rows: remembered dependencies with footprint ["members"] (0.027431ms)
+✔ clear_rows: remembered dependencies with footprint undefined (0.026139ms)
+✔ queued keep=undefined: episode starts at attempt; retries never renew it (1.796533ms)
+✔ queued keep=false: episode starts at attempt; retries never renew it (0.200661ms)
+✔ queued keep=true: episode starts at attempt; retries never renew it (0.271978ms)
+✔ queued observation still withdraws at row expiry (0.478548ms)
+✔ queued observation still withdraws at reset (0.235923ms)
+✔ wasm: a local active attempt has its own bounded episode and accepts late success (187.72785ms)
+✔ process: a local active attempt has its own bounded episode and accepts late success (236.778517ms)
+✔ wasm keep=undefined: reset after the early fence is rejected by the publication callback (193.809837ms)
+✔ wasm keep=false: reset after the early fence is rejected by the publication callback (191.9237ms)
+✔ wasm keep=true: reset after the early fence is rejected by the publication callback (207.226535ms)
+✔ process keep=undefined: reset after the early fence is rejected by the publication callback (257.432693ms)
+✔ process keep=false: reset after the early fence is rejected by the publication callback (247.034538ms)
+✔ process keep=true: reset after the early fence is rejected by the publication callback (251.888784ms)
+✔ wasm keep=undefined: cancellation after checkRead leaves publication and watch state untouched (186.038418ms)
+✔ wasm keep=false: cancellation after checkRead leaves publication and watch state untouched (181.656171ms)
+✔ wasm keep=true: cancellation after checkRead leaves publication and watch state untouched (186.467282ms)
+✔ process keep=undefined: cancellation after checkRead leaves publication and watch state untouched (248.618763ms)
+✔ process keep=false: cancellation after checkRead leaves publication and watch state untouched (247.050522ms)
+✔ process keep=true: cancellation after checkRead leaves publication and watch state untouched (242.35244ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, failure (1.373208ms)
+✔ plain refresh followed by queued change keeps its bound: keep=undefined, timeout (0.745257ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, failure (0.675412ms)
+✔ plain refresh followed by queued change keeps its bound: keep=true, timeout (0.778477ms)
+✔ notification: one authority revision retires detached and pending answers (1.414019ms)
+✔ quiet poll: one authority revision retires detached and pending answers (0.139339ms)
+✔ apply publication: one authority revision retires detached and pending answers (0.190315ms)
+✔ local commit: one authority revision retires detached and pending answers (0.189404ms)
+✔ scope cut: one authority revision retires detached and pending answers (0.30704ms)
+✔ partition refusal: one authority revision retires detached and pending answers (0.187481ms)
+✔ reset: one authority revision retires detached and pending answers (0.139229ms)
+✔ every terminal refusal advances authority, even when the same refusal repeats without owners (0.16669ms)
+✔ empty advancing evidence is unknown; quiet empty and known disjoint footprints preserve memory (0.283465ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=false (5.142858ms)
+✔ closed facade deadline cannot follow later queue pauses; closeBeforeReload=true (1.049563ms)
+✔ closed deadline copy follows same-identity existence changes (1.589062ms)
+✔ wasm: queued history replacement (1896.250052ms)
+✔ wasm: queued history membership removal (227.647972ms)
+✔ process: queued history replacement (1483.485935ms)
+✔ process: queued history membership removal (281.564821ms)
+✔ wasm: two offline devices, 124 mounted observations each, exactly-once history (5411.832342ms)
+ℹ {"tier":"wasm","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ process: two offline devices, 124 mounted observations each, exactly-once history (4364.774224ms)
+ℹ {"tier":"process","withdrawals":[[],[]],"gaps":[0,0],"peaks":[116,116]}
+✔ online disjoint ordinary revalidation progresses during continuous hot-table evidence (442.499395ms)
+ℹ {"hotStarts":168,"coldRereads":5,"cold":[{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},{"data":"allowed","complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"}],"coldStarts":[1,10,19,28,37],"pending":0,"active":8}
+✔ wasm: no-owner revocation must retire remembered content (1889.226686ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"f26d6bedf8ceaa56db1e1b0881d82d6f"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"f26d6bedf8ceaa56db1e1b0881d82d6f","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: no-owner revocation must retire remembered content (1567.749877ms)
+ℹ {"removal":{"head":2,"id":"remove","result":null,"seq":2,"state":"sent","store_id":"89cffde99e6fa6aaad2dfbc88bcf3b9c"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"present":false,"secret":null},"next":null,"nextExpiry":null,"seq":2,"store_id":"89cffde99e6fa6aaad2dfbc88bcf3b9c","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":2,"heapBytes":219,"indexEntries":0,"outputBytes":50,"probes":0,"rowsWritten":0,"steps":6}},"before":{"loading":true},"rememberedTables":[],"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: notification fences an unremembered in-flight direct answer (242.095906ms)
+✔ process: notification fences an unremembered in-flight direct answer (287.22879ms)
+✔ wasm: notification fences a saved candidate at recovery (1123.857194ms)
+✔ wasm: notification fences a saved candidate at approval (1127.281406ms)
+✔ process: notification fences a saved candidate at recovery (1176.33091ms)
+✔ process: notification fences a saved candidate at approval (1176.854104ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: partition refusal retires no-owner memory (200.037831ms)
+✔ wasm: credentials retires no-owner memory (583.524149ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: partition refusal retires no-owner memory (245.652316ms)
+✔ process: credentials retires no-owner memory (620.88194ms)
+✔ wasm: composed scope metadata accepts a table named constructor (597.958101ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797686730,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named constructor (239.492865ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797686980,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named __proto__ (195.230125ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797687177,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named __proto__ (244.417686ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797687420,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named toString (195.369053ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797687619,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named toString (246.558684ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797687859,"next":null,"existence":"present"}
+✔ wasm: composed scope metadata accepts a table named hasOwnProperty (189.054359ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797688053,"next":null,"existence":"present"}
+✔ process: composed scope metadata accepts a table named hasOwnProperty (239.991802ms)
+ℹ {"data":{"past":[{"at":1,"body":"delivered","id":"archive","room":"past"}],"profile":{"id":"bob","name":"Bob"},"rows":[{"at":1,"body":"image-1","id":"item","room":"room"}]},"complete":true,"cut":null,"fresh":false,"since":1790797688292,"next":null,"existence":"present"}
+✔ scope matching treats missing constructor as missing (0.371908ms)
+✔ scope matching treats missing __proto__ as missing (0.10728ms)
+✔ scope matching treats missing toString as missing (0.075123ms)
+✔ scope matching treats missing hasOwnProperty as missing (0.057556ms)
+✔ mock ephemeral writes preserve the table constructor (2.633357ms)
+✔ mock ephemeral writes preserve the table __proto__ (0.469864ms)
+✔ mock ephemeral writes preserve the table toString (0.414451ms)
+✔ mock ephemeral writes preserve the table hasOwnProperty (0.430285ms)
+✔ wasm: resumed handle inherits unrelated notification (614.89745ms)
+✔ wasm: resumed handle inherits intersecting notification (1454.966209ms)
+✔ process: resumed handle inherits unrelated notification (281.209268ms)
+✔ process: resumed handle inherits intersecting notification (1504.960219ms)
+✔ notification cuts keep unknown dependencies conservative and forget applied tables (0.327491ms)
+✔ online authorized sibling re-read jumps ordinary queued work after evidence (231.272354ms)
+✔ evidence priority survives an active attempt retiring into the queue (20.592624ms)
+✔ ObserveOptions documents plain retention and bounded change evidence for omitted and true (0.958206ms)
+✔ plain revalidation is unbounded; evidence bounds keep=undefined (2.051165ms)
+✔ plain revalidation is unbounded; evidence bounds keep=true (0.346129ms)
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at response (654.10985ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"2e72170713eb2ca9bf5d5eb908d76dba","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ wasm: terminal partition refusal retires in-flight first answer at approval (236.65445ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"9fed7c4aa2d1d05dc839014cc1fc8203","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at response (287.875169ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"191d786bf54c7d790ddfc9c176a5a275","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+snapback4: the server refused the partition: E_TEST_PARTITION: refused
+✔ process: terminal partition refusal retires in-flight first answer at approval (275.164188ms)
+ℹ {"stale":{"data":null,"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"authoritative":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":null,"next":null,"nextExpiry":null,"seq":2,"store_id":"e20edd1fee6aff51fc2608ff3c4d4e96","tables":["profiles"],"viewer":"dev:bob","meter":{"cut":null,"examined":1,"heapBytes":3,"indexEntries":0,"outputBytes":6,"probes":0,"rowsWritten":0,"steps":3}}}
+✔ unused inspection records no timings and allocates no withdrawal callbacks (32.57332ms)
+✔ compound scope matching skips disjoint groups and watches with no tables (1.635191ms)
+✔ a pending group removal fences an initial observation until actual publication (0.190355ms)
+✔ wasm: published removal only withdraws its room and resumes (604.318895ms)
+✔ wasm: staged removal only withdraws its room and resumes (595.220078ms)
+✔ wasm: offline removal only withdraws its room and resumes (308.629535ms)
+✔ wasm: offline-before removal only withdraws its room and resumes (313.780846ms)
+✔ process: published removal only withdraws its room and resumes (271.631574ms)
+✔ process: staged removal only withdraws its room and resumes (730.143577ms)
+✔ process: offline removal only withdraws its room and resumes (366.119048ms)
+✔ process: offline-before removal only withdraws its room and resumes (376.205495ms)
+✔ wasm: terminal change-feed refusal bypasses eight occupied slots (177.196838ms)
+✔ process: terminal change-feed refusal bypasses eight occupied slots (215.284071ms)
+✔ online scope-ambiguous change evidence expires while waiting for capacity (1182.034698ms)
+✔ online viewer replacement is inspected as viewer, not schema reset (67.758855ms)
+✔ wasm: reuse closed handle after published revocation, keep=undefined (1882.21724ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=true (1401.40871ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after published revocation, keep=false (1399.437625ms)
+ℹ {"tier":"wasm","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=undefined (1504.441492ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=true (1499.974207ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ wasm: reuse closed handle after staged revocation, keep=false (1499.098124ms)
+ℹ {"tier":"wasm","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=undefined (1457.819847ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=true (1458.442201ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after published revocation, keep=false (1450.429722ms)
+ℹ {"tier":"process","staged":false,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=undefined (1551.133874ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=true (1547.865806ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":false,"active":8}
+✔ process: reuse closed handle after staged revocation, keep=false (1556.143273ms)
+ℹ {"tier":"process","staged":true,"closed":{"loading":true},"reopened":{"loading":true},"pending":true,"active":8}
+✔ scope loss fences remembered server answers without a mounted owner (0.32688ms)
+✔ wasm: a dormant local handle checks terminal refusal before reuse (192.183899ms)
+✔ process: a dormant local handle checks terminal refusal before reuse (236.878778ms)
+✔ wasm: detached handle must respect notified cut before sync, mounted control=false (1840.066275ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ wasm: detached handle must respect notified cut before sync, mounted control=true (1470.076998ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ process: detached handle must respect notified cut before sync, mounted control=false (1511.087693ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[]}
+✔ process: detached handle must respect notified cut before sync, mounted control=true (1514.543443ms)
+ℹ {"before":{"loading":true},"after":{"loading":true},"events":[],"sentinel":{"loading":true}}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=false (207.941397ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ wasm: closed snapshot read during stage must recover after publication, retained=true (203.499969ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=false (252.05985ms)
+ℹ {"during":{"loading":true},"direct":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"after":{"data":[],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"absent"},"running":false}
+✔ process: closed snapshot read during stage must recover after publication, retained=true (250.537648ms)
+ℹ {"during":{"loading":true},"direct":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"after":{"data":[{"at":1,"body":"image-1","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false}
+✔ queue selection scales linearly, priority=false (140.54189ms)
+ℹ {"n":1000,"inspections":1124,"ms":16.874982000000003}
+ℹ {"n":10000,"inspections":11249,"ms":122.296614}
+✔ queue selection scales linearly, priority=true (120.035736ms)
+ℹ {"n":1000,"inspections":1124,"ms":12.307445999999999}
+ℹ {"n":10000,"inspections":11249,"ms":107.52168999999998}
+✔ wasm: published removal preserves server-backed sibling (591.726742ms)
+✔ wasm: staged removal preserves server-backed sibling (408.419056ms)
+✔ process: published removal preserves server-backed sibling (254.006257ms)
+✔ process: staged removal preserves server-backed sibling (471.454792ms)
+✔ wasm: combined retained/server scopes preserve the authorized room (221.49502ms)
+✔ process: combined retained/server scopes preserve the authorized room (281.688446ms)
+✔ server audience metadata uses all public branches; unknown point selectors stay conservative (165.506236ms)
+✔ wasm: ownerless server memory is retired by publication (1782.073949ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by commit-then-throw (1406.919989ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by recovery-after-lost-ack (1415.196303ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by unknown-footprint (1400.564294ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by housekeeping-footprint (1404.142087ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by nonempty-footprint (1410.804923ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: ownerless server memory is retired by empty-notification (1434.819004ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by publication (1469.566483ms)
+ℹ {"mode":"publication","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by commit-then-throw (1453.305932ms)
+ℹ {"mode":"commit-then-throw","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by recovery-after-lost-ack (1461.6641ms)
+ℹ {"mode":"recovery-after-lost-ack","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by unknown-footprint (1456.009776ms)
+ℹ {"mode":"unknown-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by housekeeping-footprint (1456.66011ms)
+ℹ {"mode":"housekeeping-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by nonempty-footprint (1463.137509ms)
+ℹ {"mode":"nonempty-footprint","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0},{"watermark":2,"events":1}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ process: ownerless server memory is retired by empty-notification (1495.560875ms)
+ℹ {"mode":"empty-notification","pages":[{"watermark":1,"events":3},{"watermark":1,"events":0},{"watermark":1,"events":0}],"authoritative":{"present":false,"secret":null},"before":{"loading":true},"after":{"loading":true},"direct":{"denied":{"code":"E_OFFLINE","family":"link","message":"the request did not complete: offline; check the connection and server logs before retrying","retryable":true}}}
+✔ wasm: cancelled resumed watermark releases running (562.890833ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ wasm: expired resumed watermark releases running (195.082524ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: cancelled resumed watermark releases running (242.660202ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ process: expired resumed watermark releases running (240.020845ms)
+ℹ {"current":{"data":[{"at":1,"body":"replacement","id":"item","room":"room"}],"complete":true,"cut":null,"fresh":true,"next":null,"existence":"present"},"running":false,"dirty":false,"queries":2}
+✔ queued replacement preserves mounted history and facade, keep=undefined (7.31269ms)
+✔ queued replacement preserves mounted history and facade, keep=true (3.375048ms)
+✔ inspection groups shared observations, measures queue/attempt time, and records bounded withdrawal causes (10.120809ms)
+✔ queued history immediately withdraws on expiry (0.372728ms)
+✔ queued history immediately withdraws on denial (0.250515ms)
+✔ queued history immediately withdraws on reset (0.255934ms)
+ℹ tests 364
+ℹ suites 0
+ℹ pass 364
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20689.280438

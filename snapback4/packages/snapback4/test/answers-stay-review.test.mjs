@@ -55,8 +55,7 @@ for (const host of ['process', 'wasm']) for (const failure of ['held', 'throw'])
   await until(() => watch.getSnapshot().data?.body === 'image-1');
   intercept = true; await f.post('/m/remove', { id: 'remove', args: {} }); await client.sync();
   await held.arrived.promise;
-  if (failure === 'held') assert.equal(watch.getSnapshot().data?.body, 'image-1');
-  await until(() => watch.getSnapshot().loading, 'withdrawal after change evidence');
+  assert.equal(watch.getSnapshot().loading, true, 'applied membership scope withdraws before its held or failed replacement');
   intercept = false; held.release.resolve();
 });
 

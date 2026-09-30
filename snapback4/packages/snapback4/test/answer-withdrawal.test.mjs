@@ -8,6 +8,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { answerObservation } from "../dist/read-observation.js";
 import { episodeDeadline } from "../dist/read-episode.js";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
@@ -91,7 +92,7 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     const readOp = kind === "transfer" ? { ...query, name: "ownedSecret" } : query;
     const opened = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(directory, "device"), binary });
     const blocked = deferred(), committed = deferred();
-    let armed = false, core, watch, snapshotAtCommit, targetRequest, targetResult, attemptStarted = false;
+    let armed = false, core, watch, snapshotAtCommit, targetRequest, targetResult, attemptStarted = false, attemptReturned = false;
     const resets = [];
     const device = { async open(...args) {
       core = await opened.open(...args);
@@ -99,6 +100,7 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
         if (armed && request.op === "query" && request.name === readOp.name) {
           attemptStarted = true;
           await blocked.promise;
+          attemptReturned = true;
           if (mode === "throw") throw Error("failed post-commit device read");
           if (mode === "unavailable") return { ok: { loading: true, unknown: true, tables: [] } };
         }
@@ -155,8 +157,9 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
       watch = client.observe(readOp, {}, { keep });
       assert.deepEqual(watch.getSnapshot(), { loading: true }, "a kept pre-revocation answer cannot initialize the new watch");
     } else {
-      if (keep === false) {
-        assert.deepEqual(snapshotAtCommit, { loading: true }, "keep:false withdraws at commit");
+      // @ref LLP 3000.023#10 — an applied scope loss bypasses the read queue.
+      if (keep === false || kind === "apply") {
+        assert.deepEqual(snapshotAtCommit, { loading: true }, "explicit non-retention or applied scope loss withdraws at commit");
         assert.deepEqual(watch.getSnapshot(), { loading: true });
       } else {
         assert.equal(body(snapshotAtCommit), "private answer");
@@ -173,11 +176,23 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     }
     if (kind === "admit") assert.ok(targetResult.ok.predicted.includes("members/bob"), "the leave is a real prediction");
     else assert.ok(targetRequest.page.events.some(event => event.table === (kind === "transfer" ? "owned" : "secrets") && (kind === "transfer" || event.kind === "scope")), "the ordinary apply carries the secret's revoked scope");
+    let completedFailure = false;
+    const owner = answerObservation(watch.getSnapshot());
+    const publish = owner.publish.bind(owner);
+    owner.publish = (...args) => { const result = publish(...args); if (attemptReturned) completedFailure = true; return result; };
+    const fail = owner.failed.bind(owner);
+    owner.failed = (...args) => { const result = fail(...args); completedFailure = true; return result; };
+    let followingPublications = 0;
+    const afterFailure = watch.subscribe(() => { if (completedFailure) followingPublications++; });
     blocked.resolve();
     assert.equal((await change).state, "sent");
+    if (kind === "apply" && mode !== "held") {
+      await until(() => attemptStarted && completedFailure && followingPublications > 0, "post-removal attempt must publish after release");
+    }
+    afterFailure();
     if (mode === "retryExhausted") await until(() => exhaustedReplies >= 4, "four rejected replies");
     if (mode === "held") await until(() => "data" in watch.getSnapshot() && watch.getSnapshot().data === null, "post-deadline read still publishes null");
-    else if (mode === "unavailable" || boundedEvidence || (mode === "retryExhausted" && kind === "admit")) {
+    else if (kind === "apply" || mode === "unavailable" || boundedEvidence || (mode === "retryExhausted" && kind === "admit")) {
       await until(() => watch.getSnapshot().loading && (mode !== "retryExhausted" || exhaustedReplies >= 4),
         "explicit unavailability or failed online evidence withdraws");
     } else {
