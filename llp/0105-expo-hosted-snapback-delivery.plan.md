@@ -5,6 +5,11 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
+**Revised:** 2026-08-18 (hosted authorization posture is now an explicit
+admission, activation-record, and canary-notification requirement: production
+does not inherit local compatibility warnings; findings are path-specific and
+intentional public surfaces are not vulnerabilities by declaration alone; the
+operational notification design is tracked separately)
 **Revised:** 2026-08-04 (P0.1 hardened run passed 23/23: a binding-free control
 proved native WfP CPU/subrequest enforcement, handler/action dispatch bindings
 were split so handler CPU remains native while action egress uses an explicit
@@ -21,7 +26,7 @@ begun: WfP access-gap receipt + enablement ticket, dated pricing facts
 — rows-written pricing confirms write amplification as the decisive
 margin input — and the locally-decisive P0.4 spikes; see §Status
 ledger). 2026-07-28 (initial cross-repository plan); 2026-07-28 (/llp-super-refine round 1 revision: write-amplification/margin, logical-storage, and account-budget-protocol proofs made blocking Phase-0 outputs feeding 0104's price decisions; P0.3 proves the release-pinning fence's repair invariant rather than re-opening it; minimum private-beta config/secrets and maintenance-job slices pulled into Phase 1 with Gate 1 assertions, distinct from Phase 4 ergonomics; owner-independent durable identity and narrowed LLP 0089 scope reconciled in Work ownership and the cross-repository ledger); 2026-07-28 (/llp-super-refine round 2 revision: P0.3 injects admission-to-execution delay, non-responsive WebSockets, and proves the admission compatibility check; P0.4/Gate 0 produce scale-ceiling numbers from formulas and reconcile logical storage to the namespace-level provider bill; P0.4/Gate 1 add the account-budget transfer-fence case; Work ownership and cross-repository ledger corrected to retain LLP 0089 as contract authority with Universe as hosted implementation authority, rollback included); 2026-07-28 (/llp-super-refine round 3 revision: P0.3 wording tightened so drain-and-revoke never permits post-migration old-epoch execution and the admission check is machine-checkable/sufficient-by-construction with replay only supplemental; P0.4/Gate 1 transfer-fence made an atomic coordinator boundary with admission-bound attribution carried through commit; hosted operations given distinct stable ids (`environment.create`/`environment.inspect`); logical-storage pragmas named exactly plus a Gate-0 reconciliation-record clause; Gate 0 forces the action-isolation mechanism selection); 2026-07-28 (/llp-super-refine round 4 revision: P0.3 compatibility window enumerated to strictly-additive backward-safe changes only, all other change classes forcing hard drain-and-revoke; P0.4/Gate 0 add the missing-sample estimator experiment (fault-inject growth+shrinkage, prove worst-case error bound, verify customer-favorable credit) and PRAGMA-availability Gate-0 verification; P0.4/Gate 1 add the app-wide multi-coordinator two-phase transfer proof with atomic publication and abort-on-unavailable); 2026-07-28 (/llp-super-refine round 5 revision: P0.4/Gate 1 transfer proof made a durable prepare/commit/abort state machine (prepare freezes leases, commit revokes/epochs, abort restores) with a snapshotted/serialized participant set, publication re-validation, and a mid-transfer environment create/delete/restore injection; "no partial transfer" narrowed to ownership attribution; P0.4 removes index/system-table overhead from the headroom list (measured in-band); missing PRAGMA support made a Gate-0 failure blocking the billing basis, `databaseSize` cross-check only; P0.4 Gate-0 estimator receipt records inputs/max-gap/error-bound-units/credit rule); 2026-07-28 (/llp-super-refine post-convergence touch-up: r6 detail items folded in); 2026-07-28 (Accepted by author Charlie Cheever after /llp-super-refine dual-READY convergence on r6; r6 detail items folded in)
-**Related:** LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0043, LLP 0044, LLP 0045, LLP 0047, LLP 0057, LLP 0060, LLP 0070, LLP 0071, LLP 0087, LLP 0089, LLP 0103, LLP 0104
+**Related:** LLP 0009, LLP 0010, LLP 0014, LLP 0018, LLP 0043, LLP 0044, LLP 0045, LLP 0047, LLP 0057, LLP 0060, LLP 0070, LLP 0071, LLP 0087, LLP 0089, LLP 0103, LLP 0104, LLP 0173, LLP 0234, LLP 0264, LLP 0274
 
 ## Summary
 
@@ -298,6 +303,42 @@ Run one external identity provider through LLP 0057/0060:
 
 Expo account auth covers only the control plane; prove the app plane separately.
 
+Hosted authorization posture is part of admission, not a post-deploy scanner
+that excuses unsafe activation. Before any production-profile release serves,
+admission consumes the exact `generated/authorization-review.json` bound to the
+candidate artifact graph and refuses:
+
+- a sessions function whose authorization requirement has `legacy-default`
+  provenance;
+- a table whose visibility has the implicit legacy `public-read` provenance;
+- an uncomposed table-policy surface; and
+- a generic write whose installed disposition is `migration-pending` or whose
+  write-policy check is otherwise incomplete.
+
+The hosted target does not inherit the local compatibility warn-and-continue
+posture for these facts. A refusal names the exact operation/table/policy fact
+and remediation, but never row values, credentials, or protected arguments.
+
+Every admitted activation durably records the review artifact's exact
+`inputsHash`, its derived authorization-posture digest, and the predecessor →
+successor posture comparison beside the release. Existing policy-transition
+governance remains the authority for whether a broadening may activate; this
+record neither approves a broadening nor creates another waiver path.
+
+Notification is a backstop for a high-confidence exposure discovered after
+activation, not permission to admit one. A confirmed finding must trace a
+concrete externally reachable path through invocation authority, operation,
+data surface, table policy/write posture, and exposed read or write effect.
+Explicit `public`/`optional-user`, `public-read`, or `open-write` declarations
+are not findings by themselves. An opaque handler or residual field boundary
+that prevents a complete proof is labeled `review-required`, never
+`confirmed-exposure` or `compromised`. The hosted control plane surfaces the
+finding in the project dashboard and delivers it through the product-security
+notification seam; recipient resolution, retry/deduplication, lifecycle,
+suppression, and escalation are deferred to the
+[hosted authorization-posture notification ticket](../issues/20260818-hosted-authorization-posture-notification.md)
+and must close before private beta.
+
 ### Gate 0
 
 Proceed only if:
@@ -330,6 +371,11 @@ Proceed only if:
   concurrency, partition, and delayed meters;
 - free maximum cost is enforceably bounded;
 - hosted auth passes its target contract;
+- the hosted authorization-posture admission classifier consumes the exact LLP
+  0173 review artifact, refuses every P0.5 implicit/uncomposed/migration-pending
+  negative fixture before serving, records the accepted posture digest, and
+  leaves an intentional explicit-public control admissible without classifying
+  declaration alone as a vulnerability;
 - no Cloudflare beta primitive is a launch dependency.
 
 Failure reshapes or kills the topology, not the public claim.
@@ -353,6 +399,9 @@ Build for an Expo-owned application:
   from Phase 4's calendar cron and complete job surface;
 - end-to-end logs/crashes/requests;
 - shadow usage/cost dashboard;
+- authorization-posture findings in the dashboard plus the product-security
+  notification seam, exercised with injected confirmed and review-required
+  findings;
 - external app-user auth;
 - daily acceptance and fault injection.
 
@@ -387,6 +436,11 @@ activity and deliberate provider/API failures.
   while remaining fail-closed until it records the committed epoch and obtains a
   new-owner lease (LLP 0103 §App-wide multi-coordinator transfer protocol);
 - one request correlates through every component;
+- every served canary release has an exact authorization-review input hash and
+  posture digest; an injected high-confidence reachable exposure produces one
+  redacted, path-specific dashboard finding and notification, retry remains
+  durable and deduplicated, an opaque-handler control stays review-required,
+  and an intentional explicit-public control produces no vulnerability finding;
 - provider invoice and shadow ledger reconcile;
 - ordinary EAS Hosting does not regress;
 - canary SLO/cost budgets hold for 14 days.
