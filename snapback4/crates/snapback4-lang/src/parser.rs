@@ -176,7 +176,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -195,6 +195,23 @@ impl Parser {
     fn table_line(&mut self, table: &mut TableDecl) -> Fallible<()> {
         let token = self.peek().clone();
         match token.value.as_str() {
+            "receipts" if self.peek_at(1).value != ":" => {
+                let site = self.take("receipts")?.site;
+                if table.receipts.is_some() {
+                    return Err(Diagnostic::new(&site, "E_RECEIPTS_CLAUSE", "duplicate receipts clause", "keep one receipts clause").guide("receipts"));
+                }
+                self.take("by")?; self.take(".")?;
+                let group = self.word()?.value;
+                self.take(",")?; self.take(".")?;
+                let position = self.word()?.value;
+                self.take("from")?; self.take(".")?;
+                let sender = self.word()?.value;
+                self.take("to")?;
+                let members = self.word()?.value;
+                self.newline()?;
+                table.receipts = Some(ReceiptsDecl { group, position, sender, members, site });
+                Ok(())
+            }
             "public" => {
                 let site = self.take("public")?.site;
                 let reason = if self.at_kind(Kind::Str) { self.take_kind(Kind::Str)?.value } else { format!("{} is public", table.name) };

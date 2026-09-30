@@ -344,7 +344,17 @@ pub struct CapDecl {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReceiptsDecl {
+    pub group: String,
+    pub position: String,
+    pub sender: String,
+    pub members: String,
+    pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub receipts: Option<ReceiptsDecl>,
     pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
     pub name: String,

@@ -699,6 +699,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         indexes.push(index);
     }
     Ok(TableDecl {
+        receipts: None,
         ephemeral: None,
         search: Vec::new(),
         name: maintain.name.clone(),

@@ -18,13 +18,12 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`table` declares columns and an implicit `id`.
-`read` and `insert` authorize owners; `sync` brings their rows to the device.
+`table` declares columns and `id`; rules authorize owners, `sync` replicates rows.
 `query` pages newest first; pass `next` as `c`.
 `mutation` inserts atomically, using the default time.
 
-`reports delivery of messages by .conversation, .ordinal` enables SDK reporting
-(`guide receipts`).
+`receipts by .conversation, .ordinal from .sender to members` generates reporting
+(`guide receipts`; expert recipe: `guide manual-receipts`).
 
 ## Limits
 
@@ -591,7 +590,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 Cards: `snapback4 guide <keyword>` — app, social, from-sql, types, indexes, maintains, offline-interactions, rules, sync, residency, prediction, evolution, expire, ephemeral, sequences,
 assets, client, reads, shapes, writes, programs, jobs, native, feeds, search,
-effects, actions, routes, services, presence, receipts, bounds, refusals, personas, witness. `snapback4 why
+effects, actions, routes, services, presence, receipts, manual-receipts, bounds, refusals, personas, witness. `snapback4 why
 <CODE>` explains a refusal.
 
 ## An ID belongs to one intent

@@ -79232,3 +79232,60 @@ superseded harness probes, and causal tools:
 reports/20260929-fw-follow-window/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+
+### 2026-09-30 — RX round 0: declarative receipt prototype
+
+LLP 3000.022 §14 records the RFC and the implemented boundary. The social
+starter declares `receipts by .conversation, .ordinal from .sender to members`;
+the compiler supplies watermarks, runs, receipt projection, reporting and
+progress reads. Existing SDK delivery reporting and visible `useReceipts`
+use the same public operations. Shared-interpreter ownership checks refuse
+application progress forgery; authorized member removal deletes its bounded
+runs in the same metered transaction. Server delivery skips expired/deleted
+positions up to the first live blocker. Manual schemas retain their behavior,
+and `guide manual-receipts` preserves the original expert recipe.
+
+Starter schema: 294 → 225 physical lines (−69, 23.5%). Primary receipt guide:
+350 → 308 lines, within its existing budget. This is a prototype: application
+mutations still allocate ordinals, count recipients and capture join floors.
+Multiple families, arbitrary-layout migration tooling, raw-core descriptor
+admission, detailed source mapping and large-backlog qualification remain.
+At the 64-run bound, expired holes between already-held runs can require an
+explicit held-run re-report; automatic compaction of that chain is not claimed.
+The exact starter-store adoption path is tested and documented.
+
+Final affected tests: receipts 9/9, existing delivery 16/16, whole guide
+105/105, readauth 81/81. Generated schedules compare handwritten/declarative
+servers and memory/SQLite devices after each of 1,200 transitions, including
+out-of-order delivery, seen, removal/rejoin, expiry and deletion. Authority,
+offline prediction, replay, atomic meter refusal and manual-store adoption
+pass. Existing receipt behavior assertions are unchanged. Final CLI build and
+ref-check pass (525 LLPs, 9,974 refs, 0 errors or unchecked).
+
+Ran scripts/test.sh exactly once, exit 1:
+
+    == 1 failure(s) in 1531 s
+       cargo test
+
+The sole failing test was ours: readauth `census::authoring_census` needed the
+new manual card and generated delivery's server-only classification. Reviewed
+its 12 additions and 3 removals, updated it, and all 81 readauth tests pass on
+rerun. Baseline failures 0; environmental failures 0. The full run remains
+recorded red. It recorded 4,368 Rust passes, one failure and 33 existing
+ignores; client integration 5,308 passes and ten existing skips; fixture
+wrappers 9/9; serial models 79/79 including their full 5,000-sequence walks.
+Build, wasm, release guard, docs budget and typechecks passed. No counts,
+timeouts or checks were reduced; the inherited 60-second suite bar remains
+exceeded. Final additive parser compatibility and census corrections were
+checked by affected reruns; core/wasm code did not change after the full run
+began. The full suite was not rerun.
+
+Wasm: 1,988,236 B raw / 596,247 B gzip, 2,528 B above the old 593,719 B
+ratchet. Raise it to 597,247 B (measured plus 1,000 B) in this commit, as
+authorized, for receipt metadata, shared-interpreter ownership and metered
+member-removal cleanup. No logical meter ceiling changed. Report, exact logs,
+original starter and artifact hashes:
+reports/20260930-rx-declarative-receipts/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
