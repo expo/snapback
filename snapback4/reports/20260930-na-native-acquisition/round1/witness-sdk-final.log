@@ -1,0 +1,56 @@
+(node:2058357) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (974.844235ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2581.171861ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1030.354044ms)
+✔ serve accepts a matching bearer, refuses a different principal, and omits server timings (1426.654037ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1342.75016ms)
+✔ restart detects wipe before reconnect can repair it (255.760138ms)
+✔ restart detects delete-row before reconnect can repair it (1220.263905ms)
+✔ restart detects change-groups before reconnect can repair it (1222.506838ms)
+✔ restart detects change-boundaries before reconnect can repair it (1212.123565ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1361.564649ms)
+ℹ {"fault":"more-then-drop","observed":5,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":5.456,"totalMs":5.839,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":4.406,"totalMs":4.686,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":3.942,"totalMs":4.192,"outcome":"validated","snapshot":false,"more":true,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.418,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":4.203,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects denied and records every attempted request (1360.551431ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1356.277275ms)
+✔ reconnect proof rejects null and records every attempted request (1348.151275ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1353.809066ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1354.695374ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1352.61151ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1330.212869ms)
+ℹ {"fault":"dropped-first","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":6.342,"totalMs":6.789,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":4.14,"totalMs":4.4,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.404,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":1.884,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects drop-once and records every attempted request (1349.031635ms)
+ℹ {"fault":"drop-once","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":4.544,"totalMs":4.955,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":3.348,"totalMs":3.568,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":2.811,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":5.391,"totalMs":5.746,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0,"cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects truncated-body and records every attempted request (1340.41455ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1352.665822ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1350.059565ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (382.488571ms)
+✔ witness family usage advertises both commands and shares input diagnostics (96.561879ms)
+✔ receipt identifies the JSON-line subprocess host (1335.733875ms)
+✔ restart times coverage separately from first answer (2401.118464ms)
+✔ bounds separates merged process acquisition, C ABI apply and retention timings (0.56722ms)
+✔ binary native module installs and survives restart (1374.181521ms)
+✔ binary native module digest refusal fails proof (320.450197ms)
+✔ server allowlist drops raw from every acquisition output surface (5636.189473ms)
+✔ server allowlist drops hex from every acquisition output surface (5717.677339ms)
+✔ server allowlist drops HEX from every acquisition output surface (5658.238311ms)
+✔ server allowlist drops base64 from every acquisition output surface (5562.785325ms)
+✔ server allowlist drops base64url from every acquisition output surface (5594.957586ms)
+✔ server allowlist drops percent from every acquisition output surface (5603.719699ms)
+✔ server allowlist drops percentLower from every acquisition output surface (5718.361548ms)
+✔ server allowlist drops sha256 from every acquisition output surface (5606.004134ms)
+✔ caller query and args are echoed from the request, never selected schema metadata (1342.289641ms)
+✔ failed query receipts distinguish argument rejection, query refusal and incomplete coverage (1187.02044ms)
+✔ query diagnostics use validated codes and drop arbitrary refusal prose (1175.549788ms)
+✔ equals token spelling authenticates without exposing the bearer (1275.120156ms)
+✔ acquire argument refusals omit values including equals bearers (1081.899874ms)
+✔ iOS argument refusals omit values including equals bearers (137.427068ms)
+✔ runtime refusals do not echo caller argument values in stderr (253.091018ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 85072.624508

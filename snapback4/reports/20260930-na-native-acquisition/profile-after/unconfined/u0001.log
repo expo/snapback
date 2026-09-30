@@ -1,0 +1,3 @@
+Native process device (SQLite, same module as Expo); web wasm + IndexedDB figures differ. Bytes are SQLite pages, excluding WAL/SHM, not RSS.
+Receipt: /home/ccheever/sb4-intent/lane-na/snapback4/reports/20260930-na-native-acquisition/profile-after/unconfined/u0001/acquire.json
+acquired 4,014 table/groups / 105,034 rows / 373.5 MB in 15.313 s; first local chat.inbox 15.337 s; server sync 2.676 s; cold restart retained 4,014 table/groups in 0.246 s

@@ -16,9 +16,8 @@ query scalePopulation():
   return count(scalePosts)
 ```
 
-Write product limits: a page size, a text length, an asset size or a real
-per-group cap. Do not choose an index, a merge width or a job transaction
-size. Predicate reads and views choose their plans; top-level job `for`
+Write product limits: a page size, a text length, an asset size or a real per-group cap.
+Do not choose an index, a merge width or a job transaction size. Predicate reads and views choose their plans; top-level job `for`
 loops choose their chunks. Removing a written number never removes the meter.
 
 A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`
@@ -33,8 +32,7 @@ still need a schema-capped group that fits the examined ceiling. Direct
 `count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
 meter without retaining the page. Schema-capped query `count` and `sum` with
 non-uniform read rules keep their bounded page execution and coverage contract.
-Mutations retain their uniform-read and
-plain-prefix admission rules; a cut aborts the transaction, never commits a
+Mutations retain their uniform-read and plain-prefix admission rules; a cut aborts the transaction, never commits a
 partial total. A streaming query total with a meter cut or unknown device
 coverage leaves the client observation `loading`, never a partial count or sum.
 Unknown earlier reads also make a streaming scalar unavailable, including
@@ -94,7 +92,7 @@ per request, including nested witnesses and maintained-source walks. A row behin
 in that direction; an empty page has no cursor into the hidden range. Expiring
 cap checks draw from that same allowance; any authorization that cannot be
 established within it returns generic E_RULE without identifying a cause.
-The device's separate prediction-work budget can instead queue an operation.
+The device's prediction-work budget can instead queue an operation.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads
 past half any ceiling without a cut: at most ten lines and a count of the rest.
@@ -102,14 +100,13 @@ Loopback `dev` logs actual meter and word cuts with the operation, principal,
 site, counters and `snapback4 why <op>`. Repeats are suppressed per operation
 and site (at most two lines per minute); the next emitted line includes the
 suppressed count. `serve` neither logs these costs nor returns read meters.
-A loop is bounded
-by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
+A loop is bounded by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
 or `tokens`' 64. An accumulated list is bounded by the heap meter and its
 iterations by the step meter. `while` stays refused.
 `range(a, b)` evaluates int expressions once and iterates under the step meter,
 without materializing the range. `check --cost` prints `steps ≤ meter`, a
 filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,
-and a seek as a prefix. Sorting or grouping a page only processes that page.
+and a seek as a prefix. Sorting or grouping only processes that page.
 `sha256(text)` charges the input's UTF-8 byte length plus one to steps before
 hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
 cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
@@ -118,62 +115,49 @@ back on either cut.
 
 ### Prove the heaviest account
 
-Prove the envelope's heaviest account, not a typical one: 500 follows and
-1,000 conversations need that account's acquisition and cold restart evidence.
-Against your running backend, replace alice and heldNotes with your heaviest
-persona and a device query; SB4_URL is dev's printed URL, SB4_PROOF a new directory:
+Prove the envelope's heaviest account: 500 follows and 1,000 conversations need acquisition/restart proof.
+Replace alice/heldNotes with that persona/query; SB4_URL is dev's URL, SB4_PROOF a new directory:
 
 ```sh
 snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json
 ```
 
-For serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`).
-Optional `--args '{"c":null}'` supplies query arguments; without `--query` the
-witness selects the first zero-argument device query. `--runs 3` uses three fresh
-stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run.
-The command writes acquire.json even on failure; --json prints it, otherwise
-one summary per run. Receipt excerpt (counts depend on your fixture):
+For serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`). Optional `--args '{"c":null}'`
+supplies query arguments; without `--query` the witness selects the first zero-argument device query. `--runs 3` uses three
+fresh stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run. The command writes acquire.json even on
+failure; --json prints it, otherwise one summary per run. Receipt excerpt (counts depend on your fixture):
 
 ```json
 {"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}
 ```
 
-It runs Node with one JSON line per call to the `snapback4 device` subprocess
-backed by SQLite. Expo links the crate in-process; this is not Expo/iOS timing.
-Web wasm + IndexedDB figures differ. `acquiredMs` ends at the SDK acquired boundary;
-`firstLocalMs` times the first complete local query after that boundary, both
-from fresh startup including identity checks. Restart firstLocalMs includes cold
-reopen with all HTTP blocked. `restart.coverageVerifiedMs` separately times the
-subsequent coverage scan and comparison. Retained means identical store/generation/watermark,
-per-group row counts and persisted coverage, and table row/byte counts before
-reconnect; reconnect must finish a validated stream round with `more: false` at
-the server position applied locally, with no row events or failed attempts. An
-empty snapshot at watermark zero still needs stream catch-up. Keep the fixture
-stable: new writes or expiry can invalidate this comparison. No OS-cache flush,
-app UI, media-cache or physical-phone performance is claimed.
-Groups are table/group pairs with rows or recorded coverage (plus implicit public
-and principal groups); groupsByTable and residency.tables use hashed table names:
-SHA-256 of UTF-8 JSON.stringify(["witness-table", name]), e.g. name = "messages".
-residency.totalBytes is SQLite pages, excluding WAL/SHM, not RSS; tables give row
-payload bytes. Receipt format 2 keeps local timings/counts and computed digests;
-server text, codes, numeric metadata and Server-Timing are dropped. Validated codes choose
-distinct argument-rejection, query-refusal or incomplete-coverage diagnostics; check --args types,
---query requirements or held coverage respectively. Failed receipts keep caller query/args.
-Automatic queries use a generated label; explicit query/args/principal echo only caller input. State and
-position digests preserve equality evidence without reflecting wire identifiers.
-Verification scans follow the timed answer. Background polling is suppressed.
-HV's measured web guidance on eb1000 (five-run medians, 2026-09-29): 1,000
-memberships / 105,034 rows acquired in 18.609 s default or 19.522 s Worker;
-first inbox 0.441 / 0.520 s, about 307.6 MB allocated wasm memory. These are
-historical workload measurements, not a promise or native-device numbers.
-Native measurements found a known performance defect in process-device apply: JSON lines to the
-`snapback4 device` subprocess, then SQLite. Astra measured 37.9 s in apply round
-trips out of 41.7 s acquisition, including one 35.5 s call; SQLite internals were
-not isolated. Grok counted about 39.5 s after headers out of 42.1 s, versus
-2.55 s server time and about 16 s after headers on HV's wasm client. Post-header
-cost per row grew from about 0.07 ms at 11k rows to 0.37 ms at 105k. The
-successful retention proof does not establish fast acquisition.
-These review profiles identify device application/IPC, not server or harness cost.
+Node sends one JSON line per call to the SQLite `snapback4 device` subprocess. Expo links the same crate in-process; these are
+not Expo/iOS or physical-phone timings. `acquiredMs` ends at SDK acquired; `firstLocalMs` ends at the subsequent complete local
+query. Both start at fresh startup, including identity checks. Restart firstLocalMs includes cold offline reopen;
+`restart.coverageVerifiedMs` separately times coverage scan/comparison. Retained means equal store/generation/watermark,
+per-group counts/coverage and table rows/bytes. Reconnect must finish a validated `more: false` stream at the applied server
+position, with no row events or failed attempts. Even an empty snapshot at watermark zero needs catch-up. Keep the fixture
+stable: writes/expiry invalidate comparison. OS caches are warm; app UI and media caches are excluded. Verification scans follow
+the timed answer; background polling is suppressed. Groups are table/group pairs with rows/coverage, plus implicit
+public/principal groups. groupsByTable and residency.tables hash names with SHA-256 of UTF-8 JSON.stringify(["witness-table",
+name]); use name = "messages" for conversation groups. residency.totalBytes is SQLite pages, excluding WAL/SHM and RSS; table
+bytes are row payloads. Receipt format 2 retains local timings/counts and computed state/position digests; server text, codes,
+numeric metadata and Server-Timing are dropped. Validated codes select argument-rejection, query-refusal or incomplete-coverage
+diagnostics: check --args types, --query requirements or held coverage respectively. Failed receipts retain caller query/args.
+Automatic queries get a generated label; explicit query/args/principal echo only caller input.
+
+HV web medians (eb1000, five runs, 2026-09-29): 1,000 memberships / 105,034 rows, 18.609 s default / 19.522 s Worker; first
+inbox 0.441 / 0.520 s, allocated wasm memory 307.6 MB. NA merged process medians (three fresh stores/cell): 100 memberships /
+11,612 rows, 1.060 s unconfined / 1.044 s on 10 CPUs with 8 burners; 1,000 / 105,034 rows, 12.989 / 14.691 s, down from 42.352 /
+54.542 s. The 10 s target remains unmet. Sorting complete indexes inside atomic SQLite publication produced this improvement.
+Separate merged in-process C ABI replay: 9.552 s all calls / 8.833 s apply, excluding server sync/IPC. Expo uses that ABI; none of
+these historical warm-cache observations promises phone performance.
+
+Initial acquisition needs scratch disk: a 373.5 MB final store peaked near 1.07 GB (about 2.9× final size), including about 700
+MB temporary sort files. Allow at least 3× that measured final size plus device headroom; this is not a universal bound. A store
+that fits when finished can run out of space during publish; failure rolls back and can be retried after freeing space. The
+sorter spills with bounded caches, but whole-device RAM grows with per-row delivery candidates: a review's 105k → 196k rows
+raised Rust peak 21.48 → 37.99 MB and RSS 50,084 → 88,736 KiB. Prove your workload.
 
 ### Measuring a growth curve
 

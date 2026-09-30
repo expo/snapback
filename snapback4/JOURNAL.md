@@ -79831,6 +79831,54 @@ and reproduction: reports/20260930-bn-envelope-proof/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
+## 2026-09-30 — NA round 0: sorted native acquisition
+
+Lane `sb4-intent/na-native-acquisition`, based on BN's `ea4ec7b99f`.
+Instrumented BN's heavy account through the process device and direct core.
+Baseline apply spends 33.369 s maintaining 1,874,664 index entries; only
+0.242 s of the complete direct replay is fsync. The final empty page publishes
+the partition, so framing and coverage recomputation are not the dominant cost.
+
+Native replacement now appends validated index keys to a SQLite temporary heap
+and installs them in key order inside the existing publication transaction.
+Staging/metadata statements are cached, each row holds one index-insert statement,
+and residency counters are recomputed once before restoring their triggers.
+WAL/FULL, bounded page caches, complete indexes, coverage, acquired publication,
+continuation fencing and prediction semantics remain intact. No protocol,
+web implementation, durable format, horizon or budget changed. LLP 3000.007
+§20.4 records the design. Sorting increases temporary sequential I/O.
+
+On eb1000, three fresh stores per account and condition: heavy acquisition
+median **42.352 → 12.895 s** unconfined and **54.542 → 14.654 s** on ten CPUs
+with eight burners. Small/100-membership median **1.306 → 1.056 s** and
+**1.508 → 1.042 s**. All 24 runs retain identical coverage/table counts and
+bytes through offline reopen, then reconnect with zero row/scope events.
+The heavy account retains 1,000 memberships / 105,034 rows, now 373.5 MB of
+SQLite pages. These are warm-cache process-device measurements, not phone
+measurements. The **10 s target and 5 s stretch remain unmet**. Final direct
+C ABI apply is 8.968 s including JSON decoding, with the baseline coverage digest.
+The bounds guide records the medians within its original 427-line length.
+
+The new crash model passes 48 seeded real process kills across SQLite and a
+memory host's atomic filesystem-save model, for initial and refresh acquisition;
+it checks no early acquired, old/new row and coverage digests, owner restart,
+and another reopen. The memory host is not a browser or power-loss experiment.
+The bulk regression checks exact physical indexes/caps/counters and failure
+rollback. Affected Rust passes 531 with one existing ignore; affected SDK 338;
+whole guide 106 after correcting three editorial failures, all logged.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 0 failure(s) in 1380 s`.
+Rust passes 4,367 including 17 doctests, with 33 existing ignores; clients pass
+5,317 with ten existing skips; models 79/79; fixture wrappers 9/9. No failures
+or cancellations. No assertions, seeds, timeouts or budgets were weakened;
+source manifests confirm implementation/tests/guide stayed fixed during the run.
+The inherited 60-second suite budget remains exceeded. Wasm is unchanged at
+1,978,828 B raw / 593,233 B gzip, 486 B below its unchanged ratchet.
+
+Full attribution, all measurements, artifact/source hashes, validation and every
+development failure: reports/20260930-na-native-acquisition/REPORT.md and
+FAILURES.md. Local commit carries the requested GPT-6 Astra co-author trailer.
+Nothing pushed or published.
 
 ## 2026-09-30 — BN round 1: completed reconnect and separate retention clocks
 
@@ -80480,5 +80528,51 @@ without slack; server allocation/counting remain server-only. The full-suite
 rebuild reproduces those bytes. Report, every development failure/correction,
 source hashes and artifact evidence:
 reports/20260930-ry-receipts-allocation/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-30 — NA round 1: native acquisition resource bounds after BN
+
+Read NA round 0 and both complete reviews. Merged origin/main 11ddefd88c first
+in 6699793533, preserving both histories and BN's final witness/CLI and format-2
+receipt semantics. No new runtime optimization in this round. Corrected the
+report, bounds card and LLP 3000.007 §20.4: the sorter spills with bounded caches,
+but delivery candidates retain per-row state. The review's 105k → 196k rows
+raised Rust peak allocations 21.48 → 37.99 MB and RSS 50,084 → 88,736 KiB.
+
+The merged C ABI replay takes 9.552 s for all calls / 8.833 s apply, excluding
+server sync and subprocess transport; Expo links that ABI in-process. Its
+699,438,280 B scratch peak and 1,072,507,656 B total disk high-water reproduce
+the reviews, at 2.87× the 373,510,144 B final store. The guide budgets at least
+3× that observed final size plus headroom, explicitly not a universal bound.
+Disk exhaustion can still refuse cleanly and permit retry. Explicit temp_store
+would preserve today's disk mode; no scratch reduction is claimed. Eliminating
+the temporary heap plus ordered second write remains the next measured step.
+
+All 12 merged witness runs pass, three per account/condition. Heavy process
+acquisition medians are 12.989 s unconfined / 14.691 s on ten CPUs with eight
+burners; small-account medians 1.060 / 1.044 s. The loaded heavy 19.367 s sample
+remains in the range. The 10 s target remains unmet. Retained table counts/bytes
+and coverage match round 0; every terminal reconnect downloads zero row/scope
+events. Exact-request ABI replays also hash-match all rows, 1,874,664 index
+entries, caps, residency and nonrandom metadata. These are warm-cache host
+measurements, not phone timings. The bounds card retains BN's final semantics
+within 427 lines; LLP 3000.030 labels its pre-NA profiles historical.
+
+Affected Rust passes 531 with one existing ignore, including the 48-kill crash
+model and bulk-index rollback control; whole guide 107/107. The first affected
+SDK run passes 380 and fails one obsolete guide expectation (ours). Updated
+that existing regression to assert the merged process/C ABI numbers, unmet
+target and separate coverage clock; its complete file then passes 43/43.
+The other six affected SDK files pass 338/338. No runtime assertion weakened.
+
+Ran scripts/test.sh exactly once. Exact summary: `== 0 failure(s) in 1431 s`.
+All 13 stages pass: Rust 4,439 / 33 existing ignores; clients 5,397 / ten existing
+skips; models 79/79; fixture wrappers 9/9. No failures or cancellations. Full-run
+failures: ours 0, baseline 0, environmental 0. All 1,734 scoped tracked source
+inputs stay unchanged across the run. The inherited 60-second budget remains
+exceeded. Wasm rebuilds to 1,990,092 B raw / 597,059 B gzip, 188 B below main's
+inherited 597,247 B cap; NA does not raise it. Report, every sample and failure:
+reports/20260930-na-native-acquisition/round1/REPORT.md and FAILURES.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.

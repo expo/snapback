@@ -1,0 +1,8 @@
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-na/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized] target(s) in 5.33s
+     Running tests/sqlite_bulk.rs (snapback4/target/debug/deps/sqlite_bulk-5f6e60b599f654ae)
+
+running 1 test
+test sorted_replacement_matches_ordinary_indexes_and_rolls_back_every_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

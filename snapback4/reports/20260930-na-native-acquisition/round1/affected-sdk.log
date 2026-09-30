@@ -1,0 +1,600 @@
+✔ W5R1x: terminal history is bounded independently of unresolved writes (5.269829ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (4712.301203ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (3069.430536ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1249.637965ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (1186.121896ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (7975.172572ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (3127.223287ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1522.448738ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1370.237592ms)
+✔ wasm: schema alone is not acquisition; unadmitted writes disappear on close (2252.653139ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6199.349466ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1221.860593ms)
+✔ process: schema alone is not acquisition; unadmitted writes disappear on close (2321.055923ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (6428.168525ms)
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+ℹ unacquired answers: {"all":{"loading":true},"countAll":{"loading":true},"one":{"loading":true},"guarded":{"loading":true}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1323.981953ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (3608.735477ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (5265.254934ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (3766.651565ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (7709.012707ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=2
+✔ receipt custody retains the first sent outcome across repeated save failures (1.430724ms)
+✔ receipt custody retains the first failed outcome across repeated save failures (0.233239ms)
+✔ acknowledgement drops an unsaved replacement refusal before any persistence retry (0.378297ms)
+✔ a legacy acknowledgement returns a known authored refusal without saving success (0.251427ms)
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (19196.052304ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (7097.163862ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (7185.619753ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (9382.321796ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1435.811849ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1494.088435ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ sequence by wasm: two offline Write results remain pending until settled (1173.088244ms)
+✔ sequence by process: two offline Write results remain pending until settled (1176.176953ms)
+✔ sequence by wasm: provisional rule refusal queues for the server (4259.907841ms)
+✔ sequence by wasm: provisional require refusal queues for the server (4361.114571ms)
+✔ sequence by wasm: provisional constraint refusal queues for the server (5121.692479ms)
+✔ sequence by wasm: provisional named constraint refusal queues for the server (4207.763807ms)
+✔ sequence by wasm: provisional postcondition refusal queues for the server (4229.451714ms)
+✔ sequence by wasm: provisional sequence key refusal queues for the server (4202.830134ms)
+✔ sequence by wasm: provisional old refusal queues for the server (5105.215825ms)
+✔ sequence by wasm: provisional empty index refusal queues for the server (4244.958036ms)
+✔ sequence by wasm: provisional cap group refusal queues for the server (4201.549154ms)
+✔ sequence by wasm: provisional upsert index refusal queues for the server (4194.753239ms)
+✔ sequence by wasm: provisional postcondition index refusal queues for the server (4214.581508ms)
+✔ sequence by wasm: point preserves prediction metadata and authority (167.492832ms)
+✔ sequence by wasm: page preserves prediction metadata and authority (183.343388ms)
+✔ sequence by wasm: short circuit preserves prediction metadata and authority (173.568808ms)
+✔ sequence by wasm: unique independent preserves prediction metadata and authority (170.501751ms)
+✔ sequence by wasm: cap independent preserves prediction metadata and authority (169.334331ms)
+✔ durable-only dev adoption answers a held legacy poll with the new generation within 500 ms (461.234074ms)
+✔ online: durable-only change requests and answers retain the base wire bytes (2162.497481ms)
+✔ online: adoption replaces mounted ephemeral interests, including removal (1383.739689ms)
+✔ wasm: durable-only change requests and answers retain the base wire bytes (3555.615546ms)
+✔ wasm: adoption replaces mounted ephemeral interests, including removal (1428.42223ms)
+✔ a self-invalidating guard is sent twice and returns its second refusal (160.105158ms)
+✔ online: a durable mounted watch discovers ephemeral capability on adoption (1148.584945ms)
+✔ wasm: a durable mounted watch discovers ephemeral capability on adoption (814.281978ms)
+✔ online capability discovery cannot swallow a generation invalidation for durable watches (23.588796ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (463.263495ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can close (428.777177ms)
+✔ online keep=undefined: adopting watch's loading response resets everyone before a peer can remount (419.076297ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (889.838422ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can close (456.639047ms)
+✔ wasm keep=undefined: adopting watch's loading response resets everyone before a peer can remount (465.987379ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can inspect (519.393504ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can close (528.859963ms)
+✔ process keep=undefined: adopting watch's loading response resets everyone before a peer can remount (511.752271ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can inspect (428.385861ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can close (425.712815ms)
+✔ online keep=true: adopting watch's loading response resets everyone before a peer can remount (421.844346ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can inspect (466.937693ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can close (498.627149ms)
+✔ wasm keep=true: adopting watch's loading response resets everyone before a peer can remount (453.166031ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can inspect (508.327628ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can close (510.398963ms)
+✔ process keep=true: adopting watch's loading response resets everyone before a peer can remount (510.458672ms)
+✔ online keep=undefined: first schema installation resets pre-discovery watches before callbacks (43.572517ms)
+✔ online keep=true: first schema installation resets pre-discovery watches before callbacks (40.437168ms)
+✔ column activation: sqlite, server watch (1029.222934ms)
+✔ column activation: sqlite, device watch (1011.544006ms)
+✔ column activation: wasm, server watch (1407.737697ms)
+✔ column activation: wasm, device watch (996.22122ms)
+✔ integration: device observations use the issued clock; server deadlines use the estimate (4.386284ms)
+✔ integration: retained read-through fallback obeys the common router (publish) (0.760129ms)
+✔ integration: retained read-through fallback obeys the common router (prediction) (0.466719ms)
+✔ integration: retained read-through fallback obeys the common router (issued expiry) (0.321252ms)
+✔ integration: retained read-through fallback obeys the common router (server expiry) (0.285087ms)
+✔ rule 2: known complete branch wins (native=false, held=false) (0.230796ms)
+✔ rule 2: known complete branch wins (native=false, held=true) (0.123545ms)
+✔ rule 2: known complete branch wins (native=true, held=false) (0.117336ms)
+✔ rule 2: known complete branch wins (native=true, held=true) (0.139008ms)
+✔ rule 3: engine-withheld offline (0.288622ms)
+✔ rule 3: engine-withheld prediction (0.152068ms)
+✔ rule 3: engine-withheld held (0.119078ms)
+✔ rule 3: engine-withheld server (0.219129ms)
+✔ rule 3: engine-withheld transport failure (0.21977ms)
+✔ rule 4: available unknown Following offline (0.203254ms)
+✔ rule 4: available unknown Following prediction (0.097707ms)
+✔ rule 4: available unknown Following held (0.087801ms)
+✔ rule 4: available unknown Following server (0.128082ms)
+✔ rule 4: available unknown Following transport failure (0.132939ms)
+✔ rule 4: unknown conditions retain static possible reads, including slash IDs (0.157836ms)
+✔ rules 2/3: an unrelated profile read runs before considering a pending post (0.205017ms)
+✔ rule 3: known meter prefixes stay partial without fallback (0.225558ms)
+✔ rule 5: prediction arriving at delivery keeps withholding (0.229103ms)
+✔ rule 5: prediction arriving at publication keeps withholding (0.097466ms)
+✔ rule 5: prediction arriving at delivery keeps local data (0.083555ms)
+✔ rule 5: prediction arriving at publication keeps local data (0.099099ms)
+✔ rules 3/4: remembered pages cannot replace withholding (0.368803ms)
+✔ rules 3/4: remembered pages cannot replace local data (0.24639ms)
+✔ rule 5: a native program stays opaque after local execution (0.137586ms)
+✔ rule 5: observed entries and predictable no-ops release the fence (0.226179ms)
+✔ rule 3: device preflight E_PREDICT cannot certify local coverage (0.22053ms)
+✔ rule 3: device preflight E_NATIVE cannot certify local coverage (0.151286ms)
+✔ rule 1: router itself refuses E_AUTH during delivery (0.280891ms)
+✔ rule 1: router itself refuses E_CLOSED during delivery (0.136435ms)
+✔ rule 1: router itself refuses E_AUTH during publication (0.118387ms)
+✔ rule 1: router itself refuses E_CLOSED during publication (0.114571ms)
+✔ native client reset with an unobserved prediction (1019.600692ms)
+✔ native client reset with an unobserved prediction held (1003.215453ms)
+✔ native client install failure with an unobserved prediction (1002.784147ms)
+✔ native client install failure with an unobserved prediction held (1002.447833ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=false) (0.461832ms)
+✔ rule 2: a withheld scalar/heap cut preserves skipped static reads (unknown=true) (0.158708ms)
+✔ rules 4/5: unknown placeholder null recovers memory, never speculative data (0.832137ms)
+✔ rules 4/5: unknown placeholder [] recovers memory, never speculative data (0.419278ms)
+✔ rules 4/5: unknown placeholder true recovers memory, never speculative data (0.361171ms)
+✔ rules 4/5: unknown placeholder false recovers memory, never speculative data (0.343264ms)
+✔ rules 4/5: unknown placeholder 0 recovers memory, never speculative data (0.357616ms)
+✔ rules 4/5: unknown placeholder {"online":true} recovers memory, never speculative data (0.320189ms)
+✔ rules 4/5: unknown placeholder [null] recovers memory, never speculative data (0.314841ms)
+✔ rule 5: remembered answer rechecks prediction during recovery (0.451406ms)
+✔ rule 5: remembered answer rechecks sign-out during recovery (0.262023ms)
+✔ rule 5: remembered answer rechecks close during recovery (0.227972ms)
+✔ rule 5: remembered answer rechecks prediction during publication (0.202053ms)
+✔ rule 5: remembered answer rechecks sign-out during publication (0.536885ms)
+✔ rule 5: remembered answer rechecks close during publication (0.22012ms)
+✔ rule 4: local freshness is decided at publication (transport failure=false) (0.251037ms)
+✔ rule 4: local freshness is decided at publication (transport failure=true) (0.350376ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (false) (0.415934ms)
+✔ rule 5: composed {"denied":{"code":"E_BOUND","family":"bound","message":"output ceiling"}} survives unless fenced (true) (0.205168ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (false) (0.155412ms)
+✔ rule 5: composed {"denied":{"code":"APP_REFUSAL","family":"application","message":"guard"}} survives unless fenced (true) (0.155643ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (false) (0.15356ms)
+✔ rule 5: composed {"loading":true} survives unless fenced (true) (0.201803ms)
+✔ rule 5: authoritative {"loading":true} retires earlier memory (0.436685ms)
+✔ rule 5: authoritative {"denied":{"code":"NO","family":"application","message":"no"}} retires earlier memory (0.294512ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={}) (0.309354ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={}) (0.146971ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={}) (0.136364ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={}) (0.128273ms)
+✔ rule 4: non-speculative unknown [] stays partial without an id (provenance={"speculative":false}) (0.261001ms)
+✔ rule 4: non-speculative unknown 0 stays partial without an id (provenance={"speculative":false}) (0.204076ms)
+✔ rule 4: non-speculative unknown null stays partial without an id (provenance={"speculative":false}) (0.217596ms)
+✔ rule 4: non-speculative unknown [{"body":"held","at":1}] stays partial without an id (provenance={"speculative":false}) (0.184186ms)
+✔ rule 4: retained [] composition survives offline/transport failure=false (0.383055ms)
+✔ rule 4: retained [] composition survives offline/transport failure=true (0.263365ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=false (0.172369ms)
+✔ rule 4: retained 0 composition survives offline/transport failure=true (0.198657ms)
+✔ rule 4: speculative values with engine held=false, fenced=false (0.392198ms)
+✔ rule 4: speculative values with engine held=false, fenced=true (0.300741ms)
+✔ rule 4: speculative values with engine held=true, fenced=false (0.267331ms)
+✔ rule 4: speculative values with engine held=true, fenced=true (0.288973ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=false (0.385558ms)
+✔ rule 4: online partial freshness requires caughtUp=false, identityChecked=true (0.160541ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=false (0.156805ms)
+✔ rule 4: online partial freshness requires caughtUp=true, identityChecked=true (0.147191ms)
+✔ rules 4/5: remembered since is the original observation time (0.955072ms)
+✔ rule 5: memory expires at recovery, with no expired answer or repeated deadline (0.935743ms)
+✔ rule 5: memory expires at publication, with no expired answer or repeated deadline (0.60045ms)
+✔ rule 5: expiry does not replace authoritative {"denied":{"code":"E_BOUND","family":"bound","message":"ceiling"}} (0.380129ms)
+✔ rule 5: expiry does not replace authoritative {"loading":true} (0.496594ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=false) (0.424246ms)
+✔ rule 4: speculative refusal is a placeholder (fenced=true) (0.277065ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=false) (0.378247ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=false, failed=true) (0.259949ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=false) (0.171497ms)
+✔ rule 4: retained composition beside speculative null (left=[{"body":"retained"}], fenced=true, failed=true) (0.16014ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=false) (0.145178ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=false, failed=true) (0.196394ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=false) (0.154091ms)
+✔ rule 4: retained composition beside speculative null (left=[], fenced=true, failed=true) (0.150546ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=false) (0.145798ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=false, failed=true) (0.199859ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=false) (0.183535ms)
+✔ rule 4: retained composition beside speculative null (left=0, fenced=true, failed=true) (0.150205ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=false) (0.807891ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=false, watch=true) (0.394382ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=false) (0.323795ms)
+✔ rules 2/4/5: delayed local data expires and reobserves (complete=true, watch=true) (0.302894ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (speculative) (0.539288ms)
+✔ rules 4/5: a withheld local retry keeps its future deadline (unavailable) (0.341982ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, false) (0.505437ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (data, true) (0.251757ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, false) (0.259139ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (speculative, true) (0.253019ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, false) (0.241102ms)
+✔ rule 5: a second expired local reply stops and dirties its watch (unavailable, true) (0.252879ms)
+✔ rules 1/5: sign-out during local expiry retry still fences publication (0.439569ms)
+✔ rules 1/5: close during local expiry retry still fences publication (0.211758ms)
+✔ rules 1/5: incarnation during local expiry retry still fences publication (0.235563ms)
+✔ rule 5: delayed server data expires during transport (0.593679ms)
+✔ rule 5: delayed server data expires during publication (0.284026ms)
+✔ rule 5: delayed composed data expires during transport (0.515933ms)
+✔ rule 5: delayed composed data expires during publication (0.359278ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=false) (0.425648ms)
+✔ rule 5: an initial expired server answer schedules only a live watch (watch=true) (0.328943ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=false) (0.657165ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=false, watch=true) (0.33326ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=false) (0.344756ms)
+✔ rules 3/4/5: online unknown expiry retry takes fallback (speculative=true, watch=true) (0.3537ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=false) (0.535222ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=null, watch=true) (0.30678ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=false) (0.312178ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=300, watch=true) (0.325388ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=false) (0.266229ms)
+✔ rules 4/5: offline speculative expiry retry recovers independent memory (deadline=200, watch=true) (0.276474ms)
+✔ rules 3/4: expiry retry respects offline (0.59414ms)
+✔ rules 3/4: expiry retry respects prediction (0.245969ms)
+✔ rules 3/4: expiry retry respects held (0.237186ms)
+✔ rules 3/4: expiry retry respects transport failure (0.321943ms)
+✔ rules 4/5: expiry retry composes retained rows with its server answer (1.276013ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=false) (0.525168ms)
+✔ rule 5: expiry fallback rechecks predictions at final publication (speculative=true) (0.302954ms)
+✔ rule 5: an expired retry server answer dirties the watch without retiring valid memory (3.767086ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (publish) (0.68758ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (issued expiry) (0.301322ms)
+✔ integration: expiry retry composes read-through provenance with separate clocks (server expiry) (0.311697ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=false) (0.456944ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=missing, watch=true) (0.214542ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=false) (0.210946ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=null, watch=true) (0.219479ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=false) (0.228383ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=150, watch=true) (0.22696ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=false) (0.234322ms)
+✔ rules 4/5: retry recovery preserves chained deadline (offline, memory=50, watch=true) (0.224116ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=false) (0.278878ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=missing, watch=true) (0.269674ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=false) (0.230035ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=null, watch=true) (0.230205ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=false) (0.203605ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=150, watch=true) (0.208363ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=false) (0.200671ms)
+✔ rules 4/5: retry recovery preserves chained deadline (failed fallback, memory=50, watch=true) (0.265087ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=false) (0.484897ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=null, watch=true) (0.16028ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=false) (0.175854ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, offline, expiry=900, watch=true) (0.141802ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=false) (0.19353ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=null, watch=true) (0.156495ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=false) (0.144797ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=false, failed fallback, expiry=900, watch=true) (0.201222ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=false) (0.174552ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=null, watch=true) (0.183174ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=false) (0.191487ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, offline, expiry=900, watch=true) (0.143525ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=false) (0.182022ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=null, watch=true) (0.155613ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=false) (0.2072ms)
+✔ rule 5: memory survives a local deadline crossed at publication (retry=true, failed fallback, expiry=900, watch=true) (0.185508ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=false) (0.512639ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=false, watch=true) (0.182744ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=false) (0.143996ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=false, localDue=true, watch=true) (0.127692ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=false) (0.142273ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=false, watch=true) (0.18731ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=false) (0.141782ms)
+✔ rule 5: memory's own server deadline still expires at publication (retry=true, localDue=true, watch=true) (0.137115ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=false) (0.482353ms)
+✔ composed delivery omits coordinates from replaced server rows (rows=true) (0.216975ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=undefined (1.203313ms)
+✔ retaining fallback keeps A while the second local composition read waits: keep=true (0.342945ms)
+✔ W14A horizon-free matching wasm: retained history and independent held coverage (651.840378ms)
+ℹ W14A wasm: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence wasm: retained history and independent held coverage (273.227507ms)
+ℹ W14A wasm: acquired before leave; positive retained existence + 26 server rows
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (316.660655ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (256.868638ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (257.582348ms)
+R2 wasm mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (1308.212898ms)
+✔ R2 sync during reply wasm: retained history and independent held coverage (261.990024ms)
+✔ MQ authoritative bound wasm: retained history and independent held coverage (414.015382ms)
+✔ MQ speculative component wasm: retained history and independent held coverage (275.871841ms)
+✔ MQ speculative events wasm: retained history and independent held coverage (8314.359311ms)
+✔ MQ expiry local left wasm: retained history and independent held coverage (1280.376296ms)
+✔ MQ expiry local watch left wasm: retained history and independent held coverage (1250.986848ms)
+✔ MQ local permit wasm: retained history and independent held coverage (1256.634692ms)
+✔ MQ local permit watch wasm: retained history and independent held coverage (1363.898842ms)
+✔ MQ local branch wasm: retained history and independent held coverage (378.681804ms)
+✔ MQ local branch watch wasm: retained history and independent held coverage (358.882949ms)
+✔ MQ local page wasm: retained history and independent held coverage (369.347744ms)
+✔ MQ ineligible wasm: retained history and independent held coverage (417.741828ms)
+✔ MQ points wasm: retained history and independent held coverage (408.381127ms)
+✔ MQ delete current wasm: retained history and independent held coverage (425.461899ms)
+✔ MQ revoke current wasm: retained history and independent held coverage (392.967656ms)
+✔ MQ rejoin wasm: retained history and independent held coverage (423.256883ms)
+✔ MQ held change wasm: retained history and independent held coverage (428.05147ms)
+✔ MQ close wasm: retained history and independent held coverage (345.02637ms)
+✔ MQ sign-out wasm: retained history and independent held coverage (384.772784ms)
+✔ MQ transport wasm: retained history and independent held coverage (387.083376ms)
+✔ MQ adoption wasm: retained history and independent held coverage (692.183986ms)
+✔ MQ reset wasm: retained history and independent held coverage (1382.553242ms)
+✔ MQ rotation wasm: retained history and independent held coverage (415.642121ms)
+✔ MQ prediction wasm: retained history and independent held coverage (4424.885584ms)
+✔ MQ expiry left wasm: retained history and independent held coverage (457.412687ms)
+✔ MQ expiry held wasm: retained history and independent held coverage (452.677319ms)
+✔ MQ interrupted snapshot wasm: retained history and independent held coverage (1392.369133ms)
+✔ MQ retained snapshot wasm: retained history and independent held coverage (422.435062ms)
+✔ W14A horizon-free matching process: retained history and independent held coverage (495.932821ms)
+ℹ W14A process: acquired before leave; 25 retained matches + 26 server rows
+✔ W14A positive existence process: retained history and independent held coverage (520.054886ms)
+ℹ W14A process: acquired before leave; positive retained existence + 26 server rows
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history process: retained history and independent held coverage (570.498843ms)
+R1a process empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search process: retained history and independent held coverage (503.921976ms)
+R1a process mixed: device=25, server=26, watch=26
+✔ R1a mixed reads process: retained history and independent held coverage (543.152976ms)
+R2 process mixed result: online left=25 held=26; offline/reopen left=25 held=25; separate left=25
+✔ R2 mixed result process: retained history and independent held coverage (1559.563728ms)
+✔ R2 sync during reply process: retained history and independent held coverage (493.979725ms)
+✔ MQ authoritative bound process: retained history and independent held coverage (817.515335ms)
+✔ MQ speculative component process: retained history and independent held coverage (501.666635ms)
+✔ MQ speculative events process: retained history and independent held coverage (8568.139168ms)
+✔ MQ expiry local left process: retained history and independent held coverage (1483.154194ms)
+✔ MQ expiry local watch left process: retained history and independent held coverage (1465.69052ms)
+✔ MQ local permit process: retained history and independent held coverage (1545.500409ms)
+✔ MQ local permit watch process: retained history and independent held coverage (1919.743141ms)
+✔ MQ local branch process: retained history and independent held coverage (484.140488ms)
+✔ MQ local branch watch process: retained history and independent held coverage (525.898645ms)
+✔ MQ local page process: retained history and independent held coverage (535.580296ms)
+✔ MQ ineligible process: retained history and independent held coverage (578.335718ms)
+✔ MQ points process: retained history and independent held coverage (502.259834ms)
+✔ MQ delete current process: retained history and independent held coverage (613.916818ms)
+✔ MQ revoke current process: retained history and independent held coverage (590.608453ms)
+✔ MQ rejoin process: retained history and independent held coverage (542.581078ms)
+✔ MQ held change process: retained history and independent held coverage (598.439881ms)
+✔ MQ close process: retained history and independent held coverage (560.753466ms)
+✔ MQ sign-out process: retained history and independent held coverage (1103.250399ms)
+✔ MQ transport process: retained history and independent held coverage (1150.299216ms)
+✔ MQ adoption process: retained history and independent held coverage (728.249832ms)
+✔ MQ reset process: retained history and independent held coverage (1601.245051ms)
+✔ MQ rotation process: retained history and independent held coverage (642.452869ms)
+✔ MQ prediction process: retained history and independent held coverage (4613.592104ms)
+✔ MQ expiry left process: retained history and independent held coverage (502.860375ms)
+✔ MQ expiry held process: retained history and independent held coverage (403.850357ms)
+✔ MQ interrupted snapshot process: retained history and independent held coverage (1344.672487ms)
+✔ MQ retained snapshot process: retained history and independent held coverage (400.832925ms)
+(node:1969130) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (964.924513ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2560.155728ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1094.325992ms)
+✔ serve accepts a matching bearer, refuses a different principal, and omits server timings (1509.190907ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1613.280588ms)
+✔ restart detects wipe before reconnect can repair it (428.050639ms)
+✔ restart detects delete-row before reconnect can repair it (1350.342904ms)
+✔ restart detects change-groups before reconnect can repair it (1525.094493ms)
+✔ restart detects change-boundaries before reconnect can repair it (1321.165371ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1610.547072ms)
+ℹ {"fault":"more-then-drop","observed":5,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":8.652,"totalMs":9.31,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":9.034,"totalMs":9.511,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":6.575,"totalMs":7.41,"outcome":"validated","snapshot":false,"more":true,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":4.591,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":3.641,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects denied and records every attempted request (1620.416173ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1583.342256ms)
+✔ reconnect proof rejects null and records every attempted request (1572.293306ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1601.436807ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1558.428436ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1536.231005ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1532.824551ms)
+ℹ {"fault":"dropped-first","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":8.315,"totalMs":8.964,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":6.989,"totalMs":7.526,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":3.781,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":4.529,"outcome":"failed","error":"transport failure before headers","cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects drop-once and records every attempted request (1570.80067ms)
+ℹ {"fault":"drop-once","observed":4,"attempts":[{"phase":"acquire","path":"/sync","http":"ok","headerMs":8.974,"totalMs":9.656,"outcome":"validated","snapshot":true,"more":false,"applied":false,"putRows":2,"events":2},{"phase":"acquire","path":"/sync","http":"ok","headerMs":6.3,"totalMs":6.852,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0},{"phase":"reconnect","path":"/sync","http":"unavailable","headerMs":null,"totalMs":3.951,"outcome":"failed","error":"transport failure before headers"},{"phase":"reconnect","path":"/sync","http":"ok","headerMs":9.836,"totalMs":10.684,"outcome":"validated","snapshot":false,"more":false,"applied":true,"putRows":0,"events":0,"cause":"transport retry after reused-socket reset"}]}
+✔ reconnect proof rejects truncated-body and records every attempted request (1546.10145ms)
+✔ reconnect proof rejects bad-ack and records every attempted request (1570.525046ms)
+✔ reconnect proof rejects bad-acquisitions and records every attempted request (1572.528469ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (669.499216ms)
+✔ witness family usage advertises both commands and shares input diagnostics (156.018212ms)
+✔ receipt identifies the JSON-line subprocess host (1616.143049ms)
+✔ restart times coverage separately from first answer (2758.815044ms)
+✖ bounds names the known process-device apply defect independently from retention (3.071083ms)
+✔ binary native module installs and survives restart (1570.029374ms)
+✔ binary native module digest refusal fails proof (501.728718ms)
+✔ server allowlist drops raw from every acquisition output surface (9455.736603ms)
+✔ server allowlist drops hex from every acquisition output surface (9479.508244ms)
+✔ server allowlist drops HEX from every acquisition output surface (9397.737827ms)
+✔ server allowlist drops base64 from every acquisition output surface (5914.134519ms)
+✔ server allowlist drops base64url from every acquisition output surface (5740.572282ms)
+✔ server allowlist drops percent from every acquisition output surface (7147.200269ms)
+✔ server allowlist drops percentLower from every acquisition output surface (5547.767345ms)
+✔ server allowlist drops sha256 from every acquisition output surface (5770.952278ms)
+✔ caller query and args are echoed from the request, never selected schema metadata (1364.09575ms)
+✔ failed query receipts distinguish argument rejection, query refusal and incomplete coverage (1802.864904ms)
+✔ query diagnostics use validated codes and drop arbitrary refusal prose (3076.304787ms)
+✔ equals token spelling authenticates without exposing the bearer (1312.234749ms)
+✔ acquire argument refusals omit values including equals bearers (1088.968084ms)
+✔ iOS argument refusals omit values including equals bearers (95.741228ms)
+✔ runtime refusals do not echo caller argument values in stderr (259.730648ms)
+ℹ tests 381
+ℹ suites 0
+ℹ pass 380
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 161790.717491
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:301:1
+✖ bounds names the known process-device apply defect independently from retention (3.071083ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /known performance defect/. Input:
+
+  '//! The bounds card. Quarry examples are compiled by tests/guide.rs.\n' +
+    '// HV web figures: reports/20260929-hv-heavy-acquisition/REPORT.md, five-run table.\n' +
+    'pub(super) const CARD: &str = r##"# Bounds and the meter\n' +
+    '\n' +
+    'The meter limits the work each read, mutation and job transaction can do.\n' +
+    'Declare product limits; the engine chooses execution bounds within those ceilings.\n' +
+    '\n' +
+    '```quarry\n' +
+    'table scalePosts:\n' +
+    '  body: text <=500\n' +
+    '  public\n' +
+    '  online only\n' +
+    'query scalePage(c: cursor ?):\n' +
+    '  return scalePosts first 20 by .id after c\n' +
+    'query scalePopulation():\n' +
+    '  return count(scalePosts)\n' +
+    '```\n' +
+    '\n' +
+    'Write product limits: a page size, a text length, an asset size or a real per-group cap.\n' +
+    'Do not choose an index, a merge width or a job transaction size. Predicate reads and views choose their plans; top-level job `for`\n' +
+    'loops choose their chunks. Removing a written number never removes the meter.\n' +
+    '\n' +
+    "A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`\n" +
+    'when the read rule is uniformly decided by that prefix; they read ascending\n' +
+    'until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`\n' +
+    'and `lanes ≤ meter` when no fitting schema cap supplies a static bound.\n' +
+    'A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.\n' +
+    'A returned or bound page instead needs a schema cap or an explicit page bound.\n' +
+    "Jobs may iterate uncapped domains under the chunk's meter. Top-level job\n" +
+    '`for` sweeps shrink their transaction size after a meter refusal. Mutation loops\n' +
+    'still need a schema-capped group that fits the examined ceiling. Direct\n' +
+    '`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the\n' +
+    'meter without retaining the page. Schema-capped query `count` and `sum` with\n' +
+    'non-uniform read rules keep their bounded page execution and coverage contract.\n' +
+    'Mutations retain their uniform-read and plain-prefix admission rules; a cut aborts the transaction, never commits a\n' +
+    'partial total. A streaming query total with a meter cut or unknown device\n' +
+    'coverage leaves the client read `loading`, never a partial count or sum.\n' +
+    'Unknown earlier reads also make a streaming scalar unavailable, including\n' +
+    'inputs saved in locals or used as domain bounds; a fallback cannot establish\n' +
+    'coverage.\n' +
+    '\n' +
+    '## Allocation and completeness\n' +
+    '\n' +
+    'Heap is a cumulative allocation and binding budget. Streaming aggregates\n' +
+    'release each transient row and its key scratch; one cursor allowance remains.\n' +
+    'Inner job domains decode one prepaid row at a time and retain each selected\n' +
+    "row under the heap meter before fetching another. Once decoded, the row's\n" +
+    'retained allowance replaces its decode scratch. Retained rows, their vector\n' +
+    'and the live cursor stay charged; domains do not retain unused result keys.\n' +
+    'Constructed values,\n' +
+    'concatenation and other allocating builtins, local bindings, and owned\n' +
+    "copies count. Inspecting a held value's length or sum borrows it; row and\n" +
+    'map clones share their immutable image. A heap cut stops a query immediately\n' +
+    'with no available value or continuation, since an interrupted scalar or shape\n' +
+    'has no valid partial answer. The client read is `loading`; narrow the query or\n' +
+    'use a maintained view for a total. Its cut site remains internal;\n' +
+    "the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).\n" +
+    'An unfinished maintained lookup or live aggregate uses the same unavailable\n' +
+    'query result, preserving zero only for a completed missing-group lookup.\n' +
+    'A mutation rolls back; Operations below describes the refusal.\n' +
+    'A page whose read rule the prefix does not decide (the deciding fields include a\n' +
+    'column the scan does not pin) is never `complete`: the server cannot tell\n' +
+    '"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the\n' +
+    'partition holds exactly what the viewer may read. `check` says so\n' +
+    '(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor\n' +
+    '(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon\n' +
+    '(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).\n' +
+    '`complete` means the query answered its declared request within known coverage and execution limits.\n' +
+    'Filling `first N` or `last N` is complete, including a composed preview.\n' +
+    'A cursorless page cannot continue; declare `c: cursor ?` and use `after c`\n' +
+    'if the screen pages. Composed fields and pages covering a fitting group cap\n' +
+    'omit `N_NO_CURSOR`.\n' +
+    '\n' +
+    '## Operations\n' +
+    '\n' +
+    'Nothing is priced at check. As a program runs, the meter counts examined\n' +
+    'rows, index entries, rule probes, steps, heap bytes, output bytes and rows\n' +
+    'written against ceilings: 8,192 rows examined, 16,384 index entries, 8,192\n' +
+    'rule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written\n' +
+    "per mutation; a job's chunk may examine 16,384 rows and write 8,192. A\n" +
+    'query past a ceiling returns what it found with `complete: false`; a\n' +
+    'mutation aborts with E_BOUND naming the meter, the ceiling and the site\n' +
+    '(never the count: it would measure rows the viewer may not read).\n' +
+    'Read a smaller page, narrow its predicate, or move the sweep into a job.\n' +
+    'Authorization-dependent scans prepay a fixed logical allowance before row\n' +
+    "discovery. Hidden candidates do not consume the caller's remaining allowance;\n" +
+    'readable rows, filters and output still do. These logical meters exclude private\n' +
+    'scan work: authorization candidates share one physical limit of 8,192\n' +
+    'per request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging\n' +
+    'in that direction; an empty page has no cursor into the hidden range. Expiring\n' +
+    'cap checks draw from that same allowance; any authorization that cannot be\n' +
+    'established within it returns generic E_RULE without identifying a cause.\n' +
+    "The device's prediction-work budget can instead queue an operation.\n" +
+    "`snapback4 check --cost` prints each site's structural class;\n" +
+    '`snapback4 test` prints the numbers on your data and names query/persona reads\n' +
+    'past half any ceiling without a cut: at most ten lines and a count of the rest.\n' +
+    'Loopback `dev` logs actual meter and word cuts with the operation, principal,\n' +
+    'site, counters and `snapback4 why <op>`. Repeats are suppressed per operation\n' +
+    'and site (at most two lines per minute); the next emitted line includes the\n' +
+    'suppressed count. `serve` neither logs these costs nor returns read meters.\n' +
+    "A loop is bounded by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,\n" +
+    "or `tokens`' 64. An accumulated list is bounded by the heap meter and its\n" +
+    'iterations by the step meter. `while` stays refused.\n' +
+    '`range(a, b)` evaluates int expressions once and iterates under the step meter,\n' +
+    'without materializing the range. `check --cost` prints `steps ≤ meter`, a\n' +
+    'filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,\n' +
+    'and a seek as a prefix. Sorting or grouping only processes that page.\n' +
+    "`sha256(text)` charges the input's UTF-8 byte length plus one to steps before\n" +
+    'hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step\n' +
+    'cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves\n' +
+    'the client read `loading`, as other query heap cuts do. A mutation rolls\n' +
+    'back on either cut.\n' +
+    '\n' +
+    '### Prove the heaviest account\n' +
+    '\n' +
+    "Prove the envelope's heaviest account: 500 follows and 1,000 conversations need acquisition/restart proof.\n" +
+    "Replace alice/heldNotes with that persona/query; SB4_URL is dev's URL, SB4_PROOF a new directory:\n" +
+    '\n' +
+    '```sh\n' +
+    'snapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json\n' +
+    '```\n' +
+    '\n' +
+    'For serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`). Optional `--args \'{"c":null}\'`\n' +
+    'supplies query arguments; without `--query` the witness selects the first zero-argument device query. `--runs 3` uses three\n' +
+    'fresh stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run. The command writes acquire.json even on\n' +
+    'failure; --json prints it, otherwise one summary per run. Receipt excerpt (counts depend on your fixture):\n' +
+    '\n' +
+    '```json\n' +
+    '{"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}\n' +
+    '```\n' +
+    '\n' +
+    'Node sends one JSON line per call to the SQLite `snapback4 device` subprocess. Expo links the same crate in-process; these are\n' +
+    'not Expo/iOS or physical-phone timings. `acquiredMs` ends at SDK acquired; `firstLocalMs` ends at the subsequent complete local\n' +
+    'query. Both start at fresh startup, including identity checks. Restart firstLocalMs includes cold offline reopen;\n' +
+    '`restart.coverageVerifiedMs` separately times coverage scan/comparison. Retained means equal store/generation/watermark,\n' +
+    'per-group counts/coverage and table rows/bytes. Reconnect must finish a validated `more: false` stream at the applied server\n' +
+    'position, with no row events or failed attempts. Even an empty snapshot at watermark zero needs catch-up. Keep the fixture\n' +
+    'stable: writes/expiry invalidate comparison. OS caches are warm; app UI and media caches are excluded. Verification scans follow\n' +
+    'the timed answer; background polling is suppressed. Groups are table/group pairs with rows/coverage, plus implicit\n' +
+    'public/principal groups. groupsByTable and residency.tables hash names with SHA-256 of UTF-8 JSON.stringify(["witness-table",\n' +
+    'name]); use name = "messages" for conversation groups. residency.totalBytes is SQLite pages, excluding WAL/SHM and RSS; table\n' +
+    'bytes are row payloads. Receipt format 2 retains local timings/counts and computed state/position digests; server text, codes,\n' +
+    'numeric metadata and Server-Timing are dropped. Validated codes select argument-rejection, query-refusal or incomplete-coverage\n' +
+    'diagnostics: check --args types, --query requirements or held coverage respectively. Failed receipts retain caller query/args.\n' +
+    'Automatic queries get a generated label; explicit query/args/principal echo only caller input.\n' +
+    '\n' +
+    'HV web medians (eb1000, five r'... 17885 more characters
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-na/snapback4/packages/snapback4/test/witness-acquire.test.mjs:303:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '//! The bounds card. Quarry examples are compiled by tests/guide.rs.\n// HV web figures: reports/20260929-hv-heavy-acquisition/REPORT.md, five-run table.\npub(super) const CARD: &str = r##"# Bounds and the meter\n\nThe meter limits the work each read, mutation and job transaction can do.\nDeclare product limits; the engine chooses execution bounds within those ceilings.\n\n```quarry\ntable scalePosts:\n  body: text <=500\n  public\n  online only\nquery scalePage(c: cursor ?):\n  return scalePosts first 20 by .id after c\nquery scalePopulation():\n  return count(scalePosts)\n```\n\nWrite product limits: a page size, a text length, an asset size or a real per-group cap.\nDo not choose an index, a merge width or a job transaction size. Predicate reads and views choose their plans; top-level job `for`\nloops choose their chunks. Removing a written number never removes the meter.\n\nA query\'s `for row in t where .owner = viewer:` and a merge lane\'s source may omit `first N`\nwhen the read rule is uniformly decided by that prefix; they read ascending\nuntil the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`\nand `lanes ≤ meter` when no fitting schema cap supplies a static bound.\nA loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.\nA returned or bound page instead needs a schema cap or an explicit page bound.\nJobs may iterate uncapped domains under the chunk\'s meter. Top-level job\n`for` sweeps shrink their transaction size after a meter refusal. Mutation loops\nstill need a schema-capped group that fits the examined ceiling. Direct\n`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the\nmeter without retaining the page. Schema-capped query `count` and `sum` with\nnon-uniform read rules keep their bounded page execution and coverage contract.\nMutations retain their uniform-read and plain-prefix admission rules; a cut aborts the transaction, never commits a\npartial total. A streaming query total with a meter cut or unknown device\ncoverage leaves the client read `loading`, never a partial count or sum.\nUnknown earlier reads also make a streaming scalar unavailable, including\ninputs saved in locals or used as domain bounds; a fallback cannot establish\ncoverage.\n\n## Allocation and completeness\n\nHeap is a cumulative allocation and binding budget. Streaming aggregates\nrelease each transient row and its key scratch; one cursor allowance remains.\nInner job domains decode one prepaid row at a time and retain each selected\nrow under the heap meter before fetching another. Once decoded, the row\'s\nretained allowance replaces its decode scratch. Retained rows, their vector\nand the live cursor stay charged; domains do not retain unused result keys.\nConstructed values,\nconcatenation and other allocating builtins, local bindings, and owned\ncopies count. Inspecting a held value\'s length or sum borrows it; row and\nmap clones share their immutable image. A heap cut stops a query immediately\nwith no available value or continuation, since an interrupted scalar or shape\nhas no valid partial answer. The client read is `loading`; narrow the query or\nuse a maintained view for a total. Its cut site remains internal;\nthe meter is available only through dev\'s default read inspection (CLIENT-AND-OPERATIONS.md §4).\nAn unfinished maintained lookup or live aggregate uses the same unavailable\nquery result, preserving zero only for a completed missing-group lookup.\nA mutation rolls back; Operations below describes the refusal.\nA page whose read rule the prefix does not decide (the deciding fields include a\ncolumn the scan does not pin) is never `complete`: the server cannot tell\n"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the\npartition holds exactly what the viewer may read. `check` says so\n(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor\n(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon\n(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`).\n`complete` means the query answered its declared request within known coverage and execution limits.\nFilling `first N` or `last N` is complete, including a composed preview.\nA cursorless page cannot continue; declare `c: cursor ?` and use `after c`\nif the screen pages. Composed fields and pages covering a fitting group cap\nomit `N_NO_CURSOR`.\n\n## Operations\n\nNothing is priced at check. As a program runs, the meter counts examined\nrows, index entries, rule probes, steps, heap bytes, output bytes and rows\nwritten against ceilings: 8,192 rows examined, 16,384 index entries, 8,192\nrule probes, 1,000,000 steps, 16 MiB heap, 1 MiB output, 1,024 rows written\nper mutation; a job\'s chunk may examine 16,384 rows and write 8,192. A\nquery past a ceiling returns what it found with `complete: false`; a\nmutation aborts with E_BOUND naming the meter, the ceiling and the site\n(never the count: it would measure rows the viewer may not read).\nRead a smaller page, narrow its predicate, or move the sweep into a job.\nAuthorization-dependent scans prepay a fixed logical allowance before row\ndiscovery. Hidden candidates do not consume the caller\'s remaining allowance;\nreadable rows, filters and output still do. These logical meters exclude private\nscan work: authorization candidates share one physical limit of 8,192\nper request, including nested witnesses and maintained-source walks. A row behind at least 8,192 such candidates is unreachable by paging\nin that direction; an empty page has no cursor into the hidden range. Expiring\ncap checks draw from that same allowance; any authorization that cannot be\nestablished within it returns generic E_RULE without identifying a cause.\nThe device\'s prediction-work budget can instead queue an operation.\n`snapback4 check --cost` prints each site\'s structural class;\n`snapback4 test` prints the numbers on your data and names query/persona reads\npast half any ceiling without a cut: at most ten lines and a count of the rest.\nLoopback `dev` logs actual meter and word cuts with the operation, principal,\nsite, counters and `snapback4 why <op>`. Repeats are suppressed per operation\nand site (at most two lines per minute); the next emitted line includes the\nsuppressed count. `serve` neither logs these costs nor returns read meters.\nA loop is bounded by a page\'s `first N`, a schema-capped prefix, a query\'s meter-bounded prefix, a list\'s `<=N`, `range`\'s int expressions, `walk`\'s depth,\nor `tokens`\' 64. An accumulated list is bounded by the heap meter and its\niterations by the step meter. `while` stays refused.\n`range(a, b)` evaluates int expressions once and iterates under the step meter,\nwithout materializing the range. `check --cost` prints `steps ≤ meter`, a\nfiltered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,\nand a seek as a prefix. Sorting or grouping only processes that page.\n`sha256(text)` charges the input\'s UTF-8 byte length plus one to steps before\nhashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step\ncut refuses a scalar query with E_BOUND; a cut on that result allocation leaves\nthe client read `loading`, as other query heap cuts do. A mutation rolls\nback on either cut.\n\n### Prove the heaviest account\n\nProve the envelope\'s heaviest account: 500 follows and 1,000 conversations need acquisition/restart proof.\nReplace alice/heldNotes with that persona/query; SB4_URL is dev\'s URL, SB4_PROOF a new directory:\n\n```sh\nsnapback4 witness acquire --as alice --url "$SB4_URL" --query heldNotes --restart --artifacts "$SB4_PROOF" --json\n```\n\nFor serve or a real account, use `--as <principal> --token <bearer>` (or `--token=<bearer>`). Optional `--args \'{"c":null}\'`\nsupplies query arguments; without `--query` the witness selects the first zero-argument device query. `--runs 3` uses three\nfresh stores. Default URL is http://127.0.0.1:4400; `--timeout 120` bounds each run. The command writes acquire.json even on\nfailure; --json prints it, otherwise one summary per run. Receipt excerpt (counts depend on your fixture):\n\n```json\n{"passed":true,"runs":[{"coverage":{"groups":1,"rows":2},"restart":{"retained":true,"downloadedRows":0}}]}\n```\n\nNode sends one JSON line per call to the SQLite `snapback4 device` subprocess. Expo links the same crate in-process; these are\nnot Expo/iOS or physical-phone timings. `acquiredMs` ends at SDK acquired; `firstLocalMs` ends at the subsequent complete local\nquery. Both start at fresh startup, including identity checks. Restart firstLocalMs includes cold offline reopen;\n`restart.coverageVerifiedMs` separately times coverage scan/comparison. Retained means equal store/generation/watermark,\nper-group counts/coverage and table rows/bytes. Reconnect must finish a validated `more: false` stream at the applied server\nposition, with no row events or failed attempts. Even an empty snapshot at watermark zero needs catch-up. Keep the fixture\nstable: writes/expiry invalidate comparison. OS caches are warm; app UI and media caches are excluded. Verification scans follow\nthe timed answer; background polling is suppressed. Groups are table/group pairs with rows/coverage, plus implicit\npublic/principal groups. groupsByTable and residency.tables hash names with SHA-256 of UTF-8 JSON.stringify(["witness-table",\nname]); use name = "messages" for conversation groups. residency.totalBytes is SQLite pages, excluding WAL/SHM and RSS; table\nbytes are row payloads. Receipt format 2 retains local timings/counts and computed state/position digests; server text, codes,\nnumeric metadata and Server-Timing are dropped. Validated codes select argument-rejection, query-refusal or incomplete-coverage\ndiagnostics: check --args types, --query requirements or held coverage respectively. Failed receipts retain caller query/args.\nAutomatic queries get a generated label; explicit query/args/principal echo only caller input.\n\nHV web medians (eb1000, five r'... 17885 more characters,
+    expected: /known performance defect/,
+    operator: 'match',
+    diff: 'simple'
+  }
