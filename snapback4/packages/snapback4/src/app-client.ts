@@ -2,6 +2,7 @@ import { routeMutations, failedSignal } from "./ephemeral.ts";
 import { browserAdmission, failedAdmission } from "./admission.ts";
 // @ref LLP 3000.013#6 — public handle fences are independent of private session custody.
 import type { ObserveOptions, Client, Observed, Query, Read, Refusal } from "./contract.ts";
+import { forwardInspection } from "./observation-work.ts";
 import { guardAcquisition } from "./acquisition.ts";
 import { mintId } from "./client.ts";
 import { observationKey, peekObservation, registerObservationPeek } from "./observe-watch.ts";
@@ -273,6 +274,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     },
   };
   guardAcquisition(client, raw, valid);
+  forwardInspection(client, raw, valid);
   // @ref LLP 3000.019#3.3 — remount sees the held approved answer while its replacement awaits authority.
   registerObservationPeek(client, (op, args, options) => {
     if (!valid()) return undefined;

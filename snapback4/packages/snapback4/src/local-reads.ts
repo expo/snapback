@@ -233,18 +233,27 @@ export class LocalReads {
     if (serverDue) this.serverAnswers.expire(`${watch.op.name}:${JSON.stringify(watch.args)}`, serverNow);
   }
 
-  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
-  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
-    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched);
+  // @ref LLP 3000.023#10 — membership scope removal bypasses observation capacity.
+  withdrawScopes(watches: Iterable<LocalWatch>, page: { events?: { kind?: string; table?: string }[] }): void {
+    const tables = new Set(page.events?.filter(event => event.kind === "scope").map(event => event.table));
+    if (!tables.size) return;
+    for (const watch of watches) if (!watch.tables.size || [...watch.tables].some(table => tables.has(table))) {
+      watch.reset({ loading: true }, false, "membership-removal");
+    }
   }
 
-  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[]): void {
+  // @ref LLP 3000.023#3.1 — ordinary commits mark revalidation; queue service starts a new bounded episode.
+  committed(watches: Iterable<LocalWatch>, operation: string, touched?: readonly string[]): void {
+    this.clear(watches, !["apply", "admit", "settle"].includes(operation), touched, operation);
+  }
+
+  clear(watches: Iterable<LocalWatch>, reset = true, touched?: readonly string[], cause = "store-or-schema-reset"): void {
     this.revision++;
     this.predictions = null;
     this.serverAnswers.clear(reset ? undefined : touched);
     for (const watch of watches) {
       if (reset) { delete watch.changeCut; delete watch.waitingForSync; }
-      if (reset) watch.reset({ loading: true }); else watch.reload(true, { queued: true });
+      if (reset) watch.reset({ loading: true }, false, cause); else watch.reload(true, { queued: true });
       if (reset || !watch.retain) {
         if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
         watch.expiryTimer = null;

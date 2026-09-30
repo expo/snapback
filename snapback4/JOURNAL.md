@@ -79232,3 +79232,81 @@ superseded harness probes, and causal tools:
 reports/20260929-fw-follow-window/round1/REPORT.md.
 Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+### 2026-09-30 — PR round 0: mounted answers survive subscription queue pressure
+
+Reproduced calibration #27's subscription-pressure shape on real wasm and process
+clients: history, 40 reaction reads, 40 receipts, 40 profiles, two feeds and
+search — 124 observations per device. Two independent offline writers reconnect;
+a concurrent real edit retires each held history attempt into the populated queue.
+Main withdraws each history once (wasm gaps 753.3/737.1 ms; process 363.997/358.664
+ms). All four fixed normal histories have zero gaps and render the 42 rows,
+including each device's offline message exactly once. Peak queue 116, eight active.
+The separate 81-observation held-slot control fails on main at 1,010.807/1,012.096
+ms while the history is queued, with 73 waiting and eight active. It passes fixed.
+
+The episode starts with its own attempt and pauses for capacity queue wait,
+including requeue after a newer commit invalidates an attempt. Consumed budget is
+never restored. Source and approved facade copies share timing; timers, peeks and
+snapshot deadline checks agree. Plain revalidation remains unbounded, while
+running evaluation, retry backoff and waiting for sync retain their existing
+bound. PQ's eight starts per turn/eight active and LL's pending-cut parking,
+fallback, media dependency and publication fences are unchanged. Applied scope
+removal also exposed a baseline gap: it now resets dependent observations in the
+commit notification boundary, immediately, even behind held slots. Other hard
+boundaries remain immediate. No contract.ts, Rust, wire, outbox or horizon change.
+
+Added the auxiliary inspect(client) API from snapback4/inspection and opt-in
+useInspection(development) overlay data. It groups source observations by query,
+reports subscribers/queued/in-flight/revalidating/withdrawn/loading, retains 64
+withdrawal causes and queue/attempt p50/p95/max over 256 completed attempts. No
+arguments or answer data. Facades forward their current source; invalidated or
+unknown clients are unsupported. The private scheduler binding remains internal.
+The client card's screen-flash recipe is 117 lines / 1,194 words; compiled TSX
+examples cover both public functions. LLP 3000.023 §10 records the design and
+NOT-DOING records the expressly requested bounded inspection surface.
+
+The unchanged LL harness measured 640 actions before and 640 after, all eight
+flows, wasm/process, zero/three busy workers, four-CPU affinity. Maximum flow
+commit-to-publication p95 before→after: wasm idle 46.964→45.042 ms, wasm loaded
+94.598→100.604, process idle 78.520→95.519, process loaded 218.916→358.139.
+Shared-host load grew 55.5→132.27 in the last pair. Four alternating process
+controls measured 236.000/472.833/249.785/220.074 ms (main/fixed/main/fixed), with
+ending loads 78.15/137.13/87.03/65.95. The final adjacent pair shows no regression;
+earlier high-load fixed samples exceeded 300 ms and remain disclosed. All 1,920
+actions completed without timeout; reactions retain zero media home reads. No
+universal latency claim is made from a shared-host sample.
+
+Affected retention/React/pressure 376/376, review 38/38, post-suite corrections
+87/87, final pressure 12/12, whole guide 105/105, typecheck/build and await
+classification pass. Both final main convergence controls fail for queued=true,
+in-flight=false; the causal regressions still require no gaps at all while queued.
+Ran scripts/test.sh exactly once with the package SQLite policy, exit 1:
+
+    == 1 failure(s) in 1376 s
+       client tests
+
+Rust 4,362 passes / 33 declared ignores; client pool 5,298 passes / 22 failures /
+ten existing skips; fixtures 9/9; serial models 79/79 including both full 5,000-
+sequence walks. No cancellations. All 468 recorded inputs stayed unchanged during
+the run. The 22 failures are ours: twenty obsolete membership-retention assertions,
+one missing public example/internal export, and one overbroad no-gap assertion
+in the new real-time harness. Corrected and reran the affected files; the full run
+remains red and was not repeated. Baseline failures 0; environmental failures 0.
+All failing names, setup mistakes and detecting controls remain in the ledger.
+The inherited nominal 60-second full-suite budget remains exceeded.
+
+The loaded wasm failure was reproduced with four empty publications following a
+1,004.6-ms active hold: queued=false/in-flight=true. The test now distinguishes
+this legitimate bound from queue-only expiry, attributes every gap, and verifies
+every rendered ID. Its deliberate 1.1-second active-hold variant passes 2/2 while
+preserving all four legitimate withdrawals. The final normal run has zero gaps.
+After the full run the only SDK edit split the public/private inspection exports;
+episode, membership and scheduler semantics did not change.
+
+Wasm remains 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B
+ratchet, byte-identical to this lane's baseline. No budget increase. Report,
+interactive timeline, per-flow LL measurements, hashes, full output and raw traces:
+reports/20260930-pr-subscription-pressure/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

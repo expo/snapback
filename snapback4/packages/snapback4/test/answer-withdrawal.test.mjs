@@ -155,8 +155,9 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
       watch = client.observe(readOp, {}, { keep });
       assert.deepEqual(watch.getSnapshot(), { loading: true }, "a kept pre-revocation answer cannot initialize the new watch");
     } else {
-      if (keep === false) {
-        assert.deepEqual(snapshotAtCommit, { loading: true }, "keep:false withdraws at commit");
+      // @ref LLP 3000.023#10 — an applied scope loss bypasses the read queue.
+      if (keep === false || kind === "apply") {
+        assert.deepEqual(snapshotAtCommit, { loading: true }, "explicit non-retention or applied scope loss withdraws at commit");
         assert.deepEqual(watch.getSnapshot(), { loading: true });
       } else {
         assert.equal(body(snapshotAtCommit), "private answer");
@@ -177,7 +178,7 @@ for (const tier of ["wasm", "process"]) for (const keep of [undefined, false]) f
     assert.equal((await change).state, "sent");
     if (mode === "retryExhausted") await until(() => exhaustedReplies >= 4, "four rejected replies");
     if (mode === "held") await until(() => "data" in watch.getSnapshot() && watch.getSnapshot().data === null, "post-deadline read still publishes null");
-    else if (mode === "unavailable" || boundedEvidence || (mode === "retryExhausted" && kind === "admit")) {
+    else if (kind === "apply" || mode === "unavailable" || boundedEvidence || (mode === "retryExhausted" && kind === "admit")) {
       await until(() => watch.getSnapshot().loading && (mode !== "retryExhausted" || exhaustedReplies >= 4),
         "explicit unavailability or failed online evidence withdraws");
     } else {

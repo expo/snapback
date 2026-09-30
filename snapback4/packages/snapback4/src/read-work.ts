@@ -30,6 +30,7 @@ export function duringRead<T>(work: Promise<T>, signal?: AbortSignal): Promise<T
   });
 }
 
+export type ReadWorkState = "queued" | "in-flight" | "idle";
 export class ReadWork<W> {
   private readonly pending = new Map<W, (signal: AbortSignal) => Promise<void>>();
   private readonly active = new Map<W, AbortController>();
@@ -37,10 +38,12 @@ export class ReadWork<W> {
   private starts = 0;
   private queued = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  constructor(private readonly later: (run: () => void) => ReturnType<typeof setTimeout> = run => setTimeout(run, 0)) {}
+  constructor(private readonly later: (run: () => void) => ReturnType<typeof setTimeout> = run => setTimeout(run, 0),
+    private readonly changed: (watch: W, state: ReadWorkState) => void = () => {}) {}
   schedule(watch: W, run: (signal: AbortSignal) => Promise<void>): void {
     this.stopDelay(watch);
     this.pending.set(watch, run);
+    if (!this.active.has(watch)) this.changed(watch, "queued");
     this.arm();
   }
   retry(watch: W, delay: number, run: (signal: AbortSignal) => Promise<void>): void {
@@ -59,15 +62,18 @@ export class ReadWork<W> {
   cancel(watch: W): boolean {
     const delayed = this.stopDelay(watch), pending = this.pending.delete(watch), active = this.active.get(watch);
     active?.abort();
+    if (!active && (delayed || pending)) this.changed(watch, "idle");
     return delayed || pending || !!active;
   }
   clear(): void {
     for (const watch of this.delayed.keys()) this.stopDelay(watch);
+    for (const watch of this.pending.keys()) if (!this.active.has(watch)) this.changed(watch, "idle");
     this.pending.clear();
     for (const attempt of this.active.values()) attempt.abort();
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
   }
+  state(watch: W): ReadWorkState { return this.active.has(watch) ? "in-flight" : this.pending.has(watch) || this.delayed.has(watch) ? "queued" : "idle"; }
   private arm(): void {
     if (this.queued || !this.pending.size || this.active.size >= 8) return;
     if (this.timer === undefined) this.timer = this.later(() => {
@@ -83,11 +89,13 @@ export class ReadWork<W> {
         this.pending.delete(watch);
         const attempt = new AbortController();
         this.active.set(watch, attempt); this.starts++;
+        this.changed(watch, "in-flight");
         const deadline = setTimeout(() => attempt.abort(READ_WORK_EXPIRED), READ_WORK_LIFETIME);
         const release = () => {
           clearTimeout(deadline);
           if (this.active.get(watch) !== attempt) return;
-          this.active.delete(watch); this.arm();
+          this.active.delete(watch);
+          this.changed(watch, this.pending.has(watch) ? "queued" : "idle"); this.arm();
         };
         attempt.signal.addEventListener("abort", release, { once: true });
         void Promise.resolve().then(() => { checkRead(attempt.signal); return run(attempt.signal); })

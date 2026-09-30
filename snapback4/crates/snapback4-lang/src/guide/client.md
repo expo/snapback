@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-Submit once at custody.
+Submit at custody.
 
 ```tsx
 import { useState } from "react";
@@ -25,34 +25,34 @@ export function Composer({ conversationId }: { conversationId: string }) {
 }
 ```
 
-Membership with no horizon, synced within the conversation's own group with the messages' audience, proves `present`/`absent` after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
-Queueing needs no membership answer: only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence still queues; the server authorizes or refuses at sync. `loading`/`partial` never disable.
+Membership with no horizon, synced within the conversation's own group with the messages' audience, proves presence/absence after acquisition unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
+Only `denied`, or fresh, non-revalidating `absent`, disables Send. Stale offline absence queues; sync authorizes/refuses. `loading`/`partial` never disable.
 
-`waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. After session readiness, acquisition never gates admission. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses this call. Identification resumes admission in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
-Clear on submit; restore refused text only into an empty draft, otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
-Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Keep saved text; Dismiss only after lookup settles. New attempts get new ids; replay confirms execution without historical results. Web/Expo starters include this journal.
+`waitSeconds: 0` returns at custody; `inFlight` covers the call, not settlement. Acquisition never gates admission after session readiness. Identity I/O gets 15 seconds excluding prior admissions; `usePendingWrites()` says “not yet admitted”. Reload loses it. Identification resumes in order; `E_ADMISSION_STORE`/`E_ADMISSION_TIMEOUT` permit retry after repair without remounting.
+Restore refused text into an empty draft; otherwise offer Edit/Dismiss. Show “Sending…” on predicted rows (`pending: true`).
+Save `{ id: mintId(), args }` in account/backend-scoped storage before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite` shows “Saving…” during submission, “Checking…” while `restoring`; afterward, undefined means unknown. Never automatically resend. Dismiss after lookup settles. New attempts need new ids; replay omits historical results. Web/Expo starters include this journal.
 
 ## Honest read boundaries
 
-Use `existence(read)` for status; after `isReady(read)`, branch on `read.existence` to narrow point data.
+Use `existence(read)`; `isReady(read)` then `read.existence` narrows point data.
 
 | Meaning | UI decision |
 | --- | --- |
-| `loading` | No answer yet or withheld: keep composers, headers and routes mounted. |
+| `loading` | Withheld/unavailable: keep composers, headers and routes mounted. |
 | `denied` | Refusal: show its message; disable the durable action. |
-| `present` | Nonempty top-level value: render it, even with incomplete coverage. |
+| `present` | Render nonempty values, including incomplete coverage. |
 | `absent` | Proven empty answer: resolve the missing route/row. |
-| `partial` | Empty, uncertain answer: show “Partial results”; never infer absence or denial. |
+| `partial` | Uncertain empty: show “Partial results”, never absence/denial. |
 
-Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. Precedence: present, absent, partial. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
-Route on `present`/`absent`, never `loading`/`partial`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
-Same-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one non-renewable second; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.
-Search one query per scope with `usePage`: render `page.items`, classify `page.read`; empty items during loading prove nothing. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present with cuts/continuations. Unknown unread counts never hide conversations.
+Only top-level `null`/`[]` is empty; `false`, `0`, nested nulls are present. Empty is `absent` only with `complete`, `cut === null`, no `next`, and no admission or intersecting prediction. Unknown prediction footprints block every read; complete local execution narrows dependencies. `fresh` never demotes; offline `absent` is absence at the acquired watermark. Hidden/missing rows are indistinguishable.
+Route on `present`/`absent`. Follow `useAuth().state`; reset drafts on account/backend change. Retention grants no authority.
+Same-key plain refetch, reconnect, slow reads, transport failure and retry exhaustion retain `revalidating` answers without timeout. Completed replacements recompute existence. Local commits, online receipts, `/changes` and `/sync` bound retention to one second excluding queue wait; failure/timeout withdraws. Whole server answers can precede sync; older replicas cannot clear pending notifications. `keep: true` adds 30-second subscriber-free linger; `keep: false` withdraws immediately. Keys, deadlines, sign-out, credentials/store/schema resets withdraw; generation changes withdraw before adoption, even without changed tables.
+Search with `usePage` per scope: render `page.items`, classify `page.read`. Show “Partial results” only for `existence(page.read) === "partial"`; follow `hasMore`/`loadMore`. Nonempty pages remain present. Unknown unread counts never hide conversations.
 
 ## Queries in rows
 
-Equal query names and wire-equivalent arguments share an observation within the same retention policy; object key order is irrelevant. Prefer one paged query for large lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
-At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. Queue wait precedes a new episode; retries never renew existing deadlines. Expiry/resets stay immediate. Unrelated writes preserve fallback memory; clock refresh preserves unexpired newer answers.
+Wire-equivalent names/arguments share observations per retention policy; object key order is irrelevant. Prefer paged lists: 1,000 distinct row hooks do 1,000 evaluations per relevant write versus one. Known disjoint writes do zero; authorization inputs are dependencies.
+At most eight queued observation attempts start per turn, eight remain active; direct queries and timed presence refreshes use separate paths. `keep: false` withdraws before queueing. The budget starts at attempt execution and pauses in the queue; retries never replenish it. Expiry/resets stay immediate. Unrelated writes preserve memory; clock refresh preserves unexpired answers.
 
 ```tsx
 import { useQuery, usePage } from "snapback4/react";
@@ -70,17 +70,20 @@ function ConversationList() {
 
 Keep server-needing decorations separate.
 
+If a screen flashes empty, call `inspect(client)` from `snapback4/inspection`: compare `queued`/`inFlight`, `revalidating`/`withdrawn`, and `recentWithdrawals` causes. `change-timeout` means the replacement exhausted its second outside the capacity queue; expiry, denial and resets remain immediate. Reduce redundant decorations. `latency` reports queue/attempt p50/p95/max for the last 256 completed attempts; withdrawals keep 64. Counts include linger; direct/presence reads are excluded.
+Development overlay: `useInspection(import.meta.env.DEV)` from `snapback4/react` (Expo: `useInspection(__DEV__)`). Disabled returns null and starts no timer; enabled samples every 250 ms. No arguments/values.
+
 ## Expo and acquisition
 
-The social starter uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for live timings, `guide sync` for Worker/default choices, progress and five-profile acquisition measurement with offline reopening.
+Social uses `nativeDevice` on native, `webDevice()` on web, online in Expo Go. See `guide witness` for native proof, `guide reads` for timings, `guide sync` for Worker choices/acquisition.
 
 ## Receipts
 
-`guide receipts` covers schema, mutations and `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows newest-message `seen` while foregrounded. Send-time members are recipients; removal claims no reading.
+`guide receipts` covers `useReceipts`. SDK owns delivery reporting; the screen owns visible `seen` reporting. Mount above transient rows. “Read” follows newest-message `seen` while foregrounded. Send-time members are recipients; removal claims no reading.
 
 ## One-view photos
 
-Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Explicit Open fetches once; recycling/refetch cannot consume or lose the handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
+Mount **above the list**, keyed by `JSON.stringify([backend, account, messageId, assetId])`. Explicit Open fetches once; recycling/refetch preserves its handle. Unmount/account change revokes even late responses. Close on ready `absent`, denied, tombstoned, changed asset or deadline; keep deadlines ticking through loading.
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -110,5 +113,5 @@ export function OneView({ messageId, assetId }: { messageId: string; assetId: st
 }
 ```
 
-`useAsset` revokes on unmount. Never refetch once media (`E_ASSET_VIEWED`); handles are transient.
+`useAsset` revokes on unmount. Once media cannot refetch (`E_ASSET_VIEWED`); handles are transient.
 Start with `snapback4 new my-social --template social`; see `guide social` and `guide ephemeral`.

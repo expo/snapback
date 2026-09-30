@@ -54,10 +54,15 @@ window.replay = (input) => {
   t.after(async () => { await browser.close(); await vite.close(); rmSync(dir, { recursive: true, force: true }); });
   const page = await browser.newPage();
   await page.goto(vite.resolvedUrls.local[0]); await page.waitForFunction(() => window.replay);
-  return async (kind, reads) => {
+  return async (kind, reads, scopeWithdrawal = false) => {
     const result = await page.evaluate(input => window.replay(input), { kind, reads });
-    assert.equal(result.loading, 0, JSON.stringify({ result, reads }));
-    assert.equal(result.mounts, 1); assert.equal(result.unmounts, 0);
+    if (scopeWithdrawal) {
+      assert.ok(result.loading > 0, 'scope removal withdraws immediately');
+      assert.ok(result.unmounts > 0, 'protected history leaves the screen');
+    } else {
+      assert.equal(result.loading, 0, JSON.stringify({ result, reads }));
+      assert.equal(result.mounts, 1); assert.equal(result.unmounts, 0);
+    }
     assert.ok(result.route.includes('/conversation/bob'));
     assert.ok(result.renders > 0);
   };
@@ -117,7 +122,7 @@ for (const host of ['process', 'wasm', 'online']) for (const keep of [undefined,
           return scenario === 'peer sync' ? r.data.length === 2 : scenario === 'own send and settlement' ? r.data.length === 3 && !r.data.some(x => x.pending)
             : scenario === 'edit' ? r.data.some(x => x.body === 'edited') : scenario === 'delete' ? r.data.length === 2 : r.data.length === 0;
         });
-        reads.push(watch.getSnapshot()); await render('history', reads);
+        reads.push(watch.getSnapshot()); await render('history', reads, scenario === 'membership removal' && host !== 'online');
         if (scenario === 'membership removal') assert.deepEqual(watch.getSnapshot().data, []);
       } finally { stop(); }
     });

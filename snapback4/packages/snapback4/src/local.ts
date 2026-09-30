@@ -1,6 +1,7 @@
+import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
 import { matchingReads } from "./read-key.ts";
-import { ReadWork, duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
+import { duringRead, checkRead, withReadSignal, READ_WORK_EXPIRED } from "./read-work.ts";
 import { readResponse, readWithAdmissionRetry, transportRefusal, jitter, retryAfter, pauseRefusal, refusal, overloaded } from "./http-response.ts";
 import { SearchBound, refreshSearchRoots, searchReplyIdentity } from "./local-search.ts";
 import { deliveryCommit, type LocalOptions, type LocalClient } from "./local-device.ts";
@@ -235,7 +236,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (entry.sent_seq == null && seq != null) { const receipt = await history.acknowledged(entry.id, seq, true); if (receipt) await history.keep(receipt); }
   }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
-  function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
+  function observeIncarnation(id?: string, force = false, delivery?: (() => void)[], cause = "store-reset") {
     if (!force && (id === undefined || id === storeIdentity)) return;
     const resetProgress = force || storeIdentity !== undefined;
     storeIdentity = id; identified = false;
@@ -249,7 +250,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     identityChecked = false;
     seq = 0;
     lastSyncAt = 0;
-    const approvals = deferReadNotifications(() => { endLingering(watches.values()); answers.clear(watches.values()); });
+    const approvals = deferReadNotifications(() => { endLingering(watches.values()); answers.clear(watches.values(), true, undefined, cause); });
     // Finish invalidating every answer before invoking application callbacks.
     const deliver = () => {
       approvals();
@@ -303,6 +304,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched);
       if (!result.denied && request.op === "apply") {
+        delivery.push(deferReadNotifications(() => answers.withdrawScopes(watches.values(), request.page as { events?: { kind?: string; table?: string }[] })));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
         if (committedTables && footprint === undefined) committedTables.unknown = true;
         for (const table of footprint ?? []) committedTables?.tables.add(table);
@@ -313,7 +315,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         observeIncarnation(undefined, true, delivery);
         delivery.push(...retiredReceipts(history, (result.ok as { retired: Record<string, number> }).retired, completeWrite));
       }
-      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
+      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery, "schema-reset");
     };
     if (deliveryQueue?.enabled) request = { ...request, delivery_now: clock.issuedDeviceNow() };
     const work = typeof request.now === "number" ? clock.persist().then(() => core.call(request, committed)) : core.call(request, committed);
@@ -429,7 +431,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     credentialRevision += 1;
     const approvals = deferReadNotifications(() => {
       endLingering(watches.values());
-      for (const watch of watches.values()) { watch.reset({ loading: true }); scheduleExpiry(watch, null); }
+      for (const watch of watches.values()) { watch.reset({ loading: true }, false, "credentials"); scheduleExpiry(watch, null); }
     });
     const rotation = rotateSession(base, token, doFetch);
     rotatingSession = rotation;
@@ -822,7 +824,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
-      if (replaced || shrank || generationChanged) observeIncarnation(json.store_id, shrank || generationChanged);
+      if (replaced || shrank || generationChanged) observeIncarnation(json.store_id, shrank || generationChanged, undefined, generationChanged ? "program-generation" : "store-reset");
       const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
@@ -965,7 +967,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     } catch {}
     if (watches.get(watch.key) === watch && !watch.running) armPresence(watch);
   }
-  const readWork = new ReadWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
+  const readWork = new ObservationWork<Watch>(); // @ref LLP 3000.023#10 — changed input retires an older attempt; refresh cadence alone does not.
   function scheduleRead(watch: Watch, changed = false, cut?: number) {
     if (closed || sessionDead) return;
     if (changed) answers.changed(watch, cut);
@@ -978,10 +980,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
   async function rerun(watch: Watch, signal: AbortSignal) {
     if (closed || watches.get(watch.key) !== watch) return;
-    if (watch.running) {
-      watch.dirty = true;
-      return;
-    }
+    if (watch.running) { watch.dirty = true; return; }
     watch.running = true;
     const resetVersion = watch.resetVersion, changeVersion = watch.changeVersion, startedWith = answerIdentity(watch.snapshot);
     let retryExpired = false;
@@ -1480,7 +1479,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void flush();
     scheduleRefresh();
   };
-  progress.bind(client);
+  progress.bind(client); readWork.bind(client, watches);
   bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);

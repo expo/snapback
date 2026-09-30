@@ -2639,3 +2639,32 @@ and 64 refused intervals. There are at most 4,096 local or 1,024 online active
 groups. Eviction drops owed positions, which stay `sent`, but retains refused
 intervals. A saturated refused set stops that group's collection and dispatch
 until a leave/rejoin or a new device store.
+
+### Inspect subscription pressure
+
+If a screen flashes empty, compare queue/in-flight counts with withdrawal causes.
+A `change-timeout` exhausts the answer's one-second budget outside capacity wait;
+expiry, denial and resets remain immediate. The last 256 completed attempts supply
+queue/attempt latency p50/p95/max, and the last 64 withdrawals retain causes.
+Samples contain query names and counts, never arguments or answer values.
+
+```tsx
+import type { Client } from "snapback4/contract";
+import { inspect } from "snapback4/inspection";
+import { useInspection } from "snapback4/react";
+
+export function logSubscriptions(client: Client) {
+  const pressure = inspect(client);
+  console.table(pressure.queries);
+  console.table(pressure.recentWithdrawals);
+}
+export function SubscriptionPressure({ development }: { development: boolean }) {
+  const pressure = useInspection(development);
+  return pressure ? <pre>{JSON.stringify(pressure.totals, null, 2)}</pre> : null;
+}
+```
+
+Mount the overlay inside the client provider and pass the host's development flag
+(`import.meta.env.DEV`, or `__DEV__` in Expo). Disabled installs no timer; enabled
+samples every 250 ms. Counts include lingering observations and delayed retries;
+direct reads and presence refreshes are outside this queue.
