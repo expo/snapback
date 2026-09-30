@@ -86,8 +86,16 @@ B-tree writes. The intermediate direct replay records 3,039,560 filesystem
 output blocks versus 2,128,904 before (Linux resource counters use 512-byte
 blocks). This is cumulative I/O, not peak live disk space. The final store
 retains ordinary SQLite rows and indexes; temporary sorting is not persistent
-residency. Native memory remains bounded independently of the account's total
-index-key count. The measured web artifact is unchanged.
+residency. **Round-1 correction:** the external sorter's spilling behavior and
+bounded page caches avoid retaining all index keys in RAM; this is not a bound
+on whole-device memory. Delivery candidates retain per-row state during publication.
+Astra's larger-partition replay (105,034 → 195,534 rows) increased Rust peak
+allocations from 21.48 → 37.99 MB and RSS from 50,084 → 88,736 KiB. This row-count
+growth is inherited. At fixed row count, 7.67 million index entries left Rust
+peak essentially unchanged, while SQLite peak increased 9.19 → 11.18 MB.
+The measured web artifact is unchanged. Grok observed about 700 MB of temporary
+sort files and 1.07 GB total disk high-water for a 373.5 MB final store (2.9×);
+finished-store capacity alone is insufficient. See [round 1](round1/REPORT.md).
 
 The final native C ABI replay, with no subprocess or pipe and including Rust
 JSON decoding, takes **8.968 s** for apply / **9.693 s** for all calls. Its

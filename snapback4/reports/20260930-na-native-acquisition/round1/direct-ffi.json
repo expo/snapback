@@ -1,0 +1,482 @@
+{
+  "wallMs": 9552.106284,
+  "applyMs": 8833.068167,
+  "maxRssKiBIncludingPython": 62960,
+  "samples": [
+    {
+      "seq": 0,
+      "op": "sync_state",
+      "ms": 0.07313,
+      "bytes": 36
+    },
+    {
+      "seq": 1,
+      "op": "state",
+      "ms": 0.011587,
+      "bytes": 15
+    },
+    {
+      "seq": 2,
+      "op": "meta",
+      "ms": 0.008442,
+      "bytes": 35
+    },
+    {
+      "seq": 3,
+      "op": "queued",
+      "ms": 0.021782,
+      "bytes": 43
+    },
+    {
+      "seq": 4,
+      "op": "meta",
+      "ms": 0.007741,
+      "bytes": 41
+    },
+    {
+      "seq": 5,
+      "op": "set_meta",
+      "ms": 0.188813,
+      "bytes": 87
+    },
+    {
+      "seq": 6,
+      "op": "meta",
+      "ms": 0.016124,
+      "bytes": 37
+    },
+    {
+      "seq": 7,
+      "op": "state",
+      "ms": 0.009064,
+      "bytes": 15
+    },
+    {
+      "seq": 8,
+      "op": "next_submission",
+      "ms": 0.026189,
+      "bytes": 25
+    },
+    {
+      "seq": 9,
+      "op": "meta",
+      "ms": 0.007842,
+      "bytes": 38
+    },
+    {
+      "seq": 10,
+      "op": "sync_state",
+      "ms": 0.043465,
+      "bytes": 36
+    },
+    {
+      "seq": 11,
+      "op": "sync_state",
+      "ms": 0.037577,
+      "bytes": 36
+    },
+    {
+      "seq": 12,
+      "op": "queued",
+      "ms": 0.013881,
+      "bytes": 16
+    },
+    {
+      "seq": 13,
+      "op": "queued",
+      "ms": 0.011117,
+      "bytes": 16
+    },
+    {
+      "seq": 14,
+      "op": "meta",
+      "ms": 0.007511,
+      "bytes": 50
+    },
+    {
+      "seq": 15,
+      "op": "state",
+      "ms": 0.007731,
+      "bytes": 15
+    },
+    {
+      "seq": 16,
+      "op": "delivery",
+      "ms": 0.198167,
+      "bytes": 77
+    },
+    {
+      "seq": 17,
+      "op": "set_meta",
+      "ms": 0.176023,
+      "bytes": 54
+    },
+    {
+      "seq": 18,
+      "op": "delivery",
+      "ms": 0.049935,
+      "bytes": 106
+    },
+    {
+      "seq": 19,
+      "op": "delivery",
+      "ms": 0.031647,
+      "bytes": 106
+    },
+    {
+      "seq": 20,
+      "op": "delivery",
+      "ms": 0.02654,
+      "bytes": 106
+    },
+    {
+      "seq": 21,
+      "op": "backend",
+      "ms": 10.661229,
+      "bytes": 17
+    },
+    {
+      "seq": 22,
+      "op": "state",
+      "ms": 0.027171,
+      "bytes": 44
+    },
+    {
+      "seq": 23,
+      "op": "sync_state",
+      "ms": 0.254642,
+      "bytes": 49
+    },
+    {
+      "seq": 24,
+      "op": "observe_store",
+      "ms": 21.319764,
+      "bytes": 3627322
+    },
+    {
+      "seq": 25,
+      "op": "apply",
+      "ms": 93.931864,
+      "bytes": 3627374,
+      "published": false
+    },
+    {
+      "seq": 26,
+      "op": "sync_state",
+      "ms": 0.458548,
+      "bytes": 49
+    },
+    {
+      "seq": 27,
+      "op": "observe_store",
+      "ms": 23.33908,
+      "bytes": 3917568
+    },
+    {
+      "seq": 28,
+      "op": "apply",
+      "ms": 111.235409,
+      "bytes": 3917621,
+      "published": false
+    },
+    {
+      "seq": 29,
+      "op": "sync_state",
+      "ms": 0.478617,
+      "bytes": 49
+    },
+    {
+      "seq": 30,
+      "op": "observe_store",
+      "ms": 20.895548,
+      "bytes": 3916340
+    },
+    {
+      "seq": 31,
+      "op": "apply",
+      "ms": 138.292902,
+      "bytes": 3916393,
+      "published": false
+    },
+    {
+      "seq": 32,
+      "op": "sync_state",
+      "ms": 0.369694,
+      "bytes": 49
+    },
+    {
+      "seq": 33,
+      "op": "observe_store",
+      "ms": 21.540685,
+      "bytes": 3916831
+    },
+    {
+      "seq": 34,
+      "op": "apply",
+      "ms": 169.868517,
+      "bytes": 3916884,
+      "published": false
+    },
+    {
+      "seq": 35,
+      "op": "sync_state",
+      "ms": 0.393379,
+      "bytes": 49
+    },
+    {
+      "seq": 36,
+      "op": "observe_store",
+      "ms": 20.56984,
+      "bytes": 3917193
+    },
+    {
+      "seq": 37,
+      "op": "apply",
+      "ms": 183.528259,
+      "bytes": 3917246,
+      "published": false
+    },
+    {
+      "seq": 38,
+      "op": "sync_state",
+      "ms": 0.398197,
+      "bytes": 49
+    },
+    {
+      "seq": 39,
+      "op": "observe_store",
+      "ms": 20.60382,
+      "bytes": 3916497
+    },
+    {
+      "seq": 40,
+      "op": "apply",
+      "ms": 191.168111,
+      "bytes": 3916550,
+      "published": false
+    },
+    {
+      "seq": 41,
+      "op": "sync_state",
+      "ms": 0.461682,
+      "bytes": 49
+    },
+    {
+      "seq": 42,
+      "op": "observe_store",
+      "ms": 20.770781,
+      "bytes": 3916196
+    },
+    {
+      "seq": 43,
+      "op": "apply",
+      "ms": 197.716515,
+      "bytes": 3916249,
+      "published": false
+    },
+    {
+      "seq": 44,
+      "op": "sync_state",
+      "ms": 0.382463,
+      "bytes": 49
+    },
+    {
+      "seq": 45,
+      "op": "observe_store",
+      "ms": 20.535368,
+      "bytes": 3916152
+    },
+    {
+      "seq": 46,
+      "op": "apply",
+      "ms": 209.014108,
+      "bytes": 3916205,
+      "published": false
+    },
+    {
+      "seq": 47,
+      "op": "sync_state",
+      "ms": 0.388453,
+      "bytes": 49
+    },
+    {
+      "seq": 48,
+      "op": "observe_store",
+      "ms": 20.694506,
+      "bytes": 3916637
+    },
+    {
+      "seq": 49,
+      "op": "apply",
+      "ms": 212.590508,
+      "bytes": 3916690,
+      "published": false
+    },
+    {
+      "seq": 50,
+      "op": "sync_state",
+      "ms": 0.399979,
+      "bytes": 49
+    },
+    {
+      "seq": 51,
+      "op": "observe_store",
+      "ms": 15.889064,
+      "bytes": 3448099
+    },
+    {
+      "seq": 52,
+      "op": "apply",
+      "ms": 157.778366,
+      "bytes": 3448152,
+      "published": false
+    },
+    {
+      "seq": 53,
+      "op": "sync_state",
+      "ms": 0.392197,
+      "bytes": 49
+    },
+    {
+      "seq": 54,
+      "op": "observe_store",
+      "ms": 5.546233,
+      "bytes": 1353136
+    },
+    {
+      "seq": 55,
+      "op": "apply",
+      "ms": 25.262643,
+      "bytes": 1353189,
+      "published": false
+    },
+    {
+      "seq": 56,
+      "op": "sync_state",
+      "ms": 0.285678,
+      "bytes": 49
+    },
+    {
+      "seq": 57,
+      "op": "set_meta",
+      "ms": 0.059569,
+      "bytes": 87
+    },
+    {
+      "seq": 58,
+      "op": "observe_store",
+      "ms": 0.060001,
+      "bytes": 456
+    },
+    {
+      "seq": 59,
+      "op": "apply",
+      "ms": 7142.680965,
+      "bytes": 509,
+      "published": true
+    },
+    {
+      "seq": 60,
+      "op": "sync_state",
+      "ms": 0.154852,
+      "bytes": 65
+    },
+    {
+      "seq": 61,
+      "op": "sync_state",
+      "ms": 0.054372,
+      "bytes": 65
+    },
+    {
+      "seq": 62,
+      "op": "set_meta",
+      "ms": 0.284826,
+      "bytes": 95
+    },
+    {
+      "seq": 63,
+      "op": "sync_state",
+      "ms": 0.072669,
+      "bytes": 65
+    },
+    {
+      "seq": 64,
+      "op": "observe_store",
+      "ms": 0.045197,
+      "bytes": 325
+    },
+    {
+      "seq": 65,
+      "op": "sync_state",
+      "ms": 0.048824,
+      "bytes": 65
+    },
+    {
+      "seq": 66,
+      "op": "queued",
+      "ms": 0.016033,
+      "bytes": 45
+    },
+    {
+      "seq": 67,
+      "op": "query",
+      "ms": 4.954436,
+      "bytes": 145
+    },
+    {
+      "seq": 68,
+      "op": "queued",
+      "ms": 0.061452,
+      "bytes": 45
+    },
+    {
+      "seq": 69,
+      "op": "sync_state",
+      "ms": 0.104707,
+      "bytes": 36
+    },
+    {
+      "seq": 70,
+      "op": "delivery",
+      "ms": 6.766161,
+      "bytes": 106
+    },
+    {
+      "seq": 71,
+      "op": "witness_coverage",
+      "ms": 279.520602,
+      "bytes": 69,
+      "coverageSha256": "6dfb58251031ca7d678d6c24ff214e4edcdbd0b21f56451620f1b2d50ca3d66d"
+    },
+    {
+      "seq": 72,
+      "op": "delivery",
+      "ms": 3.118965,
+      "bytes": 995500
+    },
+    {
+      "seq": 73,
+      "op": "residency",
+      "ms": 0.152409,
+      "bytes": 48
+    },
+    {
+      "seq": 74,
+      "op": "sync_state",
+      "ms": 0.072258,
+      "bytes": 65
+    },
+    {
+      "seq": 75,
+      "op": "delivery",
+      "ms": 3.813546,
+      "bytes": 106
+    },
+    {
+      "seq": 76,
+      "op": "delivery",
+      "ms": 3.554828,
+      "bytes": 106
+    }
+  ]
+}

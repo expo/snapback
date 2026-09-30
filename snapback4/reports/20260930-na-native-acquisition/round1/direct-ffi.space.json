@@ -1,0 +1,38 @@
+{
+  "exit": 0,
+  "intervalMs": 20,
+  "scratchPeakBytes": 699438280,
+  "totalPeakBytes": 1072507656,
+  "rssPeakBytes": 65355776,
+  "atTotalPeak": {
+    "disk": {
+      "db": 63500288,
+      "-wal": 308946496,
+      "-shm": 622592
+    },
+    "scratchFiles": [
+      {
+        "path": "/var/tmp/etilqs_2032ddacd251568c (deleted)",
+        "bytes": 233615360
+      },
+      {
+        "path": "/var/tmp/etilqs_951d86969b0014b (deleted)",
+        "bytes": 221625870
+      },
+      {
+        "path": "/var/tmp/etilqs_94665572899d2d41 (deleted)",
+        "bytes": 8191998
+      },
+      {
+        "path": "/var/tmp/etilqs_7330614131fb186b (deleted)",
+        "bytes": 234237952
+      },
+      {
+        "path": "/var/tmp/etilqs_2b44b15288a18ddb (deleted)",
+        "bytes": 1767100
+      }
+    ],
+    "rssBytes": 64970752
+  },
+  "finalDbBytes": 373510144
+}

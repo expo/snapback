@@ -1,0 +1,114 @@
+[
+  {
+    "condition": "unconfined",
+    "account": "u0500",
+    "runs": [
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      }
+    ],
+    "matchesRound0": true
+  },
+  {
+    "condition": "unconfined",
+    "account": "u0001",
+    "runs": [
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      }
+    ],
+    "matchesRound0": true
+  },
+  {
+    "condition": "ten-cpu-loaded",
+    "account": "u0500",
+    "runs": [
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "396428ad09b3abd48de58a75c481b8ae0551d4779bcc44b1787f22d86a78f791",
+        "tableCountsBytesSha256": "a93db4e80deea6f994bca1ae4cc7025b8a0d4347eb596e02b4ab73fb1c8ec7ce",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      }
+    ],
+    "matchesRound0": true
+  },
+  {
+    "condition": "ten-cpu-loaded",
+    "account": "u0001",
+    "runs": [
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      },
+      {
+        "groupsSha256": "7cc01345daa54d0a0d3c7a482fff0489be45043f047bdf6831edcd2e7da3f07d",
+        "tableCountsBytesSha256": "bba8874dda4af0b571077dd1a64253a4819e1108c2f5d7a2d5a2c1561f5d9bf4",
+        "retained": true,
+        "terminalReconnect": true,
+        "downloadedRows": 0
+      }
+    ],
+    "matchesRound0": true
+  }
+]

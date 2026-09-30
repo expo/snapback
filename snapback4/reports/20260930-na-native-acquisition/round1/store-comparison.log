@@ -1,0 +1,2 @@
+Physical tables equal: {'r': {'count': 105034, 'sha256': '06dc3fc8bca9e9e6f2871703d48ec077b5ce9492c30bdd4c9719f412f036ba29'}, 'i': {'count': 1874664, 'sha256': '3dcd7a5bf67b753c956564920aa98358a4711eb5042706435ba7522ff3b9bc22'}, '_cap_counts': {'count': 2000, 'sha256': '403a353576899984254b2134a7cb1231bb5ee18107568af8ce1410099cc751a8'}, '_device_residency': {'count': 15, 'sha256': 'ed8f98467fe4cde6f28edbbfae18efa4dc362895e877ffcb16fc8fbc5cb481a2'}}
+Changed metadata keys: []
