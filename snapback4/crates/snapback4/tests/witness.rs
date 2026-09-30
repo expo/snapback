@@ -371,11 +371,11 @@ mod driver {
             } else {
                 assert!(err.contains("backend check failed"), "{err}");
                 let path = fs::canonicalize(fixture.0.join("artifacts/check-stderr.log")).unwrap();
-                assert!(err.contains(&format!("see {}", path.display())), "{err}");
+                assert!(err.contains(&format!("command's own raw log path: {}", path.display())), "{err}");
                 assert!(!err.contains("check-stdout.log"), "{err}");
                 let log = fs::read_to_string(fixture.0.join("artifacts/check-stderr.log")).unwrap();
                 assert!(log.contains("cannot write generated types"), "{log}");
-                assert!(err.contains(log.lines().next().unwrap()), "{err}");
+                assert!(!err.contains(log.lines().next().unwrap()), "raw child prose must stay in its log: {err}");
                 assert!(!fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().contains("\"install\""));
             }
             assert!(fixture.0.join("artifacts/smoke-ios-run.json").exists());
@@ -389,7 +389,7 @@ mod driver {
         lock.try_lock().unwrap();
         let output = fixture.run_command(&mut build_command(&fixture), watchdog::SCENARIO_GUARD);
         assert_eq!(output.status.code(), Some(1));
-        assert!(String::from_utf8_lossy(&output.stderr).contains("owner already holds"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("another witness holds"));
         assert!(!fixture.0.join("snapback/generated").exists(), "a second owner entered codegen before taking the lease");
     }
     #[test]
@@ -514,11 +514,14 @@ mod driver {
     }
     #[test]
     fn cli_missing_app_never_starts_a_backend() {
-        for (mode, code) in [("missing", "E_WITNESS_APP")] {
+        for (mode, code) in [("missing", "E_WITNESS_SIMULATOR")] {
             let fixture = Fixture::new(); let output = fixture.run(mode, Fixture::port());
             assert!(!output.status.success()); let err = String::from_utf8_lossy(&output.stderr);
             assert!(err.contains(code), "{err}");
-            if mode == "missing" { assert!(err.contains("--device generic --no-bundler") && err.contains("simctl install"), "{err}"); }
+            if mode == "missing" {
+                assert!(err.contains("--bundle-id") && err.contains("--udid") && err.contains("simulator/runtime"), "{err}");
+                assert!(!err.contains("No such app") && !err.contains("is not installed"), "tool prose and inferred causes stay out: {err}");
+            }
             assert!(!fixture.0.join(".snapback4").exists());
         }
     }
@@ -550,7 +553,7 @@ mod driver {
             assert!(protocol::refused(port).unwrap());
             let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap_or_else(|e| panic!("{mode}: missing failure manifest: {e}; stderr: {error}"))).unwrap();
             if mode == "timeout" {
-                assert!(error.contains("app did not reach offline-done within 120 seconds"), "the receipt-step premise did not hold: {error}");
+                assert!(error.contains("app did not reach offline-done within --timeout"), "the receipt-step premise did not hold: {error}");
                 assert!(manifest["events"].as_array().unwrap().iter().any(|event| event["step"] == "waiting-offline-done"));
             }
             eprintln!("{mode}: {error}");
@@ -564,7 +567,7 @@ mod driver {
         let output = fixture.run("timeout-prepare", port);
         let error = String::from_utf8_lossy(&output.stderr);
         assert!(!output.status.success());
-        assert!(error.contains("E_WITNESS_TIMEOUT: xcrun simctl list runtimes --json timed out"), "{error}");
+        assert!(error.contains("E_WITNESS_TIMEOUT: xcrun simctl timed out; check --udid and --timeout"), "{error}");
         assert!(!fixture.0.join(".snapback4").exists(), "preparation must not start the backend");
         assert!(protocol::refused(port).unwrap());
         let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).expect("preparation failure must have a manifest")).unwrap();
@@ -596,7 +599,7 @@ mod driver {
     fn cli_refuses_an_existing_app_and_never_terminates_a_replacement() {
         let fixture = Fixture::new(); let output = fixture.run("running", Fixture::port());
         assert!(!output.status.success(), "existing app was taken over");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: dev.test is already running on "), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("E_WITNESS_APP: --bundle-id selects an app already running on --udid"), "{}", String::from_utf8_lossy(&output.stderr));
         assert!(!fixture.0.join("process-events.jsonl").exists());
         assert!(!fixture.0.join(".snapback4").exists());
         let fixture = Fixture::new(); let output = fixture.run("replacement", Fixture::port());

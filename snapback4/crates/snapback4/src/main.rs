@@ -46,6 +46,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
+  witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
+                                      prove fresh acquisition and retained cold restart on the native process device
   witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
   witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
                                       record an installed iOS app cold-offline, then reconnect its owned backend

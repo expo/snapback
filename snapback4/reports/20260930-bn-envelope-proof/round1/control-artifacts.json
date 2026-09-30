@@ -1,0 +1,18 @@
+{
+  "round0/helper": {
+    "bytes": 16398,
+    "sha256": "6f903526e429da4bcb3ea064460476780640df51e692dac161c9e802e559b6b1"
+  },
+  "round0/guide": {
+    "bytes": 26520,
+    "sha256": "540b956cbac10829dacada09614d3355338e881de19b6eaeba2a01dde4dd0c62"
+  },
+  "round0/binary": {
+    "bytes": 18662808,
+    "sha256": "d23ffa1822f57902d25283c20cf29d02216d4968eee6c3f99c449a9028b345a6"
+  },
+  "round0/control-tests": {
+    "bytes": 17248,
+    "sha256": "59c9e3d80eedc69062f645dd9a3fe61b2ce0fc1d62b0c827e5f867c163de9f98"
+  }
+}

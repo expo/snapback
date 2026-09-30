@@ -73,6 +73,9 @@ query searchHeld(q: text <=100, page: cursor ?) held:
 
 `await client.sync()` waits for a round begun after the call (sharing one follow-up if a round is in flight), so a successful sync reflects server commits acknowledged before the call instead of an older response; offline and refusal results still apply.
 
+Prove the envelope's heaviest account with `snapback4 witness acquire --as <persona> --restart`;
+`guide bounds` covers fresh acquisition, native-process timing and retained cold coverage.
+
 The ordinary `history` page uses the horizon's index, with no membership
 `require`. Table rules protect server reads. Before acquisition or beyond
 coverage the local client can ask the server; after leave it keeps the

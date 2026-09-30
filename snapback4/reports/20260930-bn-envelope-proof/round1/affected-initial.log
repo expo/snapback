@@ -1,0 +1,32 @@
+(node:3766300) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (984.851826ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2569.622015ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1058.280284ms)
+✔ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1389.154015ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1341.581448ms)
+✔ restart detects wipe before reconnect can repair it (256.449226ms)
+✔ restart detects delete-row before reconnect can repair it (1215.97494ms)
+✔ restart detects change-groups before reconnect can repair it (1220.379992ms)
+✔ restart detects change-boundaries before reconnect can repair it (1214.285096ms)
+✔ reconnect proof rejects more-then-drop and records every attempted request (1366.696464ms)
+✔ reconnect proof rejects denied and records every attempted request (1358.715601ms)
+✔ reconnect proof rejects malformed-json and records every attempted request (1362.814686ms)
+✔ reconnect proof rejects null and records every attempted request (1346.030808ms)
+✔ reconnect proof rejects missing-fields and records every attempted request (1349.55381ms)
+✔ reconnect proof rejects bad-more and records every attempted request (1353.265133ms)
+✔ reconnect proof rejects behind-server and records every attempted request (1351.592501ms)
+✔ reconnect proof rejects dropped-first and records every attempted request (1320.576814ms)
+✔ reconnect proof rejects truncated-body and records every attempted request (1348.21586ms)
+✔ echoed bearer and derived refusal text never reach stderr, JSON, text or receipt files (383.226543ms)
+✔ witness family usage advertises both commands and shares input diagnostics (96.342499ms)
+✔ receipt identifies the JSON-line subprocess host and times coverage separately from first answer (2382.856313ms)
+✔ bounds names the known process-device apply defect independently from retention (1.204244ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 26393.002354

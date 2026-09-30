@@ -1,0 +1,119 @@
+(node:1795108) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (978.180899ms)
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (15305.71151ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (647.18124ms)
+✖ restart detects wipe before reconnect can repair it (15081.004771ms)
+✖ restart detects delete-row before reconnect can repair it (16138.964011ms)
+✖ restart detects change-groups before reconnect can repair it (16138.88442ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64398.621079
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:66:1
+✖ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (15305.71151ms)
+  AssertionError [ERR_ASSERTION]: node:events:486
+        throw er; // Unhandled 'error' event
+        ^
+
+  Error: write EPIPE
+      at afterWriteDispatched (node:internal/stream_base_commons:159:15)
+      at writeGeneric (node:internal/stream_base_commons:150:3)
+      at Socket._writeGeneric (node:net:966:11)
+      at Socket._write (node:net:978:8)
+      at writeOrBuffer (node:internal/streams/writable:570:12)
+      at _write (node:internal/streams/writable:499:10)
+      at Writable.write (node:internal/streams/writable:508:10)
+      at file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/dist/native.js:91:41
+  Emitted 'error' event on Socket instance at:
+      at emitErrorNT (node:internal/streams/destroy:170:8)
+      at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+    errno: -32,
+    code: 'EPIPE',
+    syscall: 'write'
+  }
+
+  Node.js v24.13.1
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:69:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:97:64
+✖ restart detects wipe before reconnect can repair it (15081.004771ms)
+  Error: write EPIPE
+      at afterWriteDispatched (node:internal/stream_base_commons:159:15)
+      at writeGeneric (node:internal/stream_base_commons:150:3)
+      at Socket._writeGeneric (node:net:966:11)
+      at Socket._write (node:net:978:8)
+      at writeOrBuffer (node:internal/streams/writable:570:12)
+      at _write (node:internal/streams/writable:499:10)
+      at Writable.write (node:internal/streams/writable:508:10)
+      at file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/dist/native.js:91:41
+      at runNextTicks (node:internal/process/task_queues:64:5)
+      at process.processTimers (node:internal/timers:538:9) {
+    errno: -32,
+    code: 'EPIPE',
+    syscall: 'write'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:97:64
+✖ restart detects delete-row before reconnect can repair it (16138.964011ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_RECEIPT.*coverage differs/. Input:
+
+  'TimeoutError: The operation was aborted due to timeout'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:99:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TimeoutError: The operation was aborted due to timeout
+        at new DOMException (node:internal/per_context/domexception:76:18)
+        at Timeout._onTimeout (node:internal/abort_controller:154:9)
+        at listOnTimeout (node:internal/timers:605:17)
+        at process.processTimers (node:internal/timers:541:7),
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/witness-acquire.test.mjs:97:64
+✖ restart detects change-groups before reconnect can repair it (16138.88442ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /E_WITNESS_RECEIPT.*coverage differs/. Input:
+
+  'TimeoutError: The operation was aborted due to timeout'
+
+      at async TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:99:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TimeoutError: The operation was aborted due to timeout
+        at new DOMException (node:internal/per_context/domexception:76:18)
+        at Timeout._onTimeout (node:internal/abort_controller:154:9)
+        at listOnTimeout (node:internal/timers:605:17)
+        at process.processTimers (node:internal/timers:541:7),
+    expected: /E_WITNESS_RECEIPT.*coverage differs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

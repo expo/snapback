@@ -5,6 +5,17 @@ mod refusal_actions;
 
 fn normalize(text: &str) -> String { text.split_whitespace().collect::<Vec<_>>().join(" ") }
 
+#[test]
+fn heaviest_account_aliases_reach_the_executable_acquisition_recipe() {
+    for alias in ["envelope", "heaviest", "1000", "cold start", "cold restart", "acquire"] {
+        assert_eq!(card(alias), card("bounds"));
+    }
+    let text = card("bounds").unwrap();
+    for fact in ["Prove the envelope's heaviest account", "witness acquire", "18.609 s", "19.522 s", "groupsByTable", "SQLite pages"] {
+        assert!(text.contains(fact), "missing {fact}");
+    }
+}
+
 // Exclude the registered one-line explanation: the card excerpt must carry
 // the definition independently, including when printed by repeated diagnostics.
 fn excerpt(text: &str) -> String {

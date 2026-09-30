@@ -1,0 +1,41 @@
+(node:1902200) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ acquire CLI refuses invalid arguments before connecting (935.642127ms)
+✔ acquire CLI saves actual SDK acquisition and cold retained receipts across fresh runs (2577.345133ms)
+✔ acquire refuses unknown personas, mismatched bearer identity, unreachable servers and unknown queries (1055.591785ms)
+✖ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1281.230144ms)
+✔ bounds guide command and receipt excerpt execute against a small fixture (1357.935645ms)
+✔ restart detects wipe before reconnect can repair it (228.053949ms)
+✔ restart detects delete-row before reconnect can repair it (1203.700368ms)
+✔ restart detects change-groups before reconnect can repair it (1208.055026ms)
+✔ restart detects change-boundaries before reconnect can repair it (1212.875302ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11166.754316
+
+✖ failing tests:
+
+test at packages/snapback4/test/witness-acquire.test.mjs:107:1
+✖ serve accepts a matching bearer, refuses a different principal, and reports timing unavailable (1281.230144ms)
+  AssertionError [ERR_ASSERTION]: E_WITNESS_RECEIPT: reconnect did not prove zero downloaded rows/events; keep the fixture stable and retry
+  see snapback4 guide bounds
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-bn/snapback4/packages/snapback4/test/witness-acquire.test.mjs:112:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

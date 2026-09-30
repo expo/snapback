@@ -1,0 +1,40 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-device v0.4.9 (/home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4-device)
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.4.9 (/home/ccheever/sb4-intent/lane-bn/snapback4/crates/snapback4)
+    Finished `test` profile [optimized] target(s) in 5.32s
+     Running unittests src/main.rs (target/debug/deps/snapback4-0fe3ac5ead9516c5)
+
+running 3 tests
+test verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value ... FAILED
+test verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values ... FAILED
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+
+failures:
+
+---- verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value stdout ----
+
+thread 'verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value' (1154531) panicked at crates/snapback4/src/verbs/witness/protocol.rs:160:9:
+device refusal echoed --udid value
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values stdout ----
+
+thread 'verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values' (1154530) panicked at crates/snapback4/src/verbs/witness/protocol.rs:178:13:
+artifact refusal echoed an argument value
+
+
+failures:
+    verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values
+    verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 217 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

@@ -1,0 +1,3 @@
+ERROR snapback4/packages/snapback4/bin/witness-acquire.js:2: broken ref: no anchor #acquire in llp/3000.030-native-proof-in-minutes.rfc.md
+ERROR snapback4/crates/snapback4-device/src/device/witness.rs:5: broken ref: no anchor #acquire in llp/3000.030-native-proof-in-minutes.rfc.md
+ref-check: FAIL — 525 LLP docs, 9992 refs in 30338 files, 2 errors, 0 unchecked
