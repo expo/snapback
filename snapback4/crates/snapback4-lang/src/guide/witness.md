@@ -16,9 +16,9 @@ on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
 Both Expo starters provide these scripts. Export alone proves no native execution.
 
 The build route chooses a free backend port and writes fresh artifacts under
-`artifacts/native-smoke/<timestamp>`. Reuse requires a persisted creation record
-in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`),
-an available booted device and the smoke prefix; otherwise it creates a current iPhone.
+`artifacts/native-smoke/<timestamp>`. Reuse requires an available booted device, the smoke prefix, and a creation record
+in `$XDG_STATE_HOME/snapback4/witness/simulators` (default `~/.local/state/`). Records and their directory must be user-owned, not symlinks or writable by others.
+Otherwise it creates a current iPhone; unsafe records are ignored with one warning.
 Newest iOS runtime wins. Device identity is recorded before boot; names alone prove no ownership. `--udid` chooses an explicit booted
 device; `--port` and `--artifacts` override defaults. Shared-host lanes can set
 `SNAPBACK4_SMOKE_DEVICE_PREFIX=sb4-ns-` to isolate selection and creation.

@@ -37,7 +37,7 @@ if a[0] == 'list':
     elif a[1] == 'devicetypes':
         print(json.dumps({'devicetypes': [kind, old_kind]}))
     else:
-        devices = [{'udid': udid, 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
+        devices = [{'udid': os.environ.get('WITNESS_TEST_PRIOR_UDID', udid), 'name': os.environ.get('SNAPBACK4_SMOKE_DEVICE_PREFIX', 'snapback4-smoke-') + 'prior', 'state': 'Booted', 'isAvailable': True}]
         if mode.startswith('auto-create'):
             devices[0]['state'] = 'Shutdown'
             devices += [{'udid': 'unavailable', 'name': 'snapback4-smoke-unavailable', 'state': 'Booted', 'isAvailable': False}]

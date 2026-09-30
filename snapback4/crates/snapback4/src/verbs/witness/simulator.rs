@@ -47,13 +47,12 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
     // booted, installed, shut down or deleted by automatic selection.
     let prefix = std::env::var("SNAPBACK4_SMOKE_DEVICE_PREFIX").unwrap_or_else(|_| "snapback4-smoke-".into());
     if !name(&prefix) || !prefix.ends_with('-') { return Err(error("E_WITNESS_INPUT", "SNAPBACK4_SMOKE_DEVICE_PREFIX must be a nonempty name ending in '-'")); }
-    let owners = owners()?;
+    let mut owners = ownership::Records::open(owners()?);
     for runtime in &available {
         let runtime = runtime["identifier"].as_str().unwrap();
         for d in devices["devices"][runtime].as_array().into_iter().flatten() {
             let Some(udid) = d["udid"].as_str().filter(|id| name(id)) else { continue; };
-            let owned: Value = fs::read(owners.join(format!("{udid}.json"))).ok()
-                .and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or(Value::Null);
+            let owned = owners.read(udid);
             if d["state"] == "Booted" && d["isAvailable"] == true
                 && d["name"].as_str().is_some_and(|n| n.starts_with(&prefix))
                 && owned["udid"] == udid && owned["name"] == d["name"]
@@ -75,17 +74,14 @@ pub(super) fn select(options: &Options, preparation: &mut Value) -> Result<Value
         let generation = model.split('-').next().unwrap().parse::<u32>().unwrap_or(0);
         (generation, model == generation.to_string(), model.to_owned())
     }).ok_or_else(|| error("E_WITNESS_PLATFORM", SETUP))?;
-    fs::create_dir_all(&owners).map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
+    owners.prepare()?;
     let name = format!("{prefix}{}-{}", now(), std::process::id());
     let runtime = runtime["identifier"].as_str().unwrap();
     let udid = simctl(&["create", &name, kind["identifier"].as_str().unwrap(), runtime], options.timeout)?;
     if !super::name(&udid) { return Err(error("E_WITNESS_SIMULATOR", "simctl create returned no device identifier")); }
     // Record structured cleanup identity before any fallible persistence/boot step.
     let selected = remember(preparation, json!({ "udid": udid, "name": name, "runtime": runtime, "selection": "created", "prefix": prefix }));
-    let mut record = OpenOptions::new().write(true).create_new(true).open(owners.join(format!("{udid}.json")))
-        .map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
-    record.write_all(&serde_json::to_vec(&selected).unwrap()).and_then(|_| record.sync_all())
-        .map_err(|e| error("E_WITNESS_SIMULATOR", e))?;
+    owners.write(&udid, &selected)?;
     eprintln!("witness: created simulator {name} ({udid}), runtime {runtime}");
     simctl(&["boot", &udid], options.timeout)?;
     simctl(&["bootstatus", &udid, "-b"], options.timeout)?;

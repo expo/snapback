@@ -79339,3 +79339,61 @@ ratchet (127 / 494 B headroom). No budget increase.
 Report and bound evidence: reports/20260930-ns-native-smoke/round1/REPORT.md.
 Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — NS round 2: startup descriptor and filesystem custody
+
+Read both earlier prompts/reports and Astra's full round-1 NOT READY review;
+Grok's round-1 findings remain for a later round as instructed. Merged
+origin/main e05cec8e0a first, retaining both sides in 795f82f218 without conflicts.
+Both P2s are fixed. The inherited listener is owned and close-on-exec at CLI
+entry, before any checker/worker spawn; all early errors drop the descriptor.
+Simulator records and their directory must be owned by the current user,
+non-symlink, and not writable by group/others. No-follow opens, metadata checks
+and directory-relative reads/writes preserve custody. Unsafe records are ignored
+with one warning; unsafe directories refuse persistence before device creation.
+New files/directories use 0600/0700. Both READMEs explicitly label round 0's
+measurement cohort. LLP 3000.030 §13 and the witness card are current.
+
+Seven driver controls fail on the hash-verified round-1 binary and pass here:
+interrupt/timeout with a real stalled Node checker, symlinked/world-writable/
+group-writable records, and symlinked/writable directories. Port checks precede
+checker cleanup. Both README cohort controls also fail round 1. Final affected:
+47 driver/protocol, 22 starter, 11 witness unit, 36 helper/preparation/smoke,
+21 periphery and 106 whole-guide checks pass. Client/ref/diff checks pass.
+
+Fresh starter cache warmup passes in 232.016 s; requested argument-free warm
+npm run native:smoke passes in 83.756 s, n=1 (no new median/p95). Shared Apartment
+M5 Pro mini / 18 cores / 64 GiB / Xcode+iOS 27; one-minute load 11.41–85.15
+for warmup and 7.81–10.08 warm. All prime/offline/restart segments pass. All 128
+retained files, complete app/build inventories and build/served/observed origins
+verify. The sole new sb4-ns- simulator (7CA91203-C914-497F-AFD9-C6C94CE957A9)
+and its creation record were deleted; no other session's device was targeted.
+A dependency registry 404 was environmental; the identical starter manifest
+installed offline with round 1's lock, then locally packed candidate packages.
+No native run failed or was discarded; scope remains lifecycle, not write replay.
+
+Ran scripts/test.sh once on eb1000, exit 1, exact summary:
+
+    == 2 failure(s) in 1290 s
+       cargo test
+       client tests
+
+Ours 1: the new UID unit test used a group-writable Cargo executable as its
+positive private-file fixture. Replaced it with an explicit 0600 file; identical
+UID assertions pass in the complete 11-test witness unit group on both hosts.
+Baseline 1: supervised-workers observed startup files before the push auth log
+arrived on stderr. Unchanged worker/test source and a controlled log-delivery
+reproduction on both round-1/round-2 binaries establish the race. Focused workers
+pass 5/5 on eb1000; issue 20260930-snapback4-supervised-workers-log-race.md is open.
+Environmental full-suite failures 0. The full result is retained red; no rerun.
+Rust 4,366 passed / 1 failed / 33 ignored; client pool 5,311 passed / 1 failed /
+10 existing skips; fixtures 9/9; models 79/79 with full 5,000/5,000/3,000 walks.
+No cancellations, count reductions, timeout changes or assertion relaxations.
+All 2,274 suite-source files match before/after. Only guide prose, the UID test
+fixture and result docs follow that snapshot; no product logic changed.
+
+Mac wasm 1,977,951 B raw / 593,592 B gzip; Linux 1,978,828 / 593,225. Both fit
+the unchanged 593,719 B ratchet (127 / 494 B headroom). Report, causal controls,
+every failure and retained receipts: reports/20260930-ns-native-smoke/round2/REPORT.md.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

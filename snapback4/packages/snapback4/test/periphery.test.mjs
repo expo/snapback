@@ -569,7 +569,7 @@ test("Expo starter selects web, native and online app devices with explicit sess
 
 for (const pkg of ["snapback4", "snapback4-expo"]) test(`${pkg} README uses the qualified starter smoke measurements`, () => {
   const readme = read(join(root, "packages", pkg, "README.md"));
-  for (const fact of ["221.7 s cold", "83.5 s warm median (3 runs)", "186.2 s", "Apartment M5 Pro mini", "18 cores/64 GiB", "Xcode/iOS 27", "3.61–61.41", "3.21–7.22", "14.62–47.52", "Guidance, not a promise"])
+  for (const fact of ["NS round 0 cohort (2026-09-30)", "221.7 s cold", "83.5 s warm median (3 runs)", "186.2 s", "Apartment M5 Pro mini", "18 cores/64 GiB", "Xcode/iOS 27", "3.61–61.41", "3.21–7.22", "14.62–47.52", "Guidance, not a promise"])
     assert.ok(readme.includes(fact), `${pkg}: missing ${fact}`);
   assert.ok(!readme.includes("159.841") && !readme.includes("six minutes"));
 });

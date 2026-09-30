@@ -84,7 +84,7 @@ At every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm r
 Smoke installs the Release app and proves local-store acquisition, offline reopen and reconnect; pending write replay needs an application scenario.
 Read `npx snapback4 guide witness` for exact pins, helper/session requirements, immutable proofs, output restrictions, installed-app mode and deeper scenarios.
 After edits, repeat `npm run native:smoke`; artifacts are fresh and the private Xcode cache stays warm. Repack is withdrawn.
-Fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**. Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27.
+NS round 0 cohort (2026-09-30), fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**. Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27.
 One-minute host load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52; tools/dependencies installed first. Guidance, not a promise.
 Compiler-declared server-only reads must answer online and record expected offline unavailability. A build receipt alone proves neither smoke nor M6/M8 application behavior.
 

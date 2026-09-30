@@ -156,6 +156,93 @@ mod driver {
         }
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); let _ = fs::remove_dir_all(self.0.with_extension("state")); } }
+    fn unsafe_simulator_record(mode: &str) {
+            let fixture = Fixture::new();
+            let state = fixture.0.with_extension("state").join("snapback4/witness/simulators");
+            let original = state.join(format!("{}.json", fixture.0.file_name().unwrap().to_str().unwrap()));
+            let mut record: Value = serde_json::from_slice(&fs::read(&original).unwrap()).unwrap();
+            fs::remove_file(original).unwrap();
+            record["udid"] = serde_json::json!("foreign");
+            let path = state.join("foreign.json");
+            fs::write(&path, record.to_string()).unwrap();
+            match mode {
+                "symlink" => {
+                    fs::rename(&path, fixture.0.join("foreign.json")).unwrap();
+                    std::os::unix::fs::symlink(fixture.0.join("foreign.json"), &path).unwrap();
+                },
+                "world-write" => fs::set_permissions(&path, fs::Permissions::from_mode(0o666)).unwrap(),
+                "group-write" => fs::set_permissions(&path, fs::Permissions::from_mode(0o620)).unwrap(),
+                "directory-symlink" => {
+                    fs::rename(&state, fixture.0.join("records")).unwrap();
+                    std::os::unix::fs::symlink(fixture.0.join("records"), &state).unwrap();
+                },
+                "directory-write" => fs::set_permissions(&state, fs::Permissions::from_mode(0o777)).unwrap(),
+                _ => unreachable!(),
+            }
+            let output = fixture.command("normal", Fixture::port(), std::path::Path::new("artifacts"))
+                .env("WITNESS_TEST_PRIOR_UDID", "foreign").output().unwrap();
+            let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+            assert_ne!(receipt["simulator"]["selection"], "reused", "{mode}: {receipt}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(stderr.matches("warning: ignoring unsafe simulator ownership records").count(), 1, "{mode}: {stderr}");
+            let calls: Vec<Value> = fs::read_to_string(fixture.0.join("simctl-calls.jsonl")).unwrap().lines().map(|s| serde_json::from_str(s).unwrap()).collect();
+            assert!(!calls.iter().any(|c| c.as_array().unwrap().iter().any(|v| v == "foreign")), "{mode}: {calls:?}");
+            if mode.starts_with("directory-") {
+                assert_eq!(output.status.code(), Some(1));
+                assert!(!calls.iter().any(|c| c[0] == "create"));
+            } else {
+                assert!(output.status.success(), "{mode}: {stderr}");
+                assert_eq!(receipt["simulator"]["selection"], "created");
+                use std::os::unix::fs::MetadataExt;
+                let created = state.join(format!("{}.json", receipt["udid"].as_str().unwrap()));
+                assert_eq!(fs::metadata(created).unwrap().mode() & 0o777, 0o600);
+            }
+    }
+    #[test]
+    fn symlinked_simulator_record_is_ignored() { unsafe_simulator_record("symlink"); }
+    #[test]
+    fn world_writable_simulator_record_is_ignored() { unsafe_simulator_record("world-write"); }
+    #[test]
+    fn group_writable_simulator_record_is_ignored() { unsafe_simulator_record("group-write"); }
+    #[test]
+    fn symlinked_simulator_directory_is_ignored() { unsafe_simulator_record("directory-symlink"); }
+    #[test]
+    fn writable_simulator_directory_is_ignored() { unsafe_simulator_record("directory-write"); }
+    // A real stalled Node checker must not inherit the listening socket. It may
+    // outlive dev during startup interruption, so assert port release BEFORE
+    // cleaning up that exact recorded PID. No simulator or unrelated PID used.
+    fn failed_startup_releases_listener(interrupt: bool) {
+        use std::{process::Stdio, time::{Duration, Instant}, thread::sleep};
+        let fixture = Fixture::new();
+        fs::write(fixture.0.join("snapback/server.ts"), "export default {};\n").unwrap();
+        let node = Command::new("node").args(["-p", "process.execPath"]).output().unwrap();
+        assert!(node.status.success());
+        let node = String::from_utf8(node.stdout).unwrap();
+        fs::write(fixture.0.join("stalled.mjs"), "import fs from 'node:fs'; fs.writeFileSync('checker-pid', String(process.pid)); setInterval(() => {}, 1000);\n").unwrap();
+        fs::write(fixture.0.join("checker"), format!("#!/bin/sh\nexec '{}' '{}'\n", node.trim(), fixture.0.join("stalled.mjs").display())).unwrap();
+        fs::set_permissions(fixture.0.join("checker"), fs::Permissions::from_mode(0o755)).unwrap();
+        let port = Fixture::port();
+        let mut child = fixture.command("normal", port, std::path::Path::new("artifacts"))
+            .env("SNAPBACK_NODE", fixture.0.join("checker")).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !fixture.0.join("checker-pid").exists() && Instant::now() < deadline && child.try_wait().unwrap().is_none() { sleep(Duration::from_millis(20)); }
+        let pid = fs::read_to_string(fixture.0.join("checker-pid")).unwrap().parse::<i32>().unwrap();
+        struct Checker(i32);
+        impl Drop for Checker { fn drop(&mut self) { unsafe { libc::kill(self.0, libc::SIGKILL); } } }
+        let _checker = Checker(pid);
+        if interrupt { assert_eq!(unsafe { libc::kill(child.id() as i32, libc::SIGINT) }, 0); }
+        let output = child.wait_with_output().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let code = if interrupt { "E_WITNESS_INTERRUPTED" } else { "E_WITNESS_BACKEND: dev did not become ready before the step timeout" };
+        assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{}", String::from_utf8_lossy(&output.stderr));
+        let receipt: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/offline-ios-run.json")).unwrap()).unwrap();
+        assert!(receipt["error"].as_str().unwrap().contains(code));
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok(), "stalled checker retained port {port} after {code}");
+    }
+    #[test]
+    fn interrupted_startup_does_not_leak_listener_to_checker() { failed_startup_releases_listener(true); }
+    #[test]
+    fn timed_out_startup_does_not_leak_listener_to_checker() { failed_startup_releases_listener(false); }
     #[test]
     fn automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime() {
         for (mode, prefix) in [("normal", "snapback4-smoke-"), ("auto-create", "snapback4-smoke-"), ("auto-create-lane", "sb4-ns-")] {
