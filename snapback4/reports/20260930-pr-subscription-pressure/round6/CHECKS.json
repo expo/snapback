@@ -1,0 +1,52 @@
+{
+  "affected": {
+    "tests": 1821,
+    "pass": 1821,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 380778.126174
+  },
+  "read-deadlines-pages": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 15191.93839
+  },
+  "round5-regression": {
+    "tests": 18,
+    "pass": 16,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 53802.338133
+  },
+  "exact-round5-control": {
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 4020.614195
+  },
+  "fixture-inspection-error": {
+    "tests": 4,
+    "pass": 0,
+    "fail": 3,
+    "cancelled": 1,
+    "skipped": 0,
+    "duration_ms": 22239.337183
+  },
+  "guide": {
+    "pass": 107,
+    "fail": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "fullSuite": {
+    "run": false,
+    "reason": "Product change confined to scheduling; omitted per round-6 instruction."
+  }
+}

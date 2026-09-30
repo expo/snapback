@@ -262,9 +262,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const affected = [...watches.values()].filter(watch => touched === undefined || operation === "apply" && (watch.serverRead || watch.deadlines?.localWakeup) || (touched.length > 0
       && (watch.tables.size === 0 || touched.some(table => watch.tables.has(table)))));
     const approvals = deferReadNotifications(() => answers.committed(affected, operation, touched));
-    // Warm applies drain after watermark publication; cold acquisition remains progressive.
+    // Warm applies return every invalidated owner for sync's resumption set; cold acquisition remains progressive.
     delivery.push(() => { approvals(); for (const watch of affected) { notify(watch); if (operation !== "apply" || !acquired) scheduleRead(watch); } });
-    return delivery;
+    return affected;
   }
   function refuseRestore(denied?: Refusal) {
     if (denied?.code !== "E_STORE_RESTORE") return;
@@ -285,7 +285,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
     return capture;
   }
-  async function call(request: Record<string, unknown>, committedTables?: { tables: Set<string>; unknown: boolean }, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
+  async function call(request: Record<string, unknown>, committedTables?: { tables: Set<string>; unknown: boolean; resumed: Set<Watch> }, terminalCommit?: (reply: { ok?: unknown; denied?: Refusal }) => void): Promise<{ ok?: unknown; denied?: Refusal }> {
     if (["observe_store", "apply", "adopt", "settle_exit"].includes(String(request.op))) while (history?.hasUnpersisted()) await history.persistPending();
     const endAdmission = request.op === "admit" ? answers.admitting(() => watches.values()) : undefined;
     let observed = false;
@@ -297,7 +297,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       terminalCommit?.(result);
       if (!result.denied && ["apply", "admit", "settle", "settle_exit", "adopt", "observe_store", "begin_send", "hold_write", "keep_write"].includes(String(request.op))) delivery.push(pending.notify);
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
-      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched);
+      if (!result.denied && ["apply", "admit", "settle", "settle_exit", "clear_rows"].includes(String(request.op))) for (const watch of invalidateAnswers(delivery, String(request.op), (result.ok as { touched?: string[] } | undefined)?.touched)) committedTables?.resumed.add(watch);
       if (!result.denied && request.op === "apply") {
         delivery.push(answers.withdrawScopes(watches.values(), request.page as Parameters<LocalReads["withdrawScopes"]>[1], (result.ok as { published?: boolean })?.published !== false, link === "offline" ? offline() : undefined));
         const footprint = (result.ok as { touched?: string[] } | undefined)?.touched;
@@ -568,7 +568,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try { await history.persistPending(); } catch { retryFlush(); return false; }
     const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
     let watermark = state?.watermark ?? 0;
-    const touched = { tables: new Set<string>(), unknown: false }, resumed = new Set<Watch>();
+    const resumed = new Set<Watch>(), touched = { tables: new Set<string>(), unknown: false, resumed };
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;

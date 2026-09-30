@@ -80780,3 +80780,35 @@ in the budget, report and commit. LLP 3000.023 §10 records the fence rules.
 Evidence and every failure: reports/20260930-pr-subscription-pressure/round5/REPORT.md
 and FAILURES.md. Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — PR round 6: no-op sync schedules every invalidated owner
+
+Read rounds 0–5 prompts/reports and both complete round-5 reviews. Fetched and
+attempted origin/main first: remote and local ref both remain 267788df36,
+already included through 56571c0274, so Git reports Already up to date.
+Both histories remain; no new merge was necessary.
+
+Five changed lines in local.ts carry apply's actual invalidated owners into
+sync's existing resumption set. Its final scheduling now covers empty footprints,
+keep:false and absent change cuts, even when invalidation clears recovery
+provenance or post-commit work throws. No new registry, timer, revision or cache;
+authority, scope cuts, eight starts/eight active, queue clocks and fairness remain.
+LLP 3000.023 §10 and the round-6 publication audit record this liveness rule.
+
+Eighteen real-device tests cover wasm/process, all three retention settings and
+empty/unknown/unrelated footprints. Round 5 passes sixteen and fails both
+empty-footprint keep:false cases: loading after 1.5 s, one HTTP query, no work.
+An exact-commit SDK rebuild independently fails both. Final affected run passes
+1,821/1,821; extra deadline/page checks 20/20; whole guide 107/107. Build/typecheck,
+refs and whitespace checks pass. All 230 captured input/artifact hashes match.
+The first test draft used the wrong inspection-count path (three failures and
+one cancellation); that setup error and both detecting controls are retained.
+No final failures, cancellations or skips. No existing assertion was weakened.
+
+The Chromium pressure harness converges all four histories to 42 unique messages
+with zero withdrawals, 124 observations/device, peak 116 queued/eight active.
+No new LL or social-fallback timing claim. Existing wasm matches round 5:
+1,994,357 B raw / 598,401 B gzip, at the unchanged ratchet. No rebuild.
+Full suite omitted as requested for a scheduling-only fix. Report and audit:
+reports/20260930-pr-subscription-pressure/round6/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
