@@ -1,0 +1,43 @@
+{
+  "host": "macOS-27.0-arm64-arm-64bit",
+  "branch": "sb4-intent/ns-native-smoke",
+  "merge": "98ae0eb0a4129931f2b4a29320126357f9bd83f5",
+  "originMain": "9d03e946232b4017564f3e7c6aa87bd424ce8d58",
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.3.12",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)"
+  },
+  "hardware": [
+    "hw.model: Mac17,16",
+    "hw.ncpu: 18",
+    "hw.memsize: 68719476736"
+  ],
+  "inputs": [
+    {
+      "path": "/Users/ccheever/sb4-np/lane-ns.prompt.md",
+      "sha256": "9b45e411b6b53055eb8b04b5936c6e0b309e488c6c7678994b78b855b94b732d"
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-ns.r1.prompt.md",
+      "sha256": "8b1da37f7c4fadeff984ae9877baff237b300e920e60572f99c0d087852229f4"
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-ns.r2.prompt.md",
+      "sha256": "1106e6495751eb1e5f04bf5af30cf1d56296da5fed9ff0ef444b18d64cf193fc"
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/lane-ns.r3.prompt.md",
+      "sha256": "cb64082a8c711fc8add0a3167fc7e5b7f1086d6c07d71e376e5419e2edc920dc"
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/reviews/ns-r2.astra.md",
+      "sha256": "0511955f46eb227eae34254353d2b5b784e295aa2173adc8cde7657b476880f6"
+    },
+    {
+      "path": "/Users/ccheever/sb4-np/reviews/ns-r1.grok.md",
+      "sha256": "08f2fa60c3e0b2b4e6c744df6d8b1a9d7f59575382d5473d760f1304d819fe72"
+    }
+  ]
+}

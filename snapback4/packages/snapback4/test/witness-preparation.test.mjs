@@ -375,6 +375,24 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     fs.symlinkSync('../build/generated/ios/Foo.h', podLink);
     const generatedBase = run('build', 'generated-base');
     assert.equal(generatedBase.status, 0, generatedBase.stderr);
+    // A starter has no source ios/. Prebuild owns that tree; warm snapshotting
+    // must preserve both Pods intermediates and Xcode cache, yet rebuild JS.
+    fs.renameSync(path.join(project, 'ios'), path.join(root, 'generated-template'));
+    fs.rmSync(path.join(project, '.snapback4-witness/snapshot/ios'), { recursive: true });
+    const generated = run('build', 'generated-cold');
+    assert.equal(generated.status, 0, generated.stderr);
+    const kept = path.join(project, '.snapback4-witness/snapshot/ios/Pods/warm-intermediate');
+    write(kept, 'preserve this native preparation');
+    fs.symlinkSync('../../node_modules/generated-header.h', path.join(project, '.snapback4-witness/snapshot/ios/Pods/generated-header.h'));
+    write(path.join(project, 'javascript.txt'), 'D');
+    const repeat = run('build', 'generated-warm');
+    assert.equal(repeat.status, 0, repeat.stderr);
+    assert.equal(fs.readFileSync(kept, 'utf8'), 'preserve this native preparation');
+    assert.equal(fs.existsSync(path.join(project, 'ios')), false);
+    const fresh = JSON.parse(fs.readFileSync(path.join(repeat.out, 'build.json')));
+    assert.ok(fresh.phases.some(p => p.label === 'prebuild'));
+    assert.ok(fresh.phases.some(p => p.label === 'xcode-build'));
+    assert.equal(fs.readFileSync(product + '/main.jsbundle')[127], 'D'.charCodeAt(0));
     // A removed route cannot create a cache or artifact even via the JS entrypoint.
     for (const mode of ['repack', 'unknown', '']) {
       const rejected = run(mode, 'withdrawn-' + (mode || 'empty'));

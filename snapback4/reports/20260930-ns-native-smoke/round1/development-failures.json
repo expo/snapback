@@ -1,0 +1,91 @@
+[
+  {
+    "log": "initial-compile.log",
+    "classification": "ours",
+    "failedTests": [],
+    "errors": [
+      "error[E0753]: expected outer doc comment",
+      "error[E0753]: expected outer doc comment",
+      "error[E0753]: expected outer doc comment",
+      "error[E0753]: expected outer doc comment",
+      "error: could not compile `snapback4` (bin \"snapback4\") due to 4 previous errors"
+    ]
+  },
+  {
+    "log": "affected-rust.log",
+    "classification": "ours",
+    "failedTests": [
+      "dev_accepts_the_still_owned_listener_without_a_rebind_gap",
+      "driver::cli_rejects_failure_appended_after_done",
+      "driver::cli_rejects_failure_in_the_milestone_batch",
+      "driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend",
+      "driver::automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime",
+      "driver::cli_rejects_step_change_appended_after_done",
+      "driver::cli_rejects_milestone_appended_after_done",
+      "driver::cli_rejects_malformed_envelope",
+      "driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts",
+      "driver::created_device_type_is_current_not_last_listed",
+      "driver::cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids",
+      "driver::owned_devices_use_numeric_runtime_order",
+      "driver::cli_concurrent_runs_into_one_namespace_have_one_owner",
+      "driver::preparation_keeps_origin_port_owned_until_backend_startup",
+      "driver::prefix_without_creation_record_is_ignored",
+      "driver::cli_refuses_an_existing_app_and_never_terminates_a_replacement",
+      "driver::smoke_rejects_unconsumed_barrier_and_native_crash_after_done",
+      "driver::smoke_wrong_origin_marks_the_segment_failed",
+      "driver::smoke_rejects_native_crash_after_prime",
+      "driver::smoke_wrong_generation_marks_the_segment_failed",
+      "driver::smoke_rejects_native_crash_after_offline",
+      "driver::smoke_runs_three_cold_launches_and_a_broken_offline_run_fails",
+      "driver::smoke_facts_come_from_the_generation_served_after_a_source_edit",
+      "driver::smoke_collection_revalidates_query_generation"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4 --test witness`"
+    ]
+  },
+  {
+    "log": "affected-witness-fixed.log",
+    "classification": "ours",
+    "failedTests": [
+      "dev_accepts_the_still_owned_listener_without_a_rebind_gap",
+      "driver::created_device_type_is_current_not_last_listed",
+      "driver::cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids",
+      "driver::cli_rejects_failure_in_the_milestone_batch",
+      "driver::cli_rejects_step_change_appended_after_done",
+      "driver::cli_rejects_failure_appended_after_done",
+      "driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend",
+      "driver::cli_rejects_milestone_appended_after_done",
+      "driver::cli_rejects_malformed_envelope",
+      "driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts",
+      "driver::automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime",
+      "driver::owned_devices_use_numeric_runtime_order",
+      "driver::cli_concurrent_runs_into_one_namespace_have_one_owner",
+      "driver::preparation_keeps_origin_port_owned_until_backend_startup",
+      "driver::smoke_collection_revalidates_query_generation",
+      "driver::prefix_without_creation_record_is_ignored",
+      "driver::cli_refuses_an_existing_app_and_never_terminates_a_replacement",
+      "driver::smoke_facts_come_from_the_generation_served_after_a_source_edit",
+      "driver::smoke_rejects_native_crash_after_prime",
+      "driver::smoke_rejects_native_crash_after_offline",
+      "driver::smoke_wrong_origin_marks_the_segment_failed",
+      "driver::smoke_rejects_unconsumed_barrier_and_native_crash_after_done",
+      "driver::smoke_wrong_generation_marks_the_segment_failed",
+      "driver::smoke_runs_three_cold_launches_and_a_broken_offline_run_fails"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4 --test witness`"
+    ]
+  },
+  {
+    "log": "affected-witness-fixed2.log",
+    "classification": "ours",
+    "failedTests": [
+      "driver::created_device_type_is_current_not_last_listed",
+      "driver::automatic_selection_reuses_only_its_prefix_or_creates_on_newest_runtime"
+    ],
+    "errors": [
+      "error: test failed, to rerun pass `-p snapback4 --test witness`"
+    ]
+  }
+]

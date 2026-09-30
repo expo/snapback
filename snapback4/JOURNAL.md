@@ -79288,6 +79288,170 @@ Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
 
 
+## 2026-09-30 — NS round 0: native smoke at every Expo milestone
+
+Both Expo starters now generate `npm run native:smoke` beside `export:ios`.
+The command checks/generates the backend, chooses only a tool-named booted
+simulator or creates one for the latest available iOS runtime, reserves a free
+port, builds and installs Release, and records its selected device and all
+three smoke segments under timestamped artifacts. Explicit UDIDs remain.
+Missing Xcode/runtime gives one actionable message. The starter README and
+client/witness guide cards make this the per-milestone native check, with the
+existing line/word budgets intact and no source-revision instructions.
+
+Fresh Expo 57 starters need the bounded UIScene plugin on iOS 27 and ordinary
+guest sign-in during smoke prime after signed-out restoration. Both starters
+include these. Native preparation retains generated iOS, Pods and DerivedData;
+header inventories run after Pods regeneration, and Metro's cache is keyed by
+origin to prevent a previous free port remaining in inlined JavaScript. Xcode
+still runs and emits fresh JS each time. Exact plain/social generated Podfile
+and support-script forms are admitted; arbitrary native hooks still refuse.
+
+Final `init --expo` starter: cold 221.724 s (n=1), warm 84.566 / 82.009 /
+83.511 s, median 83.511 s (n=3), all passed. Independent social starter passes
+in 186.191 s. Apartment M5 Pro mini, 18 cores / 64 GiB, Xcode 27.0 / iOS 27.0;
+final cold load median 18.24 (range 3.61–61.41), warm load range 3.21–7.22.
+These are complete no-argument npm commands after dependency installation.
+All eleven development/qualification attempts and their receipts are retained,
+including four failed invocations and the fixes they drove. Each final run
+uses a fresh port and JS hash. All three `sb4-ns-` simulators were deleted by
+UDID; `mini-verify-iphone`, system settings and xcode-select were untouched.
+
+Final Mac checks: 22 starter, 32 driver, 10 witness unit, 36 helper/preparation/
+smoke, 19 periphery and 106 whole-guide tests pass. Client/native builds,
+ref-check and diff check pass. Ran `scripts/test.sh` once on eb1000, exit 1:
+
+    == 1 failure(s) in 1665 s
+       client tests
+
+Ours 1, baseline 0, environmental 0: the existing exact starter app.json
+assertion lacked the new UIScene plugin. Updated it while retaining all other
+config checks; the affected file passes 19/19. The original full result remains
+red in the report. Rust 4,365 passes / 33 declared ignores; client pool 5,309
+passes / one failure / ten existing skips; fixtures 9/9; serial models 79/79,
+with full counts. No reduced counts or relaxed timeouts. The full-suite snapshot
+predates the last origin-cache repair; final affected checks and cold/three-warm
+native runs cover that delta. The report binds both source inventories.
+
+Wasm: Mac 1,977,951 B raw / 593,592 B gzip; Linux 1,978,828 / 593,225.
+Both fit the unchanged 593,719 B ratchet. LLP 3000.030 §13 records the decisions.
+Generic smoke proves installed Release/local-store acquisition, offline reopen
+and restart, not queued-write replay; an empty starter proves lifecycle only.
+Replay, populated histories and application assertions still need scenarios.
+Report: reports/20260930-ns-native-smoke/REPORT.md. Commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-09-30 — NS round 1: creation evidence and uninterrupted listener handoff
+
+Merged origin/main (`f1b1f0077e`) first, preserving both sides in `52b02b2de0`.
+Resolved both round 0 reviews: simulator reuse now requires a matching persisted
+per-user UDID/name/runtime/prefix record and a live available booted device;
+a name alone grants nothing. Runtime ordering is numeric, newest first, and
+creation deliberately selects the newest numbered supported iPhone generation.
+Created identity reaches the failed-run receipt before persistence/boot steps.
+
+The bound loopback socket stays owned across preparation and is inherited by
+dev, preserving HTTP connection limits. Restart uses the same handoff; the
+intentional offline interval still closes the listener to prove TCP refusal.
+No existing listener is reclaimed. Backend check runs inside the witness's
+exit-code wrapper as an owned process group, after backend/native project
+leases, held through execution. Missing schema gives exit 1, one message and
+a receipt. Both package READMEs now cite the requested round 0 starter cohort,
+with host/load and “Guidance, not a promise.” LLP 3000.030 §13 is current.
+
+Ten regression controls (eight Rust and two README checks) fail against a
+fresh build of exact round 0 `3f59b23d2c` and pass on round 1. Final local checks:
+40 driver/protocol, 22 init, 10 witness unit, 36 helper/preparation/native-smoke,
+21 periphery and 106 whole-guide checks pass. Source/ref/diff checks and client
+build pass. Initial Darwin SO_ACCEPTCONN and fake-created-UDID collisions were
+ours and are fixed; every development failure is retained and classified.
+No source changed after the full-suite snapshot; only result prose followed.
+
+Fresh starter native: cold 239.025 s; warm 93.667 / 82.528 / 86.251 s, median
+86.251 s (n=3); separate social 202.091 s. Every prime/offline/restart passes.
+Shared Apartment M5 Pro mini, 18 cores / 64 GiB, Xcode/iOS 27; cold load
+18.42–183.46, warm load 9.93–50.72, social 5.49–28.58. Tools/dependencies were
+installed before timing. The exact argument-free npm command used locally
+packed unpublished candidates; native scope remains lifecycle, not queued
+write replay or populated history. All 320 retained files, complete app/Xcode
+inventories and embedded/served/observed origins are verified. The one new
+sb4-ns- iPhone 18 Pro Max simulator and its creation record were deleted by
+exact UDID after collection. No other session's simulator was targeted.
+
+Ran scripts/test.sh once on eb1000, exit 0, exact summary:
+
+    == 0 failure(s) in 1357 s
+
+Full-suite failures: ours 0, baseline 0, environmental 0. Rust 4,366 passes /
+33 declared ignores; client pool 5,312 passes / 10 existing skips; fixtures
+9/9; serial models 79/79 with both full 5,000-sequence walks and the full
+3,000-sequence walk. No cancellations, reduced counts or relaxed timeouts.
+The nominal 60-second bar remains exceeded. Mac wasm 1,977,951 B raw /
+593,592 B gzip; Linux 1,978,828 / 593,225. Both fit the unchanged 593,719 B
+ratchet (127 / 494 B headroom). No budget increase.
+
+Report and bound evidence: reports/20260930-ns-native-smoke/round1/REPORT.md.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
+## 2026-09-30 — NS round 2: startup descriptor and filesystem custody
+
+Read both earlier prompts/reports and Astra's full round-1 NOT READY review;
+Grok's round-1 findings remain for a later round as instructed. Merged
+origin/main e05cec8e0a first, retaining both sides in 795f82f218 without conflicts.
+Both P2s are fixed. The inherited listener is owned and close-on-exec at CLI
+entry, before any checker/worker spawn; all early errors drop the descriptor.
+Simulator records and their directory must be owned by the current user,
+non-symlink, and not writable by group/others. No-follow opens, metadata checks
+and directory-relative reads/writes preserve custody. Unsafe records are ignored
+with one warning; unsafe directories refuse persistence before device creation.
+New files/directories use 0600/0700. Both READMEs explicitly label round 0's
+measurement cohort. LLP 3000.030 §13 and the witness card are current.
+
+Seven driver controls fail on the hash-verified round-1 binary and pass here:
+interrupt/timeout with a real stalled Node checker, symlinked/world-writable/
+group-writable records, and symlinked/writable directories. Port checks precede
+checker cleanup. Both README cohort controls also fail round 1. Final affected:
+47 driver/protocol, 22 starter, 11 witness unit, 36 helper/preparation/smoke,
+21 periphery and 106 whole-guide checks pass. Client/ref/diff checks pass.
+
+Fresh starter cache warmup passes in 232.016 s; requested argument-free warm
+npm run native:smoke passes in 83.756 s, n=1 (no new median/p95). Shared Apartment
+M5 Pro mini / 18 cores / 64 GiB / Xcode+iOS 27; one-minute load 11.41–85.15
+for warmup and 7.81–10.08 warm. All prime/offline/restart segments pass. All 128
+retained files, complete app/build inventories and build/served/observed origins
+verify. The sole new sb4-ns- simulator (7CA91203-C914-497F-AFD9-C6C94CE957A9)
+and its creation record were deleted; no other session's device was targeted.
+A dependency registry 404 was environmental; the identical starter manifest
+installed offline with round 1's lock, then locally packed candidate packages.
+No native run failed or was discarded; scope remains lifecycle, not write replay.
+
+Ran scripts/test.sh once on eb1000, exit 1, exact summary:
+
+    == 2 failure(s) in 1290 s
+       cargo test
+       client tests
+
+Ours 1: the new UID unit test used a group-writable Cargo executable as its
+positive private-file fixture. Replaced it with an explicit 0600 file; identical
+UID assertions pass in the complete 11-test witness unit group on both hosts.
+Baseline 1: supervised-workers observed startup files before the push auth log
+arrived on stderr. Unchanged worker/test source and a controlled log-delivery
+reproduction on both round-1/round-2 binaries establish the race. Focused workers
+pass 5/5 on eb1000; issue 20260930-snapback4-supervised-workers-log-race.md is open.
+Environmental full-suite failures 0. The full result is retained red; no rerun.
+Rust 4,366 passed / 1 failed / 33 ignored; client pool 5,311 passed / 1 failed /
+10 existing skips; fixtures 9/9; models 79/79 with full 5,000/5,000/3,000 walks.
+No cancellations, count reductions, timeout changes or assertion relaxations.
+All 2,274 suite-source files match before/after. Only guide prose, the UID test
+fixture and result docs follow that snapshot; no product logic changed.
+
+Mac wasm 1,977,951 B raw / 593,592 B gzip; Linux 1,978,828 / 593,225. Both fit
+the unchanged 593,719 B ratchet (127 / 494 B headroom). Report, causal controls,
+every failure and retained receipts: reports/20260930-ns-native-smoke/round2/REPORT.md.
+Commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.
+
 ## 2026-09-30 — SL round 1: independent witness and expiry guards
 
 Merged origin/main e05cec8e0a first in 5e1f861367, retaining both journal
@@ -79377,3 +79541,100 @@ ratchet. No budget increase.
 Report, failure ledger, full log, source manifests, reproduction tools and raw
 measurements: `reports/20260930-qx-first-instinct-forms/`. Local commit carries
 `Co-Authored-By: GPT-6 Astra <noreply@openai.com>`. Nothing pushed or published.
+
+
+## 2026-09-30 — NS round 3: final native-smoke review fixes
+
+Merged origin/main 9d03e94623 (SL) in 98ae0eb0a4, preserving both journal
+histories and the NS scenarios under SL's watchdog and 120-second step budget.
+Timeout preparation blocks until reaped. The stalled-checker fixture keeps its
+Node descendant and diagnostic pipes alive past the checker's own 30-second
+wrapper deadline, so the witness's startup deadline remains the tested event.
+The adapted interruption control still detects round 1's leaked listener before
+cleanup; the saved old binary hash and restored current binary are verified.
+
+Astra's fixture umask finding and Grok's remaining two Lows are fixed. Fixtures
+create private 0700 directories and 0600 records before intentional unsafe
+mutations. Device generation uses leading digits (17e included); plain and Pro
+variants rank deliberately, and unnumbered Air uses the runtime's supported-type
+order relative to the numbered winner. Seven cases cover those choices and the
+older-device-last control. Failed check names its actual stderr log, asserted
+alongside the diagnostic, exit 1 and no installation. LLP 3000.030 §13 is current.
+
+Final Mac checks: whole witness driver/protocol 47/47 under umask 0022 and 0002;
+witness units 11/11 under both; starter 22/22; whole guide 106/106. Ref-check and
+diff check pass. The report keeps every exact summary, including three detecting
+pre-fix controls and the round-1 listener control. Initial integrated driver run
+was 44/47: ours were the 17e/Pro tie-break and the checker deadline adaptation;
+one existing-app refusal failure lacked its diagnostic and remains unclassified.
+Its unchanged condition now prints stderr; focused and final whole runs pass.
+No earlier red invocation is relabeled green. The original fixture's older-last
+ordering was retained in the final 0002 run and a final full 0022 repetition.
+
+Wasm rebuilt here: 1,977,951 B raw / 593,592 B gzip, 127 B below the unchanged
+593,719 B ratchet. No full suite or new native timing run was needed or run in
+this round. No real simulator or other session's device was touched, no system
+setting changed, and only owned fixture processes were signaled. The requested
+native-smoke-fixtures-device-choice-log-name ticket was absent from main at the
+merged commit; all three named findings are resolved. Report and retained logs:
+reports/20260930-ns-native-smoke/round3/REPORT.md. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+## 2026-09-30 — KA round 0: HTTP idle reuse and one bounded retry
+
+Starting main 9d03e94623 (0.4.9), branch sb4-intent/ka-keepalive-reuse. The real
+SDK/dev idle-close experiment loses 16/384 reads across eight 48-client cohorts
+on baseline and 0/384 after the fix. A client pause after socket selection,
+before writing, exposes the race; ordinary pauses before selection already pass
+baseline because pinned undici checks stale sockets. Linux reports UND_ERR_SOCKET
+in this idle experiment. Separate real TCP-reset controls reproduce main's
+literal ECONNRESET and lose a real dev mutation's committed reply; fixed code
+recovers it once, with the original write ID and one committed row. These are
+conditioned experiments, not calibration #27's production failure rate or proof
+of that event's cause.
+
+Bounded tiny_http responses now advertise their five-second idle lease,
+including coalesced JSON and heartbeat frames. HTTP/1.0 needs explicit keep-alive;
+close/upgrade tokens and forced-close refusals get no lease hint. The private
+Node agent retires idle sockets after one second. Its single fresh-connection
+retry requires a previously completed response on the same socket, zero new
+response bytes, a reset/closed-socket error and a repeatable request. Materialized
+queries/sync and read/status routes qualify. Durable mutation envelopes carry
+retry_write with their existing write ID; the ephemeral handler refuses that
+field before executing, including after hot adoption, unless a prior durable
+receipt settles it. Auth, actions, asset views/uploads, unmarked writes, fresh
+connection failures, redirects and partial responses keep their existing errors.
+No engine, storage, contract, connection/admission cap or active-response deadline
+changed. Long holds, streaming, E_RATE_LIMIT and TLS termination checks pass.
+LLP 3000's HTTP overload section and the guide record the policy.
+
+Chromium's real SDK witness passes 72 renderer-pause reads on each server version.
+Expo's NSURLSession/OkHttp pools operate outside application JS; source review
+explains their native recovery and remaining failure boundary. No opaque-fetch
+retry was added. This Linux host has no native simulator and the fleet inventory
+was unavailable, so this is not native runtime qualification.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1437 s
+
+All 13 stages pass: Rust 4,363 passes with 33 existing ignores (the docs-budget
+stage separately repeats one guide case); clients 5,330 passes with ten existing
+skips; fixtures 9/9; serial models 79/79 including both full 5,000-sequence walks.
+Full-run failures: ours 0, baseline 0, environmental 0. No cancellations, lowered
+counts or relaxed timeouts. The inherited nominal 60-second suite bar is exceeded.
+Production source stayed fixed during that run. A separate regression found
+mutable caller options could change the retried URL/body/authority. The correction
+after the full run snapshots those inputs; final affected checks pass 87/87,
+including all 17 retry cases. Final SDK typecheck/build, await classification,
+standalone snapshot regression and forced post-selection idle retry pass. This
+is explicitly not an unchanged-final-source full-suite qualification.
+
+Other checks: whole guide 105/105; overload 109/109; vendored tiny_http with
+ssl-rustls 51 tests/doctests; Chromium, held polls and verified TLS pass. Wasm is
+1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged 593,719 B ratchet.
+No budget increase. Every failing baseline control, corrected implementation or
+fixture failure, and cold-tree build prerequisite is classified in the report.
+Evidence, source snapshots and rerunnable controls:
+reports/20260930-ka-keepalive-reuse/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

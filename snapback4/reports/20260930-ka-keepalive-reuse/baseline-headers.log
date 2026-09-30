@@ -1,0 +1,72 @@
+✖ dev: keep-alive headers agree with HTTP connection policy (152.915278ms)
+✖ serve: keep-alive headers agree with HTTP connection policy (85.070226ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 303.262637
+
+✖ failing tests:
+
+test at packages/snapback4/test/keepalive-headers.test.mjs:48:36
+✖ dev: keep-alive headers agree with HTTP connection policy (152.915278ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\r\nKeep-Alive: timeout=5(?:\r\n|$)/i. Input:
+
+  'HTTP/1.1 200 OK\r\n' +
+    'Server: tiny-http (Rust)\r\n' +
+    'Date: Wed, 30 Sep 2026 15:19:23 GMT\r\n' +
+    'X-Snapback-Time: 1790781563848\r\n' +
+    'X-Snapback-Clock: 01M3SEC8X106FTF4EVYEYQARVH:0\r\n' +
+    'Content-Type: application/json\r\n' +
+    'Cache-Control: no-store\r\n' +
+    'Vary: Origin\r\n' +
+    'Access-Control-Expose-Headers: X-Snapback-Time, X-Snapback-Clock\r\n' +
+    'Access-Control-Allow-Headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range\r\n' +
+    'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n' +
+    'Access-Control-Expose-Headers: Server-Timing\r\n' +
+    'Server-Timing: total;dur=2.177, wait;dur=0.419, engine;dur=1.209, cpu;dur=1.985\r\n' +
+    'Content-Length: 65'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-headers.test.mjs:60:24)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'HTTP/1.1 200 OK\r\nServer: tiny-http (Rust)\r\nDate: Wed, 30 Sep 2026 15:19:23 GMT\r\nX-Snapback-Time: 1790781563848\r\nX-Snapback-Clock: 01M3SEC8X106FTF4EVYEYQARVH:0\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nVary: Origin\r\nAccess-Control-Expose-Headers: X-Snapback-Time, X-Snapback-Clock\r\nAccess-Control-Allow-Headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Expose-Headers: Server-Timing\r\nServer-Timing: total;dur=2.177, wait;dur=0.419, engine;dur=1.209, cpu;dur=1.985\r\nContent-Length: 65',
+    expected: /\r\nKeep-Alive: timeout=5(?:\r\n|$)/i,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at packages/snapback4/test/keepalive-headers.test.mjs:48:36
+✖ serve: keep-alive headers agree with HTTP connection policy (85.070226ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\r\nKeep-Alive: timeout=5(?:\r\n|$)/i. Input:
+
+  'HTTP/1.1 401 Unauthorized\r\n' +
+    'Server: tiny-http (Rust)\r\n' +
+    'Date: Wed, 30 Sep 2026 15:19:24 GMT\r\n' +
+    'X-Snapback-Time: 1790781564034\r\n' +
+    'X-Snapback-Clock: 01M3SEC93G1XSTMJF5H3984DMY:0\r\n' +
+    'Content-Type: application/json\r\n' +
+    'Cache-Control: no-store\r\n' +
+    'Vary: Origin\r\n' +
+    'Access-Control-Expose-Headers: X-Snapback-Time, X-Snapback-Clock\r\n' +
+    'Access-Control-Allow-Headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range\r\n' +
+    'Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n' +
+    'Content-Length: 163'
+
+      at TestContext.<anonymous> (file:///home/ccheever/sb4-intent/lane-ka/snapback4/packages/snapback4/test/keepalive-headers.test.mjs:60:24)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'HTTP/1.1 401 Unauthorized\r\nServer: tiny-http (Rust)\r\nDate: Wed, 30 Sep 2026 15:19:24 GMT\r\nX-Snapback-Time: 1790781564034\r\nX-Snapback-Clock: 01M3SEC93G1XSTMJF5H3984DMY:0\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nVary: Origin\r\nAccess-Control-Expose-Headers: X-Snapback-Time, X-Snapback-Clock\r\nAccess-Control-Allow-Headers: content-type, x-snapback-persona, x-snapback-meter, authorization, range\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nContent-Length: 163',
+    expected: /\r\nKeep-Alive: timeout=5(?:\r\n|$)/i,
+    operator: 'match',
+    diff: 'simple'
+  }

@@ -73,10 +73,39 @@ fn node(options: &Options, args: &[&str], label: &str) -> Result<()> {
     result
 }
 
+pub(super) fn check_project(options: &Options) -> Result<Vec<File>> {
+    let Some(project) = options.build.as_ref() else { return Ok(Vec::new()); };
+    let project = fs::canonicalize(project).map_err(|e| error("E_WITNESS_BUILD", e))?;
+    let backend = crate::project::Project::locate(&std::env::current_dir().map_err(|e| error("E_WITNESS_BUILD", e))?)
+        .ok_or_else(|| error("E_WITNESS_BUILD", "no snapback/schema.q here or above; run snapback4 init before native smoke"))?;
+    let mut roots = vec![project, fs::canonicalize(backend.root).map_err(|e| error("E_WITNESS_BUILD", e))?];
+    roots.sort(); roots.dedup();
+    let leases = roots.iter().map(|p| lease(&p.join(".snapback4-witness/owner.lock"))).collect::<Result<Vec<_>>>()?;
+    let binary = std::env::current_exe().map_err(|e| error("E_WITNESS_BUILD", e))?;
+    let mut command = Command::new(binary);
+    command.arg("check").process_group(0).stdin(Stdio::null())
+        .stdout(output(&options.artifacts.join("check-stdout.log"))?)
+        .stderr(output(&options.artifacts.join("check-stderr.log"))?);
+    let mut child = PreparationProcess { child: command.spawn().map_err(|e| error("E_WITNESS_PROCESS", e))?, cleaned: false };
+    let end = Instant::now() + Duration::from_secs(900);
+    loop {
+        if let Some(status) = child.status()? {
+            if !status.success() {
+                let detail = fs::read_to_string(options.artifacts.join("check-stderr.log")).unwrap_or_default();
+                return Err(error("E_WITNESS_BUILD", format!("backend check failed: {}; see {}/check-stderr.log", detail.lines().next().unwrap_or("repair the schema diagnostics"), options.artifacts.display())));
+            }
+            break;
+        }
+        if Instant::now() >= end { return Err(error("E_WITNESS_BUILD", "backend check exceeded 900 seconds")); }
+        tick()?;
+    }
+    child.cleanup()?;
+    Ok(leases)
+}
+
 pub(super) fn prepare_app(options: &mut Options, udid: &str) -> Result<Option<Value>> {
     let Some(project) = options.build.as_ref() else { return Ok(None); };
     let project = fs::canonicalize(project).map_err(|e| error("E_WITNESS_BUILD", e))?;
-    let _project_lease = lease(&project.join(".snapback4-witness/owner.lock"))?;
     let helper = options.artifacts.join("prepare.mjs");
     fs::write(&helper, include_str!("prepare.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;
     fs::write(options.artifacts.join("payload.mjs"), include_str!("payload.mjs")).map_err(|e| error("E_WITNESS_ARTIFACT", e))?;

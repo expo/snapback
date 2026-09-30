@@ -3,6 +3,7 @@
 //! client's types; `dev` serves it and re-adopts it on every save; `run`,
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
+mod witness_socket;
 mod assets;
 mod host_limits;
 mod auth;
@@ -45,7 +46,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   sql <SELECT> [--release dir] [--limit N] [--json]  read-only inspection of your store (not rule-filtered)
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
-  witness ios (--smoke | --segment NAME) --bundle-id ID --artifacts DIR [--udid ID] [--port N] [--prime] [--relaunch] [--timeout 120]
+  witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
+  witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
                                       record an installed iOS app cold-offline, then reconnect its owned backend
   device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
   --version";
@@ -58,6 +60,10 @@ fn main() -> ExitCode {
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verb = args.first().map(String::as_str).unwrap_or("");
+    let inherited = match witness_socket::take(verb) {
+        Ok(listener) => listener,
+        Err(error) => { eprintln!("{error}"); return ExitCode::from(1); }
+    };
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {
         println!("{HELP}");
@@ -126,7 +132,7 @@ fn main() -> ExitCode {
             let clock_offset = options.flags.get("clock-offset").map(|text| dev_clock::offset(text)).transpose().map_err(|e| e.to_string())?.unwrap_or(0);
             let port: u16 = options.flags.get("port").and_then(|p| p.parse().ok()).unwrap_or(4400);
             let bind = development_bind(&options)?;
-            serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string())
+            serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited)
         }),
         other => {
             eprintln!("unknown verb {other}\n{HELP}");

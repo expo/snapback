@@ -107,7 +107,7 @@ for (const applyExit of [false, true]) test(`stalled exit body recovers in order
     await within(until(() => f.ordinary.length === 1), 3000, "ordinary flush wedged behind stalled exit body");
     assert.equal(f.count(), before + 1);
     const head = entries.find(entry => entry.id === expected[0].id);
-    assert.deepEqual(f.ordinaryRequests.at(-1), { id: head.id, args: head.args, newIds: head.new_ids, store_id: JSON.parse(f.requests[0].init.body).store_id });
+    assert.deepEqual(f.ordinaryRequests.at(-1), { id: head.id, args: head.args, newIds: head.new_ids, store_id: JSON.parse(f.requests[0].init.body).store_id, retry_write: true });
     if (applyExit) assert.equal((await f.client.write(writes[0].id)).state, "sent");
     f.window.dispatchEvent(new Event("pagehide"));
     assert.equal(f.requests.length, 1);

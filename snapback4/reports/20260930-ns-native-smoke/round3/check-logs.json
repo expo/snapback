@@ -1,0 +1,97 @@
+[
+  {
+    "file": "control-check-before.log.gz",
+    "uncompressedBytes": 1441,
+    "uncompressedSha256": "b7ea9b77d3f1d13f2e11ce01253d73912c1ef537fad30b0da4775234b7ae3e87"
+  },
+  {
+    "file": "control-device-before.log.gz",
+    "uncompressedBytes": 1303,
+    "uncompressedSha256": "ffd2c9b658ba3610c42a804ff5cb2e3254ea131311080a5007b48deaf7cb813c"
+  },
+  {
+    "file": "control-interruption-round1.log.gz",
+    "uncompressedBytes": 562,
+    "uncompressedSha256": "616f3510cae0dd51c2e6b539808ed75b6b8bc143fede2ff8c05d2819d6a8600b"
+  },
+  {
+    "file": "control-umask-before.log.gz",
+    "uncompressedBytes": 1574,
+    "uncompressedSha256": "84daa130420c253c6833773ea147d48b7720d625a8c55c48b5084b35cfc662c0"
+  },
+  {
+    "file": "existing-app-investigation.log.gz",
+    "uncompressedBytes": 196,
+    "uncompressedSha256": "3aeae507c36b6b6e7a0b9168f9f46b338fcf127c1c4a9f81bdd4af49cfd9409f"
+  },
+  {
+    "file": "guide.log.gz",
+    "uncompressedBytes": 7793,
+    "uncompressedSha256": "eb81f60416c789bc1798550c203e0692343641d569c2d0747c677e084dba28e0"
+  },
+  {
+    "file": "merge-compile.log.gz",
+    "uncompressedBytes": 622,
+    "uncompressedSha256": "bce41ecbb8d05632422af635befbafa11df893aaea30af349b99262be8f14753"
+  },
+  {
+    "file": "ref-check-final.log.gz",
+    "uncompressedBytes": 80,
+    "uncompressedSha256": "3ee8bdf1378a42986cf1ad308b165d8af521c375e4a0a09163b9adcbaf712aca"
+  },
+  {
+    "file": "ref-check.log.gz",
+    "uncompressedBytes": 80,
+    "uncompressedSha256": "768e99b2f32f2cc60f5a7d972c4bcbbb9c7a3d3b24b3cbdb7825efe594d8139b"
+  },
+  {
+    "file": "starter.log.gz",
+    "uncompressedBytes": 2176,
+    "uncompressedSha256": "ed2034d226f9cd715fa49dca47998b9a046f2e15d0a33fe873c6d0e320715f2e"
+  },
+  {
+    "file": "wasm.log.gz",
+    "uncompressedBytes": 8006,
+    "uncompressedSha256": "0aaec0304c1e700e368bf51fd6f4d7622a4cdbb9564e4f3d278bc8e72840b6cf"
+  },
+  {
+    "file": "witness-0002.log.gz",
+    "uncompressedBytes": 4267,
+    "uncompressedSha256": "c865c2d762066f2fbec44e7b2a8da54e64174501593c4ca782f0416517b6e47a"
+  },
+  {
+    "file": "witness-0022-final.log.gz",
+    "uncompressedBytes": 4177,
+    "uncompressedSha256": "b34d1d18682d5f6a22b42dda8bd2b2ba0425cd06f6455579940047fe258f77cc"
+  },
+  {
+    "file": "witness-0022-initial.log.gz",
+    "uncompressedBytes": 6023,
+    "uncompressedSha256": "09c0f87807e6574253eb5ae8c23ff0f4468e5ed58c6ec248b1e177f333357369"
+  },
+  {
+    "file": "witness-0022.log.gz",
+    "uncompressedBytes": 4371,
+    "uncompressedSha256": "72eab558c506ac747e652e7e4b45325b295ad984fa134d91384d806134564a3c"
+  },
+  {
+    "file": "witness-unit-0002-final.log.gz",
+    "uncompressedBytes": 1609,
+    "uncompressedSha256": "6753528f61755219455465d18e4f7840876a97431cb9870c35ba663df960d612"
+  },
+  {
+    "file": "witness-unit-0002.log.gz",
+    "uncompressedBytes": 1609,
+    "uncompressedSha256": "5a344f2027be24d8e89d53558c07ce9c36c0fbd8d7ff80b8eb60211367134116"
+  },
+  {
+    "file": "witness-unit-0022-final.log.gz",
+    "uncompressedBytes": 1699,
+    "uncompressedSha256": "20fa3fed7a4533fba75ded5fbcd43362842914ee91a6c9ecee3292399dace64e"
+  },
+  {
+    "file": "witness-unit-0022.log.gz",
+    "uncompressedBytes": 1858,
+    "uncompressedSha256": "69110f798be9c54dc3f8a0a9a2ceef09662a580215ee95401d63f08535cca0fb"
+  }
+]

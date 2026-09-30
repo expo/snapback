@@ -1,0 +1,68 @@
+[
+  {
+    "name": "witness-unit-0022",
+    "umask": "0022",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "witness::"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 2.86s"
+    ]
+  },
+  {
+    "name": "witness-unit-0002",
+    "umask": "0002",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "witness::"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 207 filtered out; finished in 2.85s"
+    ]
+  },
+  {
+    "name": "starter",
+    "umask": "0022",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "init"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.81s"
+    ]
+  },
+  {
+    "name": "guide",
+    "umask": "0022",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide"
+    ],
+    "exit": 0,
+    "summaries": [
+      "test result: ok. 106 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.10s"
+    ]
+  }
+]

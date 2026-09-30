@@ -1,0 +1,10 @@
+{"userAgent":"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36","rounds":[{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]},{"warm":24,"success":24,"failures":[]}]}
+✔ Chromium SDK reads survive a blocked renderer across the server idle timeout (17111.940248ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17190.018362
