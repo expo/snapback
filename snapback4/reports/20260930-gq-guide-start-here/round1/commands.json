@@ -1,0 +1,115 @@
+[
+  {
+    "name": "lang-affected",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "aggregate_copies",
+      "--test",
+      "effect_reads",
+      "--test",
+      "residency_notes",
+      "--test",
+      "server_opt_in",
+      "--test",
+      "membership_paths",
+      "--test",
+      "read_through_sync",
+      "--test",
+      "sync_windows",
+      "--test",
+      "maintains",
+      "--test",
+      "audience_bounds"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "core-lane-source",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "--test",
+      "lane_source"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-guide",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "guide_examples::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-effect-reads",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "device",
+      "presence::effect_reads::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "device-census",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-device",
+      "--test",
+      "readauth"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "sim-search",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-sim",
+      "--test",
+      "clique",
+      "search_directory::"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "cli-check",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "check"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "cli-build",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "exit": 0
+  }
+]

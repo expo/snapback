@@ -13,8 +13,8 @@ table todos:
 ```
 
 - `E_SYNC`: the declared audience disagrees with the read rule; omit the audience to infer it, keeping the intended rule.
-- `N_SYNC_ORDER`: a page uses a different order than its horizon; use the sync order for covered history.
-- `N_NO_HORIZON`: a growing partition has no window; add `last N by .column` or an intended product cap.
+- `N_SYNC_ORDER`: page and horizon orders differ; keep the intended selection (`first 1` can change), and restart pagination if changing order.
+- `N_NO_HORIZON`: a partition can grow; read the diagnostic's prediction warning before adding `last N by .column` or an intended cap.
 
 ## Reference
 

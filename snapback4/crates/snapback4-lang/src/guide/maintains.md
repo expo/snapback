@@ -10,7 +10,7 @@ query total(author: principal):
 
 - `E_MAINTAIN_READ_RULE`: grouping lost an authorization field; retain it as a bare key or declare the aggregate's intended read rule.
 - `E_QUARRY_SYNTAX`: a view cannot have its own sync line; keep inherited sync or choose `online only` and lose offline coverage.
-- `N_MAINTAIN_SYNCED`: inherited sync has no source horizon; measure it, or use `online only` if offline totals are unnecessary.
+- `N_MAINTAIN_SYNCED`: the aggregate does not inherit the source horizon; measure it, or choose `online only` only if offline reads and prediction by the named dependent mutations are unnecessary (`predicts` then fails with `E_NOT_PREDICTABLE`).
 
 ## Reference
 

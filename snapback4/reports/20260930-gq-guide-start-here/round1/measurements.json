@@ -1,0 +1,70 @@
+{
+  "cards": [
+    {
+      "card": "language",
+      "round0_opening": 15,
+      "round1_opening": 15,
+      "round0_card": 825,
+      "round1_card": 825,
+      "round1_sha256": "3a790fe369b0f882d18d0763ac65e2cfccb522695e8b1c4b06243486e291d747"
+    },
+    {
+      "card": "sync",
+      "round0_opening": 15,
+      "round1_opening": 15,
+      "round0_card": 524,
+      "round1_card": 524,
+      "round1_sha256": "54291b72cd0aab1f05ef740480621735e71057181e0218ea5001874895a098f3"
+    },
+    {
+      "card": "maintains",
+      "round0_opening": 13,
+      "round1_opening": 13,
+      "round0_card": 879,
+      "round1_card": 879,
+      "round1_sha256": "15d57a507a04e315d21a06d79b175bb287aab6291353b3a99c6e42700abafce0"
+    },
+    {
+      "card": "rules",
+      "round0_opening": 15,
+      "round1_opening": 15,
+      "round0_card": 374,
+      "round1_card": 372,
+      "round1_sha256": "84245aa0f6d0687dc2548a484bab455c34ecf671fdc0826ac78ec64eb7a59703"
+    },
+    {
+      "card": "prediction",
+      "round0_opening": 12,
+      "round1_opening": 12,
+      "round0_card": 368,
+      "round1_card": 368,
+      "round1_sha256": "c87ab5a330086cb459f224f58f7315f492047f68535c65eeb8e842257f6b1ed5"
+    },
+    {
+      "card": "client",
+      "round0_opening": 15,
+      "round1_opening": 15,
+      "round0_card": 106,
+      "round1_card": 106,
+      "round1_sha256": "bb72073d62221bbc5ceb1b2f1e062b7bc017992e57c7411dd11776e4b55e26eb"
+    },
+    {
+      "card": "search",
+      "round0_opening": 12,
+      "round1_opening": 12,
+      "round0_card": 405,
+      "round1_card": 405,
+      "round1_sha256": "00c97beb03568c2b35a6189d2f4ea6166e356598c577f8af6993f246813d6124"
+    },
+    {
+      "card": "feeds",
+      "round0_opening": 15,
+      "round1_opening": 15,
+      "round0_card": 401,
+      "round1_card": 401,
+      "round1_sha256": "78aa8a1293599560edec788a409a85311da49d44bfffab85d88fa1963ab32480"
+    }
+  ],
+  "start_lines": 125,
+  "index_matches_start": true
+}

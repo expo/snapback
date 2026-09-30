@@ -80853,3 +80853,35 @@ were regenerated. Ref-check and whitespace checks pass. Full report, reading
 tables, exact failure attribution and retained logs:
 reports/20260930-gq-guide-start-here/REPORT.md. Local commit carries
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.
+
+## 2026-10-01 — GQ round 1: qualify repairs and teach child membership paths
+
+Read the round-0 prompt/report and Astra's full READY WITH CHANGES review.
+Fetched origin and attempted its merge before editing: Already up to date at
+096a1b78ef. QX's 6e03a7e7c9 merge is already an ancestor; both histories remain.
+Sync's opening now preserves intended selection, restarts pagination after an
+order change, and asks readers to inspect the prediction warning before adding
+a horizon. Maintains states that aggregates do not inherit source horizons and
+that choosing online only also costs prediction for the named dependent mutations.
+
+Rules now opens with reactions using the first-instinct membership path through
+message.conversation, its immutable-reference constraint and a 500-row child
+horizon. The excerpt is compiled verbatim in the existing receipts/reactions
+recipe; its online parent reads and server-run reaction page remain explicit.
+One runtime witness checks equivalent read-through lowering, member insert/read,
+outsider denial, audience sync and parent expiry. Corrected the reference's two
+stale pre-QX claims about path syntax and child upserts. The original self-equality
+tip remains. LLP 3000.011.000.000 §8 records the update.
+
+All 485 affected tests pass, including the whole guide 110/110; four existing
+aggregate ignores remain. All eight openings still total 112 lines and fit 15
+each; start/index remain identical at 125 CLI lines. Rules shrinks 374 → 372.
+CLI build, ref-check and source/doc whitespace checks pass. Root diagnostics
+registry still reports its three unchanged Snapback 1 stale projections, as in
+round 0; no indexed inputs or inventory/manifest inputs changed. No full suite
+this round, as requested. Initial example notes and a test-helper compile error
+are retained and attributed in the report; no assertion or budget was relaxed.
+
+Report: reports/20260930-gq-guide-start-here/round1/REPORT.md, with every failure
+and rendered-card measurements. Local commit carries
+Co-Authored-By: GPT-6 Astra <noreply@openai.com>. Nothing pushed or published.

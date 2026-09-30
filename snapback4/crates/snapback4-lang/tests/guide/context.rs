@@ -5,7 +5,7 @@ use snapback4_lang::guide::{card, quarry, TEMPLATE};
 // This is an explicit context list, not an exemption from binding or note checks.
 pub fn source(block: &str) -> String {
     if TEMPLATE.contains(block.trim()) { return TEMPLATE.to_owned(); }
-    for name in ["maintains", "search", "feeds"] {
+    for name in ["maintains", "rules", "search", "feeds"] {
         let text = card(name).unwrap();
         let (opening, reference) = text.split_once("\n## Reference").unwrap();
         if quarry(opening).iter().any(|example| example == block) {
