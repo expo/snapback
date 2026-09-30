@@ -331,7 +331,7 @@ fn pure_expr(expr: &Expr) -> bool {
 
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
-        Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
+        Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected | Builtin::ReceiptSettled { .. } => false,
         Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,

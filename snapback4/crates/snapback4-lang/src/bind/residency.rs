@@ -81,13 +81,13 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     super::timeline::aggregate_sites(schema, program, &mut fact);
     for (table, kind) in ir::write_tables(program) {
         super::timeline::write_site(schema, &table, kind, &mut fact);
+        if !matches!(kind, "insert" | "insert-if-absent") && schema.receipts.iter().any(|f| f.members == table || f.runs == table) {
+            fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: "receipt accounting".into(), class: SiteClass::Server,
+                reason: "receipt membership changes and progress need settled state".into(), rewrite: "queue until server settlement".into() });
+        }
         if schema.tables.get(&table).is_none_or(|t| t.sync.is_none()) { fact.sites.push(site(schema, &format!("{kind} {table}"), &table, "byId", "write")); }
         if let Some(definition) = schema.tables.get(&table) {
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
-                if schema.receipts.iter().any(|f| f.messages == table || f.members == table || f.scope == table) {
-                    fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: "byId".into(), kind: "receipt allocation".into(), class: SiteClass::Server,
-                        reason: "receipt ordinals, join floors and recipient counts are assigned at server commit".into(), rewrite: "show the queued write until settlement; receipt sends and joins do not predict rows".into() });
-                }
                 if let Some(parent) = &definition.through {
                     if kind == "insert-if-absent" {
                         let reason = format!("{kind} on a read-through child queues without a row; use upsert for a set-state write (guide prediction)");

@@ -495,6 +495,12 @@ impl Binder<'_> {
             Ok(())
         };
         match name {
+            "receiptSettled" if primitive.is_some() => {
+                arity(1, "receipt settlement needs a row")?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                let Ty::Row(table) = ty else { return Err(type_error(site, "receipt settlement needs a row", "use a receipt row")); };
+                Ok((Expr::Builtin { builtin: Builtin::ReceiptSettled { table }, args: vec![value] }, Ty::Bool))
+            }
             super::super::intent_variants::PRESENT => {
                 let (value, _) = self.expr(&args[0], out)?;
                 Ok((Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(Expr::Literal(Value::Null)) }, Ty::Bool))

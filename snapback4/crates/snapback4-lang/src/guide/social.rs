@@ -96,9 +96,9 @@ It waits for a complete, non-revalidating lookup; loading never means absence.
 owner without a horizon. Each participant can resolve their held DMs offline,
 even after leaving; the ID grants no content access or new membership.
 `openDirect` checks the caller's key and inserts both keys and memberships in
-one server transaction. Concurrent opens return the same ID. Receipt scopes and
-joins queue without predicted rows; their pending write keeps the proposed route
-and composer until server settlement chooses the canonical ID (guide receipts).
+one server transaction. Concurrent opens return the same ID. With acquired coverage,
+the scope, memberships and keys predict together; history shows pending sends in
+compose order. Server settlement chooses the canonical ID and message order (guide receipts).
 Before creating, the resolver awaits the durable pending-write list: the hook's initial empty snapshot is still loading.
 
 ```tsx

@@ -1,0 +1,62 @@
+[
+  {
+    "log": "compile.log.gz",
+    "classification": "ours",
+    "detail": "E0004: new ReceiptSettled builtin missing from write-target purity classification. Added the non-pure arm."
+  },
+  {
+    "log": "compile-second.log.gz",
+    "classification": "ours",
+    "detail": "E0004: new builtin missing from component dependency classification. Added the arm."
+  },
+  {
+    "log": "receipts-first.log.gz",
+    "classification": "ours",
+    "detail": "59 passed, 1 failed: device_predictions_keep_owned_progress_and_include_removal_cleanup still expected predicted seen/removal and immediate local forged-field rejection. Updated to assert durable queueing, unchanged settled accounting and server E_RECEIPTS_OWNED."
+  },
+  {
+    "log": "prediction-first.log.gz",
+    "classification": "ours",
+    "detail": "All six new prediction tests supplied an extra c argument to receiptMember. Corrected the test helper to use each operation signature; six pass."
+  },
+  {
+    "log": "device-affected.log.gz",
+    "classification": "ours",
+    "detail": "census::authoring_census expected round-0 add/send never and seen/leave eligible. Reviewed the exact receipts-only diff and updated the census; all 127 affected device checks pass."
+  },
+  {
+    "log": "starter-first.log.gz",
+    "classification": "ours",
+    "detail": "New wasm offline-send witness timed out waiting for remote receipts because its transport deliberately parks /changes but did not explicitly sync again. Added sync during receipt convergence; product unchanged; starter and browser checks pass."
+  },
+  {
+    "log": "lang-affected.log.gz",
+    "classification": "ours",
+    "detail": "Invocation named nonexistent replay_conversion; corrected to delivery_replay_conversion. No tests ran on the failed invocation."
+  },
+  {
+    "log": "docs-budget.log.gz",
+    "classification": "ours",
+    "detail": "Invocation named nonexistent scripts/check-docs-budget.mjs; corrected to scripts/docs-budget.mjs, which passes."
+  },
+  {
+    "log": "wasm-first.log.gz",
+    "classification": "ours",
+    "detail": "Measured 600019 gzip bytes, exceeded inherited ratchet by 2633 bytes; intermediate build."
+  },
+  {
+    "log": "wasm-final.log.gz",
+    "classification": "ours",
+    "detail": "Measured 600389 gzip bytes, exceeded inherited ratchet by 3003 bytes; intermediate build."
+  },
+  {
+    "log": "wasm-confirm.log.gz",
+    "classification": "ours",
+    "detail": "Final source measured 600268 gzip bytes, exceeded inherited ratchet by 2882 bytes. Ratchet raised exactly to measured, with reason; full-suite rebuild passes."
+  },
+  {
+    "log": "tool invocation output",
+    "classification": "ours",
+    "detail": "Two initial output paths (compile log and report draft) wrongly repeated/omitted the snapback4 prefix for their working directory. No intended test/report write occurred; corrected paths immediately. No source was lost."
+  }
+]

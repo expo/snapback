@@ -260,16 +260,25 @@ fn offline<H: Host>(host: &mut H) {
         publish(&mut e, &mut devices[i], who);
         for n in 1..=3 {
             let q = devices[i].admit(queued(who, n)).unwrap();
-            assert!(!q.predictable);
-            assert!(q.predicted.is_empty());
+            assert!(q.predictable, "{q:?}");
+            assert_eq!(q.predicted.len(), 1);
         }
         let local = devices[i]
             .query("history", who, &json!({"conversation":"c","c":null}), NOW)
             .unwrap();
-        assert!(
-            local.data.as_array().unwrap().is_empty(),
-            "no guessed ordinal can enter history"
-        );
+        let mut rows: Vec<_> = local.data.as_array().unwrap().iter().collect();
+        rows.sort_by_key(|m| int(m, "ordinal"));
+        assert_eq!(rows.len(), 3);
+        for (n, row) in rows.iter().enumerate() {
+            assert_eq!(int(row, "ordinal"), n as i64 + 1);
+            assert_eq!(row.field("text").unwrap().as_str().unwrap(), format!("{who}{}", n + 1));
+            assert_eq!(row.field("pending"), Ok(&Value::Bool(true)));
+            assert_eq!(int(row, "recipients"), 0);
+        }
+        let progress = devices[i].query("progress", who, &json!({"conversation":"c","c":null}), NOW).unwrap();
+        assert!(progress.data.field("ahead").unwrap().as_array().unwrap().is_empty());
+        assert!(progress.data.field("runs").unwrap().as_array().unwrap().is_empty());
+
     }
     let [a, b] = devices;
     host.close("alice", a);
@@ -278,6 +287,11 @@ fn offline<H: Host>(host: &mut H) {
         host.open("alice", None).unwrap(),
         host.open("bob", None).unwrap(),
     ];
+    for (d, who) in devices.iter_mut().zip(["alice", "bob"]) {
+        let rows = d.query("history", who, &json!({"conversation":"c","c":null}), NOW).unwrap().data;
+        assert_eq!(rows.as_array().unwrap().len(), 3, "offline reopen retains predictions");
+        assert!(rows.as_array().unwrap().iter().all(|row| row.field("pending") == Ok(&Value::Bool(true))));
+    }
     let mut order = vec![];
     for i in [1, 0, 0, 1, 1, 0] {
         let who = ["alice", "bob"][i];
@@ -288,10 +302,10 @@ fn offline<H: Host>(host: &mut H) {
             ("photo", Value::Null),
         ];
         let r = e
-            .mutate("send", Some(&q.id), ctx(who, &values, NOW))
+            .mutate("send", Some(&q.id), ctx(who, &values, NOW).with_ids(q.new_ids.clone()))
             .unwrap();
         let replay = e
-            .mutate("send", Some(&q.id), ctx(who, &values, NOW))
+            .mutate("send", Some(&q.id), ctx(who, &values, NOW).with_ids(q.new_ids.clone()))
             .unwrap();
         assert!(replay.replayed);
         assert_eq!(seq(&r.state), seq(&replay.state));
@@ -674,21 +688,14 @@ fn runtime_guard<H: Host>(host: &mut H) {
     let mut d = host.open("guard", Some(b)).unwrap();
     publish(&mut e, &mut d, "alice");
     let q = d.admit(queued("alice", 1)).unwrap();
-    assert!(!q.predictable);
-    assert!(q.predicted.is_empty());
-    assert!(
-        d.query(
-            "history",
-            "alice",
-            &json!({"conversation":"c","c":null}),
-            NOW
-        )
-        .unwrap()
-        .data
-        .as_array()
-        .unwrap()
-        .is_empty()
-    );
+    assert!(q.predictable, "{q:?}");
+    assert_eq!(q.predicted.len(), 1);
+    let mut report = queued("alice", 2);
+    report.op = "seen".into();
+    report.args = json!({"conversation":"c","through":1});
+    assert!(!d.admit(report).unwrap().predictable);
+    assert_eq!(d.query("receiptMember", "alice", &json!({"conversation":"c"}), NOW).unwrap().data.field("seenOrdinal"), Ok(&Value::Int(0)));
+
 }
 #[test]
 fn runtime_prediction_guard_memory() {
@@ -741,3 +748,6 @@ fn recipient_capture_never_prices_another_members_private_payload() {
     };
     assert_eq!(outcome(""), outcome(&"x".repeat(1000)));
 }
+
+#[path = "prediction.rs"]
+mod prediction;

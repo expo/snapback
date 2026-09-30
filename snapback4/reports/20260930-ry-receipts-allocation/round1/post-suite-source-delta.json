@@ -1,0 +1,6 @@
+{
+  "files": [
+    "crates/snapback4-lang/tests/declarative_receipts/round3.rs"
+  ],
+  "change": "Comment only: describe the inherited RX missing-run-coverage fixture under v4 unconditional receipt membership custody. No executable code or test assertion changed."
+}

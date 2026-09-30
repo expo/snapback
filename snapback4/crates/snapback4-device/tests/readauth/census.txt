@@ -377,13 +377,14 @@ card/reads/4:sendBrief | eligible
 card/reads/4:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:split | never
-card/receipts/1:add | never
+card/receipts/1:add | eligible
+card/receipts/1:add | members/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/receipts/1:compactReceipts | never
 card/receipts/1:delivered | never
-card/receipts/1:leave | eligible
-card/receipts/1:seen | eligible
-card/receipts/1:seen | members/update | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
-card/receipts/1:send | never
+card/receipts/1:leave | never
+card/receipts/1:seen | never
+card/receipts/1:send | eligible
+card/receipts/1:send | messages/insert | {"Exists":{"table":"members","index":"$intent:byConversationPrincipal:4ee87294c2cbfa28","key":[{"Field":"conversation"},"Viewer"],"provenance":"Shape"}} | read rule
 card/refusals/1:checkin | never
 card/refusals/1:createRoom | eligible
 card/refusals/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

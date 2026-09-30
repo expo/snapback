@@ -552,7 +552,7 @@ fn receipts_remains_a_legal_ordinary_column_name() {
 }
 
 #[test]
-fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
+fn device_queues_progress_and_removal_without_changing_settled_receipts() {
     let source = format!(
         "{DECLARATIVE}\nmutation forge(conversation: conversations):\n  update members[conversation, viewer] {{ seenOrdinal: 999 }}\n"
     );
@@ -592,20 +592,17 @@ fn device_predictions_keep_owned_progress_and_include_removal_cleanup() {
         observed_seq: None,
         dispatch: None,
     };
-    assert_eq!(
-        d.admit(queued("forge", 1)).unwrap_err().code(),
-        "E_RECEIPTS_OWNED"
-    );
+    assert!(!d.admit(queued("forge", 1)).unwrap().predictable);
+    assert!(format!("{:?}", mutate(&mut e, "bob", "forge", &[("conversation",id("c"))], 30)).contains("E_RECEIPTS_OWNED"));
+    let before = d.query("progress", "bob", &json!({"conversation":"c","c":null}), 30).unwrap().data;
     let mut seen = queued("seen", 2);
     seen.args = json!({"conversation":"c","through":3});
-    assert!(d.admit(seen).unwrap().predictable);
+    assert!(!d.admit(seen).unwrap().predictable);
     let leave = d.admit(queued("leave", 3)).unwrap();
-    assert!(leave.predictable, "{leave:?}");
-    assert!(leave.predicted.contains(&"members/b".to_string()));
-    assert!(
-        leave.predicted.iter().any(|key| key.starts_with("runs/")),
-        "implicit run deletion is included in prediction's write set: {leave:?}"
-    );
+    assert!(!leave.predictable, "{leave:?}");
+    assert!(leave.predicted.is_empty());
+    assert_eq!(d.query("progress", "bob", &json!({"conversation":"c","c":null}), 30).unwrap().data, before);
+
 }
 
 #[path = "declarative_receipts/device_round1.rs"]

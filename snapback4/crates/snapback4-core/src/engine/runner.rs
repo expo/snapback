@@ -922,6 +922,7 @@ impl<'a> Runner<'a> {
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } => unreachable!("column extrema evaluate their source under scalar coverage"),
+            Builtin::ReceiptSettled { table } => Ok(Value::Bool(!self.is_provisional(table, &args[0])?)),
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {

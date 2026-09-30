@@ -316,14 +316,14 @@ fn family_mappings_operations_and_semantics_are_explicit() {
         bound(MANUAL).schema.delivery[0].fingerprint
     );
     let mut wire = serde_json::to_value(&b.schema.delivery[0]).unwrap();
-    wire["semantics"] = json!("receipts.v3");
+    wire["semantics"] = json!("receipts.v4");
     let changed: snapback4_core::schema::DeliveryBinding = serde_json::from_value(wire).unwrap();
     assert_ne!(
         changed.compute_fingerprint(),
         b.schema.delivery[0].fingerprint
     );
     let caps = serde_json::to_string(&b.schema).unwrap();
-    assert!(caps.contains("declarative-receipts-v3"));
+    assert!(caps.contains("declarative-receipts-v4"));
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed_at(
         [

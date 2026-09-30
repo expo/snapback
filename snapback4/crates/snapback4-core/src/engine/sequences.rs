@@ -60,7 +60,7 @@ impl Runner<'_> {
         if !self.device || self.device_allowance.is_none() || self.provisional_sequence_read { return Ok(()); }
         let table = &self.schema.tables[name];
         let index = &table.indexes[index_name];
-        let Some(position) = index.components.iter().position(|part| part.column().is_some_and(|field| table.sequences.contains_key(field))) else { return Ok(()); };
+        let Some(position) = index.components.iter().position(|part| part.column().is_some_and(|field| table.sequences.contains_key(field) || self.schema.receipt_assigned(name, field))) else { return Ok(()); };
         self.observe_provisional_selection(name, index, &prefix[..prefix.len().min(position)])
     }
 
@@ -106,7 +106,7 @@ impl Runner<'_> {
     pub(super) fn sequence_field_is_provisional(&self, row: &Value, field: &str) -> Result<bool, RuntimeError> {
         if !self.device || row.field("id").and_then(Value::as_str).is_err() { return Ok(false); }
         for (name, table) in &self.schema.tables {
-            if table.sequences.contains_key(field) && self.is_provisional(name, row)? { return Ok(true); }
+            if (table.sequences.contains_key(field) || self.schema.receipt_assigned(name, field)) && self.is_provisional(name, row)? { return Ok(true); }
         }
         Ok(false)
     }
@@ -121,7 +121,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn observe_sequence_columns(&mut self, name: &str, row: &Value, fields: &[String], inserting: bool) -> Result<(), RuntimeError> {
-        if self.device && fields.iter().any(|field| self.schema.tables[name].sequences.contains_key(field)) {
+        if self.device && fields.iter().any(|field| self.schema.tables[name].sequences.contains_key(field) || self.schema.receipt_assigned(name, field)) {
             self.provisional_sequence_read |= inserting || self.is_provisional(name, row)?;
         }
         Ok(())
@@ -129,7 +129,7 @@ impl Runner<'_> {
 
     /// Author-facing point reads and pages share the sequence result contract.
     pub(super) fn sequence_read_result(&mut self, name: &str, mut row: Value) -> Result<Value, RuntimeError> {
-        if row != Value::Null && row.field("pending") != Ok(&Value::Bool(true)) && !self.schema.tables[name].sequences.is_empty() && self.is_provisional(name, &row)? {
+        if row != Value::Null && row.field("pending") != Ok(&Value::Bool(true)) && (!self.schema.tables[name].sequences.is_empty() || self.schema.receipt_insert(name)) && self.is_provisional(name, &row)? {
             let bytes = self.project_row(name, row.clone())?.heap_bytes();
             self.meter.heap(bytes + word_heap::insertion::<String, Value>(row.as_object()?.len()) + word_heap::text("pending"))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert("pending".into(), Value::Bool(true)); }

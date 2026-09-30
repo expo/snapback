@@ -284,9 +284,13 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
   assert.equal(queued.state, "pending", JSON.stringify(queued));
   const admission = (await local.pendingWrites()).find(w => w.id === opening);
   assert.ok(admission, "creation enters SDK custody offline");
-  assert.deepEqual(admission.predicted, [], "receipt scope and join creation waits for server accounting");
+  assert.ok(admission.predicted.length > 0, "scope, membership and direct lookup predict together");
   const pendingPair = await local.query(api.directConversation, { other: peer });
-  assert.equal(pendingPair.data, null, JSON.stringify(pendingPair));
+  assert.equal(pendingPair.data.conversation, provisional, JSON.stringify(pendingPair));
+  assert.equal(pendingPair.data.pending, true);
+  const pendingMember = await local.query(api.receiptMember, { conversation: provisional });
+  assert.equal(pendingMember.data, null);
+  assert.equal(pendingMember.existence, "partial", "pending membership cannot prove settled absence");
   const proposals = [mintId(), mintId()];
   let completed = 0;
   const concurrent = [
@@ -410,4 +414,62 @@ test("social proposal associations are durable, account/backend scoped and prese
   assert.deepEqual(open().read(), [original[0]], "pruning preserves the recoverable intent verbatim");
   open().forget(original[0].id);
   assert.equal(values.size, 0);
+});
+
+// @ref LLP 3000.022#14.3 — ordinary history renders offline sends, with no application outbox merge.
+test("social starter wasm: offline history predicts in compose order and settles once with receipts", { timeout: 30_000 }, async t => {
+  const generated = starter(t), api = await generatedApi(generated);
+  const { url } = await server(t, undefined, readFileSync(join(generated, "snapback/schema.q"), "utf8"));
+  const sessions = [];
+  for (const name of ["predict-alice", "predict-bob"]) {
+    const response = await fetch(`${url}/auth/signup`, { method: "POST", body: JSON.stringify({
+      email: `${name}@example.com`, password: "offline-receipts-password",
+    }) }).then(r => r.json());
+    assert.ok(response.session, JSON.stringify(response)); sessions.push(response.session);
+  }
+  const remote = createClient({ url, token: sessions[1].token });
+  t.after(() => remote.close());
+  let offline = false;
+  const device = webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
+  const local = await createLocalClient({ url, session: sessions[0], device, fetch: (input, init) => {
+    if (offline) throw new TypeError("offline");
+    return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
+  } });
+  t.after(() => local.close());
+  const created = await local.mutate(api.createConversation, { title: "offline history" });
+  assert.equal(created.state, "sent", JSON.stringify(created));
+  const conversation = created.result;
+  assert.equal((await local.mutate(api.add, { conversation, principal: sessions[1].principal })).state, "sent");
+  await local.sync(); offline = true; await local.sync();
+  const writes = [];
+  for (const text of ["offline first", "offline second"]) {
+    const write = await local.mutate(api.send, { conversation, text, photo: null }, { waitSeconds: 0 });
+    assert.equal(write.state, "pending", JSON.stringify(write)); writes.push(write.id);
+    const history = await local.query(api.history, { conversation });
+    assert.equal(history.existence, "present", JSON.stringify(history));
+    assert.equal(history.data.length, writes.length);
+    assert.ok(history.data.every(row => row.pending === true));
+    assert.deepEqual([...history.data].sort((a,b) => a.ordinal-b.ordinal).map(row => row.text), ["offline first", "offline second"].slice(0,writes.length));
+    const receipts = await local.query(api.messageReceipts, { conversation });
+    assert.ok(receipts.data.every(row => row.pending === true && row.receipt === null), JSON.stringify(receipts));
+    const progress = await local.query(api.progress, { conversation });
+    assert.deepEqual(progress.data.ahead, []); assert.deepEqual(progress.data.runs, []);
+    assert.equal(progress.data.member.deliveredOrdinal, 0); assert.equal(progress.data.member.seenOrdinal, 0);
+  }
+  // A remote commit wins ordinal 1; the predictions must move on settlement.
+  const other = await remote.mutate(api.send, { conversation, text: "remote first", photo: null });
+  assert.equal(other.state, "sent", JSON.stringify(other));
+  offline = false; await local.sync();
+  await until(async () => !(await local.pendingWrites()).some(w => writes.includes(w.id)), "offline sends settle");
+  await local.sync();
+  const history = await local.query(api.history, { conversation });
+  const rows = [...history.data].sort((a,b) => a.ordinal-b.ordinal);
+  assert.deepEqual(rows.map(row => row.text), ["remote first", "offline first", "offline second"]);
+  assert.deepEqual(rows.map(row => row.ordinal), [1,2,3]);
+  assert.equal(new Set(rows.map(row => row.id)).size, 3);
+  assert.ok(rows.every(row => !row.pending && row.recipients === 1));
+  await remote.query(api.history, { conversation });
+  await until(async () => { await local.sync(); const read = await local.query(api.messageReceipts, { conversation }); return read.data?.filter(row => row.id !== other.result).every(row => row.receipt === "delivered"); }, "offline sends delivered");
+  assert.equal((await remote.mutate(api.seen, { conversation, through: 3 })).state, "sent");
+  await until(async () => { await local.sync(); const read = await local.query(api.messageReceipts, { conversation }); return read.data?.filter(row => row.id !== other.result).every(row => row.receipt === "read"); }, "offline sends read");
 });

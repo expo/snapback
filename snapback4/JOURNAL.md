@@ -80420,3 +80420,65 @@ Wasm unchanged: 1,978,828 B raw / 593,225 B gzip, 494 B below the unchanged
 reports/20260930-qs-one-shot-settles/round2/REPORT.md and FAILURES.md.
 Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
 Nothing pushed or published.
+
+## 2026-09-30 — RY round 1: provisional history, settled receipt accounting
+
+Read RY round zero's prompt/report and merged origin/main 0b8ac4ab8884 first
+in 910b9b90ee, retaining both revision-header additions and all journal entries.
+Restored immediate predicted sends in ordinary history: pending positions follow
+the greater of the held scope counter and message suffix, including this
+queue's prior sends. Reopen preserves them; authoritative settlement can move
+rows behind another member's earlier commit. Refusal withdraws the prediction
+without a position or receipt trace. The existing SDK outbox/replacement rules
+own this; there is no builder history/outbox merge.
+
+Scope creation and joins predict under acquired authority, including the
+creator's membership and sends into that predicted scope. Provisional sends
+leave the counter unchanged and carry zero placeholder recipient counts.
+Compiler-owned settlement provenance excludes provisional members/messages from
+receipt accounting: pending message projections are null, member/progress are
+null for a pending membership, and progress excludes pending ahead rows. SDK
+delivery collection remains confirmed-only. Delivery, seen, compaction and
+existing membership updates/removals queue without prediction to keep settled
+progress and old recipient requirements honest. Missing authority/acquisition
+or exhausted safe-integer positions also queue without rows. Existing pending
+metadata and LLP 3000.031 existence semantics apply unchanged.
+
+Allocation, membership-index recipient snapshots, join/rejoin floors, atomic
+rollback and write-id retries remain server-owned. Prediction/projection
+semantics advance the capability and fingerprint to v4. LLP 3000.022 §14,
+LLP 3000.028 §8 and the compiled guides describe the rule. The social starter
+schema remains 223 lines versus 231 before round zero (294 before RX), with
+manual allocation/count/floor code still removed.
+
+Verification: receipts 66/66; whole guide 107/107; affected device checks 127/127;
+core sequence checks 46/46; language delivery checks 27 passes and one existing
+ignore. The new accounting model adds 960 interleaved transitions on both stores
+to the existing 2,560-transition allocation model. Two-device offline/reopen
+witnesses, revocation refusal, scope/join prediction and metadata-independent
+runtime guards pass. Starter/browser checks pass 34/34, final starter 10/10;
+the wasm offline scenario sees both sends pending in compose order, then exactly
+once in server order, with delivered/read receipts and no replacement outbox.
+
+Ran scripts/test.sh exactly once, exit 0. Exact summary:
+
+    == 0 failure(s) in 1324 s
+
+Rust: 4,453 passes, 33 existing ignores. Clients: 5,577 passes, 10 existing skips,
+no cancellations. Fixtures: 9/9. Serial models: 79/79, including both full
+5,000-sequence walks. Full-run failures: ours 0, baseline 0, environmental 0.
+All 1,698 source/manifest hashes match across the run. The only subsequent
+source-file edit corrects an inherited test comment; executable code and test
+assertions are unchanged. The nominal inherited 60-second suite bar remains
+exceeded; no count, timeout, concurrency policy or runtime ceiling changed.
+
+Wasm: 2,001,463 B raw / 600,268 B gzip on Rust 1.97.0, wasm-bindgen 0.2.127 and
+locked Binaryen 132. Restoring the device suffix allocator, provisional result
+handling/dependency tracking and structural receipt guards requires +2,882 B
+against the inherited 597,386 B ratchet. Raised exactly to measured 600,268 B,
+without slack; server allocation/counting remain server-only. The full-suite
+rebuild reproduces those bytes. Report, every development failure/correction,
+source hashes and artifact evidence:
+reports/20260930-ry-receipts-allocation/round1/REPORT.md.
+Local commit carries Co-Authored-By: GPT-6 Astra <noreply@openai.com>.
+Nothing pushed or published.

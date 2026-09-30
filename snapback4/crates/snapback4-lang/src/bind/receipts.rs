@@ -441,7 +441,7 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
             binding.compact = Some(family.compact.clone());
             // All semantic coordinates plus the template version fence SDK debt.
             binding.semantics = Some(format!(
-                "receipts.v3:{}:{}:{}:{}:{}:{}:{}",
+                "receipts.v4:{}:{}:{}:{}:{}:{}:{}",
                 serde_json::to_string(&family).unwrap(),
                 clause.counter,
                 clause.floor,
@@ -457,7 +457,7 @@ pub fn bind(catalog: &Catalog, schema: &mut Schema, errors: &mut Vec<Diagnostic>
                 .unwrap(),
                 include_str!("receipts.q")
             ));
-            binding.semantics = Some(format!("receipts.v3:{}", binding.compute_fingerprint()));
+            binding.semantics = Some(format!("receipts.v4:{}", binding.compute_fingerprint()));
             binding.fingerprint = binding.compute_fingerprint();
             schema.receipts.push(family);
         }

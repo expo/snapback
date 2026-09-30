@@ -102,6 +102,10 @@ pub struct Prediction {
 pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> Result<Prediction, RuntimeError> {
     if program.kind == crate::ir::ProgramKind::Action { return Err(RuntimeError::UnknownOp("an action cannot predict; call client.act".into())); }
     validate_inputs(schema, program, &mut context.args)?;
+    // Runtime custody is independent of advisory prediction classification.
+    if schema.receipts.iter().any(|f| program.name == f.delivered || program.name == f.seen || program.name == f.compact) {
+        return Err(RuntimeError::Prediction("receipt reports need server settlement".into()));
+    }
     if let Some(fact) = schema.operations.get(&program.name) && fact.predicts.as_deref() == Some("never") {
         let reason = fact.sites.iter().find(|site| site.class == crate::schema::SiteClass::Server).map(|site| format!("site {}: {}", site.site, site.reason)).unwrap_or_else(|| program.name.clone());
         return Err(RuntimeError::Prediction(format!("{reason}; queued without a predicted row")));

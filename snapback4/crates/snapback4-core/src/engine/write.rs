@@ -419,6 +419,10 @@ impl Runner<'_> {
 
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
+        // @ref LLP 3000.022#14.3 — pending member changes cannot rewrite settled requirements.
+        if self.device && effect != Effect::Insert && self.schema.receipts.iter().any(|f| f.members == table || f.runs == table) {
+            return Err(RuntimeError::Prediction("receipt membership changes and progress queue until settlement".into()));
+        }
         self.refuse_receipt_table(table)?;
         self.refuse_condition_write()?;
         self.refuse_timeline_write(table, effect)?;

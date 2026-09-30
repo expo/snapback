@@ -129,8 +129,7 @@ later runs still merge. Long gaps persist partial endpoints across calls. `RUNS_
 before the count. Replaying its write id returns that success.
 Maintenance success never acknowledges delivery. Each step
 uses the ordinary meter; a refusal rolls back its transaction.
-Creating receipt scopes, sends and joins queue offline without predicted rows: a device cannot know the next server ordinal or current membership. Show the durable queued-write state until settlement; committed history is ordered by server transaction order. Replaying a write id allocates nothing twice. Seen may queue and predict under ordinary coverage; only settled delivery
-reports can establish committed receipt state. Reports assert the recipient's
+Sends predict in ordinary history with `pending: true`, after the highest ordinal held for that group and in this device's submission order. Settlement replaces provisional positions with server ordinals, so rows can move. The confirmed counter stays unchanged; provisional recipient counts are zero and never enter accounting. Scope creation and joins predict with held authority and coverage, including the creator's membership. Missing acquisition/authority or an exhausted safe-integer position queues without a row. Existing membership updates/removals, delivery, compaction and seen queue without prediction to preserve settled accounting. Generated progress excludes pending messages; member/progress return null for a pending membership, and projections return null for pending messages and exclude pending recipients. The SDK never collects provisional rows as delivery. Pending metadata uses the ordinary existence classifier (guide client). Replaying a write id allocates nothing twice. Reports assert the recipient's
 own observation; no protocol can prove that a person actually read a message.
 
 For custom semantics, use the complete expert recipe in `guide manual-receipts`.
@@ -140,7 +139,7 @@ schema adoption: keep names, columns, indexes, membership floors and counters;
 remove declarations the clause generates, explicit run deletion from leave,
 and authored allocation, recipient counts and join-floor writes. Existing rows survive; no backfill invents delivery. Other manual
 layouts keep working and require an explicit data migration before opting in.
-Upgrade engines and devices together; v3 changes the capability and delivery
+Upgrade engines and devices together; v4 changes the capability and delivery
 fingerprint, retiring old SDK debt for recollection.
 
 The older `useReceipts` history-walking hook does not scale to a large group:
