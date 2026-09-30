@@ -69,7 +69,11 @@ function ConversationList() {
 }
 ```
 
+Keep decorations separate.
+
 ## Expo and acquisition
+
+Every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm). It installs Release and proves local-store acquisition, offline reopen and reconnect. Pending write replay needs an application scenario (`guide witness`).
 
 Social: `nativeDevice` on native, `webDevice()` on web, online in Expo Go. `guide witness`: native proof; `guide reads`: live timings; `guide sync`: acquisition and offline reopening.
 

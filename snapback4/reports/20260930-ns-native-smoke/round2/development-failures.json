@@ -1,0 +1,53 @@
+[
+  {
+    "invocation": "affected-rust.log",
+    "classification": "ours",
+    "test": "driver::timed_out_startup_does_not_leak_listener_to_checker",
+    "cause": "Expected E_WITNESS_TIMEOUT instead of startup E_WITNESS_BACKEND step-timeout diagnostic",
+    "resolution": "Corrected expected code/message; port-free assertion unchanged; affected-final.log passes 47/47"
+  },
+  {
+    "invocation": "initial README/report setup",
+    "classification": "ours",
+    "cause": "Root-relative paths used with snapback4 working directory: Python FileNotFoundError, cp missing source, redirect missing report directory",
+    "resolution": "Corrected cwd and removed only newly created empty directories"
+  },
+  {
+    "invocation": "guide prose polish setup",
+    "classification": "ours",
+    "cause": "Root-relative path used with snapback4 cwd: Python FileNotFoundError",
+    "resolution": "Corrected cwd; guide-final.log runs after successful edit"
+  },
+  {
+    "invocation": "starter-install.log",
+    "classification": "environmental",
+    "cause": "npm registry 404 for source-map-js-1.2.2.tgz",
+    "resolution": "Identical generated package manifest; reused round-1 qualified lock and npm ci --offline succeeded"
+  },
+  {
+    "invocation": "full-suite.log (cargo test)",
+    "classification": "ours",
+    "test": "verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid",
+    "cause": "The positive UID control assumed Cargo executables were not group-writable; eb1000 executable mode is 0775 and was correctly rejected.",
+    "resolution": "Test now creates a mode-0600 fixture; same positive and negative UID assertions. Full suite is not rerun or relabeled."
+  },
+  {
+    "invocation": "full-suite.log (client tests)",
+    "classification": "baseline",
+    "test": "dev declares two workers, injects usable secret seats, restarts independently and stops both",
+    "cause": "Test observes both startup files before its stderr callback has received push authentication log; independent channels lack synchronization.",
+    "evidence": [
+      "worker-baseline-source.json",
+      "worker-race-control.json",
+      "worker-race-round1.log",
+      "worker-race-round2.log"
+    ],
+    "followup": "issues/20260930-snapback4-supervised-workers-log-race.md"
+  },
+  {
+    "invocation": "git diff --cached --check",
+    "classification": "ours, evidence packaging",
+    "cause": "Verbatim copied review contains Markdown hard-break trailing spaces; staged diff check reported three lines.",
+    "resolution": "Retained original review bytes as gzip with SHA-256 provenance; no review text altered. Final staged diff check passes."
+  }
+]

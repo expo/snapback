@@ -80,12 +80,12 @@ Replace `src/client.ts`: the app restores the session, opens its client and owns
 Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage.
 Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-For an own Release build and native smoke, run `npx snapback4 witness ios --build . --smoke --udid "$UDID" --artifacts artifacts/native-smoke`.
-The bounded Expo 57.0.22 / RN 0.86.3 / Xcode 27 adapter installs and launches without GUI automation or Metro.
+At every milestone: `npm run export:ios` for Hermes; on a Mac with Xcode, `npm run native:smoke` (about 3 minutes warm).
+Smoke installs the Release app and proves local-store acquisition, offline reopen and reconnect; pending write replay needs an application scenario.
 Read `npx snapback4 guide witness` for exact pins, helper/session requirements, immutable proofs, output restrictions, installed-app mode and deeper scenarios.
-After edits, repeat `--build` with fresh artifacts; the private Xcode cache stays warm. Repack is withdrawn.
-Five complete warm runs on the shared M5 Pro mini passed: **159.841 s median / 197.562 s p95** (2.7 / 3.3 minutes).
-Cold native preparation took about six minutes, plus smoke and tool/dependency setup; these are pinned-app observations, not timing guarantees.
+After edits, repeat `npm run native:smoke`; artifacts are fresh and the private Xcode cache stays warm. Repack is withdrawn.
+NS round 0 cohort (2026-09-30), fresh starter: **221.7 s cold**, **83.5 s warm median (3 runs)**; social **186.2 s**. Shared Apartment M5 Pro mini, 18 cores/64 GiB, Xcode/iOS 27.
+One-minute host load: cold 3.61–61.41, warm 3.21–7.22, social 14.62–47.52; tools/dependencies installed first. Guidance, not a promise.
 Compiler-declared server-only reads must answer online and record expected offline unavailability. A build receipt alone proves neither smoke nor M6/M8 application behavior.
 
 ```ts
